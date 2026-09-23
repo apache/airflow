@@ -105,6 +105,8 @@ class SerializedMappedOperator(DAGNode):
     _is_empty: bool = attrs.field(alias="is_empty", init=False, default=False)
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
+    is_stub: bool = attrs.field(init=False, default=False)
+    _arg_bindings: list[dict[str, Any]] | None = attrs.field(alias="arg_bindings", init=False, default=None)
     _task_module: str
     task_type: str
     _operator_name: str
@@ -187,6 +189,11 @@ class SerializedMappedOperator(DAGNode):
         return self._can_skip_downstream
 
     @property
+    def arg_bindings(self) -> list[dict[str, Any]] | None:
+        """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
+        return self._arg_bindings
+
+    @property
     def owner(self) -> str:
         return self._get_partial_kwargs_or_operator_default("owner")
 
@@ -261,6 +268,10 @@ class SerializedMappedOperator(DAGNode):
     @property
     def has_on_skipped_callback(self) -> bool:
         return self._get_partial_kwargs_or_operator_default("has_on_skipped_callback")
+
+    @property
+    def has_retry_policy(self) -> bool:
+        return self._get_partial_kwargs_or_operator_default("has_retry_policy")
 
     @property
     def run_as_user(self) -> str | None:

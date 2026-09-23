@@ -121,9 +121,6 @@ services:
         source: ../../../scripts
         target: /opt/airflow/scripts
       - type: bind
-        source: ../../../uv.lock
-        target: /opt/airflow/uv.lock
-      - type: bind
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
       - type: bind
@@ -132,6 +129,9 @@ services:
       - type: bind
         source: ../../../task-sdk
         target: /opt/airflow/task-sdk
+      - type: bind
+        source: ../../../ts-sdk
+        target: /opt/airflow/ts-sdk
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
 volumes:
   root-airflow-volume:

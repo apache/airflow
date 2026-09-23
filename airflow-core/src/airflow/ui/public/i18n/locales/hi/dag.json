@@ -106,11 +106,6 @@
     "viewInExternal": "{{name}} में लॉग्स देखें (प्रयास {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "नेवीगेशन: Shift+{{arrow}}",
-    "openGraphFilters": "Task फ़िल्टर: Ctrl+Shift+F",
-    "toggleGroup": "ग्रुप टॉगल करें: Space"
-  },
   "notFound": {
     "back": "वापस जाएं",
     "backToDags": "डैग्स पर वापस जाएं",

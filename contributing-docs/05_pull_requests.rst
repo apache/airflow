@@ -171,7 +171,7 @@ tooling, with a comment explaining what needs to be fixed.
    Generic titles such as "Fix bug", "Update code", "Changes", single-word titles, or titles
    that only reference an issue number (e.g. "Fixes #12345") do not meet this bar.
 
-2. ** Golden Rule ** - in text descriptions - always use imperative mode, never use past
+2. **Golden Rule** - in text descriptions - always use imperative mode, never use past
    tense or conventional commits or any prefixes in the title take precious space and do not add any value, so they should be
    avoided. For example, instead of "feat: add new feature" or "Added this new feature"
    use "Add new feature". This is a common convention in many open source projects
@@ -433,6 +433,61 @@ In such cases we can usually do something like this
         super().__init__(**kwargs)
         my_field = my_field or []
         self.my_field = my_field
+
+For such a mutable default the ``if my_field is None: my_field = []`` spelling is equally fine.
+
+Checks that only ask **whether an argument was passed** are the other exception, and they belong in
+the constructor — it is the only place that can answer the question. With
+``render_template_as_native_obj=True`` a field that *was* passed can render to
+``None``, so in ``execute`` a supplied argument is indistinguishable from a missing one. Write the
+check as ``is None`` / ``is not None``, never as a truthiness test — a supplied argument can itself
+be ``""``, ``0`` or an empty list:
+
+.. code-block:: python
+
+    from airflow.utils.helpers import exactly_one
+
+
+    def __init__(self, *, command: str | None = None, powershell: str | None = None, **kwargs):
+        if not exactly_one(command is not None, powershell is not None):
+            raise ValueError("Must provide exactly one of 'command' or 'powershell'")
+        super().__init__(**kwargs)
+        self.command = command
+        self.powershell = powershell
+
+``self.field is None`` works the same way, after the assignment. Anything that looks at the *value*
+still has to move to ``execute``, and the operand has to be the field itself — indirection such as
+``all(v is None for v in [a, b])`` is still flagged.
+
+Converting an existing truthiness check is not neutral: a guard that raises when two arguments are
+*both* set only gets stricter, but ``if not field: raise`` gets looser — ``""`` and ``0`` start
+passing, and that half is a value check. ``not exactly_one(a, b)`` carries both, since it also
+requires at least one.
+
+Operators that support ``start_from_trigger`` are the third exception. The scheduler sends the task
+straight to the triggerer and ``execute`` never runs; the triggerer renders the ``trigger_kwargs``
+entries whose key is both an operator template field and an attribute of the trigger. Copying such
+a field verbatim into ``start_trigger_args`` under its own name is therefore fine in the
+constructor:
+
+.. code-block:: python
+
+    def __init__(self, *, job: dict, start_from_trigger: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.job = job
+        self.start_from_trigger = start_from_trigger
+        if start_from_trigger:
+            self.start_trigger_args = dataclasses.replace(
+                self.start_trigger_args, trigger_kwargs={"job": self.job}
+            )
+
+A transformed value, a copy under a key that is not a template field of the operator, and a template
+field passed as ``timeout`` or ``next_kwargs`` are never rendered and are still flagged. A copy under
+the name of a *different* template field is rendered, under that key, but is flagged as well — the
+entry no longer holds the field its key names.
+
+The hook only verifies the operator half of that pair: it cannot tell whether the key is also an
+attribute of the trigger class, so a passing hook is not confirmation that the kwarg will be rendered.
 
 The reason for doing it is that we are working on a cleaning up our code to have
 `prek hook <../scripts/ci/prek/validate_operators_init.py>`_

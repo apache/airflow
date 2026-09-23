@@ -118,6 +118,33 @@ class TestCallbackRequest:
 
         assert request.is_failure_callback == expected_is_failure
 
+    def test_version_data_round_trips_and_defaults_none(self):
+        """version_data survives JSON serialization and defaults to None when omitted."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        request = DagCallbackRequest(
+            filepath="filepath",
+            dag_id="fake_dag",
+            run_id="fake_run",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="abc123",
+            version_data=version_data,
+        )
+        result = DagCallbackRequest.from_json(request.to_json())
+        assert result.version_data == version_data
+
+        # Omitted -> defaults to None and round-trips as None.
+        unpinned = DagCallbackRequest(
+            filepath="filepath",
+            dag_id="fake_dag",
+            run_id="fake_run",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
+        )
+        assert unpinned.version_data is None
+        assert DagCallbackRequest.from_json(unpinned.to_json()).version_data is None
+
 
 class TestDagRunContext:
     def test_dagrun_context_creation(self):

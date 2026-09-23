@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -460,3 +460,116 @@ class TestTableauHook:
             assert tableau_hook.wait_for_state(
                 job_id="j1", target_state=TableauJobFinishCode.PENDING, check_interval=1
             )
+
+    @patch("tableauserverclient.Server")
+    def test_wait_for_state_timeout(self, mock_tableau_server):
+        """A job stuck in PENDING raises TimeoutError once the timeout elapses."""
+        clock = {"t": 0.0}
+        with TableauHook(tableau_conn_id="tableau_test_password") as tableau_hook:
+            tableau_hook.get_job_status = MagicMock(
+                name="get_job_status",
+                return_value=TableauJobFinishCode.PENDING,
+            )
+            with (
+                patch("time.monotonic", side_effect=lambda: clock["t"]),
+                patch("time.sleep", side_effect=lambda seconds: clock.__setitem__("t", clock["t"] + seconds)),
+            ):
+                with pytest.raises(TimeoutError, match="still PENDING after 30 seconds"):
+                    tableau_hook.wait_for_state(
+                        job_id="j1",
+                        target_state=TableauJobFinishCode.SUCCESS,
+                        check_interval=10,
+                        timeout=30,
+                    )
+
+    @pytest.mark.parametrize(
+        ("job_status", "expected"),
+        [
+            pytest.param(
+                MagicMock(
+                    name="get_job_status",
+                    side_effect=[TableauJobFinishCode.PENDING, TableauJobFinishCode.SUCCESS],
+                ),
+                True,
+                id="finished-at-deadline",
+            ),
+            pytest.param(
+                MagicMock(name="get_job_status", return_value=TableauJobFinishCode.PENDING),
+                "raises",
+                id="still-pending",
+            ),
+        ],
+    )
+    @patch("tableauserverclient.Server")
+    def test_wait_for_state_uses_last_poll_result_on_timeout(self, mock_tableau_server, job_status, expected):
+        """A job that finishes on the poll taken at the deadline succeeds; one still PENDING times out."""
+        clock = {"t": 0.0}
+        with TableauHook(tableau_conn_id="tableau_test_password") as tableau_hook:
+            tableau_hook.get_job_status = job_status
+            with (
+                patch("time.monotonic", side_effect=lambda: clock["t"]),
+                patch("time.sleep", side_effect=lambda seconds: clock.__setitem__("t", clock["t"] + seconds)),
+            ):
+                if expected == "raises":
+                    with pytest.raises(TimeoutError):
+                        tableau_hook.wait_for_state(
+                            job_id="j1",
+                            target_state=TableauJobFinishCode.SUCCESS,
+                            check_interval=5,
+                            timeout=5,
+                        )
+                else:
+                    assert tableau_hook.wait_for_state(
+                        job_id="j1",
+                        target_state=TableauJobFinishCode.SUCCESS,
+                        check_interval=5,
+                        timeout=5,
+                    )
+
+    @patch("time.sleep", return_value=None)
+    @patch("tableauserverclient.Server")
+    def test_wait_for_state_timeout_success_before_elapsed(self, mock_tableau_server, sleep_mock):
+        """timeout does not interfere when the job finishes before it elapses."""
+        with TableauHook(tableau_conn_id="tableau_test_password") as tableau_hook:
+            tableau_hook.get_job_status = MagicMock(
+                name="get_job_status",
+                side_effect=[TableauJobFinishCode.PENDING, TableauJobFinishCode.SUCCESS],
+            )
+            assert tableau_hook.wait_for_state(
+                job_id="j1",
+                target_state=TableauJobFinishCode.SUCCESS,
+                check_interval=1,
+                timeout=300,
+            )
+
+    @pytest.mark.parametrize(
+        ("max_check_interval", "expected_intervals"),
+        [
+            pytest.param(None, [10, 15, 22.5], id="uncapped"),
+            pytest.param(12, [10, 12, 12], id="capped"),
+        ],
+    )
+    @patch("time.sleep", return_value=None)
+    @patch("tableauserverclient.Server")
+    def test_wait_for_state_exponential_backoff(
+        self, mock_tableau_server, sleep_mock, max_check_interval, expected_intervals
+    ):
+        """Exponential backoff grows the wait between checks by 50% each time, honoring the cap."""
+        with TableauHook(tableau_conn_id="tableau_test_password") as tableau_hook:
+            tableau_hook.get_job_status = MagicMock(
+                name="get_job_status",
+                side_effect=[
+                    TableauJobFinishCode.PENDING,
+                    TableauJobFinishCode.PENDING,
+                    TableauJobFinishCode.PENDING,
+                    TableauJobFinishCode.SUCCESS,
+                ],
+            )
+            assert tableau_hook.wait_for_state(
+                job_id="j1",
+                target_state=TableauJobFinishCode.SUCCESS,
+                check_interval=10,
+                exponential_backoff=True,
+                max_check_interval=max_check_interval,
+            )
+            assert sleep_mock.call_args_list == [call(interval) for interval in expected_intervals]

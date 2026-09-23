@@ -68,7 +68,7 @@ media - this is important for the PMC to be aware of such activities. If PMC is 
 have no chance to spot and promote such candidates.
 
 Guidelines from ASF are listed at ASF:
-`New Candidates for Committership <http://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`_
+`New Candidates for Committership <https://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`_
 
 
 Prerequisites

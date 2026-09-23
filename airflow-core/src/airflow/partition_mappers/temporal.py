@@ -155,6 +155,8 @@ def _compile_output_format_regex(
 class _BaseTemporalMapper(PartitionMapper):
     """Base class for Temporal Partition Mappers."""
 
+    expected_decoded_type: ClassVar[type] = datetime
+
     default_output_format: str
 
     def __init__(
@@ -469,9 +471,11 @@ class FanOutMapper(PartitionMapper):
     is N→1 (downstream waits until all members arrive), fan-out is 1→N (one
     upstream event creates one downstream Dag run per member).
 
-    For forward fan-out (emit the trailing period ending at the upstream key,
-    instead of the period it represents), pass ``direction=Window.Direction.FORWARD``
-    to the window:
+    ``window``'s direction controls which period each upstream key fans out to.
+    The default, ``Window.Direction.FORWARD``, yields the period *starting at*
+    the upstream key (the period it represents); ``Window.Direction.BACKWARD``
+    yields the trailing period *ending at* the upstream key. Pass
+    ``direction=Window.Direction.BACKWARD`` to the window for the latter:
 
     .. code-block:: python
 
@@ -482,8 +486,8 @@ class FanOutMapper(PartitionMapper):
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
 
         # Weekly upstream → the 7 days ending at the upstream Monday (trailing period)
-        forward_window = WeekWindow(direction=Window.Direction.FORWARD)
-        FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=forward_window)
+        backward_window = WeekWindow(direction=Window.Direction.BACKWARD)
+        FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=backward_window)
     """
 
     # Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with

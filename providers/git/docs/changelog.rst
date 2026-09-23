@@ -19,6 +19,83 @@
 Changelog
 ---------
 
+.. warning::
+  Token authentication over ``http(s)`` now hands the credential to git through a credential
+  helper configured with ``GIT_CONFIG_COUNT``, which requires git 2.31 or newer. On git 2.31+, a
+  token connection also resets any deployment-wide ``credential.helper`` for that host, so a
+  deployment previously relying on its global helper switches to the connection's token and can
+  start failing auth if that token is stale. On older git the helper is never configured: the
+  clone then fails with git's generic ``could not read Username ... terminal prompts disabled``,
+  or, where the deployment configures its own credential helper, authenticates with that
+  helper's credential instead of the connection's token. Upgrade git on the Dag processor and on
+  workers before upgrading this provider, or switch the connection to SSH key authentication.
+
+0.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add GitHub App authentication for git Dag bundles (#64422)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
+0.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix malformed GitDagBundle error message for missing repository path (#70622)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document commit SHA support for GitDagBundle tracking_ref (#69735)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+0.4.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use private key when pulling submodules (#62938)``
+
+Misc
+~~~~
+
+* ``Use ValueError for conflicting Git connection key arguments (#70538)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Verify SSH host keys by default in the Git provider hook (#69103)``
+
+Misc
+~~~~
+
+* ``Correct README.rst common compat version reference inconsistency (#67554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
+   * ``Prepare provider documentation 2026-06-02 (#67920)``
+
 0.4.0
 .....
 

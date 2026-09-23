@@ -5,7 +5,7 @@
 Thank you for contributing!
 
 Please provide above a brief description of the changes made in this pull request.
-Write a good git commit message following this guide: http://chris.beams.io/posts/git-commit/
+Write a good git commit message following this guide: https://chris.beams.io/posts/git-commit/
 
 Please make sure that your code changes are covered with tests.
 And in case of new features or big changes remember to adjust the documentation.

@@ -34,6 +34,14 @@ private class FakeTransport(
 
   override fun getVariable(key: String): VariableResult = throw NotImplementedError()
 
+  override fun setVariable(
+    key: String,
+    value: String,
+    description: String?,
+  ) = throw NotImplementedError()
+
+  override fun deleteVariable(key: String) = throw NotImplementedError()
+
   override fun getXCom(
     key: String,
     dagId: String,
@@ -88,5 +96,17 @@ class ClientTest {
     val connection = clientWith(result).getConnection("test_http")
 
     Assertions.assertNull(connection.port)
+  }
+
+  @Test
+  @DisplayName("MissingXComException builds the full message naming the task and parameter")
+  fun missingXComExceptionBuildsFullMessage() {
+    val ex = MissingXComException("produce", "value")
+    Assertions.assertEquals(
+      "Task parameter 'value' requires an XCom from task 'produce', but none was pushed. " +
+        "This parameter has a primitive type that cannot be null; declare it with a boxed type " +
+        "(e.g. Integer instead of int) to receive null.",
+      ex.message,
+    )
   }
 }

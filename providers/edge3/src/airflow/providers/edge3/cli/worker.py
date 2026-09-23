@@ -220,7 +220,7 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
         else:
-            logger.info("Request to get status of Edge Worker received.")
+            logger.debug("Request to get status of Edge Worker received.")
         status_path = Path(status_file_path(None))
         status_path.write_text(
             WorkerStatus(
@@ -674,7 +674,7 @@ class EdgeWorker:
         logger.debug("Attempting to fetch a new job...")
         edge_job = await jobs_fetch(self.hostname, self.queues, self.free_concurrency, self.team_name)
         if not edge_job:
-            logger.info(
+            logger.debug(
                 "No new job to process%s",
                 f", {len(self.jobs)} still running" if self.jobs else "",
             )

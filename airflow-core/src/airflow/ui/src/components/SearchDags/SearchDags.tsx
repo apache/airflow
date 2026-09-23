@@ -16,49 +16,69 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field } from "@chakra-ui/react";
+import { Field, Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { GroupBase, OptionsOrGroups, SingleValue } from "chakra-react-select";
 import { AsyncSelect } from "chakra-react-select";
-import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import React from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useMatches, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 
-import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
+import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
-import type { DAGCollectionResponse, DAGResponse } from "openapi/requests/types.gen";
-import type { Option } from "src/utils/option";
+import type {
+  DAGWithLatestDagRunsCollectionResponse,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
-import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
+import { StateBadge } from "src/components/StateBadge";
 
-export const SearchDags = ({
-  setIsOpen,
-}: {
-  readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}) => {
+import { TabEntity } from "src/constants/tab";
+import type { DagSearchOption } from "src/utils/option";
+import { getTabPath } from "src/utils/tab";
+
+import { Control } from "./SearchDagsControl";
+
+const formatOptionLabel = (option: DagSearchOption) => (
+  <Flex alignItems="center" gap={2} minW={0}>
+    <StateBadge flexShrink={0} state={option.state} />
+    <Text truncate>{option.label}</Text>
+  </Flex>
+);
+
+export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
+  const matches = useMatches();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
 
-  const onSelect = (selected: SingleValue<Option>) => {
+  const onSelect = (selected: SingleValue<DagSearchOption>) => {
     if (selected) {
-      setIsOpen(false);
-      void Promise.resolve(navigate(`/dags/${selected.value}`));
+      const additionalPath = getTabPath(matches, TabEntity.Dag);
+      const targetPath = additionalPath === "/backfills" && !selected.isBackfillable ? "" : additionalPath;
+
+      onClose();
+      void Promise.resolve(navigate(`/dags/${selected.value}${targetPath}`));
     }
   };
 
   const searchDagDebounced = useDebouncedCallback(
-    (inputValue: string, callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void) => {
+    (
+      inputValue: string,
+      callback: (options: OptionsOrGroups<DagSearchOption, GroupBase<DagSearchOption>>) => void,
+    ) => {
       void queryClient.fetchQuery({
         queryFn: () =>
-          DagService.getDags({
+          DagService.getDagsUi({
             dagDisplayNamePrefixPattern: inputValue,
+            dagRunsLimit: 1,
             limit: SEARCH_LIMIT,
-          }).then((data: DAGCollectionResponse) => {
-            const options = data.dags.map((dag: DAGResponse) => ({
+          }).then((data: DAGWithLatestDagRunsCollectionResponse) => {
+            const options = data.dags.map((dag: DAGWithLatestDagRunsResponse) => ({
+              isBackfillable: dag.is_backfillable,
               label: dag.dag_display_name || dag.dag_id,
+              state: dag.latest_dag_runs[0]?.state ?? null,
               value: dag.dag_id,
             }));
 
@@ -66,8 +86,9 @@ export const SearchDags = ({
 
             return options;
           }),
-        queryKey: UseDagServiceGetDagsKeyFn({
+        queryKey: UseDagServiceGetDagsUiKeyFn({
           dagDisplayNamePrefixPattern: inputValue,
+          dagRunsLimit: 1,
         }),
         staleTime: 0,
       });
@@ -79,9 +100,23 @@ export const SearchDags = ({
     <Field.Root>
       <AsyncSelect
         backspaceRemovesValue={true}
-        components={{ DropdownIndicator }}
+        // The popover is the card. Drop the floating menu's own positioning and chrome so the
+        // results flow inside it directly under the input, instead of reading as a second card.
+        chakraStyles={{
+          menu: () => ({ marginTop: 2, width: "100%" }),
+          menuList: (provided) => ({
+            ...provided,
+            background: "transparent",
+            borderRadius: 0,
+            boxShadow: "none",
+            paddingInline: 0,
+            zIndex: "auto",
+          }),
+        }}
+        components={{ Control, DropdownIndicator: null }}
         defaultOptions
         filterOption={undefined}
+        formatOptionLabel={formatOptionLabel}
         loadOptions={searchDagDebounced}
         menuIsOpen
         onChange={onSelect}

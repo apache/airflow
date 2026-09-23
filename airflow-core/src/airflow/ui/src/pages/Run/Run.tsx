@@ -23,15 +23,19 @@ import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
-import { usePluginTabs } from "src/hooks/usePluginTabs";
+
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
 
 export const Run = () => {
   const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "", runId = "" } = useParams();
+
+  useDocumentTitle(runId);
 
   // Get external views with dag_run destination
   const externalTabs = usePluginTabs("dag_run");

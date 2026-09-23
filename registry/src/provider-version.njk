@@ -38,6 +38,13 @@ eleventyComputed:
 {% set totalModules = 0 %}
 {% for t in types %}{% set totalModules = totalModules + (moduleCounts[t.id] or 0) %}{% endfor %}
 
+{% set durableCount = 0 %}
+{% set deferrableCount = 0 %}
+{% for m in providerModules %}
+  {% if m.supports_durable_execution or m.supports_deferrable %}{% set durableCount = durableCount + 1 %}{% endif %}
+  {% if m.supports_deferrable %}{% set deferrableCount = deferrableCount + 1 %}{% endif %}
+{% endfor %}
+
 <div class="container">
   {# Breadcrumb #}
   <nav class="breadcrumb" aria-label="Breadcrumb">
@@ -248,6 +255,30 @@ eleventyComputed:
         </button>
         {% endfor %}
       </div>
+      {% set hasExternalServices = false %}
+      {% for conn in conns %}
+        {% if conn.external_services and conn.external_services.length > 0 %}{% set hasExternalServices = true %}{% endif %}
+      {% endfor %}
+      {% if hasExternalServices %}
+      <table class="conn-external-services-table">
+        <thead>
+          <tr class="conn-external-services-header">
+            <th>Connection type</th>
+            <th>External services (examples)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for conn in conns %}
+          {% if conn.external_services and conn.external_services.length > 0 %}
+          <tr class="conn-external-services-row">
+            <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
+            <td class="conn-external-services-list">{{ conn.external_services | join(", ") }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
       <div class="conn-builder-panel" id="conn-builder-panel" hidden>
         <div class="conn-builder-header">
           <span class="conn-builder-title" id="conn-builder-title"></span>
@@ -276,16 +307,35 @@ eleventyComputed:
   </section>
 
   {% if totalModules > 0 %}
-  {# Module Type Tabs #}
+  {# Module Type Tabs: sorted by module count (busiest first), overflow into a "More" menu #}
+  {% set moduleTabsVisibleCount = 8 %}
+  {% set sortedTypes = types | sortTypesByCount(moduleCounts) %}
+  {% set visibleTypes = sortedTypes | slice(0, moduleTabsVisibleCount) %}
+  {% set overflowTypes = sortedTypes | slice(moduleTabsVisibleCount, sortedTypes.length) %}
   <nav class="module-tabs">
     <button class="module-tab active" data-type="all">All ({{ totalModules }})</button>
-    {% for t in types %}
-    {% if moduleCounts[t.id] > 0 %}
+    {% for t in visibleTypes %}
     <button class="module-tab" data-type="{{ t.id }}">
-      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ moduleCounts[t.id] }})
+      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ t.count }})
     </button>
-    {% endif %}
     {% endfor %}
+    {% if overflowTypes.length > 0 %}
+    <div class="module-tab-more">
+      <button class="module-tab module-tab-more-btn" type="button" id="module-tab-more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="module-tab-more-menu">
+        More
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div class="module-tab-more-menu" id="module-tab-more-menu" hidden>
+        {% for t in overflowTypes %}
+        <button class="module-tab" data-type="{{ t.id }}">
+          <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ t.count }})
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </nav>
 
   {# Main content with sidebar #}
@@ -340,6 +390,22 @@ eleventyComputed:
     <section class="modules">
       <div class="modules-header">
         <h2>Modules</h2>
+        {% if durableCount > 0 or deferrableCount > 0 %}
+        <div class="capability-filter-toggles">
+          {% if durableCount > 0 %}
+          <label class="capability-filter-toggle" title="Reconnects to the existing job on retry instead of resubmitting, or frees the worker slot while waiting instead of blocking.">
+            <input type="checkbox" id="durable-only-filter">
+            <span>Durable (includes deferrable) ({{ durableCount }})</span>
+          </label>
+          {% endif %}
+          {% if deferrableCount > 0 %}
+          <label class="capability-filter-toggle" title="Frees the worker slot while waiting; the Triggerer polls instead. Pass deferrable=True where the operator exposes it; some defer unconditionally.">
+            <input type="checkbox" id="deferrable-only-filter">
+            <span>Deferrable only ({{ deferrableCount }})</span>
+          </label>
+          {% endif %}
+        </div>
+        {% endif %}
         <div class="search-wrapper module-search-wrapper">
           <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -350,12 +416,21 @@ eleventyComputed:
 
       <div class="grid">
         {% for module in providerModules %}
-        <div id="{{ module.id or module.name }}" class="module card" data-name="{{ module.name | lower }}" data-type="{{ module.type }}" data-category="{{ module.category }}">
+        {% set isDurableOrDeferrable = (module.supports_durable_execution or module.supports_deferrable) %}
+        <div id="{{ module.id or module.name }}" class="module card" data-name="{{ module.name | lower }}" data-type="{{ module.type }}" data-category="{{ module.category }}" data-durable="{{ isDurableOrDeferrable | default(false) }}" data-deferrable="{{ module.supports_deferrable | default(false) }}">
           <div class="icon {{ module.type }}">
-            <span>{{ module.type[0] | upper }}</span>
+            <span>{{ types | typeIcon(module.type) }}</span>
           </div>
           <div class="content">
-            <h3>{{ module.name }}</h3>
+            <h3>
+              {{ module.name }}
+              {% if module.supports_durable_execution %}
+              <span class="durable-badge" title="Reconnects to an already-running job on retry instead of resubmitting. Controlled by the operator's durable flag, which defaults to True on most but not all of them, and depends on operator configuration.">Durable</span>
+              {% endif %}
+              {% if module.supports_deferrable %}
+              <span class="deferrable-badge" title="Frees the worker slot while waiting. If the Triggerer crashes, another one picks it up using the same trigger class and arguments. Pass deferrable=True where the operator exposes it; some defer unconditionally.">Deferrable</span>
+              {% endif %}
+            </h3>
             <p>{{ module.short_description }}</p>
             <div class="import-row">
               <code class="path">{{ module.import_path }}</code>

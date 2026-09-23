@@ -22,9 +22,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.providers.redis.operators.redis_publish import RedisPublishOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

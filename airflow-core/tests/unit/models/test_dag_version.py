@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 from sqlalchemy import func, select
@@ -36,7 +37,6 @@ pytestmark = pytest.mark.db_test
 class TestDagVersion:
     def setup_method(self):
         clear_db_dags()
-        clear_db_dag_bundles()
 
     def teardown_method(self):
         # clear_db_dags() first: DagModel.bundle_name has an FK to dag_bundle.
@@ -51,6 +51,16 @@ class TestDagVersion:
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version_number == 1
         assert latest_version.dag_id == dag.dag_id
+
+    @pytest.mark.need_serialized_dag
+    def test_get_version_treats_zero_as_a_real_filter(self, dag_maker, session):
+        """version_number=0 must filter (and find nothing), not fall through to 'latest'."""
+        with dag_maker("zero_guard_dag"):
+            EmptyOperator(task_id="task1")
+
+        assert DagVersion.get_version("zero_guard_dag", 0, session=session) is None
+        # version_number=None still returns the latest version.
+        assert DagVersion.get_version("zero_guard_dag", session=session).version_number == 1
 
     def test_writing_dag_version_with_changes(self, dag_maker, session):
         """This also tested the get_latest_version method"""
@@ -181,3 +191,61 @@ class TestDagVersion:
         retrieved = DagVersion.get_latest_version("test_no_version_data", session=session)
         assert retrieved.version_data is None
         assert retrieved.bundle_version == "abc123"
+
+    @pytest.mark.parametrize(
+        ("view_url_kwargs", "expected"),
+        [
+            pytest.param(
+                {"return_value": "https://example.com/tree/abc"},
+                "https://example.com/tree/abc",
+                id="bundle-still-configured",
+            ),
+            pytest.param(
+                {"side_effect": ValueError("Bundle not configured")},
+                None,
+                id="bundle-no-longer-configured",
+            ),
+        ],
+    )
+    @mock.patch("airflow.models.dag_version.DagBundlesManager", autospec=True)
+    def test_bundle_url_falls_back_to_manager_without_a_bundle_row(
+        self, mock_manager, view_url_kwargs, expected
+    ):
+        """Without a dag_bundle row the deprecated manager lookup is the only path left."""
+        mock_manager.return_value.view_url.configure_mock(**view_url_kwargs)
+        # Never persisted, so ``bundle`` resolves to None -- the same state a Dag version
+        # whose bundle row is missing ends up in.
+        dag_version = DagVersion(
+            dag_id="dag_without_bundle_row", bundle_name="removed-bundle", bundle_version="abc"
+        )
+
+        assert dag_version.bundle_url == expected
+        mock_manager.return_value.view_url.assert_called_once_with("removed-bundle", "abc")
+
+
+class TestResolveVersionData:
+    """Unit tests for the _resolve_version_data pin-guard helper."""
+
+    @pytest.mark.parametrize(
+        ("dag_version", "bundle_version", "expected"),
+        [
+            pytest.param(
+                mock.Mock(version_data={"schema_version": 1}),
+                "abc123",
+                {"schema_version": 1},
+                id="pinned-with-data",
+            ),
+            pytest.param(
+                mock.Mock(version_data={"schema_version": 1}),
+                None,
+                None,
+                id="unpinned-suppresses-present-data",
+            ),
+            pytest.param(None, "abc123", None, id="missing-dag-version"),
+            pytest.param(None, None, None, id="unpinned-and-missing"),
+        ],
+    )
+    def test_resolve_version_data(self, dag_version, bundle_version, expected):
+        from airflow.models.dag_version import _resolve_version_data
+
+        assert _resolve_version_data(dag_version, bundle_version) == expected

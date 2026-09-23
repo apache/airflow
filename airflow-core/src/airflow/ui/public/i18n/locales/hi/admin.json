@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "सेक्शन"
-    },
-    "title": "Airflow विन्यास"
+    }
   },
   "connections": {
     "add": "कनेक्शन जोड़ें",
@@ -177,6 +176,7 @@
           "title": "छोड़ें"
         }
       },
+      "parsingFile": "फ़ाइल पार्स हो रही है...",
       "title": "वेरिएबल आयात करें",
       "upload": "JSON फ़ाइल अपलोड करें",
       "uploadPlaceholder": "वेरिएबल वाली JSON फ़ाइल अपलोड करें (जैसे, {\"key\": \"value\", ...})"

@@ -50,9 +50,9 @@ class DocumentLoaderOperator(BaseOperator):
     with metadata). Framework-agnostic: no LlamaIndex, LangChain, or other
     AI framework dependency.
 
-    Built-in parsers handle ``.txt``, ``.md``, ``.csv``, and ``.json`` with
-    zero extra dependencies. PDF and DOCX support require optional packages
-    installable via extras::
+    Built-in parsers handle ``.txt``, ``.md``, ``.csv``, ``.json``, and
+    ``.jsonl`` with zero extra dependencies. PDF and DOCX support require
+    optional packages installable via extras::
 
         pip install apache-airflow-providers-common-ai[pdf]    # pypdf
         pip install apache-airflow-providers-common-ai[docx]   # python-docx
@@ -68,16 +68,19 @@ class DocumentLoaderOperator(BaseOperator):
     :param source_path: A local path, glob pattern, or storage URI
         (``s3://``, ``gs://``, ``azure://``, ``file://``, ...). Cloud URIs
         go through :class:`~airflow.sdk.ObjectStoragePath` / fsspec.
-        ``**`` enables recursive matching for local globs. Cloud URIs
-        accept a single file or a directory; cross-directory globs in a
-        cloud URI are not supported in this version.
+        ``**`` enables recursive matching, for both local paths and cloud
+        URIs. Wildcards must not appear in the scheme or bucket segment
+        of a cloud URI.
     :param source_conn_id: Airflow connection ID used by
         ``ObjectStoragePath`` for cloud URIs (``aws_default``,
         ``google_cloud_default``, ...). Ignored for local paths.
     :param source_bytes: Raw file bytes, typically from XCom.
-    :param file_type: File extension hint when using ``source_bytes``
-        (e.g. ``".pdf"``). Also accepted with ``source_path`` to override
-        auto-detection.
+    :param file_type: File extension hint (e.g. ``".pdf"``). Required when
+        using ``source_bytes``, since bytes carry no extension to detect.
+        Omitting it is rejected when the operator is constructed -- Dag parse
+        time for a regular task, run time for a mapped one, since ``expand()``
+        validates argument names only and defers construction to ``unmap()``.
+        Optional with ``source_path``, where it overrides auto-detection.
     :param parser: Parsing backend selection. ``"auto"`` (default) picks the
         backend from the file extension.
     :param file_extensions: When ``source_path`` is a directory or glob,
@@ -89,17 +92,18 @@ class DocumentLoaderOperator(BaseOperator):
         document's ``metadata`` dict. Auto-extracted fields such as
         ``file_name``, ``file_path``, ``row_index``, ``item_index``, and
         ``page_number`` take precedence over keys with the same name.
-    :param encoding: Text encoding used for ``.txt``/``.md``/``.csv``/``.json``
-        and for the bytes path. Defaults to ``"utf-8"``.
+    :param encoding: Text encoding used for
+        ``.txt``/``.md``/``.csv``/``.json``/``.jsonl`` and for the bytes path.
+        Defaults to ``"utf-8"``.
     :param encoding_errors: How decode errors are handled. Defaults to
         ``"strict"``; set to ``"replace"`` or ``"ignore"`` to tolerate
         mixed-encoding inputs at the cost of some character loss.
-    :param json_text_field: When parsing JSON, treat this key as the
-        embedding text and put every other key into ``metadata``. Applies
-        to each item when the top-level JSON is a list, or to the object
-        when it is a single dict. When ``None`` (default), the operator
-        flattens dicts into ``"k: v, k: v"`` text (same shape as the CSV
-        parser).
+    :param json_text_field: When parsing JSON or JSON Lines, treat this key
+        as the embedding text and put every other key into ``metadata``.
+        Applies to each item when the top-level JSON is a list, to the object
+        when it is a single dict, or to each JSON Lines record. When ``None``
+        (default), the operator flattens dicts into ``"k: v, k: v"`` text
+        (same shape as the CSV parser).
     """
 
     template_fields: Sequence[str] = (
@@ -116,6 +120,7 @@ class DocumentLoaderOperator(BaseOperator):
         ".md": "text",
         ".csv": "csv",
         ".json": "json",
+        ".jsonl": "jsonl",
         ".pdf": "pypdf",
         ".docx": "python-docx",
     }
@@ -142,7 +147,6 @@ class DocumentLoaderOperator(BaseOperator):
             raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
         if source_bytes is not None and file_type is None:
             raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
-
         self.source_path = source_path
         self.source_conn_id = source_conn_id
         self.source_bytes = source_bytes
@@ -155,12 +159,30 @@ class DocumentLoaderOperator(BaseOperator):
         self.json_text_field = json_text_field
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
+        # Provision -- whether an argument was supplied at all -- is settled in __init__.
+        # Both guards below exist for a different reason: file_type and source_path are
+        # template fields, so a supplied argument can still arrive here as None once it has
+        # been rendered. __init__ cannot catch that, because it only ever sees the unrendered
+        # template string; _parse_bytes and _resolve_files need the rendered value to be real.
+        if self.source_bytes is not None and self.file_type is None:
+            raise ValueError(
+                "'file_type' was supplied but rendered to None. Check the template or the "
+                "upstream XCom value it resolves from."
+            )
+        if self.source_bytes is None and self.source_path is None:
+            raise ValueError(
+                "'source_path' was supplied but rendered to None. Check the template or the "
+                "upstream XCom value it resolves from."
+            )
+
         if self.source_bytes is not None:
-            assert self.file_type is not None  # noqa: S101 -- enforced in __init__
+            if TYPE_CHECKING:
+                assert self.file_type is not None
             documents = self._parse_bytes(self.source_bytes, self.file_type)
             file_count = 1
         else:
-            assert self.source_path is not None  # noqa: S101 -- enforced in __init__
+            if TYPE_CHECKING:
+                assert self.source_path is not None
             files = self._resolve_files(self.source_path)
             if not files:
                 raise FileNotFoundError(f"No files found matching '{self.source_path}'.")
@@ -208,7 +230,10 @@ class DocumentLoaderOperator(BaseOperator):
         return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=is_directory_mode)
 
     def _resolve_remote_files(self, source_path: str) -> list[FilePathT]:
-        from airflow.sdk import ObjectStoragePath
+        from airflow.providers.common.compat.sdk import ObjectStoragePath
+
+        if any(char in source_path for char in "*?["):
+            return self._resolve_remote_glob(source_path)
 
         root = ObjectStoragePath(source_path, conn_id=self.source_conn_id)
         try:
@@ -219,17 +244,28 @@ class DocumentLoaderOperator(BaseOperator):
             pass
 
         if not root.is_dir():
-            raise FileNotFoundError(
-                f"Cloud URI '{source_path}' is neither a file nor a directory. "
-                "Cross-directory globs in cloud URIs aren't supported here; "
-                "point ``source_path`` at a single object or a directory."
-            )
+            raise FileNotFoundError(f"Cloud URI '{source_path}' is neither a file nor a directory.")
 
         candidates = sorted(
             (p for p in root.iterdir() if not p.name.startswith(".")),
             key=str,
         )
         return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=True)
+
+    def _resolve_remote_glob(self, source_path: str) -> list[FilePathT]:
+        from airflow.providers.common.compat.sdk import ObjectStoragePath
+
+        segments = source_path.split("/")
+        magic_at = next(i for i, seg in enumerate(segments) if any(c in seg for c in "*?["))
+        # segments[:3] is ``scheme:``, ``""``, ``bucket``; a wildcard there has no fixed root.
+        if magic_at < 3:
+            raise ValueError(
+                f"Cloud URI '{source_path}' must not use wildcards in the scheme or bucket segment."
+            )
+
+        root = ObjectStoragePath("/".join(segments[:magic_at]), conn_id=self.source_conn_id)
+        candidates = sorted(root.glob("/".join(segments[magic_at:])), key=str)
+        return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=False)
 
     def _filter_files(self, results: list[FilePathT], *, is_directory_mode: bool) -> list[FilePathT]:
         if self.file_extensions:
@@ -262,11 +298,14 @@ class DocumentLoaderOperator(BaseOperator):
         if backend == "python-docx":
             return self._parse_docx_stream(io.BytesIO(raw))
 
-        text = self._decode(raw, source_hint=f"<bytes:{ext}>")
+        source_hint = f"<bytes:{ext}>"
+        text = self._decode(raw, source_hint=source_hint)
         if backend == "csv":
             return self._parse_csv_text(text)
         if backend == "json":
             return self._parse_json_text(text)
+        if backend == "jsonl":
+            return self._parse_json_lines_text(text, source_hint=source_hint)
         return [{"text": text, "metadata": {}}]
 
     def _parse_file(self, file_path: Path, ext: str) -> list[dict[str, Any]]:
@@ -278,6 +317,8 @@ class DocumentLoaderOperator(BaseOperator):
             return self._parse_csv(file_path)
         if backend == "json":
             return self._parse_json(file_path)
+        if backend == "jsonl":
+            return self._parse_json_lines(file_path)
         if backend == "pypdf":
             with file_path.open("rb") as fh:
                 return self._parse_pdf_stream(fh)
@@ -289,6 +330,8 @@ class DocumentLoaderOperator(BaseOperator):
 
     def _resolve_backend(self, ext: str) -> str:
         if self.parser != "auto":
+            if self.parser not in set(self.EXTENSION_BACKEND_MAP.values()):
+                raise ValueError(f"No parser found for backend '{self.parser}'.")
             return self.parser
 
         ext = ext.lower()
@@ -336,6 +379,27 @@ class DocumentLoaderOperator(BaseOperator):
         if isinstance(data, list):
             return [self._json_item_to_doc(item, item_index=idx) for idx, item in enumerate(data)]
         return [self._json_item_to_doc(data, item_index=None)]
+
+    def _parse_json_lines(self, file_path: Path) -> list[dict[str, Any]]:
+        return self._parse_json_lines_text(self._read_text(file_path), source_hint=str(file_path))
+
+    def _parse_json_lines_text(self, text: str, *, source_hint: str) -> list[dict[str, Any]]:
+        documents: list[dict[str, Any]] = []
+        # split("\n") rather than splitlines(): JSON Lines is defined with \n, while splitlines()
+        # also breaks on U+2028/U+2029/U+0085, which are legal unescaped characters inside a JSON
+        # string and would tear a valid record in half. A trailing \r from CRLF is JSON whitespace.
+        for line_number, line in enumerate(text.split("\n"), start=1):
+            if not line.strip():
+                continue
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Failed to parse {source_hint}: "
+                    f"invalid JSON on line {line_number}, column {e.colno}: {e.msg}"
+                ) from e
+            documents.append(self._json_item_to_doc(item, item_index=len(documents)))
+        return documents
 
     def _json_item_to_doc(self, item: Any, *, item_index: int | None) -> dict[str, Any]:
         metadata: dict[str, Any] = {}

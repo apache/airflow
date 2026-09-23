@@ -129,11 +129,19 @@ on:  # yamllint disable-line rule:truthy
         description: "The default branch of the repository"
         required: true
         type: string
+      job-timeout-minutes:
+        description: >
+          How long the job may run before GitHub cancels it. A caller raises it when its job
+          carries steps expensive enough to squeeze the tests out of the default.
+        required: false
+        default: 65
+        type: number
 permissions:
   contents: read
 jobs:
   tests:
-    timeout-minutes: 65
+    # run_unit_tests.sh derives the tests' own timeout from what is left of this budget.
+    timeout-minutes: ${{ fromJSON(inputs.job-timeout-minutes) }}
     # yamllint disable rule:line-length
     name: "\
       ${{ case(inputs.test-scope == 'Quarantined', 'Qrnt', inputs.test-scope == 'All', '', inputs.test-scope) }}\
@@ -176,14 +184,17 @@ jobs:
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
       DEFAULT_BRANCH: "${{ inputs.default-branch }}"
-      TOTAL_TEST_TIMEOUT: "3600"  # 60 minutes in seconds
+      JOB_TIMEOUT_MINUTES: "${{ inputs.job-timeout-minutes }}"
     if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
+      - name: "Record job start time"
+        shell: bash
+        run: echo "JOB_START_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
       - name: "Cleanup repo"
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Make /mnt writeable"
@@ -205,7 +216,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
         # Any new python version should be disabled below via `&& matrix.python-version != '3.xx'` until the first
         # Airflow version that supports it is released - otherwise there's nothing to migrate back to.
-        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core' && matrix.python-version != '3.14'
+        if: >-
+          inputs.run-migration-tests == 'true' && inputs.test-group == 'core' &&
+          matrix.python-version != '3.14' &&
+          matrix.test-types.description == fromJSON(inputs.test-types-as-strings-in-json)[0].description
       - name: >
           ${{ inputs.test-group }}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
           Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}

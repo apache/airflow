@@ -10,17 +10,28 @@
   "filters": {
     "allRunTypes": "모든 실행 유형",
     "allStates": "모든 상태",
+    "anyRunState": "하나 이상의 실행",
+    "anyRunStatePlaceholder": "실행 상태 선택…",
     "favorite": {
       "all": "전체",
       "favorite": "즐겨찾기",
       "unfavorite": "즐겨찾기 해제"
     },
+    "favoriteState": "즐겨찾기 상태",
+    "favoriteStatePlaceholder": "즐겨찾기 상태 선택…",
+    "lastRunState": "마지막 실행",
+    "lastRunStatePlaceholder": "마지막 실행 상태 선택…",
+    "noTimetableTypesFound": "타임테이블 유형을 찾을 수 없습니다",
     "paused": {
       "active": "활성",
       "all": "모두",
       "paused": "일시 중지됨"
     },
-    "runIdPatternFilter": "Dag 실행 검색"
+    "pausedPlaceholder": "일시 중지 상태 선택…",
+    "pausedState": "일시 중지 상태",
+    "requiresHitlAction": "필수 작업",
+    "runIdPatternFilter": "Dag 실행 검색",
+    "timetableType": "타임테이블 유형"
   },
   "ownerLink": "{{owner}}의 소유자 링크",
   "runAndTaskActions": {
@@ -73,8 +84,32 @@
       "preventRunningTasks": "실행 중인 태스크 재실행 방지",
       "queueNew": "새 태스크 대기열에 추가",
       "runOnLatestVersion": "최신 번들 버전으로 실행",
+      "runOnLatestVersionForced": "항상 최신 번들 버전을 사용합니다. 되돌아갈 이전 버전이 없습니다.",
       "upstream": "업스트림"
     }
+  },
+  "runStateCounts": {
+    "label": "실행 상태",
+    "loading": "실행 상태 개수 로드 중...",
+    "tooltip": "{{state}}: {{formattedCount}} — 클릭하여 실행 필터링"
+  },
+  "schedulingActions": {
+    "cancelDrain": "실행 완료 대기 취소",
+    "drain": "완료 후 일시 중지",
+    "drainPrompt": "이 Dag에는 진행 중인 Dag 실행이 있습니다. 완료 후 일시 중지를 선택하면 진행 중인 실행이 모두 끝난 뒤 Dag가 일시 중지됩니다. 지금 일시 중지를 선택하면 완료를 기다리지 않고 스케줄링을 즉시 중단합니다.",
+    "pauseNow": "지금 일시 중지"
+  },
+  "schedulingBanner": {
+    "message": "이 Dag은 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다."
+  },
+  "schedulingState": {
+    "active": "활성",
+    "draining": "실행 완료 대기",
+    "drainingBadgeTooltip": "진행 중인 Dag 실행이 모두 끝나면 이 Dag가 일시 중지됩니다.",
+    "drainingTooltip": "{{dagDisplayName}}: 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다. 클릭하여 다시 활성화하세요.",
+    "label": "스케줄링 상태",
+    "paused": "일시 중지됨",
+    "placeholder": "스케줄링 상태 선택…"
   },
   "search": {
     "advanced": "고급 검색",
@@ -88,9 +123,9 @@
       "asc": "표시 이름으로 정렬 (A-Z)",
       "desc": "표시 이름으로 정렬 (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "최신 실행 시작 날짜로 정렬 (이전-최신)",
-      "desc": "최신 실행 시작 날짜로 정렬 (최신-이전)"
+    "lastRunAfter": {
+      "asc": "최신 실행 이후로 정렬 (이전-최신)",
+      "desc": "최신 실행 이후로 정렬 (최신-이전)"
     },
     "lastRunState": {
       "asc": "최신 실행 상태로 정렬 (A-Z)",

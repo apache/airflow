@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_schema_compare:
 
-``LLMSchemaCompareOperator``
-============================
+Detect schema drift: ``LLMSchemaCompareOperator``
+=================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator`
 to compare schemas across different database systems and detect drift using LLM reasoning.
@@ -46,24 +46,31 @@ Provide ``db_conn_ids`` pointing to two or more database connections and
     :start-after: [START howto_operator_llm_schema_compare_basic]
     :end-before: [END howto_operator_llm_schema_compare_basic]
 
-Full Context Strategy
----------------------
+Basic context strategy
+----------------------
 
-Set ``context_strategy="full"`` to include primary keys, foreign keys, and indexes
-in the schema context sent to the LLM.
+By default the schema context sent to the model includes primary keys, foreign keys and
+indexes alongside the columns (``context_strategy="full"``). Set
+``context_strategy="basic"`` to send column names and types only, which shortens the
+prompt for tables with many indexes and constraints, or when the comparison is about
+columns alone:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
     :language: python
-    :start-after: [START howto_operator_llm_schema_compare_full]
-    :end-before: [END howto_operator_llm_schema_compare_full]
+    :start-after: [START howto_operator_llm_schema_compare_basic_context]
+    :end-before: [END howto_operator_llm_schema_compare_basic_context]
 
-With Object Storage
--------------------
+With Object Storage or a Database Table
+---------------------------------------
 
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
-object-storage sources (S3 Parquet, CSV, Iceberg, etc.) in the comparison.
-These can be freely combined with ``db_conn_ids``:
+object-storage sources (S3 or GCS Parquet, CSV, Iceberg, etc.) in the comparison.
+These can be freely combined with ``db_conn_ids``. Whether an entry is
+introspected via ``DbApiHook`` or DataFusion depends on what its ``conn_id``
+resolves to, not on its ``uri``/``format`` fields: a ``DataSourceConfig``
+with neither ``uri`` nor ``format`` set only works when ``conn_id`` resolves
+to a ``DbApiHook``:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
     :language: python
@@ -114,6 +121,31 @@ The callable may also return a non-empty ``Sequence[UserContent]`` for
 multimodal inputs -- see
 :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>`.
 
+Human-in-the-Loop Approval
+--------------------------
+
+Set ``require_approval=True`` to pause the task after the comparison and wait
+for a human reviewer to approve the result before it is returned. The review
+body shows the compatibility verdict, a mismatch severity summary, and the
+full result JSON. Rejecting the review, or letting ``approval_timeout``
+expire with the default ``on_approval_timeout="fail"``, fails the task:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
+    :language: python
+    :start-after: [START howto_operator_llm_schema_compare_approval]
+    :end-before: [END howto_operator_llm_schema_compare_approval]
+
+``require_approval=True`` requires a string prompt: a decorated callable
+returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
+call.
+
+``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``,
+``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
+behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
+``decision_policy`` is not supported here: the operator runs its own ``execute`` without the
+confidence gate and rejects a policy with a bar at construction.
+
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------
 
@@ -154,22 +186,39 @@ Parameters
   connection's extra field.
 - ``system_prompt``: Instructions included in the LLM system prompt. Defaults to
   ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and
-  severity definitions. Passing a value **replaces** the default — concatenate
+  severity definitions. Passing a value **replaces** the default, so concatenate
   with ``DEFAULT_SYSTEM_PROMPT`` to extend it (see
   :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``db_conn_ids``: List of database connection IDs to compare. Each must resolve
   to a ``DbApiHook``.
 - ``table_names``: Tables to introspect from each ``db_conn_id``.
-- ``data_sources``: List of ``DataSourceConfig`` objects for object-storage or
-  catalog-managed sources.
-- ``context_strategy``: To fetch primary keys, foreign keys, and indexes.``full`` or ``basic``,
-  strongly recommended for cross-system comparisons. default is ``full``
+- ``data_sources``: List of ``DataSourceConfig`` objects for object-storage
+  or catalog-managed sources. An entry with neither ``uri`` nor ``format``
+  set works only if its ``conn_id`` resolves to a ``DbApiHook``.
+- ``context_strategy``: ``"full"`` (default) sends column names and types plus primary
+  keys, foreign keys and indexes; ``"basic"`` sends column names and types only.
+- ``require_approval``: If ``True``, the task pauses after the comparison and
+  waits for human review before returning the result.  Default ``False``.
+- ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
+  means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
+  ``require_approval=True`` and a positive ``approval_timeout``.
+- ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
+  before approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review.  ``None``
+  (default) lets any user with the permission respond.  Needs Airflow 3.1+.
 
 Logging
 -------
 
 After each LLM call, the operator logs a summary with model name, token usage,
-and request count at INFO level. See :ref:`AgentOperator — Logging <howto/operator:agent>`
+and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.

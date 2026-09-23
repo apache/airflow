@@ -36,6 +36,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerApiDocs,
     WorkerQueuesBody,
 )
+from airflow.utils.helpers import prune_dict
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -104,7 +105,9 @@ def fetch(
     job.last_update = timezone.utcnow()
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
-    tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
+    tags = prune_dict(
+        {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue, "team_name": job.team_name}
+    )
     Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
@@ -157,8 +160,9 @@ def state(
                 "task_id": job.task_id,
                 "queue": job.queue,
                 "state": str(state),
+                "team_name": job.team_name,
             }
-            Stats.incr("edge_worker.ti.finish", tags=tags)
+            Stats.incr("edge_worker.ti.finish", tags=prune_dict(tags))
 
     query2 = (
         update(EdgeJobModel)

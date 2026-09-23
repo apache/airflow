@@ -404,7 +404,6 @@ class HttpHook(BaseHook):
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
-        # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
         return self._retry_obj(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
@@ -518,7 +517,7 @@ class AsyncHttpSession(LoggingMixin):
             response = await self._request(
                 url,
                 params=data if self.method == "GET" else None,
-                data=data if self.method in {"POST", "PUT", "PATCH"} else None,
+                data=data if self.method in {"POST", "PUT", "PATCH", "DELETE"} else None,
                 json=json,
                 headers=merged_headers,
                 auth=self.auth,
@@ -615,7 +614,7 @@ class HttpAsyncHook(BaseHook):
             extra_options: dict[str, Any] = {}
 
             if self.http_conn_id:
-                conn = await get_async_connection(conn_id=self.http_conn_id)
+                conn = await get_async_connection(conn_id=self.http_conn_id, hook=self)
 
                 if conn.host and "://" in conn.host:
                     base_url = conn.host

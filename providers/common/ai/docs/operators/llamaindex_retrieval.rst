@@ -17,8 +17,8 @@
 
 .. _howto/operator:llamaindex_retrieval:
 
-LlamaIndex ``LlamaIndexRetrievalOperator``
-==========================================
+Retrieve context: ``LlamaIndexRetrievalOperator``
+=================================================
 
 Load a persisted LlamaIndex index and run similarity search. Designed to
 sit between
@@ -40,7 +40,7 @@ Basic usage
     :start-after: [START howto_hook_llamaindex_retrieve]
     :end-before: [END howto_hook_llamaindex_retrieve]
 
-``query`` is templated, so DAG-run params, XCom, and Variables all flow
+``query`` is templated, so Dag-run params, XCom, and Variables all flow
 through cleanly.
 
 Cloud-persisted indexes

@@ -26,6 +26,7 @@ import aiohttp
 import pytest
 from requests import exceptions as requests_exceptions
 from requests.models import Response
+from tenacity import wait_none
 
 from airflow.models.connection import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -355,6 +356,107 @@ class TestDbtCloudHook:
             # Only one metadata DB lookup total.
             assert mock_get_connection.call_count == 1
             assert mock_get_async_connection.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_get_headers_tenants_from_connection_does_not_use_sync_get_connection(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with (
+            patch.object(DbtCloudHook, "get_connection") as mock_get_connection,
+            patch(
+                "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+                new=AsyncMock(
+                    return_value=Connection(
+                        conn_id=ACCOUNT_ID_CONN,
+                        conn_type=DbtCloudHook.conn_type,
+                        login=str(DEFAULT_ACCOUNT_ID),
+                        password=TOKEN,
+                        host=SINGLE_TENANT_DOMAIN,
+                    )
+                ),
+            ) as mock_get_async_connection,
+        ):
+            headers, tenant = await hook.get_headers_tenants_from_connection()
+
+            assert tenant == SINGLE_TENANT_DOMAIN
+            assert headers["Authorization"] == f"Token {TOKEN}"
+            mock_get_connection.assert_not_called()
+            assert mock_get_async_connection.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_resolve_connection_cached_async(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with patch(
+            "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+            new=AsyncMock(
+                return_value=Connection(
+                    conn_id=ACCOUNT_ID_CONN,
+                    conn_type=DbtCloudHook.conn_type,
+                    login=str(DEFAULT_ACCOUNT_ID),
+                    password=TOKEN,
+                )
+            ),
+        ) as mock_get_async_connection:
+            first_call = await hook._resolve_connection_async()
+            second_call = await hook._resolve_connection_async()
+
+            assert first_call.password == TOKEN
+            assert second_call.password == TOKEN
+            assert mock_get_async_connection.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_connection_cache_shared_between_sync_and_async(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with (
+            patch.object(
+                DbtCloudHook,
+                "get_connection",
+                return_value=Connection(
+                    conn_id=ACCOUNT_ID_CONN,
+                    conn_type=DbtCloudHook.conn_type,
+                    login=str(DEFAULT_ACCOUNT_ID),
+                    password=TOKEN,
+                ),
+            ) as mock_get_connection,
+            patch(
+                "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+                new=AsyncMock(
+                    return_value=Connection(
+                        conn_id=ACCOUNT_ID_CONN,
+                        conn_type=DbtCloudHook.conn_type,
+                        login=str(DEFAULT_ACCOUNT_ID),
+                        password=TOKEN,
+                    )
+                ),
+            ) as mock_get_async_connection,
+        ):
+            sync_conn = hook.connection
+            async_conn = await hook._resolve_connection_async()
+
+            assert sync_conn.password == TOKEN
+            assert async_conn.password == TOKEN
+
+            assert mock_get_connection.call_count == 1
+            assert mock_get_async_connection.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_resolve_connection_async_requires_password(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with patch(
+            "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+            new=AsyncMock(
+                return_value=Connection(
+                    conn_id=ACCOUNT_ID_CONN,
+                    conn_type=DbtCloudHook.conn_type,
+                    login=str(DEFAULT_ACCOUNT_ID),
+                )
+            ),
+        ):
+            with pytest.raises(AirflowException, match="An API token is required"):
+                await hook._resolve_connection_async()
 
     @pytest.mark.parametrize(
         argnames=("conn_id", "account_id"),
@@ -979,6 +1081,81 @@ class TestDbtCloudHook:
         )
         hook._paginate.assert_not_called()
 
+    def test_format_run_step_failure(self):
+        step = {
+            "index": 2,
+            "name": "Run dbt",
+            "status": DbtCloudJobRunStatus.ERROR.value,
+            "status_humanized": "Error",
+            "status_message": "dbt run failed",
+        }
+        formatted = DbtCloudHook._format_run_step_failure(step)
+        assert "step 2: Run dbt" in formatted
+        assert "status=Error" in formatted
+        assert "status_message=dbt run failed" in formatted
+
+    @pytest.mark.parametrize(
+        argnames=("conn_id", "account_id"),
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_log_job_run_failure_details_with_error_steps(self, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        job_run = {
+            "status": DbtCloudJobRunStatus.ERROR.value,
+            "status_message": "Run failed",
+            "run_steps": [
+                {"index": 1, "name": "Clone git repo", "status": 10, "status_humanized": "Success"},
+                {
+                    "index": 2,
+                    "name": "Run dbt",
+                    "status": DbtCloudJobRunStatus.ERROR.value,
+                    "status_humanized": "Error",
+                    "status_message": "Compilation Error",
+                },
+            ],
+        }
+
+        with patch.object(hook.log, "error") as mock_log_error:
+            hook.log_job_run_failure_details(run_id=RUN_ID, account_id=account_id, job_run=job_run)
+
+        mock_log_error.assert_any_call("dbt Cloud job run %s ended with status %s.", RUN_ID, "ERROR")
+        mock_log_error.assert_any_call("dbt Cloud job run %s: %s", RUN_ID, "Run failed")
+        mock_log_error.assert_any_call(
+            "dbt Cloud failed step — %s",
+            DbtCloudHook._format_run_step_failure(job_run["run_steps"][1]),
+        )
+
+    @pytest.mark.parametrize(
+        argnames=("conn_id", "account_id"),
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "get_job_run")
+    def test_log_job_run_failure_details_fetches_run_steps(self, mock_get_job_run, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        job_run = {
+            "status": DbtCloudJobRunStatus.ERROR.value,
+            "run_steps": [
+                {
+                    "index": 1,
+                    "name": "Run dbt",
+                    "status": DbtCloudJobRunStatus.ERROR.value,
+                    "status_humanized": "Error",
+                }
+            ],
+        }
+        mock_get_job_run.return_value.json.return_value = {"data": job_run}
+
+        with patch.object(hook.log, "error"):
+            hook.log_job_run_failure_details(run_id=RUN_ID, account_id=account_id)
+
+        mock_get_job_run.assert_called_once_with(
+            run_id=RUN_ID,
+            account_id=account_id,
+            include_related=["run_steps"],
+        )
+
     wait_for_job_run_status_test_args = [
         (DbtCloudJobRunStatus.SUCCESS.value, DbtCloudJobRunStatus.SUCCESS.value, True),
         (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.SUCCESS.value, "exception"),
@@ -1016,15 +1193,21 @@ class TestDbtCloudHook:
 
         with (
             patch.object(DbtCloudHook, "get_job_run_status") as mock_job_run_status,
+            patch.object(DbtCloudHook, "log_job_run_failure_details") as mock_log_failure_details,
             patch("airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep),
         ):
             mock_job_run_status.return_value = job_run_status
 
             if expected_output not in ("timeout", "exception"):
                 assert hook.wait_for_job_run_status(**config) == expected_output
+                mock_log_failure_details.assert_not_called()
             else:
                 with pytest.raises(DbtCloudJobRunException):
                     hook.wait_for_job_run_status(**config)
+                if expected_output == "exception":
+                    mock_log_failure_details.assert_called_once_with(run_id=RUN_ID, account_id=None)
+                else:
+                    mock_log_failure_details.assert_not_called()
 
     @pytest.mark.parametrize(
         argnames=("conn_id", "account_id"),
@@ -1280,6 +1463,8 @@ class TestDbtCloudHook:
         self, get_mock, error_factory, retry_qty, retry_delay
     ):
         hook = DbtCloudHook(ACCOUNT_ID_CONN, retry_limit=retry_qty, retry_delay=retry_delay)
+        # The exponential backoff is not what is under test here; skip the real waits.
+        hook.retry_args["wait"] = wait_none()
 
         def fail_cm():
             cm = AsyncMock()

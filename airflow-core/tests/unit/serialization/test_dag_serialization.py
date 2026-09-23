@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import attrs
+import jsonschema
 import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
@@ -52,6 +53,7 @@ from airflow._shared.timezones import timezone
 from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import (
     AirflowException,
+    DeserializationError,
     ParamValidationError,
     SerializationError,
 )
@@ -77,7 +79,7 @@ from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.enums import Encoding
+from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -517,6 +519,10 @@ def timetable_plugin(monkeypatch: pytest.MonkeyPatch):
             "tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable
         },
     )
+
+
+class PluginContributedError(AirflowException):
+    """Defined outside airflow.exceptions on purpose: resolution must not be limited to exceptions Airflow itself ships."""
 
 
 class TestStringifiedDAGs:
@@ -2806,6 +2812,120 @@ class TestStringifiedDAGs:
         dr = dag_maker.create_dagrun(partition_key="runtime-key")
         assert dr.partition_key == "runtime-key"
 
+    @pytest.mark.parametrize(
+        ("module_name", "attr_name"),
+        [
+            pytest.param("subprocess", "check_output", id="callable_in_loaded_module"),
+            pytest.param("os", "system", id="another_callable"),
+            pytest.param("builtins", "eval", id="builtin_callable"),
+            pytest.param("airflow.exceptions", "NoSuchThing", id="missing_attr"),
+        ],
+    )
+    def test_airflow_exc_deserialization_rejects_a_name_in_a_loaded_module(self, module_name, attr_name):
+        """Having the module loaded is not enough -- the name must be an AirflowException subclass.
+
+        The module is imported by the test first, so the rejection cannot be an artefact of the
+        module simply being absent.
+        """
+        importlib.import_module(module_name)
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize(
+                {"exc_cls_name": f"{module_name}.{attr_name}", "args": [], "kwargs": {}}
+            ),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        with pytest.raises(DeserializationError, match="Refusing to deserialize unknown exception class"):
+            BaseSerialization.deserialize(encoded)
+
+    @pytest.mark.parametrize(
+        "exc_cls_name",
+        [
+            pytest.param("not.a.loaded.module.Thing", id="unloaded_module"),
+            pytest.param("NoModulePart", id="no_module_part"),
+            pytest.param("", id="empty"),
+        ],
+    )
+    def test_airflow_exc_deserialization_rejects_an_unresolvable_name(self, exc_cls_name):
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize({"exc_cls_name": exc_cls_name, "args": [], "kwargs": {}}),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        with pytest.raises(DeserializationError, match="Refusing to deserialize unknown exception class"):
+            BaseSerialization.deserialize(encoded)
+
+    def test_airflow_exc_deserialization_does_not_import_the_named_module(self):
+        """Resolution reads ``sys.modules``; it never imports what the blob names."""
+        module_name = "airflow_exc_module_that_must_not_be_imported"
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize({"exc_cls_name": f"{module_name}.Boom", "args": [], "kwargs": {}}),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        with mock.patch.object(
+            importlib, "import_module", side_effect=AssertionError("imported"), autospec=True
+        ):
+            with pytest.raises(DeserializationError):
+                BaseSerialization.deserialize(encoded)
+        assert module_name not in sys.modules
+
+    def test_airflow_exc_deserialization_roundtrips_airflow_exception(self):
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(AirflowException("boom")))
+        assert isinstance(result, AirflowException)
+        assert result.args == ("boom",)
+
+    def test_airflow_exc_deserialization_resolves_a_subclass_outside_airflow(self):
+        """Resolves as long as its module is loaded, registration order doesn't matter."""
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(PluginContributedError("boom")))
+        assert isinstance(result, PluginContributedError)
+        assert result.args == ("boom",)
+
+    @pytest.mark.parametrize(
+        "exc_cls_name",
+        [
+            "airflow.exceptions.AirflowException",
+            "airflow.exceptions.AirflowNotFoundException",
+            "airflow.exceptions.ParamValidationError",
+            "airflow.sdk.exceptions.AirflowException",
+        ],
+    )
+    def test_airflow_exc_deserialization_accepts_the_pre_3_2_module_spelling(self, exc_cls_name):
+        """A blob written before these exceptions moved to ``airflow.sdk.exceptions`` still reads.
+
+        3.0/3.1 stored ``airflow.exceptions.<Name>``; 3.2.0 moved the classes and left a re-export
+        behind. Both spellings have to resolve, or upgrading strands every stored blob that carries
+        an exception node.
+        """
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize({"exc_cls_name": exc_cls_name, "args": ["boom"], "kwargs": {}}),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        result = BaseSerialization.deserialize(encoded)
+        assert isinstance(result, AirflowException)
+
+    def test_base_exc_deserialization_rejects_non_allowlisted_builtin(self):
+        """A BASE_EXC_SER name outside the {KeyError, AttributeError} the encoder emits is rejected."""
+        # ``eval`` is the weaponisable case; ``ValueError`` is a harmless builtin the encoder
+        # never emits as BASE_EXC_SER -- both must be rejected.
+        for name in ("eval", "ValueError"):
+            encoded = BaseSerialization._encode(
+                BaseSerialization.serialize({"exc_cls_name": name, "args": ["1"], "kwargs": {}}),
+                type_=DagAttributeTypes.BASE_EXC_SER,
+            )
+            with pytest.raises(
+                DeserializationError, match="Refusing to deserialize unsupported builtin exception"
+            ):
+                BaseSerialization.deserialize(encoded)
+
+    @pytest.mark.parametrize("exc_type", [KeyError, AttributeError])
+    def test_base_exc_serialize_deserialize_round_trip(self, exc_type):
+        """Pins the allow-list to the encode branch, by going through ``serialize`` rather than
+        hand-building the node: if that branch ever accepts another builtin, this fails."""
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(exc_type("boom")))
+
+        assert isinstance(result, exc_type)
+        # The encode branch stores ``[var.args]``, so the args arrive nested. Pre-existing shape,
+        # asserted as it is rather than as it ought to be.
+        assert result.args == (("boom",),)
+
 
 def test_kubernetes_optional():
     """Test that serialization module loads without kubernetes, but deserialization of PODs requires it"""
@@ -3403,6 +3523,122 @@ def test_python_callable_name_uses_qualname_exclude_module():
     op3 = PythonOperator(task_id="task3", python_callable=partial_func)
     serialized3 = OperatorSerialization.serialize_operator(op3)
     assert serialized3["python_callable_name"] == "empty_function"
+
+
+def test_stub_task_args_round_trip():
+    """The stub task's TaskFlow arg spec (``_arg_bindings``) is materialized by Dag serialization
+    and survives the round trip."""
+    from airflow.sdk import task
+
+    with DAG(dag_id="arg_bindings_dag", schedule=None) as dag:
+
+        @task.stub
+        def extract(): ...
+
+        @task.stub
+        def transform(country: str, extracted: dict): ...
+
+        # Nested value_schema (dict[str, int] re-encodes its additionalProperties) plus
+        # dict/list literal values, whose contents must not collide with the {__type,__var}
+        # encoding during round-trip.
+        @task.stub
+        def aggregate(counts: dict[str, int], tags: list, config: dict): ...
+
+        data = extract()
+        transform("uk", data)
+        aggregate(data, ["metrics", "hourly"], {"threshold": {"warn": 1}})
+
+    ser_dag = DagSerialization.to_dict(dag)
+    DagSerialization.validate_schema(ser_dag)
+
+    encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
+    assert "_arg_bindings" not in encoded_tasks["extract"], "argless stubs must not serialize a spec"
+    # validate_schema above never reaches task objects: schema.json's `tasks` array hangs the
+    # operator sub-schema off `additionalProperties`, which JSON Schema ignores for arrays. Assert
+    # the `arg_binding` definition directly so it stays honest about the wire form.
+    jsonschema.validate(
+        encoded_tasks["transform"]["_arg_bindings"],
+        {
+            "definitions": load_dag_schema_dict()["definitions"],
+            "type": "array",
+            "items": {"$ref": "#/definitions/arg_binding"},
+        },
+    )
+    # Materialized directly by _serialize_node (like _is_empty), not routed through the
+    # generic per-field encoder, so the wire form stays plain JSON with no {__type, __var}
+    # wrapping -- the execution API validates it straight off the serialized Dag.
+    assert encoded_tasks["transform"]["_arg_bindings"] == [
+        {
+            "name": "country",
+            "kind": "literal",
+            "value_schema": {"type": "string"},
+            "value": "uk",
+        },
+        {
+            "name": "extracted",
+            "kind": "xcom",
+            "value_schema": {"type": "object", "additionalProperties": True},
+            "task_id": "extract",
+        },
+    ]
+
+    round_tripped = DagSerialization.from_dict(ser_dag)
+    assert round_tripped.task_dict["transform"].is_stub is True
+    assert round_tripped.task_dict["transform"].arg_bindings == [
+        {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+        {
+            "name": "extracted",
+            "kind": "xcom",
+            "value_schema": {"type": "object", "additionalProperties": True},
+            "task_id": "extract",
+        },
+    ]
+    # The nested value_schema and dict/list literal values survive the round-trip intact.
+    assert round_tripped.task_dict["aggregate"].arg_bindings == [
+        {
+            "name": "counts",
+            "kind": "xcom",
+            "value_schema": {
+                "type": "object",
+                "additionalProperties": {"type": "integer", "format": "int64"},
+            },
+            "task_id": "extract",
+        },
+        {
+            "name": "tags",
+            "kind": "literal",
+            "value_schema": {"type": "array", "items": {}},
+            "value": ["metrics", "hourly"],
+        },
+        {
+            "name": "config",
+            "kind": "literal",
+            "value_schema": {"type": "object", "additionalProperties": True},
+            "value": {"threshold": {"warn": 1}},
+        },
+    ]
+    assert round_tripped.task_dict["extract"].is_stub is True
+    assert round_tripped.task_dict["extract"].arg_bindings is None
+
+    # The deserialized spec must be plain JSON (no {__type, __var} encoding sentinels) so the
+    # execution API can validate it straight off the serialized Dag -- this is the contract
+    # ti_run relies on when it feeds get_arg_bindings() into the TaskArgBinding adapter.
+    from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+    for task_id in ("transform", "aggregate"):
+        get_arg_bindings_adapter().validate_python(round_tripped.task_dict[task_id].arg_bindings)
+
+
+@pytest.mark.parametrize("raw", ["false", "true", 0, 1, None, [], {"a": 1}])
+def test_task_is_stub_fails_closed_on_non_boolean(raw):
+    """A task flag from a non-Python producer is never schema-validated, so it must fail closed."""
+    with DAG(dag_id="test_task_is_stub_non_boolean", schedule=None) as dag:
+        BaseOperator(task_id="simple_task", start_date=datetime(2019, 8, 1))
+
+    ser_dag = DagSerialization.to_dict(dag)
+    ser_dag["dag"]["tasks"][0][Encoding.VAR]["is_stub"] = raw
+
+    assert DagSerialization.from_dict(ser_dag).task_dict["simple_task"].is_stub is False
 
 
 def test_handle_v1_serdag():

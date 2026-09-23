@@ -41,6 +41,8 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.global_constants import (
+    CI_AMD_PLATFORM,
+    CI_PLATFORMS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MILESTONE_BUG_LABELS,
     MILESTONE_SKIP_LABELS,
@@ -237,6 +239,16 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     default="",
 )
 @click.option(
+    "--platform",
+    "ci_platform",
+    type=BetterChoice(CI_PLATFORMS),
+    default=CI_AMD_PLATFORM,
+    help="Platform the tests of this run execute on. "
+    "It decides which integrations and providers are testable.",
+    envvar="PLATFORM",
+    show_default=True,
+)
+@click.option(
     "--github-context",
     help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
@@ -262,6 +274,7 @@ def selective_check(
     github_actor: str,
     github_context: str,
     github_context_input: StringIO | None,
+    ci_platform: str,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -287,6 +300,7 @@ def selective_check(
             github_repository=github_repository,
             github_actor=github_actor,
             github_context_dict=github_context_dict,
+            platform=ci_platform,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
@@ -535,6 +549,50 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     run_command(cmd, check=False, env=command_env)
 
 
+def remove_backport_labels(*, branch_name: str, command_env: dict[str, str]) -> None:
+    """Drop any ``backport-to-*`` label boring-cyborg put on the upgrade PR.
+
+    The CI environment is upgraded on each maintenance branch by that branch's own scheduled
+    run, so backporting main's upgrade would race it with a change that conflicts on the very
+    files it regenerates. boring-cyborg labels by path and cannot tell this PR apart from a
+    hand-written one touching ``dev/`` or ``.github/``, so the label is removed here instead.
+
+    Labelling happens on a webhook and may land after this runs; ``upgrade-check.yml`` sweeps
+    again once the PR has settled, so a miss here is not the last word.
+    """
+    labels_result = run_command(
+        [
+            "gh",
+            "pr",
+            "view",
+            branch_name,
+            "--repo",
+            "apache/airflow",
+            "--json",
+            "labels",
+            "--jq",
+            '[.labels[].name | select(startswith("backport-to-"))] | join(",")',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=command_env,
+    )
+    if labels_result.returncode != 0:
+        console_print("[warning]Could not read PR labels - leaving any backport labels in place.[/]")
+        return
+    labels = [label for label in labels_result.stdout.strip().split(",") if label]
+    if not labels:
+        return
+    remove_cmd = ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow"]
+    for label in labels:
+        remove_cmd.extend(["--remove-label", label])
+    if run_command(remove_cmd, capture_output=True, text=True, check=False, env=command_env).returncode:
+        console_print(f"[warning]Could not remove backport labels: {', '.join(labels)}[/]")
+    else:
+        console_print(f"[success]Removed backport labels: {', '.join(labels)}.[/]")
+
+
 @ci_group.command(
     name="upgrade",
     help="Perform important upgrade steps of the CI environment. And create a PR",
@@ -599,7 +657,8 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     "--update-uv-lock/--no-update-uv-lock",
     default=True,
     show_default=True,
-    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image",
+    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image, "
+    "then regenerate the API datamodels the resolved code generator stamps its version into",
 )
 @click.option(
     "--k8s-schema-sync/--no-k8s-schema-sync",
@@ -796,7 +855,8 @@ def upgrade(
         )
 
     # All upgrade commands run locally with check=False to continue on errors.
-    # The uv lock --upgrade step must run last so it can incorporate changes from the other steps.
+    # The uv lock --upgrade step must run after the steps that change dependencies, so it can
+    # incorporate them -- and before the steps that regenerate code from the resolved versions.
     upgrade_commands: list[tuple[str, str]] = [
         ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
         (
@@ -811,6 +871,14 @@ def upgrade(
             "update-uv-lock",
             "uv lock --upgrade",
         ),
+        (
+            # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
+            # generated files' header. These hooks only watch the API sources, which an upgrade run
+            # never touches, so nothing regenerates them here and CI's --all-files run goes red.
+            "regenerate-datamodels",
+            "prek --all-files --show-diff-on-failure --color always --verbose "
+            "generate-tasksdk-datamodels generate-airflowctl-datamodels",
+        ),
     ]
 
     step_enabled = {
@@ -818,6 +886,7 @@ def upgrade(
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
         "update-uv-lock": update_uv_lock,
+        "regenerate-datamodels": update_uv_lock,
     }
 
     # Execute upgrade commands
@@ -993,6 +1062,8 @@ def upgrade(
                     sys.exit(1)
             else:
                 console_print(f"[success]PR created successfully: {pr_result.stdout.strip()}.[/]")
+
+        remove_backport_labels(branch_name=branch_name, command_env=command_env)
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")

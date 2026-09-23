@@ -45,7 +45,7 @@ class GitDagBundle(BaseDagBundle):
     Instead of cloning the repository every time, we clone the repository once into a bare repo from the source
     and then do a clone for each version from there.
 
-    :param tracking_ref: Branch or tag for this DAG bundle
+    :param tracking_ref: Branch, tag, or commit SHA for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
@@ -161,6 +161,7 @@ class GitDagBundle(BaseDagBundle):
                     repo_path=self.repo_path,
                     version=self.version,
                 )
+                self._sync_bare_repo_remote_url()
                 return
             if self._local_repo_has_version():
                 self._log.debug(
@@ -193,6 +194,7 @@ class GitDagBundle(BaseDagBundle):
                         # HEAD hexsha rather than the raw self.version (which may be a
                         # tag or short SHA).
                         self.repo = repo
+                    self._sync_bare_repo_remote_url()
                     return
 
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
@@ -212,6 +214,9 @@ class GitDagBundle(BaseDagBundle):
                 raise RuntimeError("Error cloning repository") from e
             except InvalidGitRepositoryError as e:
                 raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
+            # If tracking_ref was just repointed to a SHA that predates this working clone's
+            # last fetch, this checkout fails until the clone is fetched or storage is cleared;
+            # tracked at https://github.com/apache/airflow/issues/71388
             self.repo.git.checkout(self.tracking_ref)
             self._log.debug("bundle initialize", version=self.version)
             if self.version:
@@ -271,7 +276,7 @@ class GitDagBundle(BaseDagBundle):
             self.repo = Repo(self.repo_path)
         except NoSuchPathError as e:
             # Protection should the bare repo be removed manually
-            raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
+            raise FileNotFoundError(f"Repository path: {self.bare_repo_path} not found") from e
         except (InvalidGitRepositoryError, GitCommandError) as e:
             self._log.warning(
                 "Repository clone/open failed, cleaning up and retrying",
@@ -301,6 +306,9 @@ class GitDagBundle(BaseDagBundle):
                     env=self.hook.env if self.hook else None,
                 )
             self.bare_repo = Repo(self.bare_repo_path)
+            # Not the best-effort wrapper: a GitCommandError from the rewrite must reach the
+            # handler below, which drops the bare repo and re-clones it credential-free.
+            self._rewrite_bare_repo_origin(self.bare_repo)
 
             # Fetch to ensure we have latest refs and validate repo integrity
             self._fetch_bare_repo()
@@ -313,6 +321,56 @@ class GitDagBundle(BaseDagBundle):
             if os.path.exists(self.bare_repo_path):
                 shutil.rmtree(self.bare_repo_path)
             raise
+
+    def _sync_bare_repo_remote_url(self) -> None:
+        """
+        Re-point the bare repo's origin at the current repo url.
+
+        Called standalone from the ``_initialize`` fast paths that skip cloning and never
+        reach ``_clone_bare_repo_if_required``, so a bundle that takes one would otherwise
+        keep a credentialed origin url in ``bare/config`` forever. This is best-effort: a
+        bundle that can still be served from disk must not fail to initialize because its
+        bare repo is unreadable.
+        """
+        try:
+            if not self.bare_repo_path.exists():
+                return
+            bare_repo = Repo(self.bare_repo_path)
+            try:
+                self._rewrite_bare_repo_origin(bare_repo)
+            finally:
+                bare_repo.close()
+        except Exception as e:
+            # Deliberately broad: opening the repo raises anything from ``configparser`` on a
+            # truncated config to ``GitError`` on an unsafe remote url, and the fast paths this
+            # runs ahead of never needed the bare repo at all.
+            self._log.warning(
+                "Could not rewrite the bare repository origin, a credential may remain in "
+                "cleartext in the bundle's bare/config",
+                bare_repo_path=self.bare_repo_path,
+                exc=e,
+            )
+
+    @staticmethod
+    def _carries_credentials(url: str) -> bool:
+        """Report whether an origin url has ``user[:password]@`` in its authority."""
+        if not url.startswith(("http://", "https://")):
+            return False
+        return "@" in url.partition("://")[2].partition("/")[0]
+
+    def _rewrite_bare_repo_origin(self, bare_repo: Repo) -> None:
+        if "origin" not in bare_repo.remotes:
+            return
+        origin = bare_repo.remotes.origin
+        # Bundles cloned before credentials moved to a credential helper embedded ``user:token``
+        # here, so the token sits in cleartext in ``<bundle>/bare/config`` where any Dag author
+        # on the Dag processor can read it. Rewriting origin is what removes it from those
+        # bundles. Only an origin holding one is rewritten: git resolves a local source to an
+        # absolute path when it clones, and replacing that with a relative repo url would leave
+        # an origin the bare repo cannot resolve.
+        if self._carries_credentials(origin.url):
+            self._log.info("Updating bare repository remote url", bare_repo_path=self.bare_repo_path)
+            origin.set_url(str(self.repo_url))
 
     def _ensure_version_in_bare_repo(self) -> None:
         if not self.version:
@@ -373,8 +431,12 @@ class GitDagBundle(BaseDagBundle):
     )
     def _fetch_submodules(self) -> None:
         self._log.info("Initializing and updating submodules", repo_path=self.repo_path)
-        self.repo.git.submodule("sync", "--recursive")
-        self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
+        cm = nullcontext()
+        if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
+            cm = self.repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        with cm:
+            self.repo.git.submodule("sync", "--recursive")
+            self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
 
     def refresh(self) -> None:
         if self.version:

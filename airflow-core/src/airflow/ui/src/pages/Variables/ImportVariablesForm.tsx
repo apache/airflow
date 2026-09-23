@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Button, Center, CloseButton, FileUpload, HStack, Spinner } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
 
 import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
+
+import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/system-components";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
+
 import { useImportVariables } from "src/queries/useImportVariables";
 
 type ImportVariablesFormProps = {
@@ -156,7 +160,8 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         </FileUpload.ItemGroup>
         {isParsing ? (
           <Center mt={2}>
-            <Spinner color="brand.solid" marginRight={2} size="sm" /> Parsing file...
+            <Spinner color="brand.solid" marginRight={2} size="sm" />{" "}
+            {translate("variables.import.parsingFile")}
           </Center>
         ) : undefined}
       </FileUpload.Root>

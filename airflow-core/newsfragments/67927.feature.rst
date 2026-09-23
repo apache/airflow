@@ -1,0 +1,1 @@
+Added the ``triggerer.trigger_queue_delay`` metric, which measures the time a trigger workload spends queued before being processed by the trigger runner.

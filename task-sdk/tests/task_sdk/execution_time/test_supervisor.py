@@ -35,7 +35,7 @@ from operator import attrgetter
 from random import randint
 from textwrap import dedent
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_args
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -49,7 +49,9 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
+from structlog.typing import FilteringBoundLogger
 from task_sdk import FAKE_BUNDLE, make_client
+from task_sdk.execution_time import exec_probe_target
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
@@ -160,12 +162,15 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.supervisor import (
+    SERVER_TERMINATED,
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
     ProcessTracker,
+    WatchedSubprocess,
     _make_process_nondumpable,
     _remote_logging_conn,
+    forward_to_log,
     in_process_api_server,
     make_buffered_socket_reader,
     process_log_messages_from_subprocess,
@@ -1241,6 +1246,71 @@ class TestWatchedSubprocess:
         proc.selector.close.assert_called_once()
         proc.stdin.close.assert_called_once()
 
+    def test_task_runner_starts_in_new_process_group(self, client_with_ti_start):
+        """Regression test for #65505: the task-runner child must be placed in
+        its own process group (PGID == its PID) so kill() can reach
+        subprocesses the task-runner spawns via os.killpg(); without it, a
+        venv/Popen child of the task-runner inherits the supervisor's process
+        group and killpg would signal the supervisor too (or miss the
+        grandchild entirely).
+
+        The group must already exist when start() returns: the parent sets it
+        too (double setpgid), closing the race where kill() runs before the
+        child is first scheduled (e.g. task_instances.start() failing
+        synchronously in _on_child_started).
+        """
+
+        def subprocess_main():
+            CommsDecoder()._get_response()
+            sleep(10)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+        try:
+            child_pgid = os.getpgid(proc.pid)
+            assert child_pgid == proc.pid, (
+                "Task-runner child must be its own process-group leader as soon "
+                f"as start() returns. Got pgid={child_pgid}, pid={proc.pid}."
+            )
+            assert child_pgid != os.getpgid(0), (
+                "Child's process group must differ from the supervisor's so "
+                "os.killpg() from kill() does not signal the supervisor itself."
+            )
+        finally:
+            proc.kill(signal.SIGKILL, force=True)
+            proc.wait()
+
+    def test_child_keeps_supervisor_process_group_by_default(self):
+        """Subprocess types that don't opt in to new_process_group (DAG
+        processor, triggerer, callbacks) must keep the supervisor's process
+        group: they install their own signal handlers and expect direct,
+        graceful signalling rather than group-wide delivery.
+        """
+
+        def subprocess_main():
+            sleep(30)
+
+        proc = WatchedSubprocess.start(id=uuid7(), target=subprocess_main)
+        try:
+            assert os.getpgid(proc.pid) == os.getpgid(0), (
+                "Without new_process_group=True the child must stay in the supervisor's process group."
+            )
+        finally:
+            proc.kill(signal.SIGKILL, force=True)
+
 
 class TestWatchedSubprocessKill:
     @pytest.fixture
@@ -1261,6 +1331,7 @@ class TestWatchedSubprocessKill:
             stdin=mocker.Mock(),
             client=mocker.Mock(),
             process=mock_process,
+            new_process_group=True,
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -1270,8 +1341,11 @@ class TestWatchedSubprocessKill:
         proc.selector = mock_selector
         return proc
 
-    def test_kill_process_already_exited(self, watched_subprocess, mock_process):
+    def test_kill_process_already_exited(self, watched_subprocess, mock_process, mocker):
         """Test behavior when the process has already exited."""
+        # When the process is gone, getpgid raises ProcessLookupError and the
+        # kill() path falls back to send_signal on the dead psutil.Process.
+        mocker.patch("os.getpgid", side_effect=ProcessLookupError)
         mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
         watched_subprocess.kill(signal.SIGINT, force=True)
 
@@ -1279,15 +1353,98 @@ class TestWatchedSubprocessKill:
         mock_process.wait.assert_called_once()
         assert watched_subprocess._exit_code == -1
 
-    def test_kill_process_custom_signal(self, watched_subprocess, mock_process):
-        """Test that the process is killed with the correct signal."""
+    def test_kill_process_custom_signal(self, watched_subprocess, mock_process, mocker):
+        """Test that the process is killed with the correct signal via killpg."""
+        mock_getpgid = mocker.patch("os.getpgid", side_effect=lambda pid: 12345 if pid else 54321)
+        mock_killpg = mocker.patch("os.killpg")
         mock_process.wait.return_value = 0
 
         signal_to_send = signal.SIGUSR1
         watched_subprocess.kill(signal_to_send, force=False)
 
-        mock_process.send_signal.assert_called_once_with(signal_to_send)
+        assert mock_getpgid.call_args_list == [mocker.call(12345), mocker.call(0)]
+        mock_killpg.assert_called_once_with(12345, signal_to_send)
+        mock_process.send_signal.assert_not_called()
         mock_process.wait.assert_called_once_with(timeout=0)
+
+    def test_kill_signals_process_group(self, watched_subprocess, mock_process, mocker):
+        """Regression test for #65505: kill() must signal the whole process
+        group so subprocesses spawned by the task-runner (venv children,
+        Docker exec, bash shells) are also reached.
+        """
+        mock_getpgid = mocker.patch("os.getpgid", side_effect=lambda pid: 12345 if pid else 54321)
+        mock_killpg = mocker.patch("os.killpg")
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        assert mock_getpgid.call_args_list == [mocker.call(12345), mocker.call(0)]
+        mock_killpg.assert_called_once_with(12345, signal.SIGTERM)
+        mock_process.send_signal.assert_not_called()
+
+    def test_kill_does_not_signal_supervisors_own_process_group(
+        self, watched_subprocess, mock_process, mocker
+    ):
+        """If the child never made it into its own process group (setpgid
+        failed, or the child died and its PID's group resolves to ours),
+        os.killpg would signal the supervisor itself and every sibling in its
+        group -- and no exception would be raised for the fallback to catch.
+        kill() must detect the shared group and signal the child PID alone.
+        """
+        mocker.patch("os.getpgid", return_value=54321)
+        mock_killpg = mocker.patch("os.killpg")
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        mock_killpg.assert_not_called()
+        mock_process.send_signal.assert_called_once_with(signal.SIGTERM)
+
+    def test_kill_signals_pid_only_without_new_process_group(self, mocker, mock_process):
+        """Subprocess types that don't opt in to new_process_group (DAG
+        processor, triggerer, callbacks) must be signalled directly, never
+        via killpg.
+        """
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            client=mocker.Mock(),
+            process=mock_process,
+        )
+        mock_getpgid = mocker.patch("os.getpgid")
+        mock_killpg = mocker.patch("os.killpg")
+        mock_process.wait.return_value = 0
+
+        proc.kill(signal.SIGTERM, force=False)
+
+        mock_getpgid.assert_not_called()
+        mock_killpg.assert_not_called()
+        mock_process.send_signal.assert_called_once_with(signal.SIGTERM)
+
+    @pytest.mark.parametrize("failing_call", ["getpgid", "killpg"])
+    @pytest.mark.parametrize("exc", [ProcessLookupError, PermissionError])
+    def test_kill_falls_back_to_send_signal_when_group_signal_fails(
+        self, watched_subprocess, mock_process, mocker, failing_call, exc
+    ):
+        """If os.killpg or os.getpgid raises ProcessLookupError (group
+        vanished, e.g. task already reaped) or PermissionError, fall back to
+        signalling the task-runner PID directly via send_signal.
+        """
+        if failing_call == "getpgid":
+            mocker.patch("os.getpgid", side_effect=exc)
+            mock_killpg = mocker.patch("os.killpg")
+        else:
+            mocker.patch("os.getpgid", side_effect=lambda pid: 12345 if pid else 54321)
+            mock_killpg = mocker.patch("os.killpg", side_effect=exc)
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        if failing_call == "getpgid":
+            mock_killpg.assert_not_called()
+        mock_process.send_signal.assert_called_once_with(signal.SIGTERM)
 
     @pytest.mark.parametrize(
         ("signal_to_send", "exit_after"),
@@ -1553,9 +1710,28 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                host=None,
+                schema=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
-        expected_body={"conn_id": "test_conn", "conn_type": "mysql", "type": "ConnectionResult"},
+        expected_body={
+            "conn_id": "test_conn",
+            "conn_type": "mysql",
+            "host": None,
+            "schema": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "extra": None,
+            "type": "ConnectionResult",
+        },
     ),
     RequestTestCase(
         message=GetConnection(conn_id="test_conn"),
@@ -1563,12 +1739,26 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="password"),
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                password="password",
+                host=None,
+                schema=None,
+                login=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
             "conn_type": "mysql",
             "password": "password",
+            "host": None,
+            "schema": None,
+            "login": None,
+            "port": None,
+            "extra": None,
             "type": "ConnectionResult",
         },
         mask_secret_args=("password",),
@@ -1579,12 +1769,26 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                schema="mysql",
+                host=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
             "conn_type": "mysql",
             "schema": "mysql",
+            "host": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "extra": None,
             "type": "ConnectionResult",
         },
     ),
@@ -1940,6 +2144,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -1983,6 +2190,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2019,6 +2229,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2062,6 +2275,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2098,6 +2314,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2141,6 +2360,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2176,6 +2398,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2217,6 +2442,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2230,6 +2458,174 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_asset_alias_with_filters",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name="test",
+            partition_key="us|2024-01-15",
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": "us|2024-01-15",
+                "partition_key_regexp_pattern": None,
+                "extra": None,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_name_with_partition_key",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name="test",
+            extra={"region": "us"},
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": {"region": "us"},
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ],
+            ),
+        ),
+        test_id="get_asset_events_with_extra_filter",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(
+            alias_name="test_alias",
+            partition_key="eu|2024-03",
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "alias_name": "test_alias",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": "eu|2024-03",
+                "partition_key_regexp_pattern": None,
+                "extra": None,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_alias_with_partition_key",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(
+            alias_name="test_alias",
+            extra={"env": "prod"},
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "alias_name": "test_alias",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": {"env": "prod"},
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_alias_with_extra_filter",
     ),
     RequestTestCase(
         message=ValidateInletsAndOutlets(ti_id=TI_ID),
@@ -2247,7 +2643,7 @@ REQUEST_TEST_CASES = [
         test_id="validate_inlets_and_outlets",
     ),
     RequestTestCase(
-        message=GetPrevSuccessfulDagRun(ti_id=TI_ID),
+        message=GetPrevSuccessfulDagRun(ti_id=uuid7()),
         expected_body={
             "data_interval_start": timezone.parse("2025-01-10T12:00:00Z"),
             "data_interval_end": timezone.parse("2025-01-10T14:00:00Z"),
@@ -2379,6 +2775,10 @@ REQUEST_TEST_CASES = [
                 consumed_asset_events=[],
                 state=DagRunState.SUCCESS,
                 triggering_user_name=None,
+                data_interval_start=None,
+                data_interval_end=None,
+                end_date=None,
+                partition_key=None,
             ),
         ),
         test_id="get_dag_run",
@@ -2439,6 +2839,10 @@ REQUEST_TEST_CASES = [
                     consumed_asset_events=[],
                     state=DagRunState.SUCCESS,
                     triggering_user_name=None,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    end_date=None,
+                    partition_key=None,
                 )
             ),
         ),
@@ -2926,20 +3330,143 @@ REQUEST_TEST_CASES = [
 
 
 class TestHandleRequest:
-    @pytest.fixture
-    def watched_subprocess(self, mocker):
-        read_end, write_end = socket.socketpair()
+    class _OverrideActivitySubprocess(ActivitySubprocess):
+        def _handle_set_rendered_map_index(
+            self, msg: SetRenderedMapIndex, log: FilteringBoundLogger, req_id: int
+        ) -> supervisor.RequestResult:
+            return OKResponse(ok=True), {}
 
-        subprocess = ActivitySubprocess(
-            process_log=mocker.MagicMock(),
+    @patch.object(
+        ActivitySubprocess, "_handle_set_rendered_map_index", autospec=True, return_value=(None, {})
+    )
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    def test_dispatch_resolves_patched_method(self, send_msg, handler, watched_subprocess):
+        process, _ = watched_subprocess
+        msg = SetRenderedMapIndex(rendered_map_index="label")
+        log = structlog.get_logger()
+
+        process._handle_request(msg, log, req_id=42)
+
+        handler.assert_called_once_with(process, msg, log, 42)
+        send_msg.assert_called_once_with(process, None, request_id=42, error=None)
+        assert not process.client.mock_calls
+
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize("watched_subprocess", [_OverrideActivitySubprocess], indirect=True)
+    def test_dispatch_resolves_subclass_override(self, send_msg, watched_subprocess):
+        process, _ = watched_subprocess
+
+        process._handle_request(
+            SetRenderedMapIndex(rendered_map_index="label"), structlog.get_logger(), req_id=42
+        )
+
+        send_msg.assert_called_once_with(process, OKResponse(ok=True), request_id=42, error=None)
+        assert not process.client.mock_calls
+
+    @patch.object(ActivitySubprocess, "_handle_set_rendered_map_index", autospec=True, return_value=None)
+    def test_missing_handler_result_sends_error(self, handler, watched_subprocess, mocker):
+        process, read_socket = watched_subprocess
+        generator = process.handle_requests(log=mocker.Mock(spec=FilteringBoundLogger))
+        next(generator)
+
+        msg = SetRenderedMapIndex(rendered_map_index="label")
+        generator.send(_RequestFrame(id=42, body=msg.model_dump()))
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+        assert frame.id == 42
+        assert frame.error is not None
+        assert frame.error["error"] == ErrorType.API_SERVER_ERROR.value
+        assert frame.error["detail"]["exception_type"] == "TypeError"
+        handler.assert_called_once()
+
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize("registry", [None, {}], ids=["undeclared", "empty"])
+    def test_undeclared_registry_is_distinct_from_empty_registry(
+        self, send_msg, watched_subprocess, monkeypatch, registry
+    ):
+        process, _ = watched_subprocess
+        monkeypatch.setattr(ActivitySubprocess, "_request_handlers", registry)
+        msg = GetVariable(key="key")
+
+        if registry is None:
+            with pytest.raises(NotImplementedError, match="must declare its request handlers"):
+                process._handle_request(msg, structlog.get_logger(), req_id=42)
+            send_msg.assert_not_called()
+        else:
+            process._handle_request(msg, structlog.get_logger(), req_id=42)
+            send_msg.assert_called_once_with(
+                process,
+                None,
+                request_id=42,
+                error=ErrorResponse(
+                    error=ErrorType.API_SERVER_ERROR,
+                    detail={"status_code": 400, "message": "Unhandled request"},
+                ),
+            )
+
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize(
+        "message",
+        [
+            GetHITLDetailResponse(ti_id=TI_ID),
+            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]),
+        ],
+    )
+    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess, message):
+        process, _ = watched_subprocess
+        process._handle_request(message, structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(
+            process,
+            None,
+            request_id=42,
+            error=ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={"status_code": 400, "message": "Unhandled request"},
+            ),
+        )
+        assert not process.client.mock_calls
+
+    @patch.object(ActivitySubprocess, "_send_new_log_fd", autospec=True)
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize("fd_supported", [True, False])
+    def test_resend_logging_fd_sends_one_response(
+        self, send_msg, send_new_log_fd, watched_subprocess, monkeypatch, fd_supported
+    ):
+        process, _ = watched_subprocess
+        monkeypatch.setattr(supervisor, "send_fds", object() if fd_supported else None)
+
+        process._handle_request(ResendLoggingFD(), structlog.get_logger(), req_id=42)
+
+        if fd_supported:
+            send_new_log_fd.assert_called_once_with(process, 42)
+            send_msg.assert_not_called()
+        else:
+            send_new_log_fd.assert_not_called()
+            send_msg.assert_called_once_with(process, None, request_id=42, error=None)
+
+    @pytest.fixture
+    def watched_subprocess(self, mocker, request):
+        read_end, write_end = socket.socketpair()
+        process_type = getattr(request, "param", ActivitySubprocess)
+
+        subprocess = process_type(
+            process_log=mocker.MagicMock(spec=FilteringBoundLogger),
             id=TI_ID,
             pid=12345,
             stdin=write_end,
-            client=mocker.Mock(),
-            process=mocker.Mock(),
+            client=mocker.Mock(spec=sdk_client.Client),
+            process=mocker.Mock(spec=psutil.Process),
         )
 
-        return subprocess, read_end
+        try:
+            yield subprocess, read_end
+        finally:
+            subprocess.selector.close()
+            read_end.close()
+            write_end.close()
 
     @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
     @pytest.mark.parametrize("test_case", REQUEST_TEST_CASES, ids=lambda tc: tc.test_id)
@@ -3012,31 +3539,10 @@ class TestHandleRequest:
             decoder = CommsDecoder(socket=None).body_decoder  # type: ignore[var-annotated, arg-type]
             assert decoder.validate_python(frame.body) == client_mock.response
 
-    def test_all_to_supervisor_messages_are_covered(self):
-        """Ensure all ToSupervisor message types have test coverage."""
-
-        # Extract the individual message types from the Union
-        union_type = ToSupervisor.__args__[0]
-        supervisor_message_types = set(union_type.__args__)
-
-        # Get all message types covered in our test cases
-        tested_message_types = {type(test_case.message) for test_case in REQUEST_TEST_CASES}
-
-        # Message types which are excluded for a good reason
-        excluded_message_types = {
-            GetHITLDetailResponse,  # Only used in Triggerer, not needed in worker
-            UpdateHITLDetail,  # Only used in Triggerer, not needed in worker
-        }
-
-        untested_types = supervisor_message_types - tested_message_types - excluded_message_types
-
-        # Assert all types are covered
-        assert not untested_types, (
-            f"Missing test coverage for {len(untested_types)}/{len(supervisor_message_types)} "
-            f"ToSupervisor message types:\n"
-            + "\n".join(f"  - {t.__name__}" for t in sorted(untested_types, key=lambda x: x.__name__))
-            + "\n\nPlease add test cases to REQUEST_TEST_CASES."
-        )
+    def test_registered_message_types(self):
+        expected = set(get_args(get_args(ToSupervisor)[0])) - {GetHITLDetailResponse, UpdateHITLDetail}
+        assert set(ActivitySubprocess._request_handlers) == expected
+        assert {type(case.message) for case in REQUEST_TEST_CASES} == expected
 
     def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
         """Test that API server errors are properly handled and sent back to the task."""
@@ -3091,6 +3597,45 @@ class TestHandleRequest:
             "message": str(error),
             "detail": error.response.json(),
         }
+
+    @pytest.mark.parametrize(
+        ("status_code", "expects_error"),
+        [
+            pytest.param(410, False, id="410_gone_is_swallowed"),
+            pytest.param(404, True, id="404_not_found_propagates"),
+        ],
+    )
+    def test_set_rendered_fields_swallows_410_but_propagates_404(
+        self, watched_subprocess, mocker, status_code, expects_error
+    ):
+        """A stale-id RTIF overwrite (410) is skipped silently; a bogus-id (404) still propagates as an error."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        error = ServerResponseError(
+            message="boom",
+            request=httpx.Request("PUT", "http://test"),
+            response=httpx.Response(status_code, json={"detail": "boom"}),
+        )
+        watched_subprocess.client.task_instances.set_rtif = mocker.Mock(side_effect=error)
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        msg = SetRenderedFields(rendered_fields={"field1": "v1"})
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+
+        assert frame.id == req_frame.id
+        if expects_error:
+            assert frame.error is not None
+            assert frame.error["error"] == "API_SERVER_ERROR"
+            assert frame.error["detail"]["status_code"] == status_code
+        else:
+            assert frame.error is None
 
     def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
         """A transient network error must not crash the IPC generator.
@@ -3416,7 +3961,7 @@ class TestInProcessClient:
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
-        pytest.param(True, "", "AIRFLOW_CONN_AWS_DEFAULT", id="no-conn-id"),
+        pytest.param(True, "", "", id="no-conn-id"),
         pytest.param(True, "aws_default", "AIRFLOW_CONN_AWS_DEFAULT", id="explicit-default"),
         pytest.param(True, "my_aws", "AIRFLOW_CONN_MY_AWS", id="other"),
         pytest.param(False, "", "", id="no-remote-logging"),
@@ -3439,6 +3984,12 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 # Minimal enough to pass validation, we don't care what fields are in here for the tests
                 "conn_id": remote_conn,
                 "conn_type": "aws",
+                "host": None,
+                "schema": None,
+                "login": None,
+                "password": None,
+                "port": None,
+                "extra": None,
             },
         )
 
@@ -3467,7 +4018,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
 
             with _remote_logging_conn(client):
                 new_keys = os.environ.keys() - env.keys()
-                if remote_logging:
+                if remote_logging and expected_env:
                     # _remote_logging_conn sets both the connection env var and _AIRFLOW_PROCESS_CONTEXT
                     assert new_keys == {expected_env, "_AIRFLOW_PROCESS_CONTEXT"}
                 else:
@@ -3698,6 +4249,22 @@ class TestSignalRetryLogic:
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.UP_FOR_RETRY
 
+    def test_server_terminated_takes_precedence_over_retry(self, mocker):
+        """Test that a server-terminated task stays SERVER_TERMINATED even with retries enabled."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = True
+        mock_watched_subprocess._terminal_state = SERVER_TERMINATED
+
+        assert mock_watched_subprocess.final_state == SERVER_TERMINATED
+
     def test_non_signal_exit_code_without_retry_goes_to_failed(self, mocker):
         """Test that non-signal exit codes without retries enabled go to FAILED."""
         mock_watched_subprocess = ActivitySubprocess(
@@ -3776,7 +4343,7 @@ def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
             conn_id=conn_id,
             conn_type="example",
             host=None,
-            schema_=None,
+            schema=None,
             login=None,
             password=None,
             port=None,
@@ -3819,6 +4386,120 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     ]
 
 
+@pytest.mark.parametrize(
+    "error_message",
+    ["write to closed file", "I/O operation on closed file"],
+)
+def test_process_log_messages_closed_logger_is_skipped(error_message):
+    closed_logger = mock.Mock(spec=FilteringBoundLogger)
+    closed_logger.log.side_effect = ValueError(error_message)
+
+    good_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    def fake_reconfigure(logger, *args, **kwargs):
+        return logger
+
+    with (
+        mock.patch(
+            "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+            side_effect=fake_reconfigure,
+        ),
+        mock.patch.object(supervisor.log, "debug") as mock_debug,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(closed_logger, good_logger))
+        next(gen)
+
+        gen.send(b'{"level": "info", "event": "hello"}\n')
+        gen.send(b'{"level": "info", "event": "world"}\n')
+
+    assert good_logger.log.call_count == 2
+    assert mock_debug.call_count == 2
+
+
+def test_forward_to_log_closed_logger_is_skipped():
+    closed_logger = mock.Mock(spec=FilteringBoundLogger)
+    closed_logger.log.side_effect = ValueError("I/O operation on closed file")
+    good_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    with mock.patch.object(supervisor.log, "debug") as mock_debug:
+        gen = forward_to_log((closed_logger, good_logger), logger="task.stdout", level=logging.INFO)
+        next(gen)
+        gen.send(b"hello\n")
+        gen.send(b"world\n")
+
+    assert good_logger.log.call_count == 2
+    good_logger.log.assert_any_call(logging.INFO, "hello", logger="task.stdout")
+    good_logger.log.assert_any_call(logging.INFO, "world", logger="task.stdout")
+    assert mock_debug.call_count == 2
+
+
+def test_process_log_messages_unexpected_value_error_is_reraised():
+    """A ValueError unrelated to a closed file handle must propagate, not be silently swallowed."""
+    buggy_logger = mock.Mock(spec=FilteringBoundLogger)
+    buggy_logger.log.side_effect = ValueError("unexpected formatting bug")
+
+    def fake_reconfigure(log, *args, **kwargs):
+        return log
+
+    with mock.patch(
+        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+        side_effect=fake_reconfigure,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(buggy_logger,))
+        next(gen)
+
+        with pytest.raises(ValueError, match="unexpected formatting bug"):
+            gen.send(b'{"level": "info", "event": "test"}\n')
+
+
+def test_cleanup_sockets_after_kill_drains_logs_but_not_requests(mocker):
+    request_read, request_write = socket.socketpair()
+    stdout_read, stdout_write = socket.socketpair()
+    log_read, log_write = socket.socketpair()
+
+    subprocess = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=stdout_write,
+        client=mocker.Mock(),
+        process=mocker.Mock(),
+    )
+    selector = selectors.DefaultSelector()
+    subprocess.selector = selector
+
+    request_handler = mock.Mock(return_value=False)
+    stdout_handler = mock.Mock(return_value=False)
+    log_handler = mock.Mock(return_value=False)
+
+    def on_close(sock):
+        selector.unregister(sock)
+        subprocess._open_sockets.pop(sock, None)
+
+    try:
+        subprocess._open_sockets[request_read] = "requests"
+        subprocess._open_sockets[stdout_read] = "stdout"
+        subprocess._open_sockets[log_read] = "logs"
+
+        selector.register(request_read, selectors.EVENT_READ, (request_handler, on_close))
+        selector.register(stdout_read, selectors.EVENT_READ, (stdout_handler, on_close))
+        selector.register(log_read, selectors.EVENT_READ, (log_handler, on_close))
+
+        subprocess.cleanup_sockets_after_kill()
+
+        request_handler.assert_not_called()
+        stdout_handler.assert_called_once_with(stdout_read)
+        log_handler.assert_called_once_with(log_read)
+        assert not subprocess._open_sockets
+        with pytest.raises((KeyError, ValueError)):
+            selector.get_key(request_read)
+    finally:
+        selector.close()
+        request_write.close()
+        stdout_write.close()
+        log_write.close()
+
+
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     def subprocess_main():
         # This is run in the subprocess!
@@ -3848,7 +4529,14 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
         subprocess.check_call([sys.executable, "-c", dedent(script)])
 
     client_with_ti_start.connections.get.return_value = ConnectionResult(
-        conn_id="test_conn", conn_type="mysql", login="a", password="password1"
+        conn_id="test_conn",
+        conn_type="mysql",
+        login="a",
+        password="password1",
+        host=None,
+        schema=None,
+        port=None,
+        extra=None,
     )
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,
@@ -3892,6 +4580,34 @@ def _drop_root_if_needed():
     """Drop to a non-root UID so kernel dumpable checks actually apply (root/CAP_SYS_PTRACE bypasses them)."""
     if os.getuid() == 0:
         os.setuid(_NOBODY_UID)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
+def test_exec_bootstrap_restores_nondumpable_before_airflow_import():
+    """The real exec bootstrap prelude sets PR_SET_DUMPABLE back to 0 (execve resets it to 1)."""
+    probe = (
+        "import ctypes\n"
+        "libc = ctypes.CDLL(None, use_errno=True)\n"
+        "after_exec = libc.prctl(3, 0, 0, 0, 0)\n"  # PR_GET_DUMPABLE, before the prelude runs
+        + supervisor._CHILD_EXEC_PRELUDE
+        + "print(after_exec, libc.prctl(3, 0, 0, 0, 0))\n"
+    )
+    read_fd, write_fd = os.pipe()
+    pid = os.fork()
+    if pid == 0:  # pragma: no cover - child
+        try:
+            os.close(read_fd)
+            os.dup2(write_fd, 1)
+            _make_process_nondumpable()  # what supervise_task() does before the fork
+            os.execv(sys.executable, [sys.executable, "-c", probe])
+        finally:
+            os._exit(1)  # only reached if execv failed; never run pytest in the child
+    os.close(write_fd)
+    with os.fdopen(read_fd) as out:
+        report = out.read().split()[-2:]  # anything the exec'd interpreter logs first is noise
+    _, status = os.waitpid(pid, 0)
+    assert status == 0, f"exec'd child exited with {status}"
+    assert report == ["1", "0"], f"dumpable flag after exec, then after the prelude: {report}"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
@@ -4010,6 +4726,61 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         in_process_api_server.cache_clear()
 
 
+@pytest.mark.parametrize(
+    ("task_uses_exec", "target", "expected_use_exec"),
+    [
+        (True, supervisor._subprocess_main, True),
+        (False, supervisor._subprocess_main, False),
+        (True, lambda: None, False),
+    ],
+)
+def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec, target, expected_use_exec):
+    """ActivitySubprocess.start passes the task-process decision as use_exec, real entry point only."""
+    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+
+    ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        client=MagicMock(spec=sdk_client.Client),
+        target=target,
+        logger=MagicMock(),
+    )
+
+    assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
+    assert base_start.call_args.kwargs["target"] is target
+
+
+class TestTaskProcessUsesExec:
+    """The config opt-in for fork+exec of the task process where the platform does not force it."""
+
+    @pytest.mark.parametrize(
+        ("platform", "config_value", "expected"),
+        [
+            ("darwin", None, True),
+            ("darwin", "False", True),
+            ("linux", None, False),
+            ("linux", "False", False),
+            ("linux", "True", True),
+        ],
+    )
+    def test_task_process_uses_exec(self, monkeypatch, platform, config_value, expected):
+        monkeypatch.setattr(supervisor.sys, "platform", platform)
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): config_value}):
+            assert supervisor._task_process_uses_exec() is expected
+
+
 class TestResolveChildTarget:
     """Test rehydrating the exec'd child's entry point from _AIRFLOW_CHILD_TARGET."""
 
@@ -4034,9 +4805,204 @@ class TestResolveChildTarget:
             supervisor.WatchedSubprocess.start(target=lambda: None, use_exec=True)
 
 
+class TestStartUsesPosixSpawn:
+    """use_exec=True goes through os.posix_spawn, never os.fork -- that's the whole point."""
+
+    def _start(self, mocker, **kwargs):
+        spawn = mocker.patch("airflow.sdk.execution_time.supervisor.os.posix_spawn", return_value=4321)
+        fork = mocker.patch(
+            "airflow.sdk.execution_time.supervisor.os.fork",
+            side_effect=AssertionError("os.fork() must not be called when use_exec=True"),
+        )
+        mocker.patch("airflow.sdk.execution_time.supervisor.psutil.Process")
+        supervisor.WatchedSubprocess.start(
+            id=uuid7(), target=supervisor._subprocess_main, use_exec=True, **kwargs
+        )
+        return spawn, fork
+
+    def test_does_not_call_fork(self, mocker):
+        """The defining property of the fix: no os.fork() call exists on this path at all."""
+        spawn, fork = self._start(mocker)
+        fork.assert_not_called()
+        spawn.assert_called_once()
+
+    def test_spawns_the_bootstrap_with_the_target_env_var(self, mocker):
+        spawn, _ = self._start(mocker)
+        args, kwargs = spawn.call_args
+        path, argv, env = args
+        assert path == sys.executable
+        assert argv == [sys.executable, "-c", supervisor._CHILD_EXEC_BOOTSTRAP]
+        assert env["_AIRFLOW_CHILD_TARGET"] == "airflow.sdk.execution_time.supervisor:_subprocess_main"
+
+    def test_file_actions_dup2_the_four_fds(self, mocker):
+        spawn, _ = self._start(mocker)
+        file_actions = spawn.call_args.kwargs["file_actions"]
+        targets = {new_fd for _, _, new_fd in file_actions}
+        assert targets == {0, 1, 2, 3}
+        assert all(action == os.POSIX_SPAWN_DUP2 for action, _, _ in file_actions)
+
+    def test_setpgroup_passed_when_new_process_group(self, mocker):
+        spawn, _ = self._start(mocker, new_process_group=True)
+        assert spawn.call_args.kwargs["setpgroup"] == 0
+
+    def test_setpgroup_omitted_when_not_new_process_group(self, mocker):
+        spawn, _ = self._start(mocker, new_process_group=False)
+        assert "setpgroup" not in spawn.call_args.kwargs
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="os.fork/os.register_at_fork are POSIX-only")
+    def test_hanging_after_fork_handler_wedges_bare_fork_but_not_posix_spawn(self):
+        """
+        A handler registered via os.register_at_fork(after_in_child=...) that never
+        returns wedges a bare-forked child forever, but does not affect a posix_spawn'd
+        child at all -- posix_spawn never runs it.
+
+        Runs in a disposable subprocess: os.register_at_fork() has no unregister call,
+        so registering a permanently-hanging one here would otherwise poison every later
+        fork in this pytest worker for the rest of the test run.
+        """
+        probe = """
+import os, sys, time
+
+def _hangs_forever():
+    while True:
+        time.sleep(3600)
+
+os.register_at_fork(after_in_child=_hangs_forever)
+
+r, w = os.pipe()
+pid = os.fork()
+if pid == 0:
+    os.write(w, b"unreachable")
+    os._exit(0)
+os.close(w)
+os.set_blocking(r, False)
+deadline = time.monotonic() + 2
+hung = True
+while time.monotonic() < deadline:
+    try:
+        if os.read(r, 1):
+            hung = False
+            break
+    except BlockingIOError:
+        time.sleep(0.01)
+os.close(r)
+os.kill(pid, 9)
+os.waitpid(pid, 0)
+if not hung:
+    print("FAIL: bare fork did not hang despite the handler")
+    sys.exit(1)
+
+r2, w2 = os.pipe()
+os.set_inheritable(w2, True)
+pid2 = os.posix_spawn(
+    sys.executable,
+    [sys.executable, "-c", "print('ok')"],
+    os.environ,
+    file_actions=[(os.POSIX_SPAWN_DUP2, w2, 1)],
+)
+os.close(w2)
+os.set_blocking(r2, False)
+deadline = time.monotonic() + 2
+spawned_ok = False
+while time.monotonic() < deadline:
+    try:
+        data = os.read(r2, 8)
+        if data.strip() == b"ok":
+            spawned_ok = True
+            break
+    except BlockingIOError:
+        time.sleep(0.01)
+os.close(r2)
+os.waitpid(pid2, 0)
+if not spawned_ok:
+    print("FAIL: posix_spawn hung too, despite the same handler still registered")
+    sys.exit(1)
+
+print("PASS")
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", probe], capture_output=True, text=True, timeout=15, check=False
+        )
+        assert result.stdout.strip() == "PASS", f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+
 @pytest.mark.usefixtures("disable_capturing")
+def test_fork_exec_bootstrap_runs_an_importable_target_end_to_end(
+    captured_logs, time_machine, monkeypatch, client_with_ti_start
+):
+    """
+    Drive the real ``os.execv`` bootstrap: the fresh interpreter runs ``_CHILD_EXEC_BOOTSTRAP``,
+    rebuilds FDs 0-3, rehydrates the target by name and hands it to ``_fork_main``.
+
+    The probe stands in for ``_subprocess_main`` rather than running the task runner: the
+    suite stubs plugin loading in-process (conftest ``_get_plugins``), which a bare-forked
+    child inherits and a fresh interpreter cannot.
+    """
+    tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    monkeypatch.setenv(
+        "PYTHONPATH", os.pathsep.join(p for p in (tests_dir, os.environ.get("PYTHONPATH", "")) if p)
+    )
+    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: True)
+    # ActivitySubprocess.start only execs its own entry point; let the probe be that entry point.
+    monkeypatch.setattr(supervisor, "_subprocess_main", exec_probe_target.exec_probe_main)
+    time_machine.move_to(timezone.datetime(2024, 11, 7, 12, 34, 56, 78901), tick=False)
+
+    proc = ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        client=client_with_ti_start,
+        target=exec_probe_target.exec_probe_main,
+    )
+
+    assert proc.wait() == 0, captured_logs
+    assert {
+        "logger": "task.stdout",
+        "event": "exec-probe-ok",
+        "level": "info",
+        "timestamp": "2024-11-07T12:34:56.078901Z",
+    } in captured_logs
+
+
 class TestChildExecMain:
-    """Test the macOS fork+exec child entry point."""
+    """Test the fork+exec child entry point."""
+
+    def test_bootstrap_is_prelude_then_entry_point(self):
+        assert supervisor._CHILD_EXEC_BOOTSTRAP.startswith(supervisor._CHILD_EXEC_PRELUDE)
+        assert supervisor._CHILD_EXEC_BOOTSTRAP.rstrip().endswith("_child_exec_main()")
+        compile(supervisor._CHILD_EXEC_BOOTSTRAP, "<bootstrap>", "exec")
+
+    def test_prelude_survives_an_interpreter_without_ctypes(self):
+        """Without _ctypes the prelude must fall through to the logged fallback, not kill the task."""
+        probe = (
+            "import sys\nsys.modules['_ctypes'] = None\n" + supervisor._CHILD_EXEC_PRELUDE + "print('ok')\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe], capture_output=True, text=True, timeout=60, check=False
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "ok"
+
+    def test_reapplies_nondumpable_before_running_the_target(self, monkeypatch):
+        """The logged fallback for the bootstrap prelude runs before _fork_main hands off."""
+        calls: list[str] = []
+        monkeypatch.setattr(supervisor, "_make_process_nondumpable", lambda: calls.append("nondumpable"))
+        monkeypatch.setattr(supervisor, "_fork_main", lambda *a: calls.append("fork_main"))
+        monkeypatch.setattr(supervisor, "_resolve_child_target", lambda dotted: supervisor._subprocess_main)
+        monkeypatch.setattr(supervisor, "socket", lambda fileno: MagicMock())
+        monkeypatch.setenv("_AIRFLOW_CHILD_TARGET", "airflow.sdk.execution_time.supervisor:_subprocess_main")
+
+        supervisor._child_exec_main()
+
+        assert calls == ["nondumpable", "fork_main"]
 
     def test_uses_fds_0123_and_inherits_log_channel(self, monkeypatch):
         """_child_exec_main wraps FDs 0/1/2 as sockets and passes log_fd=3 (inherited log channel)."""
@@ -4234,3 +5200,51 @@ class TestMakeBufferedSocketReader:
         finally:
             r.close()
             w.close()
+
+
+class TestLengthPrefixedFrameReader:
+    def test_recovers_from_short_read_on_header(self):
+        received: list[_RequestFrame] = []
+
+        def collecting_gen():
+            while True:
+                frame = yield
+                received.append(frame)
+
+        payload = msgspec.msgpack.encode(_RequestFrame(id=42, body={"key": "foo"}))
+        wire = len(payload).to_bytes(4, byteorder="big") + payload
+
+        class ChunkedSocket:
+            def __init__(self, data: bytes, chunk_size: int):
+                self._data = data
+                self._chunk_size = chunk_size
+                self._pos = 0
+
+            def recv(self, n):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return b""
+                chunk = remaining[: min(n, self._chunk_size)]
+                self._pos += len(chunk)
+                return chunk
+
+            def recv_into(self, buf):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return 0
+                take = min(len(buf), self._chunk_size, len(remaining))
+                buf[:take] = remaining[:take]
+                self._pos += take
+                return take
+
+        sock = ChunkedSocket(wire, chunk_size=2)
+        on_close = MagicMock()
+        cb, _ = supervisor.length_prefixed_frame_reader(collecting_gen(), on_close=on_close)
+
+        for _ in range(len(wire) + 1):
+            if not cb(sock):
+                break
+            if received:
+                break
+
+        assert received == [_RequestFrame(id=42, body={"key": "foo"})]

@@ -34,14 +34,13 @@ import subprocess
 import time
 import uuid
 from collections.abc import Sequence
-from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
-import httpx
+import httpx2
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
@@ -90,6 +89,15 @@ class CloudSqlOperationStatus:
     RUNNING = "RUNNING"
     DONE = "DONE"
     UNKNOWN = "UNKNOWN"
+
+
+# Statuses that mean an administrative operation is still in flight on the instance. Cloud SQL
+# serializes admin operations per instance, so a new import/export submitted while one of these is
+# active fails with HTTP 409 ``operationInProgress``. Keying off an explicit set (rather than
+# ``status != DONE``) avoids treating UNKNOWN/unexpected statuses as in-progress and poking forever.
+CLOUD_SQL_NON_TERMINAL_STATUSES = frozenset(
+    {CloudSqlOperationStatus.PENDING, CloudSqlOperationStatus.RUNNING}
+)
 
 
 class CloudSQLHook(GoogleBaseHook):
@@ -430,6 +438,29 @@ class CloudSQLHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def list_operations(self, instance: str, project_id: str, max_results: int | None = None) -> list[dict]:
+        """
+        List administrative operations for a Cloud SQL instance.
+
+        Must be called with keyword arguments because ``project_id`` is injected by the
+        ``fallback_to_default_project_id`` decorator.
+
+        :param instance: Name of the Cloud SQL instance whose operations are listed.
+        :param project_id: Project ID of the project that contains the instance.
+        :param max_results: Optional maximum number of operations to return per page.
+        :return: The list of operation resources for the instance (may be empty).
+        """
+        response = (
+            self.get_conn()
+            .operations()
+            .list(project=project_id, instance=instance, maxResults=max_results)
+            .execute(num_retries=self.num_retries)
+        )
+        # ``operations.list`` already filters server-side by ``instance``; keep a defensive
+        # client-side filter on ``targetId`` in case the API ever returns broader results.
+        return [op for op in response.get("items", []) if op.get("targetId") == instance]
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
         self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
     ) -> None:
@@ -576,12 +607,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         download_url = self._get_sql_proxy_download_url()
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
-        # httpx has a breaking API change (follow_redirects vs allow_redirects)
-        # and this should work with both versions (cf. issue #20088)
-        if "follow_redirects" in signature(httpx.get).parameters.keys():
-            response = httpx.get(download_url, follow_redirects=True)
-        else:
-            response = httpx.get(download_url, allow_redirects=True)  # type: ignore[call-arg]
+        response = httpx2.get(download_url, follow_redirects=True)
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, "wb") as file:

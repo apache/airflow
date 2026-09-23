@@ -22,17 +22,24 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DagRun, TaskInstance
+from airflow.models import TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.common.compat.sdk import conf
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import conf, timezone
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.apache.hive import DEFAULT_DATE, MockSubProcess, TestHiveEnvironment
 
 
-class HiveOperatorConfigTest(TestHiveEnvironment):
-    def test_hive_airflow_default_config_queue(self):
+def get_hive_cli_connection():
+    connection = mock.MagicMock()
+    connection.extra_dejson = {"use_beeline": True}
+    return connection
+
+
+class TestHiveOperatorConfig(TestHiveEnvironment):
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.get_connection")
+    def test_hive_airflow_default_config_queue(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
         op = HiveOperator(
             task_id="test_default_config_queue",
             hql=self.hql,
@@ -45,7 +52,9 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
         test_config_hive_mapred_queue = conf.get("hive", "default_hive_mapred_queue")
         assert op.hook.mapred_queue == test_config_hive_mapred_queue
 
-    def test_hive_airflow_default_config_queue_override(self):
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.get_connection")
+    def test_hive_airflow_default_config_queue_override(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
         specific_mapred_queue = "default"
         op = HiveOperator(
             task_id="test_default_config_queue",
@@ -59,7 +68,23 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
         assert op.hook.mapred_queue == specific_mapred_queue
 
 
-class HiveOperatorTest(TestHiveEnvironment):
+class TestHiveOperatorJdbcParams(TestHiveEnvironment):
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.get_connection")
+    def test_hive_operator_passes_jdbc_params_to_hook(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+        jdbc_params = {"transportMode": "http", "sslTrustStore": "/opt/hive/truststore.jks"}
+
+        op = HiveOperator(
+            task_id="test_jdbc_params",
+            hql="SELECT 1",
+            jdbc_params=jdbc_params,
+            dag=self.dag,
+        )
+
+        assert op.hook.jdbc_params == jdbc_params
+
+
+class TestHiveOperator(TestHiveEnvironment):
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
         op = HiveOperator(hiveconf_jinja_translate=True, task_id="dry_run_basic_hql", hql=hql, dag=self.dag)
@@ -78,21 +103,20 @@ class HiveOperatorTest(TestHiveEnvironment):
         assert op.hql == "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
 
     @mock.patch("airflow.providers.apache.hive.operators.hive.HiveOperator.hook", mock.MagicMock())
-    def test_mapred_job_name(self, mock_hook):
+    def test_mapred_job_name(self):
         op = HiveOperator(task_id="test_mapred_job_name", hql=self.hql, dag=self.dag)
 
-        fake_run_id = "test_mapred_job_name"
         fake_logical_date = timezone.datetime(2018, 6, 19)
-        fake_ti = TaskInstance(task=op)
-        fake_ti.dag_run = DagRun(run_id=fake_run_id, logical_date=fake_logical_date)
-        fake_ti.hostname = "fake_hostname"
-        fake_context = {"ti": fake_ti}
+        fake_ti = mock.MagicMock(
+            spec=TaskInstance, dag_id=self.dag.dag_id, task_id=op.task_id, hostname="fake_hostname"
+        )
+        fake_context = {"ti": fake_ti, "logical_date": fake_logical_date}
 
         op.execute(fake_context)
-        assert (
+
+        assert op.hook.mapred_job_name == (
             "Airflow HiveOperator task for "
-            f"{fake_ti.hostname}.{self.dag.dag_id}.{op.task_id}.{fake_logical_date.isoformat()}"
-            == mock_hook.mapred_job_name
+            f"fake_hostname.{self.dag.dag_id}.{op.task_id}.{fake_logical_date.isoformat()}"
         )
 
 

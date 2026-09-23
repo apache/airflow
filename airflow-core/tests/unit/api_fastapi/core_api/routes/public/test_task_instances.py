@@ -65,6 +65,7 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.team import attach_dag_to_team
 
 pytestmark = pytest.mark.db_test
 
@@ -242,7 +243,20 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        with attach_dag_to_team(
+            session, "example_python_operator", bundle_name="team-bundle-ti", team_name="team-ti"
+        ):
+            response = test_client.get(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+            )
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-ti"
 
     def test_should_respond_200_with_decorator(self, test_client, session):
         self.create_task_instances(session, "example_python_decorator")
@@ -276,11 +290,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_should_respond_200_with_versions(
-        self, mock_hasattr, test_client, run_id, expected_version_number
-    ):
-        mock_hasattr.return_value = False
+    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number):
         response = test_client.get(f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1")
         response_data = response.json()
         assert response.status_code == 200
@@ -318,6 +328,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": mock.ANY,
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
             "dag_version": {
                 "id": response_data["dag_version"]["id"],
                 "version_number": expected_version_number,
@@ -404,13 +415,16 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "queue": None,
             },
             "triggerer_job": {
+                "bundle_names": None,
                 "dag_display_name": None,
                 "dag_id": None,
                 "end_date": None,
                 "job_type": "TriggererJob",
                 "state": "running",
+                "team_name": None,
                 "unixname": getuser(),
             },
+            "team_name": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -464,6 +478,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
@@ -520,6 +535,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client):
@@ -640,6 +656,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
             }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -665,6 +682,21 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Mapped Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context`, and map_index: `10` was not found"
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        with attach_dag_to_team(
+            session,
+            "example_python_operator",
+            bundle_name="team-bundle-mapped-ti",
+            team_name="team-mapped-ti",
+        ):
+            response = test_client.get(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
+            )
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-mapped-ti"
 
 
 class TestGetMappedTaskInstances:
@@ -2001,11 +2033,12 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         body = response.json()
         assert body["next_cursor"] is not None
         assert body["previous_cursor"] is None
-        assert body["total_entries"] is None
+        assert body["total_entries"] == 5
+        assert body["total_entries_limit"] == 50_000
         assert len(body["task_instances"]) == 3
 
     def test_cursor_pagination_returns_cursor_response(self, test_client, session):
-        """When cursor param is provided, response has cursor fields and no total_entries."""
+        """When cursor param is provided, response has cursor fields and a bounded total_entries."""
         dag_id = "example_python_operator"
         self.create_task_instances(
             session,
@@ -2021,7 +2054,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response1.status_code == 200
         body1 = response1.json()
-        assert body1["total_entries"] is None
+        assert body1["total_entries"] == 5
+        assert body1["total_entries_limit"] == 50_000
         assert len(body1["task_instances"]) == 3
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
@@ -2035,7 +2069,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         body2 = response2.json()
         assert body2["next_cursor"] is None
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 5
+        assert body2["total_entries_limit"] == 50_000
 
     def test_cursor_pagination_forward_and_backward_consistency(self, test_client, session):
         """Walk all pages forward via next_cursor, then backward via previous_cursor, and compare."""
@@ -2062,7 +2097,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             )
             assert response.status_code == 200, response.json()
             body = response.json()
-            assert body["total_entries"] is None
+            assert body["total_entries"] == total_tis
+            assert body["total_entries_limit"] == 50_000
             forward_pages.append(body)
             forward_ids.extend(ti["id"] for ti in body["task_instances"])
 
@@ -2254,6 +2290,42 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
 
         all_backward = backward_ids + [ti["id"] for ti in forward_pages[-1]["task_instances"]]
         assert all_backward == forward_ids, "Backward walk + last page must match the forward walk exactly"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        with attach_dag_to_team(
+            session, "example_python_operator", bundle_name="team-bundle-tis", team_name="team-tis"
+        ):
+            response = test_client.get(f"/dags/{'example_python_operator'}/dagRuns/~/taskInstances")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["task_instances"]
+            assert all(ti["team_name"] == "team-tis" for ti in body["task_instances"])
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_filter_by_team(self, test_client, session):
+        self.create_task_instances(session)
+        with attach_dag_to_team(
+            session,
+            "example_python_operator",
+            bundle_name="team-bundle-tis-filter",
+            team_name="team-tis-filter",
+        ):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances", params={"teams": ["team-tis-filter"]}
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] > 0
+            assert all(ti["dag_id"] == "example_python_operator" for ti in body["task_instances"])
+
+            # A team with no Dags returns nothing.
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances", params={"teams": ["nonexistent-team"]}
+            )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
@@ -3016,65 +3088,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_should_respond_200_with_versions(
-        self, mock_hasattr, test_client, run_id, expected_version_number, session
-    ):
-        mock_hasattr.return_value = False
-        response = test_client.get(
-            f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries/0"
-        )
-        assert response.status_code == 200
-        assert response.json() == {
-            "task_id": "task1",
-            "dag_id": "dag_with_multiple_versions",
-            "dag_display_name": "dag_with_multiple_versions",
-            "dag_run_id": run_id,
-            "map_index": -1,
-            "start_date": None,
-            "end_date": mock.ANY,
-            "duration": None,
-            "state": None,
-            "try_number": 0,
-            "max_tries": 0,
-            "task_display_name": "task1",
-            "hostname": "",
-            "unixname": getuser(),
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "queue": "default",
-            "priority_weight": 1,
-            "operator": "EmptyOperator",
-            "operator_name": "EmptyOperator",
-            "queued_when": None,
-            "scheduled_when": None,
-            "pid": None,
-            "executor": None,
-            "executor_config": "{}",
-            "dag_version": {
-                "id": mock.ANY,
-                "version_number": expected_version_number,
-                "dag_id": "dag_with_multiple_versions",
-                "bundle_name": "dag_maker",
-                "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
-                "created_at": mock.ANY,
-                "dag_display_name": "dag_with_multiple_versions",
-            },
-        }
-
-    @pytest.mark.parametrize(
-        ("run_id", "expected_version_number"),
-        [
-            ("run1", 1),
-            ("run2", 2),
-            ("run3", 3),
-        ],
-    )
-    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_should_respond_200_with_versions_using_url_template(
-        self, test_client, run_id, expected_version_number, session
-    ):
+    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number, session):
         response = test_client.get(
             f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries/0"
         )
@@ -3557,6 +3571,40 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
+        "payload",
+        [
+            pytest.param(
+                {"only_failed": True, "only_running": True},
+                id="only_failed_and_only_running",
+            ),
+            pytest.param(
+                {"start_date": "2024-01-02T00:00:00Z", "end_date": "2024-01-01T00:00:00Z"},
+                id="start_date_after_end_date",
+            ),
+            pytest.param(
+                {
+                    "start_date": "2024-01-01T00:00:00Z",
+                    "end_date": "2024-01-02T00:00:00Z",
+                    "dag_run_id": "run_1",
+                },
+                id="dag_run_id_with_start_and_end_date",
+            ),
+            pytest.param(
+                {"start_date": "2024-01-01T00:00:00Z", "dag_run_id": "run_1"},
+                id="dag_run_id_with_start_date",
+            ),
+            pytest.param(
+                {"end_date": "2024-01-01T00:00:00Z", "dag_run_id": "run_1"},
+                id="dag_run_id_with_end_date",
+            ),
+            pytest.param({"task_ids": []}, id="empty_task_ids"),
+        ],
+    )
+    def test_should_respond_422_on_invalid_body(self, test_client, payload):
+        response = test_client.post("/dags/example_python_operator/clearTaskInstances", json=payload)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
         ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),
         [
             pytest.param(
@@ -3817,6 +3865,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "task_display_name": "print_the_context",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
                 "try_number": 0,
                 "unixname": getuser(),
             },
@@ -4533,71 +4582,13 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_should_respond_200_with_versions(
-        self, mock_hasattr, test_client, run_id, expected_version_number
-    ):
-        mock_hasattr.return_value = False
+    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number):
         response = test_client.get(
             f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
         )
         response_data = response.json()
         assert response.status_code == 200
         assert response_data["task_instances"][0] == {
-            "task_id": "task1",
-            "dag_id": "dag_with_multiple_versions",
-            "dag_display_name": "dag_with_multiple_versions",
-            "dag_run_id": run_id,
-            "map_index": -1,
-            "start_date": None,
-            "end_date": mock.ANY,
-            "duration": None,
-            "state": mock.ANY,
-            "try_number": 0,
-            "max_tries": 0,
-            "task_display_name": "task1",
-            "hostname": "",
-            "unixname": getuser(),
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "queue": "default",
-            "priority_weight": 1,
-            "operator": "EmptyOperator",
-            "operator_name": "EmptyOperator",
-            "queued_when": None,
-            "scheduled_when": None,
-            "pid": None,
-            "executor": None,
-            "executor_config": "{}",
-            "dag_version": {
-                "id": mock.ANY,
-                "version_number": expected_version_number,
-                "dag_id": "dag_with_multiple_versions",
-                "bundle_name": "dag_maker",
-                "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
-                "created_at": mock.ANY,
-                "dag_display_name": "dag_with_multiple_versions",
-            },
-        }
-
-    @pytest.mark.parametrize(
-        ("run_id", "expected_version_number"),
-        [
-            ("run1", 1),
-            ("run2", 2),
-            ("run3", 3),
-        ],
-    )
-    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_should_respond_200_with_versions_using_url_template(
-        self, test_client, run_id, expected_version_number
-    ):
-        response = test_client.get(
-            f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
-        )
-        assert response.status_code == 200
-        assert response.json()["task_instances"][0] == {
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_display_name": "dag_with_multiple_versions",
@@ -4674,6 +4665,22 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json()["state"] == state
         assert listener.state == listener_state
 
+    def test_patch_task_instance_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session)
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
+
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
@@ -4741,9 +4748,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5017,9 +5026,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
+                            "team_name": None,
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -5155,9 +5166,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5218,9 +5231,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5313,9 +5328,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "run_after": "2020-01-01T00:00:00Z",
                         "trigger": None,
                         "triggerer_job": None,
+                        "team_name": None,
                     }
                 ],
                 "total_entries": 1,
+                "total_entries_limit": None,
                 "next_cursor": None,
                 "previous_cursor": None,
             }
@@ -5396,6 +5413,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
             }
 
             _check_task_instance_note(
@@ -5591,9 +5609,11 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5879,9 +5899,11 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
+                            "team_name": None,
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -5965,6 +5987,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.json() == {
             "task_instances": [],
             "total_entries": 0,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -6119,7 +6142,6 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     @pytest.fixture(autouse=True)
     def clean_db(self, session):
         clear_db_runs()
-        clear_db_teams()
         yield
         clear_db_teams()
         clear_db_runs()
@@ -6977,6 +6999,35 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
 
+    def test_bulk_update_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session, task_instances=[{"state": State.RUNNING}])
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "new_state": "success",
+                                "note": "listener_note",
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
+
 
 class TestPatchTaskGroup(TestTaskInstanceEndpoint):
     DAG_ID = "example_task_group"
@@ -7421,6 +7472,22 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         for ti in tis_after:
             assert ti.state == TaskInstanceState.FAILED
             _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
+    def test_patch_task_group_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
 
 
 class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):

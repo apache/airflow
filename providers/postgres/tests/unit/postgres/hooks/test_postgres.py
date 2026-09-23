@@ -27,7 +27,7 @@ import pytest
 import sqlalchemy
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
@@ -56,6 +56,27 @@ if USE_PSYCOPG3:
     import psycopg.rows
 else:
     import psycopg2.extras
+
+
+def test_hooks_postgres_raises_clear_error_without_psycopg2(monkeypatch):
+    """PostgresHook must fail loudly (not with a bare ImportError or a real connection attempt)
+    when psycopg2-specific functionality is used but psycopg2 isn't installed."""
+    import airflow.providers.postgres.hooks.postgres as postgres_module
+
+    monkeypatch.setattr(postgres_module, "USE_PSYCOPG3", False)
+    monkeypatch.setattr(postgres_module, "ppg2_connect", None)
+    monkeypatch.setattr(postgres_module, "DictCursor", None)
+    monkeypatch.setattr(postgres_module, "RealDictCursor", None)
+    monkeypatch.setattr(postgres_module, "NamedTupleCursor", None)
+    monkeypatch.setattr(postgres_module, "execute_values", None)
+
+    hook = postgres_module.PostgresHook.__new__(postgres_module.PostgresHook)
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="psycopg2 is not installed"):
+        hook._get_cursor("dictcursor")
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="psycopg2 is not installed"):
+        hook._create_connection({})
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="psycopg2 is not installed"):
+        hook.insert_rows(table="t", rows=[(1,)], fast_executemany=True)
 
 
 @pytest.fixture
@@ -89,7 +110,7 @@ class TestPostgresHookConn:
         )
         hook = PostgresHook(connection=conn)
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError, match="'sqlalchemy_query' must be of type dict"):
             hook.sqlalchemy_url
 
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
@@ -610,6 +631,93 @@ class TestPostgresHookConnPPG3:
             dbname="database",
             port=None,
         )
+
+
+class TestPostgresHookSqlalchemyScheme:
+    """Tests for overriding the SQLAlchemy ``drivername`` via the sqlalchemy_scheme extra/parameter."""
+
+    @staticmethod
+    def get_hook(extra: dict | None = None, **hook_kwargs) -> PostgresHook:
+        conn = Connection(
+            login="login-conn", password="password-conn", host="host", schema="database", extra=extra
+        )
+        return PostgresHook(connection=conn, **hook_kwargs)
+
+    @pytest.mark.parametrize("scheme", ["postgresql", "postgresql+psycopg2", "postgresql+psycopg"])
+    def test_sqlalchemy_scheme_from_extra(self, scheme):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme=scheme))
+        expected = f"{scheme}://login-conn:password-conn@host/database"
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+
+    def test_sqlalchemy_scheme_parameter_takes_precedence_over_extra(self):
+        hook = self.get_hook(
+            extra=dict(sqlalchemy_scheme="postgresql"), sqlalchemy_scheme="postgresql+psycopg2"
+        )
+        expected = "postgresql+psycopg2://login-conn:password-conn@host/database"
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+
+    def test_get_uri_with_sqlalchemy_scheme(self):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme="postgresql+psycopg2"))
+        assert hook.get_uri() == "postgresql+psycopg2://login-conn:password-conn@host/database"
+
+    @pytest.mark.parametrize("scheme", ["mysql", "mysql+pymysql", "postgres+psycopg2"])
+    def test_sqlalchemy_scheme_with_wrong_dialect(self, scheme):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme=scheme))
+        with pytest.raises(
+            ValueError, match="'sqlalchemy_scheme' must be 'postgresql' or 'postgresql\\+<driver>'"
+        ):
+            hook.sqlalchemy_url
+
+    @pytest.mark.parametrize("scheme", ["postgresql+psycopg2://malicious", "postgresql+psycopg2/malicious"])
+    def test_sqlalchemy_scheme_with_forbidden_characters(self, scheme):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme=scheme))
+        with pytest.raises(ValueError, match="must not contain ':' or '/' characters"):
+            hook.sqlalchemy_url
+
+
+@pytest.mark.backend("postgres")
+class TestPostgresHookPandasToSqlUuid:
+    """DataFrame.to_sql with string values into a uuid column: fails on psycopg3 because SQLAlchemy
+    renders typed bind casts, works when the connection opts back into psycopg2 via sqlalchemy_scheme."""
+
+    table = "test_pandas_to_sql_uuid_table"
+
+    PSYCOPG3_XFAIL_REASON = (
+        "The psycopg3 SQLAlchemy dialect renders typed bind casts, so string params fail with "
+        "'column is of type uuid but expression is of type character varying' instead of being "
+        "implicitly coerced as under psycopg2. Tracked upstream in "
+        "https://github.com/pandas-dev/pandas/issues/63511, "
+        "https://github.com/apache/arrow/pull/50325, "
+        "https://github.com/sqlalchemy/sqlalchemy/discussions/10839 and "
+        "https://github.com/sqlalchemy/sqlalchemy/issues/12060"
+    )
+
+    def teardown_method(self):
+        with PostgresHook().get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"DROP TABLE IF EXISTS {self.table}")
+
+    def insert_string_uuid_df(self, hook: PostgresHook) -> None:
+        engine = hook.get_sqlalchemy_engine()
+        with engine.begin() as conn:
+            conn.execute(sqlalchemy.text(f"CREATE TABLE {self.table} (id UUID PRIMARY KEY, item TEXT)"))
+        df = pd.DataFrame({"id": ["b29d6cda-04ca-4073-8ef8-4f70d35e41e2"], "item": ["laptop"]})
+        df.to_sql(self.table, engine, if_exists="append", index=False)
+
+    @pytest.mark.skipif(not USE_PSYCOPG3, reason="psycopg v3 or sqlalchemy v2 not available")
+    @pytest.mark.xfail(
+        raises=(sqlalchemy.exc.ProgrammingError, pd.errors.DatabaseError),
+        strict=True,
+        reason=PSYCOPG3_XFAIL_REASON,
+    )
+    def test_to_sql_string_uuid_fails_on_psycopg3(self):
+        self.insert_string_uuid_df(PostgresHook())
+
+    def test_to_sql_string_uuid_works_with_psycopg2_scheme(self):
+        hook = PostgresHook(sqlalchemy_scheme="postgresql+psycopg2")
+        self.insert_string_uuid_df(hook)
+        with hook.get_sqlalchemy_engine().connect() as conn:
+            assert conn.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {self.table}")).scalar() == 1
 
 
 @pytest.mark.backend("postgres")

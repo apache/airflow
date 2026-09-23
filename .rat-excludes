@@ -137,7 +137,7 @@ tests/*
 scripts/*
 images/*
 dev/*
-.*\.iml
+**/*.iml
 out/*
 airflow-build-dockerfile*
 
@@ -158,6 +158,7 @@ PKG-INFO
 
 # checksum files
 .*\.md5sum
+last-eval-hash.txt
 
 # Openapi files
 .openapi-generator-ignore
@@ -326,6 +327,9 @@ www-hash.txt
 
 # Vendored-in code
 /src/airflow/providers/google/_vendor/*
+
+# TypeScript bundle golden fixture: its bytes are digest-pinned, so no license header can be added
+/ts-sdk/tests/cli/fixtures/bundle-v1.min.mjs
 
 # Java SDK build outputs
 /java-sdk/bin/*

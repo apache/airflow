@@ -17,9 +17,14 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
+
+from airflow._shared.configuration.parser import CUSTOM_BACKEND_CONFIG_KEYS
+from airflow.configuration import conf
 
 # Placeholder for masking sensitive values in CLI output
 SENSITIVE_PLACEHOLDER = "***"
@@ -78,11 +83,61 @@ def is_stdout(fileio: IOBase) -> bool:
     return fileio is sys.stdout
 
 
+def redirect_stdout_log_handlers_to_stderr() -> None:
+    """
+    Redirect any root-logger ``StreamHandler`` writing to stdout so it writes to stderr.
+
+    Called from the CLI entrypoint for commands that emit structured output on
+    stdout (``-o json|yaml|plain|table``), so log lines do not corrupt that
+    output. ``FileHandler`` is a ``StreamHandler`` subclass; the identity check
+    against ``sys.stdout`` correctly skips it.
+    """
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.StreamHandler) and handler.stream is sys.stdout:
+            handler.setStream(sys.stderr)
+
+
 def print_export_output(command_type: str, exported_items: Collection, file: TextIOWrapper):
     if is_stdout(file):
         print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
     else:
         print(f"{len(exported_items)} {command_type} successfully exported to {file.name}.")
+
+
+def get_hidden_entries_warning(entity_name: str, env_prefix: str) -> str | None:
+    """
+    Return a warning when the database listing may be incomplete.
+
+    :param entity_name: Human-readable plural noun to use in the message, e.g. ``"connections"``.
+    :param env_prefix: Environment variable prefix used for this entity, e.g. ``AIRFLOW_CONN_``.
+    :return: A warning message, or ``None`` if neither hiding source appears to be in use.
+    """
+    # Connections and variables may also come from environment variables or a
+    # custom secrets backend. These sources can override database entries but
+    # are not included by commands that enumerate database rows.
+    has_env_vars = any(key.startswith(env_prefix) for key in os.environ)
+    # Only check whether custom backends are *configured*, without instantiating them (which could
+    # have side effects, e.g. opening a network connection to a Vault/AWS/GCP secrets service).
+    # Reads the same (section, key) pairs _get_custom_secret_backend() uses, so a new backend
+    # source only needs to be added in one place.
+    has_secrets_backend = any(
+        conf.get(section, key, fallback=None) for section, key in CUSTOM_BACKEND_CONFIG_KEYS.values()
+    )
+
+    if not has_env_vars and not has_secrets_backend:
+        return None
+
+    sources = []
+    if has_env_vars:
+        sources.append(f"`{env_prefix}*` environment variables")
+    if has_secrets_backend:
+        sources.append("a configured secrets backend")
+
+    return (
+        f"This list only includes {entity_name} stored in the metadata database. "
+        f"{' and '.join(sources)} may also define {entity_name} -- including ones that override a "
+        "database entry with the same ID -- that will not appear here."
+    )
 
 
 def fetch_dag_run_from_run_id_or_logical_date_string(

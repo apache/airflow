@@ -40,7 +40,7 @@ from airflow.providers.fab.auth_manager.models import Role
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 # The FAB version that override.py was last aligned with.
-EXPECTED_FAB_VERSION = "5.2.1"
+EXPECTED_FAB_VERSION = "5.2.2"
 
 # FAB public methods that override.py intentionally does NOT implement.
 # Every entry must have a comment explaining why it's excluded.

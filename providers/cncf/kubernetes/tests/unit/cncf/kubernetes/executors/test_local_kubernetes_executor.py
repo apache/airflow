@@ -51,21 +51,18 @@ class TestLocalKubernetesExecutor:
     def test_cli_commands_vended(self):
         assert LocalKubernetesExecutor.get_cli_commands()
 
-    def test_queued_tasks(self):
+    def test_slots_occupied_sums_children_without_deprecation(self):
         local_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
+        local_executor_mock.slots_occupied = 3
+        k8s_executor_mock.slots_occupied = 2
+        local_executor_mock.running = {("dag_id", "task_id", "2020-08-30", 1)}
+        k8s_executor_mock.running = set()
+
         local_kubernetes_executor = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
 
-        local_queued_tasks = {("dag_id", "task_id", "2020-08-30", 1): "queued_command"}
-        k8s_queued_tasks = {("dag_id_2", "task_id_2", "2020-08-30", 2): "queued_command"}
-
-        local_executor_mock.queued_tasks = local_queued_tasks
-        k8s_executor_mock.queued_tasks = k8s_queued_tasks
-
-        expected_queued_tasks = {**local_queued_tasks, **k8s_queued_tasks}
-
-        assert local_kubernetes_executor.queued_tasks == expected_queued_tasks
-        assert len(local_kubernetes_executor.queued_tasks) == 2
+        assert local_kubernetes_executor.slots_occupied == 5
+        assert "queued_tasks" not in {c[0] for c in local_executor_mock.method_calls}
 
     def test_running(self):
         local_executor_mock = mock.MagicMock()
@@ -109,6 +106,27 @@ class TestLocalKubernetesExecutor:
         simple_task_instance.queue = "test-queue"
         messages, logs = local_k8s_exec.get_task_log(ti=simple_task_instance, try_number=3)
         k8s_executor_mock.get_task_log.assert_not_called()
+        assert logs == []
+        assert messages == []
+
+    def test_streaming_log_is_fetched_from_k8s_executor_only_for_k8s_queue(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+        simple_task_instance = mock.MagicMock()
+        simple_task_instance.queue = conf.get("local_kubernetes_executor", "kubernetes_queue")
+
+        local_k8s_exec.get_streaming_task_log(ti=simple_task_instance, try_number=3)
+
+        k8s_executor_mock.get_streaming_task_log.assert_called_once_with(
+            ti=simple_task_instance, try_number=3
+        )
+
+        k8s_executor_mock.reset_mock()
+        simple_task_instance.queue = "test-queue"
+        messages, logs = local_k8s_exec.get_streaming_task_log(ti=simple_task_instance, try_number=3)
+
+        k8s_executor_mock.get_streaming_task_log.assert_not_called()
         assert logs == []
         assert messages == []
 

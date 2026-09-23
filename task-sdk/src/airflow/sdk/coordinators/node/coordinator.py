@@ -21,116 +21,73 @@ from __future__ import annotations
 
 import os
 import pathlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import attrs
 import structlog
-import yaml
 
+from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, convert_roots, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.execution_time.schema import get_schema_version_migrator
+from airflow.sdk.coordinators.node._bundle_reader import read_bundle
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from structlog.typing import FilteringBoundLogger
+    from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
 
-BUNDLE_FILENAME = "bundle.mjs"
-METADATA_FILENAME = "airflow-metadata.yaml"
+BUNDLE_SUFFIX = ".min.mjs"
 
 
-def _validate_schema_version(instance, _, value) -> str:
-    return get_schema_version_migrator().resolve_version(str(value))
+def _is_bundle(path: pathlib.Path) -> bool:
+    return path.name.endswith(BUNDLE_SUFFIX)
 
 
 @attrs.define
-class _NodeBundle:
-    path: pathlib.Path
-    schema_version: str = attrs.field(validator=_validate_schema_version)
+class _Bundle(ResolvedBundle):
+    @classmethod
+    def find(cls, bundles_root: Sequence[pathlib.Path], dag_id: str) -> Self:
+        """Return the first verified configured bundle that declares *dag_id*."""
+        log.debug("Finding TypeScript bundles recursively", roots=bundles_root, dag_id=dag_id)
+        rejected: list[tuple[pathlib.Path, str]] = []
+        for candidate in walk_files(bundles_root, match=_is_bundle):
+            try:
+                metadata = read_bundle(candidate)
+                if dag_id not in metadata.dag_ids:
+                    log.debug(
+                        "TypeScript bundle does not contain requested Dag; skipping",
+                        path=candidate,
+                        dag_id=dag_id,
+                    )
+                    rejected.append(
+                        (candidate, f"verified bundle declares dag_ids={sorted(metadata.dag_ids)!r}")
+                    )
+                    continue
+                bundle = cls(path=candidate, schema_version=metadata.supervisor_schema_version)
+            except (OSError, TypeError, ValueError) as exc:
+                log.debug(
+                    "TypeScript bundle rejected; skipping",
+                    path=candidate,
+                    reason=str(exc),
+                    exc_info=True,
+                )
+                rejected.append((candidate, str(exc)))
+                continue
+            log.debug("Selected TypeScript bundle", path=candidate, dag_id=dag_id)
+            return bundle
 
-
-def _read_bundle_metadata(metadata_path: pathlib.Path) -> dict[str, Any]:
-    if not metadata_path.is_file():
-        raise ValueError(f"missing {METADATA_FILENAME}")
-
-    try:
-        with metadata_path.open(encoding="utf-8") as metadata_file:
-            data = yaml.safe_load(metadata_file)
-    except OSError as exc:
-        raise ValueError(f"cannot read {METADATA_FILENAME}: {exc}") from exc
-    except yaml.YAMLError as exc:
-        raise ValueError(f"cannot parse {METADATA_FILENAME}: {exc}") from exc
-
-    if not isinstance(data, dict):
-        raise ValueError(f"{METADATA_FILENAME} must contain a mapping")
-    return data
-
-
-def _supervisor_schema_version(metadata: dict[str, Any]) -> str:
-    sdk = metadata.get("sdk")
-    if not isinstance(sdk, dict):
-        raise ValueError("missing sdk metadata mapping")
-
-    value = sdk.get("supervisor_schema_version")
-    if not isinstance(value, str) or not value:
-        raise ValueError("missing or invalid sdk.supervisor_schema_version")
-    return value
-
-
-def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
-    """
-    Locate the ``.mjs`` entry point in *bundles_root*.
-
-    Scans each configured directory for ``bundle.mjs`` and reads the sibling
-    ``airflow-metadata.yaml`` for the bundle's supervisor schema version.
-
-    This is an ordered fallback search, not Dag/task-aware multi-bundle
-    routing. The first bundle found wins. A future version can use the
-    metadata's ``dags`` section together with ``TaskInstance.dag_id`` and
-    ``TaskInstance.task_id`` to select the bundle that owns a specific task.
-    """
-    rejected: list[tuple[pathlib.Path, str]] = []
-    for root in bundles_root:
-        candidate = root / BUNDLE_FILENAME
-        if not candidate.is_file():
-            continue
-        try:
-            metadata = _read_bundle_metadata(root / METADATA_FILENAME)
-            log.debug("Selected TypeScript bundle", path=candidate, root=root)
-            return _NodeBundle(
-                path=candidate,
-                schema_version=_supervisor_schema_version(metadata),
+        searched = os.pathsep.join(os.fspath(root) for root in bundles_root)
+        if rejected:
+            details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
+            raise FileNotFoundError(
+                f"Cannot find usable TypeScript bundle containing dag_id={dag_id!r} in {searched}: "
+                f"rejected candidates ({details})"
             )
-        except (TypeError, ValueError) as exc:
-            log.debug(
-                "TypeScript bundle metadata rejected; skipping",
-                path=candidate,
-                root=root,
-                exc_info=True,
-            )
-            rejected.append((candidate.resolve(), str(exc)))
-
-    searched = os.pathsep.join(os.fspath(p.resolve()) for p in bundles_root)
-    if rejected:
-        details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
-        raise FileNotFoundError(
-            f"Cannot find usable TypeScript bundle in {searched}: matching bundles were rejected ({details})"
-        )
-    raise FileNotFoundError(f"Cannot find {BUNDLE_FILENAME} in {searched}")
-
-
-def _convert_bundles_root(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
+        raise FileNotFoundError(f"Cannot find TypeScript bundle containing dag_id={dag_id!r} in {searched}")
 
 
 @attrs.define(kw_only=True)
@@ -153,22 +110,18 @@ class NodeCoordinator(SubprocessCoordinator):
 
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
-    :param bundles_root: Ordered list of directories scanned for a usable
-        TypeScript bundle. Each bundle directory must contain ``bundle.mjs``
-        and ``airflow-metadata.yaml``. This is a fallback search path; it does
-        not yet route different Dag/task pairs to different bundles.
+    :param bundles_root: Directories searched recursively, in order, for the first verified
+        ``*.min.mjs`` bundle declaring the task instance's Dag.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
-        converter=_convert_bundles_root,
+        converter=convert_roots,
         validator=attrs.validators.min_len(1),
     )
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        # Multi-bundle routing should be added here by passing `what.dag_id` and
-        # `what.task_id` into bundle selection and matching against metadata["dags"].
-        bundle = _find_bundle(self.bundles_root)
+        bundle = _Bundle.find(self.bundles_root, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version

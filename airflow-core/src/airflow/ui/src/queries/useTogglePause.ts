@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -27,17 +27,112 @@ import {
   useDagServiceGetDagsUiKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
+import type {
+  DAGDetailsResponse,
+  DAGPatchBody,
+  DAGResponse,
+  DAGWithLatestDagRunsCollectionResponse,
+  DagSchedulingState,
+} from "openapi/requests/types.gen";
+
 import { createErrorToaster } from "src/utils";
+
+type TogglePauseVariables = { dagId: string; requestBody: DAGPatchBody };
+
+type TogglePauseContext = {
+  previousDag: DAGResponse | undefined;
+  previousDagDetails: DAGDetailsResponse | undefined;
+  previousDagsLists: Array<[QueryKey, DAGWithLatestDagRunsCollectionResponse | undefined]>;
+};
 
 export const useTogglePause = ({ dagId }: { dagId: string }) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
-  const onSuccess = async () => {
-    const queryKeys = [
-      [useDagServiceGetDagsUiKey],
-      UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
-      UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
+  const dagKey = UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]);
+  const dagDetailsKey = UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]);
+  const dagsListPrefix: QueryKey = [useDagServiceGetDagsUiKey];
+
+  const onMutate = async ({ requestBody }: TogglePauseVariables): Promise<TogglePauseContext> => {
+    const nextSchedulingState: DagSchedulingState =
+      requestBody.scheduling_state ?? (requestBody.is_paused === true ? "paused" : "active");
+    const nextIsPaused = nextSchedulingState === "paused";
+
+    // Cancel in-flight refetches so they cannot overwrite the optimistic update.
+    await Promise.all([
+      queryClient.cancelQueries({ queryKey: dagKey }),
+      queryClient.cancelQueries({ queryKey: dagDetailsKey }),
+      queryClient.cancelQueries({ queryKey: dagsListPrefix }),
+    ]);
+
+    const previousDag = queryClient.getQueryData<DAGResponse>(dagKey);
+    const previousDagDetails = queryClient.getQueryData<DAGDetailsResponse>(dagDetailsKey);
+    const previousDagsLists = queryClient.getQueriesData<DAGWithLatestDagRunsCollectionResponse>({
+      queryKey: dagsListPrefix,
+    });
+
+    // Reflect the scheduling state immediately instead of waiting for the server round-trip.
+    if (previousDag !== undefined) {
+      queryClient.setQueryData<DAGResponse>(dagKey, {
+        ...previousDag,
+        is_paused: nextIsPaused,
+        scheduling_state: nextSchedulingState,
+      });
+    }
+    if (previousDagDetails !== undefined) {
+      queryClient.setQueryData<DAGDetailsResponse>(dagDetailsKey, {
+        ...previousDagDetails,
+        is_paused: nextIsPaused,
+        scheduling_state: nextSchedulingState,
+      });
+    }
+    queryClient.setQueriesData<DAGWithLatestDagRunsCollectionResponse>(
+      { queryKey: dagsListPrefix },
+      (current) =>
+        current === undefined
+          ? current
+          : {
+              ...current,
+              dags: current.dags.map((dag) =>
+                dag.dag_id === dagId
+                  ? { ...dag, is_paused: nextIsPaused, scheduling_state: nextSchedulingState }
+                  : dag,
+              ),
+            },
+    );
+
+    return { previousDag, previousDagDetails, previousDagsLists };
+  };
+
+  const onError = (
+    error: unknown,
+    _variables: TogglePauseVariables,
+    context: TogglePauseContext | undefined,
+  ) => {
+    // Roll back the optimistic update if the server rejected the change.
+    if (context !== undefined) {
+      if (context.previousDag !== undefined) {
+        queryClient.setQueryData(dagKey, context.previousDag);
+      }
+      if (context.previousDagDetails !== undefined) {
+        queryClient.setQueryData(dagDetailsKey, context.previousDagDetails);
+      }
+      context.previousDagsLists.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+    }
+
+    createErrorToaster(error, { titleKey: "common:error.title" }, translate);
+  };
+
+  const onSettled = async () => {
+    // Invalidate after the mutation settles (success or error) so filtered list
+    // queries (e.g. paused=true/false) refetch and may move the dag in or out
+    // of the visible page.
+    const queryKeys: Array<QueryKey> = [
+      dagsListPrefix,
+      dagKey,
+      dagDetailsKey,
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
     ];
@@ -45,12 +140,9 @@ export const useTogglePause = ({ dagId }: { dagId: string }) => {
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   };
 
-  const onError = (error: unknown) => {
-    createErrorToaster(error, { titleKey: "common:error.title" }, translate);
-  };
-
   return useDagServicePatchDag({
     onError,
-    onSuccess,
+    onMutate,
+    onSettled,
   });
 };

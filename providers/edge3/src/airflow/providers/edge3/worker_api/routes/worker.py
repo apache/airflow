@@ -38,6 +38,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerSetStateReturn,
     WorkerStateBody,
 )
+from airflow.utils.helpers import prune_dict
 
 worker_router = AirflowRouter(
     tags=["Worker"],
@@ -244,7 +245,12 @@ def set_state(
     worker.sysinfo = body.sysinfo
     worker.last_update = timezone.utcnow()
     session.commit()
-    Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
+    Stats.incr(
+        "edge_worker.heartbeat_count",
+        1,
+        1,
+        tags=prune_dict({"worker_name": worker_name, "team_name": worker.team_name}),
+    )
     concurrency: int = body.sysinfo.get("concurrency", -1)  # type: ignore
     free_concurrency: int = body.sysinfo.get("free_concurrency", -1)  # type: ignore
     set_metrics(
@@ -255,6 +261,7 @@ def set_state(
         free_concurrency=free_concurrency,
         queues=worker.queues,
         sysinfo=body.sysinfo,
+        team_name=worker.team_name,
     )
     versions_match = _assert_version(body.sysinfo)  # Exception only after worker state is in the DB
     return WorkerSetStateReturn(

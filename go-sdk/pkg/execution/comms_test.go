@@ -30,6 +30,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 func TestCoordinatorCommReadMessage(t *testing.T) {
@@ -52,7 +54,7 @@ func TestCoordinatorCommReadMessage(t *testing.T) {
 	frame, err := comm.ReadMessage()
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), frame.ID)
-	assert.Equal(t, "StartupDetails", frame.Body["type"])
+	assert.Equal(t, "StartupDetails", peekBodyType(frame.Body))
 }
 
 func TestCoordinatorCommSendRequest(t *testing.T) {
@@ -70,8 +72,9 @@ func TestCoordinatorCommSendRequest(t *testing.T) {
 	frame, err := readFrame(&buf)
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), frame.ID)
-	assert.Equal(t, "GetVariable", frame.Body["type"])
-	assert.Equal(t, "test_key", frame.Body["key"])
+	sent := rawToMap(t, frame.Body)
+	assert.Equal(t, "GetVariable", sent["type"])
+	assert.Equal(t, "test_key", sent["key"])
 }
 
 func TestCoordinatorCommCommunicate(t *testing.T) {
@@ -91,15 +94,19 @@ func TestCoordinatorCommCommunicate(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 
-	result, err := comm.Communicate(context.Background(), GetVariableMsg{Key: "my_var"}.toMap())
+	result, err := comm.Communicate(
+		context.Background(),
+		genmodels.GetVariable{Type: genmodels.TypeGetVariable, Key: "my_var"},
+	)
 	require.NoError(t, err)
-	assert.Equal(t, "VariableResult", result["type"])
-	assert.Equal(t, "my_value", result["value"])
+	resultMap := rawToMap(t, result)
+	assert.Equal(t, "VariableResult", resultMap["type"])
+	assert.Equal(t, "my_value", resultMap["value"])
 
 	// Verify the request was sent.
 	sentFrame, err := readFrame(&requestBuf)
 	require.NoError(t, err)
-	assert.Equal(t, "GetVariable", sentFrame.Body["type"])
+	assert.Equal(t, "GetVariable", peekBodyType(sentFrame.Body))
 }
 
 func TestCoordinatorCommCommunicateError(t *testing.T) {
@@ -107,7 +114,7 @@ func TestCoordinatorCommCommunicateError(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 		"type":   "ErrorResponse",
 		"error":  "not_found",
-		"detail": "Variable not found",
+		"detail": map[string]any{"reason": "Variable not found"},
 	})
 
 	var responseBuf bytes.Buffer
@@ -117,7 +124,10 @@ func TestCoordinatorCommCommunicateError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 
-	_, err := comm.Communicate(context.Background(), GetVariableMsg{Key: "missing"}.toMap())
+	_, err := comm.Communicate(
+		context.Background(),
+		genmodels.GetVariable{Type: genmodels.TypeGetVariable, Key: "missing"},
+	)
 	require.Error(t, err)
 
 	apiErr, ok := err.(*ApiError)
@@ -130,7 +140,7 @@ func TestCoordinatorCommCommunicateBodyError(t *testing.T) {
 	errorBody := map[string]any{
 		"type":   "ErrorResponse",
 		"error":  "server_error",
-		"detail": "internal failure",
+		"detail": map[string]any{"reason": "internal failure"},
 	}
 	responsePayload, err := encodeRequest(0, errorBody)
 	require.NoError(t, err)
@@ -142,7 +152,10 @@ func TestCoordinatorCommCommunicateBodyError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 
-	_, err = comm.Communicate(context.Background(), GetVariableMsg{Key: "test"}.toMap())
+	_, err = comm.Communicate(
+		context.Background(),
+		genmodels.GetVariable{Type: genmodels.TypeGetVariable, Key: "test"},
+	)
 	require.Error(t, err)
 
 	apiErr, ok := err.(*ApiError)
@@ -241,12 +254,12 @@ func TestCoordinatorCommCommunicateConcurrentOutOfOrder(t *testing.T) {
 			}
 			// The "echo" field carries the request id the supervisor used; the
 			// dispatcher must have routed each caller to its own response.
-			echo, err := toInt(resp["echo"])
-			if err != nil {
+			var m map[string]any
+			if err := msgpack.Unmarshal(resp, &m); err != nil {
 				errCh <- err
 				return
 			}
-			echoCh <- echo
+			echoCh <- ifaceInt(m["echo"], -1)
 		}()
 	}
 	wg.Wait()
@@ -311,7 +324,7 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 		}
 	}()
 
-	results := make(chan map[string]any, 2)
+	results := make(chan msgpack.RawMessage, 2)
 	go func() {
 		resp, err := comm.Communicate(
 			context.Background(),
@@ -342,7 +355,7 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 
 	select {
 	case resp := <-results:
-		assert.Equal(t, "second", resp["key"])
+		assert.Equal(t, "second", rawToMap(t, resp)["key"])
 	case <-time.After(time.Second):
 		t.Fatal("second caller did not receive its response")
 	}
@@ -364,7 +377,7 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 
 	select {
 	case resp := <-results:
-		assert.Equal(t, "first", resp["key"])
+		assert.Equal(t, "first", rawToMap(t, resp)["key"])
 	case <-time.After(time.Second):
 		t.Fatal("first caller did not receive its response")
 	}
@@ -509,7 +522,7 @@ func TestCoordinatorCommUnknownIDDiscarded(t *testing.T) {
 	require.NoError(t, err)
 
 	errCh := make(chan error, 1)
-	respCh := make(chan map[string]any, 1)
+	respCh := make(chan msgpack.RawMessage, 1)
 	go func() {
 		resp, err := comm.Communicate(context.Background(), map[string]any{"type": "GetVariable"})
 		if err != nil {
@@ -531,7 +544,7 @@ func TestCoordinatorCommUnknownIDDiscarded(t *testing.T) {
 
 	select {
 	case resp := <-respCh:
-		assert.Equal(t, "ok", resp["key"])
+		assert.Equal(t, "ok", rawToMap(t, resp)["key"])
 	case err := <-errCh:
 		t.Fatalf("Communicate returned error: %v", err)
 	case <-time.After(time.Second):

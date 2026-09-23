@@ -20,13 +20,13 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 from uuid import UUID
 
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
-from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
@@ -75,7 +75,9 @@ class ExecuteCallback(BaseDagBundleWorkload):
 
     callback: CallbackDTO
 
-    type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
+    type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
+
+    token_scope: ClassVar[str] = "callback"
 
     @property
     def key(self) -> CallbackKey:
@@ -114,9 +116,13 @@ class ExecuteCallback(BaseDagBundleWorkload):
     ) -> ExecuteCallback:
         """Create an ExecuteCallback workload from a Callback ORM model."""
         if not bundle_info:
+            from airflow.models.dag_version import _resolve_version_data
+
+            version_data = _resolve_version_data(dag_run.created_dag_version, dag_run.bundle_version)
             bundle_info = BundleInfo(
                 name=dag_run.dag_model.bundle_name,
                 version=dag_run.bundle_version,
+                version_data=version_data,
             )
         fname = f"executor_callbacks/{dag_run.dag_id}/{dag_run.run_id}/{callback.id}"
 

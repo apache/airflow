@@ -38,7 +38,7 @@ const dagRunBeforeFilter = {
 };
 
 const dagRunInRange = {
-  conf: null,
+  conf: { batch: 42, env: "prod" },
   dag_display_name: "test_dag",
   dag_id: "test_dag",
   dag_run_id: "run_in_range",

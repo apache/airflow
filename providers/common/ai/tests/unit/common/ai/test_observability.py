@@ -17,11 +17,15 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from pydantic_ai import Agent
+from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai import observability
@@ -56,7 +60,7 @@ class TestGenaiInstrumentationSettings:
             settings = observability.genai_instrumentation_settings()
 
         assert settings is not None
-        assert settings.version == observability._SEMCONV_VERSION == 4
+        assert settings.version == observability._SEMCONV_VERSION == 5
         # Content is never emitted unless explicitly opted in.
         assert settings.include_content is False
         assert settings.include_binary_content is False
@@ -123,8 +127,13 @@ class TestEndToEndSpanEmission:
         genai, parent_trace_id, attrs_blob = self._run(capture=False)
 
         assert genai, "expected gen_ai spans to be emitted"
-        # Token usage is captured even with content off.
+        # Token usage is captured even with content off. In pydantic-ai 2.x the
+        # model-request span keeps ``gen_ai.usage.*`` while the agent-run span
+        # reports ``gen_ai.aggregated_usage.*`` (avoids double-counting when a
+        # backend sums parent and child spans); assert both so a change in that
+        # split is caught here rather than silently shifting users' telemetry.
         assert any("gen_ai.usage.input_tokens" in (s.attributes or {}) for s in genai)
+        assert any("gen_ai.aggregated_usage.input_tokens" in (s.attributes or {}) for s in genai)
         # Parenting is implicit: agent spans share the task span's trace_id.
         assert all(s.context.trace_id == parent_trace_id for s in genai)
         # The prompt text must not leak when content capture is off.
@@ -136,3 +145,87 @@ class TestEndToEndSpanEmission:
         assert genai
         # With the opt-in, the prompt text is present on the spans.
         assert self._PROMPT in attrs_blob
+
+
+class TestBuildRunIdentityAttributes:
+    @pytest.mark.parametrize(("map_index", "expected_map_index"), [(3, 3), (None, -1)])
+    def test_builds_expected_attributes(self, map_index, expected_map_index):
+        ti = SimpleNamespace(
+            id="ti-1", dag_id="d", task_id="t", run_id="r", try_number=2, map_index=map_index
+        )
+        assert observability.build_run_identity_attributes(ti) == {
+            "airflow.dag_id": "d",
+            "airflow.task_id": "t",
+            "airflow.dag_run.run_id": "r",
+            "airflow.task_instance.try_number": 2,
+            "airflow.task_instance.map_index": expected_map_index,
+            "airflow.task_instance.id": "ti-1",
+        }
+
+
+class TestStampIdentityOnAgentSpans:
+    _ATTRS = {
+        "airflow.dag_id": "d",
+        "airflow.task_id": "t",
+        "airflow.dag_run.run_id": "r",
+        "airflow.task_instance.try_number": 2,
+        "airflow.task_instance.map_index": -1,
+        "airflow.task_instance.id": "ti-xyz",
+    }
+
+    def test_attributes_and_run_id_land_on_genai_spans(self):
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+        hook = PydanticAIHook(llm_conn_id="c", model_id="test")
+        with (
+            patch.object(observability, "conf", _conf(enabled=True)),
+            patch.object(observability, "_live_tracer_provider", return_value=provider),
+            patch.object(hook, "get_conn", return_value=TestModel()),
+        ):
+            agent = hook.create_agent(instructions="be helpful")
+            observability.stamp_identity_on_agent_spans(agent, self._ATTRS)
+            agent.run_sync("hi", run_id="ti-xyz")
+
+        genai = [
+            s
+            for s in exporter.get_finished_spans()
+            if s.attributes and any(k.startswith("gen_ai.") for k in s.attributes)
+        ]
+        assert genai, "expected gen_ai spans to be emitted"
+        # Every GenAI span carries the full Airflow identity, not just the agent-run span.
+        for span in genai:
+            for key, value in self._ATTRS.items():
+                assert span.attributes.get(key) == value
+        # run_id passed to the run surfaces as the OTel agent-call id.
+        assert any(s.attributes.get("gen_ai.agent.call.id") == "ti-xyz" for s in genai)
+
+    def test_noop_when_agent_not_instrumented(self):
+        # A non-InstrumentationSettings ``instrument`` (here ``False``) is left
+        # untouched: stamping must not wrap it or raise.
+        agent = Agent(TestModel())
+        agent.instrument = False
+        observability.stamp_identity_on_agent_spans(agent, self._ATTRS)
+        assert agent.instrument is False
+
+    def test_wraps_a_copy_without_mutating_or_nesting_shared_settings(self):
+        # A caller-owned settings object handed to several agents (or reused across
+        # HITL re-runs) must stay untouched: each agent gets its own wrapped copy,
+        # and every wrapper wraps the real tracer directly rather than nesting.
+        provider = TracerProvider()
+        shared = InstrumentationSettings(tracer_provider=provider)
+        original_tracer = shared.tracer
+
+        agent1, agent2 = Agent(TestModel()), Agent(TestModel())
+        agent1.instrument = shared
+        agent2.instrument = shared
+        observability.stamp_identity_on_agent_spans(agent1, self._ATTRS)
+        observability.stamp_identity_on_agent_spans(agent2, self._ATTRS)
+
+        assert shared.tracer is original_tracer
+        assert agent1.instrument is not shared
+        assert agent1.instrument is not agent2.instrument
+        assert isinstance(agent1.instrument.tracer, observability._IdentityTracer)
+        assert agent1.instrument.tracer._tracer is original_tracer
+        assert agent2.instrument.tracer._tracer is original_tracer

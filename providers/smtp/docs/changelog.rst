@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+3.0.4
+.....
+
+Misc
+~~~~
+
+* ``Fix late-binding loop variable in the SMTP OAuth2 callback (#70640)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump the minimum common-compat version (#72503)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+3.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Escape attachment filename in Content-Disposition header (#69435)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix "AttributeError: 'NoneType' object has no attribute 'close'" for SmtpHook (#62409)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 3.0.1
 .....
 

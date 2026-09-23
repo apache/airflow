@@ -17,9 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import os
+import sys
 import warnings
 
-from airflow.cli.utils import deprecated_for_airflowctl
+import pytest
+
+from airflow.cli.utils import (
+    deprecated_for_airflowctl,
+    get_hidden_entries_warning,
+    redirect_stdout_log_handlers_to_stderr,
+)
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestDeprecatedForAirflowctl:
@@ -48,3 +59,100 @@ class TestDeprecatedForAirflowctl:
         assert command.__name__ == "command"
         assert command.__doc__ == "Original docstring."
         assert command._migrated_to_airflowctl == "airflowctl pools create"
+
+
+class TestRedirectStdoutLogHandlersToStderr:
+    """Tests for the CLI helper that keeps logs off stdout for ``-o``-style commands."""
+
+    @pytest.fixture
+    def isolated_root_logger(self):
+        """Snapshot and restore root logger handlers so tests don't leak state."""
+        root = logging.getLogger()
+        original_handlers = root.handlers[:]
+        root.handlers = []
+        try:
+            yield root
+        finally:
+            root.handlers = original_handlers
+
+    @pytest.mark.parametrize(
+        ("make_handler", "expected_stream"),
+        [
+            pytest.param(
+                lambda _tmp_path: logging.StreamHandler(stream=sys.stdout),
+                lambda _original: sys.stderr,
+                id="stdout-stream-handler-redirected",
+            ),
+            pytest.param(
+                lambda _tmp_path: logging.StreamHandler(stream=sys.stderr),
+                lambda _original: sys.stderr,
+                id="stderr-stream-handler-untouched",
+            ),
+            pytest.param(
+                lambda tmp_path: logging.FileHandler(tmp_path / "airflow.log"),
+                lambda original: original,
+                id="file-handler-untouched",
+            ),
+        ],
+    )
+    def test_redirect(self, isolated_root_logger, tmp_path, make_handler, expected_stream):
+        handler = make_handler(tmp_path)
+        isolated_root_logger.addHandler(handler)
+        original_stream = handler.stream
+        try:
+            redirect_stdout_log_handlers_to_stderr()
+            assert handler.stream is expected_stream(original_stream)
+        finally:
+            handler.close()
+
+
+class TestGetHiddenEntriesWarning:
+    """Tests for the CLI warning about connections/variables hidden from ``list`` output."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_ambient_env_prefixes(self, monkeypatch):
+        """Strip any ``AIRFLOW_CONN_*``/``AIRFLOW_VAR_*`` vars already present so tests are isolated."""
+        for key in list(os.environ):
+            if key.startswith(("AIRFLOW_CONN_", "AIRFLOW_VAR_")):
+                monkeypatch.delenv(key, raising=False)
+
+    def test_returns_none_when_nothing_is_hidden(self):
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
+            assert get_hidden_entries_warning("connections", "AIRFLOW_CONN_") is None
+
+    def test_warns_about_env_var_defined_entries(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW_CONN_MY_DB", "postgresql://u:p@host/db")
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
+            warning = get_hidden_entries_warning("connections", "AIRFLOW_CONN_")
+
+        assert warning is not None
+        assert "AIRFLOW_CONN_" in warning
+        assert "secrets backend" not in warning
+
+    def test_warns_about_configured_secrets_backend(self):
+        with conf_vars({("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}):
+            warning = get_hidden_entries_warning("variables", "AIRFLOW_VAR_")
+
+        assert warning is not None
+        assert "secrets backend" in warning
+        assert "AIRFLOW_VAR_" not in warning
+
+    def test_warns_about_worker_secrets_backend(self):
+        with conf_vars(
+            {("workers", "secrets_backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}
+        ):
+            warning = get_hidden_entries_warning("variables", "AIRFLOW_VAR_")
+
+        assert warning is not None
+        assert "secrets backend" in warning
+        assert "AIRFLOW_VAR_" not in warning
+
+    def test_warns_about_both_sources_when_both_are_present(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW_VAR_MY_KEY", "value")
+        with conf_vars({("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}):
+            warning = get_hidden_entries_warning("variables", "AIRFLOW_VAR_")
+
+        assert warning is not None
+        assert "AIRFLOW_VAR_" in warning
+        assert "secrets backend" in warning
+        assert " and " in warning

@@ -31,10 +31,8 @@ retries
 scheduler_health
 serve_logs
 session
-span_status
 sqlalchemy
 state
 strings
-thread_safe_dict
 types
 yaml

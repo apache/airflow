@@ -23,6 +23,7 @@ import pytest
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import ModelRequestParameters
 
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX as P
 from airflow.providers.common.ai.durable.caching_model import CachingModel
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
@@ -67,7 +68,7 @@ class TestCachingToolsetCacheHit:
 
         assert result == "cached result"
         mock_toolset.call_tool.assert_not_called()
-        mock_storage.load_tool_result.assert_called_once_with("tool_step_0")
+        mock_storage.load_tool_result.assert_called_once_with(f"{P}tool_step_0")
 
     @pytest.mark.asyncio
     async def test_advances_counter_on_cache_hit(self, mock_toolset, mock_storage, counter):
@@ -90,7 +91,9 @@ class TestCachingToolsetCacheMiss:
         assert result == "fresh result"
         mock_toolset.call_tool.assert_called_once()
         mock_storage.save_tool_result.assert_called_once_with(
-            "tool_step_0", "fresh result", fingerprint=fingerprint_tool_call("search", {"q": "foo"}, "call_1")
+            f"{P}tool_step_0",
+            "fresh result",
+            fingerprint=fingerprint_tool_call("search", {"q": "foo"}, "call_1"),
         )
 
     @pytest.mark.asyncio
@@ -102,7 +105,7 @@ class TestCachingToolsetCacheMiss:
         await caching.call_tool("tool_b", {}, ctx_for(), MagicMock())
 
         keys = [call[0][0] for call in mock_storage.save_tool_result.call_args_list]
-        assert keys == ["tool_step_0", "tool_step_1"]
+        assert keys == [f"{P}tool_step_0", f"{P}tool_step_1"]
 
 
 class TestCachingToolsetReplayVerification:
@@ -173,6 +176,6 @@ class TestSharedCounter:
         model_keys = [call[0][0] for call in mock_storage.save_model_response.call_args_list]
         tool_keys = [call[0][0] for call in mock_storage.save_tool_result.call_args_list]
 
-        assert model_keys == ["model_step_0", "model_step_2"]
-        assert tool_keys == ["tool_step_1"]
+        assert model_keys == [f"{P}model_step_0", f"{P}model_step_2"]
+        assert tool_keys == [f"{P}tool_step_1"]
         assert counter.total_steps == 3

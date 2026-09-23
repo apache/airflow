@@ -66,6 +66,69 @@ the XCom and pass it to the ``session_id`` parameter. This is useful when you wo
     :start-after: [START howto_operator_redshift_data_session_reuse]
     :end-before: [END howto_operator_redshift_data_session_reuse]
 
+Durable execution
+==================
+
+``RedshiftDataOperator`` submits a statement and then polls it to completion on the worker. By
+default the operator runs in a *durable* mode that makes this crash-safe: the Redshift statement
+id is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before
+polling begins, so if the worker crashes or is preempted and the task is retried, the operator
+reconnects to the statement that is already executing in Redshift instead of resubmitting the SQL.
+
+On retry the operator checks the prior statement's state:
+
+* if it is still running, the operator reconnects and continues polling
+* if it already succeeded, the operator returns immediately without resubmitting
+* if it failed terminally, or its id has expired and is no longer found, the operator submits the
+  SQL fresh
+
+This protection also applies when ``wait_for_completion=False`` -- even though that task attempt
+never polls at all, a retry after a successful submission still reconnects rather than
+resubmitting, since the statement id is persisted immediately after submission regardless of
+whether the task waits for it to finish.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
+earlier Airflow versions the flag is a no-op and the operator always submits fresh SQL on retry,
+exactly as before. If the task state store is unavailable at runtime, the operator logs that
+crash recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored statement id isn't deleted automatically, that only
+happens when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer
+than ``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between,
+the statement id won't be there for the next retry, and the operator will submit the SQL fresh
+instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
+``retry_delay``.
+
+Clearing a task is treated the same as a retry, which matters specifically for a task whose
+statement already succeeded: clearing does not delete the stored statement id, so the next attempt
+reads it back and returns immediately without submitting the SQL again. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the statement via ``on_kill`` before the next attempt gets a
+chance to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+
+To opt out and always submit fresh SQL on retry, set ``durable=False``:
+
+.. code-block:: python
+
+  statement = RedshiftDataOperator(
+      task_id="redshift_data",
+      database="dev",
+      sql="SELECT * FROM table",
+      cluster_identifier="cluster_identifier",
+      durable=False,
+  )
+
+Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the Triggerer
+already tracks the statement across the wait, so deferrable mode takes precedence and ``durable``
+has no effect.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
+operator always submits fresh SQL on retry, exactly as before this feature existed.
+
 Reference
 ---------
 

@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import pendulum
 import pytest
+import requests
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
@@ -30,10 +32,13 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
+    _DURABLE_UNSET,
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
+    SnowflakeNotebookOperator,
     SnowflakeSqlApiOperator,
     SnowflakeValueCheckOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils.types import DagRunType
@@ -41,7 +46,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS, timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -51,6 +56,9 @@ TEST_DAG_ID = "unit_test_dag"
 TASK_ID = "snowflake_check"
 CONN_ID = "my_snowflake_conn"
 TEST_SQL = "select * from any;"
+NOTEBOOK = "MY_DB.MY_SCHEMA.MY_NOTEBOOK"
+
+HOOK_MODULE = "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook"
 
 SQL_MULTIPLE_STMTS = (
     "create or replace table user_test (i int); insert into user_test (i) "
@@ -272,6 +280,30 @@ def create_context(task, dag=None):
     }
 
 
+@pytest.fixture
+def mock_execute_query():
+    with mock.patch(
+        "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.execute_query"
+    ) as execute_query:
+        yield execute_query
+
+
+@pytest.fixture
+def mock_get_sql_api_query_status():
+    with mock.patch(
+        "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.get_sql_api_query_status"
+    ) as get_sql_api_query_status:
+        yield get_sql_api_query_status
+
+
+@pytest.fixture
+def mock_check_query_output():
+    with mock.patch(
+        "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.check_query_output"
+    ) as check_query_output:
+        yield check_query_output
+
+
 @pytest.mark.db_test
 class TestSnowflakeSqlApiOperator:
     @pytest.fixture(autouse=True)
@@ -288,27 +320,6 @@ class TestSnowflakeSqlApiOperator:
         if AIRFLOW_V_3_0_PLUS:
             clear_db_dag_bundles()
 
-    @pytest.fixture
-    def mock_execute_query(self):
-        with mock.patch(
-            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.execute_query"
-        ) as execute_query:
-            yield execute_query
-
-    @pytest.fixture
-    def mock_get_sql_api_query_status(self):
-        with mock.patch(
-            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.get_sql_api_query_status"
-        ) as get_sql_api_query_status:
-            yield get_sql_api_query_status
-
-    @pytest.fixture
-    def mock_check_query_output(self):
-        with mock.patch(
-            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.check_query_output"
-        ) as check_query_output:
-            yield check_query_output
-
     def test_snowflake_sql_api_to_succeed_when_no_query_fails(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
     ):
@@ -320,10 +331,30 @@ class TestSnowflakeSqlApiOperator:
             sql=SQL_MULTIPLE_STMTS,
             statement_count=4,
             do_xcom_push=False,
+            durable=False,
         )
         mock_execute_query.return_value = ["uuid1", "uuid2"]
         mock_get_sql_api_query_status.side_effect = [{"status": "success"}, {"status": "success"}]
         operator.execute(context=None)
+
+    def test_snowflake_sql_api_durable_true_submits_fresh_missing_task_state_store(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """Default durable=True with no task_state_store in context still submits and succeeds."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        mock_execute_query.return_value = ["uuid1", "uuid2"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "success"}, {"status": "success"}]
+
+        operator.execute(context={})
+
+        mock_execute_query.assert_called_once()
+        mock_check_query_output.assert_called_once_with(["uuid1", "uuid2"])
 
     def test_snowflake_sql_api_to_fails_when_one_query_fails(
         self, mock_execute_query, mock_get_sql_api_query_status
@@ -336,6 +367,7 @@ class TestSnowflakeSqlApiOperator:
             sql=SQL_MULTIPLE_STMTS,
             statement_count=4,
             do_xcom_push=False,
+            durable=False,
         )
         mock_execute_query.return_value = ["uuid1", "uuid2"]
         mock_get_sql_api_query_status.side_effect = [{"status": "error"}, {"status": "success"}]
@@ -358,6 +390,49 @@ class TestSnowflakeSqlApiOperator:
 
         with pytest.raises(RuntimeError, match="Failed to get status for query uuid1"):
             operator.poll_on_queries()
+
+    def test_poll_on_queries_no_sleep_when_all_resolved(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "success"}, {"status": "error"}]
+
+        with mock.patch("time.sleep") as mock_sleep:
+            result = operator.poll_on_queries()
+
+        mock_sleep.assert_not_called()
+        assert result["success"] == {"uuid1": {"status": "success"}}
+        assert result["error"] == {"uuid2": {"status": "error"}}
+        assert result["running"] == {}
+
+    def test_poll_on_queries_sleeps_once_per_cycle(self, mock_execute_query, mock_get_sql_api_query_status):
+        """One handle is still running, so the cycle sleeps -- but only once, not per handle."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2", "uuid3"]
+        mock_get_sql_api_query_status.side_effect = [
+            {"status": "success"},
+            {"status": "running"},
+            {"status": "success"},
+        ]
+
+        with mock.patch("time.sleep") as mock_sleep:
+            result = operator.poll_on_queries()
+
+        mock_sleep.assert_called_once_with(operator.poll_interval)
+        assert result["running"] == {"uuid2": {"status": "running"}}
 
     @pytest.mark.parametrize(
         ("mock_sql", "statement_count"),
@@ -388,11 +463,13 @@ class TestSnowflakeSqlApiOperator:
         assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger), (
             "Trigger is not a SnowflakeSqlApiTrigger"
         )
+        assert exc.value.trigger.cancel_on_kill is True
 
     def test_snowflake_sql_api_pushes_query_ids_to_xcom(
         self,
         mock_execute_query,
         mock_get_sql_api_query_status,
+        mock_check_query_output,
     ):
         """
         Tests that query IDs returned by the Snowflake SQL API are pushed to XCom
@@ -405,6 +482,7 @@ class TestSnowflakeSqlApiOperator:
             statement_count=4,
             do_xcom_push=True,
             deferrable=False,
+            durable=False,
         )
 
         mock_execute_query.return_value = ["uuid1"]
@@ -574,24 +652,28 @@ class TestSnowflakeSqlApiOperator:
             statement_count=4,
             do_xcom_push=False,
             deferrable=False,
+            durable=False,
         )
 
         mock_execute_query.return_value = ["uuid1"]
 
         mock_get_sql_api_query_status.side_effect = [
-            # Initial get_sql_api_query_status check
+            # 1st poll_on_queries check (poll_interval: 5s) -- still running, sleeps
             {"status": "running"},
-            # 1st poll_on_queries check (poll_interval: 5s)
+            # 2nd poll_on_queries check (poll_interval: 5s) -- still running, sleeps
             {"status": "running"},
-            # 2nd poll_on_queries check (poll_interval: 5s)
+            # 3rd poll_on_queries check (poll_interval: 5s) -- still running, sleeps
             {"status": "running"},
-            # 3rd poll_on_queries check (poll_interval: 5s)
+            # 4th poll_on_queries check -- resolves to success, no sleep needed
             {"status": "success"},
         ]
 
         with mock.patch("time.sleep") as mock_sleep:
             operator.execute(context=None)
             mock_check_query_output.assert_called_once_with(["uuid1"])
+            # 3 sleeps: durable=False routes straight into poll_until_complete with no
+            # separate pre-check, so every "running" cycle (including the first) sleeps;
+            # only the cycle that resolves to success skips it.
             assert mock_sleep.call_count == 3
 
     def test_snowflake_sql_api_execute_operator_polling_failed(
@@ -608,20 +690,43 @@ class TestSnowflakeSqlApiOperator:
             statement_count=4,
             do_xcom_push=False,
             deferrable=False,
+            durable=False,
         )
 
         mock_execute_query.return_value = ["uuid1"]
 
         mock_get_sql_api_query_status.side_effect = [
-            # Initial get_sql_api_query_status check
+            # 1st poll_on_queries check -- still running, sleeps
             {"status": "running"},
-            # 1st poll_on_queries check
+            # 2nd poll_on_queries check -- resolves to error, raises immediately
             {"status": "error"},
         ]
 
-        with pytest.raises(RuntimeError):
-            operator.execute(context=None)
+        with mock.patch("time.sleep") as mock_sleep:
+            with pytest.raises(RuntimeError):
+                operator.execute(context=None)
+            # 1 sleep: the first cycle finds "running" and sleeps before the second
+            # cycle finds "error" and raises without sleeping again.
+            assert mock_sleep.call_count == 1
         mock_check_query_output.assert_not_called()
+
+    def test_poll_until_complete_pushes_query_ids_to_xcom_even_on_failure(
+        self, mock_get_sql_api_query_status
+    ):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=True,
+        )
+        mock_get_sql_api_query_status.side_effect = [{"status": "error"}]
+        context = create_context(operator)
+
+        with pytest.raises(RuntimeError):
+            operator.poll_until_complete(["uuid1"], context)
+
+        context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_cancels_queries(self, mock_cancel_queries):
@@ -652,3 +757,586 @@ class TestSnowflakeSqlApiOperator:
         operator.on_kill()
 
         mock_cancel_queries.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_respects_cancel_on_kill_false(self, mock_cancel_queries):
+        """on_kill does not cancel queries when cancel_on_kill is disabled."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            cancel_on_kill=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_not_called()
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+class TestSnowflakeSqlApiOperatorDurable:
+    @staticmethod
+    def _context(task_store=None):
+        ctx: dict = {"ti": MagicMock(stats_tags={})}
+        if task_store is not None:
+            ctx["task_state_store"] = task_store
+        return ctx
+
+    @staticmethod
+    def _make_operator(**kwargs):
+        return SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+            **kwargs,
+        )
+
+    def test_persists_query_ids_to_task_state_store_on_fresh_submit(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = self._make_operator()
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+
+        operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_called_once()
+        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid1"])
+
+    def test_reconnects_to_running_query_without_resubmitting(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = self._make_operator()
+        # get_job_status sees it still running, then poll_on_queries sees it finish.
+        mock_get_sql_api_query_status.side_effect = [{"status": "running"}, {"status": "success"}]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = ["uuid1"]
+
+        operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_not_called()
+        task_store.set.assert_not_called()
+        # execute_query never ran on this hook instance, so nothing else would populate this --
+        # OpenLineage's get_openlineage_database_specific_lineage reads hook.query_ids directly.
+        assert operator._hook.query_ids == ["uuid1"]
+
+    def test_partial_progress_reconnect_waits_only_on_running_handle(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = self._make_operator()
+        mock_get_sql_api_query_status.side_effect = [
+            {"status": "success"},  # get_job_status check: uuid1 already done
+            {"status": "running"},  # get_job_status check: uuid2 -> aggregate "running" -> reconnect
+            {"status": "success"},  # poll cycle 1: uuid1 re-confirmed
+            {"status": "running"},  # poll cycle 1: uuid2 still running -> sleep
+            {"status": "success"},  # poll cycle 2: uuid1 re-confirmed
+            {"status": "success"},  # poll cycle 2: uuid2 finishes
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = ["uuid1", "uuid2"]
+
+        with mock.patch("time.sleep"):
+            operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_not_called()
+        task_store.set.assert_not_called()
+        mock_check_query_output.assert_called_once_with(["uuid1", "uuid2"])
+        assert operator._hook.query_ids == ["uuid1", "uuid2"]
+
+    def test_already_succeeded_returns_result_without_polling(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = self._make_operator()
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = ["uuid1"]
+
+        operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_not_called()
+        mock_check_query_output.assert_called_once_with(["uuid1"])
+        # Only the get_job_status check ran; poll_on_queries must never have been entered.
+        assert mock_get_sql_api_query_status.call_count == 1
+        assert operator._hook.query_ids == ["uuid1"]
+
+    def test_already_succeeded_pushes_query_ids_to_xcom(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=True,
+        )
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = ["uuid1"]
+        context = self._context(task_store)
+
+        operator.execute(context)
+
+        mock_execute_query.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
+
+    def test_resubmits_when_stored_query_in_terminal_error(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = self._make_operator()
+        mock_execute_query.return_value = ["uuid2"]
+        # get_job_status sees the stored handle failed; after fresh resubmit, polling succeeds.
+        mock_get_sql_api_query_status.side_effect = [{"status": "error"}, {"status": "success"}]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = ["uuid1"]
+
+        operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_called_once()
+        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid2"])
+
+    def test_resubmits_when_stored_query_not_found(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = self._make_operator()
+        mock_execute_query.return_value = ["uuid2"]
+        not_found_response = MagicMock()
+        not_found_response.status_code = 404
+        # get_job_status sees the stored handle expired (404); after fresh resubmit, polling succeeds.
+        mock_get_sql_api_query_status.side_effect = [
+            requests.exceptions.HTTPError(response=not_found_response),
+            {"status": "success"},
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = ["uuid1"]
+
+        operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_called_once()
+        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid2"])
+
+    def test_durable_false_never_touches_task_state_store(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = self._make_operator(durable=False)
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+        task_store = MagicMock(spec_set=["get", "set"])
+
+        operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_called_once()
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    def test_deferrable_unaffected_by_durable(self, mock_execute_query, mock_get_sql_api_query_status):
+        operator = self._make_operator(deferrable=True)
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.return_value = {"status": "running"}
+        task_store = MagicMock(spec_set=["get", "set"])
+
+        with mock.patch.object(SnowflakeSqlApiOperator, "defer") as mock_defer:
+            operator.execute(self._context(task_store))
+
+        assert mock_defer.called
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    def test_get_job_status_error_takes_priority_over_running(self, mock_get_sql_api_query_status):
+        operator = self._make_operator()
+        mock_get_sql_api_query_status.side_effect = [{"status": "running"}, {"status": "error"}]
+
+        assert operator.get_job_status(["uuid1", "uuid2"], context={}) == "error"
+
+    def test_get_job_status_running_when_none_error(self, mock_get_sql_api_query_status):
+        operator = self._make_operator()
+        mock_get_sql_api_query_status.side_effect = [{"status": "success"}, {"status": "running"}]
+
+        assert operator.get_job_status(["uuid1", "uuid2"], context={}) == "running"
+
+    def test_get_job_status_success_when_all_succeed(self, mock_get_sql_api_query_status):
+        operator = self._make_operator()
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+
+        assert operator.get_job_status(["uuid1", "uuid2"], context={}) == "success"
+
+    def test_get_job_status_not_found_on_404(self, mock_get_sql_api_query_status):
+        operator = self._make_operator()
+        response = MagicMock()
+        response.status_code = 404
+        mock_get_sql_api_query_status.side_effect = requests.exceptions.HTTPError(response=response)
+
+        assert operator.get_job_status(["uuid1"], context={}) == "not_found"
+
+    def test_get_job_status_reraises_non_404_http_error(self, mock_get_sql_api_query_status):
+        operator = self._make_operator()
+        response = MagicMock()
+        response.status_code = 500
+        mock_get_sql_api_query_status.side_effect = requests.exceptions.HTTPError(response=response)
+
+        with pytest.raises(requests.exceptions.HTTPError):
+            operator.get_job_status(["uuid1"], context={})
+
+    def test_is_job_active_and_is_job_succeeded_predicates(self):
+        operator = self._make_operator()
+
+        assert operator.is_job_active("running") is True
+        assert operator.is_job_active("success") is False
+        assert operator.is_job_succeeded("success") is True
+        assert operator.is_job_succeeded("running") is False
+
+    def test_default_args_durable_reaches_operator(self):
+        operator = self._make_operator(default_args={"durable": False})
+        assert operator.durable is False
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False
+
+
+class TestSnowflakeNotebookOperatorSQL:
+    """Tests for SQL query building."""
+
+    def test_build_sql_no_params(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+        )
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK()"
+
+    def test_build_sql_with_params(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            notebook_parameters=["param1", "target_db=PROD"],
+        )
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('param1', 'target_db=PROD')"
+
+    def test_build_sql_escapes_single_quotes(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            notebook_parameters=["O'Brien", "it's"],
+        )
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien', 'it''s')"
+
+    def test_build_sql_escapes_backslashes(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            notebook_parameters=["C:\\data", "a\\'b"],
+        )
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('C:\\\\data', 'a\\\\''b')"
+
+    def test_notebook_parameters_do_not_collide_with_parent_bind_parameters(self):
+        """`notebook_parameters` must stay distinct from the parent's SQL bind `parameters`."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            notebook_parameters=["a", "b"],
+        )
+        assert operator.notebook_parameters == ["a", "b"]
+        assert operator.parameters is None
+
+    def test_parameter_ending_in_sql_or_json_is_not_replaced_by_file_contents(self, tmp_path):
+        """A parameter that looks like a filename stays a literal value."""
+        (tmp_path / "config.json").write_text('{"secret": "from file"}')
+        (tmp_path / "query.sql").write_text("SELECT 1")
+        with DAG(
+            "test_notebook_template_ext",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            template_searchpath=str(tmp_path),
+        ) as dag:
+            operator = SnowflakeNotebookOperator(
+                task_id=TASK_ID,
+                notebook=NOTEBOOK,
+                notebook_parameters=["config.json", "query.sql", "plain"],
+                dag=dag,
+            )
+        operator.resolve_template_files()
+        assert operator.notebook_parameters == ["config.json", "query.sql", "plain"]
+        assert operator._build_execute_notebook_query() == (
+            "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('config.json', 'query.sql', 'plain')"
+        )
+
+    def test_execute_rebuilds_sql_from_rendered_parameters(self):
+        """Simulate template rendering mutating parameters; execute() should rebuild SQL with escaping."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            notebook_parameters=["{{ params.name }}"],
+        )
+        # Simulate Airflow template rendering mutating the attribute in-place
+        operator.notebook_parameters = ["O'Brien"]
+        operator.sql = operator._build_execute_notebook_query()
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien')"
+
+    def test_real_template_rendering_escapes_rendered_value(self):
+        """Rendering mutates the fields in place, so the rebuild must escape the rendered value."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook="{{ params.db }}.NB",
+            notebook_parameters=["{{ params.name }}", "plain"],
+        )
+        operator.render_template_fields({"params": {"db": "MY_DB.MY_SCHEMA", "name": "O'Brien"}})
+        assert operator.notebook == "MY_DB.MY_SCHEMA.NB"
+        assert operator.notebook_parameters == ["O'Brien", "plain"]
+        assert operator._build_execute_notebook_query() == (
+            "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.NB('O''Brien', 'plain')"
+        )
+
+    def test_build_sql_empty_params(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            notebook_parameters=[],
+        )
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK()"
+
+    def test_sql_renderer_is_preserved(self):
+        """Dropping the parent's `parameters` renderer must not lose SQL highlighting."""
+        assert SnowflakeNotebookOperator.template_fields_renderers == {"sql": "sql"}
+
+    def test_template_fields(self):
+        assert "notebook" in SnowflakeNotebookOperator.template_fields
+        assert "notebook_parameters" in SnowflakeNotebookOperator.template_fields
+        assert "snowflake_conn_id" in SnowflakeNotebookOperator.template_fields
+
+    def test_statement_count_is_one(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+        )
+        assert operator.statement_count == 1
+
+    def test_is_subclass_of_snowflake_sql_api_operator(self):
+        assert issubclass(SnowflakeNotebookOperator, SnowflakeSqlApiOperator)
+
+
+@pytest.mark.db_test
+class TestSnowflakeNotebookOperator:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
+        yield
+
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
+    def test_execute_success_immediate(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """Notebook completes on the first status check, without deferring."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            notebook=NOTEBOOK,
+            do_xcom_push=False,
+            durable=False,
+        )
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "success"}]
+        operator.execute(context=None)
+
+    def test_execute_failure_immediate(self, mock_execute_query, mock_get_sql_api_query_status):
+        """Notebook that fails on the first status check raises."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            notebook=NOTEBOOK,
+            do_xcom_push=False,
+            durable=False,
+        )
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "error", "message": "Notebook failed"}]
+        with pytest.raises(RuntimeError):
+            operator.execute(context=None)
+
+    @mock.patch(f"{HOOK_MODULE}.execute_query")
+    def test_execute_deferred(self, mock_execute_query, mock_get_sql_api_query_status):
+        """Running notebook with deferrable=True raises TaskDeferred."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+            deferrable=True,
+        )
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "running"}]
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(create_context(operator))
+
+        assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger)
+
+    def test_execute_polling_success(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """Non-deferrable mode polls until success."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+            do_xcom_push=False,
+            deferrable=False,
+            durable=False,
+        )
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [
+            {"status": "running"},
+            {"status": "running"},
+            {"status": "success"},
+        ]
+
+        with mock.patch("time.sleep"):
+            operator.execute(context=None)
+
+    def test_execute_polling_failure(self, mock_execute_query, mock_get_sql_api_query_status):
+        """Non-deferrable mode raises when polling finds error."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+            do_xcom_push=False,
+            deferrable=False,
+            durable=False,
+        )
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [
+            {"status": "running"},
+            {"status": "error", "message": "Notebook execution failed"},
+        ]
+
+        with mock.patch("time.sleep"), pytest.raises(RuntimeError):
+            operator.execute(context=None)
+
+    def test_execute_xcom_push(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """XCom push stores query_ids when do_xcom_push is True."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            notebook=NOTEBOOK,
+            do_xcom_push=True,
+            durable=False,
+        )
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "success"}]
+
+        mock_ti = mock.Mock(spec=TaskInstance)
+        context = {"ti": mock_ti}
+        operator.execute(context=context)
+        mock_ti.xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
+
+    def test_execute_complete_success(self):
+        """execute_complete handles success event."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+            deferrable=True,
+        )
+        event = {"status": "success", "statement_query_ids": ["uuid1"]}
+        with mock.patch(f"{HOOK_MODULE}.check_query_output"):
+            operator.execute_complete(context=None, event=event)
+
+    def test_execute_complete_failure(self):
+        """execute_complete raises on an error event."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+            deferrable=True,
+        )
+        with pytest.raises(RuntimeError):
+            operator.execute_complete(
+                context=None,
+                event={"status": "error", "message": "Notebook failed"},
+            )
+
+    def test_execute_complete_none_event(self):
+        """execute_complete handles None event gracefully."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+            deferrable=True,
+        )
+        operator.execute_complete(context=None, event=None)
+
+    def test_execute_complete_reassigns_query_ids(self):
+        """execute_complete sets query_ids from event."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+            deferrable=True,
+        )
+        assert operator.query_ids == []
+        with mock.patch(f"{HOOK_MODULE}.check_query_output"):
+            operator.execute_complete(
+                context=None,
+                event={"status": "success", "statement_query_ids": ["uuid1", "uuid2"]},
+            )
+        assert operator.query_ids == ["uuid1", "uuid2"]
+
+    @mock.patch(f"{HOOK_MODULE}.cancel_queries")
+    def test_on_kill_with_queries(self, mock_cancel_queries):
+        """on_kill cancels running queries."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+        operator.on_kill()
+        mock_cancel_queries.assert_called_once_with(["uuid1", "uuid2"])
+
+    @mock.patch(f"{HOOK_MODULE}.cancel_queries")
+    def test_on_kill_no_queries(self, mock_cancel_queries):
+        """on_kill does nothing when no query ids exist."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+        )
+        operator.query_ids = []
+        operator.on_kill()
+        mock_cancel_queries.assert_not_called()
+
+    def test_hook_caching(self):
+        """_hook property returns the same instance on repeated access."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            notebook=NOTEBOOK,
+        )
+        hook1 = operator._hook
+        hook2 = operator._hook
+        assert hook1 is hook2

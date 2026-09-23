@@ -99,7 +99,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           # Needed to perform push action
           persist-credentials: false
@@ -107,7 +107,7 @@ jobs:
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           path: "constraints"
           ref: ${{ steps.constraints-branch.outputs.branch }}
@@ -139,7 +139,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
@@ -154,10 +154,14 @@ jobs:
         run: >
           breeze release-management constraints-version-check
           --python "${MATRIX_PYTHON_VERSION}"
-          --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" --explain-why
+          --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" "${EXPLAIN_WHY_FLAG}"
         env:
           MATRIX_PYTHON_VERSION: "${{ matrix.python-version }}"
           MATRIX_CONSTRAINTS_MODE: "${{ matrix.constraints-mode }}"
+          # Explaining an outdated package resolves its dependency tree; on Python 3.10 more and more
+          # dependencies have dropped support, so there is far more to explain and the job takes much
+          # longer. Not worth it weeks before 3.10 support is dropped - remove this along with 3.10.
+          EXPLAIN_WHY_FLAG: ${{ matrix.python-version == '3.10' && '--no-explain-why' || '--explain-why' }}
           VERBOSE: "false"
 
   push-buildx-cache-to-github-registry:

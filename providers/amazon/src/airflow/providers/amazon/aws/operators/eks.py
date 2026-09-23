@@ -28,6 +28,7 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, cast
 
+import tenacity
 from botocore.exceptions import ClientError, WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -42,7 +43,10 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteNodegroupTrigger,
     EksPodTrigger,
 )
-from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils import (
+    build_resource_in_use_retry_args,
+    validate_execute_complete_event,
+)
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
@@ -139,10 +143,12 @@ def _create_compute(
             # delete_nodegroup_on_failure defaults to True to prevent orphaned nodegroups.
             if delete_nodegroup_on_failure:
                 try:
-                    eks_hook.delete_nodegroup(
-                        clusterName=cluster_name,
-                        nodegroupName=nodegroup_name,
-                    )
+                    for attempt in tenacity.Retrying(**build_resource_in_use_retry_args(log)):
+                        with attempt:
+                            eks_hook.delete_nodegroup(
+                                clusterName=cluster_name,
+                                nodegroupName=nodegroup_name,
+                            )
                     log.info(
                         "Issued delete request for nodegroup '%s' in cluster '%s' after failure.",
                         nodegroup_name,
@@ -353,6 +359,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                 trigger=EksCreateClusterTrigger(
                     cluster_name=self.cluster_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -405,6 +413,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     force_delete_compute=False,
                 ),
@@ -439,6 +449,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                         region_name=self.region_name,
                     ),
                     method_name="execute_complete",
@@ -450,6 +462,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                         nodegroup_name=self.nodegroup_name,
                         cluster_name=self.cluster_name,
                         aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                         region_name=self.region_name,
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
@@ -594,6 +608,8 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -708,6 +724,8 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,
@@ -799,6 +817,8 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     force_delete_compute=self.force_delete_compute,
                 ),
@@ -809,7 +829,9 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
             self.delete_any_nodegroups()
             self.delete_any_fargate_profiles()
 
-        self.hook.delete_cluster(name=self.cluster_name)
+        for attempt in tenacity.Retrying(**build_resource_in_use_retry_args(self.log)):
+            with attempt:
+                self.hook.delete_cluster(name=self.cluster_name)
 
         if self.wait_for_completion:
             self.log.info("Waiting for cluster to delete.  This will take some time.")
@@ -825,8 +847,11 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
         nodegroups = self.hook.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups:
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
+            retry_args = build_resource_in_use_retry_args(self.log)
             for group in nodegroups:
-                self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+                for attempt in tenacity.Retrying(**retry_args):
+                    with attempt:
+                        self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
             self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
             self.hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
@@ -843,11 +868,16 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
         if fargate_profiles:
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=FARGATE_FULL_NAME, count=len(fargate_profiles)))
             self.log.info("Waiting for Fargate profiles to delete.  This will take some time.")
+            retry_args = build_resource_in_use_retry_args(self.log)
             for profile in fargate_profiles:
                 # The API will return a (cluster) ResourceInUseException if you try
                 # to delete Fargate profiles in parallel the way we can with nodegroups,
                 # so each must be deleted sequentially
-                self.hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
+                for attempt in tenacity.Retrying(**retry_args):
+                    with attempt:
+                        self.hook.delete_fargate_profile(
+                            clusterName=self.cluster_name, fargateProfileName=profile
+                        )
                 self.hook.conn.get_waiter("fargate_profile_deleted").wait(
                     clusterName=self.cluster_name, fargateProfileName=profile
                 )
@@ -856,7 +886,7 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "success":
+        if validated_event["status"] == "deleted":
             self.log.info("Cluster deleted successfully.")
 
 
@@ -921,13 +951,17 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
-        self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
+        for attempt in tenacity.Retrying(**build_resource_in_use_retry_args(self.log)):
+            with attempt:
+                self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
         if self.deferrable:
             self.defer(
                 trigger=EksDeleteNodegroupTrigger(
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1009,15 +1043,19 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
-        self.hook.delete_fargate_profile(
-            clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
-        )
+        for attempt in tenacity.Retrying(**build_resource_in_use_retry_args(self.log)):
+            with attempt:
+                self.hook.delete_fargate_profile(
+                    clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+                )
         if self.deferrable:
             self.defer(
                 trigger=EksDeleteFargateProfileTrigger(
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,

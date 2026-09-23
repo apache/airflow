@@ -3,6 +3,7 @@ abc
 AbstractFileSystem
 AbstractToolset
 accessor
+accessors
 AccessSecretVersionResponse
 aci
 Ack
@@ -15,6 +16,7 @@ actionCard
 Acyclic
 acyclic
 adb
+adbc
 additionalProperties
 adf
 adhoc
@@ -24,7 +26,9 @@ AdsInsights
 adsinsights
 afterall
 agentcore
+AgentDetails
 agentic
+AgentVersionDetails
 ai
 aio
 aiobotocore
@@ -49,6 +53,7 @@ alibaba
 alibabacloud
 allAuthenticatedUsers
 allowlist
+allowlists
 allUsers
 alphanumerics
 amazonaws
@@ -121,6 +126,7 @@ auditable
 Auth
 auth
 authenticator
+Authentik
 Authlib
 authMechanism
 authorised
@@ -172,7 +178,9 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
+BatchNodeState
 BatchServiceClient
 bc
 bcc
@@ -234,6 +242,8 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
+checkpointing
 checksums
 childs
 chmod
@@ -308,6 +318,7 @@ containerConfiguration
 containerd
 ContainerGroup
 containerinstance
+containerised
 ContainerPort
 contentUrl
 contextmgr
@@ -315,6 +326,7 @@ contrib
 convertToIri
 cooldown
 copyable
+coreutils
 CoreV
 coroutine
 cosmosdb
@@ -387,6 +399,8 @@ dataframes
 DataFusion
 Datafusion
 datafusion
+Datagram
+datagram
 Datalake
 datamodel
 Datanodes
@@ -399,6 +413,7 @@ dataprep
 Dataproc
 dataproc
 DataprocDiagnoseClusterOperator
+dataquality
 DataScan
 dataScans
 Dataset
@@ -448,14 +463,19 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
+DeleteAgentResponse
+DeleteAgentVersionResponse
 delim
 deliverability
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations
+deprioritize
 deps
 deques
 deregister
@@ -470,6 +490,8 @@ deserializer
 deserializes
 deserializing
 dest
+destructures
+destructuring
 dev
 devel
 DevOps
@@ -518,6 +540,7 @@ downstreams
 dp
 dq
 Drillbit
+driverless
 dropdown
 druidHook
 ds
@@ -592,7 +615,9 @@ EOL
 equest
 errno
 errored
+esbuild
 eslint
+ESM
 ETag
 etag
 etl
@@ -749,6 +774,7 @@ gsuite
 gte
 Gunicorn
 gunicorn
+gVisor
 gz
 Gzip
 gzipped
@@ -776,6 +802,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honoured
 hookimpl
 hookspec
 HostAliases
@@ -892,6 +919,7 @@ jdk
 jenkins
 JenkinsRequest
 Jetson
+Jev
 Jiajie
 Jinja
 jinja
@@ -919,6 +947,7 @@ Json
 json
 jsonl
 JsonValue
+jti
 juli
 Jupyter
 jupyter
@@ -940,6 +969,7 @@ KerberosClient
 keycloak
 Keyfile
 keyfile
+keyless
 KeyManagementServiceClient
 keyring
 keyspace
@@ -1014,6 +1044,8 @@ Logstash
 logstash
 longblob
 lookups
+loopback
+lowercased
 lshift
 lte
 lxml
@@ -1038,6 +1070,7 @@ maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
+MCP
 md
 mem
 memcached
@@ -1046,6 +1079,7 @@ memorystore
 memray
 Mesos
 mesos
+MessageBatch
 metaclass
 metadatabase
 metadataStores
@@ -1054,9 +1088,12 @@ metastore
 metavar
 mget
 mgmt
+MiB
 microservice
 microservices
 microsoft
+microVM
+microVMs
 middleware
 middlewares
 midnights
@@ -1131,6 +1168,8 @@ nohup
 nonnegative
 nonterminal
 noqa
+Normalised
+normalised
 normalizer
 NotFound
 notificationChannels
@@ -1165,6 +1204,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OPA
 OpenAI
 openai
 openapi
@@ -1216,6 +1256,7 @@ paramiko
 Params
 params
 parsers
+passthrough
 passwd
 pathlib
 pathType
@@ -1296,6 +1337,7 @@ pretify
 prev
 Proc
 proc
+procfs
 productionalize
 ProductSearchClient
 profiler
@@ -1308,6 +1350,9 @@ proto
 Protobuf
 protobuf
 provisioner
+proxied
+proxies
+proxying
 psql
 psrp
 psycopg
@@ -1377,6 +1422,7 @@ ReadOnlyCredentials
 readthedocs
 Realtime
 realtime
+rebalance
 rebase
 Rebasing
 Recency
@@ -1410,7 +1456,12 @@ req
 reqs
 requeue
 requeued
+requeues
+requeuing
+rerank
+reranking
 reserialize
+Reserializing
 resetdb
 resizable
 ResourceRequirements
@@ -1463,6 +1514,7 @@ sanitization
 sas
 Sasl
 sasl
+sbx
 scala
 scalability
 scalable
@@ -1496,6 +1548,7 @@ sendgrid
 sentimentMax
 ser
 serde
+serialisation
 serialise
 serializable
 SerializedDAG
@@ -1532,6 +1585,7 @@ SlackHook
 SlackResponse
 slas
 smtp
+SNI
 SnowflakeHook
 Snowpark
 snowpark
@@ -1564,6 +1618,7 @@ Splunk
 Sql
 sql
 sqla
+sqladmin
 Sqlalchemy
 sqlalchemy
 sqlglot
@@ -1589,6 +1644,7 @@ Stackdriver
 stackdriver
 stacklevel
 stacktrace
+Starlette
 starttls
 stateful
 StatefulSet
@@ -1598,6 +1654,7 @@ StatsD
 statsd
 stderr
 stdin
+stdlib
 stdout
 StorageClass
 storages
@@ -1605,6 +1662,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+StreamingLogResponse
 strftime
 Stringified
 stringified
@@ -1791,6 +1849,7 @@ uncompress
 undeploy
 undeployed
 Undeploys
+unescaped
 unicode
 unicodecsv
 unindent
@@ -1858,6 +1917,7 @@ Vertica
 vertica
 Vespa
 vespa
+Vianet
 videointelligence
 views
 virtualenv
@@ -1888,6 +1948,7 @@ webpage
 Webserver
 webserver
 webservers
+webViewLink
 Werkzeug
 werkzeug
 whitespace

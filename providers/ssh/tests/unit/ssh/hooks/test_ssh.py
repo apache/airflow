@@ -26,6 +26,8 @@ from unittest import mock
 
 import paramiko
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -63,12 +65,28 @@ def generate_host_key(pkey: paramiko.PKey):
     return key_obj.get_base64()
 
 
+def generate_ed25519_host_key():
+    private_key = ed25519.Ed25519PrivateKey.generate()
+    private_key_text = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.OpenSSH,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode()
+    return paramiko.Ed25519Key(file_obj=StringIO(private_key_text)).get_base64()
+
+
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
 TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
 TEST_PKEY_ECDSA = paramiko.ECDSAKey.generate()
 TEST_PRIVATE_KEY_ECDSA = generate_key_string(pkey=TEST_PKEY_ECDSA)
+TEST_HOST_KEY_ECDSA = TEST_PKEY_ECDSA.get_base64()
+TEST_PKEY_ECDSA_P384 = paramiko.ECDSAKey.generate(curve=ec.SECP384R1())
+TEST_HOST_KEY_ECDSA_P384 = TEST_PKEY_ECDSA_P384.get_base64()
+TEST_PKEY_ECDSA_P521 = paramiko.ECDSAKey.generate(curve=ec.SECP521R1())
+TEST_HOST_KEY_ECDSA_P521 = TEST_PKEY_ECDSA_P521.get_base64()
+TEST_HOST_KEY_ED25519 = generate_ed25519_host_key()
 
 TEST_TIMEOUT = 20
 TEST_CONN_TIMEOUT = 30
@@ -574,6 +592,106 @@ class TestSSHHook:
                 hook.remote_host, "ssh-rsa", hook.host_key
             )
 
+    @pytest.mark.parametrize(
+        ("key_type", "host_key", "expected_cls", "expected_name"),
+        [
+            ("ecdsa-sha2-nistp256", TEST_HOST_KEY_ECDSA, paramiko.ECDSAKey, "ecdsa-sha2-nistp256"),
+            ("ssh-ecdsa", TEST_HOST_KEY_ECDSA, paramiko.ECDSAKey, "ecdsa-sha2-nistp256"),
+            ("ecdsa-sha2-nistp384", TEST_HOST_KEY_ECDSA_P384, paramiko.ECDSAKey, "ecdsa-sha2-nistp384"),
+            ("ecdsa-sha2-nistp521", TEST_HOST_KEY_ECDSA_P521, paramiko.ECDSAKey, "ecdsa-sha2-nistp521"),
+            ("ssh-ed25519", TEST_HOST_KEY_ED25519, paramiko.Ed25519Key, "ssh-ed25519"),
+            (
+                "ssh-ed25519",
+                f"{TEST_HOST_KEY_ED25519} user@host",
+                paramiko.Ed25519Key,
+                "ssh-ed25519",
+            ),
+        ],
+    )
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_typed_host_key_in_connection_extra_is_supported(
+        self, mock_get_connection, key_type, host_key, expected_cls, expected_name
+    ):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_typed_host_key",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps(
+                {
+                    "host_key": f"{key_type} {host_key}",
+                    "no_host_key_check": False,
+                }
+            ),
+        )
+        hook = SSHHook(ssh_conn_id="ssh_typed_host_key")
+
+        assert isinstance(hook.host_key, expected_cls)
+        assert hook.host_key.get_name() == expected_name
+
+    @pytest.mark.parametrize(
+        ("host_key", "expected_name"),
+        [
+            (f"  {TEST_HOST_KEY}  ", "ssh-rsa"),
+            (f"ssh-rsa\t{TEST_HOST_KEY}", "ssh-rsa"),
+            (f"ssh-ecdsa\t{TEST_HOST_KEY_ECDSA}", "ecdsa-sha2-nistp256"),
+        ],
+    )
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_host_key_extra_accepts_legacy_and_copy_paste_whitespace(
+        self, mock_get_connection, host_key, expected_name
+    ):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_host_key_with_whitespace",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps({"host_key": host_key, "no_host_key_check": False}),
+        )
+        hook = SSHHook(ssh_conn_id="ssh_host_key_with_whitespace")
+
+        assert hook.host_key is not None
+        assert hook.host_key.get_name() == expected_name
+
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_dss_host_key_in_connection_extra_raises(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_dss_host_key",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps({"host_key": "ssh-dss AAAAB3NzaC1kc3MAAA==", "no_host_key_check": False}),
+        )
+        with pytest.raises(ValueError, match="DSA/DSS host keys"):
+            SSHHook(ssh_conn_id="ssh_dss_host_key")
+
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_dss_host_key_with_tab_in_connection_extra_raises(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_dss_host_key",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps({"host_key": "ssh-dss\tAAAAB3NzaC1kc3MAAA==", "no_host_key_check": False}),
+        )
+        with pytest.raises(ValueError, match="DSA/DSS host keys"):
+            SSHHook(ssh_conn_id="ssh_dss_host_key")
+
+    @pytest.mark.parametrize("key_type", ["ssh-fake", "ecdsa-sha2-nistp999"])
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_unsupported_host_key_algorithm_raises(self, mock_get_connection, key_type):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_fake_alg",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps(
+                {"host_key": f"{key_type} AAAAB3NzaC1yc2EAAAADAQABAA==", "no_host_key_check": False}
+            ),
+        )
+        with pytest.raises(ValueError, match=rf"Unsupported SSH host key algorithm '{key_type}'"):
+            SSHHook(ssh_conn_id="ssh_fake_alg")
+
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_false(self, ssh_client):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
@@ -811,26 +929,47 @@ class TestSSHHook:
             assert ret == (0, b"airflow\n", b"")
 
     def test_command_timeout_fail(self):
-        # cmd_timeout is forwarded to paramiko's exec_command, which uses it both to open the
-        # channel and to read the command output. It must therefore be large enough to reliably
-        # open the channel (otherwise a loaded runner raises "Timeout opening channel." instead of
-        # the AirflowException we expect) while staying smaller than the command runtime so the
-        # read loop times out. A sub-millisecond timeout makes channel opening flaky.
         hook = SSHHook(
             ssh_conn_id="ssh_default",
             conn_timeout=30,
-            cmd_timeout=0.5,
+            cmd_timeout=0.001,
             banner_timeout=100,
         )
 
-        with hook.get_conn() as client:
-            with pytest.raises(AirflowException):
-                hook.exec_ssh_client_command(
-                    client,
-                    "sleep 5",
-                    False,
-                    None,
-                )
+        mock_channel = mock.MagicMock(spec=paramiko.Channel)
+        type(mock_channel).closed = mock.PropertyMock(return_value=False)
+        mock_channel.recv_ready.return_value = False
+        mock_channel.recv_stderr_ready.return_value = False
+        mock_channel.exit_status_ready.return_value = False
+        mock_channel.in_buffer = b""
+        mock_channel.in_stderr_buffer = b""
+
+        mock_stdout = mock.MagicMock(spec=paramiko.ChannelFile)
+        mock_stdout.channel = mock_channel
+        mock_stdin = mock.MagicMock(spec=paramiko.ChannelStdinFile)
+        mock_stderr = mock.MagicMock(spec=paramiko.ChannelStderrFile)
+        mock_stderr.channel = mock_channel
+
+        mock_client = mock.MagicMock(spec=paramiko.SSHClient)
+        mock_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+        def fake_select(rlist, wlist, xlist, timeout=None):
+            assert timeout == pytest.approx(0.001), f"Expected cmd_timeout passed to select, got {timeout}"
+            return [], [], []
+
+        with mock.patch("airflow.providers.ssh.hooks.ssh.select", side_effect=fake_select):
+            with pytest.raises(AirflowException, match="SSH command timed out"):
+                hook.exec_ssh_client_command(mock_client, "sleep 1", False, None)
+
+        assert mock_client.exec_command.call_args_list == [
+            mock.call(command="sleep 1", get_pty=False, timeout=0.001, environment=None)
+        ]
+        assert mock.call() in mock_stdin.close.call_args_list
+        assert mock.call() in mock_channel.shutdown_write.call_args_list
+        assert mock.call() in mock_channel.shutdown_read.call_args_list
+        assert mock.call() in mock_channel.close.call_args_list
+        assert mock.call() in mock_stdout.close.call_args_list
+        assert mock.call() in mock_stderr.close.call_args_list
 
     def test_command_timeout_not_set(self, monkeypatch):
         hook = SSHHook(

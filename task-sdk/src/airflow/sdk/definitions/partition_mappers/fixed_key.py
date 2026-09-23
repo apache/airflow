@@ -44,7 +44,7 @@ class FixedKeyMapper(PartitionMapper):
 
     @downstream_key.validator
     def _validate_downstream_key(self, attribute: attrs.Attribute, value: str) -> None:
-        if not isinstance(value, str) or value == "":
+        if not value or not isinstance(value, str):
             raise ValueError(f"FixedKeyMapper downstream_key must be a non-empty str; got {value!r}.")
 
     def to_downstream(self, key: str) -> str:

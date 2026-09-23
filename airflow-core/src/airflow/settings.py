@@ -240,16 +240,46 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
+def _translate_asyncpg_sslmode(async_uri: str) -> str:
+    """
+    Rename the libpq ``sslmode`` query param to asyncpg's ``ssl`` equivalent.
+
+    asyncpg has no ``sslmode`` connect arg -- SQLAlchemy's asyncpg dialect passes URL
+    query params straight to ``asyncpg.connect()``, which spells the option ``ssl`` and
+    accepts the same libpq mode strings (``disable``/``prefer``/``require``/``verify-ca``/
+    ``verify-full``). A sync Postgres URI commonly carries ``sslmode`` (the official Helm
+    chart sets it unconditionally), so the derived async URI must translate it; otherwise
+    every async DB call raises ``TypeError: connect() got an unexpected keyword argument
+    'sslmode'``.
+    """
+    url = make_url(async_uri)
+    if "sslmode" not in url.query:
+        return async_uri
+    query = dict(url.query)
+    query["ssl"] = query.pop("sslmode")
+    return url.set(query=query).render_as_string(hide_password=False)
+
+
 def _get_async_conn_uri_from_sync(sync_uri):
-    AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
-    """Mapping of sync scheme to async scheme."""
+    # Derive the async URI scheme from the sync one by swapping in the async driver:
+    AIO_LIBS_MAPPING = {
+        "sqlite": "aiosqlite",
+        "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
+        "mysql": "aiomysql",
+    }
 
     scheme, rest = sync_uri.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
     aiolib = AIO_LIBS_MAPPING.get(scheme)
-    if aiolib:
-        return f"{scheme}+{aiolib}:{rest}"
-    return sync_uri
+    if not aiolib:
+        return sync_uri
+    async_uri = f"{scheme}+{aiolib}:{rest}"
+    if aiolib == "asyncpg":
+        # asyncpg-only: it is not libpq-based and has no ``sslmode`` connect arg. A
+        # libpq-based async driver (e.g. psycopg3) understands ``sslmode`` natively and
+        # would in turn reject ``ssl``, so this translation must stay gated on asyncpg.
+        async_uri = _translate_asyncpg_sslmode(async_uri)
+    return async_uri
 
 
 def configure_vars():
@@ -520,15 +550,16 @@ def _is_sqlite_in_memory(url: str) -> bool:
 
 def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     """Prepare SQLAlchemy engine args."""
+    use_psycopg2_tuning = SQL_ALCHEMY_CONN.startswith("postgresql+psycopg2")
     DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
         "postgresql": (
             {
                 "insertmanyvalues_page_size": 10000,
             }
             | (
-                {}
-                if _USE_PSYCOPG3
-                else {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+                {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+                if use_psycopg2_tuning
+                else {}
             )
         )
     }
@@ -656,15 +687,7 @@ def configure_adapters():
 
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
-            try:
-                import MySQLdb.converters
-            except ImportError:
-                raise RuntimeError(
-                    "You do not have `mysqlclient` package installed. "
-                    "Please install it with `pip install mysqlclient` and make sure you have system "
-                    "mysql libraries installed, as well as well as `pkg-config` system package "
-                    "installed in case you see compilation error during installation."
-                )
+            import MySQLdb.converters
 
             MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
         except ImportError:
@@ -675,6 +698,13 @@ def configure_adapters():
             pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
         except ImportError:
             pass
+        if "MySQLdb.converters" not in sys.modules and "pymysql.converters" not in sys.modules:
+            raise RuntimeError(
+                "You have a MySQL connection string but neither `mysqlclient` nor `PyMySQL` is "
+                "installed. Install one of them, e.g. `pip install mysqlclient` (make sure the "
+                "system mysql libraries and `pkg-config` are present in case you see a compilation "
+                "error during installation) or `pip install PyMySQL`."
+            )
 
 
 def _configure_secrets_masker():

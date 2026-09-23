@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import tempfile
 from collections.abc import AsyncGenerator
 from functools import cached_property
@@ -35,12 +36,13 @@ from urllib3.exceptions import HTTPError
 
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
-from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
-    API_TIMEOUT,
-    API_TIMEOUT_OFFSET_SERVER_SIDE,
-    generic_api_retry,
+from airflow.providers.cncf.kubernetes.kube_client import (
+    _disable_verify_ssl,
+    _enable_tcp_keepalive,
+    _TimeoutAsyncK8sApiClient,
+    _TimeoutK8sApiClient,
 )
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
@@ -74,55 +76,6 @@ def _load_body_to_dict(body: str) -> dict:
     return body_dict
 
 
-def _get_request_timeout(timeout_seconds: int | None) -> float:
-    """Get the client-side request timeout."""
-    if timeout_seconds is not None and timeout_seconds > API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE:
-        return timeout_seconds + API_TIMEOUT_OFFSET_SERVER_SIDE
-    return API_TIMEOUT
-
-
-class _TimeoutK8sApiClient(client.ApiClient):
-    """
-    Wrapper around kubernetes sync ApiClient to set default timeout.
-
-    When *disable_verify_ssl* is True the TLS certificate check is turned off
-    on the *client_configuration* that is passed (or on a fresh default copy)
-    so that callers do not need to repeat this logic at every call-site.
-    """
-
-    def __init__(
-        self,
-        configuration: client.Configuration | None = None,
-        *,
-        disable_verify_ssl: bool = False,
-    ) -> None:
-        if disable_verify_ssl:
-            if configuration is None:
-                configuration = client.Configuration.get_default_copy()
-            configuration.verify_ssl = False
-        super().__init__(configuration=configuration)
-
-    def call_api(self, *args, **kwargs):
-        timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
-        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
-        return super().call_api(*args, **kwargs)
-
-
-class _TimeoutAsyncK8sApiClient(async_client.ApiClient):
-    """Wrapper around kubernetes async ApiClient to set default timeout."""
-
-    def __init__(
-        self,
-        configuration: async_client.Configuration | None = None,
-    ) -> None:
-        super().__init__(configuration=configuration)
-
-    async def call_api(self, *args, **kwargs):
-        timeout_seconds = kwargs.get("timeout_seconds")  # server-side timeout
-        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
-        return await super().call_api(*args, **kwargs)
-
-
 class PodOperatorHookProtocol(Protocol):
     """
     Protocol to define methods relied upon by KubernetesPodOperator.
@@ -151,6 +104,9 @@ class PodOperatorHookProtocol(Protocol):
 
     def get_xcom_sidecar_container_resources(self) -> str | None:
         """Return the xcom sidecar resources that defined in the connection."""
+
+    def get_xcom_sidecar_container_security_context(self) -> str | None:
+        """Return the xcom sidecar security context that defined in the connection."""
 
 
 class KubernetesHook(BaseHook, PodOperatorHookProtocol):
@@ -212,6 +168,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             ),
             "xcom_sidecar_container_resources": StringField(
                 lazy_gettext("XCom sidecar resources (JSON format)"), widget=BS3TextFieldWidget()
+            ),
+            "xcom_sidecar_container_security_context": StringField(
+                lazy_gettext("XCom sidecar security context (JSON format)"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -522,6 +481,13 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     def get_xcom_sidecar_container_resources(self):
         """Return the xcom sidecar resources that defined in the connection."""
         field = self._get_field("xcom_sidecar_container_resources")
+        if not field:
+            return None
+        return json.loads(field)
+
+    def get_xcom_sidecar_container_security_context(self):
+        """Return the xcom sidecar security context that defined in the connection."""
+        field = self._get_field("xcom_sidecar_container_security_context")
         if not field:
             return None
         return json.loads(field)
@@ -849,6 +815,10 @@ def _get_bool(val) -> bool | None:
     return None
 
 
+def _split_log_bytes(raw_bytes: bytes) -> list[str]:
+    return raw_bytes.decode("utf-8", errors="replace").splitlines()
+
+
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
@@ -898,6 +868,45 @@ class AsyncKubernetesHook(KubernetesHook):
 
         # fallback to check all users if active context user cannot be resolved; this is a safe fallback since it errs on the side of not caching
         return any("exec" in (u.get("user") or {}) for u in users)
+
+    async def _kubeconfig_file_uses_exec_auth(self, kubeconfig_path: str, context: str | None) -> bool:
+        """Detect exec auth in the kubeconfig at ``kubeconfig_path``; an unreadable file counts as exec."""
+        try:
+            async with aiofiles.open(kubeconfig_path) as f:
+                kubeconfig_data = yaml.safe_load(await f.read())
+            return self._uses_exec_auth(kubeconfig_data, context=context)
+        except Exception as exc:
+            self.log.warning(
+                "Error while parsing kube_config from %s to detect exec auth; "
+                "continuing without caching the config: %s",
+                kubeconfig_path,
+                exc,
+            )
+            return True
+
+    @staticmethod
+    def _resolve_default_kubeconfig_path() -> str | None:
+        """Return the path to the default-location kubeconfig, if it resolves to a single existing file."""
+        paths = [
+            os.path.expanduser(path)
+            for path in async_config.KUBE_CONFIG_DEFAULT_LOCATION.split(os.pathsep)
+            if path
+        ]
+        # kubernetes_asyncio skips the paths that do not exist, so only the surviving ones
+        # decide whether the active user can be read from a single file.
+        existing = [path for path in paths if os.path.exists(path)]
+        if len(existing) != 1:
+            return None
+        return existing[0]
+
+    async def _default_kubeconfig_uses_exec_auth(self, context: str | None) -> bool:
+        """Detect exec auth in the default kubeconfig; anything but one readable file counts as exec."""
+        kubeconfig_path = self._resolve_default_kubeconfig_path()
+        if kubeconfig_path is None:
+            # No single file to read: which user is active is kubernetes_asyncio's to decide,
+            # so leave the config uncached rather than reimplementing its merge rules here.
+            return True
+        return await self._kubeconfig_file_uses_exec_auth(kubeconfig_path, context)
 
     async def _load_config(self):
         """
@@ -963,19 +972,9 @@ class AsyncKubernetesHook(KubernetesHook):
             )
 
             if self._is_exec_auth is None:
-                try:
-                    async with aiofiles.open(kubeconfig_path) as f:
-                        content = await f.read()
-                        data = yaml.safe_load(content)
-                    self._is_exec_auth = self._uses_exec_auth(data, context=cluster_context)
-                except Exception as exc:
-                    self.log.warning(
-                        "Error while parsing kube_config from %s to detect exec auth; "
-                        "continuing without caching the config: %s",
-                        kubeconfig_path,
-                        exc,
-                    )
-                    self._is_exec_auth = True
+                self._is_exec_auth = await self._kubeconfig_file_uses_exec_auth(
+                    kubeconfig_path, cluster_context
+                )
 
             if not self._is_exec_auth:
                 self._config_loaded = True
@@ -1024,7 +1023,12 @@ class AsyncKubernetesHook(KubernetesHook):
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
-        self._config_loaded = True
+
+        if self._is_exec_auth is None:
+            self._is_exec_auth = await self._default_kubeconfig_uses_exec_auth(cluster_context)
+
+        if not self._is_exec_auth:
+            self._config_loaded = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
@@ -1146,9 +1150,8 @@ class AsyncKubernetesHook(KubernetesHook):
 
                 raw_resp: ClientResponse = await v1_api.read_namespaced_pod_log(**kwargs)  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
                 raw_bytes = await raw_resp.read()
-                logs = raw_bytes.decode("utf-8", errors="replace")
-                logs_list: list[str] = logs.splitlines()
-                return logs_list
+                # CPU-bound decode/split, offloaded so it can't block the triggerer event loop.
+                return await asyncio.to_thread(_split_log_bytes, raw_bytes)
             except HTTPError as e:
                 raise KubernetesApiError from e
 

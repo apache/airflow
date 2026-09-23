@@ -51,7 +51,7 @@ jobs:
           -u 0:0 bash -c "rm -rf /workspace/*"
       - name: >-
           [${{ inputs.target-branch }}] Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ inputs.target-branch }}
           fetch-depth: 0
@@ -73,8 +73,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: >-
-            ${{ steps.breeze.outputs.host-python-version }}
           platform: "linux/amd64"
           save-cache: false
       - name: >-
@@ -100,10 +98,33 @@ jobs:
             --jq '.[0].url' 2>/dev/null || true)
           echo "pr-url=${PR_URL}" >> "${GITHUB_OUTPUT}"
       - name: >-
+          [${{ inputs.target-branch }}] Drop backport labels
+        # breeze already removed these, but boring-cyborg labels on a webhook and can land
+        # after it exits. Each branch upgrades itself on its own schedule, so a backport
+        # would race that with a change conflicting on the files it regenerates.
+        if: steps.find-pr.outputs.pr-url != ''
+        env:
+          PR_URL: ${{ steps.find-pr.outputs.pr-url }}
+        run: |
+          sleep 30
+          mapfile -t LABELS < <(gh pr view "${PR_URL}" \
+            --json labels \
+            --jq '.labels[].name | select(startswith("backport-to-"))')
+          if [[ ${#LABELS[@]} -eq 0 ]]; then
+            echo "No backport labels to remove."
+            exit 0
+          fi
+          ARGS=()
+          for label in "${LABELS[@]}"; do
+            ARGS+=(--remove-label "${label}")
+          done
+          gh pr edit "${PR_URL}" "${ARGS[@]}"
+          echo "Removed: ${LABELS[*]}"
+      - name: >-
           [${{ inputs.target-branch }}] Notify Slack on success
         if: success() && steps.find-pr.outputs.pr-url != ''
         uses: >-
-          slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
+          slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -132,7 +153,7 @@ jobs:
           [${{ inputs.target-branch }}] Notify Slack on failure
         if: failure()
         uses: >-
-          slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
+          slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

@@ -17,21 +17,144 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { delay, http, HttpResponse } from "msw";
+import { setupServer, type SetupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
+import { handlers } from "src/mocks/handlers";
 import { AppWrapper } from "src/utils/AppWrapper";
 
+let server: SetupServer;
+
+beforeAll(() => {
+  server = setupServer(...handlers);
+  server.listen({ onUnhandledRequest: "bypass" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+  localStorage.clear();
+});
+afterAll(() => server.close());
+
 describe("Dag Filters", () => {
+  it("passes an exact scheduling state from the URL to the API", async () => {
+    let requestedSchedulingState: string | null = null;
+
+    server.use(
+      http.get("/ui/dags", ({ request }) => {
+        requestedSchedulingState = new URL(request.url).searchParams.get("scheduling_state");
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+
+    await waitFor(() => expect(requestedSchedulingState).toBe("active"));
+    expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
+  });
+
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("states.success")).toBeInTheDocument());
-    await waitFor(() => screen.getByText("states.success").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByText("states.failed")).toBeInTheDocument());
-    await waitFor(() => screen.getByText("states.failed").click());
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-last_dag_run_state"));
+
+    // A newly added select opens straight onto its options, so there is no trigger to click.
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-success").click());
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+
+    fireEvent.click(await screen.findByTestId("last_dag_run_state-pill"));
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter").click());
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-failed").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+  });
+
+  it("keeps the listed Dags on screen while a newly added filter is still loading", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+
+    server.use(
+      http.get("/ui/dags", async () => {
+        await delay("infinite");
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-last_dag_run_state"));
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-success").click());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("last_dag_run_state-pill")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toBeVisible();
+    });
+
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
+  });
+});
+
+describe("Dag sorting", () => {
+  it("sorts cards by latest run after", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+
+    const trigger = within(screen.getByTestId("sort-by-select")).getByRole("combobox");
+
+    await waitFor(() => trigger.click());
+    await waitFor(() => screen.getByText("sort.lastRunAfter.desc").click());
+
+    await waitFor(() =>
+      expect(screen.getAllByText(/tutorial_taskflow_api_/u)[0]).toHaveTextContent(
+        "tutorial_taskflow_api_failed",
+      ),
+    );
+  });
+
+  it("sorts the latest run column by run after", async () => {
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("table-list")).toBeInTheDocument());
+
+    screen.getByText("dagDetails.latestRun").closest("button")?.click();
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId("table-cell-dag_display_name")[0]).toHaveTextContent(
+        "tutorial_taskflow_api_failed",
+      ),
+    );
+  });
+
+  it("adds a secondary sort on shift-click and sends every sort to the request", async () => {
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+    const requestedOrderBy: Array<Array<string>> = [];
+
+    server.use(
+      http.get("/ui/dags", ({ request }) => {
+        requestedOrderBy.push(new URL(request.url).searchParams.getAll("order_by"));
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+    render(<AppWrapper initialEntries={["/dags?sort=-last_run_run_after"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("table-list")).toBeInTheDocument());
+    await waitFor(() => expect(requestedOrderBy.at(-1)).toEqual(["-last_run_run_after"]));
+
+    fireEvent.click(screen.getByText("dagId").closest("button") as HTMLButtonElement, { shiftKey: true });
+
+    await waitFor(() => expect(requestedOrderBy.at(-1)).toEqual(["-last_run_run_after", "dag_display_name"]));
+    expect(screen.getByTestId("sort-index-last_run_run_after")).toHaveTextContent("1");
+    expect(screen.getByTestId("sort-index-dag_display_name")).toHaveTextContent("2");
   });
 });

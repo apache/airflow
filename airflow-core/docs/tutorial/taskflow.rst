@@ -84,7 +84,7 @@ that Airflow can schedule and run. Here's the ``extract`` task:
 
 |
 
-The function's return value is passed to the next task — no manual use of ``XComs`` required. Under the hood, TaskFlow
+The function's return value is passed to the downstream task — no manual use of ``XComs`` required. Under the hood, TaskFlow
 uses ``XComs`` to manage data passing automatically, abstracting away the complexity of manual XCom management from the
 previous methods. You'll define ``transform`` and ``load`` tasks using the same pattern.
 

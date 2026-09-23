@@ -371,7 +371,15 @@ a local venv. You can build the prod image with breeze and that will be used by 
 You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
 ``breeze testing airflow-e2e-tests`` command.
 
-The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
+The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Each suite is a
+``--e2e-test-mode`` (``basic``, ``remote_log``, ``event_driven``, ``java_sdk``, ``go_sdk``,
+``openlineage``, ...); the mode selects a docker-compose overlay and the matching test package under
+``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
+deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
+emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
+Pass ``--airflow-version`` (openlineage mode only) to run against an older released Airflow version
+with the current providers from main, instead of the default PROD image; CI runs this compat matrix
+on canary only. See ``airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/README.md``.
 
 Running Airflow UI E2E tests
 .............................
@@ -666,6 +674,53 @@ output during test execution.
 .. code-block:: bash
 
     breeze k8s tests -- test_kubernetes_executor.py -s
+
+Smoke-testing a kustomize overlay
+.................................
+
+You can run ``breeze k8s smoke-test-overlay <name>`` to apply one of the
+overlays in ``chart/kustomize-overlays/`` to the current KinD cluster,
+wait for every resource declared in that overlay's ``STATUS.yaml``
+``verify:`` block, and run the optional per-overlay pytest module under
+``chart/tests/overlay_tests/``. An overlay's ``STATUS`` may only advance to
+``tested`` once this command exits 0.
+
+The runner is overlay-agnostic. For every overlay it:
+
+* renders the overlay and substitutes ``RELEASE-NAME`` / ``NAMESPACE``,
+* **auto-preloads every ``image:`` referenced by the rendered manifest**
+  into the kind nodes via ``docker pull`` (with retry on Docker Hub
+  rate limits) + ``kind load docker-image``, so the test does not flake
+  on registry availability,
+* applies the overlay,
+* polls each ``verify:`` resource for its declared success state while
+  **failing fast on terminal pod waiting reasons**
+  (``ImagePullBackOff``, ``ErrImagePull``, ``CrashLoopBackOff``,
+  ``CreateContainerConfigError``, …) rather than waiting out the full
+  ``timeout_seconds``,
+* runs the optional per-overlay pytest module,
+* deletes the overlay (skip with ``--skip-cleanup``).
+
+See ``chart/kustomize-overlays/CONTRIBUTING.rst`` for the full
+lifecycle and how an overlay's ``STATUS`` advances from ``not-tested``
+to ``tested``.
+
+.. code-block:: bash
+
+    breeze k8s deploy-cluster --rebuild-base-image
+    breeze k8s deploy-airflow
+    breeze k8s smoke-test-overlay kerberos
+
+.. note::
+
+   ``--rebuild-base-image`` flag is only required during the first run of the command.
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_smoke-test-overlay.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_smoke-test-overlay.svg
+  :width: 100%
+  :alt: Breeze k8s smoke-test-overlay
 
 Running k8s complete tests
 ..........................

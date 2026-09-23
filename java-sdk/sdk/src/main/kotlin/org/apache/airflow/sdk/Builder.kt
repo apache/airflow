@@ -24,7 +24,7 @@ package org.apache.airflow.sdk
  *
  * This class is not instantiated directly. Its nested annotations drive the
  * `BuilderProcessor` annotation processor in the :processor project,
- * which generates a `*Builder` class for each class annotated with [Dag].
+ * which generates a `*Builder` class for each class annotated with [Builder.Dag].
  *
  * Example:
  *
@@ -41,7 +41,7 @@ package org.apache.airflow.sdk
  * ```
  *
  * The processor generates `MyPipelineBuilder.build()`, which returns a
- * fully wired-up [Dag] ready to add to a [Bundle].
+ * fully wired-up [DagDef] ready to add to a [Bundle].
  */
 class Builder internal constructor() {
   /**
@@ -79,12 +79,10 @@ class Builder internal constructor() {
    *
    * @param task The task ID to pull. If empty or not given, the annotated
    *    parameter's name is used by default.
-   * @param key The XCom key to pull. Defaults to the task's return value.
    */
   @Target(AnnotationTarget.VALUE_PARAMETER)
   @MustBeDocumented
   annotation class XCom(
     val task: String = "",
-    val key: String = Client.XCOM_RETURN_KEY,
   )
 }

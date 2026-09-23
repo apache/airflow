@@ -99,7 +99,8 @@ class AirflowClient:
             **kwargs,
         )
         response.raise_for_status()
-        return response.json()
+        # DELETE and other no-content responses (204) have an empty body; json() would choke on it.
+        return response.json() if response.content else None
 
     def get_dag(self, dag_id: str):
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}")
@@ -157,6 +158,10 @@ class AirflowClient:
             method="GET",
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{key}?map_index={map_index}",
         )
+
+    def get_variable(self, key: str):
+        """Get an Airflow Variable via API."""
+        return self._make_request(method="GET", endpoint=f"variables/{key}")
 
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""

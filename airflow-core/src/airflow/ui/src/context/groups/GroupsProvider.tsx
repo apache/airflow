@@ -17,13 +17,17 @@
  * under the License.
  */
 import { useEffect, useRef, type PropsWithChildren } from "react";
+
 import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
-import { allGroupsKey, dependenciesKey, openGroupsKey } from "src/constants/localStorage";
-import useSelectedVersion from "src/hooks/useSelectedVersion";
+
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
+
+import { allGroupsKey, openGroupsKey } from "src/constants/localStorage";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useDefaultTaskGroupsExpanded } from "src/hooks/useUserSettings";
 
 import { GroupsContext, type GroupsContextType } from "./Context";
 
@@ -32,7 +36,11 @@ type Props = {
 } & PropsWithChildren;
 
 export const GroupsProvider = ({ children, dagId }: Props) => {
-  const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey(dagId), []);
+  const [storedOpenGroupIds, setOpenGroupIds] = useLocalStorage<Array<string> | null>(
+    openGroupsKey(dagId),
+    null,
+  );
+  const [defaultTaskGroupsExpanded] = useDefaultTaskGroupsExpanded();
   const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey(dagId), []);
 
   const allGroupIdsRef = useRef(allGroupIds);
@@ -42,12 +50,10 @@ export const GroupsProvider = ({ children, dagId }: Props) => {
   }, [allGroupIds]);
 
   const selectedVersion = useSelectedVersion();
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
 
   const { data: structure = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
-      externalDependencies: dependencies === "immediate",
       versionNumber: selectedVersion,
     },
     undefined,
@@ -55,6 +61,7 @@ export const GroupsProvider = ({ children, dagId }: Props) => {
   );
 
   const { allGroupIds: observedGroupIds, allOperators } = flattenGraphNodes(structure.nodes);
+  const openGroupIds = storedOpenGroupIds ?? (defaultTaskGroupsExpanded ? observedGroupIds : []);
 
   useEffect(() => {
     if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIdsRef.current)) {

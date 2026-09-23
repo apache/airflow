@@ -26,6 +26,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from functools import lru_cache
 from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
@@ -38,6 +39,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
+    create_pycache_volume_if_needed,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.shared_options import get_verbose
@@ -52,6 +54,8 @@ except ImportError:
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_DEBIAN_VERSIONS,
+    CI_IMAGE_SOURCES_HASH_LABEL,
+    CURRENT_POSTGRES_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     KNOWN_DOCKER_COMPOSE_PROJECT_NAMES,
@@ -61,6 +65,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.environment_check import check_uv_version
+from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -109,11 +114,17 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
-    ("uv.lock", "/opt/airflow/uv.lock"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
+    ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
+
+# ``uv.lock`` is deliberately absent above: it is mounted from ``mount-uv-lock.yml``, which
+# ShellParams skips for ``--force-lowest-dependencies`` so that the lowest-direct ``uv sync``
+# run in the container cannot write its re-resolved lock back over the host's.
+
+DOCKER_INFO_TIMEOUT = 30
 
 
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
@@ -140,6 +151,30 @@ def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
     )
 
 
+def _run_docker_info_or_exit(command: list[str]) -> RunCommandResult:
+    try:
+        return run_command(
+            command,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=DOCKER_INFO_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        console_print(
+            f"[error]Docker did not respond within {DOCKER_INFO_TIMEOUT} seconds.[/]\n"
+            "[warning]Please make sure Docker is running and responsive.[/]"
+        )
+        sys.exit(1)
+    except FileNotFoundError:
+        console_print(
+            "[error]Docker executable was not found.[/]\n"
+            "[warning]Please install Docker and ensure `docker` is available on PATH.[/]"
+        )
+        sys.exit(1)
+
+
 def check_docker_permission_denied() -> bool:
     """
     Checks if we have permission to write to docker socket. By default, on Linux you need to add your user
@@ -150,14 +185,7 @@ def check_docker_permission_denied() -> bool:
     :return: True if permission is denied
     """
     permission_denied = False
-    docker_permission_command = ["docker", "info"]
-    command_result = run_command(
-        docker_permission_command,
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    command_result = _run_docker_info_or_exit(["docker", "info"])
     if command_result.returncode != 0:
         permission_denied = True
         if command_result.stdout and "Got permission denied while trying to connect" in command_result.stdout:
@@ -178,13 +206,7 @@ def check_docker_is_running():
     Checks if docker is running. Suppressed Dockers stdout and stderr output.
 
     """
-    response = run_command(
-        ["docker", "info"],
-        no_output_dump_on_exception=True,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    response = _run_docker_info_or_exit(["docker", "info"])
     if response.returncode != 0:
         console_print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
@@ -470,6 +492,8 @@ def prepare_docker_build_command(
         ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
     )
     final_command.extend(["--platform", image_params.platform])
+    if not isinstance(image_params, BuildProdParams):
+        final_command.extend(["--label", f"{CI_IMAGE_SOURCES_HASH_LABEL}={calculate_ci_sources_hash()}"])
     return final_command
 
 
@@ -698,6 +722,84 @@ def fix_ownership_using_docker(quiet: bool = True):
         ]
     )
     run_command(cmd, text=True, check=False, quiet=quiet)
+
+
+IMAGE_PULL_ATTEMPTS = 5
+IMAGE_PULL_BACKOFF_SECONDS = 15
+
+
+def get_images_to_pull(compose_project_name: str, env: dict[str, str], skip_images: set[str]) -> list[str]:
+    """
+    Returns third-party images of the compose project that are not available locally yet.
+
+    :param compose_project_name: name of the docker compose project
+    :param env: environment variables to resolve the compose files with
+    :param skip_images: images that should never be pulled (the locally built CI/PROD image)
+    """
+    result = run_command(
+        ["docker", "compose", "--project-name", compose_project_name, "config", "--images"],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    images_to_pull = []
+    for image in dict.fromkeys(line.strip() for line in result.stdout.splitlines() if line.strip()):
+        if image in skip_images:
+            continue
+        image_present = run_command(
+            ["docker", "image", "inspect", image],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if image_present.returncode != 0:
+            images_to_pull.append(image)
+    return images_to_pull
+
+
+def pull_images_with_retries(
+    compose_project_name: str,
+    env: dict[str, str],
+    skip_images: set[str] | None = None,
+    attempts: int = IMAGE_PULL_ATTEMPTS,
+) -> bool:
+    """
+    Pulls the third-party images the compose project needs, retrying with a growing backoff.
+
+    Registries (Docker Hub in particular) regularly time out or throttle CI runners. Left to
+    `docker compose run`, a single such blip fails the whole test job before any test executes,
+    and recovering from it costs a full re-run of the suite. Pulling up front instead retries
+    the operation that actually failed.
+
+    :param compose_project_name: name of the docker compose project
+    :param env: environment variables to resolve the compose files with
+    :param skip_images: images that should never be pulled (the locally built CI/PROD image)
+    :param attempts: how many times to attempt pulling each image
+
+    :return: True if every image needed is available locally
+    """
+    images = get_images_to_pull(compose_project_name, env, skip_images or set())
+    if not images:
+        return True
+    console_print(f"[info]Pulling {len(images)} image(s) before running the tests: {' '.join(images)}[/]")
+    all_pulled = True
+    for image in images:
+        for attempt in range(1, attempts + 1):
+            if run_command(["docker", "pull", image], env=env, check=False).returncode == 0:
+                break
+            if attempt == attempts:
+                console_print(f"[warning]Could not pull {image} in {attempts} attempts.[/]")
+                all_pulled = False
+                break
+            backoff = IMAGE_PULL_BACKOFF_SECONDS * attempt
+            console_print(
+                f"[warning]Failed to pull {image} (attempt {attempt}/{attempts}). Retrying in {backoff}s.[/]"
+            )
+            time.sleep(backoff)
+    return all_pulled
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -1012,6 +1114,8 @@ def enter_shell(
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
+    if shell_params.include_pycache_volume:
+        create_pycache_volume_if_needed()
     shell_params.print_badge_info()
     cmd = ["docker", "compose"]
     if shell_params.quiet:
@@ -1030,9 +1134,12 @@ def enter_shell(
             console_print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
-        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
+        if (
+            shell_params.backend != "postgres"
+            or shell_params.postgres_version not in CURRENT_POSTGRES_VERSIONS
+        ):
             console_print(
-                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
+                f"\n[error]Only PostgreSQL {', '.join(CURRENT_POSTGRES_VERSIONS)} are supported "
                 "as a backend with OpenLineage integration via Breeze[/]\n"
             )
             sys.exit(1)

@@ -17,14 +17,19 @@
 
 .. _howto/operator:llm_sql_query:
 
-``LLMSQLQueryOperator``
-========================
+Natural language to SQL: ``LLMSQLQueryOperator``
+================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator` to generate
 SQL queries from natural language using an LLM.
 
 The operator generates SQL but does not execute it. The generated query is returned
 as XCom and can be passed to ``SQLExecuteQueryOperator`` or used in downstream tasks.
+
+Install the ``sql`` extra, which adds ``apache-airflow-providers-common-sql`` and
+`sqlglot <https://github.com/tobymao/sqlglot>`__ (used to validate the generated SQL)::
+
+    pip install "apache-airflow-providers-common-ai[sql]"
 
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
@@ -55,10 +60,16 @@ With Object Storage
 -------------------
 
 Use ``datasource_config`` to generate queries for data stored in object storage
-(e.g., S3, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
+(e.g., S3, GCS, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
 The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
 to register the object storage source as a table so the LLM can include it in
 the schema context.
+
+.. note::
+
+    Object-storage schema introspection requires the ``datafusion`` extra of
+    ``apache-airflow-providers-common-sql``. Install it with
+    ``pip install "apache-airflow-providers-common-sql[datafusion]"``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
     :language: python
@@ -124,18 +135,33 @@ Generate SQL for multiple prompts in parallel using ``expand()``:
     :start-after: [START howto_operator_llm_sql_expand]
     :end-before: [END howto_operator_llm_sql_expand]
 
+Usage Limits
+------------
+
+``usage_limits`` caps the request count, token usage, tool calls, or cost of the
+SQL generation run, and fails the task when a budget is exceeded. It is inherited
+from ``LLMOperator`` -- see :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
+
 Human-in-the-Loop Approval
 --------------------------
 
 Set ``require_approval=True`` to pause the task after SQL generation and wait
 for a human reviewer to approve the query before it is returned.
-When ``allow_modifications=True``, the reviewer can also edit the SQL — the
-modified query is re-validated against the same safety rules automatically:
+When ``allow_modifications=True``, the reviewer can also edit the SQL; the
+modified query is re-validated against the same safety rules automatically.
+``approval_timeout`` and ``on_approval_timeout`` behave as on
+:ref:`LLMOperator <howto/operator:llm>`:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
     :language: python
     :start-after: [START howto_operator_llm_sql_approval]
     :end-before: [END howto_operator_llm_sql_approval]
+
+``approval_timeout``, ``approval_notifiers``, ``approval_assigned_users``, and
+the rest of the approval behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
+``decision_policy`` is not supported here: the operator runs its own ``execute`` without the
+confidence gate and rejects a policy with a bar at construction.
 
 SQL Safety Validation
 ---------------------
@@ -155,5 +181,5 @@ Logging
 
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the generated SQL is also
-logged (truncated to 500 characters). See :ref:`AgentOperator — Logging <howto/operator:agent>`
+logged (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.

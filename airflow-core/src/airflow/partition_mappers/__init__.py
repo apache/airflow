@@ -23,6 +23,7 @@ from airflow.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.product import ProductMapper
 from airflow.partition_mappers.temporal import (
+    FanOutMapper,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -30,6 +31,7 @@ from airflow.partition_mappers.temporal import (
     StartOfWeekMapper,
     StartOfYearMapper,
 )
+from airflow.partition_mappers.wait_policy import MinimumCount, WaitForAll
 from airflow.partition_mappers.window import (
     DayWindow,
     HourWindow,
@@ -45,9 +47,11 @@ __all__ = [
     "AllowedKeyMapper",
     "ChainMapper",
     "DayWindow",
+    "FanOutMapper",
     "FixedKeyMapper",
     "HourWindow",
     "IdentityMapper",
+    "MinimumCount",
     "MonthWindow",
     "PartitionMapper",
     "ProductMapper",
@@ -60,6 +64,7 @@ __all__ = [
     "StartOfQuarterMapper",
     "StartOfWeekMapper",
     "StartOfYearMapper",
+    "WaitForAll",
     "WeekWindow",
     "Window",
     "YearWindow",

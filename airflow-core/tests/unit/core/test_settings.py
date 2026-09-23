@@ -25,7 +25,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.pool import NullPool
 
@@ -400,6 +400,61 @@ class TestMetadataEngineHooks:
             assert engine is not None
 
 
+@pytest.mark.parametrize(
+    ("sync_uri", "expected_drivername", "expected_query"),
+    [
+        # libpq's ``sslmode`` is not an asyncpg connect arg -- it must be translated to
+        # asyncpg's ``ssl`` (which accepts the same mode strings). Without this the
+        # derived async URI raises "connect() got an unexpected keyword argument 'sslmode'"
+        # on every async DB call. The official Helm chart sets sslmode=disable by default.
+        (
+            "postgresql://airflow:pw@postgres:5432/airflow?sslmode=disable",
+            "postgresql+asyncpg",
+            {"ssl": "disable"},
+        ),
+        (
+            "postgresql://airflow:pw@postgres/airflow?sslmode=verify-full",
+            "postgresql+asyncpg",
+            {"ssl": "verify-full"},
+        ),
+        # An explicit sync driver in the scheme is dropped before swapping to asyncpg.
+        (
+            "postgresql+psycopg2://u:p@h/db?sslmode=require",
+            "postgresql+asyncpg",
+            {"ssl": "require"},
+        ),
+        # No sslmode -> the query is left untouched.
+        ("postgresql://u:p@h/db", "postgresql+asyncpg", {}),
+    ],
+)
+def test_get_async_conn_uri_translates_pg_sslmode(sync_uri, expected_drivername, expected_query):
+    from airflow import settings
+    from airflow.settings import _get_async_conn_uri_from_sync
+
+    with patch.object(settings, "_USE_PSYCOPG3", False):
+        url = make_url(_get_async_conn_uri_from_sync(sync_uri))
+    assert url.drivername == expected_drivername
+    assert "sslmode" not in url.query
+    assert dict(url.query) == expected_query
+
+
+@pytest.mark.parametrize(
+    "sync_uri",
+    [
+        # Non-postgres backends use a different driver and SSL params; the sslmode
+        # translation must not touch their query strings.
+        "mysql://u:p@h/db?charset=utf8mb4",
+        "sqlite:////tmp/airflow.db",
+    ],
+)
+def test_get_async_conn_uri_leaves_non_postgres_query_untouched(sync_uri):
+    from airflow.settings import _get_async_conn_uri_from_sync
+
+    src_query = dict(make_url(sync_uri).query)
+    out_query = dict(make_url(_get_async_conn_uri_from_sync(sync_uri)).query)
+    assert out_query == src_query
+
+
 _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use relative path:")
 
 
@@ -432,6 +487,39 @@ def test_sqlite_relative_path(value, expectation):
     ):
         with expectation:
             settings.configure_orm()
+
+
+@pytest.mark.parametrize(
+    ("sync_uri", "use_psycopg3", "expected_async_uri"),
+    [
+        ("postgresql://user:pass@host/db", True, "postgresql+psycopg_async://user:pass@host/db"),
+        ("postgresql://user:pass@host/db", False, "postgresql+asyncpg://user:pass@host/db"),
+        ("postgresql+psycopg2://user:pass@host/db", True, "postgresql+psycopg_async://user:pass@host/db"),
+        ("postgresql+psycopg2://user:pass@host/db", False, "postgresql+asyncpg://user:pass@host/db"),
+        ("sqlite:////root/airflow.db", True, "sqlite+aiosqlite:////root/airflow.db"),
+        ("mysql://user:pass@host/db", True, "mysql+aiomysql://user:pass@host/db"),
+        ("mssql://user:pass@host/db", True, "mssql://user:pass@host/db"),
+    ],
+)
+def test_get_async_conn_uri_from_sync(sync_uri, use_psycopg3, expected_async_uri):
+    from airflow import settings
+
+    with patch.object(settings, "_USE_PSYCOPG3", use_psycopg3):
+        assert settings._get_async_conn_uri_from_sync(sync_uri) == expected_async_uri
+
+
+def test_explicit_sql_alchemy_conn_async_is_not_rewritten():
+    from airflow import settings
+
+    from tests_common.test_utils.config import conf_vars
+
+    explicit_async_uri = "postgresql+asyncpg://user:pass@host/db"
+    try:
+        with conf_vars({("database", "sql_alchemy_conn_async"): explicit_async_uri}):
+            settings.configure_vars()
+            assert explicit_async_uri == settings.SQL_ALCHEMY_CONN_ASYNC
+    finally:
+        settings.configure_vars()
 
 
 class TestDisposeOrm:

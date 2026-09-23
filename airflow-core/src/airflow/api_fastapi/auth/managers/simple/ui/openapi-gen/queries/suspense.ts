@@ -1,10 +1,9 @@
-// generated with @7nohe/openapi-react-query-codegen@2.1.0
-import { useSuspenseQuery, UseSuspenseQueryOptions } from "@tanstack/react-query";
+// generated with @7nohe/openapi-react-query-codegen@3.0.2
+import { useSuspenseQuery, type UseSuspenseQueryOptions } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
-import type { Options } from "../requests/sdk.gen";
-import { createTokenAllAdmins, loginAllAdmins } from "../requests/sdk.gen";
-import {
+import { createTokenAllAdmins, loginAllAdmins, type Options } from "../requests/sdk.gen";
+import type {
   CreateTokenAllAdminsData,
   CreateTokenAllAdminsError,
   LoginAllAdminsData,
@@ -28,8 +27,10 @@ export const useCreateTokenAllAdminsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseCreateTokenAllAdminsKeyFn(clientOptions, queryKey),
-    queryFn: () =>
-      createTokenAllAdmins({ ...clientOptions }).then((response) => response.data as TData) as TData,
+    queryFn: ({ signal }) =>
+      createTokenAllAdmins({ ...clientOptions, signal, throwOnError: true }).then(
+        (response) => response.data as TData,
+      ) as TData,
     ...options,
   });
 /**
@@ -48,6 +49,9 @@ export const useLoginAllAdminsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseLoginAllAdminsKeyFn(clientOptions, queryKey),
-    queryFn: () => loginAllAdmins({ ...clientOptions }).then((response) => response.data as TData) as TData,
+    queryFn: ({ signal }) =>
+      loginAllAdmins({ ...clientOptions, signal, throwOnError: true }).then(
+        (response) => response.data as TData,
+      ) as TData,
     ...options,
   });

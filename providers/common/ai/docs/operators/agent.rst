@@ -17,11 +17,11 @@
 
 .. _howto/operator:agent:
 
-``AgentOperator`` & ``@task.agent``
-===================================
+Agents with tools: ``AgentOperator`` and ``@task.agent``
+========================================================
 
 Use :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` or
-the ``@task.agent`` decorator to run an LLM agent with **tools** — the agent
+the ``@task.agent`` decorator to run an LLM agent with **tools**: the agent
 reasons about the prompt, calls tools (database queries, API calls, etc.) in
 a multi-turn loop, and returns a final answer.
 
@@ -33,8 +33,7 @@ tool-call loop where the LLM decides which tools to call and when to stop.
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
 
-
-SQL Agent
+SQL agent
 ---------
 
 The most common pattern: give an agent access to a database so it can answer
@@ -62,20 +61,18 @@ The ``SQLToolset`` provides four tools to the agent:
    * - ``check_query``
      - Validates SQL syntax without executing it
 
-
-Hook-based Tools
+Hook-based tools
 ----------------
 
 Wrap any Airflow Hook's methods as agent tools using ``HookToolset``. Only
-methods you explicitly list are exposed — there is no auto-discovery.
+methods you explicitly list are exposed; there is no auto-discovery.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
     :start-after: [START howto_operator_agent_hook]
     :end-before: [END howto_operator_agent_hook]
 
-
-TaskFlow Decorator
+TaskFlow decorator
 ------------------
 
 The ``@task.agent`` decorator wraps ``AgentOperator``. The function returns
@@ -85,7 +82,6 @@ the prompt string; all other parameters are passed to the operator.
     :language: python
     :start-after: [START howto_decorator_agent]
     :end-before: [END howto_decorator_agent]
-
 
 .. _howto/operator:agent-multimodal:
 
@@ -112,10 +108,8 @@ to the model. This mirrors the input types accepted by pydantic-ai's
     Combining a non-string prompt with ``enable_hitl_review=True`` is not
     currently supported -- the HITL session model stores the prompt as a
     string, so a ``Sequence`` prompt will raise at the review boundary.
-    Widening HITL review to multimodal prompts is tracked as a follow-up.
 
-
-Structured Output
+Structured output
 -----------------
 
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass to get structured data
@@ -123,15 +117,8 @@ back. The model instance is pushed to XCom unchanged so downstream tasks can
 type-hint the class directly (``def downstream(result: MyModel)``) and use
 attribute access (``result.field``).
 
-The declared ``output_type`` (and any ``BaseModel`` reachable from
-``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
-the worker when it loads the DAG, before any task runs. The Pydantic class must
-be defined at **module scope** and bound to an attribute matching its
-``__name__``. Same-DAG downstream tasks need no configuration. The UI's XCom
-viewer renders the value via the ``stringify`` path (no configuration needed;
-see the ``LLMOperator`` guide for the exact representation). Cross-DAG
-``xcom_pull`` consumers still need the class ``qualname`` added to
-``[core] allowed_deserialization_classes``.
+:doc:`../structured_output` explains the XCom deserialization rules, the cross-Dag gap and
+``serialize_output``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
@@ -143,9 +130,8 @@ see the ``LLMOperator`` guide for the exact representation). Cross-DAG
     :start-after: [START howto_decorator_agent_structured]
     :end-before: [END howto_decorator_agent_structured]
 
-
-Chaining with Downstream Tasks
--------------------------------
+Chaining with downstream tasks
+------------------------------
 
 The agent's output is pushed to XCom like any other operator, so downstream
 tasks can consume it.
@@ -155,266 +141,125 @@ tasks can consume it.
     :start-after: [START howto_agent_chain]
     :end-before: [END howto_agent_chain]
 
+.. _howto/operator:agent-dynamic-system-prompt:
 
-Multi-turn Sessions
--------------------
+Dynamic system prompt
+---------------------
 
-By default each agent run is a cold, single-turn conversation. To carry a
-conversation across runs -- a chat or iterative agent where "and the third one?"
-must resolve against an earlier answer -- pass ``message_history``.
-
-When ``message_history`` is set, the operator seeds the run with those prior
-turns and, after the run, pushes the full updated transcript
-(``result.all_messages()``) to XCom under the key ``message_history``. The next
-run reads it back to resume the conversation. ``None`` (the default) keeps the
-single-turn behavior unchanged.
-
-The operator does **not** decide *where* a session is stored -- that keying is
-deployment-specific. The pattern is three tasks: load the prior transcript for
-the session, run the agent, store the updated transcript. The example keys a
-JSON file in object storage by ``session_id`` (use ``s3://`` / ``gs://`` in a
-deployment); the first run starts from an empty ``"[]"``.
+``system_prompt`` is a templated field, so instead of a static string it
+can be a Jinja expression that reads a value an earlier task already
+computed -- for example, tailoring the agent's instructions to a
+classification produced upstream.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
-    :start-after: [START howto_agent_session]
-    :end-before: [END howto_agent_session]
+    :start-after: [START howto_agent_dynamic_system_prompt]
+    :end-before: [END howto_agent_dynamic_system_prompt]
 
-``message_history`` accepts a list of pydantic-ai ``ModelMessage`` objects or
-their JSON form (``str`` / ``bytes``), so the value emitted to XCom feeds
-straight back in on the next run. When pulling it via a template, pass
-``default='[]'`` (as above) so the first run -- which has no XCom yet -- starts a
-fresh session instead of trying to parse the string ``"None"``.
+Open the **Rendered Template** tab on the task instance to see the
+substituted ``system_prompt`` after Jinja fills in ``classify``'s XCom
+values.
 
-The transcript is **cumulative**: each turn appends to it, so it grows for the
-life of the session. For long sessions, configure an object-storage XCom backend
-or trim older turns before the next run rather than feeding the whole history
-back unbounded.
+.. _howto/operator:agent-reuse:
 
-.. note::
+Reuse one agent across tasks
+----------------------------
 
-    ``message_history`` cannot be combined with ``enable_hitl_review`` -- the
-    operator raises at construction. The post-review (human-approved) transcript
-    is not recoverable today, so emitting the pre-review transcript would
-    silently drop the reviewed turns.
+When several tasks, or several Dags, run the same agent, define it once and
+import it. ``AgentOperator`` and ``@task.agent`` take the whole agent definition
+as keyword arguments, so a dict in a module next to your Dags is enough. A task
+that needs something different overrides single keys.
 
+.. code-block:: python
 
-Durable Execution
------------------
+    # dags/shared_agents/__init__.py
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
-Agent tasks can involve multiple LLM calls and tool invocations. If a task
-fails mid-run (network error, timeout, transient API failure), a plain retry
-re-executes every LLM call and tool call from scratch -- repeating work that
-already succeeded and incurring additional cost.
+    ORDERS_ANALYST = {
+        "llm_conn_id": "pydanticai_default",
+        "system_prompt": "You are the orders analyst. Answer only from the orders database.",
+        "toolsets": [SQLToolset(db_conn_id="orders_db", allowed_tables=["orders"])],
+        "agent_params": {"name": "orders_analyst"},
+    }
 
-Setting ``durable=True`` caches each LLM response and tool result to
-ObjectStorage as it completes. On retry, completed steps are replayed from the
-cache and only the remaining steps run against the live model and tools. The
-cache is deleted after successful completion.
+.. code-block:: python
 
-Durable execution only helps when the task has retries configured. Without
-retries there is nothing to replay.
+    # dags/orders.py
+    from shared_agents import ORDERS_ANALYST
 
-**Configuration**
-
-Set the cache location in ``airflow.cfg``. The task raises ``ValueError`` at
-runtime if ``durable=True`` and the option is missing.
-
-.. code-block:: ini
-
-    [common.ai]
-    # Local filesystem -- suitable for development
-    durable_cache_path = file:///tmp/airflow_durable_cache
-
-The value is an ObjectStorage URI, so any supported backend works. For
-production, use a shared store so retries on a different worker can read the
-cache:
-
-.. code-block:: ini
-
-    [common.ai]
-    durable_cache_path = s3://my-bucket/airflow/durable-cache
-
-**Operator example**
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
-    :language: python
-    :start-after: [START howto_operator_agent_durable]
-    :end-before: [END howto_operator_agent_durable]
-
-**Decorator example**
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
-    :language: python
-    :start-after: [START howto_decorator_agent_durable]
-    :end-before: [END howto_decorator_agent_durable]
-
-**How it works**
-
-1. On first execution, each LLM response and tool result is saved to a JSON
-   file as the agent progresses, together with a fingerprint of the request
-   that produced it (model, message history, settings, and tools for LLM
-   steps; tool name, arguments, and call id for tool steps).
-2. If the task fails and Airflow retries it, completed steps are loaded from
-   the cache and returned without calling the model or tool. Steps not yet in
-   the cache proceed normally.
-3. Before a step is replayed, its stored fingerprint is compared against the
-   current request. If anything changed between attempts -- the system
-   prompt, the model, the toolset, model settings, or the conversation so
-   far -- the stale entry is discarded, a warning is logged, and the step
-   re-runs live. A divergence also invalidates the steps after it: re-running
-   an LLM step produces fresh tool call ids, so tool results recorded under
-   the old conversation no longer match. A changed agent costs a re-run; it
-   never replays responses that belong to a different conversation.
-4. After successful completion, the cache file is deleted.
-
-Replay verification compares the **requests** sent to models and tools, not
-the code behind them. Editing a tool's implementation between attempts does
-not invalidate an already-cached result for an identical call, and pointing
-``llm_conn_id`` at a different endpoint serving the same model name does not
-invalidate cached responses -- delete the cache file to force a fully fresh
-run.
-
-After the run, a single INFO summary line reports how many steps were
-replayed vs executed fresh. Per-step detail is available at DEBUG level.
-
-The cache file is named ``{dag_id}_{task_id}_{run_id}.json`` (with
-``_{map_index}`` appended for mapped tasks) and stored under the configured
-``durable_cache_path``. To force a completely fresh run, delete the cache file
-for that task.
-
-.. note::
-
-    Runs that fail permanently (exhaust all retries) leave their cache file
-    behind. These orphaned files do not affect future DAG runs (each run gets
-    its own file) but will consume storage. Clean them up periodically or add
-    a lifecycle policy to the storage backend.
-
-**Side effects and idempotency**
-
-Durable execution caches **return values**, not side effects. When a step is
-replayed, the tool's code does not run -- only the stored return value is
-returned. Two things follow from this:
-
-- If a tool completed successfully and its result was cached, the tool will
-  **not** run again on retry. Any side effect it produced (writing a file,
-  sending a message) already happened during the original run and is not
-  repeated.
-- If a tool fails *before* its result is cached, it **will** run again on
-  retry. A tool that partially completed (e.g. sent an email then raised an
-  exception) may produce the side effect a second time.
-
-All built-in toolsets (``SQLToolset`` with ``allow_writes=False``,
-``HookToolset`` in read-only mode) are read-only and replay safely. For custom
-tools with non-idempotent side effects, design the tool to be idempotent. For
-example, check whether the operation already completed before acting, or
-use database constraints to prevent duplicate writes.
-
-Tool results must be JSON-serializable to be cached. If a tool returns a
-non-serializable value (e.g. ``BinaryContent`` from MCP tools), that step is
-skipped with a warning and will re-execute on retry instead of replaying from
-cache. The task itself still succeeds.
+    from airflow.sdk import dag, task
 
 
-.. _capabilities-passthrough:
+    @dag(schedule=None)
+    def orders():
+        @task.agent(**ORDERS_ANALYST)
+        def weekly_summary() -> str:
+            return "Summarize this week's orders."
 
-Capabilities (pydantic-ai)
---------------------------
+        @task.agent(**{**ORDERS_ANALYST, "system_prompt": "Answer in one sentence."})
+        def one_liner() -> str:
+            return "How many orders are there?"
 
-pydantic-ai `capabilities <https://ai.pydantic.dev/capabilities/>`__ bundle
-tools, lifecycle hooks, instructions, and model settings into composable units.
-Common ones include ``Thinking`` (reasoning at a configurable effort level),
-``WebSearch``, ``WebFetch``, ``ImageGeneration``, and ``MCP``.
-
-``AgentOperator`` does not yet expose a first-class ``capabilities=`` kwarg,
-but anything passed through ``agent_params`` is forwarded to the underlying
-``Agent(...)`` constructor.
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
-    :language: python
-    :start-after: [START howto_operator_agent_capabilities_thinking]
-    :end-before: [END howto_operator_agent_capabilities_thinking]
-
-Capabilities compose with toolsets -- pydantic-ai merges tools from both.
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
-    :language: python
-    :start-after: [START howto_operator_agent_capabilities_composed]
-    :end-before: [END howto_operator_agent_capabilities_composed]
-
-.. warning::
-
-    ``agent_params`` is a templated field, which Airflow serializes by calling
-    ``str()`` on values it doesn't natively understand. Capability instances
-    are not yet round-trip-safe through DAG serialization, so the examples
-    below construct them inside the ``@dag`` function -- not at module level.
-    First-class ``capabilities=`` support on ``AgentOperator`` (with proper
-    serializer hooks) is tracked as a follow-up.
+        weekly_summary()
+        one_liner()
 
 
-.. _code-mode:
+    orders()
 
-Code Mode (Monty sandbox)
--------------------------
+When span export is on (see :doc:`../observability`), the ``name`` in
+``agent_params`` becomes the ``gen_ai.agent.name`` attribute on each agent run's
+span, so traces from every task that uses the definition group under one agent.
 
-Set ``code_mode=True`` to collapse the agent's tools into a single ``run_code``
-tool powered by the `Monty <https://github.com/pydantic/monty>`__ sandbox (via
-pydantic-ai-harness). Instead of one model round-trip per tool call, the model
-writes a single Python snippet that calls the tools as functions -- with loops,
-conditionals, and ``asyncio.gather`` -- in one turn. For multi-tool workflows
-this cuts round-trips and token use.
+To keep the definition out of Python, for example to share it with a program that
+does not run on Airflow, write a pydantic-ai
+`agent spec <https://pydantic.dev/docs/ai/core-concepts/agent-spec/>`__ file and pass its path through
+``agent_params``. A model set on the connection wins over a ``model`` in the
+file, and ``system_prompt`` is added to the file's ``instructions``:
 
-The generated code runs in Monty's deny-by-default sandbox: it cannot read the
-filesystem, the network, or environment variables. It can only call the tools
-you registered. Code mode therefore does not widen what the agent can reach --
-the tools it calls still run in the worker -- it only changes how the model
-invokes them. See :ref:`Toolsets security <howto/toolsets>` for the tool
-boundary.
+.. code-block:: yaml
 
-When to use it
-^^^^^^^^^^^^^^
+    # dags/shared_agents/orders_analyst.yaml
+    name: orders_analyst
+    instructions: >
+      You are the orders analyst. Answer only from the orders database.
+    retries: 2
 
-Code mode pays off for **orchestration-heavy, computation-light** workflows:
-calling several tools, looping over their results, filtering, and combining them.
-Collapsing many sequential tool calls into one turn is where the round-trip and
-token savings come from -- the example above answers a per-customer question in a
-single ``run_code`` block instead of one model round-trip per customer.
+.. code-block:: python
 
-It is **not a general-purpose code runtime**. The generated code is only the glue
-between tool calls; every real capability must come from a tool. Monty runs a
-subset of Python and **cannot import third-party libraries** (pandas, numpy,
-requests, boto3, ...) and has no filesystem or network access. If a task needs to
-crunch data inline with a library, you have two options, both better than code
-mode:
+    from pathlib import Path
 
-- **Push the work into a tool.** Do the aggregation in SQL (``SQLToolset``), or
-  expose a hook method that returns the processed result (``HookToolset``). The
-  tool runs in the full worker environment with all its dependencies, and code
-  mode just orchestrates it.
-- **Use a container-based execution environment** (e.g. Docker or E2B via
-  pydantic-ai-harness) instead of the in-process Monty sandbox. These support
-  third-party packages but pay a per-run container cost and a larger security
-  surface, so reach for them only when inline library code is genuinely required.
+    AgentOperator(
+        task_id="orders_question",
+        llm_conn_id="pydanticai_default",
+        prompt="How many orders are there?",
+        agent_params={"spec_file": Path(__file__).parent / "shared_agents" / "orders_analyst.yaml"},
+    )
 
-Requires the ``code-mode`` extra::
+Build the path from ``__file__``: a relative path resolves against the worker's
+working directory, not the Dag file.
 
-    pip install "apache-airflow-providers-common-ai[code-mode]"
+With ``durable=True``, tools from capabilities declared in the spec file are not
+replayed on retry; they run again. Pass tools you need replayed in ``toolsets=``.
 
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
-    :language: python
-    :start-after: [START howto_operator_agent_code_mode]
-    :end-before: [END howto_operator_agent_code_mode]
+Agent features
+--------------
 
-Unlike passing a capability through ``agent_params`` (see
-:ref:`capabilities-passthrough`), ``code_mode`` is a plain boolean and is
-serialization-safe: the ``CodeMode`` capability is built at execution time, not
-stored on the serialized operator.
+Four features have pages of their own:
 
-.. note::
+- :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
+- :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
+  on retry instead of paying for them again.
+- :doc:`../guardrails`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
+  through ``agent_params``.
+- :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
+  ``run_code`` tool the model drives by writing Python.
 
-    Monty is pre-1.0. The ``code-mode`` extra is opt-in so its dependency churn
-    never affects the base provider install.
+.. _agent-durable-execution:
 
+Durable execution
+^^^^^^^^^^^^^^^^^
+
+Moved to :doc:`../durable_execution`.
 
 Parameters
 ----------
@@ -438,14 +283,32 @@ Parameters
   See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
   such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
-  agent run (initial run, durable replay, and HITL regeneration). Use it to
-  cap requests, tokens, or tool calls per task -- agents are particularly
-  prone to runaway tool loops, so ``tool_calls_limit`` is a useful guardrail.
-  See :ref:`howto/operator:llm` for an example. Default ``None``.
+  agent run (initial run, durable replay, and HITL regeneration), or a
+  ``dict`` of the same fields -- the dict form is templated via Jinja, then
+  coerced per field type, failing the task with a ``ValueError`` naming the
+  field if a rendered value doesn't parse. Use it to cap requests, tokens, or
+  tool calls per task -- agents are particularly prone to runaway tool loops,
+  so ``tool_calls_limit`` is a useful guardrail. It also supports a per-run
+  USD ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a
+  hard guarantee; not enforced for models pydantic-ai can't price, which log
+  a warning instead of failing the run) and an example. Default ``None``.
+
+  .. warning::
+     With ``durable=True``, a task retry replays cached model steps instead of
+     re-calling the model -- but pydantic-ai still adds each replayed step's
+     cost to the retry's own usage total, since it cannot distinguish a replay
+     from a live call. A ``cost_limit`` therefore counts already-paid-for
+     replayed cost against every retry's fresh budget, leaving less headroom
+     for the new calls the retry actually makes. And if the limit is lowered
+     between attempts -- easy to do by accident when ``usage_limits`` is
+     templated as a dict -- a retry can exceed it with zero new model calls.
+     The ``LLM run cost`` line in the task log reports the run's cumulative
+     cost for the same reason, not what this attempt actually spent.
 - ``durable``: When ``True``, enables step-level caching of model responses and
-  tool results via ObjectStorage. On retry, cached steps are replayed instead of
-  re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``
-  config option to be set. Default ``False``.
+  tool results. On retry, cached steps are replayed instead of re-executing
+  expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
+  configuration needed); on older cores it requires the ``[common.ai]
+  durable_cache_path`` config option to be set. Default ``False``.
 - ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
   tool that the model drives by writing Python, executed in the Monty sandbox.
   Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
@@ -453,8 +316,17 @@ Parameters
   of pydantic-ai ``ModelMessage`` objects or their JSON form (``str`` / ``bytes``).
   When set, the post-run transcript is pushed to XCom under the key
   ``message_history`` for the next run to resume. Default ``None`` (single-turn).
-  See `Multi-turn Sessions`_.
+  See :doc:`../message_history`.
+- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
+  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
+  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
+  downstream consumer needs the dict shape.
 
+**HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
+``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
+loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
+parameter and the review workflow.
 
 Logging
 -------
@@ -463,7 +335,7 @@ All AI operators automatically log a post-run summary after ``run_sync()``
 completes. ``AgentOperator`` additionally wraps toolsets for real-time
 per-tool-call logging (controlled by ``enable_tool_logging``).
 
-**Real-time tool call logging** (AgentOperator only) — each tool call is
+**Real-time tool call logging** (AgentOperator only): each tool call is
 logged as it happens:
 
 .. code-block:: text
@@ -478,7 +350,7 @@ logged as it happens:
 Tool arguments are logged at DEBUG level to avoid leaking sensitive data at
 the default log level.
 
-**Post-run summary** (all operators) — after the LLM run finishes, a summary
+**Post-run summary** (all operators): after the LLM run finishes, a summary
 is logged with model name, token usage, and the full tool call sequence:
 
 .. code-block:: text
@@ -503,11 +375,10 @@ To disable real-time tool logging while keeping the post-run summary:
         enable_tool_logging=False,
     )
 
-
 Security
 --------
 
 .. seealso::
-    :ref:`Toolsets — Security <howto/toolsets>` for defense layers,
+    :doc:`../agent_security` for defense layers,
     ``allowed_tables`` limitations, ``HookToolset`` guidelines, recommended
     configurations, and the production checklist.

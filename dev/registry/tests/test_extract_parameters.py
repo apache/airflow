@@ -18,19 +18,27 @@
 
 from __future__ import annotations
 
+import abc
+import builtins
 import json
 import types
+from dataclasses import fields
 from unittest.mock import patch
 
 import pytest
+import yaml
 from extract_parameters import (
     Module,
     _get_source_line,
     _parse_requested_providers,
+    _resolve_dotted_path,
     _should_skip_class,
     compare_with_ast,
     discover_classes_from_provider,
     get_category,
+    is_durable_capable,
+    load_resumable_job_mixin,
+    supports_deferrable,
 )
 
 
@@ -102,10 +110,608 @@ class TestGetSourceLine:
 
 
 # ---------------------------------------------------------------------------
+# load_resumable_job_mixin
+# ---------------------------------------------------------------------------
+class TestLoadResumableJobMixin:
+    def test_returns_none_when_airflow_sdk_unavailable(self):
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "airflow.sdk":
+                raise ImportError("no airflow.sdk here")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fake_import):
+            assert load_resumable_job_mixin() is None
+
+
+# ---------------------------------------------------------------------------
+# is_durable_capable
+# ---------------------------------------------------------------------------
+class FakeResumableJobMixin(abc.ABC):
+    """Stand-in for airflow.sdk.ResumableJobMixin's abstract-method contract."""
+
+    @abc.abstractmethod
+    def submit_job(self, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_status(self, external_id, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def is_job_active(self, status):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def is_job_succeeded(self, status):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def poll_until_complete(self, external_id, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_result(self, external_id, context):
+        raise NotImplementedError
+
+    def execute_resumable(self, context):
+        raise NotImplementedError
+
+
+class FullyImplementedResumableOperator(FakeResumableJobMixin):
+    def execute(self, context):
+        return self.execute_resumable(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def get_job_status(self, external_id, context):
+        return "RUNNING"
+
+    def is_job_active(self, status):
+        return status == "RUNNING"
+
+    def is_job_succeeded(self, status):
+        return status == "SUCCEEDED"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class PartiallyImplementedResumableOperator(FakeResumableJobMixin):
+    """Retry-path methods left unoverridden -- would only blow up on an actual crash-recovery retry."""
+
+    def execute(self, context):
+        return self.execute_resumable(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class UnwiredResumableOperator(FakeResumableJobMixin):
+    """execute() never calls execute_resumable -- dead capability, never exercised."""
+
+    def execute(self, context):
+        return self.submit_job(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def get_job_status(self, external_id, context):
+        return "RUNNING"
+
+    def is_job_active(self, status):
+        return status == "RUNNING"
+
+    def is_job_succeeded(self, status):
+        return status == "SUCCEEDED"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class PlainOperator:
+    def execute(self, context):
+        return None
+
+
+class ManuallyDurableOperator:
+    """Implements durable execution directly (e.g. via task_state_store), without
+    ResumableJobMixin -- mirrors KubernetesPodOperator/AgentOperator."""
+
+    __supports_durable_execution = True
+
+    def execute(self, context):
+        return None
+
+
+class ManuallyDurableSubclass(ManuallyDurableOperator):
+    """Overrides execute() itself -- must NOT inherit the parent's declaration,
+    since nothing here verifies it preserves the reconnect behavior."""
+
+    def execute(self, context):
+        return "something else entirely"
+
+
+class TrailingNoExecuteMixin:
+    """Sits last in a combined MRO and owns no `execute`, so resolving a hop to it finds no
+    owner from that point on."""
+
+
+class ManuallyDurableSubclassNoOverride(ManuallyDurableOperator):
+    """Adds no execute() override at all. Mirrors GKEStartPodOperator, which relies
+    entirely on KubernetesPodOperator.execute(). Must still qualify."""
+
+    def some_other_method(self):
+        return None
+
+
+class ManuallyDurableSubclassDelegating(ManuallyDurableOperator):
+    """Overrides execute() but delegates back via super().execute(). Mirrors
+    EksPodOperator/SparkKubernetesOperator's non-deferrable path. Must still qualify."""
+
+    def execute(self, context):
+        self.log_something()
+        return super().execute(context)
+
+    def log_something(self):
+        return None
+
+
+class ManuallyDurableSubclassDelegatingMultiHop(ManuallyDurableSubclassDelegating):
+    """A second layer of super().execute() delegation on top of ManuallyDurableSubclassDelegating.
+    Must still qualify."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratorMixin:
+    """Mirrors DecoratedOperator: a mixin whose own MRO has no relationship to the marker class."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDurableSubclass(DecoratorMixin, ManuallyDurableOperator):
+    """Combines DecoratorMixin with the marker class via multiple inheritance (e.g. @task.kubernetes)."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDurableSubclassNoOwnExecute(DecoratorMixin, ManuallyDurableOperator):
+    """Same combined MRO as above, but inherits DecoratorMixin's execute() unchanged."""
+
+
+class ExplicitParentDelegatingSubclass(ManuallyDurableOperator):
+    """Mirrors @task.agent's _AgentDecoratedOperator: names the parent class directly instead
+    of using super(). Must still qualify."""
+
+    def execute(self, context):
+        return ManuallyDurableOperator.execute(self, context)
+
+
+class TestIsDurableCapable:
+    def test_fully_implemented_and_wired_qualifies(self):
+        assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
+
+    def test_missing_retry_path_overrides_disqualifies(self):
+        assert is_durable_capable(PartiallyImplementedResumableOperator, FakeResumableJobMixin) is False
+
+    def test_implemented_but_not_called_from_execute_disqualifies(self):
+        assert is_durable_capable(UnwiredResumableOperator, FakeResumableJobMixin) is False
+
+    def test_no_mixin_in_mro_disqualifies(self):
+        assert is_durable_capable(PlainOperator, FakeResumableJobMixin) is False
+
+    def test_mixin_unavailable_disqualifies(self):
+        assert is_durable_capable(FullyImplementedResumableOperator, None) is False
+
+    def test_manual_durable_marker_qualifies_without_mixin(self):
+        assert is_durable_capable(ManuallyDurableOperator, None) is True
+
+    def test_subclass_not_redeclaring_marker_disqualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclass, FakeResumableJobMixin) is False
+
+    def test_subclass_with_no_execute_override_inherits_marker(self):
+        assert is_durable_capable(ManuallyDurableSubclassNoOverride, FakeResumableJobMixin) is True
+
+    def test_subclass_delegating_via_super_execute_qualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclassDelegating, FakeResumableJobMixin) is True
+
+    def test_subclass_delegating_via_super_execute_multi_hop_qualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclassDelegatingMultiHop, FakeResumableJobMixin) is True
+
+    def test_multiple_inheritance_decorator_mixin_qualifies(self):
+        assert is_durable_capable(DecoratedDurableSubclass, FakeResumableJobMixin) is True
+
+    def test_multiple_inheritance_no_own_execute_qualifies(self):
+        assert is_durable_capable(DecoratedDurableSubclassNoOwnExecute, FakeResumableJobMixin) is True
+
+    def test_mixin_subclass_delegating_via_super_execute_qualifies(self):
+        class MixinSubclassDelegating(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return super().execute(context)
+
+        assert is_durable_capable(MixinSubclassDelegating, FakeResumableJobMixin) is True
+
+    def test_explicit_parent_class_delegation_qualifies(self):
+        assert is_durable_capable(ExplicitParentDelegatingSubclass, FakeResumableJobMixin) is True
+
+    def test_mixin_subclass_delegating_via_explicit_parent_call_qualifies(self):
+        class MixinSubclassExplicitDelegating(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return FullyImplementedResumableOperator.execute(self, context)
+
+        assert is_durable_capable(MixinSubclassExplicitDelegating, FakeResumableJobMixin) is True
+
+    def test_declaring_class_with_leading_underscore_is_found(self):
+        """Python strips leading underscores from the class name when mangling, so the
+        lookup must too, or a declaring class like `_FooOperator` is never found."""
+
+        class _UnderscoreOperator:
+            __supports_durable_execution = True
+
+            def execute(self, context):
+                return None
+
+        assert is_durable_capable(_UnderscoreOperator, FakeResumableJobMixin) is True
+
+    def test_comment_mentioning_delegation_is_not_mistaken_for_delegation(self):
+        """A comment can say the opposite of what the code does; a raw-text search must not
+        be fooled by it into reporting capable."""
+
+        class CommentedNonDelegatingSubclass(ManuallyDurableOperator):
+            def execute(self, context):
+                # overrides execute rather than calling super().execute(),
+                return None
+
+        assert is_durable_capable(CommentedNonDelegatingSubclass, FakeResumableJobMixin) is False
+
+    def test_non_class_execute_call_does_not_shadow_real_delegation(self):
+        """A local name that is not a class in the MRO (e.g. a DB cursor) is skipped rather
+        than dead-ending the walk before the real delegation below it."""
+
+        class DecoyExecuteThenRealDelegation(ManuallyDurableOperator):
+            def execute(self, context):
+                cursor = object()
+                cursor.execute("select 1")
+                return ManuallyDurableOperator.execute(self, context)
+
+        assert is_durable_capable(DecoyExecuteThenRealDelegation, FakeResumableJobMixin) is True
+
+    def test_every_explicit_match_is_tried_not_just_the_first_resolvable_one(self):
+        """The decoy here does resolve to a class in the MRO, but one that owns no `execute`
+        and has nothing after it that does, so the hop yields no owner. The walk has to keep
+        going to the real delegation rather than stopping at the first resolved match."""
+
+        class DecoyResolvesButOwnsNoExecute(ManuallyDurableOperator, TrailingNoExecuteMixin):
+            def execute(self, context):
+                TrailingNoExecuteMixin.execute(self, context)
+                return ManuallyDurableOperator.execute(self, context)
+
+        assert is_durable_capable(DecoyResolvesButOwnsNoExecute, FakeResumableJobMixin) is True
+
+    def test_explicit_call_to_class_with_no_own_execute_resolves_to_actual_owner(self):
+        """Mirrors `GKEStartPodOperator.execute(self, context)`: the named class inherits
+        `execute` rather than defining it, so the hop must resolve up to whoever actually
+        owns it, the same as a super() hop already does."""
+
+        class NoOwnExecuteIntermediate(ManuallyDurableOperator):
+            pass
+
+        class ExplicitDelegatesToIntermediate(NoOwnExecuteIntermediate):
+            def execute(self, context):
+                return NoOwnExecuteIntermediate.execute(self, context)
+
+        assert is_durable_capable(ExplicitDelegatesToIntermediate, FakeResumableJobMixin) is True
+
+
+# ---------------------------------------------------------------------------
+# supports_deferrable
+# ---------------------------------------------------------------------------
+class DeferrableOperator:
+    """Mirrors HttpOperator: reads self.deferrable directly in its own execute()."""
+
+    def __init__(self, *, deferrable: bool = False):
+        self.deferrable = deferrable
+
+    def execute(self, context):
+        if self.deferrable:
+            return self.execute_async(context)
+        return self.execute_sync(context)
+
+    def execute_async(self, context):
+        return None
+
+    def execute_sync(self, context):
+        return None
+
+
+class NonDeferrableOperator:
+    def __init__(self, *, some_other_param: str = ""):
+        self.some_other_param = some_other_param
+
+    def execute(self, context):
+        return None
+
+
+class OverridesExecuteWithoutDeferring(DeferrableOperator):
+    """Mirrors DiscordWebhookOperator: inherits the deferrable param but overrides
+    execute() with synchronous code that never reads it -- an inherited, dead knob."""
+
+    def execute(self, context):
+        return self.hook_call(context)
+
+    def hook_call(self, context):
+        return None
+
+
+class InheritsDeferringExecute(DeferrableOperator):
+    """Mirrors TimeDeltaSensorAsync: doesn't override execute() at all -- still
+    defers because the inherited method is what actually runs."""
+
+
+class AlwaysDeferringOperator:
+    """Mirrors DateTimeSensorAsync: defers unconditionally, no toggle to find."""
+
+    def execute(self, context):
+        self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class DefersThroughHelperMethod:
+    """Mirrors TriggerDagRunOperator: execute() delegates to a same class helper
+    that is the one actually calling self.defer()."""
+
+    def execute(self, context):
+        return self._trigger_dag_af_2(context)
+
+    def _trigger_dag_af_2(self, context):
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class DefersThroughUnrelatedHelperMethod:
+    """The helper the walk follows doesn't defer at all."""
+
+    def execute(self, context):
+        return self._do_the_thing(context)
+
+    def _do_the_thing(self, context):
+        return None
+
+
+class BaseWithDeferringExecute:
+    """Mirrors KubernetesPodOperator: its own execute() calls self.defer()."""
+
+    def execute(self, context):
+        if self.pod is None:
+            self.defer()
+        return None
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class SubclassDelegatingToSuperExecute(BaseWithDeferringExecute):
+    """Mirrors EksPodOperator: overrides execute() to do setup, then calls
+    super().execute(), which is where the actual self.defer() call lives."""
+
+    def execute(self, context):
+        self.setup(context)
+        return super().execute(context)
+
+    def setup(self, context):
+        return None
+
+
+class SubclassDelegatingToExplicitParentExecute(BaseWithDeferringExecute):
+    """Mirrors @task.agent's _AgentDecoratedOperator: names the parent class directly
+    instead of using super()."""
+
+    def execute(self, context):
+        return BaseWithDeferringExecute.execute(self, context)
+
+
+class DeferringDecoratorMixin:
+    """Mirrors DecoratedOperator: a mixin whose own MRO has no relationship to BaseWithDeferringExecute."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDeferringSubclass(DeferringDecoratorMixin, BaseWithDeferringExecute):
+    """Combines DeferringDecoratorMixin with the deferring class via multiple inheritance."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class RaisesTaskDeferredDirectly:
+    """Mirrors VespaIngestOperator: raises TaskDeferred directly, with no
+    self.defer()/self.deferrable reference anywhere in the call chain."""
+
+    def execute(self, context):
+        raise TaskDeferred(trigger=None, method_name="execute_complete")
+
+
+class TaskDeferred(Exception):
+    """Placeholder for actual TaskDeferred exception."""
+
+    def __init__(self, *, trigger, method_name):
+        self.trigger = trigger
+        self.method_name = method_name
+
+
+_FAKE_AIRFLOW_V_3_3_PLUS = True
+_FAKE_OLDER_CORE_FLAG = False
+
+
+class TaskAwaitingInput(Exception):
+    """Placeholder for the real exception the AIRFLOW_V_3_3_PLUS branch raises."""
+
+
+class DefersForApprovalOnly:
+    """Mirrors the common.ai LLM operators: self.defer( is real but dead, reachable only
+    through a helper, and only on a core older than this one."""
+
+    def execute(self, context):
+        return self.defer_for_approval(context)
+
+    def defer_for_approval(self, context):
+        if _FAKE_AIRFLOW_V_3_3_PLUS:
+            raise TaskAwaitingInput
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class HITLShapedOperator:
+    """Mirrors HITLOperator: same dead self.defer(, but directly in execute() itself."""
+
+    def execute(self, context):
+        if _FAKE_AIRFLOW_V_3_3_PLUS:
+            raise TaskAwaitingInput
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+def _wrap_in_foreign_module(func):
+    """Wrap `func` the way BaseOperatorMeta._apply_defaults wraps operator `execute`.
+
+    functools.wraps copies `__module__` from the wrapped function but leaves `__globals__`
+    pointing at the wrapper's own module, which is why the version flag is invisible until
+    the wrapper is unwrapped. Building the wrapper in a separate module namespace is what
+    reproduces that here, since a wrapper defined in this file would share these globals.
+    """
+    foreign = types.ModuleType("foreign_wrapper_module")
+    foreign.__dict__["_inner"] = func
+    exec(
+        "import functools\n"
+        "@functools.wraps(_inner)\n"
+        "def wrapper(self, context):\n"
+        "    return _inner(self, context)\n",
+        foreign.__dict__,
+    )
+    return foreign.__dict__["wrapper"]
+
+
+class DeferralCommentOnlyOperator:
+    """A comment naming self.defer() is not a deferral, the same way it is not delegation."""
+
+    def execute(self, context):
+        # falls through to the sync path rather than calling self.defer()
+        return None
+
+
+class TestSupportsDeferrable:
+    def test_reads_deferrable_directly_qualifies(self):
+        assert supports_deferrable(DeferrableOperator) is True
+
+    def test_no_deferral_reference_disqualifies(self):
+        assert supports_deferrable(NonDeferrableOperator) is False
+
+    def test_inherited_param_but_overridden_execute_disqualifies(self):
+        """The Discord regression case: an inherited deferrable knob that the
+        subclass's own execute() never reads must not count as deferrable."""
+        assert supports_deferrable(OverridesExecuteWithoutDeferring) is False
+
+    def test_inherited_unmodified_execute_qualifies(self):
+        assert supports_deferrable(InheritsDeferringExecute) is True
+
+    def test_unconditional_defer_with_no_param_qualifies(self):
+        assert supports_deferrable(AlwaysDeferringOperator) is True
+
+    def test_defers_through_helper_method_qualifies(self):
+        """The TriggerDagRunOperator case: found by walking into the helper the
+        exception list used to hardcode, without needing a class-name lookup."""
+        assert supports_deferrable(DefersThroughHelperMethod) is True
+
+    def test_helper_method_without_deferral_disqualifies(self):
+        assert supports_deferrable(DefersThroughUnrelatedHelperMethod) is False
+
+    def test_defers_through_super_execute_qualifies(self):
+        """The EksPodOperator case: the override calls super().execute(), and the
+        actual self.defer() call lives in the parent's execute()."""
+        assert supports_deferrable(SubclassDelegatingToSuperExecute) is True
+
+    def test_defers_through_super_execute_with_multiple_inheritance_qualifies(self):
+        """A @task.kubernetes-shaped case: the chain must resolve against the subclass's MRO."""
+        assert supports_deferrable(DecoratedDeferringSubclass) is True
+
+    def test_defers_through_explicit_parent_class_call_qualifies(self):
+        """A @task.agent-shaped case: delegation names the parent class instead of super()."""
+        assert supports_deferrable(SubclassDelegatingToExplicitParentExecute) is True
+
+    def test_raises_task_deferred_directly_qualifies(self):
+        """The VespaIngestOperator case: no self.defer()/self.deferrable anywhere,
+        just a direct TaskDeferred raise."""
+        assert supports_deferrable(RaisesTaskDeferredDirectly) is True
+
+    def test_defer_for_approval_helper_with_dead_fallback_does_not_false_match(self):
+        assert supports_deferrable(DefersForApprovalOnly) is False
+
+    def test_hitl_shaped_dead_fallback_does_not_false_match(self):
+        assert supports_deferrable(HITLShapedOperator) is False
+
+    def test_version_guard_only_excludes_branch_true_for_this_core(self):
+        """A guard evaluating False leaves the self.defer( below it genuinely reachable."""
+
+        class OlderCoreShapedOperator:
+            def execute(self, context):
+                if _FAKE_OLDER_CORE_FLAG:
+                    raise TaskAwaitingInput
+                return self.defer()
+
+            def defer(self, *args, **kwargs):
+                return None
+
+        assert supports_deferrable(OlderCoreShapedOperator) is True
+
+    def test_wrapped_execute_still_resolves_the_version_guard(self):
+        """Pins the `inspect.unwrap` in `_get_reachable_method_source`. Without it the flag
+        resolves against the wrapper's module, the dead branch survives, and the four
+        standard HITL operators go back to reporting deferrable."""
+
+        class WrappedHITLShapedOperator:
+            execute = _wrap_in_foreign_module(HITLShapedOperator.execute)
+
+            def defer(self, *args, **kwargs):
+                return None
+
+        assert supports_deferrable(WrappedHITLShapedOperator) is False
+
+    def test_comment_mentioning_defer_is_not_mistaken_for_deferral(self):
+        assert supports_deferrable(DeferralCommentOnlyOperator) is False
+
+
+# ---------------------------------------------------------------------------
 # Module dataclass
 # ---------------------------------------------------------------------------
 class TestModuleDataclass:
-    def test_has_all_11_fields(self):
+    def test_construction_with_all_fields(self):
         m = Module(
             id="amazon-s3-S3Hook",
             name="S3Hook",
@@ -118,6 +724,8 @@ class TestModuleDataclass:
             category="amazon-s3",
             provider_id="amazon",
             provider_name="Amazon",
+            supports_durable_execution=False,
+            supports_deferrable=False,
         )
         assert m.id == "amazon-s3-S3Hook"
         assert m.provider_name == "Amazon"
@@ -204,6 +812,18 @@ class FakeSecretBackend:
     __module__ = "airflow.providers.amazon.aws.secrets.secrets_manager"
 
 
+class FakePlugin:
+    """S3 plugin."""
+
+    __module__ = "airflow.providers.amazon.aws.plugins.s3"
+
+
+class FakeDialect:
+    """Redshift dialect."""
+
+    __module__ = "airflow.providers.amazon.aws.dialects.redshift"
+
+
 def _make_module(name: str, members: dict) -> types.ModuleType:
     """Create a fake module with given members."""
     mod = types.ModuleType(name)
@@ -211,6 +831,29 @@ def _make_module(name: str, members: dict) -> types.ModuleType:
     for attr_name, attr_val in members.items():
         setattr(mod, attr_name, attr_val)
     return mod
+
+
+class FakeDecoratedOperator(ManuallyDurableOperator):
+    """Stands in for _AgentDecoratedOperator: private, so its only catalog surface is the
+    decorator entry, and durable-capable via explicit-parent delegation."""
+
+    __module__ = "airflow.providers.amazon.aws.decorators.fake"
+
+    def execute(self, context):
+        return ManuallyDurableOperator.execute(self, context)
+
+
+def _fake_task_decorator_factory(**kwargs):
+    return None
+
+
+def fake_decorator_task(python_callable=None, **kwargs):
+    """Fake task decorator."""
+    return _fake_task_decorator_factory(
+        python_callable=python_callable,
+        decorated_operator_class=FakeDecoratedOperator,
+        **kwargs,
+    )
 
 
 FAKE_PROVIDER_YAML = {
@@ -245,7 +888,26 @@ FAKE_PROVIDER_YAML = {
     "executors": [
         "airflow.providers.amazon.aws.executors.ecs.FakeExecutor",
     ],
-    "task-decorators": [],
+    "plugins": [
+        {
+            "name": "AmazonS3Plugin",
+            "plugin-class": "airflow.providers.amazon.aws.plugins.s3.FakePlugin",
+        },
+        "not-a-dict-entry",
+    ],
+    "dialects": [
+        {
+            "dialect-type": "redshift",
+            "dialect-class-name": "airflow.providers.amazon.aws.dialects.redshift.FakeDialect",
+        },
+        "not-a-dict-entry",
+    ],
+    "task-decorators": [
+        {
+            "class-name": "airflow.providers.amazon.aws.decorators.fake.fake_decorator_task",
+            "name": "fake_decorator",
+        },
+    ],
 }
 
 
@@ -307,6 +969,18 @@ class TestDiscoverClassesFromProvider:
                 "airflow.providers.amazon.aws.executors.ecs",
                 {"FakeExecutor": FakeExecutor},
             ),
+            "airflow.providers.amazon.aws.plugins.s3": _make_module(
+                "airflow.providers.amazon.aws.plugins.s3",
+                {"FakePlugin": FakePlugin},
+            ),
+            "airflow.providers.amazon.aws.dialects.redshift": _make_module(
+                "airflow.providers.amazon.aws.dialects.redshift",
+                {"FakeDialect": FakeDialect},
+            ),
+            "airflow.providers.amazon.aws.decorators.fake": _make_module(
+                "airflow.providers.amazon.aws.decorators.fake",
+                {"fake_decorator_task": fake_decorator_task},
+            ),
         }
         if module_name in modules:
             return modules[module_name]
@@ -347,6 +1021,42 @@ class TestDiscoverClassesFromProvider:
         assert len(hooks) == 1
         assert hooks[0]["name"] == "FakeHook"
 
+    def test_discovers_plugin(self, provider_yaml_path, base_classes):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        plugins = [r for r in result if r["type"] == "plugin"]
+        assert len(plugins) == 1
+        assert plugins[0]["name"] == "FakePlugin"
+        assert plugins[0]["category"] == "plugins"
+
+    def test_discovers_dialect(self, provider_yaml_path, base_classes):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        dialects = [r for r in result if r["type"] == "dialect"]
+        assert len(dialects) == 1
+        assert dialects[0]["name"] == "FakeDialect"
+        assert dialects[0]["category"] == "dialects"
+
+    def test_skips_non_dict_plugin_and_dialect_entries(self, provider_yaml_path, base_classes):
+        """FAKE_PROVIDER_YAML's plugins/dialects each carry a bare-string entry
+        alongside the valid dict entry; it must be skipped, not raise."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        assert len([r for r in result if r["type"] == "plugin"]) == 1
+        assert len([r for r in result if r["type"] == "dialect"]) == 1
+
     def test_filters_reexported_classes(self, provider_yaml_path, base_classes):
         """Classes where cls.__module__ != the module being scanned should be excluded."""
         with (
@@ -382,30 +1092,36 @@ class TestDiscoverClassesFromProvider:
         operators = [r for r in result if r["type"] == "operator"]
         assert operators[0]["short_description"] == "Copy objects in S3."
 
-    def test_all_11_fields_present(self, provider_yaml_path, base_classes):
-        """Every discovered entry has all 11 Module fields."""
+    def test_all_module_fields_present(self, provider_yaml_path, base_classes):
+        """Every discovered entry has every `Module` dataclass field (derived, not hardcoded)."""
         with (
             patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
             patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
         ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
-        required_fields = [
-            "id",
-            "name",
-            "type",
-            "import_path",
-            "module_path",
-            "short_description",
-            "docs_url",
-            "source_url",
-            "category",
-            "provider_id",
-            "provider_name",
-        ]
+        required_fields = {f.name for f in fields(Module)}
         for entry in result:
-            missing = [f for f in required_fields if f not in entry]
+            missing = required_fields - entry.keys()
             assert not missing, f"Missing fields {missing} in {entry['name']}"
+
+    def test_decorator_entry_reports_the_capability_of_the_operator_it_builds(
+        self, provider_yaml_path, base_classes
+    ):
+        """A `@task.*` entry registers the factory function, so its capability has to come
+        from the `decorated_operator_class=` the factory passes on."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(
+                provider_yaml_path, base_classes, resumable_mixin=FakeResumableJobMixin
+            )
+
+        decorators = [r for r in result if r["type"] == "decorator"]
+        assert len(decorators) == 1
+        assert decorators[0]["name"] == "@task.fake_decorator"
+        assert decorators[0]["supports_durable_execution"] is True
 
     def test_id_format(self, provider_yaml_path, base_classes):
         """ID follows the pattern {provider_id}-{module_name}-{class_name}."""
@@ -532,6 +1248,127 @@ class TestSensorNotClassifiedAsOperator:
         assert len(result) == 1
         assert result[0]["type"] == "sensor"
         assert result[0]["name"] == "MySensor"
+
+
+# ---------------------------------------------------------------------------
+# TestDiscoverClassesFromProvider: supports_durable_execution wiring
+# ---------------------------------------------------------------------------
+class TestDiscoverClassesFromProviderDurableExecution:
+    def test_marks_durable_capable_and_plain_operators(self, tmp_path):
+        class ResumableOperator(FullyImplementedResumableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        class PlainProviderOperator(PlainOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {
+                "ResumableOperator": ResumableOperator,
+                "PlainProviderOperator": PlainProviderOperator,
+            },
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(
+                yaml_path, base_classes={}, resumable_mixin=FakeResumableJobMixin
+            )
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["ResumableOperator"]["supports_durable_execution"] is True
+        assert by_name["PlainProviderOperator"]["supports_durable_execution"] is False
+
+    def test_defaults_to_false_when_mixin_unavailable(self, tmp_path):
+        class ResumableOperator(FullyImplementedResumableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {"ResumableOperator": ResumableOperator},
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(yaml_path, base_classes={})
+
+        assert result[0]["supports_durable_execution"] is False
+
+
+class TestDiscoverClassesFromProviderDeferrable:
+    def test_marks_deferrable_and_plain_operators(self, tmp_path):
+        class DeferrableProviderOperator(DeferrableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        class PlainProviderOperator(PlainOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {
+                "DeferrableProviderOperator": DeferrableProviderOperator,
+                "PlainProviderOperator": PlainProviderOperator,
+            },
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(yaml_path, base_classes={})
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["DeferrableProviderOperator"]["supports_deferrable"] is True
+        assert by_name["PlainProviderOperator"]["supports_deferrable"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -841,3 +1678,31 @@ class TestParseRequestedProviders:
 
     def test_duplicate_providers_collapsed(self):
         assert _parse_requested_providers("amazon amazon google") == {"amazon", "google"}
+
+
+class TestResolveDottedPath:
+    @pytest.mark.parametrize(
+        "class_path",
+        (
+            "no_dot_here",
+            "this.module.does.not.exist.at.all.Foo",
+        ),
+    )
+    def test__resolve_dotted_path_returns_none(self, class_path: str):
+        assert _resolve_dotted_path(class_path) is None
+
+    @pytest.mark.parametrize(
+        ("class_path", "expected"),
+        (
+            (
+                "extract_parameters.ThisAttrDoesNotExist",
+                ("extract_parameters", "ThisAttrDoesNotExist", None),
+            ),
+            (
+                "extract_parameters.get_category",
+                ("extract_parameters", "get_category", get_category),
+            ),
+        ),
+    )
+    def test__resolve_dotted_path(self, class_path: str, expected: tuple[str, str, object]):
+        assert _resolve_dotted_path(class_path) == expected

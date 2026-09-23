@@ -78,23 +78,18 @@ publishing {
     }
 
     repositories {
-        maven {
-            name = "maven"
-            val repoPath =
-                getProperty("mavenUrl")
-                    ?: if (projectVersion.endsWith("-SNAPSHOT")) {
-                        "https://repository.apache.org/content/repositories/snapshots/"
-                    } else {
-                        "https://repository.apache.org/service/local/staging/deploy/maven2/"
-                    }
-            url = uri(repoPath)
-            if (!repoPath.startsWith("file:")) {
-                val user = getProperty("mavenUsername", "ASF_NEXUS_USERNAME")
-                val pass = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
-                if (user != null && pass != null) {
-                    credentials {
-                        username = user
-                        password = pass
+        getProperty("mavenUrl")?.let { path ->
+            maven {
+                name = "maven"
+                url = uri(path)
+                if (url.scheme != "file") {
+                    val user = getProperty("mavenUsername", "ASF_NEXUS_USERNAME")
+                    val pass = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
+                    if (user != null && pass != null) {
+                        credentials {
+                            username = user
+                            password = pass
+                        }
                     }
                 }
             }

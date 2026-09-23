@@ -174,3 +174,46 @@ class TestSecretCache:
 
         with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_connection_uri("key")
+
+    def test_teamless_key_cannot_reach_a_team_entry(self):
+        """A caller with no team must not be able to compose another team's key.
+
+        The key used to be ``prefix + "_{team}_" + key`` when a team was given and
+        ``prefix + key`` when it was not, so a team-less caller could pass
+        ``"_analytics_DB_PASSWORD"`` and land on the entry stored for team
+        ``analytics`` under key ``DB_PASSWORD``.
+        """
+        SecretCache.save_variable("DB_PASSWORD", "victim_secret", team_name="analytics")
+
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_variable("_analytics_DB_PASSWORD")
+
+    def test_teamless_key_cannot_reach_a_team_connection(self):
+        SecretCache.save_connection_uri("prod_db", "postgres://victim", team_name="analytics")
+
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_connection_uri("_analytics_prod_db")
+
+    def test_teamless_write_cannot_overwrite_a_team_entry(self):
+        """The same collision must not let a team-less caller clobber a team's value."""
+        SecretCache.save_variable("DB_PASSWORD", "victim_secret", team_name="analytics")
+        SecretCache.save_variable("_analytics_DB_PASSWORD", "attacker_value")
+
+        assert SecretCache.get_variable("DB_PASSWORD", team_name="analytics") == "victim_secret"
+        assert SecretCache.get_variable("_analytics_DB_PASSWORD") == "attacker_value"
+
+    def test_team_names_sharing_a_prefix_stay_separate(self):
+        """Team names are compared as whole values, not as substrings of a joined key."""
+        SecretCache.save_variable("k", "a_value", team_name="team")
+        SecretCache.save_variable("k", "b_value", team_name="team_x")
+
+        assert SecretCache.get_variable("k", team_name="team") == "a_value"
+        assert SecretCache.get_variable("k", team_name="team_x") == "b_value"
+
+    def test_invalidate_is_scoped_to_the_team(self):
+        SecretCache.save_variable("DB_PASSWORD", "victim_secret", team_name="analytics")
+        SecretCache.save_variable("_analytics_DB_PASSWORD", "attacker_value")
+
+        SecretCache.invalidate_variable("_analytics_DB_PASSWORD")
+
+        assert SecretCache.get_variable("DB_PASSWORD", team_name="analytics") == "victim_secret"

@@ -18,12 +18,9 @@ from __future__ import annotations
 
 from typing import Any
 
-import attrs
-
 from airflow.partition_mappers.base import PartitionMapper
 
 
-@attrs.define
 class FixedKeyMapper(PartitionMapper):
     """
     Collapse every upstream partition key onto one fixed downstream key.
@@ -46,20 +43,26 @@ class FixedKeyMapper(PartitionMapper):
     :raises ValueError: if *downstream_key* is not a non-empty ``str``.
     """
 
-    downstream_key: str = attrs.field()
+    downstream_key: str
 
-    @downstream_key.validator
-    def _validate_downstream_key(self, attribute: attrs.Attribute, value: str) -> None:
-        if not isinstance(value, str) or value == "":
-            raise ValueError(f"FixedKeyMapper downstream_key must be a non-empty str; got {value!r}.")
+    def __init__(self, downstream_key: str, *, max_downstream_keys: int | None = None) -> None:
+        if not downstream_key or not isinstance(downstream_key, str):
+            raise ValueError(
+                f"FixedKeyMapper downstream_key must be a non-empty str; got {downstream_key!r}."
+            )
+        super().__init__(max_downstream_keys=max_downstream_keys)
+        self.downstream_key = downstream_key
 
     def to_downstream(self, key: str) -> str:
         """Return the fixed downstream key regardless of *key*."""
         return self.downstream_key
 
     def serialize(self) -> dict[str, Any]:
-        return {"downstream_key": self.downstream_key}
+        data: dict[str, Any] = {"downstream_key": self.downstream_key}
+        if self.max_downstream_keys is not None:
+            data["max_downstream_keys"] = self.max_downstream_keys
+        return data
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> FixedKeyMapper:
-        return cls(data["downstream_key"])
+        return cls(data["downstream_key"], max_downstream_keys=data.get("max_downstream_keys"))

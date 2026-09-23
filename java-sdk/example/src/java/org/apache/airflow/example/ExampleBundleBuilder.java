@@ -26,8 +26,11 @@ import org.jetbrains.annotations.NotNull;
 public class ExampleBundleBuilder implements BundleBuilder {
   @NotNull
   @Override
-  public Iterable<Dag> getDags() {
-    return List.of(InterfaceExampleBuilder.build(), AnnotationExampleBuilder.build());
+  public Iterable<DagDef> getDags() {
+    return List.of(
+        InterfaceExampleBuilder.build(),
+        AnnotationExampleBuilder.build(),
+        XComCastingExampleBuilder.build());
   }
 
   public static void main(String[] args) {

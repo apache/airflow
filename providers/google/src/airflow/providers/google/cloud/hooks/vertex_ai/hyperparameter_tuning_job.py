@@ -256,7 +256,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook, OperationHelper):
             [Tensorboard][google.cloud.aiplatform.v1beta1.Tensorboard] resource to which this CustomJob will
             upload Tensorboard logs. Format:
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}`` The training script should
-            write Tensorboard to following Vertex AI environment variable: AIP_TENSORBOARD_LOG_DIR
+            write Tensorboard to the following Vertex AI environment variable: AIP_TENSORBOARD_LOG_DIR
             `service_account` is required with provided `tensorboard`. For more information on configuring
             your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training

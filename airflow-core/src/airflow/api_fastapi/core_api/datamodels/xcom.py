@@ -23,6 +23,7 @@ from typing import Any
 from pydantic import AliasPath, Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 
 
 class XComResponse(BaseModel):
@@ -38,6 +39,7 @@ class XComResponse(BaseModel):
     dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
     task_display_name: str = Field(validation_alias=AliasPath("task", "task_display_name"))
     run_after: datetime = Field(validation_alias=AliasPath("dag_run", "run_after"))
+    team_name: str | None = Field(validation_alias=AliasPath("dag_run", "team_name"), default=None)
 
 
 def _stringify_if_needed(value):
@@ -85,23 +87,15 @@ class XComCollectionResponse(BaseModel):
 
 def _check_forbidden_xcom_keys(value: Any) -> Any:
     """Recursively reject forbidden deserialization keys in user-provided XCom data."""
-    from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
-
-    def _walk(obj: Any, path: str = "value") -> None:
-        if isinstance(obj, dict):
-            found = FORBIDDEN_XCOM_KEYS & obj.keys()
-            if found:
-                raise ValueError(
-                    f"XCom {path} contains reserved serialization keys: {', '.join(sorted(found))}. "
-                    f"These keys are reserved for internal use."
-                )
-            for k, v in obj.items():
-                _walk(v, f"{path}.{k}")
-        elif isinstance(obj, (list, tuple)):
-            for i, item in enumerate(obj):
-                _walk(item, f"{path}[{i}]")
-
-    _walk(value)
+    # A value sent as a JSON string literal is stored as-is and parsed back into a dict or list on
+    # a ``deserialize=true`` read, so the decoded structure needs checking too.
+    found = find_reserved_keys(value, decode_json_strings=True)
+    if found is not None:
+        path, keys = found
+        raise ValueError(
+            f"XCom {path} contains reserved serialization keys: {', '.join(keys)}. "
+            f"These keys are reserved for internal use."
+        )
     return value
 
 

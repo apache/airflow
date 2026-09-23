@@ -538,3 +538,24 @@ def test_remove_old_release_no_task_sdk_version(monkeypatch, release_cmd):
     assert "task-sdk" not in " ".join(console_messages).lower()
     assert run_command_calls == []
     assert chdir_calls == [svn_release_repo, "/original/dir"]
+
+
+def test_regenerate_constraints_resolves_from_the_stable_branch(monkeypatch, release_cmd):
+    """The final release resolves from the branch it is cut from, not from main."""
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+
+    release_cmd.regenerate_constraints("3.3.0")
+
+    assert calls == {"version": "3.3.0", "ref": "v3-3-stable"}
+
+
+def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd):
+    """No rc suffix reaches the workflow, which is what makes it refuse pre-releases."""
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+
+    release_cmd.regenerate_constraints("3.0.5")
+
+    assert "rc" not in str(calls["version"])
+    assert calls["ref"] == "v3-0-stable"

@@ -31,6 +31,7 @@ __all__ = [
     "AsyncCallback",
     "BaseAsyncOperator",
     "BaseBranchOperator",
+    "BaseDeadlineReference",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
@@ -39,6 +40,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -105,6 +107,7 @@ __all__ = [
     "conf",
     "cross_downstream",
     "dag",
+    "deadline_reference",
     "get_current_context",
     "get_parsing_context",
     "literal",
@@ -151,7 +154,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import (
+        BaseDeadlineReference,
+        DeadlineAlert,
+        DeadlineReference,
+        deadline_reference,
+    )
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
@@ -189,6 +197,7 @@ if TYPE_CHECKING:
         YearWindow,
     )
     from airflow.sdk.definitions.retry_policy import (
+        ChainRetryPolicy,
         ExceptionRetryPolicy,
         RetryAction,
         RetryDecision,
@@ -234,6 +243,7 @@ __lazy_imports: dict[str, str] = {
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
     "BaseBranchOperator": ".bases.branch",
+    "BaseDeadlineReference": ".definitions.deadline",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
@@ -242,6 +252,7 @@ __lazy_imports: dict[str, str] = {
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
     "ChainMapper": ".definitions.partition_mappers.chain",
+    "ChainRetryPolicy": ".definitions.retry_policy",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
@@ -308,6 +319,7 @@ __lazy_imports: dict[str, str] = {
     "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "deadline_reference": ".definitions.deadline",
     "NEVER_EXPIRE": ".execution_time.context",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",

@@ -33,20 +33,22 @@ import structlog
 from sqlalchemy import (
     Boolean,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
+    delete,
     func,
     select,
 )
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, is_lock_not_available_error, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -123,6 +125,17 @@ class InvalidBackfillConf(AirflowException):
     """
 
 
+class NoBackfillRunsToCreate(ValueError):
+    """
+    Raised when a backfill request yields no Dag runs for the given date range.
+
+    This happens when the from/to date range falls entirely outside the Dag's
+    scheduled intervals (e.g. the range predates the first partition boundary).
+
+    :meta private:
+    """
+
+
 class UnknownActiveBackfills(AirflowException):
     """
     Raised when the quantity of active backfills cannot be determined.
@@ -176,6 +189,8 @@ class Backfill(Base):
         nullable=True,
     )  # The user that triggered the Backfill, if applicable
 
+    __table_args__ = (Index("idx_backfill_dag_id_completed_at", dag_id, completed_at),)
+
     backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
 
     dag_model = relationship(
@@ -209,7 +224,7 @@ class BackfillDagRun(Base):
     backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True)
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -665,7 +680,18 @@ def _create_backfill(
             dag_run_conf,
         )
 
-        br = Backfill(
+        dagrun_info_list = _get_info_list(
+            from_date=from_date,
+            to_date=to_date,
+            reverse=reverse,
+            dag=dag,
+        )
+        if not dagrun_info_list:
+            raise NoBackfillRunsToCreate(
+                f"No runs to create for Dag {dag_id} in the range [{from_date}, {to_date}]"
+            )
+
+        backfill = Backfill(
             dag_id=dag_id,
             from_date=from_date,
             to_date=to_date,
@@ -675,42 +701,58 @@ def _create_backfill(
             dag_model=dag,
             triggering_user_name=triggering_user_name,
         )
-        session.add(br)
+        session.add(backfill)
+        # Commit immediately so the backfill is visible to concurrent requests
+        # checking num_active backfills, preventing duplicate active backfills
+        # for the same dag.
         session.commit()
 
         session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
 
-        dagrun_info_list = _get_info_list(
-            from_date=from_date,
-            to_date=to_date,
-            reverse=reverse,
-            dag=dag,
-        )
-        if not dagrun_info_list:
-            raise RuntimeError(f"No runs to create for Dag {dag_id}")
-
         first_info = dagrun_info_list[0]
-        if first_info.partition_key:
-            _create_runs_partitioned(
-                br=br,
-                dag=dag,
-                dagrun_info_list=dagrun_info_list,
-                session=session,
-            )
-        else:
-            _create_runs_non_partitioned(
-                br=br,
-                dag=dag,
-                dagrun_info_list=dagrun_info_list,
-                run_on_latest_version=run_on_latest_version,
-                session=session,
-            )
-    return br
+        try:
+            if first_info.partition_key:
+                _create_runs_partitioned(
+                    backfill=backfill,
+                    dag=dag,
+                    dagrun_info_list=dagrun_info_list,
+                    session=session,
+                )
+            else:
+                _create_runs_non_partitioned(
+                    backfill=backfill,
+                    dag=dag,
+                    dagrun_info_list=dagrun_info_list,
+                    run_on_latest_version=run_on_latest_version,
+                    session=session,
+                )
+        except OperationalError as e:
+            if is_lock_not_available_error(e):
+                # Lock error: clean up the orphan so the user can retry. The
+                # helper is best-effort; if it fails the original error still
+                # surfaces and the route returns 503.
+                _cleanup_partial_backfill(backfill, session)
+            raise
+    return backfill
+
+
+def _cleanup_partial_backfill(backfill: Backfill, session: Session) -> None:
+    """Best-effort removal of a partially-created backfill after a lock error."""
+    from airflow.models.dagrun import DagRun
+
+    try:
+        session.rollback()
+        session.execute(delete(BackfillDagRun).where(BackfillDagRun.backfill_id == backfill.id))
+        session.execute(delete(DagRun).where(DagRun.backfill_id == backfill.id))
+        session.delete(backfill)
+        session.commit()
+    except Exception:
+        session.rollback()
 
 
 def _create_runs_partitioned(
     *,
-    br: Backfill,
+    backfill: Backfill,
     dag: SerializedDAG,
     dagrun_info_list: list[DagRunInfo],
     session: Session,
@@ -722,24 +764,24 @@ def _create_runs_partitioned(
         _create_backfill_dag_run_partitioned(
             dag=dag,
             info=info,
-            backfill_id=br.id,
-            dag_run_conf=br.dag_run_conf,
-            reprocess_behavior=ReprocessBehavior(br.reprocess_behavior),
+            backfill_id=backfill.id,
+            dag_run_conf=backfill.dag_run_conf,
+            reprocess_behavior=ReprocessBehavior(backfill.reprocess_behavior),
             backfill_sort_ordinal=backfill_sort_ordinal,
-            triggering_user_name=br.triggering_user_name,
+            triggering_user_name=backfill.triggering_user_name,
             session=session,
         )
         log.info(
             "Created backfill Dag run.",
             dag_id=dag.dag_id,
-            backfill_id=br.id,
-            info=info,
+            backfill_id=backfill.id,
+            logical_date=info.logical_date,
         )
 
 
 def _create_runs_non_partitioned(
     *,
-    br: Backfill,
+    backfill: Backfill,
     dag: SerializedDAG,
     dagrun_info_list: list[DagRunInfo],
     run_on_latest_version: bool,
@@ -753,17 +795,17 @@ def _create_runs_non_partitioned(
         _create_backfill_dag_run_non_partitioned(
             dag=dag,
             info=info,
-            backfill_id=br.id,
-            dag_run_conf=br.dag_run_conf,
-            reprocess_behavior=ReprocessBehavior(br.reprocess_behavior),
+            backfill_id=backfill.id,
+            dag_run_conf=backfill.dag_run_conf,
+            reprocess_behavior=ReprocessBehavior(backfill.reprocess_behavior),
             backfill_sort_ordinal=backfill_sort_ordinal,
-            triggering_user_name=br.triggering_user_name,
+            triggering_user_name=backfill.triggering_user_name,
             run_on_latest_version=run_on_latest_version,
             session=session,
         )
         log.info(
             "Created backfill Dag run.",
             dag_id=dag.dag_id,
-            backfill_id=br.id,
-            info=info,
+            backfill_id=backfill.id,
+            logical_date=info.logical_date,
         )

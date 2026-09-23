@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-openai",
         "name": "OpenAI",
-        "description": "`OpenAI <https://platform.openai.com/docs/introduction>`__ provider for Apache Airflow.\nEnables interaction with OpenAI APIs for text generation, embeddings,\nand other AI-powered workflows directly from Airflow DAGs.\n",
+        "description": "`OpenAI <https://platform.openai.com/docs/introduction>`__ provider for Apache Airflow.\nEnables interaction with OpenAI APIs for text generation, embeddings,\nand other AI-powered workflows directly from Airflow Dags.\n",
         "integrations": [
             {
                 "integration-name": "OpenAI",
@@ -48,10 +48,22 @@ def get_provider_info():
             {"integration-name": "OpenAI", "python-modules": ["airflow.providers.openai.hooks.openai"]}
         ],
         "operators": [
-            {"integration-name": "OpenAI", "python-modules": ["airflow.providers.openai.operators.openai"]}
+            {
+                "integration-name": "OpenAI",
+                "python-modules": [
+                    "airflow.providers.openai.operators.openai",
+                    "airflow.providers.openai.operators.agent",
+                ],
+            }
         ],
         "triggers": [
-            {"integration-name": "OpenAI", "python-modules": ["airflow.providers.openai.triggers.openai"]}
+            {
+                "integration-name": "OpenAI",
+                "python-modules": [
+                    "airflow.providers.openai.triggers.openai",
+                    "airflow.providers.openai.triggers.agent",
+                ],
+            }
         ],
         "connection-types": [
             {

@@ -132,18 +132,24 @@ The ``execute`` gets called only during a Dag run.
 
 User interface
 --------------
-Airflow also allows the developer to control how the operator shows up in the Dag UI.
-Override ``ui_color`` to change the background color of the operator in UI.
-Override ``ui_fgcolor`` to change the color of the label.
+Airflow also allows the developer to control how the operator shows up in the Dag graph view.
+Override ``ui_color`` to change the node's fill color and ``ui_fgcolor`` to change its label color.
+Each accepts a raw color (a hex code or a CSS color name) or a `Chakra <https://www.chakra-ui.com/docs/theming/colors>`__
+theme token: a palette token such as ``blue.500``, or a **semantic token** such as ``brand.solid``
+that is defined in the UI theme and adapts to light and dark mode. Theme tokens -- including any
+added through a custom UI theme -- resolve through a theme-controlled CSS variable, so they stay
+legible across color modes.
 Override ``custom_operator_name`` to change the displayed name to something other than the classname.
 
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
-            ui_color = "#ff0000"
-            ui_fgcolor = "#000000"
+            ui_color = "blue.500"  # a Chakra palette token
+            ui_fgcolor = "brand.contrast"  # a semantic token that adapts to light and dark mode
             custom_operator_name = "Howdy"
             # ...
+
+.. _custom-operator/template-fields:
 
 Templating
 ----------
@@ -332,6 +338,49 @@ Therefore, the following example is invalid:
             def __init__(self, foo) -> None:
                 self.foo = foo.lower()  # assignment should be only self.foo = foo
 
+4. Checking whether an argument was *passed* is allowed in the constructor — ``execute()`` cannot
+tell a supplied field from a missing one, because a field can be ``None`` after rendering. Write it
+as ``is None`` / ``is not None``, never as a truthiness test. Anything that inspects the *value*
+still belongs in ``execute()``:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = ("foo", "bar")
+
+            def __init__(self, foo=None, bar=None) -> None:
+                if foo is None and bar is None:  # allowed: asks what was passed
+                    raise ValueError("Either 'foo' or 'bar' must be provided")
+                self.foo = foo
+                self.bar = bar
+
+5. Operators that support ``start_from_trigger`` may copy a templated field verbatim into
+``start_trigger_args.trigger_kwargs`` under the field's own name. The scheduler sends the task straight to
+the triggerer, which renders those entries itself, and ``execute()`` never runs. The key has to match the
+field name and be an attribute of the trigger; nothing else in ``StartTriggerArgs`` is rendered, so a
+transformed value, or a key that is not a template field, is still invalid. Storing one field's value
+under another template field's key is rendered, under that key, but is invalid too — the entry no
+longer holds the field its key names:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = ("foo",)
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="my_package.triggers.HelloTrigger",
+                trigger_kwargs={},
+                next_method="execute_complete",
+            )
+
+            def __init__(self, foo, start_from_trigger=False) -> None:
+                self.foo = foo
+                self.start_from_trigger = start_from_trigger
+                if start_from_trigger:
+                    self.start_trigger_args = dataclasses.replace(
+                        self.start_trigger_args,
+                        trigger_kwargs={"foo": self.foo},  # allowed: verbatim copy under the field's name
+                    )
+
 When an operator inherits from a base operator and does not have a constructor defined on its own, the limitations above
 do not apply. However, the templated fields must be set properly in the parent according to those limitations.
 
@@ -350,6 +399,13 @@ Thus, the following example is valid:
             template_fields = "foo"
 
 The limitations above are enforced by a prek hook named 'validate-operators-init'.
+
+Connection ids are template fields too. Every ``*conn_id`` argument an operator, sensor or notifier
+accepts must be listed in its ``template_fields``, so users can pass ``conn_id="{{ params.conn_id }}"``.
+Because ``template_fields`` is a plain class attribute, a subclass that redefines it must spread the
+parent's fields (``template_fields = (*ParentOperator.template_fields, "extra")``) or the parent's
+connection ids stop being rendered. This is enforced for providers by a prek hook named
+'check-conn-id-templated'.
 
 Add template fields with subclassing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -428,4 +484,25 @@ that your sensor is not suitable for use with reschedule mode.
 An example of a sensor that keeps internal state and cannot be used with reschedule mode
 is :class:`airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.
 It polls the number of objects at a prefix (this number is the internal state of the sensor)
-and succeeds when there a certain amount of time has passed without the number of objects changing.
+and succeeds when there has been a certain amount of time passed without the number of objects changing.
+
+Testing your operator
+---------------------
+
+Instantiate your operator and call ``execute()`` — or ``poke()`` for a sensor — with the context
+keys your code reads. This needs no Dag, no Dag run and no metadata database:
+
+.. code-block:: python
+
+    def test_hello_operator():
+        op = HelloOperator(task_id="hello", name="Bob")
+
+        assert op.execute(context={}) == "Hello Bob"
+
+Use ``op.render_template_fields(context)`` if you need to assert on rendered
+:ref:`template fields <custom-operator/template-fields>`.
+
+Reach for :ref:`dag.test() <concepts:debugging>` only when you want to exercise a whole Dag run,
+which is an integration test: it requires a metadata database and a Dag defined in a file that
+Airflow can serialize. See :ref:`Unit tests <best_practices:unit_tests>` for the full set of
+patterns, including deferrable operators.

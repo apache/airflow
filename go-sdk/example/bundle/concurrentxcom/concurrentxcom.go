@@ -17,18 +17,17 @@
 
 // Package concurrentxcom holds the pull_xcoms_concurrently task in its own
 // package, so main.go can register tasks defined across packages with one
-// RegisterDags.
+// bundle.Register call.
 package concurrentxcom
 
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"reflect"
 	"sync"
 	"time"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -39,28 +38,29 @@ const (
 )
 
 // PullXComsConcurrently pulls a batch of XComs sequentially then concurrently
-// (one goroutine per item), exercising concurrent reads of the injected
+// (one goroutine per item), exercising concurrent reads of the task's
 // sdk.Client, and returns both timings.
-func PullXComsConcurrently(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
-	ti := ctx.TaskInstance()
+func PullXComsConcurrently(actx airflow.Context) (any, error) {
+	client := actx.Client()
+	ti := actx.TaskInstance()
 	// PushXCom needs only the ids off the TaskInstance, not the UUID.
-	apiTI := api.TaskInstance{
-		DagId:    ti.DagID,
-		RunId:    ti.RunID,
-		TaskId:   ti.TaskID,
+	taskInstance := sdk.TaskInstance{
+		DagID:    ti.DagID,
+		RunID:    ti.RunID,
+		TaskID:   ti.TaskID,
 		MapIndex: ti.MapIndex,
 	}
 
 	keys := make([]string, numXComs)
 	for i := range keys {
 		keys[i] = fmt.Sprintf("item_%d", i)
-		if err := client.PushXCom(ctx, apiTI, keys[i], i); err != nil {
+		if err := client.PushXCom(actx, taskInstance, keys[i], i); err != nil {
 			return nil, fmt.Errorf("seeding xcom %s: %w", keys[i], err)
 		}
 	}
 
 	pull := func(key string) (any, error) {
-		v, err := client.GetXCom(ctx, ti.DagID, ti.RunID, ti.TaskID, nil, key, nil)
+		v, err := client.GetXCom(actx, ti.DagID, ti.RunID, ti.TaskID, nil, key, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +107,7 @@ func PullXComsConcurrently(ctx sdk.TIRunContext, client sdk.Client, log *slog.Lo
 		}
 	}
 
-	log.InfoContext(ctx, "pulled xcoms concurrently",
+	actx.Logger().InfoContext(actx, "pulled xcoms concurrently",
 		"num_xcoms", numXComs,
 		"sequential_ms", sequential.Milliseconds(),
 		"concurrent_ms", concurrent.Milliseconds(),

@@ -22,7 +22,7 @@ Dynamic Dag Generation
 
 This document describes creation of Dags that have a structure generated dynamically, but where the number of
 tasks in the Dag does not change between Dag Runs. If you want to implement a Dag where number of Tasks (or
-Task Groups as of Airflow 2.6) can change based on the output/result of previous tasks, see
+Task Groups as of Airflow 2.6) can change based on the output/result of upstream tasks, see
 :doc:`/authoring-and-scheduling/dynamic-task-mapping`.
 
 .. note:: Consistent sequence of generating tasks and task groups

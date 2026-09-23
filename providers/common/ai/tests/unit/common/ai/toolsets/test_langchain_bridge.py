@@ -24,6 +24,7 @@ import pytest
 
 pytest.importorskip("langchain_core")
 
+from pydantic import ValidationError
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
@@ -191,6 +192,51 @@ class TestAirflowToolsetToLangChainTools:
         boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
 
         assert asyncio.run(boom.ainvoke({})) == "fix your input and try again"
+
+    def test_validation_error_returned_as_tool_output_sync(self):
+        toolset = FakeToolset()
+        add_one = {t.name: t for t in airflow_toolset_to_langchain_tools(toolset)}["add_one"]
+
+        result = add_one.invoke({"n": "not a number"})
+
+        assert "validation error" in result
+        assert toolset.calls == []
+
+    def test_validation_error_returned_as_tool_output_async(self):
+        toolset = FakeToolset()
+        add_one = {t.name: t for t in airflow_toolset_to_langchain_tools(toolset)}["add_one"]
+
+        result = asyncio.run(add_one.ainvoke({"n": "not a number"}))
+
+        assert "validation error" in result
+        assert toolset.calls == []
+
+    def test_repeated_validation_error_propagates_when_budget_exhausted(self):
+        add_one = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["add_one"]
+
+        assert "validation error" in add_one.invoke({"n": "bad"})
+        with pytest.raises(ValidationError):
+            add_one.invoke({"n": "bad"})
+
+    def test_tool_body_validation_error_propagates(self):
+        # A ValidationError raised inside call_tool must not be fed back as a
+        # retry — that would re-invoke a tool that may already have run a side
+        # effect. Only arg-validation ValidationError is retried.
+        class BodyValidationToolset(FakeToolset):
+            async def call_tool(self, name, tool_args, ctx, tool) -> Any:
+                if name == "boom":
+                    raise ValidationError.from_exception_data(
+                        "BodyValidation",
+                        [{"type": "missing", "loc": ("response",), "input": {}}],
+                    )
+                return await super().call_tool(name, tool_args, ctx, tool)
+
+        boom = {t.name: t for t in airflow_toolset_to_langchain_tools(BodyValidationToolset())}["boom"]
+
+        with pytest.raises(ValidationError, match="response"):
+            boom.invoke({})
+        with pytest.raises(ValidationError, match="response"):
+            asyncio.run(boom.ainvoke({}))
 
     def test_deps_are_exposed_on_the_run_context(self):
         sentinel = object()

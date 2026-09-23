@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
@@ -28,7 +28,6 @@ try:
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
-    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -36,6 +35,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -63,8 +63,15 @@ class LLMSQLQueryOperator(LLMOperator):
 
     :param prompt: Natural language description of the desired query.
     :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-4o"``).
+    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in SQL
         safety prompt. Use for domain-specific guidance.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
@@ -82,9 +89,13 @@ class LLMSQLQueryOperator(LLMOperator):
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
-    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     When ``allow_modifications=True`` and the reviewer edits the SQL, the
     modified query is re-validated against the same safety rules before being
     returned.
@@ -96,6 +107,9 @@ class LLMSQLQueryOperator(LLMOperator):
         "table_names",
         "schema_context",
     )
+
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -135,13 +149,11 @@ class LLMSQLQueryOperator(LLMOperator):
         return hook
 
     def execute(self, context: Context) -> str:
-        if self.require_approval and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The approval review body renders the prompt as text. Return a "
-                f"str prompt, or disable require_approval."
-            )
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
 
         schema_info = self._get_schema_context()
 
@@ -150,9 +162,9 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
-        sql = self._strip_llm_output(result.output)
+        sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
         if self.validate_sql:
             _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
@@ -164,23 +176,39 @@ class LLMSQLQueryOperator(LLMOperator):
 
         return sql
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+    def execute_complete(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None = None,
+    ) -> str:
         """Resume after human review, re-validating if the reviewer modified the SQL."""
-        output = super().execute_complete(context, generated_output, event)
+        output = super().execute_complete(context, generated_output, event, decision)
         if output != generated_output:
             _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
         return output
 
     @staticmethod
-    def _strip_llm_output(raw: str) -> str:
+    def _strip_llm_output(raw: str, *, dialect: str | None = None) -> str:
         """Strip whitespace and markdown code fences from LLM output."""
         text = raw.strip()
         if text.startswith("```"):
             lines = text.split("\n")
-            # Remove opening fence (```sql, ```, etc.) and closing fence
             if len(lines) >= 2:
+                # Remove opening fence (```sql, ```, etc.) and closing fence
                 end = -1 if lines[-1].strip().startswith("```") else len(lines)
                 text = "\n".join(lines[1:end]).strip()
+            elif text.endswith("```") and len(text) > 6:
+                # Whole fenced block on one line, e.g. "```sql SELECT 1```" -> "SELECT 1".
+                # Only drop the leading word if it's a known tag, so a real keyword
+                # like "SELECT" is never mistaken for one.
+                inner = text[3:-3].strip()
+                tags = {"sql", *([dialect.lower()] if dialect else [])}
+                first_word, sep, rest = inner.partition(" ")
+                if sep and first_word.lower() in tags:
+                    inner = rest.strip()
+                text = inner
         return text
 
     def _get_schema_context(self) -> str:
@@ -216,6 +244,17 @@ class LLMSQLQueryOperator(LLMOperator):
 
     def _introspect_object_storage_schema(self):
         """Use DataFusion Engine to get the schema of object stores."""
+        try:
+            from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Object-storage schema introspection requires the `datafusion` extra of "
+                "apache-airflow-providers-common-sql. Install it with: "
+                'pip install "apache-airflow-providers-common-sql[datafusion]"'
+            ) from e
+
         engine = DataFusionEngine()
         engine.register_datasource(self.datasource_config)
         return engine.get_schema(self.datasource_config.table_name)

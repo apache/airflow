@@ -53,17 +53,27 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
+from sqlalchemy.orm import (
+    Mapped,
+    declared_attr,
+    joinedload,
+    mapped_column,
+    relationship,
+    synonym,
+    validates,
+)
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics import stats
+from airflow._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow._shared.observability.traces import (
+    DAGRUN_PARENT_TRACE_CONTEXT_KEY,
     TASK_SPAN_DETAIL_LEVEL_KEY,
     TRACE_SAMPLED_KEY,
     new_dagrun_trace_carrier,
@@ -78,7 +88,7 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -90,7 +100,6 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
@@ -111,7 +120,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import Case, ColumnElement
     from sqlalchemy.sql.selectable import Select
 
-    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        DagRun as DRDataModel,
+        TaskInstance as TIDataModel,
+    )
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
@@ -195,6 +207,39 @@ def trace_sampled_override(conf) -> bool | None:
     return None
 
 
+def parent_trace_context(conf) -> context.Context | None:
+    """
+    External parent trace context from the ``airflow/dagrun_parent_trace_context`` run conf key.
+
+    Lets a run be embedded in a trace owned by an external system (an upstream
+    orchestrator, event pipeline, CI job, another Airflow) instead of being a root
+    trace. The value is a W3C ``traceparent`` string, or a carrier dict carrying
+    ``traceparent`` (and optionally ``tracestate``); anything else -- including a
+    malformed traceparent -- is ignored so it can neither silently mis-parent the
+    run nor fail run creation. Returns an OpenTelemetry ``Context`` when a valid
+    parent is present, else None (root trace, the default).
+    """
+    if not conf:
+        return None
+    match conf.get(DAGRUN_PARENT_TRACE_CONTEXT_KEY):
+        case str() as traceparent:
+            carrier = {"traceparent": traceparent}
+        case {"traceparent": str()} as raw:
+            # Keep only str members: a non-str tracestate reaches TraceState.from_header
+            # unvalidated and raises TypeError, which would drop the otherwise-valid parent.
+            carrier = {k: raw[k] for k in ("traceparent", "tracestate") if isinstance(raw.get(k), str)}
+        case _:
+            return None
+    try:
+        ctx = TraceContextTextMapPropagator().extract(carrier)
+    except Exception:
+        # Never let a malformed conf value fail run creation; fall back to a root trace.
+        return None
+    if not trace.get_current_span(ctx).get_span_context().is_valid:
+        return None
+    return ctx
+
+
 class DagRun(Base, LoggingMixin):
     """
     Invocation instance of a DAG.
@@ -244,7 +289,7 @@ class DagRun(Base, LoggingMixin):
     # This is nullable because it's too costly to migrate dagruns created prior
     # to this column's addition (Airflow 3.2.0). If you want a reasonable
     # meaningful non-null value, use ``dr.created_at or dr.run_after``.
-    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
+    created_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
     )
@@ -264,9 +309,6 @@ class DagRun(Base, LoggingMixin):
     # Span context carrier, used for context propagation.
     context_carrier: Mapped[dict[str, Any] | None] = mapped_column(
         MutableDict.as_mutable(ExtendedJSON), nullable=True
-    )
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
     created_dag_version_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
@@ -355,6 +397,14 @@ class DagRun(Base, LoggingMixin):
     backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
     max_active_runs = association_proxy("dag_model", "max_active_runs")
 
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this run's Dag, or ``None`` when it is not team-owned."""
+        # Gate before touching ``dag_model``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag_model.team_name if self.dag_model else None
+
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
@@ -429,6 +479,7 @@ class DagRun(Base, LoggingMixin):
             task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None),
             attributes=dagrun_trace_attributes(self),  # these are for potential use by head sampler
             force_sampled=trace_sampled_override(self.conf),
+            parent_context=parent_trace_context(self.conf),
         )
 
         if not isinstance(partition_key, str | None):
@@ -545,11 +596,36 @@ class DagRun(Base, LoggingMixin):
         )
         return session.scalar(select_stmt)
 
+    def dag_tags_for_stats(self) -> dict[str, str]:
+        """Convert dag tags to metric tags. Tags with ':' become key:value; others are standalone (empty value)."""
+        if not airflow_conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+            return {}
+        try:
+            # Lazy-loads dag_model.tags if not already loaded. The scheduler hot loop
+            # (get_running_dag_runs_to_examine) eager-loads these to avoid a per-DagRun query; other,
+            # low-frequency emission paths fall back to this lazy load. On a detached/expired DagRun
+            # the load raises — swallow it so metric tagging never breaks the caller.
+            if not self.dag_model or not self.dag_model.tags:
+                return {}
+            return build_dag_metric_tags(tag.name for tag in self.dag_model.tags)
+        except SQLAlchemyError:
+            return {}
+
     @property
     def stats_tags(self) -> dict[str, str]:
-        return prune_dict(
-            {"dag_id": self.dag_id, "run_type": self.run_type, "team_name": getattr(self, "_team_name", None)}
+        # prune_dict strips falsy values, so merge dag tags after it runs so standalone
+        # tags (empty value) are preserved for DogStatsD emission.
+        base = prune_dict(
+            {
+                "dag_id": self.dag_id,
+                # bare value so it serializes as e.g. "scheduled", not "dagruntype.scheduled"
+                "run_type": getattr(self.run_type, "value", self.run_type),
+                "team_name": getattr(self, "_team_name", None),
+            }
         )
+        dag_tags = self.dag_tags_for_stats()
+        # Built-in keys win on collision; dag tags fill in everything else.
+        return {**dag_tags, **base}
 
     def get_state(self):
         return self._state
@@ -671,7 +747,9 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> ScalarResult[DagRun]:
+    def get_running_dag_runs_to_examine(
+        cls, *, session: Session, eagerly_load_dag_tags: bool
+    ) -> ScalarResult[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -681,7 +759,6 @@ class DagRun(Base, LoggingMixin):
 
         :meta private:
         """
-        from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
         query = (
@@ -689,18 +766,22 @@ class DagRun(Base, LoggingMixin):
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
             .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
-            .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
             .where(
                 DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
             .order_by(
-                nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
                 nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
                 cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
+
+        # When dag tags are emitted as metric tags, eagerly load dag_model.tags so stats_tags does not
+        # fire a per-DagRun N+1 lazy load in the scheduler loop. The caller owns the feature decision;
+        # the scheduler passes its cached flag so the loop never reads conf.
+        if eagerly_load_dag_tags:
+            query = query.options(joinedload(cls.dag_model).selectinload(DagModel.tags))
 
         query = query.where(DagRun.run_after <= func.now())
 
@@ -945,7 +1026,7 @@ class DagRun(Base, LoggingMixin):
             session.execute(
                 update(DagModel)
                 .where(or_(*filter_query))
-                .values(is_paused=True)
+                .values(is_paused=True, is_draining=False)
                 .execution_options(synchronize_session="fetch")
             )
             session.add(
@@ -1120,11 +1201,11 @@ class DagRun(Base, LoggingMixin):
         span_context = span.get_span_context()
 
         # Skip if the run was head-sampled out. Unlike the task spans, this guard is
-        # required (not just an optimization): the span below is forced to be a root span
-        # (context=context.Context()), so the configured sampler never sees the carrier's
-        # flag. A valid-but-unsampled carrier means head-sampled out; an invalid/empty
-        # carrier (legacy DagRun) recorded no decision, so it falls through and still
-        # emits — prior behavior we may want to reconsider.
+        # required (not just an optimization): the span below is started as a root span
+        # (or under an external parent) rather than under the carrier, so the configured
+        # sampler is not driven by the carrier's flag. A valid-but-unsampled carrier means
+        # head-sampled out; an invalid/empty carrier (legacy DagRun) recorded no decision,
+        # so it falls through and still emits — prior behavior we may want to reconsider.
         if span_context.is_valid and not span_context.trace_flags.sampled:
             return
 
@@ -1147,18 +1228,21 @@ class DagRun(Base, LoggingMixin):
             if self.partition_date:
                 attributes["airflow.dag_run.partition_date"] = self.partition_date.isoformat()
 
-            # TODO: make the empty parent context optional. Default should be to
-            #  nest the dag run span under the currently active parent span (by
-            #  omitting `context` here); only use the empty `context.Context()` to
-            #  force a root span when Airflow itself initiates the run (e.g. dag
-            #  triggered via API, scheduler, or backfill). Today this forces a
-            #  root span unconditionally.
-            #  Tracked at https://github.com/apache/airflow/issues/67210
+            # Root by default: an Airflow-initiated run owns its own trace, so we do not
+            # attach to whatever span is incidentally active in the scheduler. When the run
+            # opted into an external trace via airflow/dagrun_parent_trace_context, start under that
+            # parent so the run nests inside it. The carrier was already built riding the same
+            # external trace_id (both read the same conf), so the override_ids trace_id is a
+            # no-op here — only the span_id override takes effect and the parent link comes
+            # from parent_ctx. The emitted span's sampling then follows the external parent, so
+            # an unsampled external trace drops this dag_run span even when airflow/trace_sampled
+            # forced the head decision that the task/worker spans ride.
+            parent_ctx = parent_trace_context(self.conf)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
-                context=context.Context(),
+                context=parent_ctx or context.Context(),
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
@@ -1252,6 +1336,7 @@ class DagRun(Base, LoggingMixin):
                     relevant_ti=ti_causing_failure,
                     reason="task_failure",
                     execute=execute_callbacks,
+                    session=session,
                 )
 
             # Check if the max_consecutive_failed_dag_runs has been provided and not 0
@@ -1282,6 +1367,7 @@ class DagRun(Base, LoggingMixin):
                     relevant_ti=last_succeeded_ti,
                     reason="success",
                     execute=execute_callbacks,
+                    session=session,
                 )
 
             if dag.deadline:
@@ -1319,6 +1405,7 @@ class DagRun(Base, LoggingMixin):
                     relevant_ti=blocking_ti,
                     reason="all_tasks_deadlocked",
                     execute=execute_callbacks,
+                    session=session,
                 )
 
         # finally, if the leaves aren't done, the dag is still running
@@ -1427,6 +1514,60 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
+    def _build_callback_last_ti(self, relevant_ti: TI, *, session: Session) -> TIDataModel | None:
+        """
+        Build a callback context's ``last_ti``, standing in a Dag version if the record has none.
+
+        ``session`` is required, not defaulted: ``settings.Session`` is a ``scoped_session``,
+        so acquiring one here would hand back the caller's own and then commit and close it.
+
+        Unlike ``_ensure_ti_has_dag_version_id`` in the scheduler, the stand-in is reported
+        but never written back: this path only describes a task instance to a callback, and
+        healing the row belongs to the paths that own it. The consequence is that a purge
+        which heals the row to the latest version first wins, and the run's own version is
+        then never reported here.
+        """
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
+        from airflow.models.dag_version import DagVersion
+
+        if relevant_ti.dag_version_id is not None:
+            return TIDataModel.model_validate(relevant_ti, from_attributes=True)
+
+        dag_version_id = self.created_dag_version_id
+        if dag_version_id is not None:
+            self.log.info(
+                "Task instance %s has no dag_version_id; reporting it under the run's version %s "
+                "in the Dag callback context.",
+                relevant_ti,
+                dag_version_id,
+            )
+        else:
+            latest_dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+            if latest_dag_version is None:
+                self.log.warning(
+                    "Task instance %s has no dag_version_id and Dag %s has no version to stand in; "
+                    "omitting last_ti from the Dag callback context.",
+                    relevant_ti,
+                    self.dag_id,
+                )
+                return None
+            dag_version_id = latest_dag_version.id
+            self.log.info(
+                "Task instance %s and its run both have no dag_version_id (pre-versioning records); "
+                "reporting it under the latest version %s in the Dag callback context.",
+                relevant_ti,
+                dag_version_id,
+            )
+        # The datamodel rejects a null version, so the stand-in has to be spliced in
+        # before validation rather than copied onto a validated model.
+        values = {
+            name: getattr(relevant_ti, name)
+            for name in TIDataModel.model_fields
+            if hasattr(relevant_ti, name)
+        }
+        values["dag_version_id"] = dag_version_id
+        return TIDataModel.model_validate(values)
+
     def produce_dag_callback(
         self,
         dag: SerializedDAG,
@@ -1434,30 +1575,31 @@ class DagRun(Base, LoggingMixin):
         relevant_ti: TI | None = None,
         reason: str = "success",
         execute: bool = False,
+        *,
+        session: Session,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
-        # Historical task instances created before the dag_version table existed (migration
-        # 0047_3_0_0_add_dag_versioning) have dag_version_id=None. The TaskInstance datamodel used to
-        # build the callback context requires a non-null UUID, so passing such a TI as last_ti would
-        # raise a ValidationError and crash the scheduler. Drop last_ti in that case; the callback still
-        # fires with a minimal context (dag, run_id, reason).
-        if relevant_ti is not None and relevant_ti.dag_version_id is None:
-            self.log.warning(
-                "Task instance %s has no dag_version_id (pre-versioning record); "
-                "omitting last_ti from the dag callback context.",
-                relevant_ti,
-            )
-            relevant_ti = None
         if not execute:
+            from airflow.models.dag_version import _resolve_version_data
+
+            last_ti = (
+                self._build_callback_last_ti(relevant_ti, session=session)
+                if relevant_ti is not None
+                else None
+            )
+            # Only carry version_data for pinned runs so the callback initializes the bundle
+            # against the same version the run used.
+            version_data = _resolve_version_data(self.created_dag_version, self.bundle_version)
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,
                 dag_id=self.dag_id,
                 run_id=self.run_id,
                 bundle_name=self.dag_model.bundle_name,
                 bundle_version=self.bundle_version,
+                version_data=version_data,
                 context_from_server=DagRunContext(
                     dag_run=self,
-                    last_ti=relevant_ti,
+                    last_ti=last_ti,
                 ),
                 is_failure_callback=(not success),
                 msg=reason,
@@ -1467,22 +1609,25 @@ class DagRun(Base, LoggingMixin):
             success=success,
             relevant_ti=relevant_ti,
             reason=reason,
+            session=session,
         )
         return None
 
     def execute_dag_callbacks(
-        self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"
+        self,
+        dag: SDKDAG,
+        success: bool = True,
+        relevant_ti: TI | None = None,
+        reason: str = "success",
+        *,
+        session: Session,
     ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
-        from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-            TaskInstance as TIDataModel,
-            TIRunContext,
-        )
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
         from airflow.models.dag import DagModel
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        if relevant_ti:
-            last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
+        if relevant_ti and (last_ti_model := self._build_callback_last_ti(relevant_ti, session=session)):
             task = dag.get_task(relevant_ti.task_id)
 
             runtime_ti = RuntimeTaskInstance.model_construct(
@@ -1614,16 +1759,24 @@ class DagRun(Base, LoggingMixin):
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
                     expansion_happened = True
+                    # Expansion changes a mapped task's instance count, which invalidates the
+                    # trigger-rule upstream-count memo on this DepContext (a downstream evaluated
+                    # later in this same pass must see the post-expansion count).
+                    dep_context.invalidate_upstream_task_id_counts()
             if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
                 if schedulable.task.task_id not in revised_map_index_task_ids:
-                    ready_tis.extend(
-                        self._revise_map_indexes_if_mapped(
-                            schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
-                        )
+                    revised_tis = self._revise_map_indexes_if_mapped(
+                        schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
                     )
+                    ready_tis.extend(revised_tis)
                     revised_map_index_task_ids.add(schedulable.task.task_id)
+                    if revised_tis:
+                        # Revising a mapped task can add new instances, growing its instance count
+                        # the same way expansion does. Drop the upstream-count memo so a downstream
+                        # evaluated later in this pass recomputes it instead of reading a stale value.
+                        dep_context.invalidate_upstream_task_id_counts()
 
                 # _revise_map_indexes_if_mapped might mark the current task as REMOVED
                 # after calculating mapped task length, so we need to re-check
@@ -1701,9 +1854,6 @@ class DagRun(Base, LoggingMixin):
             else:
                 true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
-                    stats.timing(
-                        f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
-                    )
                     stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
                 if self.queued_at is not None:
                     start_delay = first_start_date - self.queued_at
@@ -2005,7 +2155,7 @@ class DagRun(Base, LoggingMixin):
 
     def _revise_map_indexes_if_mapped(
         self, task: Operator, *, dag_version_id: UUID | None, session: Session
-    ) -> Iterator[TI]:
+    ) -> list[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
 
@@ -2016,14 +2166,13 @@ class DagRun(Base, LoggingMixin):
         """
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
-        from airflow.settings import task_instance_mutation_hook
 
         try:
             total_length = get_mapped_ti_count(task, self.run_id, session=session)
         except NotMapped:
-            return  # Not a mapped task, don't need to do anything.
+            return []  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:
-            return  # Upstreams not ready, don't need to revise this yet.
+            return []  # Upstreams not ready, don't need to revise this yet.
 
         query = session.scalars(
             select(TI.map_index).where(
@@ -2048,16 +2197,17 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
+        new_tis: list[TI] = []
         for index in range(total_length):
             if index in existing_indexes:
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti, dag_run=self)
-            ti = session.merge(ti)
-            ti.refresh_from_task(task, dag_run=self)
+            _add_and_prime_mapped_ti(ti, task, self, session=session)
+            new_tis.append(ti)
+        if new_tis:
             session.flush()
-            yield ti
+        return new_tis
 
     @classmethod
     @provide_session
@@ -2245,14 +2395,24 @@ class DagRun(Base, LoggingMixin):
         timetable: Timetable,
         start: datetime | None,
         end: datetime | None,
+        end_exclusive: bool = False,
     ) -> Select:
-        """Filter stmt to the inclusive interval [lower, upper] on partition_date."""
+        """
+        Filter stmt to a partition_date window bounded by *start* and *end*.
+
+        The lower bound is always inclusive. The upper bound is inclusive by default;
+        pass ``end_exclusive=True`` when *end* is the open edge of the window, as with
+        a date-only filter widened to the following local midnight.
+        """
         if start is not None:
             lower = timetable.localize_partition_datetime(start)
             stmt = stmt.where(DagRun.partition_date >= lower)
         if end is not None:
             upper = timetable.localize_partition_datetime(end)
-            stmt = stmt.where(DagRun.partition_date <= upper)
+            if end_exclusive:
+                stmt = stmt.where(DagRun.partition_date < upper)
+            else:
+                stmt = stmt.where(DagRun.partition_date <= upper)
         return stmt
 
 

@@ -16,15 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
-import { Dialog } from "src/components/ui";
-import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/constants/localStorage";
+
+import { Modal } from "src/system-components";
+
+import {
+  LOG_SHOW_LOG_LEVEL_KEY,
+  LOG_SHOW_SOURCE_KEY,
+  LOG_SHOW_TIMESTAMP_KEY,
+  LOG_WRAP_KEY,
+} from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
@@ -79,6 +87,7 @@ export const Logs = () => {
   const [wrap, setWrap] = useLocalStorage<boolean>(LOG_WRAP_KEY, defaultWrap);
   const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>(LOG_SHOW_TIMESTAMP_KEY, true);
   const [showSource, setShowSource] = useLocalStorage<boolean>(LOG_SHOW_SOURCE_KEY, false);
+  const [showLogLevel, setShowLogLevel] = useLocalStorage<boolean>(LOG_SHOW_LOG_LEVEL_KEY, true);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -90,6 +99,7 @@ export const Logs = () => {
   } = useLogs({
     dagId,
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
@@ -100,6 +110,7 @@ export const Logs = () => {
   const downloadTextLines = getDownloadText({
     fetchedData,
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
@@ -157,6 +168,7 @@ export const Logs = () => {
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleTimestamp = () => setShowTimestamp(!showTimestamp);
+  const toggleLogLevel = () => setShowLogLevel(!showLogLevel);
   const toggleSource = () => setShowSource(!showSource);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
   const toggleExpanded = () => setExpanded((act) => !act);
@@ -176,6 +188,10 @@ export const Logs = () => {
   useShortcut({
     ...SHORTCUTS.logs.toggleTimestamp,
     callback: toggleTimestamp,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleLogLevel,
+    callback: toggleLogLevel,
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleSource,
@@ -206,12 +222,14 @@ export const Logs = () => {
       searchQuery,
       totalMatches: searchMatchIndices.length,
     },
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceOptions: parsedData.sources,
     taskInstance,
     toggleExpanded,
     toggleFullscreen,
+    toggleLogLevel,
     toggleSource,
     toggleTimestamp,
     toggleWrap,
@@ -246,26 +264,26 @@ export const Logs = () => {
         )
       ) : undefined}
       <TaskLogContent {...logContentProps} />
-      <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
-        {fullscreen ? (
-          <Dialog.Content backdrop>
-            <Dialog.Header width="100%">
-              <Box display="flex" flexDirection="column" width="100%">
-                <Heading mb={2} size="xl">
-                  {taskId}
-                </Heading>
-                <TaskLogHeader {...logHeaderProps} isFullscreen />
-              </Box>
-            </Dialog.Header>
-
-            <Dialog.CloseTrigger />
-
-            <Dialog.Body display="flex" flexDirection="column">
-              <TaskLogContent {...logContentProps} />
-            </Dialog.Body>
-          </Dialog.Content>
-        ) : undefined}
-      </Dialog.Root>
+      <Modal
+        bodyProps={{ display: "flex", flexDirection: "column" }}
+        headerProps={{
+          children: (
+            <Box display="flex" flexDirection="column" width="100%">
+              <Heading mb={2} size="xl">
+                {taskId}
+              </Heading>
+              <TaskLogHeader {...logHeaderProps} isFullscreen />
+            </Box>
+          ),
+          width: "100%",
+        }}
+        onOpenChange={onOpenChange}
+        open={fullscreen}
+        scrollBehavior="inside"
+        size="full"
+      >
+        <TaskLogContent {...logContentProps} />
+      </Modal>
     </Box>
   );
 };

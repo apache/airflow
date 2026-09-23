@@ -32,7 +32,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
-_SUPPORTED_BACKEND_AUTH_TYPES = ("api_key", "uid")
+_SUPPORTED_BACKEND_AUTH_TYPES = ("api_key", "uid", "aws_iam", "gcp", "azure_ad")
+_CLOUD_AUTH_TYPES = ("aws_iam", "gcp", "azure_ad")
 _DEFAULT_TOKEN_TTL = 600  # 10 minutes
 
 
@@ -62,9 +63,21 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
     (when ``global_secrets_path`` is set) or ``{base_path}/{key}`` (default).
     Team-scoped lookup can be disabled with ``use_team_secrets_path = False``.
 
-    Only ``api_key`` and ``uid`` authentication types are supported in the
-    secrets backend.  For cloud-based authentication (``aws_iam``, ``gcp``,
-    ``azure_ad``) or other advanced methods, use ``AkeylessHook`` directly.
+    Supported authentication types:
+
+    * ``api_key`` -- authenticate with Access ID + Access Key.
+    * ``uid`` -- use a pre-existing Universal Identity token.
+    * ``aws_iam`` -- authenticate using the host's AWS IAM role (ideal for
+      Amazon MWAA and EC2/ECS/EKS workloads).
+    * ``gcp`` -- authenticate using GCP workload identity (ideal for Google
+      Managed Service for Apache Airflow and GCE/GKE workloads).
+    * ``azure_ad`` -- authenticate using Azure AD identity (ideal for Azure
+      workloads).
+
+    Cloud-based auth types (``aws_iam``, ``gcp``, ``azure_ad``) require the
+    optional ``akeyless_cloud_id`` package::
+
+        pip install apache-airflow-providers-akeyless[cloud_id]
 
     :param connections_path: Akeyless path prefix for Connections (None to disable).
     :param variables_path: Akeyless path prefix for Variables (None to disable).
@@ -77,7 +90,10 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
     :param api_url: Akeyless API endpoint.
     :param access_id: Access ID.
     :param access_key: Access Key (for ``api_key`` auth).
-    :param access_type: Auth type (``api_key`` or ``uid``).
+    :param access_type: Auth type (``api_key``, ``uid``, ``aws_iam``, ``gcp``,
+        or ``azure_ad``).
+    :param gcp_audience: GCP audience for ``gcp`` auth (optional).
+    :param azure_object_id: Azure AD Object ID for ``azure_ad`` auth (optional).
     :param token_ttl: Seconds to cache the API token before refreshing (default 600).
     """
 
@@ -132,6 +148,13 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
         if self._access_type == "uid":
             token = self._extra["uid_token"]
+        elif self._access_type in _CLOUD_AUTH_TYPES:
+            body = akeyless.Auth(
+                access_id=self._access_id,
+                access_type=self._access_type,
+                cloud_id=self._get_cloud_id(),
+            )
+            token = self._client.auth(body).token
         else:
             body = akeyless.Auth(access_id=self._access_id, access_key=self._access_key)
             token = self._client.auth(body).token
@@ -139,6 +162,73 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         self._cached_token = token
         self._token_expiry = now + self._token_ttl
         return token
+
+    def _get_cloud_id(self) -> str:
+        """Generate a cloud identity token for AWS IAM / GCP / Azure AD auth."""
+        try:
+            from akeyless_cloud_id import CloudId
+        except ImportError:
+            raise ImportError(
+                f"`akeyless_cloud_id` is required for {self._access_type} authentication. "
+                "Install it with: pip install apache-airflow-providers-akeyless[cloud_id]"
+            )
+        cid = CloudId()
+        if self._access_type == "aws_iam":
+            return cid.generate()
+        if self._access_type == "gcp":
+            return cid.generateGcp(self._extra.get("gcp_audience"))
+        if self._access_type == "azure_ad":
+            return cid.generateAzure(self._extra.get("azure_object_id"))
+        raise ValueError(f"No cloud-id generator for {self._access_type!r}")
+
+    def _multi_team_enabled(self) -> bool:
+        """Whether the deployment runs in multi-team mode."""
+        return conf.getboolean("core", "multi_team", fallback=False)
+
+    def _escapes_its_namespace(self, key: str, team_name: str | None) -> bool:
+        """
+        Whether looking ``key`` up for ``team_name`` could resolve another team's secret.
+
+        Only the team-scoped lookup crosses a namespace boundary. It is tried under
+        ``<base path><sep><team><sep><key>`` and, when that misses, falls back to
+        ``<base path><sep><key>`` -- the prefix every *other* team's secrets sit under. A
+        caller in team ``alpha`` asking for ``beta<sep>db_password`` therefore reaches team
+        ``beta``'s secret through the fallback. The key is Dag-author controlled and the
+        execution API variables route is declared with a ``:path`` converter, so a separator
+        survives the round trip.
+
+        The refusal is deliberately narrow, because in this backend the separator is the
+        ordinary path separator and nested keys are a legitimate, documented layout. It
+        applies only when this backend actually builds a team-scoped path and can fall back
+        past it:
+
+        * ``use_team_secrets_path=False`` disables team-scoped lookup entirely, so no team
+          path is constructed and no boundary is crossed -- nested keys keep working.
+        * A caller with no ``team_name`` resolves in the shared namespace directly rather
+          than falling back into it. Whether a global-scope caller should be able to name a
+          team's namespace is a separate question about global scope, not this fallback, and
+          is left alone here.
+        * Outside multi-team mode there are no team namespaces at all.
+
+        The key is never parsed to work out *which* team it names, because it cannot be:
+        nothing distinguishes a nested key in the shared namespace from one naming a team.
+        """
+        return (
+            self._multi_team_enabled()
+            and self.use_team_secrets_path
+            and team_name is not None
+            and self.sep in key
+        )
+
+    def _log_refusal(self, kind: str, key: str) -> None:
+        self.log.warning(
+            "%s id %r contains %r, which separates path segments in an Akeyless secret name. "
+            "Looked up for a team, such an id can resolve another team's namespace through "
+            "the team-agnostic fallback, so it is not looked up. Returning None.",
+            kind.capitalize(),
+            key,
+            self.sep,
+        )
 
     def _get_secret(self, base_path: str | None, key: str) -> str | None:
         if base_path is None:
@@ -158,7 +248,7 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         """Look up a secret with team-scoped path, falling back to global."""
         if base_path is None:
             return None
-        multi_team = conf.get("core", "multi_team", fallback=False)
+        multi_team = self._multi_team_enabled()
         if multi_team and self.use_team_secrets_path and team_name is not None:
             team_path = f"{base_path}{self.sep}{team_name}"
             response = self._get_secret(team_path, key)
@@ -176,6 +266,9 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         """Build a ``Connection`` from an Akeyless secret (URI or JSON dict)."""
         from airflow.models.connection import Connection
 
+        if self._escapes_its_namespace(conn_id, team_name):
+            self._log_refusal("connection", conn_id)
+            return None
         raw = self._get_team_or_global_secret(self.connections_path, team_name, conn_id)
         if raw is None:
             return None
@@ -190,6 +283,9 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """Retrieve an Airflow Variable from Akeyless."""
+        if self._escapes_its_namespace(key, team_name):
+            self._log_refusal("variable", key)
+            return None
         raw = self._get_team_or_global_secret(self.variables_path, team_name, key)
         if raw is None:
             return None
@@ -203,6 +299,10 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """Retrieve an Airflow Configuration option from Akeyless."""
+        # No guard here. Config lookups carry no team_name and Airflow does not perform
+        # team-scoped config lookups through a secrets backend, so this path never builds a
+        # team-scoped name and has no boundary to cross. Refusing nested ids here would only
+        # break subfolder config layouts.
         raw = self._get_secret(self.config_path, key)
         if raw is None:
             return None

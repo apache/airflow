@@ -83,6 +83,30 @@ Ssl (optional)
 Zoo Keeper Namespace (optional)
     Zoo keeper namespace for high availability.
 
+Additional JDBC Parameters
+--------------------------
+
+Dag authors can pass additional Beeline JDBC URL parameters to ``HiveCliHook`` or ``HiveOperator``
+with the ``jdbc_params`` argument:
+
+.. code-block:: python
+
+   HiveCliHook(
+       jdbc_params={
+           "transportMode": "http",
+           "sslTrustStore": "/opt/hive/truststore.jks",
+           "trustStorePassword": "secret",
+       }
+   )
+
+These parameters are appended to the Beeline JDBC URL. Parameter names must match
+``^[A-Za-z]([A-Za-z0-9._-]*[A-Za-z0-9])?$`` (start with a letter, contain only letters, digits,
+dots, underscores, or hyphens, and not end in a separator). Values must be strings. Empty strings
+are ignored; semicolons are rejected.
+
+``jdbc_params`` can only be set through ``HiveCliHook`` or ``HiveOperator``; arbitrary JDBC
+parameters are not read from connection extras.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

@@ -221,7 +221,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.note = note
         self.deferrable = deferrable
-        logical_date = _validate_datetime_param("logical_date", logical_date)
         run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
         self.run_after = run_after
@@ -232,6 +231,7 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
     def execute(self, context: Context):
+        _validate_datetime_param("logical_date", self.logical_date)
         if self.logical_date is NOTSET:
             if self.run_after is not NOTSET:
                 parsed_logical_date = None
@@ -253,7 +253,7 @@ class TriggerDagRunOperator(BaseOperator):
                 self.conf = json.loads(self.conf)
             json.dumps(self.conf)
         except (TypeError, JSONDecodeError):
-            raise ValueError("conf parameter should be JSON Serializable %s", self.conf)
+            raise ValueError(f"conf parameter should be JSON Serializable: {self.conf}")
 
         if self.openlineage_inject_parent_info:
             self.log.debug("Checking if OpenLineage information can be safely injected into dagrun conf.")

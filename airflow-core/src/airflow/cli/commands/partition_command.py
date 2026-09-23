@@ -44,7 +44,9 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
     the matching partitions; a date-only value (no time) is treated as local
     midnight.
     """
-    has_range = args.start_date is not None or args.end_date is not None or args.date is not None
+    has_start = args.start_date is not None
+    has_end = args.end_date is not None
+    has_range = has_start or has_end or args.date is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
     if selectors_used != 1:
         raise SystemExit(
@@ -52,8 +54,10 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
             "(--start-date/--end-date or --date)."
         )
 
-    if args.date is not None:
-        if args.start_date is not None or args.end_date is not None:
+    from_date_flag = args.date is not None
+
+    if from_date_flag:
+        if has_start or has_end:
             raise SystemExit("--date cannot be combined with --start-date / --end-date.")
         raw = args.date
         parts = raw.split("~", 1)
@@ -64,9 +68,24 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
             args.end_date = parsedate(parts[1].strip())
         except ValueError:
             raise SystemExit("--date sides must be parseable as a date or datetime.")
+        has_start = has_end = True
 
-    has_date_window = args.start_date is not None or args.end_date is not None
-    dag = get_db_dag(bundle_names=None, dag_id=args.dag_id) if has_date_window else None
+    has_date_window = has_start or has_end
+    if has_date_window:
+        dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
+        if has_start and has_end:
+            lower = dag.timetable.localize_partition_datetime(args.start_date)
+            upper = dag.timetable.localize_partition_datetime(args.end_date)
+            if lower > upper:
+                if from_date_flag:
+                    raise SystemExit(
+                        f"--date: the start of the range ({parts[0].strip()!r}) must be on or before "
+                        f"the end ({parts[1].strip()!r})."
+                    )
+                raise SystemExit("--start-date must be on or before --end-date.")
+    else:
+        dag = None
+
     clear_tis = bool(args.clear_task_instances)
 
     processed_any = False
