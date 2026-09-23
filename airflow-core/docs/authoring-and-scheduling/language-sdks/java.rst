@@ -306,6 +306,14 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
        ``dag`` must match the ``dag_id`` and ``task`` the stub function name; omitting ``task``
        derives it from the method name.  There is no class-level annotation on this surface — the
        Dag is the Python file's, so the handler names the pair it binds to.
+   * - ``@Builder.Dag(id = "...")``
+     - Marks a class as a Dag that Java itself owns.  Attributes (``schedule``, ``description``,
+       ``tags``, ``catchup``, …) mirror the Dag serialization schema; only attributes written
+       explicitly are applied.  See :ref:`java-sdk/native-dags`.
+   * - ``@Builder.Task(id = "...")``
+     - Marks a method as a task of a Java-owned Dag.  If ``id`` is omitted the method name is
+       used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) mirror the Dag
+       serialization schema; only attributes written explicitly are applied.
    * - ``TaskInput`` / ``@ArgName("...")``
      - Marks a class as a task's input, so keyword arguments bind by name instead of by position:
        each public field receives the argument whose name matches it, ignoring case and
@@ -348,8 +356,9 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.  Each task is registered as a ``TaskDef`` on a ``DagDef``; ``TaskDef`` also carries
-``dependsOn(...)`` for declaring edges between task definitions.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``; both carry a fluent
+``config(key, value)`` whose keys are Dag serialization schema property names, and ``TaskDef`` also
+carries ``dependsOn(...)`` for declaring edges between task definitions.
 
 The runner creates a fresh instance of the task class through reflection for every task-instance run,
 which puts four constraints on the class:
@@ -531,8 +540,8 @@ calls with no arguments.
 Native Java Dags
 ----------------
 
-A Dag can also be authored entirely in Java, with no Python stub file: the ``DagDef`` and
-``TaskDef`` objects hold the tasks, and Java declares the graph.
+A Dag can also be authored entirely in Java, with no Python stub file: the annotations (or the
+``DagDef`` / ``TaskDef`` objects) carry the configuration, and Java declares the graph.
 
 Building the Dag in Java
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -559,6 +568,21 @@ rather than the handles, for code that builds ``TaskDef`` objects up front.
 Edges are checked when the Dag is registered with a ``Bundle``: an upstream that belongs to another
 Dag, or to no Dag, and a cycle anywhere in the graph both fail there rather than at the first task
 run.
+
+Configuration attributes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``@Builder.Dag`` and ``@Builder.Task`` configuration attributes, and the keys accepted by
+``DagDef.config`` and ``TaskDef.config``, are generated from Airflow's Dag serialization schema, so
+they carry the same names and types as their Python counterparts.  Annotation attributes are
+``camelCase`` (``retryDelay``); ``config`` keys are the schema names as written (``"retry_delay"``).
+Only attributes written explicitly at the use site are applied, so Airflow's own defaults still
+apply to everything left out.
+
+Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT5M"``,
+``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
+``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
+fails the build for an annotation, and the ``config`` call itself for an object.
 
 .. _java-sdk/logging:
 

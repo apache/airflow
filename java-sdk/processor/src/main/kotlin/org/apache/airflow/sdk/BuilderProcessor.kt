@@ -23,22 +23,31 @@ package org.apache.airflow.sdk
 
 import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
+import com.squareup.javapoet.FieldSpec
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
 import com.squareup.javapoet.ParameterizedTypeName
 import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
 import org.apache.airflow.sdk.internal.ArgValues
+import org.apache.airflow.sdk.internal.Field
+import org.apache.airflow.sdk.internal.FieldType
+import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
 import org.apache.airflow.sdk.internal.TypeRef
 import org.apache.airflow.sdk.internal.foldArgName
 import org.apache.airflow.sdk.internal.registrarName
+import java.time.Duration
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.AnnotationValue
+import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
@@ -61,13 +70,16 @@ import javax.tools.Diagnostic
  * containing:
  *
  * - One inner class per [Builder.Task]-annotated method, implementing [Task].
- * - A static `build()` method that constructs the [DagDef] and registers those
- *   inner classes as [TaskDef]s.
+ * - A `DAG_ID` constant and a static `dag()` factory that lowers every
+ *   explicitly-written `@Builder.Dag` attribute into a `DagDef.config` call.
+ * - A static `build()` method that registers those inner classes as [TaskDef]s,
+ *   each carrying its explicitly-written `@Builder.Task` attributes as
+ *   `TaskDef.config` calls.
  *
  * In the generated `execute` body, a task's data parameters resolve against the
  * arg bindings the supervisor delivered for the run: flat parameters through
  * [TaskArgs], by their position among the data parameters, and [TaskInput]
- * [TaskInput] fields through [ArgValues], by argument name. Non-`void` return values are
+ * fields through [ArgValues], by argument name. Non-`void` return values are
  * forwarded to `client.setXCom`.
  */
 @SupportedAnnotationTypes(
@@ -170,13 +182,32 @@ class BuilderProcessor : AbstractProcessor() {
       TypeSpec
         .classBuilder(ann.to.ifBlank { "${el.simpleName}Builder" })
         .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+        .addField(
+          FieldSpec
+            .builder(ClassName.get(String::class.java), "DAG_ID", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+            .initializer($$"$S", ann.id.ifBlank { el.simpleName })
+            .build(),
+        )
+
+    val dagMethod =
+      MethodSpec
+        .methodBuilder("dag")
+        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+        .returns(DAG_DEF_TYPE)
+        .addJavadoc("Returns a new {@code DagDef} carrying the Dag attributes, with no tasks registered.\n")
+        .addStatement($$"var dag = new $T(DAG_ID)", DAG_DEF_TYPE)
+    explicitConfig(el, DAG_ANNOTATION, DAG_STRUCTURAL_ATTRIBUTES, SchemaFields.DAG).forEach { (key, value) ->
+      dagMethod.addStatement($$"dag.config($S, $L)", key, value)
+    }
+    dagMethod.addStatement("return dag")
+    builderClass.addMethod(dagMethod.build())
 
     val buildMethod =
       MethodSpec
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .returns(DAG_DEF_TYPE)
-        .addStatement($$"var dag = new $T($S)", DAG_DEF_TYPE, ann.id.ifBlank { el.simpleName })
+        .addStatement("var dag = dag()")
 
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
@@ -188,16 +219,101 @@ class BuilderProcessor : AbstractProcessor() {
       builderClass.addType(buildTask(innerName, inner, el))
 
       buildMethod.addStatement(
-        $$"dag.addTask(new $T($S, $L.class))",
-        TASK_DEF_TYPE,
-        taskAnn.id.ifBlank { inner.simpleName },
-        innerName,
+        $$"dag.addTask($L)",
+        taskDefCode(inner, taskAnn.id.ifBlank { inner.simpleName.toString() }, innerName),
       )
     }
 
     buildMethod.addStatement("return dag")
     builderClass.addMethod(buildMethod.build())
     return builderClass.build()
+  }
+
+  /**
+   * Emits `new TaskDef(id, <className>.class)` with the explicitly-written
+   * `@Builder.Task` attributes lowered into chained `.config` calls.
+   */
+  private fun taskDefCode(
+    method: ExecutableElement,
+    id: String,
+    className: String,
+  ): CodeBlock {
+    val taskDef =
+      CodeBlock
+        .builder()
+        .add($$"new $T($S, $L.class)", TASK_DEF_TYPE, id, className)
+    explicitConfig(method, TASK_ANNOTATION, TASK_STRUCTURAL_ATTRIBUTES, SchemaFields.TASK).forEach { (key, value) ->
+      taskDef.add($$".config($S, $L)", key, value)
+    }
+    return taskDef.build()
+  }
+
+  /**
+   * Lowers the explicitly-written configuration attributes of [element]'s
+   * [annotationName] annotation into (schema key, value code) pairs. Only
+   * attributes present at the use site are lowered, so annotation defaults
+   * never override the schema's own defaults.
+   */
+  private fun explicitConfig(
+    element: Element,
+    annotationName: String,
+    structural: Set<String>,
+    table: Map<String, Field>,
+  ): List<Pair<String, CodeBlock>> {
+    val mirror =
+      element.annotationMirrors.firstOrNull {
+        (it.annotationType.asElement() as TypeElement).qualifiedName.contentEquals(annotationName)
+      } ?: return emptyList()
+    val byAttribute = table.values.associateBy { it.attribute }
+    return mirror.elementValues.mapNotNull { (attr, value) ->
+      val name = attr.simpleName.toString()
+      if (name in structural) return@mapNotNull null
+      val field =
+        requireNotNull(byAttribute[name]) {
+          "Annotation attribute '$name' has no Dag serialization schema key"
+        }
+      field.key to configValueCode(field, value)
+    }
+  }
+
+  private fun configValueCode(
+    field: Field,
+    value: AnnotationValue,
+  ): CodeBlock =
+    when (field.type) {
+      FieldType.STRING -> CodeBlock.of($$"$S", value.value)
+      FieldType.BOOLEAN, FieldType.INTEGER, FieldType.NUMBER -> CodeBlock.of($$"$L", value.value)
+      FieldType.STRING_ARRAY -> {
+        @Suppress("UNCHECKED_CAST")
+        val items = value.value as List<AnnotationValue>
+        CodeBlock.of(
+          $$"$T.of($L)",
+          ClassName.get(List::class.java),
+          items.joinToString { "\"${it.value}\"" },
+        )
+      }
+      FieldType.TIMEDELTA -> {
+        val text = value.value as String
+        parseTemporal(field, text) { Duration.parse(text) }
+        CodeBlock.of($$"$T.parse($S)", ClassName.get(Duration::class.java), text)
+      }
+      FieldType.DATETIME -> {
+        val text = value.value as String
+        parseTemporal(field, text) { OffsetDateTime.parse(text) }
+        CodeBlock.of($$"$T.parse($S)", ClassName.get(OffsetDateTime::class.java), text)
+      }
+    }
+
+  private fun parseTemporal(
+    field: Field,
+    text: String,
+    parse: () -> Any,
+  ) {
+    try {
+      parse()
+    } catch (e: DateTimeParseException) {
+      throw IllegalArgumentException("Annotation attribute '${field.attribute}' is not valid ISO-8601: '$text'")
+    }
   }
 
   private fun buildTask(
@@ -403,6 +519,12 @@ private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
 private val TASK_ARGS_TYPE = ClassName.get(TaskArgs::class.java)
 private val TYPE_REF_TYPE = ClassName.get(TypeRef::class.java)
 private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
+
+private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
+private const val TASK_ANNOTATION = "org.apache.airflow.sdk.Builder.Task"
+
+private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
+private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")
 
 private fun ProcessingEnvironment.isType(
   t: TypeMirror,
