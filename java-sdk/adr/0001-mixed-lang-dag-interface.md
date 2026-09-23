@@ -61,7 +61,7 @@ The processor compiles this into a `Task`:
 public static final class Score implements Task {
   @Override
   public void execute(Context context, Client client) throws Exception {
-    TaskArgs args = TaskArgs.of(context);
+    TaskArgs args = TaskArgs.of(context, client, 3);
     long rows = args.require(0, Long.class);
     double threshold = args.require(1, Double.class);
     List<String> regions = args.require(2, new TypeReference<List<String>>() {});
@@ -159,7 +159,11 @@ One verb, overloaded, and everything registers as a class: nothing is constructe
   names differ.
 - Interface tasks use `InputTask<MyInput>` for named fields. There is no public positional form.
 - `TaskArgs` is internal. It is what generated code reads, and what every syntax above resolves to;
-  nothing in the public API returns or accepts it. It exposes `require(index, type)`, which fails
+  nothing in the public API returns or accepts it. It is opened with
+  `of(context, client, declared)` — the client because resolving a binding may have to pull an
+  upstream's XCom, and the declared count because positions carry the whole meaning of a flat
+  binding, so a call site that bound a different number of arguments than the method takes has
+  already shifted them. It exposes `require(index, type)`, which fails
   when the position resolves to nothing, and `get(index, type)`, which yields `null` — each with a
   `Class<T>` and a `TypeReference<T>` form.
 - Annotation processing generates code, it never rewrites it, so the method a user writes stays

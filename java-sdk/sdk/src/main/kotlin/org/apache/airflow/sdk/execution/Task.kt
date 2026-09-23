@@ -74,9 +74,10 @@ internal object TaskRunner {
     request: StartupDetails,
     client: Client,
   ): Any {
-    val definition =
-      bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId]?.definition
+    val taskDef =
+      bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId]
         ?: return TaskResult.of(TaskState.State.REMOVED)
+    val definition = taskDef.definition
     val instance =
       try {
         definition.getDeclaredConstructor().newInstance()
@@ -103,7 +104,7 @@ internal object TaskRunner {
         return TaskResult.failure(request.tiContext.shouldRetry)
       }
     return try {
-      instance.execute(Context.from(request), client)
+      instance.execute(Context.from(request).also { it.taskDef = taskDef }, client)
       TaskResult.success()
     } catch (e: CancellationException) {
       throw e // Let coroutine cancellation propagate so the task coroutine unwinds.
