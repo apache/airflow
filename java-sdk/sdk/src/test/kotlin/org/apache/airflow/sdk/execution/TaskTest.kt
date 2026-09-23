@@ -169,6 +169,19 @@ class TaskTest {
     }
   }
 
+  @Test
+  @DisplayName("Should thread the task definition into the execution context")
+  fun shouldThreadTaskDefIntoContext() {
+    val result =
+      runTask(
+        bundleWith("asserting", TaskDefAssertingTask::class.java),
+        startupDetails(taskId = "asserting"),
+        noOpClient(),
+      )
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+  }
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
@@ -297,5 +310,16 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw IllegalStateException("should not be reachable")
+  }
+
+  class TaskDefAssertingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      check(context.taskDef?.id == context.ti.taskId) {
+        "expected the runner to thread the task definition into the context"
+      }
+    }
   }
 }
