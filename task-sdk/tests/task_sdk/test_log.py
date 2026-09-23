@@ -86,4 +86,4 @@ class TestConfigureLogging:
             sdk_log.logging_processors.cache_clear()
 
         mock_load_remote_log_handler.assert_called_once_with()
-        assert processors == (initial_processor, final_renderer)
+        assert processors == (initial_processor, sdk_log.mask_logs, final_renderer)
