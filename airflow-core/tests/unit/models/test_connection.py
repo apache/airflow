@@ -621,3 +621,119 @@ class TestConnection:
             "test_conn2": None,
         }
         clear_db_connections()
+
+
+class TestConnectionPortValidation:
+    """Tests for TCP/UDP port range validation (issue #68382)."""
+
+    @pytest.mark.parametrize(
+        "port",
+        [
+            1,
+            80,
+            443,
+            8080,
+            5432,
+            3306,
+            65535,
+        ],
+    )
+    def test_validate_port_accepts_valid_ports(self, port):
+        """Valid TCP/UDP ports (1-65535) should be accepted and returned as-is."""
+        from airflow.models.connection import validate_port
+
+        assert validate_port(port) == port
+
+    def test_validate_port_accepts_none(self):
+        """None (representing an unconfigured or default port) should be accepted."""
+        from airflow.models.connection import validate_port
+
+        assert validate_port(None) is None
+
+    @pytest.mark.parametrize(
+        "port",
+        [
+            0,
+            -1,
+            -100,
+            65536,
+            99999,
+            100000,
+        ],
+    )
+    def test_validate_port_rejects_invalid_ports(self, port):
+        """Ports outside range 1-65535 should raise ValueError."""
+        from airflow.models.connection import validate_port
+
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            validate_port(port)
+
+    def test_connection_init_accepts_valid_port(self):
+        """Connection constructor should accept valid ports."""
+        conn = Connection(conn_id="test", conn_type="http", port=8080)
+        assert conn.port == 8080
+
+    def test_connection_init_accepts_none_port(self):
+        """Connection constructor should accept port=None."""
+        conn = Connection(conn_id="test", conn_type="http", port=None)
+        assert conn.port is None
+
+    @pytest.mark.parametrize(
+        "port",
+        [
+            0,
+            -1,
+            65536,
+            99999,
+        ],
+    )
+    def test_connection_init_rejects_invalid_port(self, port):
+        """Connection constructor should reject port outside 1-65535."""
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            Connection(conn_id="test", conn_type="http", port=port)
+
+    def test_connection_attribute_assignment_rejects_invalid_port(self):
+        """Setting conn.port to an invalid port after initialization should raise ValueError."""
+        conn = Connection(conn_id="test", conn_type="http", port=8080)
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            conn.port = 0
+
+    def test_connection_from_json_accepts_valid_port(self):
+        """Connection.from_json() should accept valid integer port."""
+        import json
+
+        conn_json = json.dumps({"conn_type": "http", "port": 5432})
+        conn = Connection.from_json(conn_json, conn_id="test")
+        assert conn.port == 5432
+
+    def test_connection_from_json_accepts_none_port(self):
+        """Connection.from_json() should accept missing or None port."""
+        import json
+
+        conn_json = json.dumps({"conn_type": "http"})
+        conn = Connection.from_json(conn_json, conn_id="test")
+        assert conn.port is None
+
+    @pytest.mark.parametrize(
+        "port",
+        [
+            0,
+            -1,
+            65536,
+            99999,
+        ],
+    )
+    def test_connection_from_json_rejects_invalid_port(self, port):
+        """Connection.from_json() should reject port outside 1-65535 (including 0)."""
+        import json
+
+        conn_json = json.dumps({"conn_type": "http", "port": port})
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            Connection.from_json(conn_json, conn_id="test")
+
+    def test_connection_test_request_rejects_invalid_port(self):
+        """ConnectionTestRequest should reject port outside 1-65535."""
+        from airflow.models.connection_test import ConnectionTestRequest
+
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            ConnectionTestRequest(connection_id="test", conn_type="http", port=0)

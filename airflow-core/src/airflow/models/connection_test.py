@@ -161,6 +161,18 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         self.token = secrets.token_urlsafe(32)
         self.state = ConnectionTestState.PENDING
 
+    @validates("port")
+    def _validate_port(self, _key: str, value: int | None) -> int | None:
+        """
+        Validate port assignment on ConnectionTestRequest instances.
+
+        Ensures that connection test requests conform to the valid TCP/UDP port
+        range (1-65535) before persisting or executing tests.
+        """
+        from airflow.models.connection import validate_port
+
+        return validate_port(value)
+
     @validates("state")
     def _sync_active_connection_id(
         self, _key: str, value: str | ConnectionTestState

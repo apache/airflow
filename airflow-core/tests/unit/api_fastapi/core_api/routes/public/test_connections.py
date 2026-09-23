@@ -2369,3 +2369,65 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
                 "method": "POST",
             },
         )
+
+
+class TestConnectionBodyPortValidation:
+    """Unit tests for port range validation on FastAPI ConnectionBody (issue #68382)."""
+
+    def test_connection_body_rejects_port_too_high(self):
+        """ConnectionBody should reject port > 65535 with a Pydantic ValidationError."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="less than or equal to 65535"):
+            ConnectionBody(connection_id="test", conn_type="http", port=99999)
+
+    def test_connection_body_rejects_port_zero(self):
+        """ConnectionBody should reject port 0 with a Pydantic ValidationError."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="greater than or equal to 1"):
+            ConnectionBody(connection_id="test", conn_type="http", port=0)
+
+    def test_connection_body_rejects_negative_port(self):
+        """ConnectionBody should reject negative ports with a Pydantic ValidationError."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="greater than or equal to 1"):
+            ConnectionBody(connection_id="test", conn_type="http", port=-1)
+
+    @pytest.mark.parametrize("port", [1, 80, 443, 8080, 5432, 65535])
+    def test_connection_body_accepts_valid_port(self, port):
+        """ConnectionBody should accept valid TCP/UDP ports in range 1-65535."""
+        body = ConnectionBody(connection_id="test", conn_type="http", port=port)
+        assert body.port == port
+
+    def test_connection_body_accepts_none_port(self):
+        """ConnectionBody should accept port=None for unconfigured ports."""
+        body = ConnectionBody(connection_id="test", conn_type="http", port=None)
+        assert body.port is None
+
+
+class TestConnectionEndpointsPortValidation(TestConnectionEndpoint):
+    """Integration tests verifying HTTP endpoints reject invalid port numbers (issue #68382)."""
+
+    @pytest.mark.parametrize("invalid_port", [0, -1, 65536, 70000])
+    def test_post_connection_rejects_invalid_port(self, test_client, invalid_port):
+        """POST /connections with an invalid port should return HTTP 422 Unprocessable Entity."""
+        body = {
+            "connection_id": "test_invalid_port_conn",
+            "conn_type": "http",
+            "port": invalid_port,
+        }
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("invalid_port", [0, -1, 65536, 70000])
+    def test_patch_connection_rejects_invalid_port(self, test_client, invalid_port):
+        """PATCH /connections/{connection_id} with an invalid port should return HTTP 422."""
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": TEST_CONN_TYPE,
+            "port": invalid_port,
+        }
+        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body)
+        assert response.status_code == 422

@@ -191,7 +191,9 @@ class ConnectionBody(StrictBaseModel):
     host: str | None = Field(default=None)
     login: str | None = Field(default=None)
     schema_: str | None = Field(None, alias="schema")
-    port: int | None = Field(default=None)
+    # TCP/UDP ports must be in the valid range 1-65535. Note that ConnectionResponse.port
+    # is left unconstrained to prevent read failures on existing records with invalid ports.
+    port: int | None = Field(default=None, ge=1, le=65535)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
     team_name: str | None = Field(max_length=50, default=None)

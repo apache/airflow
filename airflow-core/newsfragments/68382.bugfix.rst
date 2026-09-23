@@ -1,0 +1,1 @@
+Enforce TCP/UDP port range validation (1-65535) across the Connection model, API schemas, Task SDK, and CLI.

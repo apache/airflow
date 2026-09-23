@@ -118,8 +118,19 @@ class Connection:
     schema: str | None = None
     login: str | None = None
     password: str | None = None
-    port: int | None = None
+    port: int | None = attrs.field(default=None)
     extra: str | None = None
+
+    @port.validator
+    def _validate_port(self, attribute, value: int | None) -> None:
+        """
+        Validate that the port is within the valid TCP/UDP range (1-65535).
+
+        Port 0 is reserved/invalid for establishing network connections; None denotes
+        an unconfigured port.
+        """
+        if value is not None and not (1 <= value <= 65535):
+            raise ValueError(f"Port must be between 1 and 65535, got {value}")
 
     EXTRA_KEY = "__extra__"
 
@@ -426,7 +437,7 @@ class Connection:
         if conn_type:
             kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
         port = kwargs.pop("port", None)
-        if port:
+        if port is not None:
             try:
                 kwargs["port"] = int(port)
             except ValueError:
