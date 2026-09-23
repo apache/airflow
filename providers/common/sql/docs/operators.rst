@@ -366,15 +366,36 @@ resolved in this order:
 Azure Storage
 -------------
 Use an ``az://`` URI with a ``conn_id`` pointing to a ``wasb`` connection.
-``abfs://`` and ``abfss://`` URIs are not recognized yet. Credentials are
-resolved in this order:
+``abfs://`` and ``abfss://`` URIs are not recognized yet. The account name
+comes from ``host`` (its first DNS label) when set, falling back to
+``login`` only when ``host`` is empty; only the public
+``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
+has no endpoint override. ``client_secret_auth_config`` (the authority
+override ``WasbHook`` honours) is not read here.
+
+The connection supplies one of the following credentials:
 
 1. Azure AD service principal -- ``tenant_id`` extra, with ``login`` as the
-   client ID and ``password`` as the client secret
+   client ID and ``password`` as the client secret (both required together)
 2. SAS token -- ``sas_token`` extra, as a query string
 3. Shared key -- ``password``, or the ``shared_access_key``/``account_key`` extra
-4. Ambient credentials -- ``AZURE_*`` environment variables, managed identity,
-   workload identity, or the Azure CLI
+4. None of the above -- ambient auth (see below)
+
+**The worker's environment can still outrank the connection.** DataFusion's
+binding always reads ``AZURE_*`` environment variables before applying the
+connection's credential, and checks an environment-derived access key or
+workload-identity token ahead of the connection's SAS token or client
+secret -- the environment is not simply consulted last. If the connection
+supplies an explicit credential (1-3 above) while
+``AZURE_FEDERATED_TOKEN_FILE``, ``AZURE_STORAGE_ACCOUNT_KEY``,
+``AZURE_STORAGE_ACCESS_KEY``, ``AZURE_STORAGE_SAS_KEY``, or
+``AZURE_STORAGE_TOKEN`` is set on the worker, this raises rather than
+silently authenticating as a different identity.
+
+With no explicit credential, authentication falls back to ``AZURE_*``
+environment variables, managed identity, or workload identity. The Azure
+CLI is only used when ``AZURE_USE_AZURE_CLI=true`` is set; without it, the
+default ambient path is IMDS managed identity, not ``az login``.
 
 ``connection_string``, ``managed_identity_client_id``, ``workload_identity_tenant_id``,
 and a URL-form ``sas_token`` are not supported.
