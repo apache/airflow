@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_branch:
 
-``LLMBranchOperator``
-=====================
+Branch on an answer: ``LLMBranchOperator``
+==========================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
 for LLM-driven branching — where the LLM decides which downstream task(s) to
@@ -86,6 +86,15 @@ Descriptions explain the choices; they do not make the model more certain,
 and a text model's structured output carries no confidence to read. With a
 classifier model such as TypeSafe's, the descriptions become the criteria of
 its choice question, which is the text it weighs each option by.
+
+A pick is relative: the model chooses the best fit among the downstream tasks
+offered, not whether any of them fits. If "none of these" or "not enough to
+tell" is a real outcome, give it a downstream task of its own (an
+``EmptyOperator`` that ends the run, or a task that opens a ticket) and
+describe it, rather than expecting the model to refuse. When you change a
+description or the set of branches, treat confidence values measured before
+as stale: the distribution the model returns is over the options it was
+given.
 
 Multiple Branches
 -----------------

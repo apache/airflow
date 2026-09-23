@@ -18,7 +18,7 @@
  */
 
 import { SUPERVISOR_API_VERSION } from "./protocol.js";
-import { listBundleDags, type Bundle } from "../sdk/bundle.js";
+import { bundleDagTaskIds, finalizeBundleDags, type Bundle } from "../sdk/bundle.js";
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
@@ -36,7 +36,10 @@ export interface BundleManifest {
 
 export function buildBundleManifest(bundle: Bundle): BundleManifest {
   const taskHandlers: BundleManifest["task_handlers"] = {};
-  for (const { dagId, tasks } of listBundleDags(bundle)) {
+  // The manifest is the bundle reporting what it provides, so this is where its
+  // Dags are finalized: a Dag missing an edge is reported here rather than packed.
+  finalizeBundleDags(bundle);
+  for (const [dagId, tasks] of bundleDagTaskIds(bundle)) {
     if (typeof dagId !== "string") {
       throw new Error("Dag ID must be a string");
     }

@@ -28,28 +28,22 @@ import (
 	"time"
 
 	"github.com/apache/airflow/go-sdk/airflow"
-	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
 )
 
 // Must match the dag_id of the Python stub Dag and the Java bundle.
 const combinedDagID = "lang_sdk_combined"
 
-type combinedBundle struct{}
-
-var _ v1.BundleProvider = (*combinedBundle)(nil)
-
-func (m *combinedBundle) RegisterDags(dagbag v1.Registry) error {
-	dag := dagbag.AddDag(combinedDagID)
-	// Explicit task ids so the Go tasks are namespaced apart from the Java
-	// tasks that share this dag_id in the Python stub.
-	dag.AddTaskWithName("go_extract", goExtract)
-	dag.AddTaskWithName("go_transform", goTransform)
-	return nil
-}
-
 func main() {
-	if err := bundlev1server.Serve(&combinedBundle{}); err != nil {
+	bundle := airflow.Bundle()
+
+	// The go_ prefix keeps the Go tasks apart from the Java tasks that share
+	// this dag_id in the Python stub.
+	bundle.Register(
+		airflow.TaskHandler(combinedDagID, "go_extract", goExtract),
+		airflow.TaskHandler(combinedDagID, "go_transform", goTransform),
+	)
+
+	if err := bundle.Serve(); err != nil {
 		log.Fatal(err)
 	}
 }

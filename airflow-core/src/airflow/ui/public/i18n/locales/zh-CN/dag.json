@@ -43,7 +43,7 @@
   "deadlineAlerts": {
     "completionRule": "必须在{{reference}}后的 {{interval}} 内完成",
     "completionRuleDynamic": "必须在从{{reference}}起算的可变时间间隔内完成",
-    "count_one": "{{count}} 个截止期限",
+    "count_one": "1 个截止期限",
     "count_other": "{{count}} 个截止期限",
     "referenceType": {
       "AverageRuntimeDeadline": "平均运行时间",
@@ -59,12 +59,12 @@
     "label": "截止期限",
     "met": "已达成",
     "missed": "已错过",
-    "missedCount_one": "{{count}} 个已错过的截止期限",
+    "missedCount_one": "1 个已错过的截止期限",
     "missedCount_other": "{{count}} 个已错过的截止期限",
     "mixedCount": "{{missedCount}} 个已错过，{{upcomingCount}} 个即将到期",
     "stillRunning": "仍在运行",
     "upcoming": "即将到期",
-    "upcomingCount_one": "{{count}} 个即将到期的截止期限",
+    "upcomingCount_one": "1 个即将到期的截止期限",
     "upcomingCount_other": "{{count}} 个即将到期的截止期限"
   },
   "extraLinks": "额外链接",

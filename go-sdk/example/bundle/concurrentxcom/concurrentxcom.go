@@ -17,7 +17,7 @@
 
 // Package concurrentxcom holds the pull_xcoms_concurrently task in its own
 // package, so main.go can register tasks defined across packages with one
-// RegisterDags.
+// bundle.Register call.
 package concurrentxcom
 
 import (

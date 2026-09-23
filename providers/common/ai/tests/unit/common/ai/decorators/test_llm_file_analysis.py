@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -72,7 +72,9 @@ class TestLLMFileAnalysisDecoratedOperator:
 
         assert result == "This is a summary."
         assert op.prompt == "Summarize this text"
-        mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "prepared prompt", usage_limits=None, cancellation_token=ANY
+        )
 
     @pytest.mark.parametrize(
         "return_value",
@@ -116,4 +118,6 @@ class TestLLMFileAnalysisDecoratedOperator:
         op.execute(context={"task_instance": MagicMock(spec=["task_id"])})
 
         assert op.prompt == "Summarize system logs"
-        mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "prepared prompt", usage_limits=None, cancellation_token=ANY
+        )

@@ -74,7 +74,15 @@ class SFTPToS3Operator(BaseOperator):
     :param acl_policy: Canned ACL policy for the file being uploaded to S3.
     """
 
-    template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket", "sftp_filenames", "s3_filenames")
+    template_fields: Sequence[str] = (
+        "s3_key",
+        "sftp_path",
+        "s3_bucket",
+        "sftp_filenames",
+        "s3_filenames",
+        "sftp_conn_id",
+        "aws_conn_id",
+    )
 
     def __init__(
         self,

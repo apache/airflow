@@ -68,7 +68,7 @@ class SSHOperator(BaseOperator):
     the ssh session is pushed to XCom under key ``ssh_exit``.
     """
 
-    template_fields: Sequence[str] = ("command", "environment", "remote_host")
+    template_fields: Sequence[str] = ("command", "environment", "remote_host", "ssh_conn_id")
     template_ext: Sequence[str] = (
         ".sh",
         ".bash",

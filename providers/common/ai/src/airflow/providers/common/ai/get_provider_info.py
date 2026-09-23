@@ -33,6 +33,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-common-ai/operators/agent.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_batch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
@@ -69,6 +70,11 @@ def get_provider_info():
                 "integration-name": "Docker Sandboxes",
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
+            },
+            {
+                "integration-name": "Modal",
+                "external-doc-url": "https://modal.com/docs/guide/sandbox",
+                "tags": ["service"],
             },
         ],
         "hooks": [
@@ -267,13 +273,13 @@ def get_provider_info():
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
                     "placeholders": {
-                        "extra": '{"model": "google-cloud:gemini-2.0-flash", "project": "my-project", "location": "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application Default Credentials'
+                        "extra": '{"model": "google-cloud:gemini-2.5-flash", "project": "my-project", "location": "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application Default Credentials'
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Google model identifier (e.g. google-cloud:gemini-2.0-flash)",
+                        "description": "Google model identifier (e.g. google-cloud:gemini-2.5-flash)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "fallback_conn_ids": {
@@ -407,6 +413,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.common.ai.operators.agent",
                     "airflow.providers.common.ai.operators.llm",
+                    "airflow.providers.common.ai.operators.llm_batch",
                     "airflow.providers.common.ai.operators.llm_file_analysis",
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
@@ -417,9 +424,19 @@ def get_provider_info():
                 ],
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "Common AI",
+                "python-modules": ["airflow.providers.common.ai.triggers.llm_batch"],
+            }
+        ],
         "task-decorators": [
             {"class-name": "airflow.providers.common.ai.decorators.agent.agent_task", "name": "agent"},
             {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_batch.llm_batch_task",
+                "name": "llm_batch",
+            },
             {
                 "class-name": "airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task",
                 "name": "llm_file_analysis",

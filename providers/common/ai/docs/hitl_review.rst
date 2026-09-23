@@ -17,8 +17,8 @@
 
 .. _howto:hitl_review:
 
-Human-in-the-Loop (HITL) Review For Agentic Operators
-#####################################################
+Human-in-the-loop (HITL) review for agents
+==========================================
 
 HITL Review adds an interactive feedback loop to agentic operators. After the
 LLM Agent produces an initial output, a human reviewer can **approve**, **reject**, or
@@ -27,9 +27,13 @@ terminal action, or until a timeout is reached or max_iterations reached.
 
 This document describes the architecture, workflow, API, XCom schema, and usage.
 
-
 Overview
-========
+--------
+
+.. seealso::
+    This page covers the iterative review loop on ``AgentOperator``. For a one-shot
+    approve, edit or reject gate on ``LLMOperator`` and its subclasses, see
+    :doc:`approval_gates`.
 
 **Components**
 
@@ -58,9 +62,8 @@ during review but adds cross-process coordination complexity: the agent state
 be serialized and restored across defer/resume. XCom polling keeps the flow
 simple and keeps all agent context in-process. Future versions may have different approaches.
 
-
 Workflow
-========
+--------
 
 .. code-block:: text
 
@@ -89,9 +92,8 @@ Workflow
          | 7e. hitl_timeout elapsed        |
          |     → push status timeout_exceeded, raise HITLTimeoutError
 
-
-Using HITL Review with AgentOperator
-====================================
+Using HITL review with ``AgentOperator``
+----------------------------------------
 
 Enable the review loop with ``enable_hitl_review=True``:
 
@@ -138,9 +140,8 @@ navigate to
     :start-after: [START howto_operator_agent_hitl_review]
     :end-before: [END howto_operator_agent_hitl_review]
 
-
 REST API
-========
+--------
 
 The plugin exposes a FastAPI app at ``/hitl-review``. Base URL:
 
@@ -155,9 +156,8 @@ The plugin exposes a FastAPI app at ``/hitl-review``. Base URL:
 - ``task_id`` — Task ID.
 - ``map_index`` — Map index for mapped tasks. Use ``-1`` for non-mapped tasks or index for dynamic mapping.
 
-
 Endpoints
----------
+^^^^^^^^^
 
 .. list-table::
    :header-rows: 1
@@ -184,9 +184,8 @@ Endpoints
      - ``/sessions/reject``
      - Reject the output. Session must be ``pending_review``.
 
-
 Response model: HITLReviewResponse
-----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -208,9 +207,8 @@ Response model: HITLReviewResponse
         "task_completed": bool,
     }
 
-
 XCom keys and storage
-=====================
+---------------------
 
 All keys use the prefix ``airflow_hitl_review_``.
 
@@ -235,9 +233,8 @@ All keys use the prefix ``airflow_hitl_review_``.
      - Plugin
      - Per-iteration human feedback text
 
-
 Session lifecycle
------------------
+^^^^^^^^^^^^^^^^^
 
 - **pending_review** — Awaiting human action. Plugin accepts approve, reject,
   or feedback.
@@ -246,9 +243,8 @@ Session lifecycle
   worker pushes a new output and status returns to ``pending_review``.
 - **approved** / **rejected** — Terminal. Worker has exited the loop.
 
-
 Chat UI
-=======
+-------
 
 The plugin provides an interactive chat UI that loads in the task instance page.
 The UI:
