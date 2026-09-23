@@ -24,60 +24,74 @@ import (
 	"runtime"
 	"time"
 
-	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/example/bundle/concurrentxcom"
 	"github.com/apache/airflow/go-sdk/example/bundle/taskflowbinding"
-	"github.com/apache/airflow/go-sdk/sdk"
+	"github.com/apache/airflow/go-sdk/example/bundle/variablewrite"
 )
 
-type myBundle struct{}
-
-// myBundle must implement v1.BundleProvider
-var _ v1.BundleProvider = (*myBundle)(nil)
-
-func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-	simpleDag := dagbag.AddDag("simple_dag")
-	simpleDag.AddTask(extract)
-	simpleDag.AddTask(transform)
-	simpleDag.AddTask(load)
-
-	// Tasks defined in other packages register through the same dagbag.
-	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
-	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently)
-
-	bindingDag := dagbag.AddDag("taskflow_binding_dag")
-	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
-	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
-	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion)
-	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs)
-	bindingDag.AddTaskWithName("via_struct_no_tags", taskflowbinding.ViaStructNoTags)
-	bindingDag.AddTaskWithName("via_struct_arg_tag", taskflowbinding.ViaStructArgTag)
-	bindingDag.AddTaskWithName("via_struct_unmatched_arg", taskflowbinding.ViaStructUnmatchedArg)
-	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
-	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
-	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
-
-	return nil
-}
-
 func main() {
-	if err := bundlev1server.Serve(&myBundle{}); err != nil {
+	bundle := airflow.Bundle()
+
+	bundle.Register(
+		airflow.TaskHandler("simple_dag", "extract", extract),
+		airflow.TaskHandler("simple_dag", "transform", transform),
+		airflow.TaskHandler("simple_dag", "load", load),
+
+		// Task handlers defined in other packages register the same way.
+		airflow.TaskHandler(
+			"concurrent_xcom_dag",
+			"pull_xcoms_concurrently",
+			concurrentxcom.PullXComsConcurrently,
+		),
+
+		airflow.TaskHandler("taskflow_binding_dag", "make_config", taskflowbinding.MakeConfig),
+		airflow.TaskHandler("taskflow_binding_dag", "make_numbers", taskflowbinding.MakeNumbers),
+		airflow.TaskHandler("taskflow_binding_dag", "make_region", taskflowbinding.MakeRegion),
+		airflow.TaskHandler("taskflow_binding_dag", "via_flat_args", taskflowbinding.ViaFlatArgs),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_no_tags",
+			taskflowbinding.ViaStructNoTags,
+		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_arg_tag",
+			taskflowbinding.ViaStructArgTag,
+		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_unmatched_arg",
+			taskflowbinding.ViaStructUnmatchedArg,
+		),
+		airflow.TaskHandler("taskflow_binding_dag", "via_flat_map", taskflowbinding.ViaFlatMap),
+		airflow.TaskHandler("taskflow_binding_dag", "via_struct_map", taskflowbinding.ViaStructMap),
+		airflow.TaskHandler("taskflow_binding_dag", "via_plain_map", taskflowbinding.ViaPlainMap),
+
+		airflow.TaskHandler(
+			"variable_write_dag",
+			"write_and_delete_variable",
+			variablewrite.WriteAndDeleteVariable,
+		),
+	)
+
+	if err := bundle.Serve(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
+func extract(actx airflow.Context) (any, error) {
+	log := actx.Logger()
 	log.Info("Hello from task")
 
-	// ctx behaves as a context.Context and also carries the task instance
+	// actx behaves as a context.Context and also carries the task instance
 	// identifiers and the Dag run's scheduling timestamps. Log every field the
 	// runtime context exposes. The fields are namespaced under a "context"
 	// group (so they serialise as context.ti.* / context.dag_run.* dotted
 	// keys) to avoid colliding with the reserved task_id/run_id/etc. keys the
 	// supervisor strips from its log view.
-	ti, dagRun := ctx.TaskInstance(), ctx.DagRun()
-	log.InfoContext(ctx, "task runtime context",
+	ti, dagRun := actx.TaskInstance(), actx.DagRun()
+	log.InfoContext(actx, "task runtime context",
 		slog.Group("context",
 			slog.Group("ti",
 				"dag_id", ti.DagID,
@@ -96,13 +110,13 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
 		),
 	)
 
-	conn, err := client.GetConnection(ctx, "test_http")
+	conn, err := actx.Client().GetConnection(actx, "test_http")
 	if err != nil {
-		log.ErrorContext(ctx, "unable to get conn", "error", err)
+		log.ErrorContext(actx, "unable to get conn", "error", err)
 	} else {
 		// Log only non-sensitive fields; conn.Password and any secrets in
 		// conn.Extra must never reach the log stream.
-		log.InfoContext(ctx, "got conn",
+		log.InfoContext(actx, "got conn",
 			"conn_id", conn.ID,
 			"conn_type", conn.Type,
 			"host", conn.Host,
@@ -113,8 +127,8 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
 
 		// Once per loop,.check if we've been asked to cancel!
 		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
+		case <-actx.Done():
+			return nil, actx.Err()
 		default:
 		}
 		log.Info("After the beep the time will be", "time", time.Now())
@@ -131,25 +145,16 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
 }
 
 // transform receives the stub call's literal and XCom arguments.
-func transform(
-	ctx sdk.TIRunContext,
-	client sdk.VariableClient,
-	log *slog.Logger,
-	country string,
-	extracted map[string]any,
-) error {
-	// This function takes a VariableClient and not a Client to make unit testing it easier. See
-	// `./main_test.go` for an example unit of this task fn. Functionally taking a `sdk.Client` is the same (as
-	// Client includes VariableClient) but by using the dedicated type it can be easier to write unit tests.
-	//
-	// It also gives a better indication of what features the tasks use
-	log.InfoContext(ctx, "Bound TaskFlow arguments",
+// See `./main_test.go` for an example unit test of this task fn.
+func transform(actx airflow.Context, country string, extracted map[string]any) error {
+	log := actx.Logger()
+	log.InfoContext(actx, "Bound TaskFlow arguments",
 		"country", country,
 		"extracted_go_version", extracted["go_version"],
 		"extracted_timestamp", extracted["timestamp"],
 	)
 	key := "my_variable"
-	val, err := client.GetVariable(ctx, key)
+	val, err := actx.Client().GetVariable(actx, key)
 	if err != nil {
 		return err
 	}
@@ -162,12 +167,12 @@ func transform(
 // task UP_FOR_RETRY -- which only works because the Go SDK now emits a
 // RetryTask frame (instead of a terminal FAILED) when ti_context.should_retry
 // is set. The retry then runs this task again and it returns nil.
-func load(ctx sdk.TIRunContext, log *slog.Logger) error {
-	tryNumber := ctx.TaskInstance().TryNumber
+func load(actx airflow.Context) error {
+	tryNumber := actx.TaskInstance().TryNumber
 	if tryNumber == 1 {
-		log.InfoContext(ctx, "Please fail", "try_number", tryNumber)
+		actx.Logger().InfoContext(actx, "Please fail", "try_number", tryNumber)
 		return fmt.Errorf("Please fail")
 	}
-	log.InfoContext(ctx, "Recovered on retry", "try_number", tryNumber)
+	actx.Logger().InfoContext(actx, "Recovered on retry", "try_number", tryNumber)
 	return nil
 }

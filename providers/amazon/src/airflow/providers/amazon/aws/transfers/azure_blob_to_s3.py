@@ -42,7 +42,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AzureBlobStorageToGCSOperator`
+        :ref:`howto/operator:AzureBlobStorageToS3Operator`
 
     :param wasb_conn_id: Reference to the wasb connection.
     :param container_name: Name of the container
@@ -82,6 +82,8 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         "prefix",
         "delimiter",
         "dest_s3_key",
+        "wasb_conn_id",
+        "aws_conn_id",
     )
 
     def __init__(

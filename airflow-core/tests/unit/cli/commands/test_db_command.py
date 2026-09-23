@@ -829,6 +829,19 @@ class TestCliDb:
             always_fail.assert_has_calls([call()] * (retry + 1))
             sleep.assert_has_calls([call(retry_delay)] * retry)
 
+    def test_check_warns_about_the_retries_that_are_actually_left(self, caplog):
+        args = self.parser.parse_args(["db", "check", "--retry", "3", "--retry-delay", "9"])
+        always_fail = Mock(side_effect=OperationalError("", None, None))
+
+        with patch("time.sleep", new=MagicMock()), patch("airflow.utils.db.check", new=always_fail):
+            with pytest.raises(OperationalError):
+                db_command.check(args)
+
+        assert "3 retries remain. Will retry in 9 seconds" in caplog
+        assert "2 retries remain. Will retry in 9 seconds" in caplog
+        assert "1 retries remain. Will retry in 9 seconds" in caplog
+        assert "0 retries remain. Will retry in 9 seconds" not in caplog
+
 
 class TestCLIDBClean:
     @classmethod

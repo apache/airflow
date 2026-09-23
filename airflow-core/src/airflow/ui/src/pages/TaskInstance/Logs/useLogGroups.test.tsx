@@ -47,4 +47,24 @@ describe("useLogGroups", () => {
 
     expect([...result.current.lineNumberToVisibleIndex]).toStrictEqual([[3, 2]]);
   });
+
+  it("does not rebuild the visible-items index on a re-render that changes neither parsedLogs nor expand state", () => {
+    // react-virtual force-rerenders TaskLogContent on every scroll event via
+    // flushSync, even though parsedLogs and expandedGroups are unchanged.
+    // Without memoization this hook rebuilds visibleItems/*ToVisibleIndex from
+    // scratch on every one of those renders, an O(total log lines) cost paid
+    // on every scroll tick regardless of how many rows are actually visible.
+    const { rerender, result } = renderHook(
+      ({ currentParsedLogs }) => useLogGroups({ expanded: true, parsedLogs: currentParsedLogs }),
+      { initialProps: { currentParsedLogs: parsedLogs } },
+    );
+
+    const firstVisibleItems = result.current.visibleItems;
+    const firstLineNumberToVisibleIndex = result.current.lineNumberToVisibleIndex;
+
+    rerender({ currentParsedLogs: parsedLogs });
+
+    expect(result.current.visibleItems).toBe(firstVisibleItems);
+    expect(result.current.lineNumberToVisibleIndex).toBe(firstLineNumberToVisibleIndex);
+  });
 });

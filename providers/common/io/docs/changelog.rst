@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement async state store methods for object storage backend (#72131)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix duplicated and incorrect words in documentation (#70868)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+
 1.8.0
 .....
 

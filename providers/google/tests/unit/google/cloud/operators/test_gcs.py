@@ -261,6 +261,7 @@ class TestGCSDeleteObjectsOperator:
             (None, "pre", ["/"]),
             (None, "dir/pre*", ["dir"]),
             (None, "*", ["/"]),
+            (["folder/a.txt", None, "", "b.json"], None, ["folder/a.txt", "b.json"]),
         ),
         ids=(
             "objects",
@@ -273,6 +274,7 @@ class TestGCSDeleteObjectsOperator:
             "prefix with no ending slash",
             "directory with prefix with wildcard",
             "just wildcard",
+            "objects with None and empty entries",
         ),
     )
     def test_get_openlineage_facets_on_start(self, objects, prefix, inputs):
@@ -304,6 +306,12 @@ class TestGCSDeleteObjectsOperator:
         assert all(element in expected_inputs for element in lineage.inputs)
         print("EXPECTED:", expected_inputs)
         print("ACTUAL:", lineage.inputs)
+
+    def test_get_openlineage_facets_on_start_no_bucket_name(self):
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=None, objects=["a.txt"])
+        lineage = operator.get_openlineage_facets_on_start()
+        assert lineage.inputs == []
+        assert lineage.outputs == []
 
 
 class TestGoogleCloudStorageListOperator:
@@ -417,6 +425,61 @@ class TestGCSFileTransformOperator:
         assert len(lineage.outputs) == 1
         assert lineage.inputs[0] == expected_input
         assert lineage.outputs[0] == expected_output
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_execute_destination_falls_back_to_rendered_source(
+        self, mock_hook, mock_subprocess, mock_tempfile
+    ):
+        source = "source"
+        destination = "destination"
+        mock1 = mock.Mock()
+        mock2 = mock.Mock()
+        mock1.name = source
+        mock2.name = destination
+        mock_tempfile.return_value.__enter__.side_effect = [mock1, mock2]
+
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout.readline = lambda: b""
+        mock_proc.wait.return_value = None
+        mock_subprocess.Popen.return_value.__enter__.return_value = mock_proc
+
+        op = GCSFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket="{{ var.value.bucket }}",
+            source_object="{{ var.value.object }}",
+            transform_script="script.py",
+        )
+        # Template rendering happens after __init__; the destination fallback must see the rendered values.
+        op.source_bucket = TEST_BUCKET
+        op.source_object = "rendered.txt"
+
+        op.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.download.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name="rendered.txt", filename=source
+        )
+        mock_hook.return_value.upload.assert_called_with(
+            bucket_name=TEST_BUCKET, object_name="rendered.txt", filename=destination
+        )
+
+    def test_get_openlineage_facets_on_start_destination_falls_back_to_rendered_source(self):
+        operator = GCSFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket="{{ var.value.bucket }}",
+            source_object="{{ var.value.object }}",
+            transform_script="/path/to_script",
+        )
+        operator.source_bucket = TEST_BUCKET
+        operator.source_object = "folder/a.txt"
+
+        lineage = operator.get_openlineage_facets_on_start()
+
+        expected = Dataset(namespace=f"gs://{TEST_BUCKET}", name="folder/a.txt")
+        assert lineage.inputs == [expected]
+        assert lineage.outputs == [expected]
 
 
 class TestGCSTimeSpanFileTransformOperatorDateInterpolation:

@@ -214,6 +214,14 @@ class TaskTest {
 
         override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
 
+        override fun setVariable(
+          key: String,
+          value: String,
+          description: String?,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun deleteVariable(key: String): Unit = throw UnsupportedOperationException("not used in test")
+
         override fun getXCom(
           key: String,
           dagId: String,

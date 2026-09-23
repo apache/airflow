@@ -86,15 +86,6 @@ PY38 = sys.version_info >= (3, 8)
 PY311 = sys.version_info >= (3, 11)
 
 
-@pytest.fixture(autouse=True)
-def clear_current_task_session():
-    try:
-        import airflow.utils.task_instance_session
-    except ModuleNotFoundError:
-        return
-    airflow.utils.task_instance_session.__current_task_instance_session = None
-
-
 class TestAirflowTaskDecorator(BasePythonTest):
     default_date = DEFAULT_DATE
 

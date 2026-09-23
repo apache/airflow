@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+.. warning::
+  ``EdgeExecutor`` now counts the tasks and callbacks it has queued against ``[core] parallelism``, as the
+  other executors do. Until now that limit had no effect on Edge. If a scheduler keeps more than
+  ``parallelism`` (default 32) workloads in flight on Edge, raise ``[core] parallelism``. Otherwise the
+  scheduler leaves the rest in ``scheduled`` state until slots free up.
+
+4.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mismatched AirflowConfigException in celery and edge3 (#72437)``
+
+Misc
+~~~~
+
+* ``Bump Edge3 UI JavaScript dependencies (#72528)``
+* ``Pin pnpm version for FAB and Edge3 UI so bumps keep security overrides (#72390)``
+* ``Bump Edge3 UI JavaScript dependencies (#72257)``
+* ``Change edge worker heartbeat message from info to debug (#72197)``
+* ``Bump Edge3 UI JavaScript dependencies (#71902)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add tests for edge3 worker API app and JWT auth (#72482)``
+   * ``[main] Upgrade important CI environment (#71590)``
+
 4.3.1
 .....
 
