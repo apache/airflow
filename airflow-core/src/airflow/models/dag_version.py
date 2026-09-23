@@ -17,9 +17,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import zlib
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, get_args
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -29,6 +31,7 @@ from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.exceptions import DagVersionNotFound
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
@@ -37,8 +40,15 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
+    from airflow.models.serialized_dag import SerializedDagModel
+
 
 log = logging.getLogger(__name__)
+
+ValuesStatus = Literal["available", "unavailable"]
+_VALID_VALUES_STATUSES = get_args(ValuesStatus)
+# version_number is a 32-bit column, and an out-of-range bind parameter makes drivers raise.
+_MAX_VERSION_NUMBER = 2**31 - 1
 
 
 class DagVersion(Base):
@@ -244,6 +254,155 @@ class DagVersion(Base):
     def version(self) -> str:
         """A human-friendly representation of the version."""
         return f"{self.dag_id}-{self.version_number}"
+
+    @classmethod
+    @provide_session
+    def get_diff(
+        cls,
+        dag_id: str,
+        base_version_number: int,
+        target_version_number: int,
+        *,
+        values_status: ValuesStatus = "unavailable",
+        max_changes: int | None = None,
+        session: Session = NEW_SESSION,
+    ) -> dict[str, Any]:
+        """
+        Compare the stored state and provenance of two versions of a Dag.
+
+        ``values_status`` carries the caller's authorization decision. See
+        :func:`~airflow.serialization.dag_version_diff.build_serialized_dag_diff`
+        for disclosure and truncation rules.
+
+        :param dag_id: The Dag ID.
+        :param base_version_number: The version number to compare from.
+        :param target_version_number: The version number to compare to.
+        :param values_status: Whether the caller has authorized disclosing values and digests.
+        :param max_changes: Upper bound on output records; repeated redacted changes share a record.
+            Defaults to ``DEFAULT_MAX_CHANGES``.
+        :param session: The database session.
+        :return: The diff result, in the shape named by its ``diff_schema_version``.
+        :raises ValueError: If ``values_status``, ``max_changes``, or either version number is invalid.
+        :raises DagVersionNotFound: If either version number has no row for ``dag_id``.
+        """
+        # Keep this local to avoid the dag_version -> dag_version_diff -> serialized_objects cycle.
+        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.serialization.dag_version_diff import (
+            DEFAULT_MAX_CHANGES,
+            build_serialized_dag_diff,
+            build_unavailable_dag_diff,
+            validate_max_changes,
+        )
+
+        if values_status not in _VALID_VALUES_STATUSES:
+            raise ValueError(f"values_status must be one of {_VALID_VALUES_STATUSES}, not {values_status!r}")
+
+        if max_changes is None:
+            max_changes = DEFAULT_MAX_CHANGES
+        # Reject a bad bound before it costs the version lookup and both payload loads.
+        validate_max_changes(max_changes)
+        for version_number in (base_version_number, target_version_number):
+            if not isinstance(version_number, int) or isinstance(version_number, bool):
+                raise ValueError("Dag version numbers must be integers")
+            if not 1 <= version_number <= _MAX_VERSION_NUMBER:
+                raise ValueError(
+                    f"Dag version numbers must be positive integers not exceeding {_MAX_VERSION_NUMBER}"
+                )
+
+        query = (
+            select(cls)
+            .where(
+                cls.dag_id == dag_id,
+                cls.version_number.in_((base_version_number, target_version_number)),
+            )
+            .options(joinedload(cls.serialized_dag).selectinload(SerializedDagModel.deadline_alerts))
+        )
+        versions = {version.version_number: version for version in session.scalars(query).all()}
+        missing_version = next(
+            (
+                version_number
+                for version_number in (base_version_number, target_version_number)
+                if version_number not in versions
+            ),
+            None,
+        )
+        if missing_version is not None:
+            raise DagVersionNotFound(
+                f"The DagVersion with dag_id: `{dag_id}` and version_number: `{missing_version}` was not found"
+            )
+
+        base_version = versions[base_version_number]
+        target_version = versions[target_version_number]
+        base_data, base_unavailable_reason = _get_serialized_diff_data(base_version.serialized_dag)
+        target_data, target_unavailable_reason = _get_serialized_diff_data(target_version.serialized_dag)
+        if unavailable_reason := base_unavailable_reason or target_unavailable_reason:
+            return build_unavailable_dag_diff(
+                base_data=base_data, target_data=target_data, reason=unavailable_reason
+            )
+        return build_serialized_dag_diff(
+            base_data=base_data,
+            target_data=target_data,
+            base_provenance=_get_provenance(base_version),
+            target_provenance=_get_provenance(target_version),
+            include_values=values_status == "available",
+            max_changes=max_changes,
+        )
+
+
+def _get_serialized_diff_data(
+    serialized_dag: SerializedDagModel | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if serialized_dag is None:
+        return None, None
+    try:
+        # Reading the property decodes the compressed column, so it decodes here too.
+        data = serialized_dag.data
+        if isinstance(data, str):
+            data = json.loads(data)
+    except (ValueError, zlib.error, RecursionError):
+        return None, "serialized_dag_decode_failed"
+    if not isinstance(data, dict) or not isinstance(dag_data := data.get("dag"), dict):
+        return data, None
+    deadlines = dag_data.get("deadline")
+    if not isinstance(deadlines, list) or not any(isinstance(deadline, str) for deadline in deadlines):
+        return data, None
+
+    alerts = {alert.id: alert for alert in serialized_dag.deadline_alerts}
+    definitions = []
+    for deadline in deadlines:
+        if not isinstance(deadline, str):
+            definitions.append(deadline)
+            continue
+        alert_id = _parse_alert_id(deadline)
+        if alert_id is None or (alert := alerts.get(alert_id)) is None:
+            return data, "deadline_alert_missing"
+        definitions.append(
+            # description is left out because no writer populates it, so it is always null.
+            {
+                "name": alert.name,
+                "reference": alert.reference,
+                "interval": alert.interval,
+                "callback": alert.callback_def,
+            }
+        )
+    # Stored UUIDs differ between versions even when the alert definitions are identical.
+    return {**data, "dag": {**dag_data, "deadline": definitions}}, None
+
+
+def _parse_alert_id(deadline: str) -> UUID | None:
+    """Read a stored deadline reference as a UUID, ignoring how the writer spelled it."""
+    try:
+        return UUID(deadline)
+    except ValueError:
+        return None
+
+
+def _get_provenance(version: DagVersion) -> dict[str, Any]:
+    return {
+        "bundle_name": version.bundle_name,
+        "bundle_version": version.bundle_version,
+        "version_data": version.version_data,
+    }
 
 
 def _resolve_version_data(
