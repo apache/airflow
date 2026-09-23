@@ -20,7 +20,7 @@ Airflow hooks as tools: ``HookToolset``
 
 Generic adapter that exposes selected methods of any Airflow Hook as
 pydantic-ai tools via introspection. Requires an explicit ``allowed_methods``
-list — there is no auto-discovery.
+list; there is no auto-discovery.
 
 .. code-block:: python
 
@@ -57,7 +57,7 @@ When to choose it
 
 **Choose it when** the target already has an Airflow connection and a hook, and
 what you want the agent to do is already a method on that hook. This is the
-cheapest route — no new server, no new credential, no new query dialect — and
+cheapest route (no new server, no new credential, no new query dialect) and
 the only one that reaches any provider hook with synchronous methods without
 anyone writing an adapter first. :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` is a
 reflection-based adapter, so the work is choosing the method list.
@@ -71,7 +71,7 @@ reflection-based adapter, so the work is choosing the method list.
 - Its calls act as barriers. The tools are registered with ``sequential=True``
   because hook methods perform synchronous I/O, so a slow call holds up every
   other tool the model emitted in that step, not only this toolset's. This is
-  not specific to ``HookToolset`` — see :ref:`toolset-call-barriers`.
+  not specific to ``HookToolset``; see :ref:`toolset-call-barriers`.
 - It returns exactly one shape. Every result goes through ``serialize_for_llm``
   and comes back as a JSON-encoded string; there is no structured error type and
   no ``ModelRetry`` wrapper, so a hook exception fails the agent run, and the
@@ -94,5 +94,5 @@ reflection-based adapter, so the work is choosing the method list.
     )
 
 **Credentials and where it runs.** The hook instance is yours, so the credential
-is whatever connection that hook resolves — the toolset never looks one up
+is whatever connection that hook resolves; the toolset never looks one up
 itself. Calls run in the Airflow worker process.

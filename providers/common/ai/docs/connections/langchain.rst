@@ -36,7 +36,7 @@ Configuring the Connection
 
 Chat Model (Extra field)
     Chat model identifier in ``provider:name`` format, dispatched via
-    ``langchain.chat_models.init_chat_model`` (e.g. ``openai:gpt-4o``,
+    ``langchain.chat_models.init_chat_model`` (e.g. ``openai:gpt-5``,
     ``anthropic:claude-sonnet-5``). This field appears as a dedicated input
     in the connection form (via ``conn-fields``) and stores its value in
     ``extra["model"]``.
@@ -47,13 +47,6 @@ Embedding Model (Extra field)
     ``openai:text-embedding-3-small``). This field appears as a dedicated
     input in the connection form (via ``conn-fields``) and stores its value
     in ``extra["embed_model"]``.
-
-    The connection-type definition documents ``cohere:embed-english-v3.0``
-    as an example of the ``provider:name`` format, but the hook only forwards
-    ``api_key`` / ``base_url`` to ``init_embeddings`` -- vendors with bespoke
-    embedding auth such as Cohere are not covered by this connection type yet
-    (see :ref:`Supported providers <langchain-supported-providers>` below and
-    :doc:`../hooks/langchain`).
 
 API Key (Password field)
     The API key for your LLM provider, passed as ``api_key=`` to
@@ -71,11 +64,13 @@ form; they are not used by this connection type.
 Supported providers
 --------------------
 
-Only OpenAI-compatible providers work with this hook's ``api_key`` +
-optional ``base_url`` credential surface: OpenAI, Anthropic, Groq,
-Mistral AI, DeepSeek, Ollama, and vLLM. Providers with bespoke auth (AWS
-Bedrock, Google Vertex AI / GenAI, Azure OpenAI, Cohere, HuggingFace) reject
-these kwargs and are not usable through this connection type.
+The hook forwards two values to LangChain: the connection's password as
+``api_key`` and its host as ``base_url``. Any provider whose LangChain model
+class accepts those two keyword arguments works, which includes OpenAI,
+Anthropic, Groq, Mistral AI, DeepSeek, Ollama and vLLM. Providers whose
+classes expect their own credential shape (AWS Bedrock, Google Vertex AI and
+GenAI, Azure OpenAI, Cohere, HuggingFace) reject these kwargs and are not
+usable through this connection type.
 
 Model resolution order
 -----------------------
@@ -98,7 +93,7 @@ Examples
     {
         "conn_type": "langchain",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-4o\", \"embed_model\": \"openai:text-embedding-3-small\"}"
+        "extra": "{\"model\": \"openai:gpt-5\", \"embed_model\": \"openai:text-embedding-3-small\"}"
     }
 
 **Anthropic (chat only)**

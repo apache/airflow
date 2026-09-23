@@ -28,9 +28,9 @@ output, the result lands in XCom for the next task, and the whole thing runs on 
 Start here
 ----------
 
-- :doc:`quickstart` — install, connect a vendor, run a two-task Dag and check its output.
-- :doc:`use_cases/index` — ten jobs a data team already has, each with the Dag that does it.
-- :doc:`model_providers` — which vendors work, and the extra, connection and prefix for each.
+- :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
+- :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
+- :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
 
 This is the Dag the quick start runs. The ``summarize`` task sends the release notes to the
 model on the ``pydanticai_default`` connection; ``publish`` receives the answer like any

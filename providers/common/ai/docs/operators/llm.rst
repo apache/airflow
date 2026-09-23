@@ -21,7 +21,7 @@ Single prompts: ``LLMOperator`` and ``@task.llm``
 =================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` for
-general-purpose LLM calls — summarization, extraction, classification,
+general-purpose LLM calls: summarization, extraction, classification,
 structured output, or any prompt-based task.
 
 The operator sends a prompt to an LLM via
@@ -63,7 +63,7 @@ Agent parameters
 ----------------
 
 Pass additional keyword arguments to the pydantic-ai ``Agent`` constructor
-via ``agent_params`` — for example, ``retries``, ``model_settings``, or ``tools``.
+via ``agent_params``: for example ``retries``, ``model_settings``, or ``tools``.
 See the `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__ for
 the full list of supported parameters.
 
@@ -79,7 +79,7 @@ Usage limits
 
 Set ``usage_limits`` to a
 `pydantic-ai UsageLimits <https://ai.pydantic.dev/api/usage/#pydantic_ai.usage.UsageLimits>`__
-to fail the task when the run exceeds a configured budget — request count,
+to fail the task when the run exceeds a configured budget: request count,
 input/output tokens, or tool calls. The check happens inside pydantic-ai's
 run loop, so the limit applies even when ``retries`` triggers multiple model
 calls within a single task.
@@ -108,18 +108,18 @@ templated or validated.
 
 Common knobs on ``UsageLimits``:
 
-- ``request_limit`` — max model requests per run (caps retry/tool-loop blow-ups).
+- ``request_limit``: max model requests per run (caps retry/tool-loop blow-ups).
   pydantic-ai applies a default of ``50`` when ``UsageLimits()`` is constructed
   without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
   (or the dict form ``{"input_tokens_limit": 4_000}``) silently inherits that
   50-request cap. Set ``request_limit=None`` explicitly when you only want a
   token cap.
-- ``input_tokens_limit`` / ``output_tokens_limit`` — per-run token caps.
-- ``total_tokens_limit`` — combined input + output cap.
-- ``tool_calls_limit`` — max tool invocations (``AgentOperator`` only).
-- ``cost_limit`` — a ``Decimal`` cap on the run's estimated USD cost. This is **not** a
+- ``input_tokens_limit`` / ``output_tokens_limit``: per-run token caps.
+- ``total_tokens_limit``: combined input + output cap.
+- ``tool_calls_limit``: max tool invocations (``AgentOperator`` only).
+- ``cost_limit``: a ``Decimal`` cap on the run's estimated USD cost. This is **not** a
   hard guarantee against overspend: the response that crosses the limit has already been
-  produced and billed — pydantic-ai checks the accumulated cost *after* each response and
+  produced and billed: pydantic-ai checks the accumulated cost *after* each response and
   then fails the run with ``UsageLimitExceeded``. It protects you from further spend, not
   from the request that broke the budget; even a single-request run fails as soon as that
   request's cost pushes the total over the limit. Pricing is looked up by model
@@ -131,13 +131,13 @@ Common knobs on ``UsageLimits``:
   reports no cost at all, so ``cost_limit`` is not enforced there -- a
   ``CostNotFoundWarning`` is emitted instead of failing the run. And like the other
   knobs above, setting ``cost_limit``
-  alone still inherits the ``request_limit=50`` default — see the ``request_limit`` note
+  alone still inherits the ``request_limit=50`` default; see the ``request_limit`` note
   above. Note that ``cost_limit`` only caps the operator's own LLM calls --
   the meta-agent that ``LLMRetryPolicy`` runs to classify a failed task is a separate,
   uncapped LLM call; see :doc:`../retry_policies`.
 
 When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
-propagates to Airflow as a task failure — Airflow's standard retry policy
+propagates to Airflow as a task failure, so Airflow's standard retry policy
 applies on top. Every limit here bounds a single agent *run*, not a task: each
 Airflow task retry re-renders ``usage_limits`` and starts a fresh count, and for
 ``AgentOperator`` so does each HITL regeneration. A ``cost_limit`` of
@@ -169,15 +169,15 @@ Multimodal prompts
 may return either a ``str`` or a non-empty ``Sequence[UserContent]`` (e.g.,
 ``["Describe this:", ImageUrl(url="...")]``) for vision, audio, or document
 inputs. See :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>` for
-the full example. ``require_approval=True`` is not currently supported with a
-``Sequence`` prompt -- the approval session model expects a string -- and will
-raise at the approval boundary; widening that path is tracked as a follow-up.
+the full example. ``require_approval=True`` is not supported with a ``Sequence``
+prompt: the approval session model expects a string, and the task raises at the
+approval boundary.
 
 Classification with ``Literal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Set ``output_type`` to a ``Literal`` to constrain the LLM to a fixed set of
-labels — useful for classification tasks:
+labels, useful for classification tasks:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_classification.py
     :language: python
@@ -219,6 +219,9 @@ Parameters
 - ``prompt``: The prompt to send to the LLM (operator) or the return value of the
   decorated function (decorator).
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
+- ``fallback_conn_ids``: Connection IDs to fail over to, in order, when the primary
+  provider is unavailable. Overrides the list in the connection's extra; an explicit
+  ``[]`` disables a chain configured there. See :doc:`../provider_fallback`.
 - ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic ``BaseModel``
@@ -256,5 +259,5 @@ Logging
 
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the LLM output is also logged
-(truncated to 500 characters). See :ref:`AgentOperator — Logging <howto/operator:agent>`
+(truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
