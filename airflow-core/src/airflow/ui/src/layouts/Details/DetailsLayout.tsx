@@ -24,17 +24,13 @@ import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
-import {
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-  type ImperativePanelGroupHandle,
-} from "react-resizable-panels";
+import { Group, Panel, Separator, useDefaultLayout, useGroupRef } from "react-resizable-panels";
 import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import {
   useDagRunServiceGetDagRun,
+  useDagRunServiceGetDagRuns,
   useDagServiceGetDag,
   useDagWarningServiceListDagWarnings,
 } from "openapi/queries";
@@ -43,6 +39,7 @@ import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import BackfillBanner from "src/components/Banner/BackfillBanner";
+import DrainingBanner from "src/components/Banner/DrainingBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
@@ -53,6 +50,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { useAutoRefresh } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -95,9 +93,19 @@ type Props = {
 export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
-  const { data: dag } = useDagServiceGetDag({ dagId });
+  const refetchInterval = useAutoRefresh({ dagId });
+  const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
+    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+  });
+  // Only asked while the Dag can still be drained; the answer decides whether
+  // pausing needs to offer the drain choice at all.
+  const { data: unfinishedRuns } = useDagRunServiceGetDagRuns(
+    { dagId, limit: 1, state: ["queued", "running"] },
+    undefined,
+    { enabled: dag?.scheduling_state === "active" },
+  );
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
-  const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
+  const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
   // grid and the gantt so their shared row highlight stays in sync, with no
   // React re-render on hover).
@@ -222,6 +230,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
   const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
   const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: `${panelViewKey}-${direction}` });
 
   return (
     <GroupsProvider dagId={dagId}>
@@ -235,7 +244,11 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   <TogglePause
                     dagDisplayName={dag.dag_display_name}
                     dagId={dag.dag_id}
+                    hasUnfinishedRuns={
+                      unfinishedRuns === undefined ? undefined : unfinishedRuns.dag_runs.length > 0
+                    }
                     isPaused={dag.is_paused}
+                    schedulingState={dag.scheduling_state}
                     size="md"
                   />
                 )}
@@ -252,6 +265,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
           </Flex>
         </HStack>
         <Toaster />
+        <DrainingBanner dagId={dagId} />
         <BackfillBanner dagId={dagId} />
         <Box flex={1} minH={0}>
           {isRightPanelCollapsed ? (
@@ -271,14 +285,24 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
               {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
             </IconButton>
           ) : undefined}
-          <PanelGroup
-            autoSaveId={`${panelViewKey}-${direction}`}
+          <Group
+            defaultLayout={defaultLayout}
             dir={direction}
-            direction="horizontal"
+            groupRef={panelGroupRef}
             key={`${panelViewKey}-${direction}`}
-            ref={panelGroupRef}
+            onLayoutChanged={(layout, meta) => {
+              onLayoutChanged(layout, meta);
+              // Programmatic setLayout() from PanelButtons handles its own fit-view; only
+              // fit here for user-driven resizes, otherwise the two callers double-fit.
+              if (meta.isUserInteraction) {
+                const zoom = getZoom();
+
+                void fitView({ maxZoom: zoom, minZoom: zoom });
+              }
+            }}
+            orientation="horizontal"
           >
-            <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize} order={1}>
+            <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize}>
               <Flex
                 bg={dagView === "graph" ? undefined : "bg.muted"}
                 borderColor="bg.muted"
@@ -374,16 +398,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
             </Panel>
             {!isRightPanelCollapsed && (
               <>
-                <PanelResizeHandle
-                  className="resize-handle"
-                  onDragging={(isDragging) => {
-                    if (!isDragging) {
-                      const zoom = getZoom();
-
-                      void fitView({ maxZoom: zoom, minZoom: zoom });
-                    }
-                  }}
-                >
+                <Separator className="resize-handle">
                   <Box
                     _hover={{ bg: "info.solid" }}
                     alignItems="center"
@@ -412,9 +427,9 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                       {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
                     </IconButton>
                   </Box>
-                </PanelResizeHandle>
+                </Separator>
 
-                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20}>
                   <Box
                     display="flex"
                     flexDirection="column"
@@ -454,7 +469,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                 </Panel>
               </>
             )}
-          </PanelGroup>
+          </Group>
         </Box>
       </Box>
     </GroupsProvider>

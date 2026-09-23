@@ -184,6 +184,35 @@ class TestGlueJobOperator:
         assert defer.value.trigger.attempts == 75
         assert defer.value.trigger.aws_conn_id == "aws_default"
 
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_forwards_hook_config_to_trigger(self, _, mock_initialize_job):
+        """The deferred half must reach AWS with the same hook settings as the synchronous half."""
+        botocore_config = {"read_timeout": 42}
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            verify=False,
+            botocore_config=botocore_config,
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            deferrable=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute(mock.MagicMock())
+
+        # assert on the serialized payload: that is what actually reaches the triggerer
+        _, serialized = defer.value.trigger.serialize()
+        assert serialized["region_name"] == "us-west-2"
+        assert serialized["verify"] is False
+        assert serialized["botocore_config"] == botocore_config
+
     @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")

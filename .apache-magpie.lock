@@ -1,6 +1,10 @@
-# .apache-magpie.lock — committed; the project's pin.
-# Edited only by /magpie-setup; do not modify by hand.
+# .apache-magpie.lock — committed; the project's floor.
 
-method: git-branch
-url:    https://github.com/apache/magpie.git
-ref:    main
+method:       marketplace
+url:          apache/magpie
+min_version:  0.2.0.dev202609110041
+
+plugins:
+  - magpie-setup
+  - magpie-utilities
+  - magpie-agent-guard

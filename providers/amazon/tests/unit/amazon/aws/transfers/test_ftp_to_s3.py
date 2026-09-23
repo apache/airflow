@@ -116,22 +116,121 @@ class TestFTPToS3Operator:
             s3_file=operator.s3_key + operator.ftp_filenames[0],
         )
 
-    @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook.list_directory")
+    @mock.patch.object(FTPToS3Operator, "_FTPToS3Operator__upload_to_s3_from_ftp")
+    @mock.patch(
+        "airflow.providers.ftp.hooks.ftp.FTPHook.list_directory",
+        return_value=["pre_one.txt", "xpre_two.txt", "pre_again_pre_.txt"],
+    )
     def test_execute_multiple_files_prefix(
         self,
         mock_ftp_hook_list_directory,
+        mock_upload_to_s3,
     ):
         operator = FTPToS3Operator(
             task_id=TASK_ID,
             s3_bucket=BUCKET,
             s3_key=S3_KEY_MULTIPLE,
             ftp_path=FTP_PATH_MULTIPLE,
-            ftp_filenames="test_prefix",
-            s3_filenames="s3_prefix",
+            ftp_filenames="pre_",
+            s3_filenames="new_",
+        )
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
+
+        mock_ftp_hook_list_directory.assert_called_once_with(path=FTP_PATH_MULTIPLE)
+        assert mock_upload_to_s3.call_args_list == [
+            mock.call("pre_one.txt", "test/new_one.txt"),
+            mock.call("pre_again_pre_.txt", "test/new_again_pre_.txt"),
+        ]
+        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"], "")
+
+    @pytest.mark.parametrize(
+        ("ftp_filenames", "s3_filenames", "expected"),
+        [
+            pytest.param(
+                "pre_",
+                "new_",
+                [
+                    ("/tmp/pre_one.txt", "test/new_one.txt"),
+                    ("/tmp/pre_again_pre_.txt", "test/new_again_pre_.txt"),
+                ],
+                id="prefix-with-rename",
+            ),
+            pytest.param(
+                "pre_",
+                None,
+                [
+                    ("/tmp/pre_one.txt", "test/pre_one.txt"),
+                    ("/tmp/pre_again_pre_.txt", "test/pre_again_pre_.txt"),
+                ],
+                id="prefix-without-rename",
+            ),
+            pytest.param(
+                "*",
+                None,
+                [
+                    ("/tmp/pre_one.txt", "test/pre_one.txt"),
+                    ("/tmp/xpre_two.txt", "test/xpre_two.txt"),
+                    ("/tmp/pre_again_pre_.txt", "test/pre_again_pre_.txt"),
+                ],
+                id="wildcard-without-rename",
+            ),
+        ],
+    )
+    @mock.patch.object(FTPToS3Operator, "_FTPToS3Operator__upload_to_s3_from_ftp")
+    @mock.patch(
+        "airflow.providers.ftp.hooks.ftp.FTPHook.list_directory",
+        return_value=["/tmp/pre_one.txt", "/tmp/xpre_two.txt", "/tmp/pre_again_pre_.txt"],
+    )
+    def test_execute_builds_s3_key_from_basename_when_nlst_returns_full_paths(
+        self,
+        mock_ftp_hook_list_directory,
+        mock_upload_to_s3,
+        ftp_filenames,
+        s3_filenames,
+        expected,
+    ):
+        """Some FTP servers qualify nlst entries with the listed directory. The entry is kept for
+        retrieval, but the S3 key comes from the basename so it never embeds the source directory."""
+        operator = FTPToS3Operator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY_MULTIPLE,
+            ftp_path=FTP_PATH_MULTIPLE,
+            ftp_filenames=ftp_filenames,
+            s3_filenames=s3_filenames,
         )
         operator.execute(None)
 
         mock_ftp_hook_list_directory.assert_called_once_with(path=FTP_PATH_MULTIPLE)
+        assert mock_upload_to_s3.call_args_list == [mock.call(*call) for call in expected]
+
+    @mock.patch.object(FTPToS3Operator, "_FTPToS3Operator__upload_to_s3_from_ftp")
+    @mock.patch(
+        "airflow.providers.ftp.hooks.ftp.FTPHook.list_directory",
+        return_value=["/srv/data/report.csv", "/srv/data/summary.csv"],
+    )
+    def test_execute_warns_when_only_the_directory_matched_the_old_substring_rule(
+        self,
+        mock_ftp_hook_list_directory,
+        mock_upload_to_s3,
+    ):
+        """The old rule matched the whole nlst entry, so a prefix hitting only a directory
+        component used to select every file. Those must be reported, not dropped in silence."""
+        operator = FTPToS3Operator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY_MULTIPLE,
+            ftp_path=FTP_PATH_MULTIPLE,
+            ftp_filenames="data",
+        )
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
+
+        mock_upload_to_s3.assert_not_called()
+        mock_log_warning.assert_called_once_with(
+            mock.ANY, 2, "data", ["/srv/data/report.csv", "/srv/data/summary.csv"], ""
+        )
 
 
 class TestFTPToS3OperatorInit:

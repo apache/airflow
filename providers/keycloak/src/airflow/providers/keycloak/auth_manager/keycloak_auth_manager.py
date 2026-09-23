@@ -149,7 +149,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def serialize_user(self, user: KeycloakAuthManagerUser) -> dict[str, Any]:
         if AIRFLOW_V_3_3_PLUS:
-            # Omit Keycloak JWTs from claims, they are stored in separate cookies
+            # Omit Keycloak JWTs from claims, they are stored in separate cookies.
+            # That keeps the browser session cookie under the 4096 byte limit. Tokens
+            # minted for API clients are never stored in a cookie and keep the JWTs in
+            # their claims instead -- see ``generate_api_jwt``.
             return {
                 "user_id": user.get_id(),
                 "name": user.get_name(),
@@ -160,6 +163,31 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "access_token": user.access_token,
             "refresh_token": user.refresh_token,
         }
+
+    def generate_api_jwt(
+        self,
+        user: KeycloakAuthManagerUser,
+        *,
+        expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
+    ) -> str:
+        """
+        Return a JWT for a client that authenticates with the ``Authorization`` header.
+
+        Such a client sends no cookies, so the Keycloak tokens have to travel in the
+        claims for the request to be authorized.
+
+        :param user: the user to generate the token for
+        :param expiration_time_in_seconds: expiration time in seconds of the token
+        """
+        return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
+            {
+                # Build on serialize_user so an API token cannot silently miss a claim
+                # that the browser flow gained; only the Keycloak JWTs differ.
+                **self.serialize_user(user),
+                "access_token": user.access_token,
+                "refresh_token": user.refresh_token,
+            }
+        )
 
     async def get_user_from_token(
         self, token: str, access_token: str | None = None, refresh_token: str | None = None
@@ -186,8 +214,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             user.access_token = access_token
             user.refresh_token = refresh_token
             return user
-        # Skip refreshing JWT if Keycloak JWTs are not included.
-        return None
+        # No cookie-supplied tokens. A token minted for an API client carries the
+        # Keycloak JWTs in its own claims, so the user is already complete -- and unlike
+        # the cookie path those claims are covered by the Airflow JWT signature, so they
+        # need no separate subject check. A browser token does not carry them and can
+        # only be completed by KeycloakJWTMiddleware from the cookies; without them
+        # there is nothing to authorize against.
+        return user if user.access_token else None
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
@@ -490,6 +523,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return False
         if resp.status_code == 400:
             error = json.loads(resp.text)
+            # Keycloak's uma-ticket grant often returns 400 invalid_grant (not 401)
+            # when the nested access token used as bearer is expired or invalid.
+            if error.get("error") == "invalid_grant":
+                log.debug("Received invalid_grant from Keycloak: %s", resp.text)
+                return False
             if is_team_resource and error.get("error") == "invalid_resource":
                 # filter_authorized_dag_ids will return this error if team resources have not been added to the Keycloak Client.
                 log.warning(
@@ -631,6 +669,38 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             results = executor.map(check, requests)
         return all(results)
 
+    def filter_authorized_assets(
+        self,
+        *,
+        assets: Sequence[AssetDetails],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        candidates = [details for details in assets if details.id is not None]
+        cache_key = (
+            user.get_id(),
+            method,
+            frozenset(cast("str", details.id) for details in candidates),
+        )
+
+        def query_keycloak() -> set[str]:
+            if not candidates:
+                return set()
+            max_workers = min(
+                len(candidates), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+
+            def check(details: AssetDetails) -> tuple[str, bool]:
+                return cast("str", details.id), self.is_authorized_asset(
+                    method=method, user=user, details=details
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(check, candidates)
+            return {asset_id for asset_id, authorized in results if authorized}
+
+        return single_flight(cache_key, query_keycloak)
+
     def filter_authorized_connections(
         self,
         *,
@@ -756,6 +826,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return set()
         if resp.status_code == 400:
             error = json.loads(resp.text)
+            if error.get("error") == "invalid_grant":
+                log.debug("Received invalid_grant from Keycloak: %s", resp.text)
+                return set()
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )

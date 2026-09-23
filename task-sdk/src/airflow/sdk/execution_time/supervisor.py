@@ -36,9 +36,21 @@ from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
+from enum import Enum, auto
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, Any, BinaryIO, ClassVar, NoReturn, TextIO, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    BinaryIO,
+    ClassVar,
+    NoReturn,
+    Protocol,
+    TextIO,
+    TypeAlias,
+    TypeVar,
+    cast,
+)
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -176,7 +188,95 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
+
+class ResponseSent(Enum):
+    ALREADY_SENT = auto()
+
+
+_RequestProcess = TypeVar("_RequestProcess")
+_RequestMessage = TypeVar("_RequestMessage", bound=BaseModel)
+RequestResult: TypeAlias = tuple[BaseModel | None, dict[str, bool]]
+RequestHandler: TypeAlias = Callable[
+    [_RequestProcess, BaseModel, "FilteringBoundLogger", int], RequestResult | ResponseSent
+]
+
+
+class _ClientSubprocess(Protocol):
+    @property
+    def client(self) -> Client: ...
+
+    @property
+    def id(self) -> UUID: ...
+
+
+def _register_request_handler(
+    message_type: type[_RequestMessage],
+    handler: Callable[
+        [_RequestProcess, _RequestMessage, FilteringBoundLogger, int], RequestResult | ResponseSent
+    ],
+) -> tuple[type[BaseModel], RequestHandler[_RequestProcess]]:
+    def dispatch(
+        process: _RequestProcess, msg: BaseModel, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        # Registration checks the message/handler pair before the heterogeneous registry erases its type.
+        return handler(process, cast("_RequestMessage", msg), log, req_id)
+
+    return message_type, dispatch
+
+
+def register_request_method(
+    message_type: type[_RequestMessage],
+    method: Callable[
+        [_RequestProcess, _RequestMessage, FilteringBoundLogger, int], RequestResult | ResponseSent
+    ],
+) -> tuple[type[BaseModel], RequestHandler[_RequestProcess]]:
+    def dispatch(
+        process: _RequestProcess, msg: _RequestMessage, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        bound_method = cast(
+            "Callable[[_RequestMessage, FilteringBoundLogger, int], RequestResult | ResponseSent]",
+            getattr(process, method.__name__),
+        )
+        return bound_method(msg, log, req_id)
+
+    return _register_request_handler(message_type, dispatch)
+
+
+def _register_client_handler(
+    message_type: type[_RequestMessage],
+    handler: Callable[[Client, _RequestMessage], RequestResult],
+) -> tuple[type[BaseModel], RequestHandler[_ClientSubprocess]]:
+    def dispatch(
+        process: _ClientSubprocess, msg: _RequestMessage, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        return handler(process.client, msg)
+
+    return _register_request_handler(message_type, dispatch)
+
+
+def _handle_previous_successful_dag_run_request(
+    process: _ClientSubprocess, msg: GetPrevSuccessfulDagRun, log: FilteringBoundLogger, req_id: int
+) -> RequestResult:
+    return handle_get_prev_successful_dag_run(process.client, process.id)
+
+
+def _handle_mask_secret_request(
+    process: object, msg: MaskSecret, log: FilteringBoundLogger, req_id: int
+) -> RequestResult:
+    handle_mask_secret(msg)
+    return None, {}
+
+
+__all__ = [
+    "ActivitySubprocess",
+    "RequestHandler",
+    "RequestResult",
+    "ResponseSent",
+    "WatchedSubprocess",
+    "register_request_method",
+    "supervise",
+    "supervise_task",
+]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -500,11 +600,13 @@ ObjC runtime state; if the child then triggers ObjC class initialization
 (e.g. via ``socket.getaddrinfo`` -> system DNS resolver -> proxy lookup), the
 runtime detects the corrupted state and crashes with SIGABRT.
 
-Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
-space, giving it clean ObjC state.  Before exec, the supervisor ``dup2``s the
-socketpairs onto fixed FDs the exec'd child reconstructs: 0 (requests/stdin),
-1 (stdout), 2 (stderr), 3 (structured logs).  ``os.set_inheritable`` clears
-``FD_CLOEXEC`` on those FDs so they survive the upcoming exec.
+Starting a fresh interpreter via ``os.posix_spawn`` gives it clean ObjC state --
+and, unlike ``fork()`` followed by ``execv()``, never runs
+``os.register_at_fork()``/``pthread_atfork()`` handlers at all.  The socketpairs
+are remapped onto fixed FDs the spawned child reconstructs, via ``posix_spawn``'s
+own ``file_actions`` (``POSIX_SPAWN_DUP2``): 0 (requests/stdin), 1 (stdout),
+2 (stderr), 3 (structured logs) -- no separate ``set_inheritable`` call is
+needed, since the remapping runs as part of the spawn itself.
 
 Task execution (``ActivitySubprocess``), the DAG processor
 (``DagFileProcessorProcess``) and the triggerer (``TriggerRunnerSupervisor``)
@@ -522,6 +624,22 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
+def _task_process_uses_exec() -> bool:
+    """
+    Whether the task process should ``exec`` a fresh interpreter after the fork.
+
+    Forced where bare fork is unsafe (macOS); elsewhere a deployment opts in with
+    ``[core] execute_tasks_new_python_interpreter``. exec replaces the child's address
+    space, so it cannot inherit a lock a supervisor thread held at fork time (e.g.
+    OpenSSL's, which otherwise hangs the task at its first TLS call; #71707). Only the
+    task process reads the option -- it has always described task execution -- so the Dag
+    processor (one child per file per parse loop) and the triggerer keep the platform gate.
+    """
+    return _should_use_exec() or conf.getboolean(
+        "core", "execute_tasks_new_python_interpreter", fallback=False
+    )
+
+
 def _resolve_child_target(dotted: str) -> Callable[[], None]:
     """
     Resolve a ``module:qualname`` string to the callable the exec'd child runs.
@@ -536,16 +654,40 @@ def _resolve_child_target(dotted: str) -> Callable[[], None]:
     return pkgutil.resolve_name(dotted)
 
 
+# Runs in the exec'd child before anything else. execve reset PR_SET_DUMPABLE (4 in
+# <linux/prctl.h>); restore it before the Airflow import so the window in which a same-UID
+# sibling can open /proc/<pid>/mem or ptrace-attach is interpreter start only (a descriptor
+# or attach taken in that window survives a later prctl -- the kernel checks once, at open).
+# _child_exec_main() repeats the call as the logged fallback.
+_CHILD_EXEC_PRELUDE = """\
+import sys
+if sys.platform == "linux":
+    try:
+        import ctypes
+
+        ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0)
+    except Exception:
+        pass
+"""
+_CHILD_EXEC_BOOTSTRAP = _CHILD_EXEC_PRELUDE + (
+    "from airflow.sdk.execution_time.supervisor import _child_exec_main\n_child_exec_main()\n"
+)
+
+
 def _child_exec_main():
     """
-    Entry point for the child process when using fork+exec (macOS).
+    Entry point for the child process when using ``os.posix_spawn``.
 
-    After exec, FDs 0/1/2/3 are the requests/stdout/stderr/log sockets the parent
-    placed there via dup2.  The target to run is named in ``_AIRFLOW_CHILD_TARGET``
-    (``module:qualname``); it is rehydrated and handed to :func:`_fork_main`, which
-    sets up the structured log channel from FD 3 exactly as the bare-fork path does.
+    FDs 0/1/2/3 are the requests/stdout/stderr/log sockets ``posix_spawn``'s own
+    ``file_actions`` (``POSIX_SPAWN_DUP2``) remapped there as part of the spawn.
+    The target to run is named in ``_AIRFLOW_CHILD_TARGET`` (``module:qualname``);
+    it is rehydrated and handed to :func:`_fork_main`, which sets up the structured
+    log channel from FD 3 exactly as the bare-fork path does.
     """
-    # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
+    # The bootstrap already restored PR_SET_DUMPABLE before importing Airflow; this is the
+    # logged fallback (posix_spawn's own exec had reset what supervise_task() set beforehand).
+    _make_process_nondumpable()
+    # FDs 0, 1, 2 were remapped onto the socketpairs by posix_spawn's file_actions.
     child_requests = socket(fileno=0)
     child_stdout = socket(fileno=1)
     child_stderr = socket(fileno=2)
@@ -636,6 +778,37 @@ class WatchedSubprocess:
     socket handling, process monitoring, and request handling.
     """
 
+    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[Any]] | None] = None
+    _shared_request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[_ClientSubprocess]]] = dict(
+        [
+            _register_client_handler(DeleteVariable, handle_delete_variable),
+            _register_client_handler(DeleteXCom, handle_delete_xcom),
+            _register_client_handler(GetConnection, handle_get_connection),
+            _register_client_handler(GetDagRunState, handle_get_dag_run_state),
+            _register_client_handler(GetDRCount, handle_get_dr_count),
+            _register_client_handler(GetPreviousDagRun, handle_get_previous_dag_run),
+            _register_client_handler(GetPreviousTI, handle_get_previous_ti),
+            _register_client_handler(GetTaskStates, handle_get_task_states),
+            _register_client_handler(GetTICount, handle_get_ti_count),
+            _register_client_handler(GetVariable, handle_get_variable),
+            _register_client_handler(GetVariableKeys, handle_get_variable_keys),
+            _register_client_handler(GetXCom, handle_get_xcom),
+            _register_client_handler(GetXComCount, handle_get_xcom_count),
+            _register_client_handler(GetXComSequenceItem, handle_get_xcom_sequence_item),
+            _register_client_handler(GetXComSequenceSlice, handle_get_xcom_sequence_slice),
+            _register_client_handler(PutVariable, handle_put_variable),
+            _register_client_handler(SetXCom, handle_set_xcom),
+            _register_request_handler(GetPrevSuccessfulDagRun, _handle_previous_successful_dag_run_request),
+            _register_request_handler(MaskSecret, _handle_mask_secret_request),
+        ]
+    )
+
+    @classmethod
+    def _get_shared_request_handlers(
+        cls, *message_types: type[BaseModel]
+    ) -> dict[type[BaseModel], RequestHandler[_ClientSubprocess]]:
+        return {message_type: cls._shared_request_handlers[message_type] for message_type in message_types}
+
     id: UUID
 
     pid: int
@@ -695,10 +868,13 @@ class WatchedSubprocess:
         """
         Fork and start a new subprocess with the specified target function.
 
-        :param use_exec: If True, on platforms that need it (currently macOS),
-            immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
-            This avoids macOS fork-safety issues with Objective-C frameworks.
-            ``target`` is rehydrated in the exec'd child from its ``module:qualname``,
+        :param use_exec: If True, start a fresh Python interpreter via ``os.posix_spawn``
+            instead of a bare ``os.fork``: forced on platforms that need it (macOS, whose
+            Objective-C frameworks are not fork-safe) and opted into for the task process
+            elsewhere via ``[core] execute_tasks_new_python_interpreter``. Unlike
+            ``fork()`` followed by ``execv()``, ``posix_spawn`` never runs
+            ``os.register_at_fork()``/``pthread_atfork()`` handlers at all.
+            ``target`` is rehydrated in the spawned child from its ``module:qualname``,
             so any importable entry point (task execution, DAG processor, triggerer)
             is supported.
         :param new_process_group: If True, place the child in its own process
@@ -710,7 +886,7 @@ class WatchedSubprocess:
         """
         if use_exec and "<" in getattr(target, "__qualname__", "<"):
             # Closures/lambdas (``<locals>`` / ``<lambda>`` in the qualname) and
-            # objects without a qualname can't be named for the exec'd child.
+            # objects without a qualname can't be named for the spawned child.
             raise ValueError(f"use_exec=True requires a top-level importable target, got {target!r}")
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdout, read_stdout = socketpair()
@@ -719,85 +895,81 @@ class WatchedSubprocess:
         # Place for child to send requests/read responses, and the server side to read/respond
         child_requests, read_requests = socketpair()
 
-        # Open the socketpair before forking off the child, so that it is open when we fork.
+        # Open the socketpair before starting the child, so that it is open when we do.
         child_logs, read_logs = socketpair()
 
-        pid = os.fork()
-        if pid == 0:
+        if use_exec:
+            # file_actions run as part of the spawn itself -- no forked child to run
+            # imperative dup2 code in. All four source FDs here are guaranteed >= 3
+            # (0/1/2 are already open in every launch path), so no dup2 target below
+            # clobbers a source that hasn't been placed onto its own target FD yet.
+            file_actions = [
+                (os.POSIX_SPAWN_DUP2, child_requests.fileno(), 0),
+                (os.POSIX_SPAWN_DUP2, child_stdout.fileno(), 1),
+                (os.POSIX_SPAWN_DUP2, child_stderr.fileno(), 2),
+                (os.POSIX_SPAWN_DUP2, child_logs.fileno(), 3),
+            ]
+            spawn_kwargs: dict[str, Any] = {"file_actions": file_actions}
             if new_process_group:
-                # Put the task-runner into its own process group so its PGID
-                # equals its own PID. The supervisor can then deliver signals
-                # to the whole tree via os.killpg(), reaching every subprocess
-                # the task-runner spawned (e.g. venv children from
-                # PythonVirtualenvOperator). Without this, a SIGTERM from
-                # kill() only hits the task-runner and any Popen children are
-                # reparented to PID 1 and leak as orphans. Also set from the
-                # parent below so the group exists no matter which side of the
-                # fork runs first. See issue #65505.
-                with suppress(OSError):
-                    os.setpgid(0, 0)
+                # Atomic with the spawn -- no parent-side mirror needed, unlike the
+                # bare-fork path below.
+                spawn_kwargs["setpgroup"] = 0
+            child_env = dict(os.environ, _AIRFLOW_CHILD_TARGET=f"{target.__module__}:{target.__qualname__}")
+            pid = os.posix_spawn(
+                sys.executable,
+                [sys.executable, "-c", _CHILD_EXEC_BOOTSTRAP],
+                child_env,
+                **spawn_kwargs,
+            )
+        else:
+            pid = os.fork()
+            if pid == 0:
+                if new_process_group:
+                    # Put the task-runner into its own process group so its PGID
+                    # equals its own PID. The supervisor can then deliver signals
+                    # to the whole tree via os.killpg(), reaching every subprocess
+                    # the task-runner spawned (e.g. venv children from
+                    # PythonVirtualenvOperator). Without this, a SIGTERM from
+                    # kill() only hits the task-runner and any Popen children are
+                    # reparented to PID 1 and leak as orphans. Also set from the
+                    # parent below so the group exists no matter which side of the
+                    # fork runs first. See issue #65505.
+                    with suppress(OSError):
+                        os.setpgid(0, 0)
 
-            # Close and delete of the parent end of the sockets.
-            cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
+                # Close and delete of the parent end of the sockets.
+                cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
 
-            # Python GC should delete these for us, but lets make double sure that we don't keep anything
-            # around in the forked processes, especially things that might involve open files or sockets!
-            del constructor_kwargs
-            del logger
+                # Python GC should delete these for us, but lets make double sure that we don't keep anything
+                # around in the forked processes, especially things that might involve open files or sockets!
+                del constructor_kwargs
+                del logger
 
-            try:
-                if use_exec:
-                    # macOS: exec a fresh Python interpreter to drop the inherited
-                    # ObjC/CoreFoundation state that is not fork-safe. Redirect the
-                    # socketpairs onto the fixed FDs the exec'd child reconstructs:
-                    # 0 (requests/stdin), 1 (stdout), 2 (stderr), 3 (structured logs).
-                    # The source fds are always >= 3 (0/1/2 stay open in every launch
-                    # path), so no dup2 clobbers a not-yet-placed source. set_inheritable
-                    # guarantees FD_CLOEXEC is clear on all four (dup2 leaves it set when
-                    # a source already equals its target), so they survive execv. The
-                    # entry point is passed to the child by name.
-                    os.environ["_AIRFLOW_CHILD_TARGET"] = f"{target.__module__}:{target.__qualname__}"
-                    os.dup2(child_requests.fileno(), 0)
-                    os.dup2(child_stdout.fileno(), 1)
-                    os.dup2(child_stderr.fileno(), 2)
-                    os.dup2(child_logs.fileno(), 3)
-                    for fd in (0, 1, 2, 3):
-                        os.set_inheritable(fd, True)
-                    os.execv(
-                        sys.executable,
-                        [
-                            sys.executable,
-                            "-c",
-                            "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
-                            " _child_exec_main()",
-                        ],
-                    )
-                    # execv replaces the process -- unreachable on success
-                else:
+                try:
                     # Run the child entrypoint
                     _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
-            except BaseException as e:
-                import traceback
+                except BaseException as e:
+                    import traceback
 
-                with suppress(BaseException):
-                    # We can't use log here, as if we except out of the child something _weird_ went on.
-                    print("Exception in child process, exiting with code 124", file=sys.stderr)
-                    traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
+                    with suppress(BaseException):
+                        # We can't use log here, as if we except out of the child something _weird_ went on.
+                        print("Exception in child process, exiting with code 124", file=sys.stderr)
+                        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
-            # It's really super super important we never exit this block. We are in the forked child, and if we
-            # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
-            os._exit(124)
+                # It's really super super important we never exit this block. We are in the forked child, and if we
+                # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
+                os._exit(124)
 
-        if new_process_group:
-            # Mirror of the child-side setpgid, so the group is guaranteed to
-            # exist once start() returns. Without this, kill() invoked before
-            # the child is first scheduled (e.g. task_instances.start()
-            # failing synchronously in _on_child_started) would resolve the
-            # child's PGID to the supervisor's own group and killpg it.
-            with suppress(OSError):
-                os.setpgid(pid, pid)
+            if new_process_group:
+                # Mirror of the child-side setpgid, so the group is guaranteed to
+                # exist once start() returns. Without this, kill() invoked before
+                # the child is first scheduled (e.g. task_instances.start()
+                # failing synchronously in _on_child_started) would resolve the
+                # child's PGID to the supervisor's own group and killpg it.
+                with suppress(OSError):
+                    os.setpgid(pid, pid)
 
-        # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
+        # Close the remaining parent-end of the sockets we've passed to the child. We still have the
         # other end of the pair open
         cls._close_unused_sockets(child_stdout, child_stderr, child_logs)
 
@@ -1014,7 +1186,27 @@ class WatchedSubprocess:
                     otel_context.detach(token)
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
-        raise NotImplementedError()
+        if self._request_handlers is None:
+            raise NotImplementedError(f"{type(self).__name__} must declare its request handlers")
+        handler = self._request_handlers.get(type(msg))
+        if handler is None:
+            self._reject_request(msg, log, req_id)
+            return
+        result = handler(self, msg, log, req_id)
+        if result is not ResponseSent.ALREADY_SENT:
+            resp, dump_opts = result
+            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+
+    def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        log.error("Unhandled request", msg=msg)
+        self.send_msg(
+            None,
+            request_id=req_id,
+            error=ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={"status_code": 400, "message": "Unhandled request"},
+            ),
+        )
 
     @staticmethod
     def _close_unused_sockets(*sockets):
@@ -1066,6 +1258,46 @@ class WatchedSubprocess:
                 except (ProcessLookupError, PermissionError):
                     pass
         self._process.send_signal(sig)
+
+    def cleanup_sockets_after_kill(self) -> None:
+        """Drain log-bearing sockets, then close every remaining socket after a forced kill."""
+        for sock, socket_type in list(self._open_sockets.items()):
+            try:
+                key = self.selector.get_key(sock)
+            except KeyError:
+                key = None
+
+            if key is not None:
+                socket_handler, on_close = key.data
+                try:
+                    if socket_type != "requests":
+                        sock.setblocking(False)
+                        while True:
+                            try:
+                                if not socket_handler(sock):
+                                    break
+                            except (BlockingIOError, InterruptedError, OSError):
+                                break
+
+                    if on_close is not None:
+                        on_close(sock)
+                    else:
+                        with suppress(KeyError):
+                            self.selector.unregister(sock)
+                        self._open_sockets.pop(sock, None)
+                except Exception:
+                    log.exception(
+                        "Failed to clean up killed subprocess socket",
+                        pid=self.pid,
+                        socket_type=socket_type,
+                    )
+                    with suppress(KeyError):
+                        self.selector.unregister(sock)
+                    self._open_sockets.pop(sock, None)
+            with suppress(OSError, ValueError):
+                sock.close()
+
+        self._open_sockets.clear()
 
     def kill(
         self,
@@ -1422,10 +1654,10 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        # Opt in to fork+exec on platforms that need it (currently macOS).
+        # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _should_use_exec()
+        use_exec = target is _subprocess_main and _task_process_uses_exec()
         proc: Self = super().start(
             id=what.id,
             client=client,
@@ -1817,242 +2049,357 @@ class ActivitySubprocess(WatchedSubprocess):
 
         return TaskInstanceState.FAILED
 
-    def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
+    def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         if isinstance(msg, MaskSecret):
             log.debug("Received message from task runner (body omitted)", msg=type(msg))
         else:
             log.debug("Received message from task runner", msg=msg)
-        resp: BaseModel | None = None
-        dump_opts: dict[str, bool] = {}
-        if isinstance(msg, TaskState):
-            # No direct API call here — the recovery path in
-            # `update_task_state_if_needed` will call `finish()` for
-            # non-direct states (FAILED, etc.) once the subprocess exits.
-            self._terminal_state = msg.state
-            self._task_end_time_monotonic = time.monotonic()
-            self._rendered_map_index = msg.rendered_map_index
-        elif isinstance(msg, SucceedTask):
-            self._task_end_time_monotonic = time.monotonic()
-            self._rendered_map_index = msg.rendered_map_index
-            self._send_terminal_state_msg(msg)
-        elif isinstance(msg, RetryTask):
-            self._task_end_time_monotonic = time.monotonic()
-            self._rendered_map_index = msg.rendered_map_index
-            self._send_terminal_state_msg(msg)
-        elif isinstance(msg, GetConnection):
-            resp, dump_opts = handle_get_connection(self.client, msg)
-        elif isinstance(msg, GetVariable):
-            resp, dump_opts = handle_get_variable(self.client, msg)
-        elif isinstance(msg, GetVariableKeys):
-            resp, dump_opts = handle_get_variable_keys(self.client, msg)
-        elif isinstance(msg, GetXCom):
-            resp, dump_opts = handle_get_xcom(self.client, msg)
-        elif isinstance(msg, GetXComSequenceItem):
-            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
-        elif isinstance(msg, GetXComSequenceSlice):
-            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
-        elif isinstance(msg, DeferTask):
-            self._rendered_map_index = msg.rendered_map_index
-            self._send_terminal_state_msg(msg)
-        elif isinstance(msg, AwaitInputTask):
-            self._rendered_map_index = msg.rendered_map_index
-            self._send_terminal_state_msg(msg)
-        elif isinstance(msg, RescheduleTask):
-            self._send_terminal_state_msg(msg)
-        elif isinstance(msg, SkipDownstreamTasks):
-            self.client.task_instances.skip_downstream_tasks(self.id, msg)
-        elif isinstance(msg, SetXCom):
-            resp, dump_opts = handle_set_xcom(self.client, msg)
-        elif isinstance(msg, DeleteXCom):
-            resp, dump_opts = handle_delete_xcom(self.client, msg)
-        elif isinstance(msg, PutVariable):
-            resp, dump_opts = handle_put_variable(self.client, msg)
-        elif isinstance(msg, SetRenderedFields):
-            try:
-                self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
-            except ServerResponseError as e:
-                # On retry/clear the server replaces the TI id (archiving the old one), so a late RTIF
-                # overwrite from finalize() lands on an id that no longer exists. Supervisor kills such
-                # a worker when handling 410 heartbeat response. We only need to skip this stale overwrite here.
-                if e.response.status_code != HTTPStatus.GONE:
-                    raise
-                log.debug("Skipping RTIF overwrite; task instance archived on retry/clear", ti_id=self.id)
-        elif isinstance(msg, SetRenderedMapIndex):
-            self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
-        elif isinstance(msg, SetExecutionTimeout):
-            self._execution_timeout_seconds = msg.timeout_seconds
-            self._execution_timeout_next_signal = signal.SIGTERM
-            self._execution_timeout_enforce_at = (
-                time.monotonic() + msg.timeout_seconds + EXECUTION_TIMEOUT_GRACE_PERIOD
-            )
-        elif isinstance(msg, GetAssetByName):
-            asset_resp = self.client.assets.get(name=msg.name)
-            if isinstance(asset_resp, AssetResponse):
-                asset_result = AssetResult.from_asset_response(asset_resp)
-                resp = asset_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = asset_resp
-        elif isinstance(msg, GetAssetByUri):
-            asset_resp = self.client.assets.get(uri=msg.uri)
-            if isinstance(asset_resp, AssetResponse):
-                asset_result = AssetResult.from_asset_response(asset_resp)
-                resp = asset_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = asset_resp
-        elif isinstance(msg, GetAssetsByAlias):
-            resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
-        elif isinstance(msg, GetAssetEventByAsset):
-            asset_event_resp = self.client.asset_events.get(
-                uri=msg.uri,
-                name=msg.name,
-                after=msg.after,
-                before=msg.before,
-                ascending=msg.ascending,
-                limit=msg.limit,
-                partition_key=msg.partition_key,
-                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
-                extra=msg.extra,
-            )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result
-            dump_opts = {"exclude_unset": True}
-        elif isinstance(msg, GetAssetEventByAssetAlias):
-            asset_event_resp = self.client.asset_events.get(
-                alias_name=msg.alias_name,
-                after=msg.after,
-                before=msg.before,
-                ascending=msg.ascending,
-                limit=msg.limit,
-                partition_key=msg.partition_key,
-                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
-                extra=msg.extra,
-            )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result
-            dump_opts = {"exclude_unset": True}
-        elif isinstance(msg, GetPrevSuccessfulDagRun):
-            resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
-        elif isinstance(msg, GetXComCount):
-            resp, dump_opts = handle_get_xcom_count(self.client, msg)
-        elif isinstance(msg, TriggerDagRun):
-            resp = self.client.dag_runs.trigger(
-                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
-            )
-        elif isinstance(msg, GetDagRun):
-            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
-            resp = DagRunResult.from_api_response(dr_resp)
-        elif isinstance(msg, GetTaskRescheduleStartDate):
-            resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
-        elif isinstance(msg, GetTICount):
-            resp, dump_opts = handle_get_ti_count(self.client, msg)
-        elif isinstance(msg, GetTaskStates):
-            resp, dump_opts = handle_get_task_states(self.client, msg)
-        elif isinstance(msg, GetTaskBreadcrumbs):
-            api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
-            resp = TaskBreadcrumbsResult.from_api_response(api_resp)
-        elif isinstance(msg, GetDRCount):
-            resp, dump_opts = handle_get_dr_count(self.client, msg)
-        elif isinstance(msg, GetDagRunState):
-            resp, dump_opts = handle_get_dag_run_state(self.client, msg)
-        elif isinstance(msg, GetPreviousDagRun):
-            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
-        elif isinstance(msg, GetPreviousTI):
-            resp, dump_opts = handle_get_previous_ti(self.client, msg)
-        elif isinstance(msg, DeleteVariable):
-            resp, dump_opts = handle_delete_variable(self.client, msg)
-        elif isinstance(msg, ValidateInletsAndOutlets):
-            inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
-            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
-            dump_opts = {"exclude_unset": True}
-        elif isinstance(msg, ResendLoggingFD):
-            # We need special handling here!
-            if send_fds is not None:
-                self._send_new_log_fd(req_id)
-                # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
-                return
-        elif isinstance(msg, CreateHITLDetailPayload):
-            hitl_detail_request = self.client.hitl.add_response(
-                ti_id=msg.ti_id,
-                options=msg.options,
-                subject=msg.subject,
-                body=msg.body,
-                defaults=msg.defaults,
-                params=msg.params,
-                multiple=msg.multiple,
-                assigned_users=msg.assigned_users,
-            )
-            resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
-            dump_opts = {"exclude_unset": True}
-        elif isinstance(msg, MaskSecret):
-            handle_mask_secret(msg)
-        elif isinstance(msg, GetDag):
-            dag = self.client.dags.get(
-                dag_id=msg.dag_id,
-            )
-            resp = DagResult.from_api_response(dag)
-        elif isinstance(msg, GetTaskStateStore):
-            task_store = self.client.task_state_store.get(msg.ti_id, msg.key)
-            resp = (
-                task_store
-                if isinstance(task_store, ErrorResponse)
-                else TaskStateStoreResult.from_task_state_store_response(task_store)
-            )
-        elif isinstance(msg, SetTaskStateStore):
-            self.client.task_state_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteTaskStateStore):
-            self.client.task_state_store.delete(msg.ti_id, msg.key)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearTaskStateStore):
-            self.client.task_state_store.clear(msg.ti_id)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, GetAssetStateStoreByName):
-            asset_store = self.client.asset_state_store.get(msg.key, name=msg.name)
-            resp = (
-                asset_store
-                if isinstance(asset_store, ErrorResponse)
-                else AssetStateStoreResult.from_asset_state_store_response(asset_store)
-            )
-        elif isinstance(msg, GetAssetStateStoreByUri):
-            asset_store = self.client.asset_state_store.get(msg.key, uri=msg.uri)
-            resp = (
-                asset_store
-                if isinstance(asset_store, ErrorResponse)
-                else AssetStateStoreResult.from_asset_state_store_response(asset_store)
-            )
-        elif isinstance(msg, SetAssetStateStoreByName):
-            self.client.asset_state_store.set(msg.key, msg.value, name=msg.name)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, SetAssetStateStoreByUri):
-            self.client.asset_state_store.set(msg.key, msg.value, uri=msg.uri)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateStoreByName):
-            self.client.asset_state_store.delete(msg.key, name=msg.name)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateStoreByUri):
-            self.client.asset_state_store.delete(msg.key, uri=msg.uri)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetStateStoreByName):
-            self.client.asset_state_store.clear(name=msg.name)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetStateStoreByUri):
-            self.client.asset_state_store.clear(uri=msg.uri)
-            resp = OKResponse(ok=True)
-        else:
-            log.error("Unhandled request", msg=msg)
-            self.send_msg(
-                None,
-                request_id=req_id,
-                error=ErrorResponse(
-                    error=ErrorType.API_SERVER_ERROR,
-                    detail={"status_code": 400, "message": "Unhandled request"},
-                ),
-            )
-            return
+        super()._handle_request(msg, log, req_id)
 
-        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+    def _handle_task_state(self, msg: TaskState, log: FilteringBoundLogger, req_id: int) -> RequestResult:
+        # No direct API call here — the recovery path in
+        # `update_task_state_if_needed` will call `finish()` for
+        # non-direct states (FAILED, etc.) once the subprocess exits.
+        self._terminal_state = msg.state
+        self._task_end_time_monotonic = time.monotonic()
+        self._rendered_map_index = msg.rendered_map_index
+        return None, {}
+
+    def _handle_finished_task(
+        self, msg: SucceedTask | RetryTask, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self._task_end_time_monotonic = time.monotonic()
+        self._rendered_map_index = msg.rendered_map_index
+        self._send_terminal_state_msg(msg)
+        return None, {}
+
+    def _handle_suspended_task(
+        self, msg: DeferTask | AwaitInputTask, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self._rendered_map_index = msg.rendered_map_index
+        self._send_terminal_state_msg(msg)
+        return None, {}
+
+    def _handle_reschedule_task(
+        self, msg: RescheduleTask, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self._send_terminal_state_msg(msg)
+        return None, {}
+
+    def _handle_skip_downstream_tasks(
+        self, msg: SkipDownstreamTasks, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.task_instances.skip_downstream_tasks(self.id, msg)
+        return None, {}
+
+    def _handle_set_execution_timeout(
+        self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self._execution_timeout_seconds = msg.timeout_seconds
+        self._execution_timeout_next_signal = signal.SIGTERM
+        self._execution_timeout_enforce_at = (
+            time.monotonic() + msg.timeout_seconds + EXECUTION_TIMEOUT_GRACE_PERIOD
+        )
+        return None, {}
+
+    def _handle_set_rendered_fields(
+        self, msg: SetRenderedFields, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        try:
+            self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        except ServerResponseError as e:
+            # On retry/clear the server replaces the TI id (archiving the old one), so a late RTIF
+            # overwrite from finalize() lands on an id that no longer exists. Supervisor kills such
+            # a worker when handling 410 heartbeat response. We only need to skip this stale overwrite here.
+            if e.response.status_code != HTTPStatus.GONE:
+                raise
+            log.debug("Skipping RTIF overwrite; task instance archived on retry/clear", ti_id=self.id)
+        return None, {}
+
+    def _handle_set_rendered_map_index(
+        self, msg: SetRenderedMapIndex, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
+        return None, {}
+
+    def _handle_get_asset_by_name(
+        self, msg: GetAssetByName, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        asset_resp = self.client.assets.get(name=msg.name)
+        if isinstance(asset_resp, AssetResponse):
+            return AssetResult.from_asset_response(asset_resp), {"exclude_unset": True}
+        return asset_resp, {}
+
+    def _handle_get_asset_by_uri(
+        self, msg: GetAssetByUri, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        asset_resp = self.client.assets.get(uri=msg.uri)
+        if isinstance(asset_resp, AssetResponse):
+            return AssetResult.from_asset_response(asset_resp), {"exclude_unset": True}
+        return asset_resp, {}
+
+    def _handle_get_assets_by_alias(
+        self, msg: GetAssetsByAlias, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
+        return resp, {}
+
+    def _handle_get_asset_event_by_asset(
+        self, msg: GetAssetEventByAsset, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        asset_event_resp = self.client.asset_events.get(
+            uri=msg.uri,
+            name=msg.name,
+            after=msg.after,
+            before=msg.before,
+            ascending=msg.ascending,
+            limit=msg.limit,
+            partition_key=msg.partition_key,
+            partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
+            extra=msg.extra,
+        )
+        return AssetEventsResult.from_asset_events_response(asset_event_resp), {"exclude_unset": True}
+
+    def _handle_get_asset_event_by_asset_alias(
+        self, msg: GetAssetEventByAssetAlias, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        asset_event_resp = self.client.asset_events.get(
+            alias_name=msg.alias_name,
+            after=msg.after,
+            before=msg.before,
+            ascending=msg.ascending,
+            limit=msg.limit,
+            partition_key=msg.partition_key,
+            partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
+            extra=msg.extra,
+        )
+        return AssetEventsResult.from_asset_events_response(asset_event_resp), {"exclude_unset": True}
+
+    def _handle_trigger_dag_run(
+        self, msg: TriggerDagRun, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        resp = self.client.dag_runs.trigger(
+            msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
+        )
+        return resp, {}
+
+    def _handle_get_dag_run(self, msg: GetDagRun, log: FilteringBoundLogger, req_id: int) -> RequestResult:
+        dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+        resp = DagRunResult.from_api_response(dr_resp)
+        return resp, {}
+
+    def _handle_get_task_reschedule_start_date(
+        self, msg: GetTaskRescheduleStartDate, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
+        return resp, {}
+
+    def _handle_get_task_breadcrumbs(
+        self, msg: GetTaskBreadcrumbs, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+        resp = TaskBreadcrumbsResult.from_api_response(api_resp)
+        return resp, {}
+
+    def _handle_validate_inlets_and_outlets(
+        self, msg: ValidateInletsAndOutlets, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+        return InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp), {
+            "exclude_unset": True
+        }
+
+    def _handle_resend_logging_fd(
+        self, msg: ResendLoggingFD, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        if send_fds is not None:
+            self._send_new_log_fd(req_id)
+            return ResponseSent.ALREADY_SENT
+        # Preserve the empty acknowledgment for this no-op when descriptor passing is unavailable.
+        return None, {}
+
+    def _handle_create_hitl_detail_payload(
+        self, msg: CreateHITLDetailPayload, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        hitl_detail_request = self.client.hitl.add_response(
+            ti_id=msg.ti_id,
+            options=msg.options,
+            subject=msg.subject,
+            body=msg.body,
+            defaults=msg.defaults,
+            params=msg.params,
+            multiple=msg.multiple,
+            assigned_users=msg.assigned_users,
+        )
+        return HITLDetailRequestResult.from_api_response(hitl_detail_request), {"exclude_unset": True}
+
+    def _handle_get_dag(self, msg: GetDag, log: FilteringBoundLogger, req_id: int) -> RequestResult:
+        dag = self.client.dags.get(
+            dag_id=msg.dag_id,
+        )
+        resp = DagResult.from_api_response(dag)
+        return resp, {}
+
+    def _handle_get_task_state_store(
+        self, msg: GetTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        task_store = self.client.task_state_store.get(msg.ti_id, msg.key)
+        resp = (
+            task_store
+            if isinstance(task_store, ErrorResponse)
+            else TaskStateStoreResult.from_task_state_store_response(task_store)
+        )
+        return resp, {}
+
+    def _handle_set_task_state_store(
+        self, msg: SetTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.task_state_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_delete_task_state_store(
+        self, msg: DeleteTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.task_state_store.delete(msg.ti_id, msg.key)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_clear_task_state_store(
+        self, msg: ClearTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.task_state_store.clear(msg.ti_id)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_get_asset_state_store_by_name(
+        self, msg: GetAssetStateStoreByName, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        asset_store = self.client.asset_state_store.get(msg.key, name=msg.name)
+        resp = (
+            asset_store
+            if isinstance(asset_store, ErrorResponse)
+            else AssetStateStoreResult.from_asset_state_store_response(asset_store)
+        )
+        return resp, {}
+
+    def _handle_get_asset_state_store_by_uri(
+        self, msg: GetAssetStateStoreByUri, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        asset_store = self.client.asset_state_store.get(msg.key, uri=msg.uri)
+        resp = (
+            asset_store
+            if isinstance(asset_store, ErrorResponse)
+            else AssetStateStoreResult.from_asset_state_store_response(asset_store)
+        )
+        return resp, {}
+
+    def _handle_set_asset_state_store_by_name(
+        self, msg: SetAssetStateStoreByName, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.asset_state_store.set(msg.key, msg.value, name=msg.name)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_set_asset_state_store_by_uri(
+        self, msg: SetAssetStateStoreByUri, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.asset_state_store.set(msg.key, msg.value, uri=msg.uri)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_delete_asset_state_store_by_name(
+        self, msg: DeleteAssetStateStoreByName, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.asset_state_store.delete(msg.key, name=msg.name)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_delete_asset_state_store_by_uri(
+        self, msg: DeleteAssetStateStoreByUri, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.asset_state_store.delete(msg.key, uri=msg.uri)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_clear_asset_state_store_by_name(
+        self, msg: ClearAssetStateStoreByName, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.asset_state_store.clear(name=msg.name)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    def _handle_clear_asset_state_store_by_uri(
+        self, msg: ClearAssetStateStoreByUri, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.client.asset_state_store.clear(uri=msg.uri)
+        resp = OKResponse(ok=True)
+        return resp, {}
+
+    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[ActivitySubprocess]]] = {
+        **WatchedSubprocess._get_shared_request_handlers(
+            DeleteVariable,
+            DeleteXCom,
+            GetConnection,
+            GetDRCount,
+            GetDagRunState,
+            GetPrevSuccessfulDagRun,
+            GetPreviousDagRun,
+            GetPreviousTI,
+            GetTICount,
+            GetTaskStates,
+            GetVariable,
+            GetVariableKeys,
+            GetXCom,
+            GetXComCount,
+            GetXComSequenceItem,
+            GetXComSequenceSlice,
+            MaskSecret,
+            PutVariable,
+            SetXCom,
+        ),
+        **dict(
+            [
+                register_request_method(AwaitInputTask, _handle_suspended_task),
+                register_request_method(ClearAssetStateStoreByName, _handle_clear_asset_state_store_by_name),
+                register_request_method(ClearAssetStateStoreByUri, _handle_clear_asset_state_store_by_uri),
+                register_request_method(ClearTaskStateStore, _handle_clear_task_state_store),
+                register_request_method(CreateHITLDetailPayload, _handle_create_hitl_detail_payload),
+                register_request_method(DeferTask, _handle_suspended_task),
+                register_request_method(
+                    DeleteAssetStateStoreByName, _handle_delete_asset_state_store_by_name
+                ),
+                register_request_method(DeleteAssetStateStoreByUri, _handle_delete_asset_state_store_by_uri),
+                register_request_method(DeleteTaskStateStore, _handle_delete_task_state_store),
+                register_request_method(GetAssetByName, _handle_get_asset_by_name),
+                register_request_method(GetAssetByUri, _handle_get_asset_by_uri),
+                register_request_method(GetAssetEventByAsset, _handle_get_asset_event_by_asset),
+                register_request_method(GetAssetEventByAssetAlias, _handle_get_asset_event_by_asset_alias),
+                register_request_method(GetAssetsByAlias, _handle_get_assets_by_alias),
+                register_request_method(GetAssetStateStoreByName, _handle_get_asset_state_store_by_name),
+                register_request_method(GetAssetStateStoreByUri, _handle_get_asset_state_store_by_uri),
+                register_request_method(GetDag, _handle_get_dag),
+                register_request_method(GetDagRun, _handle_get_dag_run),
+                register_request_method(GetTaskBreadcrumbs, _handle_get_task_breadcrumbs),
+                register_request_method(GetTaskRescheduleStartDate, _handle_get_task_reschedule_start_date),
+                register_request_method(GetTaskStateStore, _handle_get_task_state_store),
+                register_request_method(RescheduleTask, _handle_reschedule_task),
+                register_request_method(ResendLoggingFD, _handle_resend_logging_fd),
+                register_request_method(RetryTask, _handle_finished_task),
+                register_request_method(SetAssetStateStoreByName, _handle_set_asset_state_store_by_name),
+                register_request_method(SetAssetStateStoreByUri, _handle_set_asset_state_store_by_uri),
+                register_request_method(SetExecutionTimeout, _handle_set_execution_timeout),
+                register_request_method(SetRenderedFields, _handle_set_rendered_fields),
+                register_request_method(SetRenderedMapIndex, _handle_set_rendered_map_index),
+                register_request_method(SetTaskStateStore, _handle_set_task_state_store),
+                register_request_method(SkipDownstreamTasks, _handle_skip_downstream_tasks),
+                register_request_method(SucceedTask, _handle_finished_task),
+                register_request_method(TaskState, _handle_task_state),
+                register_request_method(TriggerDagRun, _handle_trigger_dag_run),
+                register_request_method(ValidateInletsAndOutlets, _handle_validate_inlets_and_outlets),
+            ]
+        ),
+    }
 
     def _send_new_log_fd(self, req_id: int) -> None:
         if send_fds is None:
@@ -2495,9 +2842,18 @@ def process_log_messages_from_subprocess(
             event["error_detail"] = exc
 
         if level := NAME_TO_LEVEL.get(event.pop("level")):
-            msg = event.pop("event", None)
+            msg = event.pop("event", None) or ""
             for target in loggers:
-                target.log(level, msg, **event)
+                _log_to_target(target, level, msg, **event)
+
+
+def _log_to_target(target: FilteringBoundLogger, level: int, msg: str, **event) -> None:
+    try:
+        target.log(level, msg, **event)
+    except ValueError as e:
+        if "closed file" not in str(e):
+            raise
+        log.debug("Dropped log line for closed logger handle", level=level, logger=event.get("logger"))
 
 
 def forward_to_log(
@@ -2512,7 +2868,7 @@ def forward_to_log(
         except UnicodeDecodeError:
             msg = line.decode("ascii", errors="replace")
         for log in target_loggers:
-            log.log(level, msg, logger=logger)
+            _log_to_target(log, level, msg, logger=logger)
 
 
 def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:

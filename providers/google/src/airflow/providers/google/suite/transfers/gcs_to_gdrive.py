@@ -89,6 +89,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         "destination_object",
         "impersonation_chain",
         "destination_folder_id",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 

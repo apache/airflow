@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import logging
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -262,6 +263,59 @@ def security_manager(app_builder):
 @pytest.fixture(scope="module")
 def session(app_builder):
     return app_builder.session
+
+
+class TestDeclarativeCustomRoles:
+    @pytest.fixture(autouse=True)
+    def cleanup_configured_role(self, security_manager):
+        yield
+        security_manager.session.rollback()
+        if security_manager.find_role("ConfigAnalyst") is not None:
+            security_manager.delete_role("ConfigAnalyst")
+
+    @pytest.mark.parametrize("update_permissions", [True, False])
+    @mock.patch.object(FabAuthManager, "security_manager", new_callable=mock.PropertyMock)
+    def test_startup_creates_role_only_when_permission_updates_enabled(
+        self, mock_security_manager, security_manager, update_permissions
+    ):
+        mock_security_manager.return_value = security_manager
+        with conf_vars(
+            {
+                ("fab", "update_fab_perms"): str(update_permissions),
+                ("fab", "custom_roles"): json.dumps(
+                    {"ConfigAnalyst": [{"action": "can_read", "resource": "DAGs"}]}
+                ),
+            }
+        ):
+            FabAuthManager()._sync_appbuilder_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        if update_permissions:
+            assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+                ("can_read", "DAGs"),
+                ("can_read", "Website"),
+            }
+        else:
+            assert role is None
+
+    @conf_vars({("fab", "update_fab_perms"): "False", ("fab", "custom_roles"): '{"ConfigAnalyst": []}'})
+    def test_explicit_sync_creates_role_and_adds_homepage_permission(self, security_manager):
+        security_manager.sync_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+            ("can_read", "Website")
+        }
+
+    @conf_vars({("fab", "custom_roles"): '{"ConfigAnalyst": [{"action": "can_read", "resource": "DAGs"}]}'})
+    def test_sync_preserves_existing_role_without_adding_configured_permissions(self, security_manager):
+        role = security_manager.add_role("ConfigAnalyst")
+        permission = security_manager.create_permission("can_edit", "DAGs")
+        security_manager.add_permission_to_role(role, permission)
+        security_manager.sync_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+            ("can_edit", "DAGs"),
+            ("can_read", "Website"),
+        }
 
 
 @pytest.fixture
@@ -1053,6 +1107,29 @@ def test_create_dag_specific_permissions_airflow3(session, security_manager, mon
     with assert_queries_count(2):  # two query to get all perms; dagbag is mocked
         # The extra query happens at permission check
         security_manager.create_dag_specific_permissions()
+
+
+def test_create_dag_specific_permissions_skips_dag_with_bad_access_control(security_manager, monkeypatch):
+    """A single DAG with an invalid access_control must not abort syncing the remaining DAGs."""
+    bad_dag = DAG("bad_access_control", schedule=None, access_control={"NonExistentRole": {ACTION_CAN_READ}})
+    good_dag = DAG("good_access_control", schedule=None, access_control={"Public": {ACTION_CAN_READ}})
+
+    import airflow.providers.fab.auth_manager.security_manager
+
+    _iter_dags_mock = mock.Mock(return_value=[bad_dag, good_dag])
+    monkeypatch.setitem(
+        airflow.providers.fab.auth_manager.security_manager.override.__dict__, "_iter_dags", _iter_dags_mock
+    )
+
+    try:
+        security_manager.create_dag_specific_permissions()
+
+        good_perms = security_manager.get_all_permissions()
+        good_resource_name = _resource_name(good_dag.dag_id, permissions.RESOURCE_DAG)
+        assert (ACTION_CAN_READ, good_resource_name) in good_perms
+    finally:
+        _delete_dag_permissions(bad_dag.dag_id, security_manager)
+        _delete_dag_permissions(good_dag.dag_id, security_manager)
 
 
 def test_get_all_permissions(security_manager):

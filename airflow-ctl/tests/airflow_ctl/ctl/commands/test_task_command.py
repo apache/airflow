@@ -187,6 +187,17 @@ class TestFailedDeps:
             "Task instance dependencies not met:\nPool Slots Available: pool is full\n"
         )
 
+    def test_failed_deps_does_not_look_up_the_dag_run_for_a_given_run_id(self):
+        api_client = self._make_api_client()
+
+        task_command.failed_deps(
+            self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id]),
+            api_client=api_client,
+        )
+
+        api_client.dag_runs.get.assert_not_called()
+        api_client.dag_runs.list.assert_not_called()
+
     def test_failed_deps_by_logical_date(self, capsys):
         api_client = self._make_api_client(
             dependencies=[TaskDependencyResponse(name="Trigger Rule", reason="upstream tasks not done")]
@@ -452,6 +463,7 @@ class TestStatesForDagRun:
             api_client=api_client,
         )
 
+        api_client.dag_runs.get.assert_not_called()
         api_client.dag_runs.list.assert_not_called()
         api_client.task_instances.list.assert_called_once_with(dag_id=self.dag_id, dag_run_id=self.run_id)
         mock_console_cls.return_value.print_as.assert_called_once_with(
