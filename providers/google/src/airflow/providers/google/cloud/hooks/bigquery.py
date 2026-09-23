@@ -104,6 +104,7 @@ BIGQUERY_LEGACY_SQL_DEFAULT_WARNING = (
 if TYPE_CHECKING:
     BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
 else:
+    # Mocked google libs break the union, but the name must exist for runtime importers.
     BigQueryJob = Any
 
 _ROUTINE_WRITABLE_PROPERTIES: tuple[str, ...] = (
