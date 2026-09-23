@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
@@ -70,7 +70,7 @@ class TestAgentDecoratedOperator:
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
         mock_agent.run_sync.assert_called_once_with(
-            "Who is our top customer?", usage_limits=None, run_id="ti-1"
+            "Who is our top customer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY
         )
 
     @pytest.mark.parametrize(
@@ -105,7 +105,9 @@ class TestAgentDecoratedOperator:
         op.execute(context=_make_context())
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, run_id="ti-1")
+        mock_agent.run_sync.assert_called_once_with(
+            prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_sequence_prompt_with_hitl_review_raises_before_run_sync(self, mock_hook_cls):
@@ -149,7 +151,7 @@ class TestAgentDecoratedOperator:
 
         assert op.prompt == "Analyze revenue trends"
         mock_agent.run_sync.assert_called_once_with(
-            "Analyze revenue trends", usage_limits=None, run_id="ti-1"
+            "Analyze revenue trends", usage_limits=None, run_id="ti-1", cancellation_token=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

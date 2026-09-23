@@ -258,7 +258,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom"],
+        dependent_tables=["task_instance_history", "xcom", "task_reschedule"],
         dag_id_column_name="dag_id",
     ),
     _TableConfig(
