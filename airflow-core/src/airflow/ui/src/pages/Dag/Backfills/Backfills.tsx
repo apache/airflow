@@ -104,7 +104,7 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
 ];
 
 export const Backfills = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "components"]);
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination } = tableURLState;
