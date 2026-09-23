@@ -445,6 +445,7 @@ def test_sync_bundles_to_db_with_runtime_instances_keeps_declared_bundle_active(
         )
 
     get_bundle.assert_not_called()
+    session.flush()
     assert session.get(DagBundleModel, "declared").active is True
 
 
