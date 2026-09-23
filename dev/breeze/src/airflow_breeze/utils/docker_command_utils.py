@@ -714,7 +714,7 @@ def fix_ownership_using_docker(quiet: bool = True):
             "-e",
             f"VERBOSE={str(get_verbose()).lower()}",
             "-e",
-            f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+            f"DOCKER_IS_ROOTLESS={str(is_docker_rootless()).lower()}",
             "--rm",
             "-t",
             OWNERSHIP_CLEANUP_DOCKER_TAG,
