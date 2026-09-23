@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.registrarName
+
 /**
  * An immutable snapshot of all [DagDef]s that this JVM process can execute.
  *
@@ -26,22 +28,112 @@ package org.apache.airflow.sdk
  * [Server.serve] to start accepting task-execution requests.
  *
  * @property dags All registered Dags keyed by [DagDef.id].
- * @throws IllegalArgumentException if any two Dags share the same ID.
+ * @throws IllegalArgumentException if any two Dags share the same ID, if a
+ *    task depends on an upstream that is not registered in its own Dag, or if
+ *    the dependencies of a Dag contain a cycle.
  */
 class Bundle(
   dags: Iterable<DagDef>,
 ) {
-  internal val dags: Map<String, DagDef> = dags.associateByDagId()
-}
+  internal val dags = linkedMapOf<String, DagDef>()
 
-private fun Iterable<DagDef>.associateByDagId(): Map<String, DagDef> {
-  val dagMap = linkedMapOf<String, DagDef>()
-  for (dag in this) {
-    require(dagMap.putIfAbsent(dag.id, dag) == null) {
+  /** Creates an empty bundle to [register] into. */
+  constructor() : this(emptyList())
+
+  init {
+    dags.forEach { register(it) }
+  }
+
+  /**
+   * Registers a Dag.
+   *
+   * The Dag is checked as it is registered, so a bad edge fails here rather
+   * than at the first task run.
+   *
+   * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if another Dag shares its ID, a task
+   *    depends on an upstream not registered in the same Dag, or the
+   *    dependencies contain a cycle.
+   */
+  fun register(dag: DagDef): Bundle {
+    for ((taskId, def) in dag.tasks) {
+      for (upstream in def.upstreams) {
+        require(dag.tasks[upstream.id] === upstream) {
+          "Task '$taskId' in Dag '${dag.id}' depends on task '${upstream.id}' " +
+            "that is not registered in the same Dag"
+        }
+      }
+    }
+    checkNoCycle(dag)
+    require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
+    return this
   }
-  return dagMap
+
+  /**
+   * Registers every task handler a class holds, from the ids each
+   * [Builder.TaskHandler] names.
+   *
+   * @param handlerClass A class with [Builder.TaskHandler] methods.
+   * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if the class has no generated
+   *    registrar, because annotation processing did not run over it.
+   */
+  fun register(handlerClass: Class<*>): Bundle {
+    val name = registrarName(handlerClass.name)
+    val registrar =
+      try {
+        Class.forName(name, true, handlerClass.classLoader)
+      } catch (e: ClassNotFoundException) {
+        throw IllegalArgumentException(
+          "No generated registrar $name for ${handlerClass.name}; does it declare " +
+            "@Builder.TaskHandler methods, and is airflow-sdk-processor on the " +
+            "annotationProcessor path?",
+          e,
+        )
+      }
+    registrar.getMethod("registerInto", Bundle::class.java).invoke(null, this)
+    return this
+  }
+
+  /**
+   * Registers one task implementation against a Dag the Python file owns, for
+   * a task with no annotation to read the ids from.
+   *
+   * The Dag is created on first use and holds only the tasks registered
+   * here; its graph lives in the Python Dag file.
+   *
+   * @param dagId Dag ID as declared in the Python Dag file.
+   * @param taskId Task ID as declared by the `@task.stub` function.
+   * @param definition Class that implements [Task].
+   * @return This bundle, for chaining.
+   */
+  fun register(
+    dagId: String,
+    taskId: String,
+    definition: Class<out Task>,
+  ): Bundle {
+    dags.getOrPut(dagId) { DagDef(dagId) }.addTask(taskId, definition)
+    return this
+  }
+}
+
+// TaskDef.dependsOn can express a cycle, so reject one at registration time.
+private fun checkNoCycle(dag: DagDef) {
+  val visiting = mutableSetOf<String>()
+  val done = mutableSetOf<String>()
+
+  fun visit(def: TaskDef) {
+    if (def.id in done) return
+    require(visiting.add(def.id)) {
+      "Task dependencies in Dag '${dag.id}' contain a cycle involving task '${def.id}'"
+    }
+    def.upstreams.forEach(::visit)
+    visiting -= def.id
+    done += def.id
+  }
+  dag.tasks.values.forEach(::visit)
 }
 
 /**
