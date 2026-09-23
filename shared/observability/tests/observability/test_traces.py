@@ -17,6 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import textwrap
+from configparser import ConfigParser
+from unittest import mock
+
 import pytest
 from opentelemetry import context, trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -32,7 +39,9 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from airflow_shared.observability.traces import (
     DEFAULT_TASK_SPAN_DETAIL_LEVEL,
     TASK_SPAN_DETAIL_LEVEL_KEY,
+    _ForkSafeTracerProvider,
     build_trace_state_entries,
+    configure_otel,
     get_task_span_detail_level,
     new_dagrun_trace_carrier,
 )
@@ -360,3 +369,88 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+_FORK_SCENARIO = textwrap.dedent(
+    """
+    import os
+    import signal
+    import time
+
+    from opentelemetry.sdk import resources as otel_resources
+
+    from airflow_shared.observability.traces import _ForkSafeTracerProvider
+
+    _ForkSafeTracerProvider()  # registers the after_in_child handler under test
+
+    with otel_resources._service_instance_id_lock:
+        pid = os.fork()
+        if pid == 0:
+            os._exit(0)
+
+        deadline = time.monotonic() + 10
+        status = None
+        while time.monotonic() < deadline:
+            waited_pid, waited_status = os.waitpid(pid, os.WNOHANG)
+            if waited_pid == pid:
+                status = waited_status
+                break
+            time.sleep(0.05)
+
+        if status is None:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+            raise SystemExit("child never returned from os.fork()")
+    """
+)
+
+
+class TestForkSafeTracerProvider:
+    def test_handle_fork_refreshes_the_tracer_lock(self):
+        provider = _ForkSafeTracerProvider()
+        inherited_lock = provider._tracers_lock
+
+        provider._handle_fork()
+
+        assert provider._tracers_lock is not inherited_lock
+
+    @mock.patch("opentelemetry.sdk.trace._get_process_dependent_resource")
+    def test_handle_fork_does_not_detect_the_process_resource(self, mock_get_process_dependent_resource):
+        _ForkSafeTracerProvider()._handle_fork()
+
+        mock_get_process_dependent_resource.assert_not_called()
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork()")
+    def test_forked_child_boots_with_the_service_instance_lock_held(self):
+        """
+        A child forked while the parent holds the SDK's service-instance lock still boots.
+
+        That lock stands in for the parent thread that happened to hold it at fork time: the
+        child inherits it locked with no owner, and without the fork-safe provider its
+        ``after_in_child`` handler blocks on it instead of returning from ``os.fork()``.
+
+        The scenario runs in a fresh interpreter because every ``TracerProvider`` created
+        earlier in this session registers the SDK's own handler as well, and those leftovers
+        would wedge the child for reasons unrelated to the provider under test.
+        """
+        result = subprocess.run(
+            [sys.executable, "-c", _FORK_SCENARIO], capture_output=True, text=True, timeout=60, check=False
+        )
+
+        assert result.returncode == 0, result.stderr
+
+
+class TestConfigureOtel:
+    @mock.patch("airflow_shared.observability.traces._load_exporter_from_env")
+    @mock.patch("airflow_shared.observability.traces.BatchSpanProcessor")
+    @mock.patch("airflow_shared.observability.traces.trace.set_tracer_provider")
+    def test_installs_the_fork_safe_provider(
+        self, mock_set_tracer_provider, mock_batch_span_processor, mock_load_exporter
+    ):
+        conf = ConfigParser()
+        conf["traces"] = {"otel_on": "True"}
+
+        configure_otel(conf)
+
+        (provider,) = mock_set_tracer_provider.call_args.args
+        assert isinstance(provider, _ForkSafeTracerProvider)
