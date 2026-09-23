@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.SchemaFields
+import org.apache.airflow.sdk.internal.checkConfigValue
 import org.apache.airflow.sdk.internal.validateTaskInput
 import kotlin.Throws
 
@@ -32,8 +34,8 @@ import kotlin.Throws
  * class directly if you need to do low-level plumbing:
  *
  * ```java
- * var dag = new DagDef("java_etl");
- * var extract = dag.task("extract", Extract.class);
+ * var dag = new DagDef("java_etl").config("schedule", "@daily");
+ * var extract = dag.task("extract", Extract.class).config("retries", 2);
  * extract.before(dag.task("load", Load.class));
  * ```
  *
@@ -46,6 +48,31 @@ class DagDef(
   val id: String, // TODO: charset check?
 ) {
   internal val tasks = linkedMapOf<String, TaskDef>()
+  internal val dagConfig = linkedMapOf<String, Any>()
+
+  /**
+   * Sets one Dag-level configuration value.
+   *
+   * Keys are the Dag serialization schema property names (for example
+   * `"schedule"`, `"description"`, `"tags"`, `"catchup"`); unknown keys and
+   * mismatched value types are rejected on the call, so mistakes surface where
+   * the Dag is defined.
+   *
+   * @param key Dag serialization schema property name.
+   * @param value Value matching the key's schema type. Durations take
+   *    [java.time.Duration], date-times [java.time.OffsetDateTime] or
+   *    [java.time.Instant], string arrays any `Iterable` of `String`.
+   * @return This Dag, for chaining.
+   * @throws IllegalArgumentException if the key is unknown or the value type
+   *    does not match.
+   */
+  fun config(
+    key: String,
+    value: Any?,
+  ): DagDef {
+    dagConfig[key] = checkConfigValue("Dag", SchemaFields.DAG, key, value)
+    return this
+  }
 
   /**
    * Registers a task from its ID and implementation class.
@@ -68,7 +95,7 @@ class DagDef(
    * with [Deps.Flow.before].
    *
    * ```java
-   * var extract = dag.task("extract", Extract.class);
+   * var extract = dag.task("extract", Extract.class).config("retries", 2);
    * var load = dag.task("load", Load.class);
    * extract.before(load);
    * ```
@@ -116,14 +143,14 @@ class DagDef(
 }
 
 /**
- * One task definition: its ID, the class that implements it, and its upstream
- * dependencies.
+ * One task definition: its ID, the class that implements it, its upstream
+ * dependencies, and its task-level configuration.
  *
  * Edges are drawn on the handles that [DagDef.task] returns, not here:
  *
  * ```java
  * var dag = new DagDef("java_etl");
- * dag.addTask(new TaskDef("extract", Extract.class));
+ * dag.addTask(new TaskDef("extract", Extract.class).config("retries", 2));
  * ```
  *
  * @param id Task identifier, unique within a [DagDef].
@@ -143,8 +170,33 @@ class TaskDef(
     validateTaskInput(definition)
   }
 
+  internal val configValues = linkedMapOf<String, Any>()
   internal val upstreams = linkedSetOf<TaskDef>()
   internal var owner: DagDef? = null
+
+  /**
+   * Sets one task-level configuration value.
+   *
+   * Keys are the Dag serialization schema property names (for example
+   * `"retries"`, `"queue"`, `"retry_delay"`); unknown keys and mismatched
+   * value types are rejected on the call, so mistakes surface where the task is
+   * defined.
+   *
+   * @param key Dag serialization schema property name, e.g. `"retries"`.
+   * @param value Value matching the key's schema type. Durations take
+   *    [java.time.Duration], date-times [java.time.OffsetDateTime] or
+   *    [java.time.Instant].
+   * @return This task definition, for chaining.
+   * @throws IllegalArgumentException if the key is unknown or the value type
+   *    does not match.
+   */
+  fun config(
+    key: String,
+    value: Any?,
+  ): TaskDef {
+    configValues[key] = checkConfigValue("task", SchemaFields.TASK, key, value)
+    return this
+  }
 
   /** Records that this task runs after [upstreams], backing [Deps.Flow.before] and [Deps.Flow.after]. */
   internal fun dependsOn(vararg upstreams: TaskDef): TaskDef {

@@ -50,4 +50,22 @@ class TaskRef<T> internal constructor(
     super<Deps.Flow>.after(*previous)
     return this
   }
+
+  /**
+   * Sets one task-level configuration value, so a task built through
+   * [DagDef.task] is configured where it is created.
+   *
+   * @param key Dag serialization schema property name.
+   * @param value Value matching the key's schema type.
+   * @return This handle, for chaining.
+   * @throws IllegalArgumentException if the key is unknown or the value type
+   *    does not match.
+   */
+  fun config(
+    key: String,
+    value: Any?,
+  ): TaskRef<T> {
+    def.config(key, value)
+    return this
+  }
 }

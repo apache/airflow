@@ -1729,6 +1729,10 @@ class SelectiveChecks:
             # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that (intermittently failing) download.
             prek_hooks_to_skip.add("ktlint")
+            # Same wrapper, same cold-cache download. Re-vendoring dag-schema.json after an
+            # airflow-core schema change is the java-sdk follow-up PR's job, not the schema
+            # author's, so a schema-only change deliberately does not trigger it.
+            prek_hooks_to_skip.add("sync-java-sdk-dag-schema")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
             # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
