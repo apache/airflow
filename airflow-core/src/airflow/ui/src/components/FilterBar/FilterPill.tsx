@@ -103,10 +103,10 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
     <Box
       _hover={{ bg: "colorPalette.subtle" }}
       as="button"
-      bg={hasValue ? "blue.muted" : "gray.muted"}
+      bg={hasValue ? "brand.emphasized" : "gray.muted"}
       borderRadius="full"
       color="colorPalette.fg"
-      colorPalette={hasValue ? "blue" : "gray"}
+      colorPalette={hasValue ? "brand" : "gray"}
       cursor="pointer"
       display="flex"
       fontSize="sm"
