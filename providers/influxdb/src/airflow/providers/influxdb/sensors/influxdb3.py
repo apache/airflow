@@ -42,7 +42,7 @@ class InfluxDB3Sensor(BaseSensorOperator):
         ``operators.default_deferrable`` configuration (``False`` if unset).
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", "influxdb3_conn_id")
     template_ext: Sequence[str] = (".sql",)
 
     def __init__(

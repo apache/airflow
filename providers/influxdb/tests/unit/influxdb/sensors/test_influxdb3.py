@@ -39,7 +39,7 @@ class TestInfluxDB3Sensor:
         assert sensor.influxdb3_conn_id == "influxdb3_default"
         assert sensor.fail_on_empty is False
         assert sensor.deferrable is False
-        assert sensor.template_fields == ("sql",)
+        assert sensor.template_fields == ("sql", "influxdb3_conn_id")
         assert sensor.template_ext == (".sql",)
 
     @pytest.mark.parametrize(
