@@ -878,8 +878,10 @@ class SFTPHookAsync(BaseHook):
         extra_options = conn.extra_dejson
         if "key_file" in extra_options and self.key_file == "":
             self.key_file = extra_options["key_file"]
-        if "known_hosts" in extra_options and self.known_hosts != self.default_known_hosts:
-            self.known_hosts = extra_options["known_hosts"]
+        if "known_hosts" in extra_options:
+            expanded_default = os.path.expanduser(self.default_known_hosts)
+            if self.known_hosts == expanded_default:
+                self.known_hosts = extra_options["known_hosts"]
         if "passphrase" in extra_options or "private_key_passphrase" in extra_options:
             self.passphrase = extra_options.get("passphrase") or extra_options.get(
                 "private_key_passphrase", ""
