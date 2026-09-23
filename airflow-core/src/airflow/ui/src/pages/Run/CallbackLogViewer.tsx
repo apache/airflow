@@ -27,6 +27,7 @@ import { useDeadlinesServiceGetCallbackLogs } from "openapi/queries";
 import { Modal } from "src/system-components";
 
 import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
+
 import { parseLogs } from "src/queries/useLogs";
 import { parseStreamingLogContent } from "src/utils/logs";
 
