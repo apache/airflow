@@ -57,7 +57,7 @@ class SqlSensor(BaseSensorOperator):
             Should match the desired hook constructor params.
     """
 
-    template_fields: Sequence[str] = ("sql", "hook_params", "parameters")
+    template_fields: Sequence[str] = ("sql", "hook_params", "parameters", "conn_id")
     template_ext: Sequence[str] = (".hql", ".sql")
     ui_color = "#7c7287"
 

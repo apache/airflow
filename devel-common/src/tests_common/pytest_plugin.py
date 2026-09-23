@@ -2148,6 +2148,26 @@ def reset_team_name_cache():
 
 
 @pytest.fixture(autouse=True)
+def clear_current_task_instance_session():
+    """Reset the process global taskinstance session between tests.
+
+    Reaching it outside a task run leaves it set, and every later ``ti.run()`` in the process
+    then raises "Session already set for this task". No-op on Airflow 3.
+    """
+    try:
+        import airflow.utils.task_instance_session as task_instance_session
+    except ModuleNotFoundError:
+        yield
+        return
+
+    task_instance_session.__current_task_instance_session = None
+    try:
+        yield
+    finally:
+        task_instance_session.__current_task_instance_session = None
+
+
+@pytest.fixture(autouse=True)
 def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
     filepath = request.node.path
     is_system_test: bool = "tests/system/" in os.fspath(filepath)

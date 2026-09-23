@@ -41,12 +41,13 @@ except ImportError:
         InfluxDBClient3 = None  # type: ignore[assignment, misc]
         Point = None  # type: ignore[assignment, misc]
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
 
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class InfluxDB3Hook(BaseHook):
@@ -148,7 +149,14 @@ class InfluxDB3Hook(BaseHook):
         - Connection password field (as fallback for token)
         - Connection extras JSON (for manual configuration)
         """
-        self.connection = self.get_connection(self.influxdb3_conn_id)
+        return self._create_client(self.get_connection(self.influxdb3_conn_id))
+
+    async def aget_conn(self) -> InfluxDBClient3:
+        """Initiate a new InfluxDB 3.x connection asynchronously."""
+        return self._create_client(await get_async_connection(self.influxdb3_conn_id, hook=self))
+
+    def _create_client(self, connection: Connection) -> InfluxDBClient3:
+        self.connection = connection
         self.extras = self.connection.extra_dejson.copy()
 
         self.uri = self.get_uri(self.connection)
@@ -196,6 +204,28 @@ class InfluxDB3Hook(BaseHook):
 
         client = self.get_conn()
         result = client.query(query=query, language="sql", mode="pandas")
+
+        if not isinstance(result, pd.DataFrame):
+            raise ValueError(
+                f"Query did not return a DataFrame. "
+                f"Result type: {type(result).__module__}.{type(result).__name__}"
+            )
+
+        return result
+
+    async def query_async(self, query: str) -> pd.DataFrame:
+        """
+        Run a SQL query from the triggerer and return results as a pandas DataFrame.
+
+        :param query: SQL query string
+        :return: pandas DataFrame with query results
+        """
+        client = await self.aget_conn()
+        import pandas as pd
+
+        # InfluxDB 3 does not expose a submit-then-poll query API, so this coroutine
+        # resolves only after the full result stream has been read.
+        result = await client.query_async(query=query, language="sql", mode="pandas")
 
         if not isinstance(result, pd.DataFrame):
             raise ValueError(

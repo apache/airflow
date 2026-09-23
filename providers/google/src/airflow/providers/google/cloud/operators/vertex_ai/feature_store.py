@@ -75,6 +75,7 @@ class SyncFeatureViewOperator(GoogleCloudBaseOperator):
         "location",
         "feature_online_store_id",
         "feature_view_id",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -145,6 +146,7 @@ class CreateFeatureOnlineStoreOperator(GoogleCloudBaseOperator, OperationHelper)
         "project_id",
         "location",
         "feature_online_store_id",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -224,6 +226,7 @@ class GetFeatureOnlineStoreOperator(GoogleCloudBaseOperator, OperationHelper):
         "project_id",
         "location",
         "feature_online_store_id",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -310,6 +313,7 @@ class CreateFeatureViewOperator(GoogleCloudBaseOperator, OperationHelper):
         "project_id",
         "location",
         "feature_online_store_id",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -394,6 +398,7 @@ class GetFeatureViewSyncOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "location",
         "feature_view_sync_name",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -460,6 +465,7 @@ class FetchFeatureValuesOperator(GoogleCloudBaseOperator, OperationHelper):
         "feature_online_store_id",
         "feature_view_id",
         "entity_id",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -567,6 +573,7 @@ class DeleteFeatureOnlineStoreOperator(GoogleCloudBaseOperator, OperationHelper)
         "project_id",
         "location",
         "feature_online_store_id",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -645,6 +652,7 @@ class DeleteFeatureViewOperator(GoogleCloudBaseOperator, OperationHelper):
         "project_id",
         "location",
         "feature_online_store_id",
+        "gcp_conn_id",
     )
 
     def __init__(

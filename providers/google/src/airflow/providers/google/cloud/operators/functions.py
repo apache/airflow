@@ -443,6 +443,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         "location",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (CloudFunctionsDetailsLink(),)
 

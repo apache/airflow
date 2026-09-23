@@ -46,7 +46,7 @@ class OSSKeySensor(BaseSensorOperator):
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
 
-    template_fields: Sequence[str] = ("bucket_key", "bucket_name")
+    template_fields: Sequence[str] = ("bucket_key", "bucket_name", "oss_conn_id")
 
     def __init__(
         self,

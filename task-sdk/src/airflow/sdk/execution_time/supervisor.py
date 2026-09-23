@@ -495,11 +495,13 @@ ObjC runtime state; if the child then triggers ObjC class initialization
 (e.g. via ``socket.getaddrinfo`` -> system DNS resolver -> proxy lookup), the
 runtime detects the corrupted state and crashes with SIGABRT.
 
-Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
-space, giving it clean ObjC state.  Before exec, the supervisor ``dup2``s the
-socketpairs onto fixed FDs the exec'd child reconstructs: 0 (requests/stdin),
-1 (stdout), 2 (stderr), 3 (structured logs).  ``os.set_inheritable`` clears
-``FD_CLOEXEC`` on those FDs so they survive the upcoming exec.
+Starting a fresh interpreter via ``os.posix_spawn`` gives it clean ObjC state --
+and, unlike ``fork()`` followed by ``execv()``, never runs
+``os.register_at_fork()``/``pthread_atfork()`` handlers at all.  The socketpairs
+are remapped onto fixed FDs the spawned child reconstructs, via ``posix_spawn``'s
+own ``file_actions`` (``POSIX_SPAWN_DUP2``): 0 (requests/stdin), 1 (stdout),
+2 (stderr), 3 (structured logs) -- no separate ``set_inheritable`` call is
+needed, since the remapping runs as part of the spawn itself.
 
 Task execution (``ActivitySubprocess``), the DAG processor
 (``DagFileProcessorProcess``) and the triggerer (``TriggerRunnerSupervisor``)
@@ -517,6 +519,22 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
+def _task_process_uses_exec() -> bool:
+    """
+    Whether the task process should ``exec`` a fresh interpreter after the fork.
+
+    Forced where bare fork is unsafe (macOS); elsewhere a deployment opts in with
+    ``[core] execute_tasks_new_python_interpreter``. exec replaces the child's address
+    space, so it cannot inherit a lock a supervisor thread held at fork time (e.g.
+    OpenSSL's, which otherwise hangs the task at its first TLS call; #71707). Only the
+    task process reads the option -- it has always described task execution -- so the Dag
+    processor (one child per file per parse loop) and the triggerer keep the platform gate.
+    """
+    return _should_use_exec() or conf.getboolean(
+        "core", "execute_tasks_new_python_interpreter", fallback=False
+    )
+
+
 def _resolve_child_target(dotted: str) -> Callable[[], None]:
     """
     Resolve a ``module:qualname`` string to the callable the exec'd child runs.
@@ -531,16 +549,40 @@ def _resolve_child_target(dotted: str) -> Callable[[], None]:
     return pkgutil.resolve_name(dotted)
 
 
+# Runs in the exec'd child before anything else. execve reset PR_SET_DUMPABLE (4 in
+# <linux/prctl.h>); restore it before the Airflow import so the window in which a same-UID
+# sibling can open /proc/<pid>/mem or ptrace-attach is interpreter start only (a descriptor
+# or attach taken in that window survives a later prctl -- the kernel checks once, at open).
+# _child_exec_main() repeats the call as the logged fallback.
+_CHILD_EXEC_PRELUDE = """\
+import sys
+if sys.platform == "linux":
+    try:
+        import ctypes
+
+        ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0)
+    except Exception:
+        pass
+"""
+_CHILD_EXEC_BOOTSTRAP = _CHILD_EXEC_PRELUDE + (
+    "from airflow.sdk.execution_time.supervisor import _child_exec_main\n_child_exec_main()\n"
+)
+
+
 def _child_exec_main():
     """
-    Entry point for the child process when using fork+exec (macOS).
+    Entry point for the child process when using ``os.posix_spawn``.
 
-    After exec, FDs 0/1/2/3 are the requests/stdout/stderr/log sockets the parent
-    placed there via dup2.  The target to run is named in ``_AIRFLOW_CHILD_TARGET``
-    (``module:qualname``); it is rehydrated and handed to :func:`_fork_main`, which
-    sets up the structured log channel from FD 3 exactly as the bare-fork path does.
+    FDs 0/1/2/3 are the requests/stdout/stderr/log sockets ``posix_spawn``'s own
+    ``file_actions`` (``POSIX_SPAWN_DUP2``) remapped there as part of the spawn.
+    The target to run is named in ``_AIRFLOW_CHILD_TARGET`` (``module:qualname``);
+    it is rehydrated and handed to :func:`_fork_main`, which sets up the structured
+    log channel from FD 3 exactly as the bare-fork path does.
     """
-    # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
+    # The bootstrap already restored PR_SET_DUMPABLE before importing Airflow; this is the
+    # logged fallback (posix_spawn's own exec had reset what supervise_task() set beforehand).
+    _make_process_nondumpable()
+    # FDs 0, 1, 2 were remapped onto the socketpairs by posix_spawn's file_actions.
     child_requests = socket(fileno=0)
     child_stdout = socket(fileno=1)
     child_stderr = socket(fileno=2)
@@ -690,10 +732,13 @@ class WatchedSubprocess:
         """
         Fork and start a new subprocess with the specified target function.
 
-        :param use_exec: If True, on platforms that need it (currently macOS),
-            immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
-            This avoids macOS fork-safety issues with Objective-C frameworks.
-            ``target`` is rehydrated in the exec'd child from its ``module:qualname``,
+        :param use_exec: If True, start a fresh Python interpreter via ``os.posix_spawn``
+            instead of a bare ``os.fork``: forced on platforms that need it (macOS, whose
+            Objective-C frameworks are not fork-safe) and opted into for the task process
+            elsewhere via ``[core] execute_tasks_new_python_interpreter``. Unlike
+            ``fork()`` followed by ``execv()``, ``posix_spawn`` never runs
+            ``os.register_at_fork()``/``pthread_atfork()`` handlers at all.
+            ``target`` is rehydrated in the spawned child from its ``module:qualname``,
             so any importable entry point (task execution, DAG processor, triggerer)
             is supported.
         :param new_process_group: If True, place the child in its own process
@@ -705,7 +750,7 @@ class WatchedSubprocess:
         """
         if use_exec and "<" in getattr(target, "__qualname__", "<"):
             # Closures/lambdas (``<locals>`` / ``<lambda>`` in the qualname) and
-            # objects without a qualname can't be named for the exec'd child.
+            # objects without a qualname can't be named for the spawned child.
             raise ValueError(f"use_exec=True requires a top-level importable target, got {target!r}")
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdout, read_stdout = socketpair()
@@ -714,85 +759,81 @@ class WatchedSubprocess:
         # Place for child to send requests/read responses, and the server side to read/respond
         child_requests, read_requests = socketpair()
 
-        # Open the socketpair before forking off the child, so that it is open when we fork.
+        # Open the socketpair before starting the child, so that it is open when we do.
         child_logs, read_logs = socketpair()
 
-        pid = os.fork()
-        if pid == 0:
+        if use_exec:
+            # file_actions run as part of the spawn itself -- no forked child to run
+            # imperative dup2 code in. All four source FDs here are guaranteed >= 3
+            # (0/1/2 are already open in every launch path), so no dup2 target below
+            # clobbers a source that hasn't been placed onto its own target FD yet.
+            file_actions = [
+                (os.POSIX_SPAWN_DUP2, child_requests.fileno(), 0),
+                (os.POSIX_SPAWN_DUP2, child_stdout.fileno(), 1),
+                (os.POSIX_SPAWN_DUP2, child_stderr.fileno(), 2),
+                (os.POSIX_SPAWN_DUP2, child_logs.fileno(), 3),
+            ]
+            spawn_kwargs: dict[str, Any] = {"file_actions": file_actions}
             if new_process_group:
-                # Put the task-runner into its own process group so its PGID
-                # equals its own PID. The supervisor can then deliver signals
-                # to the whole tree via os.killpg(), reaching every subprocess
-                # the task-runner spawned (e.g. venv children from
-                # PythonVirtualenvOperator). Without this, a SIGTERM from
-                # kill() only hits the task-runner and any Popen children are
-                # reparented to PID 1 and leak as orphans. Also set from the
-                # parent below so the group exists no matter which side of the
-                # fork runs first. See issue #65505.
-                with suppress(OSError):
-                    os.setpgid(0, 0)
+                # Atomic with the spawn -- no parent-side mirror needed, unlike the
+                # bare-fork path below.
+                spawn_kwargs["setpgroup"] = 0
+            child_env = dict(os.environ, _AIRFLOW_CHILD_TARGET=f"{target.__module__}:{target.__qualname__}")
+            pid = os.posix_spawn(
+                sys.executable,
+                [sys.executable, "-c", _CHILD_EXEC_BOOTSTRAP],
+                child_env,
+                **spawn_kwargs,
+            )
+        else:
+            pid = os.fork()
+            if pid == 0:
+                if new_process_group:
+                    # Put the task-runner into its own process group so its PGID
+                    # equals its own PID. The supervisor can then deliver signals
+                    # to the whole tree via os.killpg(), reaching every subprocess
+                    # the task-runner spawned (e.g. venv children from
+                    # PythonVirtualenvOperator). Without this, a SIGTERM from
+                    # kill() only hits the task-runner and any Popen children are
+                    # reparented to PID 1 and leak as orphans. Also set from the
+                    # parent below so the group exists no matter which side of the
+                    # fork runs first. See issue #65505.
+                    with suppress(OSError):
+                        os.setpgid(0, 0)
 
-            # Close and delete of the parent end of the sockets.
-            cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
+                # Close and delete of the parent end of the sockets.
+                cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
 
-            # Python GC should delete these for us, but lets make double sure that we don't keep anything
-            # around in the forked processes, especially things that might involve open files or sockets!
-            del constructor_kwargs
-            del logger
+                # Python GC should delete these for us, but lets make double sure that we don't keep anything
+                # around in the forked processes, especially things that might involve open files or sockets!
+                del constructor_kwargs
+                del logger
 
-            try:
-                if use_exec:
-                    # macOS: exec a fresh Python interpreter to drop the inherited
-                    # ObjC/CoreFoundation state that is not fork-safe. Redirect the
-                    # socketpairs onto the fixed FDs the exec'd child reconstructs:
-                    # 0 (requests/stdin), 1 (stdout), 2 (stderr), 3 (structured logs).
-                    # The source fds are always >= 3 (0/1/2 stay open in every launch
-                    # path), so no dup2 clobbers a not-yet-placed source. set_inheritable
-                    # guarantees FD_CLOEXEC is clear on all four (dup2 leaves it set when
-                    # a source already equals its target), so they survive execv. The
-                    # entry point is passed to the child by name.
-                    os.environ["_AIRFLOW_CHILD_TARGET"] = f"{target.__module__}:{target.__qualname__}"
-                    os.dup2(child_requests.fileno(), 0)
-                    os.dup2(child_stdout.fileno(), 1)
-                    os.dup2(child_stderr.fileno(), 2)
-                    os.dup2(child_logs.fileno(), 3)
-                    for fd in (0, 1, 2, 3):
-                        os.set_inheritable(fd, True)
-                    os.execv(
-                        sys.executable,
-                        [
-                            sys.executable,
-                            "-c",
-                            "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
-                            " _child_exec_main()",
-                        ],
-                    )
-                    # execv replaces the process -- unreachable on success
-                else:
+                try:
                     # Run the child entrypoint
                     _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
-            except BaseException as e:
-                import traceback
+                except BaseException as e:
+                    import traceback
 
-                with suppress(BaseException):
-                    # We can't use log here, as if we except out of the child something _weird_ went on.
-                    print("Exception in child process, exiting with code 124", file=sys.stderr)
-                    traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
+                    with suppress(BaseException):
+                        # We can't use log here, as if we except out of the child something _weird_ went on.
+                        print("Exception in child process, exiting with code 124", file=sys.stderr)
+                        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
-            # It's really super super important we never exit this block. We are in the forked child, and if we
-            # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
-            os._exit(124)
+                # It's really super super important we never exit this block. We are in the forked child, and if we
+                # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
+                os._exit(124)
 
-        if new_process_group:
-            # Mirror of the child-side setpgid, so the group is guaranteed to
-            # exist once start() returns. Without this, kill() invoked before
-            # the child is first scheduled (e.g. task_instances.start()
-            # failing synchronously in _on_child_started) would resolve the
-            # child's PGID to the supervisor's own group and killpg it.
-            with suppress(OSError):
-                os.setpgid(pid, pid)
+            if new_process_group:
+                # Mirror of the child-side setpgid, so the group is guaranteed to
+                # exist once start() returns. Without this, kill() invoked before
+                # the child is first scheduled (e.g. task_instances.start()
+                # failing synchronously in _on_child_started) would resolve the
+                # child's PGID to the supervisor's own group and killpg it.
+                with suppress(OSError):
+                    os.setpgid(pid, pid)
 
-        # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
+        # Close the remaining parent-end of the sockets we've passed to the child. We still have the
         # other end of the pair open
         cls._close_unused_sockets(child_stdout, child_stderr, child_logs)
 
@@ -1452,10 +1493,10 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        # Opt in to fork+exec on platforms that need it (currently macOS).
+        # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _should_use_exec()
+        use_exec = target is _subprocess_main and _task_process_uses_exec()
         proc: Self = super().start(
             id=what.id,
             client=client,

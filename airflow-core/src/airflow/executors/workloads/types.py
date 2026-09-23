@@ -26,11 +26,11 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import CallbackState, TaskInstanceState
 
-if TYPE_CHECKING:
-    # Type aliases for workload keys and states (used by executor layer)
-    WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey | ConnectionTestKey
-    WorkloadState: TypeAlias = TaskInstanceState | CallbackState | ConnectionTestState
+# Type aliases for workload keys and states (used by executor layer)
+WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey | ConnectionTestKey
+WorkloadState: TypeAlias = TaskInstanceState | CallbackState | ConnectionTestState
 
+if TYPE_CHECKING:
     # Type alias for executor workload results (used by executor implementations)
     WorkloadResultType: TypeAlias = tuple[WorkloadKey, WorkloadState, Exception | None]
 
