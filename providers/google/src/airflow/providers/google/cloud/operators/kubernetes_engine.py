@@ -760,12 +760,12 @@ class GKEPodExecOperator(GKEOperatorMixin, KubernetesPodExecOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        config_file = kwargs.pop("config_file", None)
-        if config_file is not None:
-            raise ValueError(
-                "`config_file` is not allowed for GKEPodExecOperator because authentication is managed "
-                "through `gcp_conn_id`."
-            )
+        for parameter in ("config_file", "kubernetes_conn_id", "in_cluster", "cluster_context"):
+            if parameter in kwargs:
+                raise ValueError(
+                    f"`{parameter}` is not allowed for GKEPodExecOperator because authentication is managed "
+                    "through `gcp_conn_id`."
+                )
         if gcp_conn_id is None:
             raise ValueError(
                 "`gcp_conn_id` must not be None. To use Application Default Credentials, configure an "
