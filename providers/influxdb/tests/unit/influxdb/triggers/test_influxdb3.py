@@ -83,22 +83,22 @@ class TestInfluxDB3QueryTrigger:
 
 class TestInfluxDB3SensorTrigger:
     def test_serialization(self):
+        """Trigger serializes its constructor arguments."""
         trigger = InfluxDB3SensorTrigger(
             sql=SQL,
             influxdb3_conn_id=CONN_ID,
             poll_interval=30,
             fail_on_empty=True,
         )
+        classpath, kwargs = trigger.serialize()
 
-        assert trigger.serialize() == (
-            "airflow.providers.influxdb.triggers.influxdb3.InfluxDB3SensorTrigger",
-            {
-                "sql": SQL,
-                "influxdb3_conn_id": CONN_ID,
-                "poll_interval": 30,
-                "fail_on_empty": True,
-            },
-        )
+        assert classpath == "airflow.providers.influxdb.triggers.influxdb3.InfluxDB3SensorTrigger"
+        assert kwargs == {
+            "sql": SQL,
+            "influxdb3_conn_id": CONN_ID,
+            "poll_interval": 30,
+            "fail_on_empty": True,
+        }
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.influxdb.triggers.influxdb3.asyncio.sleep", new_callable=mock.AsyncMock)
