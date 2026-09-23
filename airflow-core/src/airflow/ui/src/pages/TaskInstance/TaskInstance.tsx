@@ -22,12 +22,13 @@ import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineStorage, MdOutlineTask, MdReorder } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
@@ -41,6 +42,12 @@ import { Header } from "./Header";
 export const TaskInstance = () => {
   const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const tryNumber = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const trySearch =
+    tryNumber === null
+      ? undefined
+      : new URLSearchParams({ [SearchParamsKeys.TRY_NUMBER]: tryNumber }).toString();
 
   useDocumentTitle(taskId);
 
@@ -129,7 +136,11 @@ export const TaskInstance = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
+      <DetailsLayout
+        error={error}
+        isLoading={isLoading}
+        tabs={displayTabs.map((tab) => ({ ...tab, search: trySearch }))}
+      >
         {taskInstance === undefined ? (
           <Heading p={2} size="lg">
             {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}

@@ -18,14 +18,16 @@
  */
 import { useState } from "react";
 
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Button, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 
-import { Modal } from "src/system-components";
+import { Alert, Modal } from "src/system-components";
+
+import { TaskTrySelect } from "src/components/TaskTrySelect";
 
 import {
   LOG_SHOW_LOG_LEVEL_KEY,
@@ -71,8 +73,7 @@ export const Logs = () => {
     },
   );
 
-  const defaultTryNumber =
-    taskInstance?.state === "up_for_retry" ? taskInstance.try_number - 1 : taskInstance?.try_number;
+  const defaultTryNumber = taskInstance?.try_number;
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === defaultTryNumber) {
@@ -84,6 +85,11 @@ export const Logs = () => {
   };
 
   const tryNumber = tryNumberParam === null ? defaultTryNumber : parseInt(tryNumberParam, 10);
+
+  const isPendingTry =
+    taskInstance !== undefined &&
+    tryNumber === taskInstance.try_number &&
+    (taskInstance.state === null || taskInstance.state === "up_for_retry");
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
@@ -99,16 +105,19 @@ export const Logs = () => {
     fetchedData,
     isLoading: isLoadingLogs,
     parsedData,
-  } = useLogs({
-    dagId,
-    logLevelFilters,
-    showLogLevel,
-    showSource,
-    showTimestamp,
-    sourceFilters,
-    taskInstance,
-    tryNumber,
-  });
+  } = useLogs(
+    {
+      dagId,
+      logLevelFilters,
+      showLogLevel,
+      showSource,
+      showTimestamp,
+      sourceFilters,
+      taskInstance,
+      tryNumber,
+    },
+    { enabled: Boolean(taskInstance) && !isPendingTry },
+  );
 
   const downloadTextLines = getDownloadText({
     fetchedData,
@@ -179,30 +188,37 @@ export const Logs = () => {
   useShortcut({
     ...SHORTCUTS.logs.toggleWrap,
     callback: toggleWrap,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleFullscreen,
     callback: toggleFullscreen,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleExpand,
     callback: toggleExpanded,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleTimestamp,
     callback: toggleTimestamp,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleLogLevel,
     callback: toggleLogLevel,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleSource,
     callback: toggleSource,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.downloadLogs,
     callback: downloadLogs,
+    options: { enabled: !isPendingTry },
   });
 
   const onOpenChange = () => {
@@ -251,6 +267,37 @@ export const Logs = () => {
     searchQuery: searchQuery || undefined,
     wrap,
   };
+
+  if (isPendingTry) {
+    const isRetry = taskInstance.state === "up_for_retry";
+
+    return (
+      <Box p={2}>
+        {taskInstance.try_number > 1 ? (
+          <TaskTrySelect
+            onSelectTryNumber={onSelectTryNumber}
+            selectedTryNumber={tryNumber}
+            taskInstance={taskInstance}
+          />
+        ) : undefined}
+        <Alert
+          status="info"
+          title={translate(isRetry ? "logs.waitingToRetry" : "logs.tryNotStarted", { tryNumber })}
+        >
+          {isRetry ? translate("logs.tryNotStarted") : undefined}
+          {taskInstance.try_number > 1 ? (
+            <Box mt={3}>
+              <Button onClick={() => onSelectTryNumber(taskInstance.try_number - 1)} variant="outline">
+                {translate(isRetry ? "logs.viewFailedTry" : "logs.viewPreviousTry", {
+                  tryNumber: taskInstance.try_number - 1,
+                })}
+              </Button>
+            </Box>
+          ) : undefined}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
