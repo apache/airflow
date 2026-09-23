@@ -382,6 +382,17 @@ class TestIsDurableCapable:
 
         assert is_durable_capable(CommentedNonDelegatingSubclass, FakeResumableJobMixin) is False
 
+    def test_comment_mentioning_execute_resumable_is_not_mistaken_for_a_call(self):
+        """The mixin walk strips comments the same way the delegation walk does, or a
+        subclass that only names `execute_resumable` in a comment reports capable."""
+
+        class CommentedNonResumableOperator(FullyImplementedResumableOperator):
+            def execute(self, context):
+                # this path deliberately skips execute_resumable(context)
+                return None
+
+        assert is_durable_capable(CommentedNonResumableOperator, FakeResumableJobMixin) is False
+
     def test_non_class_execute_call_does_not_shadow_real_delegation(self):
         """A local name that is not a class in the MRO (e.g. a DB cursor) is skipped rather
         than dead-ending the walk before the real delegation below it."""
@@ -618,6 +629,70 @@ def _wrap_in_foreign_module(func):
     return foreign.__dict__["wrapper"]
 
 
+class GrandparentCallingOverridableHelper:
+    """Its execute() dispatches to a helper a subclass is free to replace."""
+
+    def execute(self, context):
+        return self.run_job(context)
+
+    def run_job(self, context):
+        return None
+
+
+class MiddleDelegatingToSuperExecute(GrandparentCallingOverridableHelper):
+    def execute(self, context):
+        return super().execute(context)
+
+
+class SubclassOverridingHelperToDefer(MiddleDelegatingToSuperExecute):
+    """Only the subclass's copy of `run_job` defers, and the call to it lives two hops up
+    the chain. Resolving `self.<name>()` against the class the hop landed on instead of the
+    class being asked about finds the grandparent's inert copy and reports not deferrable.
+    """
+
+    def run_job(self, context):
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class SharedHelperReachedAtTwoBudgets:
+    """`check_state` is reached twice: once down the long leg with too little depth budget
+    left to walk out to the defer, and once straight from execute() with budget to spare.
+    A `visited` key without the remaining depth in it skips the second visit and reports
+    not deferrable.
+    """
+
+    def execute(self, context):
+        self.first_leg(context)
+        return self.check_state(context)
+
+    def first_leg(self, context):
+        return self.second_leg(context)
+
+    def second_leg(self, context):
+        return self.third_leg(context)
+
+    def third_leg(self, context):
+        return self.check_state(context)
+
+    def check_state(self, context):
+        return self.poll(context)
+
+    def poll(self, context):
+        return self.wait_for_job(context)
+
+    def wait_for_job(self, context):
+        return self.submit(context)
+
+    def submit(self, context):
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
 class DeferralCommentOnlyOperator:
     """A comment naming self.defer() is not a deferral, the same way it is not delegation."""
 
@@ -705,6 +780,12 @@ class TestSupportsDeferrable:
 
     def test_comment_mentioning_defer_is_not_mistaken_for_deferral(self):
         assert supports_deferrable(DeferralCommentOnlyOperator) is False
+
+    def test_helper_is_resolved_against_the_class_under_test_not_the_hop_target(self):
+        assert supports_deferrable(SubclassOverridingHelperToDefer) is True
+
+    def test_helper_reached_again_with_more_depth_budget_is_rewalked(self):
+        assert supports_deferrable(SharedHelperReachedAtTwoBudgets) is True
 
 
 # ---------------------------------------------------------------------------
