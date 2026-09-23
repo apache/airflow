@@ -94,6 +94,7 @@ waits for the result, use that vendor's provider.
     Installation <installation>
     Quick start <quickstart>
     Core concepts <concepts>
+    Develop and test locally <local_development>
 
 .. toctree::
     :titlesonly:
