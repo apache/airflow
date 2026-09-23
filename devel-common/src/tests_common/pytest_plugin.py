@@ -198,7 +198,10 @@ if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSO
     subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 else:
     calculated_provider_deps_hash = _calculate_provider_deps_hash()
-    if calculated_provider_deps_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text(encoding="utf-8").strip():
+    if (
+        calculated_provider_deps_hash.strip()
+        != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text(encoding="utf-8").strip()
+    ):
         subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
         PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash, encoding="utf-8")
 # End of copied code from breeze
