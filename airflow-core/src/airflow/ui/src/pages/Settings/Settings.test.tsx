@@ -23,6 +23,7 @@ import { initReactI18next } from "react-i18next";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_LANDING_PAGE_KEY,
@@ -44,6 +45,7 @@ beforeAll(async () => {
         common: {
           settings: {
             clearing: {
+              keepTaskState: { helper: "helper", label: "Keep task state on clear" },
               preventRunningTask: { helper: "helper", label: "Prevent clearing running tasks" },
               runSelection: { helper: "helper", label: "Default run clear selection" },
               taskSelection: { helper: "helper", label: "Default task clear selection" },
@@ -126,6 +128,7 @@ describe("Settings page", () => {
       "default-graph-direction",
       "default-task-instance-tab",
       "clear-prevent-running-task",
+      "clear-keep-task-state",
     ]) {
       expect(screen.getByTestId(testId)).toBeInTheDocument();
     }
@@ -137,11 +140,15 @@ describe("Settings page", () => {
 
     // The prevent-running switch defaults to on.
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "checked");
+
+    // The keep-task-state switch defaults to off, matching discard-by-default.
+    expect(screen.getByTestId("clear-keep-task-state")).toHaveAttribute("data-state", "unchecked");
   });
 
   it("reflects stored values in the controls", () => {
     localStorage.setItem(DEFAULT_GRAPH_DIRECTION_KEY, JSON.stringify("DOWN"));
     localStorage.setItem(CLEAR_PREVENT_RUNNING_TASK_KEY, JSON.stringify(false));
+    localStorage.setItem(CLEAR_KEEP_TASK_STATE_KEY, JSON.stringify(true));
 
     localStorage.setItem(DEFAULT_TASK_INSTANCE_TAB_KEY, JSON.stringify("details"));
     localStorage.setItem(DEFAULT_LANDING_PAGE_KEY, JSON.stringify("dashboard"));
@@ -152,5 +159,6 @@ describe("Settings page", () => {
     expect(screen.getByTestId("default-graph-direction")).toHaveTextContent("DOWN-LABEL");
     expect(screen.getByTestId("default-task-instance-tab")).toHaveTextContent("DETAILS-TAB");
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "unchecked");
+    expect(screen.getByTestId("clear-keep-task-state")).toHaveAttribute("data-state", "checked");
   });
 });

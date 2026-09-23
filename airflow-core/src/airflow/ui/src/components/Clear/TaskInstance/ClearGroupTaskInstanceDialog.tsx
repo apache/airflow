@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
@@ -35,7 +35,7 @@ import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 
-import { useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
+import { useClearKeepTaskStateDefault, useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -53,13 +53,8 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const { dagId = "", runId = "" } = useParams();
   const groupId = taskInstance.task_id;
 
-  const { isPending, mutate } = useClearTaskInstances({
-    dagId,
-    dagRunId: runId,
-    onSuccessConfirm: onClose,
-  });
-
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
@@ -67,7 +62,27 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [note, setNote] = useState<string | null>(null);
+
+  const onCloseDialog = () => {
+    setNote(null);
+    setKeepTaskState(keepTaskStateDefault);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (open) {
+      setNote(null);
+      setKeepTaskState(keepTaskStateDefault);
+    }
+  }, [open, keepTaskStateDefault]);
+
+  const { isPending, mutate } = useClearTaskInstances({
+    dagId,
+    dagRunId: runId,
+    onSuccessConfirm: onCloseDialog,
+  });
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
@@ -155,6 +170,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
                   include_past: past,
                   include_upstream: upstream,
                   ...(note === null ? {} : { note }),
+                  ...(keepTaskState ? { keep_task_state: true } : {}),
                   only_failed: onlyFailed,
                   run_on_latest_version: runOnLatestVersion,
                   task_ids: groupTaskIds,
@@ -164,6 +180,12 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
           >
             <CgRedo /> {translate("modal.confirm")}
           </Button>
+          <Checkbox
+            checked={keepTaskState}
+            onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+          >
+            {translate("dags:runAndTaskActions.options.keepTaskState")}
+          </Checkbox>
           {shouldShowRunOnLatestOption ? (
             <Checkbox
               checked={runOnLatestVersionForced || runOnLatestVersion}
@@ -181,7 +203,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
         </>
       }
       lazyMount
-      onOpenChange={onClose}
+      onOpenChange={onCloseDialog}
       open={open}
       title={
         <>

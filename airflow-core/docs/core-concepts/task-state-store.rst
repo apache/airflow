@@ -285,7 +285,7 @@ If the worker process crashes, the task instance is retried. Task store data wri
 Deferrable tasks
 ~~~~~~~~~~~~~~~~
 
-Once a task defers, the Triggerer handles continuity across poke cycles. Use task state store in deferrable tasks only when you need to survive an operator-initiated clear, not for normal poke continuity.
+Once a task defers, the Triggerer handles continuity across poke cycles. Clearing a deferred task does not synchronously cancel its trigger: the Triggerer only notices the trigger is orphaned on its next iteration, then cancels it via the trigger's ``on_kill``, bounded by ``[triggerer] on_kill_timeout``. A new attempt can therefore start before that cancellation finishes. Most triggers implement ``on_kill`` to cancel the external job there, so the next attempt usually finds nothing left to reconnect to, but this is not guaranteed. The state store still matters for the small set of triggers that don't implement ``on_kill`` (for example ``GlueJobCompleteTrigger`` and ``LivyTrigger``): for those, keep task state (``keep_task_state``) when clearing so the next attempt reconnects to the job still running instead of submitting a duplicate.
 
 
 Mapped tasks
@@ -303,6 +303,10 @@ To wipe state across all map indices of a task, use the :doc:`Core API </adminis
 
 Automatic cleanup (``clear_on_success``)
 ----------------------------------------
+
+Task state store entries are also removed when a task instance is cleared: clearing discards them by
+default so the next attempt starts over, unless ``keep_task_state`` is set. See
+:doc:`resumable-tasks` for that behaviour.
 
 When ``[state_store] clear_on_success = True``, all task state store keys for a task instance are automatically deleted when the task moves to the ``success`` state. This is useful for reducing storage when post-success observability is not needed.
 
