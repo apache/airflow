@@ -767,7 +767,7 @@ class TestKiotaRequestAdapterHook:
             adapter._authentication_provider = mock_authentication_provider(closed=False)
             adapter.base_url = "https://graph.microsoft.com/v1.0"
             adapter.send_no_response_content_async = AsyncMock(side_effect=PermissionError(error))
-            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+            hook.cached_request_adapters[hook.conn_id] = ("v1.0", adapter)
 
             access_token_provider = adapter._authentication_provider.access_token_provider
             credential = access_token_provider._credentials._credential
