@@ -134,6 +134,11 @@ class LLMFileAnalysisOperator(LLMOperator):
     def execute(self, context: Context) -> Any:
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__} requires a string prompt (got {type(self.prompt).__name__}). "
+                "Supply images or PDFs via file_path with multi_modal=True instead."
+            )
 
         request = build_file_analysis_request(
             file_path=self.file_path,
