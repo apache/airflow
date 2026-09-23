@@ -37,22 +37,14 @@ from airflow_breeze.utils.verification_plan import (
 )
 
 NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
-# Selective-checks outputs that workflow `if:` conditions read to shape the run itself, not to gate a
-# job breeze verify could list.
-CI_INTERNAL_GATES = {
-    "ci_image_build",
-    "prod_image_build",
-    "full_tests_needed",
-    "default_branch",
-    "default_python_version",
-    "latest_versions_only",
-    "include_success_outputs",
-    "upgrade_to_newer_dependencies",
-    "kustomize_overlay_names",
-    "testable_core_integrations",
-    "testable_providers_integrations",
+# Exported by SelectiveChecks but no workflow job is gated on them (build-info pass-through only).
+NOT_A_CI_JOB = {
+    "run_amazon_tests",
+    "run_api_tests",
+    "run_ol_tests",
+    "run_python_scans",
+    "run_javascript_scans",
 }
-CONSUMED_DIRECTLY = {"run_unit_tests", "docs_build", "basic_checks_only", "skip_providers_tests"}
 
 
 def _selective_checks(files: tuple[str, ...], default_branch: str = "main") -> SelectiveChecks:
@@ -154,49 +146,18 @@ def test_core_change_splits_db_and_non_db_cells():
     ]
 
 
-def _gate_names_in(workflow_text: str) -> set[str]:
-    """Names read by `if:` conditions, including every line of a multi-line `if: >` block."""
-    names: set[str] = set()
-    lines = workflow_text.splitlines()
-    for index, line in enumerate(lines):
-        if not re.match(r"\s*if:", line):
-            continue
-        block = [line]
-        if re.match(r"\s*if:\s*>", line):
-            indent = len(line) - len(line.lstrip())
-            for following in lines[index + 1 :]:
-                if not following.strip() or len(following) - len(following.lstrip()) <= indent:
-                    break
-                block.append(following)
-        for text in block:
-            names.update(n.replace("-", "_") for n in re.findall(r"(?:outputs|inputs)\.([a-z0-9-]+)", text))
-    return names
-
-
-def _workflow_gate_names() -> set[str]:
-    return set().union(
-        *(
-            _gate_names_in(path.read_text())
-            for path in (AIRFLOW_ROOT_PATH / ".github" / "workflows").glob("*.yml")
-        )
+def test_every_selective_checks_run_flag_is_classified():
+    run_flags = {
+        name
+        for name, value in inspect.getmembers(SelectiveChecks)
+        if isinstance(value, cached_property)
+        and (name.startswith("run_") or name in ("docs_build", "has_migrations"))
+    }
+    classified = set(FLAG_COMMANDS) | NOT_RUNNABLE_LOCALLY | {"run_unit_tests", "docs_build"} | NOT_A_CI_JOB
+    assert run_flags - classified == set(), (
+        "new SelectiveChecks flag: add it to FLAG_COMMANDS, NOT_RUNNABLE_LOCALLY or NOT_A_CI_JOB"
     )
-
-
-def test_gate_scan_reads_every_line_of_a_long_multiline_if():
-    conditions = " &&\n".join(f"      needs.build-info.outputs.gate-{n} == 'true'" for n in range(12))
-    workflow = f"  job:\n    if: >\n{conditions}\n    steps: []\n  other:\n    if: inputs.single == 'true'\n"
-    assert _gate_names_in(workflow) == {f"gate_{n}" for n in range(12)} | {"single"}
-
-
-def test_every_workflow_gate_backed_by_selective_checks_is_classified():
-    properties = {n for n, v in inspect.getmembers(SelectiveChecks) if isinstance(v, cached_property)}
-    gates = _workflow_gate_names() & properties
-    classified = set(FLAG_COMMANDS) | NOT_RUNNABLE_LOCALLY | CONSUMED_DIRECTLY | CI_INTERNAL_GATES
-    assert gates - classified == set(), (
-        "a workflow now gates a job on this selective-checks output: add it to FLAG_COMMANDS, "
-        "NOT_RUNNABLE_LOCALLY or CI_INTERNAL_GATES in test_verification_plan.py"
-    )
-    assert classified - gates == set(), "classified name is no longer a workflow gate"
+    assert classified - run_flags == set(), "classified flag no longer exists on SelectiveChecks"
 
 
 @pytest.mark.parametrize("group", ["core", "providers"])
