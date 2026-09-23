@@ -70,13 +70,20 @@ class TestConfigureLogging:
             structlog.configure(processors=original_processors)
             sdk_log.configure_logging.cache_clear()
 
+    @mock.patch("airflow.sdk._shared.logging.structlog.structlog_processors")
     @mock.patch("airflow.sdk.log.load_remote_log_handler", return_value=object())
-    def test_allows_remote_handler_without_processors(self, mock_load_remote_log_handler):
+    def test_allows_remote_handler_without_processors(
+        self, mock_load_remote_log_handler, mock_structlog_processors
+    ):
+        initial_processor = mock.Mock()
+        final_renderer = mock.Mock()
+        mock_structlog_processors.return_value = ([initial_processor], None, final_renderer)
         sdk_log.logging_processors.cache_clear()
 
         try:
-            sdk_log.logging_processors(json_output=False)
+            processors = sdk_log.logging_processors(json_output=False)
         finally:
             sdk_log.logging_processors.cache_clear()
 
         mock_load_remote_log_handler.assert_called_once_with()
+        assert processors == (initial_processor, final_renderer)
