@@ -657,7 +657,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return True
 
     def _acquire_pool_capacity(
-        self, max_tis: int, session: Session
+        self, max_tis: int, *, session: Session
     ) -> tuple[dict[str, PoolStats], int, set[str]]:
         """
         Acquire the scheduler critical-section lock and read current pool utilisation.
@@ -710,6 +710,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         max_tis: int,
         pools: dict[str, PoolStats],
         starved_pools: set[str],
+        *,
         session: Session,
     ) -> list[TI]:
         """
@@ -991,7 +992,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
-        return self._mark_task_instances_queued(executable_tis, session)
+        return self._mark_task_instances_queued(executable_tis, session=session)
 
     def _build_schedulable_tis_query(
         self,
@@ -1106,7 +1107,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .limit(max_tis)
         )
 
-    def _mark_task_instances_queued(self, executable_tis: list[TI], session: Session) -> list[TI]:
+    def _mark_task_instances_queued(self, executable_tis: list[TI], *, session: Session) -> list[TI]:
         """
         Bulk-update ``executable_tis`` to QUEUED state and detach them from the session.
 

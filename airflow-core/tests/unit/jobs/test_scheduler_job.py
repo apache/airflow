@@ -1511,7 +1511,9 @@ class TestSchedulerJob:
         session.merge(ti_non_backfill)
         session.flush()
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         assert len(queued_tis) == 2
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
@@ -1539,7 +1541,7 @@ class TestSchedulerJob:
                 ti.state = State.SCHEDULED
             session.flush()
             with count_queries(session=session) as result:
-                runner._select_task_instances_to_queue(64, make_pool_stats(), set(), session)
+                runner._select_task_instances_to_queue(64, make_pool_stats(), set(), session=session)
             session.rollback()
             return sum(result.values())
 
@@ -1574,7 +1576,7 @@ class TestSchedulerJob:
 
         with mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=capture_locked_query):
             queued_tis = self.job_runner._select_task_instances_to_queue(
-                32, make_pool_stats(), set(), session
+                32, make_pool_stats(), set(), session=session
             )
 
         assert {queued_ti.key for queued_ti in queued_tis} == {ti.key}
@@ -1612,8 +1614,8 @@ class TestSchedulerJob:
         session.add(pool2)
         session.flush()
 
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
         session.flush()
         assert len(res) == 3
         res_keys = []
@@ -1677,8 +1679,8 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
         queued_keys = {ti.key for ti in res}
 
         # team_a task using its own pool: allowed
@@ -1720,7 +1722,7 @@ class TestSchedulerJob:
             ti.state = State.SCHEDULED
             session.merge(ti)
         session.flush()
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         session.flush()
         assert total_executed_ti == len(res)
 
@@ -1753,7 +1755,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -1782,7 +1784,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -1818,7 +1820,7 @@ class TestSchedulerJob:
 
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         assert len(res) == 5
         res_ti_keys = [res_ti.key for res_ti in res]
@@ -1880,7 +1882,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         # All tasks should be queued since they have valid executor mappings
         assert len(res) == 5
@@ -2005,10 +2007,10 @@ class TestSchedulerJob:
         queued_tis = None
         while count < task_num:
             pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
-                self.job_runner.executor.slots_available, session
+                self.job_runner.executor.slots_available, session=session
             )
             queued_tis = self.job_runner._select_task_instances_to_queue(
-                max_tis, pools, starved_pools, session
+                max_tis, pools, starved_pools, session=session
             )
             count += len(queued_tis)
             iterations += 1
@@ -2066,9 +2068,11 @@ class TestSchedulerJob:
         )
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
-            self.job_runner.executor.slots_available, session
+            self.job_runner.executor.slots_available, session=session
         )
-        queued_tis = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
+        )
 
         assert queued_tis is not None
         # Only 2 tasks should have been queued.
@@ -2117,9 +2121,11 @@ class TestSchedulerJob:
         )
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
-            self.job_runner.executor.slots_available, session
+            self.job_runner.executor.slots_available, session=session
         )
-        queued_tis = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
+        )
 
         assert queued_tis is not None
         # 4 tasks should have been queued.
@@ -2173,8 +2179,8 @@ class TestSchedulerJob:
 
         session.flush()
 
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
 
         assert len(res) == 2
         assert ti3.key == res[0].key
@@ -2205,7 +2211,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -2233,7 +2239,9 @@ class TestSchedulerJob:
         session.flush()
 
         # Two tasks w/o pool up for execution and our default pool size is 1
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(total=1), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=1), set(), session=session
+        )
         assert len(res) == 1
 
         ti2.state = State.RUNNING
@@ -2241,7 +2249,7 @@ class TestSchedulerJob:
 
         # One task w/o pool up for execution and one task running
         res = self.job_runner._select_task_instances_to_queue(
-            32, make_pool_stats(total=1, running=1), set(), session
+            32, make_pool_stats(total=1, running=1), set(), session=session
         )
         assert len(res) == 0
 
@@ -2271,7 +2279,7 @@ class TestSchedulerJob:
             ti.state = State.SCHEDULED
             session.merge(ti)
         session.flush()
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         session.flush()
         assert len(res) == 0
         tis = dr.get_task_instances(session=session)
@@ -2294,7 +2302,7 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         session.flush()
         assert len(res) == 0
         session.rollback()
@@ -2321,8 +2329,8 @@ class TestSchedulerJob:
         session.add(infinite_pool)
         session.commit()
 
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
         session.flush()
         assert len(res) == 1
         session.rollback()
@@ -2349,7 +2357,7 @@ class TestSchedulerJob:
         cannot_run_ti_id = next(t for t in dr.task_instances if t.task_id == "cannot_run").id
         with caplog.at_level(logging.WARNING):
             self.job_runner._select_task_instances_to_queue(
-                32, make_pool_stats("some_pool", total=2), set(), session
+                32, make_pool_stats("some_pool", total=2), set(), session=session
             )
             assert (
                 f"Not executing <TaskInstance: "
@@ -2390,7 +2398,10 @@ class TestSchedulerJob:
         session = settings.Session()
 
         assert (
-            len(self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)) == 0
+            len(
+                self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+            )
+            == 0
         )
         session.rollback()
 
@@ -2415,7 +2426,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.merge(ti2)
         session.flush()
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         assert len(res) == 1
         assert ti2.key == res[0].key
@@ -2477,7 +2488,9 @@ class TestSchedulerJob:
 
         session.flush()
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         queued_runs = Counter([x.run_id for x in queued_tis])
         assert queued_runs["run_1"] == 0
         assert queued_runs["run_2"] == 1
@@ -2487,7 +2500,9 @@ class TestSchedulerJob:
         session.scalars(select(TaskInstance)).all()
 
         # now we still have max tis running so no more will be queued
-        queued_tis = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         assert queued_tis == []
 
         session.rollback()
@@ -2520,7 +2535,9 @@ class TestSchedulerJob:
 
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.side_effect = executor.get_mock_loader_side_effect()
-            res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 2
 
@@ -2533,7 +2550,9 @@ class TestSchedulerJob:
             session.merge(ti1_2)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 1
 
@@ -2544,7 +2563,9 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 0
 
@@ -2556,7 +2577,9 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 2
 
@@ -2568,7 +2591,9 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 1
             session.rollback()
@@ -2604,7 +2629,7 @@ class TestSchedulerJob:
         session.merge(ti2)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         # ti2 should be blocked because ti1 is deferred and counts as active
         assert len(res) == 0
         session.rollback()
@@ -2647,7 +2672,7 @@ class TestSchedulerJob:
         session.flush()
 
         # 1 running + 1 deferred = 2, which equals the limit
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 0
         session.rollback()
 
@@ -2687,7 +2712,7 @@ class TestSchedulerJob:
         session.flush()
 
         # 1 deferred -> room for 1 more (limit is 2)
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         session.rollback()
 
@@ -2726,7 +2751,7 @@ class TestSchedulerJob:
         session.merge(ti_b1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         queued_task_ids = [ti.task_id for ti in res]
         # task_b should be queued, task_a should be blocked
         assert "task_b" in queued_task_ids
@@ -2759,7 +2784,7 @@ class TestSchedulerJob:
         session.merge(ti2)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 0
 
         # Step 2: ti1 completes -> ti2 should be unblocked
@@ -2767,7 +2792,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti2.key
         session.rollback()
@@ -2800,7 +2825,7 @@ class TestSchedulerJob:
         session.merge(ti_a1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         queued_task_ids = [(ti.task_id, ti.map_index) for ti in res]
         # ti_a1 should be blocked, task_b may be queued
         assert ("task_a", 1) not in queued_task_ids
@@ -2836,7 +2861,7 @@ class TestSchedulerJob:
         session.merge(t3)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         # Deferred doesn't count toward max_active_tasks=2, so both scheduled can run
         assert len(res) == 2
         session.rollback()
@@ -2867,7 +2892,7 @@ class TestSchedulerJob:
 
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(100, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(100, make_pool_stats(), set(), session=session)
         assert len(res) == 0
 
         session.rollback()
@@ -2894,7 +2919,9 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(total=1), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=1), set(), session=session
+        )
         assert len(res) == 1
         assert res[0].key == ti2.key
 
@@ -2931,7 +2958,7 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti2.key
 
@@ -2960,7 +2987,7 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti1b.key
 
@@ -2989,7 +3016,7 @@ class TestSchedulerJob:
 
         # Schedule ti with higher priority,
         # because it's running in a different DAG run with 0 active tis
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti2a.key
 
@@ -3022,7 +3049,7 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti1b.key
 
@@ -3067,7 +3094,7 @@ class TestSchedulerJob:
                 **make_pool_stats("pool2", total=1, running=2),
             },
             set(),
-            session,
+            session=session,
         )
         assert len(res) == 1
         assert res[0].key == ti1.key
@@ -3094,7 +3121,9 @@ class TestSchedulerJob:
         set_default_pool_slots(1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(total=1), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=1), set(), session=session
+        )
         assert len(res) == 0
 
         mock_stats.gauge.assert_has_calls(
@@ -3110,7 +3139,9 @@ class TestSchedulerJob:
         set_default_pool_slots(2)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(total=2), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=2), set(), session=session
+        )
         assert len(res) == 1
 
         mock_stats.gauge.assert_has_calls(
@@ -3257,7 +3288,9 @@ class TestSchedulerJob:
         ti_pre_assign.executor = pre_assigning_exec.name.module_path
         session.flush()
 
-        returned_tis = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        returned_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         returned_tis.sort(key=lambda ti: ti.task_id)
 
         assert len(returned_tis) == 2
@@ -4739,7 +4772,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         # Try to find executable task instances - should not find any for the removed task
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         # Should be empty because the task no longer exists in the DAG
         assert res == []
@@ -4997,9 +5030,9 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.RUNNING)
         self.job_runner._schedule_dag_run(dr, session)
         session.flush()
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
         task_instances_list = self.job_runner._select_task_instances_to_queue(
-            max_tis, pools, starved_pools, session
+            max_tis, pools, starved_pools, session=session
         )
 
         assert len(task_instances_list) == 1
@@ -5043,9 +5076,9 @@ class TestSchedulerJob:
         for dr in _create_dagruns():
             self.job_runner._schedule_dag_run(dr, session)
 
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
         task_instances_list = self.job_runner._select_task_instances_to_queue(
-            max_tis, pools, starved_pools, session
+            max_tis, pools, starved_pools, session=session
         )
 
         # As tasks require 2 slots, only 3 can fit into 6 available
@@ -5111,11 +5144,11 @@ class TestSchedulerJob:
         for dr in _create_dagruns(dag_d2):
             self.job_runner._schedule_dag_run(dr, session)
 
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session)
-        self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session)
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session=session)
+        self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session=session)
         task_instances_list2 = self.job_runner._select_task_instances_to_queue(
-            max_tis, pools, starved_pools, session
+            max_tis, pools, starved_pools, session=session
         )
 
         # Make sure we get TIs from a non-full pool in the 2nd list
@@ -5172,9 +5205,9 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
         task_instances_list = self.job_runner._select_task_instances_to_queue(
-            max_tis, pools, starved_pools, session
+            max_tis, pools, starved_pools, session=session
         )
 
         # Only second and third
@@ -10929,7 +10962,9 @@ class TestSchedulerJob:
         with mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids") as mock_batch:
             mock_batch.return_value = {"dag_a": "team_a", "dag_b": "team_b"}
 
-            res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             # Verify batch method was called with unique DAG IDs
             mock_batch.assert_called_once_with({"dag_a", "dag_b"}, session)
@@ -11033,7 +11068,9 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
 
         assert {t.key for t in queued_tis} == {ti.key}
         scheduled_calls = [
