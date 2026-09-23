@@ -231,12 +231,6 @@ the task will keep running until it completes (or times out, etc). But with Cele
 task will only keep running up until the grace period has elapsed, at which time the task will be terminated.  Another scenario where
 KubernetesExecutor can work well is when your tasks are not very uniform with respect to resource requirements or images.
 
-Finally, note that it does not have to be either-or; with CeleryKubernetesExecutor, it is possible to use both CeleryExecutor and
-KubernetesExecutor simultaneously on the same cluster. CeleryKubernetesExecutor will look at a task's ``queue`` to determine
-whether to run on Celery or Kubernetes.  By default, tasks are sent to Celery workers, but if you want a task to run using KubernetesExecutor,
-you send it to the  ``kubernetes`` queue and it will run in its own pod.  And KubernetesPodOperator can be used
-to similar effect, no matter what executor you are using.
-
 Fault Tolerance
 ---------------
 
