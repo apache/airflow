@@ -50,6 +50,6 @@ the possibility to specify the dialect name through the extra options of the con
 
 .. code-block::
 
-  dialect_name: 'mssql'
+  dialect: 'mssql'
 
 If a specific dialect isn't available for a database, the default one will be used, same when a non-existing dialect name is specified.
