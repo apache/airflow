@@ -69,7 +69,7 @@ Bug Fixes
 * ``Fix duplicate Dataproc job submission after a triggerer restart (#72685)``
 * ``Make Google deprecation date parsing locale independent (#69405)``
 * ``Contain remote log upload paths within base_log_folder (#72162)``
-* ``Fix stackdriver list alert policies JSON typo (#73148)``
+* ``Fix StackdriverHook.list_alert_policies raising AttributeError when format_ is json (#73148)``
 * ``Fix Dataflow sensors losing their XCom value when not deferred (#71086)``
 * ``Fix unformatted Google trigger error messages (#72697)``
 * ``Fix GCS operators emitting invalid OpenLineage events with no dataset name (#73246)``
@@ -77,7 +77,7 @@ Bug Fixes
 * ``Validate Google operator templated parameters after rendering (#70534)``
 * ``Report the missing secret id when Google get_secret raises NotFound (#73035)``
 * ``Keep polling DataFusion pipeline state when the run is not visible yet (#72406)``
-* ``Initialize the default state of SalesforceToGcsOperator in the Google provider (#71530)``
+* ``Fix SalesforceToGcsOperator raising AttributeError when unwrap_single is not passed (#71530)``
 * ``Move AzureFileShareToGCSOperator directory_name alias out of __init__ (#70740)``
 * ``Emit GCSToBigQueryOperator deprecation warning after rendering (#70542)``
 * ``Handling 'NotFound' when file has already been deleted from GCS (#72275)``
@@ -96,7 +96,7 @@ Doc-only
 * ``Document proxy setup for Google provider using PySocks (#71941)``
 * ``Fix docstring mismatch in GenAIGenerativeModelHook (#72356)``
 * ``Fix the rollback transaction in the Datastore examples (#73194)``
-* ``Fix grammar typos (#73145)``
+* ``Fix grammar in the Vertex AI hyperparameter tuning job docstrings (#73145)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

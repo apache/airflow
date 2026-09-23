@@ -31,8 +31,8 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Show Dag bundle versions and refresh times in the UI (#72909)``
-* ``Add jwt auth keycloak provider (#72978)``
+* ``Include the Dag Bundles menu item in the team role resources generated for Keycloak (#72909)``
+* ``Support exchanging a Keycloak-issued access token for an Airflow API token with the JWT bearer grant, gated by the new jwt_federated_client_ids allow-list (#72978)``
 
 Bug Fixes
 ~~~~~~~~~

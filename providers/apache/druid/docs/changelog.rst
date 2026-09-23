@@ -38,7 +38,7 @@ Features
 Doc-only
 ~~~~~~~~
 
-* ``Document each provider's optional extras in its docs index (#69478)``
+* ``Document the provider's optional extras in the docs index (#69478)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

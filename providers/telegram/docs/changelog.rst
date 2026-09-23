@@ -38,7 +38,7 @@ Features
 Misc
 ~~~~
 
-* ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+* ``Remove the duplicated extra entry from the Telegram connection hidden fields (#72087)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

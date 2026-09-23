@@ -39,12 +39,12 @@ Features
 Misc
 ~~~~
 
-* ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+* ``Fix a double space in the ArangoDB connection form host label (#72087)``
 
 Doc-only
 ~~~~~~~~
 
-* ``Fix grammar typos (#73145)``
+* ``Fix grammar in the ArangoDB operators guide and its example Dag (#73145)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

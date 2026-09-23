@@ -106,19 +106,19 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Reject non-string prompts in LLMFileAnalysisOperator before reading files (#71734)``
-* ``Reject durable replay and HITL review when an agent holds a SandboxToolset (#73529)``
+* ``Reject durable replay and human-in-the-loop review when an agent holds a SandboxToolset (#73529)``
 * ``Fix LLMBranchOperator sending branch options in a different order on each worker (#73366)``
 * ``Fail LLMOperator approval at parse time on Airflow cores older than 3.1 (#73261)``
 * ``Fix 'DocumentLoaderOperator' validation errors naming the wrong argument (#73053)``
-* ``Report the Airflow version error first when HITL review needs 3.1+ (#73052)``
+* ``Report the Airflow version error first when human-in-the-loop review needs Airflow 3.1 or newer (#73052)``
 * ``Restore Dag-parse-time validation for common.ai operator arguments (#70628)``
 
 Misc
 ~~~~
 
-* ``Fix 'common.ai' Anthropic models failing against anthropic 1.x in the CI image (#73511)``
-* ``Replace retired gemini-2.0-flash example model in common.ai Vertex docs (#73516)``
-* ``Fix common.ai Azure OpenAI docs (#73024)``
+* ``Require pydantic-ai-slim 2.33.0 or newer so Anthropic models work with the anthropic 1.x SDK (#73511)``
+* ``Replace the retired gemini-2.0-flash example model in the Vertex connection placeholders and docs (#73516)``
+* ``Update the Azure OpenAI connection placeholders and document when api_version must be omitted (#73024)``
 * ``Add TypedDict type hints for AirflowPlugin list fields (#69761)``
 
 Doc-only

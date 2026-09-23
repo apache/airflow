@@ -37,7 +37,7 @@ Features
 Misc
 ~~~~
 
-* ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+* ``Remove the redundant get_ui_field_behaviour override from AlibabaBaseHook (#72087)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

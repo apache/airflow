@@ -28,7 +28,7 @@ Features
 
 * ``Add Reset Password button to Edit User view (#70243)``
 * ``Add REPARSE_ALL permission for reparsing files with no registered Dag (#73274)``
-* ``Show Dag bundle versions and refresh times in the UI (#72909)``
+* ``Gate the Dag Bundles menu entry on the FAB DAGs resource so it appears for FAB deployments (#72909)``
 * ``Add FAB option to log users out after a maximum session lifetime (#72825)``
 * ``Add declarative configuration for FAB custom roles (#72820)``
 
@@ -52,7 +52,7 @@ Misc
 Doc-only
 ~~~~~~~~
 
-* ``Add a Dag bundle detail page listing the files in the bundle (#73009)``
+* ``Document the permissions for the Dag bundle detail and bundle files API endpoints (#73009)``
 * ``Render the database ERD as a searchable Mermaid diagram instead of an image (#72006)``
 
 .. Below changes are excluded from the changelog. Move them to

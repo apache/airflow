@@ -31,7 +31,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``Report missing Anthropic WIF fields clearly (#71359)``
+* ``Make service_account_id optional and name the missing required fields when the Anthropic workload identity federation config is incomplete (#71359)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

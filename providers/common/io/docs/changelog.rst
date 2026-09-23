@@ -36,7 +36,7 @@ Features
 Doc-only
 ~~~~~~~~
 
-* ``Fix broken class xrefs in standard provider docs (#73360)``
+* ``Fix the BaseXCom class reference in the XCom backend guide (#73360)``
 * ``Fix docs referring to a non-existent MetastoreStateBackend class (#73080)``
 
 .. Below changes are excluded from the changelog. Move them to

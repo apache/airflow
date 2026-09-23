@@ -47,7 +47,7 @@ Doc-only
 ~~~~~~~~
 
 * ``Rewrite the 'common.sql' connections guide and fix the dialect extra name (#73605)``
-* ``Fix grammar typos (#73145)``
+* ``Fix grammar in the dialects documentation (#73145)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

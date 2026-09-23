@@ -49,7 +49,7 @@ Bug Fixes
 * ``Avoid parsing templated DateTimeSensorAsync targets at Dag parse time (#72659)``
 * ``Fix exception messages rendering as a tuple instead of the value (#73296)``
 * ``Stop FileSensor deferring when deferrable is not set (#73297)``
-* ``Support timeout defaults in LLM approval reviews (#72155)``
+* ``Fix HITLTrigger failing on a human-in-the-loop response recorded from a timeout default, which has no responder (#72155)``
 
 Doc-only
 ~~~~~~~~

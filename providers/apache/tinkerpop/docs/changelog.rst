@@ -29,7 +29,7 @@ Features
 Doc-only
 ~~~~~~~~
 
-* ``Fix typos across contributor and provider documentation (#71884)``
+* ``Fix a typo in the TinkerPop connection documentation (#71884)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
