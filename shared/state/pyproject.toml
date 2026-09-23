@@ -37,7 +37,7 @@ mypy = [
 
 [build-system]
 requires = [
-    "hatchling==1.32.3",
+    "hatchling==1.32.0",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
