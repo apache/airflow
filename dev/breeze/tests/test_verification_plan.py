@@ -154,26 +154,38 @@ def test_core_change_splits_db_and_non_db_cells():
     ]
 
 
-def _workflow_gate_names() -> set[str]:
-    """Names read by `if:` conditions in any workflow, including multi-line `if: >` blocks."""
+def _gate_names_in(workflow_text: str) -> set[str]:
+    """Names read by `if:` conditions, including every line of a multi-line `if: >` block."""
     names: set[str] = set()
-    for path in (AIRFLOW_ROOT_PATH / ".github" / "workflows").glob("*.yml"):
-        lines = path.read_text().splitlines()
-        for index, line in enumerate(lines):
-            if not re.match(r"\s*if:", line):
-                continue
-            block = [line]
-            if re.match(r"\s*if:\s*>", line):
-                indent = len(line) - len(line.lstrip())
-                for following in lines[index + 1 : index + 8]:
-                    if not following.strip() or len(following) - len(following.lstrip()) <= indent:
-                        break
-                    block.append(following)
-            for text in block:
-                names.update(
-                    n.replace("-", "_") for n in re.findall(r"(?:outputs|inputs)\.([a-z0-9-]+)", text)
-                )
+    lines = workflow_text.splitlines()
+    for index, line in enumerate(lines):
+        if not re.match(r"\s*if:", line):
+            continue
+        block = [line]
+        if re.match(r"\s*if:\s*>", line):
+            indent = len(line) - len(line.lstrip())
+            for following in lines[index + 1 :]:
+                if not following.strip() or len(following) - len(following.lstrip()) <= indent:
+                    break
+                block.append(following)
+        for text in block:
+            names.update(n.replace("-", "_") for n in re.findall(r"(?:outputs|inputs)\.([a-z0-9-]+)", text))
     return names
+
+
+def _workflow_gate_names() -> set[str]:
+    return set().union(
+        *(
+            _gate_names_in(path.read_text())
+            for path in (AIRFLOW_ROOT_PATH / ".github" / "workflows").glob("*.yml")
+        )
+    )
+
+
+def test_gate_scan_reads_every_line_of_a_long_multiline_if():
+    conditions = " &&\n".join(f"      needs.build-info.outputs.gate-{n} == 'true'" for n in range(12))
+    workflow = f"  job:\n    if: >\n{conditions}\n    steps: []\n  other:\n    if: inputs.single == 'true'\n"
+    assert _gate_names_in(workflow) == {f"gate_{n}" for n in range(12)} | {"single"}
 
 
 def test_every_workflow_gate_backed_by_selective_checks_is_classified():
