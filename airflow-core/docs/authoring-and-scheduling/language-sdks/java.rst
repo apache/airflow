@@ -314,6 +314,9 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
      - Marks a method as a task of a Java-owned Dag.  If ``id`` is omitted the method name is
        used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) mirror the Dag
        serialization schema; only attributes written explicitly are applied.
+   * - ``@Builder.Deps``
+     - Marks the nested class that declares the task graph in Java, TaskFlow-style.  Only needed
+       for a Dag that has no Python stub file.  See :ref:`java-sdk/native-dags`.
    * - ``TaskInput`` / ``@ArgName("...")``
      - Marks a class as a task's input, so keyword arguments bind by name instead of by position:
        each public field receives the argument whose name matches it, ignoring case and
@@ -574,6 +577,79 @@ their own receiver, so a chain reads from one task outwards.  ``Flow.of(a, b).be
 Edges are checked when the Dag is registered with a ``Bundle``: an upstream that belongs to another
 Dag, or to no Dag, and a cycle anywhere in the graph both fail there rather than at the first task
 run.
+
+Wiring the graph with ``@Builder.Deps``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a Dag written with annotations, the graph is declared by a nested ``@Builder.Deps`` class.  The
+annotation processor generates a ``<ClassName>Deps`` interface — the *wiring view* — with one method
+per ``@Builder.Task`` method: the injected ``Client`` and ``Context`` parameters are dropped, each
+data parameter becomes an ``Arg<T>``, and the return value becomes a ``TaskRef<T>``.  Calling a view
+method registers its task, and passing the handle one returned into another feeds the upstream's
+output into the downstream's parameter *and* wires the data edge.  The call graph is the task graph,
+and ``javac`` type-checks it.
+
+Declare the wiring class as a ``static`` nested class of the Dag class that ``implements`` the
+generated view, with a no-argument ``depends()`` method:
+
+.. code-block:: java
+
+    @Builder.Dag(
+        id = "java_etl",
+        schedule = "@daily",
+        description = "Pure-Java Dag, no Python stub file",
+        tags = {"example", "java-sdk"})
+    public class EtlPipeline {
+
+      @Builder.Task(id = "extract", retries = 2)
+      public long extract() {
+        return 42L;
+      }
+
+      @Builder.Task(id = "transform")
+      public long transform(long extracted, double factor) {
+        return (long) (extracted * factor);
+      }
+
+      @Builder.Task(id = "load")
+      public void load(long transformed) {
+        // implement task logic
+      }
+
+      @Builder.Task(id = "audit")
+      public void audit() {
+        // side effect only, no data in or out
+      }
+
+      @Builder.Deps
+      static class Wiring implements EtlPipelineDeps {
+        void depends() {
+          var rows = extract();
+          load(transform(rows, lit(0.9)));
+          rows.before(audit()); // ordering-only edge: extract >> audit
+        }
+      }
+    }
+
+Every ``@Builder.Task`` method must be called in the wiring class; a task the wiring missed fails at
+Dag-parse time.  ``lit(...)`` wires an inline constant where no upstream feeds a parameter — a bare
+``double`` cannot be an ``Arg``, so a constant is wrapped.  A view method that takes no arguments
+returns the same handle every time, so it names one node wherever it appears; one that takes
+arguments is called once, and the wiring fails if it is called again with arguments, so hold its
+handle in a local and reuse that.
+
+``before``, ``after`` and ``Flow.of`` work here exactly as they do on the interface surface; inside
+the wiring class ``Flow`` is inherited by simple name, so it needs no import and never collides with
+``java.util.concurrent.Flow``.
+
+The wiring class is optional — a Dag class without one registers every task with no Java-side edges,
+which is the shape for stub-backed tasks whose graph the Python Dag file owns.
+
+.. note::
+
+   Runtime argument bindings win over Java-declared wiring.  When the supervisor delivers bindings
+   for a run (see :ref:`java-sdk/arg-binding`), the binding at a parameter's position is what the
+   task receives.  Wired inputs are the fallback, which is what a native Java Dag always uses.
 
 Configuration attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~

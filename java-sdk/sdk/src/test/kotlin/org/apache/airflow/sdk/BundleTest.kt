@@ -135,13 +135,46 @@ internal class BundleTest {
   }
 
   @Test
+  @DisplayName("Should register Dags one at a time and reject a duplicate ID")
+  fun shouldRegisterDagsIncrementally() {
+    val bundle = Bundle().register(DagDef("a")).register(DagDef("b"))
+
+    Assertions.assertEquals(setOf("a", "b"), bundle.dags.keys)
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) { bundle.register(DagDef("a")) }
+    Assertions.assertEquals("Dags in bundle have duplicate ID: a", error.message)
+  }
+
+  @Test
+  @DisplayName("Should create the Dag on first use when registering a stub-backed handler")
+  fun shouldRegisterHandlerAgainstPythonOwnedDag() {
+    val bundle =
+      Bundle()
+        .register("etl", "score", NoopBundleTask::class.java)
+        .register("etl", "report", NoopBundleTask::class.java)
+
+    Assertions.assertEquals(setOf("etl"), bundle.taskHandlers.keys)
+    Assertions.assertEquals(
+      setOf("score", "report"),
+      bundle.taskHandlers
+        .getValue("etl")
+        .tasks.keys,
+    )
+  }
+
+  @Test
   @DisplayName("Should find the registrar generated for a nested handler class")
   fun shouldFindRegistrarOfNestedHandlerClass() {
     val bundle = Bundle().register(Nested::class.java)
 
-    val etl = bundle.taskHandlers.getValue("etl")
     Assertions.assertEquals(listOf("etl"), bundle.taskHandlers.keys.toList())
-    Assertions.assertEquals(listOf("score"), etl.tasks.keys.toList())
+    Assertions.assertEquals(
+      listOf("score"),
+      bundle.taskHandlers
+        .getValue("etl")
+        .tasks.keys
+        .toList(),
+    )
   }
 
   @Test
@@ -152,10 +185,10 @@ internal class BundleTest {
         Bundle().register(NoOp::class.java)
       }
 
-    Assertions.assertTrue(
-      error.message!!.startsWith(
-        "No generated registrar org.apache.airflow.sdk.BundleTest_NoOpHandlers for ",
-      ),
+    Assertions.assertEquals(
+      "No generated registrar org.apache.airflow.sdk.BundleTest_NoOpHandlers for " +
+        "${NoOp::class.java.name}; does it carry @Builder.Dag or @Builder.TaskHandler, " +
+        "and is airflow-sdk-processor on the annotationProcessor path?",
       error.message,
     )
   }
@@ -240,6 +273,13 @@ internal class BundleTest {
   }
 }
 
+class NoopBundleTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
 /**
  * Stands in for the registrar the annotation processor generates beside
  * [BundleTest.Nested], to pin the name [Bundle.register] looks up.
@@ -249,14 +289,7 @@ class BundleTest_NestedHandlers {
   companion object {
     @JvmStatic
     fun registerInto(bundle: Bundle) {
-      bundle.register("etl", "score", NoOpHandler::class.java)
+      bundle.register("etl", "score", NoopBundleTask::class.java)
     }
-  }
-
-  class NoOpHandler : Task {
-    override fun execute(
-      context: Context,
-      client: Client,
-    ) = Unit
   }
 }

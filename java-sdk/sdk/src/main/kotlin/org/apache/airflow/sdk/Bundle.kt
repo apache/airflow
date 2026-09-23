@@ -87,28 +87,26 @@ class Bundle(
   }
 
   /**
-   * Registers every task handler a class holds, from the ids each
-   * [Builder.TaskHandler] names.
+   * Registers what an annotated class holds — the same class the annotations
+   * are on, so there is no second name to keep in sync.
    *
-   * @param handlerClass A class with [Builder.TaskHandler] methods.
+   * A [Builder.Dag] class contributes the Dag its generated builder builds; a
+   * class of [Builder.TaskHandler] methods contributes each handler, bound to
+   * the Dag the Python file owns.
+   *
+   * @param annotated A class carrying [Builder.Dag] or [Builder.TaskHandler].
    * @return This bundle, for chaining.
-   * @throws IllegalArgumentException if the class has no generated
-   *    registrar, because annotation processing did not run over it.
+   * @throws IllegalArgumentException if the class has no generated code,
+   *    because annotation processing did not run over it.
    */
-  fun register(handlerClass: Class<*>): Bundle {
+  fun register(annotated: Class<*>): Bundle {
     checkOpen()
-    val name = registrarName(handlerClass.name)
-    val registrar =
-      try {
-        Class.forName(name, true, handlerClass.classLoader)
-      } catch (e: ClassNotFoundException) {
-        throw IllegalArgumentException(
-          "No generated registrar $name for ${handlerClass.name}; does it declare " +
-            "@Builder.TaskHandler methods, and is airflow-sdk-processor on the " +
-            "annotationProcessor path?",
-          e,
-        )
-      }
+    annotated.getAnnotation(Builder.Dag::class.java)?.let { dag ->
+      val builderName = dag.to.ifBlank { "${annotated.simpleName}Builder" }
+      val builder = generated("${annotated.packageName}.$builderName", annotated, "builder")
+      return register(builder.getMethod("build").invoke(null) as DagDef)
+    }
+    val registrar = generated(registrarName(annotated.name), annotated, "registrar")
     registrar.getMethod("registerInto", Bundle::class.java).invoke(null, this)
     return this
   }
@@ -147,6 +145,21 @@ class Bundle(
     dagId: String,
     taskId: String,
   ): TaskDef? = (dags[dagId] ?: taskHandlers[dagId])?.tasks?.get(taskId)
+
+  private fun generated(
+    name: String,
+    from: Class<*>,
+    what: String,
+  ): Class<*> =
+    try {
+      Class.forName(name, true, from.classLoader)
+    } catch (e: ClassNotFoundException) {
+      throw IllegalArgumentException(
+        "No generated $what $name for ${from.name}; does it carry @Builder.Dag or " +
+          "@Builder.TaskHandler, and is airflow-sdk-processor on the annotationProcessor path?",
+        e,
+      )
+    }
 
   /**
    * Ends registration, so a `register` left below `serve` is reported as the

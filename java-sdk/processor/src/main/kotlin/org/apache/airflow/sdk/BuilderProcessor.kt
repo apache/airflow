@@ -29,9 +29,11 @@ import com.squareup.javapoet.MethodSpec
 import com.squareup.javapoet.ParameterizedTypeName
 import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
+import com.squareup.javapoet.WildcardTypeName
 import org.apache.airflow.sdk.internal.ArgValues
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.FieldType
+import org.apache.airflow.sdk.internal.Refs
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
 import org.apache.airflow.sdk.internal.TypeRef
@@ -66,20 +68,27 @@ import javax.tools.Diagnostic
  * `META-INF/services/javax.annotation.processing.Processor`; not intended to be
  * instantiated or referenced directly.
  *
- * For each class annotated with [Builder.Dag], generates a `*Builder` class
- * containing:
+ * For each class annotated with [Builder.Dag], generates:
  *
- * - One inner class per [Builder.Task]-annotated method, implementing [Task].
- * - A `DAG_ID` constant and a static `dag()` factory that lowers every
- *   explicitly-written `@Builder.Dag` attribute into a `DagDef.config` call.
- * - A static `build()` method that registers those inner classes as [TaskDef]s,
- *   each carrying its explicitly-written `@Builder.Task` attributes as
- *   `TaskDef.config` calls.
+ * - A `*Builder` class containing one inner class per [Builder.Task]-annotated
+ *   method (implementing [Task]), a `DAG_ID` constant, a static `dag()` factory
+ *   that lowers every explicitly-written `@Builder.Dag` attribute into
+ *   `DagDef.config` calls, and a static `build()` that runs the class's
+ *   [Builder.Deps] class and verifies it registered every task — or, when the
+ *   class declares none, registers every task with no Java-side edges.
+ * - A `*Deps` wiring-view interface (only when a [Builder.Deps] class exists)
+ *   whose methods mirror the task methods: injectable parameters ([Client],
+ *   [Context]) are dropped, data parameters become [Arg]-typed inputs, and the
+ *   return value becomes a [TaskRef]. Calling one registers the task with its
+ *   explicitly-written `@Builder.Task` attributes lowered into `TaskDef.config`
+ *   calls; passing one call's handle to another wires the dependency edge and
+ *   feeds the upstream's return-value XCom into the downstream's parameter,
+ *   type-checked by javac through the [Arg] / [TaskRef] generics.
  *
- * In the generated `execute` body, a task's data parameters resolve against the
- * arg bindings the supervisor delivered for the run: flat parameters through
- * [TaskArgs], by their position among the data parameters, and [TaskInput]
- * fields through [ArgValues], by argument name. Non-`void` return values are
+ * In the generated `execute` bodies, a task's data parameters resolve against
+ * the arg bindings the supervisor delivered for the run: flat parameters
+ * through [TaskArgs], by their position among the data parameters, and
+ * [TaskInput] fields through [ArgValues], by argument name. Non-`void` return values are
  * forwarded to `client.setXCom`.
  */
 @SupportedAnnotationTypes(
@@ -110,12 +119,18 @@ class BuilderProcessor : AbstractProcessor() {
     roundEnv.getElementsAnnotatedWith(Builder.Dag::class.java).filterIsInstance<TypeElement>().forEach { el ->
       with(processingEnv) {
         runCatching {
+          val packageName = elementUtils.getPackageOf(el).qualifiedName.toString()
+          val declarations = collectTasks(el)
+          val deps = findDeps(el)
+          val builderName = ClassName.get(packageName, dagAnnotation(el).to.ifBlank { "${el.simpleName}Builder" })
+          val depsName = ClassName.get(packageName, "${el.simpleName}Deps")
           JavaFile
-            .builder(
-              elementUtils.getPackageOf(el).qualifiedName.toString(),
-              buildDag(el),
-            ).build()
+            .builder(packageName, buildBuilder(el, declarations, deps, builderName))
+            .build()
             .writeTo(filer)
+          if (deps != null) {
+            JavaFile.builder(packageName, buildDeps(el, declarations, builderName, depsName)).build().writeTo(filer)
+          }
         }.onFailure { e ->
           messager.printMessage(
             Diagnostic.Kind.ERROR,
@@ -163,24 +178,31 @@ class BuilderProcessor : AbstractProcessor() {
       require(handler.dag.isNotBlank()) {
         "@Builder.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
       }
-      val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
-      registrar.addType(buildTask(innerName, inner, el))
+      val decl = TaskDeclaration(inner, handler.task.ifBlank { inner.simpleName.toString() }, collectDataParams(inner))
+      registrar.addType(buildTask(decl, el))
       registerInto.addStatement(
         $$"bundle.register($S, $S, $L.class)",
         handler.dag,
-        handler.task.ifBlank { inner.simpleName },
-        innerName,
+        decl.id,
+        decl.className,
       )
     }
     return registrar.addMethod(registerInto.build()).build()
   }
 
-  private fun buildDag(el: TypeElement): TypeSpec {
-    val ann = el.getAnnotation(Builder.Dag::class.java)!!
+  private fun dagAnnotation(el: TypeElement): Builder.Dag = el.getAnnotation(Builder.Dag::class.java)!!
+
+  private fun buildBuilder(
+    el: TypeElement,
+    declarations: List<TaskDeclaration>,
+    deps: TypeElement?,
+    builderName: ClassName,
+  ): TypeSpec {
+    val ann = dagAnnotation(el)
 
     val builderClass =
       TypeSpec
-        .classBuilder(ann.to.ifBlank { "${el.simpleName}Builder" })
+        .classBuilder(builderName)
         .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
         .addField(
           FieldSpec
@@ -208,45 +230,159 @@ class BuilderProcessor : AbstractProcessor() {
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .returns(DAG_DEF_TYPE)
         .addStatement("var dag = dag()")
-
-    for (inner in el.enclosedElements) {
-      if (inner !is ExecutableElement) continue
-      if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
-
-      val taskAnn = inner.getAnnotation(Builder.Task::class.java) ?: continue
-      val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
-
-      builderClass.addType(buildTask(innerName, inner, el))
-
+    if (deps != null) {
       buildMethod.addStatement(
-        $$"dag.addTask($L)",
-        taskDefCode(inner, taskAnn.id.ifBlank { inner.simpleName.toString() }, innerName),
+        $$"return $T.record(dag, $T.of($L), new $T()::depends)",
+        REFS_TYPE,
+        ClassName.get(List::class.java),
+        declarations.joinToString { "\"${it.id}\"" },
+        ClassName.get(deps),
       )
+    } else {
+      // No wiring class: register every task with no Java-side edges — a
+      // Python stub Dag defines the graph for these tasks.
+      declarations.forEach { decl ->
+        buildMethod.addStatement($$"dag.addTask($L)", taskDefCode(decl, CodeBlock.of($$"$L", decl.className)))
+      }
+      buildMethod.addStatement("return dag")
     }
-
-    buildMethod.addStatement("return dag")
     builderClass.addMethod(buildMethod.build())
+
+    declarations.forEach { builderClass.addType(buildTask(it, el)) }
     return builderClass.build()
   }
 
   /**
-   * Emits `new TaskDef(id, <className>.class)` with the explicitly-written
+   * Generates the Dag's wiring view: one default method per task, with the
+   * injected arguments stripped, each data argument lifted to [Arg] and the
+   * return lifted to [TaskRef].
+   *
+   * It is an interface so the `@Builder.Deps` class can *implement* it and
+   * keep its own `extends` free, and so the Dag class's real task methods --
+   * which differ only in their injected arguments -- do not clash with it.
+   */
+  private fun buildDeps(
+    el: TypeElement,
+    declarations: List<TaskDeclaration>,
+    builderName: ClassName,
+    depsName: ClassName,
+  ): TypeSpec {
+    val view =
+      TypeSpec
+        .interfaceBuilder(depsName)
+        .addModifiers(Modifier.PUBLIC)
+        .addSuperinterface(DEPS_TYPE)
+        .addJavadoc(
+          "Wiring view of {@link \$T}'s task methods, for declaring its task graph.\n\n" +
+            "<p>Calling one registers its task with the Dag being built; passing the handle it\n" +
+            "returned into another call feeds the upstream's output into that task's parameter\n" +
+            "and wires the data edge. {@code before} and {@code after} wire an ordering-only edge.\n",
+          ClassName.get(el),
+        )
+
+    for (decl in declarations) {
+      val method =
+        MethodSpec
+          .methodBuilder(decl.method.simpleName.toString())
+          .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
+          .returns(ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible()))
+      decl.dataParams.forEach { method.addParameter(inType(it.type), it.name) }
+      val def = taskDefCode(decl, CodeBlock.of($$"$T.$L", builderName, decl.className))
+      if (decl.dataParams.isEmpty()) {
+        method.addStatement($$"return $T.node($L)", REFS_TYPE, def)
+      } else {
+        method.addStatement(
+          $$"return $T.call($L, $L)",
+          REFS_TYPE,
+          def,
+          decl.dataParams.joinToString { it.name },
+        )
+      }
+      view.addMethod(method.build())
+    }
+    return view.build()
+  }
+
+  /**
+   * Emits `new TaskDef(id, <classRef>.class)` with the explicitly-written
    * `@Builder.Task` attributes lowered into chained `.config` calls.
    */
   private fun taskDefCode(
-    method: ExecutableElement,
-    id: String,
-    className: String,
+    decl: TaskDeclaration,
+    classRef: CodeBlock,
   ): CodeBlock {
     val taskDef =
       CodeBlock
         .builder()
-        .add($$"new $T($S, $L.class)", TASK_DEF_TYPE, id, className)
-    explicitConfig(method, TASK_ANNOTATION, TASK_STRUCTURAL_ATTRIBUTES, SchemaFields.TASK).forEach { (key, value) ->
+        .add($$"new $T($S, $L.class)", TASK_DEF_TYPE, decl.id, classRef)
+    explicitConfig(decl.method, TASK_ANNOTATION, TASK_STRUCTURAL_ATTRIBUTES, SchemaFields.TASK).forEach { (key, value) ->
       taskDef.add($$".config($S, $L)", key, value)
     }
     return taskDef.build()
   }
+
+  /**
+   * Maps a data parameter's declared type to its twin-input type. Numeric
+   * parameters accept any numeric upstream (`Arg<? extends Number>`, widened
+   * at run time); `Object`, raw `Map`, and raw `List` parameters accept any
+   * upstream (`Arg<?>`, decoded loosely at run time); everything else accepts
+   * covariant matches of the declared type (`Arg<? extends T>`).
+   */
+  private fun inType(paramType: TypeMirror): TypeName {
+    val boxed = TypeName.get(paramType).boxIfPossible()
+    val argument =
+      when {
+        isNumeric(paramType) -> WildcardTypeName.subtypeOf(TypeName.get(Number::class.java))
+        else -> WildcardTypeName.subtypeOf(boxed)
+      }
+    return ParameterizedTypeName.get(ARG_TYPE, argument)
+  }
+
+  private fun isNumeric(t: TypeMirror): Boolean = t.kind in NUMERIC_KINDS || TypeName.get(t) in BOXED_NUMERICS
+
+  private fun collectTasks(el: TypeElement): List<TaskDeclaration> {
+    val declarations = mutableListOf<TaskDeclaration>()
+    for (inner in el.enclosedElements) {
+      if (inner !is ExecutableElement) continue
+      val ann = inner.getAnnotation(Builder.Task::class.java) ?: continue
+      if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
+      val id = ann.id.ifBlank { inner.simpleName.toString() }
+      require(declarations.none { it.id == id }) { "Tasks in Dag have duplicate ID: $id" }
+      declarations += TaskDeclaration(inner, id, collectDataParams(inner))
+    }
+    return declarations
+  }
+
+  /**
+   * Finds and validates the class's `@Builder.Deps` wiring class. It is
+   * optional: without one, every task registers with no Java-side edges.
+   */
+  private fun findDeps(el: TypeElement): TypeElement? {
+    val classes =
+      el.enclosedElements
+        .filterIsInstance<TypeElement>()
+        .filter { it.getAnnotation(Builder.Deps::class.java) != null }
+    if (classes.isEmpty()) return null
+    val deps =
+      classes.singleOrNull()
+        ?: throw IllegalArgumentException(
+          "Dag class ${el.simpleName} declares more than one @Builder.Deps class: " +
+            classes.joinToString { it.simpleName.toString() },
+        )
+    require(Modifier.STATIC in deps.modifiers && Modifier.PRIVATE !in deps.modifiers) {
+      "@Builder.Deps class '${deps.simpleName}' must be static and non-private"
+    }
+    require(deps.enclosedElements.filterIsInstance<ExecutableElement>().any { it.isNoArgDepends() }) {
+      "@Builder.Deps class '${deps.simpleName}' must declare a non-private, no-argument depends() method"
+    }
+    return deps
+  }
+
+  private fun ExecutableElement.isNoArgDepends(): Boolean =
+    simpleName.contentEquals("depends") &&
+      parameters.isEmpty() &&
+      Modifier.PRIVATE !in modifiers &&
+      Modifier.STATIC !in modifiers
 
   /**
    * Lowers the explicitly-written configuration attributes of [element]'s
@@ -317,8 +453,7 @@ class BuilderProcessor : AbstractProcessor() {
   }
 
   private fun buildTask(
-    name: String,
-    inner: ExecutableElement,
+    decl: TaskDeclaration,
     parent: TypeElement,
   ): TypeSpec {
     val executeSpec =
@@ -331,8 +466,8 @@ class BuilderProcessor : AbstractProcessor() {
         .addParameter(CLIENT_TYPE, "client")
         .addException(Exception::class.java)
 
-    val dataParams = collectDataParams(inner)
-    val dataByName = dataParams.associateBy { it.name }
+    val inner = decl.method
+    val dataByName = decl.dataParams.associateBy { it.name }
     val innerArgs =
       with(processingEnv) {
         inner.parameters.joinToString { param ->
@@ -345,9 +480,9 @@ class BuilderProcessor : AbstractProcessor() {
         }
       }
 
-    val taken = dataParams.mapTo(mutableSetOf()) { it.local }
+    val taken = decl.dataParams.mapTo(mutableSetOf()) { it.local }
     val argsLocal = generateSequence("args") { "${it}_" }.first { it !in taken }
-    val flatParams = dataParams.filterNot { it.isTaskInput }
+    val flatParams = decl.dataParams.filterNot { it.isTaskInput }
     if (flatParams.isNotEmpty()) {
       executeSpec.addStatement(
         $$"$T $L = $T.of(context, client, $L)",
@@ -357,7 +492,7 @@ class BuilderProcessor : AbstractProcessor() {
         flatParams.size,
       )
     }
-    dataParams.forEach { param ->
+    decl.dataParams.forEach { param ->
       val paramType = TypeName.get(param.type)
       if (param.isTaskInput) {
         executeSpec.addStatement(
@@ -386,7 +521,7 @@ class BuilderProcessor : AbstractProcessor() {
     }
 
     return TypeSpec
-      .classBuilder(name)
+      .classBuilder(decl.className)
       .addSuperinterface(Task::class.java)
       .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
       .addMethod(executeSpec.build())
@@ -497,6 +632,15 @@ class BuilderProcessor : AbstractProcessor() {
   }
 }
 
+/** One [Builder.Task]-annotated method with its resolved id and data parameters. */
+private class TaskDeclaration(
+  val method: ExecutableElement,
+  val id: String,
+  val dataParams: List<DataParam>,
+) {
+  val className: String = method.simpleName.toString().replaceFirstChar(Char::uppercase)
+}
+
 /**
  * One data parameter of a task method, positioned among its peers, read into
  * [local] by the generated body. [isTaskInput] marks a [TaskInput] parameter,
@@ -519,12 +663,25 @@ private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
 private val TASK_ARGS_TYPE = ClassName.get(TaskArgs::class.java)
 private val TYPE_REF_TYPE = ClassName.get(TypeRef::class.java)
 private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
+private val REFS_TYPE = ClassName.get(Refs::class.java)
+private val ARG_TYPE = ClassName.get(Arg::class.java)
+private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
+private val DEPS_TYPE = ClassName.get(Deps::class.java)
 
 private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
 private const val TASK_ANNOTATION = "org.apache.airflow.sdk.Builder.Task"
 
 private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
 private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")
+
+private val NUMERIC_KINDS =
+  setOf(TypeKind.BYTE, TypeKind.SHORT, TypeKind.INT, TypeKind.LONG, TypeKind.FLOAT, TypeKind.DOUBLE)
+
+private val BOXED_NUMERICS: Set<TypeName> =
+  setOf(TypeName.BYTE, TypeName.SHORT, TypeName.INT, TypeName.LONG, TypeName.FLOAT, TypeName.DOUBLE)
+    .mapTo(mutableSetOf()) { it.box() }
+
+private fun TypeName.boxIfPossible(): TypeName = if (this == TypeName.VOID || isPrimitive) box() else this
 
 private fun ProcessingEnvironment.isType(
   t: TypeMirror,
