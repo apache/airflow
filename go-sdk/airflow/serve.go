@@ -73,7 +73,7 @@ func (b *BundleRef) Serve() error {
 func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 	// Registration closes here, whatever this run turns out to do, so that a Register left
 	// below Serve in main is reported as the mistake it is rather than racing the runtime.
-	b.taskHandlers.close()
+	b.closed.Store(true)
 
 	// The flags go on their own FlagSet. On pflag.CommandLine, every program that imports this
 	// package would get them, and one that defines its own --format there would panic.

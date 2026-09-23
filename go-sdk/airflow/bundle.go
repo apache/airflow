@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
@@ -28,6 +29,9 @@ import (
 // BundleRef holds the task handlers that this executable runs for Airflow.
 // [Bundle] returns an empty one.
 type BundleRef struct {
+	// closed ends registration for everything the bundle can hold, so a kind added later
+	// is covered without a flag of its own. Serve sets it; Register reads it.
+	closed       atomic.Bool
 	taskHandlers taskHandlerMap
 }
 
@@ -69,6 +73,11 @@ type Registerable interface{ registerable() }
 // Register panics if a task handler with the same dag_id and task_id is already registered,
 // and if [BundleRef.Serve] has already been called: registration closes when serving starts.
 func (b *BundleRef) Register(items ...Registerable) {
+	if b.closed.Load() {
+		panic(
+			"airflow.BundleRef.Register: Serve has already been called; register everything before Serve",
+		)
+	}
 	for _, item := range items {
 		switch item := item.(type) {
 		case *taskHandler:
@@ -87,7 +96,6 @@ type taskHandlerMap struct {
 	mu       sync.RWMutex
 	handlers map[string]map[string]bundle.Task
 	order    []bundle.TaskHandlerInfo
-	closed   bool
 }
 
 var (
@@ -95,25 +103,10 @@ var (
 	_ bundle.EnumerableBundle = (*taskHandlerMap)(nil)
 )
 
-// close ends registration. Serve calls it before it starts answering for the bundle, so the
-// map the runtime reads cannot gain a handler under it.
-func (m *taskHandlerMap) close() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.closed = true
-}
-
 func (m *taskHandlerMap) add(dagId, taskId string, task bundle.Task) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.closed {
-		panic(fmt.Sprintf(
-			"airflow.BundleRef.Register: task %q of Dag %q was registered after Serve; "+
-				"register every task handler before Serve", taskId, dagId,
-		))
-	}
 	if m.handlers == nil {
 		m.handlers = make(map[string]map[string]bundle.Task)
 	}

@@ -122,11 +122,22 @@ func TestRegisterAfterServePanics(t *testing.T) {
 	b.Register(TaskHandler("py_etl", "transform", noop))
 	require.NoError(t, b.serve([]string{"--airflow-metadata"}, io.Discard))
 
-	assert.PanicsWithValue(t,
-		`airflow.BundleRef.Register: task "load" of Dag "py_etl" was registered after Serve; `+
-			`register every task handler before Serve`,
+	assert.PanicsWithValue(
+		t,
+		"airflow.BundleRef.Register: Serve has already been called; register everything before Serve",
 		func() { b.Register(TaskHandler("py_etl", "load", noop)) },
 	)
+}
+
+// The flag lives on the bundle, not on the task-handler map, so a kind of item added to
+// Register later is covered without a flag of its own.
+func TestRegisterAfterServeRejectsEveryKindOfItem(t *testing.T) {
+	b := Bundle()
+	require.NoError(t, b.serve([]string{"--airflow-metadata"}, io.Discard))
+
+	var nilItem Registerable
+	assert.Panics(t, func() { b.Register(nilItem) },
+		"the closed check runs before Register looks at what the item is")
 }
 
 // Serve closes registration whatever the run does, so a bundle that only printed its usage
