@@ -279,3 +279,32 @@ class TestUnsupportedObjects:
         """Even with no flags, a wrong argument type fails loud rather than silently no-op."""
         with pytest.raises(TypeError):
             extend_global_openlineage_emission_policy(object())
+
+
+class TestExcludeDatasets:
+    def test_stored_on_task(self):
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, exclude_datasets=["gs://b/.*"])
+        assert _task_flags(task) == {"exclude_datasets": ["gs://b/.*"]}
+
+    def test_dag_call_propagates_to_tasks_only(self):
+        dag_obj, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(dag_obj, exclude_datasets=["gs://b/.*"])
+        assert _task_flags(task) == {"exclude_datasets": ["gs://b/.*"]}
+        assert _dag_flags(dag_obj) == {}
+
+    def test_xcomarg_delegates_to_operator(self):
+        with DAG(dag_id="test_dag", schedule=None, start_date=now()):
+            op = PythonOperator(task_id="t", python_callable=lambda: 1)
+        extend_global_openlineage_emission_policy(XComArg(op), exclude_datasets=["x"])
+        assert _task_flags(op) == {"exclude_datasets": ["x"]}
+
+    @pytest.mark.parametrize(
+        "patterns",
+        [pytest.param("gs://b/.*", id="not-a-list"), pytest.param(["("], id="invalid-regex")],
+    )
+    def test_invalid_patterns_raise(self, patterns):
+        _, task = _make_dag_and_task()
+        with pytest.raises(ValueError, match="exclude_datasets"):
+            extend_global_openlineage_emission_policy(task, exclude_datasets=patterns)
+        assert _task_flags(task) == {}
