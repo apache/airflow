@@ -236,6 +236,7 @@ To check other usage types of the pre-commit framework, see `Pre-commit website 
      - "- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`"
      - "- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex` (the skipped hooks start long-running local servers or provision the opt-in Codex environment rather than run checks that complete)"
      - "- **Build docs:** `breeze build-docs`"
+     - "- **List the local verification for your changes:** `breeze verify` (add `--full` for everything CI runs for the default matrix cell, `--json` for machine-readable output). It uses the same selective-checks logic as CI."
      - "- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`"
 .. AGENT-SKILL-END
 

@@ -50,6 +50,11 @@ contributors in case of simpler changes.
 > [`dev/breeze/src/airflow_breeze/utils/selective_checks.py`](../../src/airflow_breeze/utils/selective_checks.py).
 > When you change that file, **update this document in the same PR** so the behaviour and the
 > documentation stay in sync.
+>
+> `breeze verify` maps the `run_*` flags to local commands in
+> [`dev/breeze/src/airflow_breeze/utils/verification_plan.py`](../../src/airflow_breeze/utils/verification_plan.py).
+> Adding a `run_*` flag to `SelectiveChecks` also means classifying it there;
+> `dev/breeze/tests/test_verification_plan.py` fails until you do.
 
 ## Why selective checks exist (the optimisation goal)
 

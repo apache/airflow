@@ -31,6 +31,7 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 @patch(
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
     return_value=("airflow-core/docs/index.rst",),
 )
 def test_json_output_keeps_stdout_parseable(mock_files, monkeypatch):
@@ -55,6 +56,7 @@ def test_json_output_keeps_stdout_parseable(mock_files, monkeypatch):
 
 @patch(
     "airflow_breeze.commands.verify_commands.run_command",
+    autospec=True,
     return_value=CompletedProcess(
         args=[], returncode=128, stdout="", stderr="fatal: Not a valid object name"
     ),
@@ -68,6 +70,7 @@ def test_unknown_base_ref_is_a_clean_usage_error(mock_run):
 
 @patch(
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
     return_value=("airflow-core/docs/index.rst",),
 )
 def test_selective_checks_narration_is_hidden_unless_verbose(mock_files):
@@ -85,7 +88,9 @@ def test_selective_checks_narration_is_hidden_unless_verbose(mock_files):
     ],
 )
 def test_full_suite_expansion_is_explained(files: tuple[str, ...], expanded: bool):
-    with patch("airflow_breeze.commands.verify_commands.get_changed_files_against", return_value=files):
+    with patch(
+        "airflow_breeze.commands.verify_commands.get_changed_files_against", autospec=True, return_value=files
+    ):
         result = CliRunner().invoke(verify, [], catch_exceptions=False)
         full = CliRunner().invoke(verify, ["--full"], catch_exceptions=False)
     assert result.exit_code == 0
@@ -95,7 +100,7 @@ def test_full_suite_expansion_is_explained(files: tuple[str, ...], expanded: boo
     assert "breeze testing core-tests" not in " ".join(result.output.split())
 
 
-@patch("airflow_breeze.commands.verify_commands.run_command")
+@patch("airflow_breeze.commands.verify_commands.run_command", autospec=True)
 def test_changed_files_list_renames_like_ci_diff_tree(mock_run):
     mock_run.side_effect = [
         CompletedProcess(args=[], returncode=0, stdout="abc123\n", stderr=""),
@@ -108,6 +113,7 @@ def test_changed_files_list_renames_like_ci_diff_tree(mock_run):
 
 @patch(
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
     return_value=("airflow-core/docs/index.rst",),
 )
 def test_long_commands_are_folded_not_truncated(mock_files):
@@ -115,4 +121,4 @@ def test_long_commands_are_folded_not_truncated(mock_files):
     assert result.exit_code == 0
     assert "\u2026" not in result.output
     compact = re.sub(r"[\u2502\s]", "", result.output)
-    assert "update-uv-lockprekrun--all-files" in compact
+    assert "prekrun--from-refmain--to-refHEAD" in compact
