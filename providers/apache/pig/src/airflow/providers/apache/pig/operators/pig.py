@@ -43,7 +43,7 @@ class PigOperator(BaseOperator):
     :param pig_properties: pig properties, additional pig properties passed as list
     """
 
-    template_fields: Sequence[str] = ("pig", "pig_opts", "pig_properties")
+    template_fields: Sequence[str] = ("pig", "pig_opts", "pig_properties", "pig_cli_conn_id")
     template_ext: Sequence[str] = (
         ".pig",
         ".piglatin",

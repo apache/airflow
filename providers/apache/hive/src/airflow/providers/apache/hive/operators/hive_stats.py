@@ -107,7 +107,15 @@ class HiveStatsCollectionOperator(BaseOperator):
         column.
     """
 
-    template_fields: Sequence[str] = ("table", "partition", "ds", "dttm")
+    template_fields: Sequence[str] = (
+        "table",
+        "partition",
+        "ds",
+        "dttm",
+        "metastore_conn_id",
+        "presto_conn_id",
+        "mysql_conn_id",
+    )
     ui_color = "#aff7a6"
 
     def __init__(

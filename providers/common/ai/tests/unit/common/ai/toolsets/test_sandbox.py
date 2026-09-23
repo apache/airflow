@@ -43,7 +43,14 @@ class _RecordingBackend(SandboxBackend):
 
     name = "rec"
 
-    def __init__(self, *, destroy_error: Exception | None = None, run_result=None, run_error=None):
+    def __init__(
+        self,
+        *,
+        destroy_error: Exception | None = None,
+        run_result=None,
+        run_error=None,
+        create_error: Exception | None = None,
+    ):
         self.created: list[SandboxSpec | None] = []
         self.destroyed: list[str] = []
         self.commands: list[tuple[str, str, float, int]] = []
@@ -52,11 +59,14 @@ class _RecordingBackend(SandboxBackend):
         self.destroy_error = destroy_error
         self.run_result = run_result
         self.run_error = run_error
+        self.create_error = create_error
         self.read_payload = b""
         self.read_error: Exception | None = None
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
         self.created.append(spec)
+        if self.create_error is not None:
+            raise self.create_error
         return f"box-{len(self.created)}"
 
     def run_command(self, sandbox, command, *, timeout, max_output_bytes):
@@ -198,6 +208,41 @@ class TestNetworkNote:
         assert "pypi.org, files.pythonhosted.org" in description
         # Plain HTTP is the trap worth naming, because nothing refuses it.
         assert "plain HTTP" in description
+
+    @pytest.mark.asyncio
+    async def test_an_address_allowlist_names_the_ranges_and_that_names_still_resolve(self):
+        # Measured: hostnames resolve under a CIDR list, but only listed addresses answer.
+        # Without saying so the model reads a successful lookup as a reachable host.
+        toolset = SandboxToolset(
+            _RecordingBackend(),
+            spec=SandboxSpec(block_network=True, allow_egress_to_cidrs=["10.20.0.0/16", "203.0.113.7/32"]),
+        )
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert "10.20.0.0/16, 203.0.113.7/32" in description
+        assert "on any port" in description
+        assert "hostnames still resolve" in description
+        assert "plain HTTP" not in description, "plain HTTP is only a trap under the hostname list"
+
+    @pytest.mark.asyncio
+    async def test_both_lists_are_described_together(self):
+        toolset = SandboxToolset(
+            _RecordingBackend(),
+            spec=SandboxSpec(
+                block_network=True, allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["10.20.0.0/16"]
+            ),
+        )
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert (
+            "over HTTPS on port 443 only: pypi.org; and these address ranges, on any port: 10.20.0.0/16"
+            in (description)
+        )
+        # Plain HTTP fails for the hosts but not for the ranges, which take any port, so the
+        # blanket "plain HTTP to any host will fail" of the hosts-only note would be wrong here.
+        assert "plain HTTP to them fails" in description
+        assert "address ranges accept any port" in description
+        assert "plain HTTP to any host" not in description
 
     @pytest.mark.asyncio
     async def test_an_open_sandbox_says_so(self):
@@ -444,6 +489,49 @@ class TestErrorMapping:
         async with ts:
             with pytest.raises(SandboxTerminalError):
                 await _call(ts, "run_command", {"command": "x"})
+
+    @pytest.mark.asyncio
+    async def test_a_recoverable_error_from_create_is_terminal(self):
+        # The model has no say in provisioning, so a retry cannot fix a failed
+        # create. It must fail the task rather than reach the model as a ModelRetry.
+        backend = _RecordingBackend(create_error=SandboxError("image pull timed out"))
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            with pytest.raises(
+                SandboxTerminalError, match="Could not provision.*image pull timed out"
+            ) as caught:
+                await _call(ts, "run_command", {"command": "x"})
+
+        assert isinstance(caught.value.__cause__, SandboxError)
+        assert backend.destroyed == [], "nothing was provisioned, so nothing is destroyed"
+
+    @pytest.mark.asyncio
+    async def test_a_terminal_error_from_create_propagates_unchanged(self):
+        error = SandboxTerminalError("credentials rejected")
+        ts = SandboxToolset(_RecordingBackend(create_error=error))
+
+        async with ts:
+            with pytest.raises(SandboxTerminalError) as caught:
+                await _call(ts, "run_command", {"command": "x"})
+
+        assert caught.value is error
+
+    @pytest.mark.asyncio
+    async def test_a_failed_create_is_retried_by_the_next_call(self):
+        # A create that raised left no sandbox behind, so the next tool call in
+        # the same run must try provisioning again rather than reuse a dead task.
+        backend = _RecordingBackend(create_error=SandboxError("transient"))
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            with pytest.raises(SandboxTerminalError):
+                await _call(ts, "run_command", {"command": "x"})
+            backend.create_error = None
+            assert await _call(ts, "run_command", {"command": "x"})
+
+        assert len(backend.created) == 2
+        assert backend.destroyed == ["box-2"]
 
     @pytest.mark.asyncio
     async def test_unknown_tool_raises(self):

@@ -37,8 +37,8 @@ Put the chain in the primary connection's extra:
 
 Every entry is an Airflow connection ID, resolved through the hook registered for its own
 connection type. A chain can therefore mix vendors whose credentials live in different
-connection fields — ``pydanticai`` for OpenAI, ``pydanticai_bedrock`` for a Bedrock
-standby — without the Dag knowing anything about either.
+connection fields (``pydanticai`` for OpenAI, ``pydanticai_bedrock`` for a Bedrock
+standby) without the Dag knowing anything about either.
 
 That is the point of configuring it here rather than in Dag code: the Dag keeps naming one
 connection, and whoever administers the connections owns the failover topology. Changing a
@@ -212,7 +212,7 @@ should still succeed, and the run summary in its log names the model that answer
 
     ::group::LLM run complete: model=claude-haiku-4-5-20251001, requests=1, ...
 
-That line is how a failover is noticed at all — it reports the model that actually served
+That line is how a failover is noticed at all: it reports the model that actually served
 the request, not the chain. Repeat the drill whenever the topology changes.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_fallback.py
@@ -224,8 +224,7 @@ the request, not the chain. Repeat the drill whenever the topology changes.
 Scope
 -----
 
-``fallback_conn_ids`` is currently supported only for the pydantic-ai hooks. Failover here
-is pydantic-ai's ``FallbackModel``, and the other frameworks do not share that construct:
+``fallback_conn_ids`` is supported only for the pydantic-ai hooks. Failover here is
+pydantic-ai's ``FallbackModel``, and the other frameworks do not share that construct:
 LangChain's nearest equivalent is ``Runnable.with_fallbacks()`` on the object the hook
-returns, and LlamaIndex has none. Extending the same connection-level contract to them is
-deliberately left out of this change rather than approximated.
+returns, and LlamaIndex has none.

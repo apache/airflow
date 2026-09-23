@@ -26,13 +26,19 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import SENSITIVE_PLACEHOLDER, deprecated_for_airflowctl, print_export_output
+from airflow.cli.utils import (
+    SENSITIVE_PLACEHOLDER,
+    deprecated_for_airflowctl,
+    get_hidden_entries_warning,
+    print_export_output,
+)
 from airflow.exceptions import (
     AirflowFileParseException,
     AirflowUnsupportedFileTypeException,
     VariableNotUnique,
 )
 from airflow.models import Variable
+from airflow.secrets.environment_variables import VAR_ENV_PREFIX
 from airflow.secrets.local_filesystem import load_variables
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -82,6 +88,9 @@ def variables_list(args):
 
     def _mapper(var):
         return VariableDisplayMapper.with_values(var, hide_sensitive)
+
+    if warning := get_hidden_entries_warning("variables", VAR_ENV_PREFIX):
+        AirflowConsole(stderr=True).print(f"[bold yellow]Warning:[/bold yellow] {warning}\n")
 
     with create_session() as session:
         if show_values:

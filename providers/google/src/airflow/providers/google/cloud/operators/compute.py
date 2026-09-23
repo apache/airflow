@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
     """Abstract base operator for Google Compute Engine operators to inherit from."""
 
+    template_fields: Sequence[str] = ("gcp_conn_id",)
+
     def __init__(
         self,
         *,

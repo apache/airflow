@@ -55,7 +55,7 @@ import {
   type StartupDetails,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
+import { bundleDagTaskIds, type Bundle } from "../sdk/bundle.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -148,10 +148,10 @@ export async function startCoordinator(
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = listBundleTasks(bundle);
+    const byDag = bundleDagTaskIds(bundle);
     runtimeLogs.info("Coordinator runtime started", {
-      registered_tasks: tasks,
-      count: tasks.length,
+      registered_tasks: Object.fromEntries(byDag),
+      count: [...byDag.values()].reduce((total, tasks) => total + tasks.length, 0),
       // Cadwyn schema version this SDK was generated against. Logged
       // for operator visibility; not sent on the wire.
       supervisor_api_version: SUPERVISOR_API_VERSION,
@@ -270,7 +270,7 @@ function handleParse(
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: listBundleTasks(bundle),
+    registered_tasks: Object.fromEntries(bundleDagTaskIds(bundle)),
   });
   const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
@@ -295,7 +295,7 @@ async function handleTask(
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: listBundleTasks(bundle),
+      available: Object.fromEntries(bundleDagTaskIds(bundle)),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.

@@ -243,7 +243,7 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"api_version", "deferrable", "poll_interval"} | set(GKEOperatorMixin.template_fields)
+        {"api_version", "deferrable", "poll_interval", "gcp_conn_id"} | set(GKEOperatorMixin.template_fields)
     )
 
     def __init__(
@@ -383,7 +383,8 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"body", "api_version", "deferrable", "poll_interval"} | set(GKEOperatorMixin.template_fields)
+        {"body", "api_version", "deferrable", "poll_interval", "gcp_conn_id"}
+        | set(GKEOperatorMixin.template_fields)
     )
     operator_extra_links = (KubernetesEngineClusterLink(),)
 
@@ -732,7 +733,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"deferrable"}
+        {"deferrable", "gcp_conn_id"}
         | (set(KubernetesPodOperator.template_fields) - {"is_delete_operator_pod", "regional"})
         | set(GKEOperatorMixin.template_fields)
     )
@@ -866,7 +867,7 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"deferrable", "poll_interval"}
+        {"deferrable", "poll_interval", "gcp_conn_id"}
         | set(GKEOperatorMixin.template_fields)
         | set(KubernetesJobOperator.template_fields)
     )
@@ -993,7 +994,9 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = tuple({"job_name", "namespace"} | set(GKEOperatorMixin.template_fields))
+    template_fields: Sequence[str] = tuple(
+        {"job_name", "namespace", "gcp_conn_id"} | set(GKEOperatorMixin.template_fields)
+    )
     operator_extra_links = (KubernetesEngineJobLink(),)
 
     def __init__(
@@ -1074,7 +1077,9 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
     :param do_xcom_push: If set to True the result list of Jobs will be pushed to the task result.
     """
 
-    template_fields: Sequence[str] = tuple({"namespace"} | set(GKEOperatorMixin.template_fields))
+    template_fields: Sequence[str] = tuple(
+        {"namespace", "gcp_conn_id"} | set(GKEOperatorMixin.template_fields)
+    )
     operator_extra_links = (KubernetesEngineWorkloadsLink(),)
 
     def __init__(
@@ -1428,7 +1433,9 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = tuple({"name", "namespace"} | set(GKEOperatorMixin.template_fields))
+    template_fields: Sequence[str] = tuple(
+        {"name", "namespace", "gcp_conn_id"} | set(GKEOperatorMixin.template_fields)
+    )
     operator_extra_links = (KubernetesEngineJobLink(),)
 
     def __init__(
@@ -1509,7 +1516,9 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = tuple({"name", "namespace"} | set(GKEOperatorMixin.template_fields))
+    template_fields: Sequence[str] = tuple(
+        {"name", "namespace", "gcp_conn_id"} | set(GKEOperatorMixin.template_fields)
+    )
     operator_extra_links = (KubernetesEngineJobLink(),)
 
     def __init__(

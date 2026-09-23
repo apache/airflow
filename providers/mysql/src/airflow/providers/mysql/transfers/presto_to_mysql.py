@@ -46,7 +46,13 @@ class PrestoToMySqlOperator(BaseOperator):
         the task twice won't double load data). (templated)
     """
 
-    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator")
+    template_fields: Sequence[str] = (
+        "sql",
+        "mysql_table",
+        "mysql_preoperator",
+        "presto_conn_id",
+        "mysql_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "sql",

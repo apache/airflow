@@ -36,7 +36,9 @@ class SandboxError(Exception):
     A sandbox operation failed in a way the agent may be able to work around.
 
     The toolset turns this into a ``ModelRetry`` so the model can adjust and try
-    again within the run (a bad path, a command the image cannot run).
+    again within the run (a bad path, a command the image cannot run). Raised
+    from :meth:`SandboxBackend.create` it is treated as terminal instead, since
+    the model cannot influence provisioning.
     """
 
 
@@ -97,11 +99,22 @@ class SandboxSpec:
     :param allow_egress_to: Hostnames the sandbox may reach when
         ``block_network`` is ``True``. An empty or unset value with
         ``block_network=True`` means no egress at all.
+    :param allow_egress_to_cidrs: IPv4 address ranges, in CIDR notation such as
+        ``"203.0.113.0/24"`` or ``"203.0.113.7/32"``, the sandbox may reach when
+        ``block_network`` is ``True``, on any port and protocol. This is the
+        right field for one service at a fixed public address; it cannot serve
+        a package registry behind a CDN, whose addresses rotate, and a hosted
+        backend cannot reach private (RFC 1918) addresses at all. A backend that
+        enforces it does so at the address layer, which is a stronger guarantee
+        than a hostname list gives, so it needs no opt-in. Both lists may be set
+        together; how a backend combines them, and what that costs, is the
+        backend's to document.
     """
 
     env: Mapping[str, str] | None = None
     block_network: bool = True
     allow_egress_to: Sequence[str] | None = None
+    allow_egress_to_cidrs: Sequence[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -171,6 +184,12 @@ class SandboxBackend(ABC):
         backend cannot enforce, rather than provisioning something weaker than
         was asked for. It is terminal rather than recoverable because it states
         a configuration fact the model cannot see and cannot fix by retrying.
+
+        Every failure raised here is terminal, whichever class carries it. The
+        model has no input into provisioning, so a :class:`SandboxError` from
+        ``create`` is not something it can work around; the toolset re-raises one
+        as :class:`SandboxTerminalError` and fails the task, so Airflow's retry
+        attempts the provisioning again.
         """
 
     @abstractmethod
