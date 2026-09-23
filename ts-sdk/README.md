@@ -35,18 +35,23 @@ npm install apache-airflow-ts-sdk@0.1.0-beta1
 ## Task Handlers
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
 
-export async function sayHello({ ctx, client }: TaskHandlerArgs) {
-  const greeting = await client.getVariable("greeting");
-  return { message: `Hello from ${ctx.taskId}: ${greeting}` };
+export async function sayHello() {
+  const greeting = await getClient().getVariable("greeting");
+  return { message: `Hello from ${getContext().taskId}: ${greeting}` };
 }
 
-const dag = new Dag("example_dag");
-dag.task("say_hello", sayHello);
-
-await serveDags(new DagRegistry(dag));
+const bundle = new Bundle();
+bundle.register(new TaskHandler("example_dag", "say_hello", sayHello));
+await bundle.serve();
 ```
+
+A handler is a plain function. `getContext()` and `getClient()` reach the runtime from inside the call,
+so a handler takes no SDK-supplied parameter.
+
+`new TaskHandler(dagId, taskId, handler)` binds the function to the Python-owned task it implements.
+The Dag is declared in Python with `@task.stub`, so the TypeScript side only supplies the task bodies.
 
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
 key by the active runtime, matching Python `@task` behavior.
@@ -93,16 +98,16 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-Each configured bundle directory must contain a `bundle.mjs` built with
-`airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
-Airflow metadata in the bundle itself.
+Each configured bundle directory is searched recursively for `*.min.mjs` bundles built with `airflow-ts-pack`
+(see [Packing bundles](#packing-bundles)), which embeds the Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
 
-export async function extract({ client }: TaskHandlerArgs) {
+export async function extract() {
+  const client = getClient();
   const connection = await client.getConnection("sales_db");
   const rowCount = Number((await client.getVariable("daily_row_count")) ?? "0");
 
@@ -112,8 +117,8 @@ export async function extract({ client }: TaskHandlerArgs) {
   };
 }
 
-export async function transform({ client }: TaskHandlerArgs) {
-  const extracted = await client.getXCom<{ rowCount: number }>({
+export async function transform() {
+  const extracted = await getClient().getXCom<{ rowCount: number }>({
     key: "return_value",
     taskId: "extract",
   });
@@ -123,48 +128,148 @@ export async function transform({ client }: TaskHandlerArgs) {
   };
 }
 
-const salesPipeline = new Dag("sales_pipeline");
-salesPipeline.task("extract", extract);
-salesPipeline.task("transform", transform);
-
-await serveDags(new DagRegistry(salesPipeline));
+const bundle = new Bundle();
+bundle.register(
+  new TaskHandler("sales_pipeline", "extract", extract),
+  new TaskHandler("sales_pipeline", "transform", transform),
+);
+await bundle.serve();
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
-the work and uses `TaskClient` for task-time Airflow data access. Create a
-`Dag` with the Python Dag's `dag_id` and attach each handler with the stub
-task's `task_id`. The handler function is the reusable task implementation;
-`dag.task` binds that handler to a Python stub task identity, a `DagRegistry`
-collects the Dags this bundle can execute, and `serveDags` serves them to
-Airflow.
+the work and uses `TaskClient` for task-time Airflow data access. The handler
+function is the reusable task implementation; a `TaskHandler` binds it to a
+Python stub task identity, a `Bundle` holds what this bundle process provides,
+and `bundle.serve()` serves it to Airflow.
 
-`serveDags` is the entrypoint, and the registry it is given is the whole bundle:
-a Dag left out of the registry is not part of the bundle, and its tasks are
-marked removed at runtime. The registry itself holds no sockets and starts
-nothing, so a unit test can build one and dispatch through
-`registry.getTaskHandler(dagId, taskId)` without any runtime involved.
+`bundle.serve()` is the entrypoint: a task left unregistered is not part of the bundle,
+and one bundle can provide for several `TaskHandler`s.
+Registering holds no sockets and starts nothing, so a unit test can build a bundle
+and dispatch through `bundle.getTaskHandler(dagId, taskId)` without any runtime involved.
 
-`new Dag` and `dag.task` take a trailing options object — `spec` on both, plus
-`inputs` on a task. These are not used yet; do not set them.
-
-For larger projects, declare each Dag in its own module and keep one Airflow
-entrypoint that serves them all:
+Dispatch keys on the `(dagId, taskId)` pair, so the same `taskId` under two Dags is two different handlers:
 
 ```ts
-import { salesDag } from "./sales/dag";
-import { billingDag } from "./billing/dag";
-import { DagRegistry, serveDags } from "apache-airflow-ts-sdk";
+import { Bundle, TaskHandler } from "apache-airflow-ts-sdk";
+import { chargeCustomer } from "./billing/tasks";
+import { extract } from "./sales/tasks";
 
-await serveDags(new DagRegistry(salesDag, billingDag));
+await new Bundle(
+  new TaskHandler("sales_pipeline", "extract", extract),
+  new TaskHandler("billing_pipeline", "extract", chargeCustomer),
+).serve();
 ```
 
-A bundle that collects its Dags across several modules can add them
-incrementally with `registry.register(...)` instead of passing them all to the
-constructor.
+Register `TaskHandler` and `Dag` values with the `register` method, or pass them to the `Bundle` constructor.
+
+## TaskFlow arguments
+
+A Python Dag that calls a stub task TaskFlow-style passes those arguments straight to the handler,
+which destructures them by name:
+
+```python
+# the Python Dag
+@task.stub(queue="typescript")
+def transform(region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+transform("uk", 0.75)
+```
+
+```ts
+interface TransformArgs {
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
+  // ...
+}
+```
+
+Names bind by **folding on both sides**, lowercased with underscores removed, so `region_code` reaches
+`regionCode` and `s3_uri` reaches `s3Uri` with nothing declared on either side.
+An argument the call leaves at its default arrives with the default's value.
+
+A name nothing folds to is **logged, not thrown**, naming what the handler asked for and what the call
+delivered. Two Python names that fold to the same token fail the task.
+
+`Object.keys` and rest destructuring (`{ ...rest }`) yield Python's names, and `in` folds like a read.
+
+### Upstream outputs
+
+An argument the Python call fills from another task arrives as that task's value, not as a reference to it.
+Feeding the `transform` above from an upstream task adds one argument on each side:
+
+```python
+# the Python Dag
+@task
+def extract() -> int: ...
+
+
+@task.stub(queue="typescript")
+def transform(rows: int, region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+transform(extract(), "uk", 0.75)
+```
+
+```ts
+interface TransformArgs {
+  rows: number;
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+export async function transform({ rows, regionCode, threshold, dryRun }: TransformArgs) {
+  // `rows` is the number extract() returned.
+}
+```
+
+An upstream that pushed no output fails the task, naming both the argument and the task it came from.
+An upstream that pushed `null` binds `null`.
+
+Being upstream is not the same as being passed. An XCom dependency declared with `>>` defines task order only,
+so a value the call did not pass is read explicitly:
+
+```ts
+const rows = await getClient().getXCom<number>({ key: "return_value", taskId: "extract" });
+```
+
+A Python `int` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than bound,
+so carry such a value across the boundary as a string.
+
+### Explicit renames
+
+`withArgNames` states a binding folding cannot reach, for a name the Python side never used:
+a clearer word than the Dag chose, or a TypeScript reserved word like `enum`. Mapping first, handler second:
+
+```ts
+interface ReportArgs {
+  summary: Summary;
+  label: string; // Python calls this `run_label`
+}
+
+const report = withArgNames({ label: "run_label" }, async ({ summary, label }: ReportArgs) => {
+  // `label` is the call's `run_label`; `summary` folded as usual.
+});
+
+bundle.register(new TaskHandler("etl", "report", report));
+```
+
+An entry beats folding, and everything the map does not mention still folds,
+so `withArgNames` should be rare in a real Dag.
+The map's keys are checked against the handler's own parameter type,
+so `{ labl: "run_label" }` is a compile error naming the right key.
+Its values are Python names, which `tsc` cannot see and does not check.
+
+`Dag` is another interface, for a Dag declared natively in TypeScript, and is still a work in progress.
 
 Airflow launches the bundled entrypoint with `--comm=host:port` and
-`--logs=host:port`. `serveDags()` connects to those sockets, receives the task
-startup message, finds the registered handler for the Dag/task pair, and
+`--logs=host:port`. `bundle.serve()` connects to those sockets, receives the
+task startup message, finds the registered handler for the Dag/task pair, and
 reports the terminal task state back to Airflow.
 
 See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
@@ -182,42 +287,43 @@ npm install --save-dev esbuild
 airflow-ts-pack src/main.ts --outdir dist
 ```
 
-It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
-bundle with `--airflow-metadata` so the bundle reports its own registered
-Dag/task pairs and supervisor schema version, and embeds that manifest in the
-bundle as a compact JSON `//# airflowMetadata=...` comment after a leading
-compact JSON `//# airflowBundle=...` layout descriptor. The descriptor records
-fixed-width byte ranges and SHA-256 digests for the metadata and bundled code,
-allowing a coordinator reader to detect corruption before using either region.
-These in-bundle digests do not authenticate who produced the bundle because
-someone who can replace the content can also replace its digests. The result is
-one deployable file with no hand-written metadata sidecar.
+It bundles the entrypoint into a minified `dist/bundle.min.mjs` with esbuild, then runs that bundle with
+`--airflow-metadata` so it reports its own registered Dag/task pairs and supervisor schema version. The manifest is
+embedded as a compact JSON `//# airflowMetadata=...` comment after a leading compact JSON `//# airflowBundle=...`
+layout descriptor, and the entry module is embedded verbatim in a `/*# airflowSource ... #*/` block comment so
+Airflow can show the source a bundle was authored from, which its minified code no longer is. The CLI records the
+integrity metadata for all three regions in that descriptor, so a coordinator that is handed a bundle whose content
+was replaced fails loudly instead of running it. The result is one deployable file with no hand-written metadata
+sidecar.
+
+Pass `--outfile <path>` instead of `--outdir` to name the artifact yourself, so one bundle directory can hold several
+bundles. The name must still end in `.min.mjs`, which is how `NodeCoordinator` finds bundles.
 
 Options:
 
-- `--outdir <dir>` — output directory (default `dist`)
-- `--source <name>` — display name of the primary source file shown in the
-  Airflow UI (default: entry basename)
+- `--outdir <dir>`: output directory (default `dist`)
+- `--outfile <path>`: exact output path, whose name must end in `.min.mjs`
+- `--source <name>`: display name of the primary source file shown in the Airflow UI (default: entry basename)
 
 ## TaskClient
 
-Every task handler receives a `TaskClient` for task-time Airflow data access:
+`getClient()` returns a `TaskClient` for task-time Airflow data access, for as long as a handler is running:
 
-| Method                                           | Description         |
-| ------------------------------------------------ | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow`        | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`                | XCom read/write     |
-| `getConnection(connId)` / `getConnectionOrThrow` | Airflow Connections |
+| Method                                                          | Description             |
+| --------------------------------------------------------------- | ----------------------- |
+| `getVariable(key)` / `getVariableOrThrow`                       | Airflow Variables       |
+| `setVariable(key, value, description?)` / `deleteVariable(key)` | Variable write / delete |
+| `getXCom(opts)` / `setXCom(opts)`                               | XCom read/write         |
+| `getConnection(connId)` / `getConnectionOrThrow`                | Airflow Connections     |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
 
 ## Cancellation
 
-`ctx.signal` is an `AbortSignal` controlled by the active runtime. Pass it to
-`fetch()`, timers, database clients, child processes, or any other API that
-accepts an abort signal so tasks can clean up cooperatively when Airflow
-terminates the task subprocess with SIGTERM or SIGINT.
+`getContext().signal` is an `AbortSignal` controlled by the active runtime.
+Pass it to `fetch()`, timers, database clients, child processes, or any other API that accepts an abort signal,
+so tasks can clean up cooperatively when Airflow terminates the task subprocess.
 
 ## Compatibility matrix
 
@@ -225,8 +331,7 @@ Which Airflow TaskInstance states and capabilities this SDK supports. This table
 [`capabilities.yaml`](https://github.com/apache/airflow/blob/main/ts-sdk/capabilities.yaml);
 the conformance dimensions are defined in the
 [Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
-Do not edit the table by hand — update the manifest and run the
-`update-ts-sdk-readme-matrix` prek hook.
+Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-readme-matrix` prek hook.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
@@ -245,10 +350,11 @@ Do not edit the table by hand — update the manifest and run the
 | state: `removed` | MAY | ✓ | 3.4 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
 | capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
 | capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |
-| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `variable-read-write` | MUST | ✓ | 3.4 | getVariable / setVariable / deleteVariable |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
@@ -275,13 +381,11 @@ Do not edit the table by hand — update the manifest and run the
 ## Links
 
 - [TypeScript SDK guide (staged docs)](https://airflow.staged.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
-  — how Airflow runs TypeScript task handlers
+  (how Airflow runs TypeScript task handlers)
 - [API reference (staged)](https://airflow.staged.apache.org/docs/ts-sdk/stable/)
-  — generated from the TypeScript sources
-- [Source](https://github.com/apache/airflow/tree/main/ts-sdk) — the `ts-sdk/`
-  directory of the Apache Airflow monorepo
-- [Issues](https://github.com/apache/airflow/issues) — bug reports and feature
-  requests
+  (generated from the TypeScript sources)
+- [Source](https://github.com/apache/airflow/tree/main/ts-sdk): the `ts-sdk/` directory of the Apache Airflow monorepo
+- [Issues](https://github.com/apache/airflow/issues): bug reports and feature requests
 - [Website](https://airflow.apache.org) · [Slack](https://s.apache.org/airflow-slack)
 - [Developing this package](https://github.com/apache/airflow/blob/main/ts-sdk/DEVELOPMENT.md)
-  — local build, docs, and the release workflow
+  (local build, docs, and the release workflow)

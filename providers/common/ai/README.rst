@@ -56,7 +56,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=2.23.0``
+``pydantic-ai-slim``                        ``>=2.33.0``
 ==========================================  ==================
 
 Optional cross provider package dependencies
@@ -85,11 +85,13 @@ Optional dependencies
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``, ``anthropic>=1.0.0``
 ``bedrock``     ``pydantic-ai-slim[bedrock]>=2.23.0``
 ``google``      ``pydantic-ai-slim[google]>=2.23.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.23.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.23.0``, ``openai>=2.45.0``
 ``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
+``typesafe``    ``typesafe-sdk>=0.6.0``
+``modal``       ``modal>=1.5.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``

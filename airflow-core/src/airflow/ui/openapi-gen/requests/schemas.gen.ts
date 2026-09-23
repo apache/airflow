@@ -423,11 +423,25 @@ export const $AssetExpressionAsset = {
 export const $AssetExpressionAssetInfo = {
     properties: {
         uri: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Uri'
         },
         name: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Name'
         },
         group: {
@@ -444,6 +458,11 @@ export const $AssetExpressionAssetInfo = {
                 }
             ],
             title: 'Id'
+        },
+        hidden: {
+            type: 'boolean',
+            title: 'Hidden',
+            default: false
         }
     },
     type: 'object',
@@ -454,7 +473,11 @@ export const $AssetExpressionAssetInfo = {
 \`\`id\`\` is injected by \`\`DagModelOperation.update_dag_asset_expression\`\` when the expression is
 persisted; \`\`BaseAsset.as_expression()\`\` itself only emits \`\`uri\`\`/\`\`name\`\`/\`\`group\`\`. It is left
 optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
-degrades gracefully instead of failing response validation.`
+degrades gracefully instead of failing response validation.
+
+A leaf the caller is not authorized to read is served with \`\`hidden\`\` set and \`\`uri\`\`, \`\`name\`\`
+and \`\`id\`\` blanked (see \`\`airflow.api_fastapi.common.asset_expression\`\`), so the shape of the
+schedule stays visible without revealing which asset it waits on.`
 } as const;
 
 export const $AssetExpressionRef = {
@@ -1023,13 +1046,12 @@ export const $BaseInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         }
     },
     type: 'object',
@@ -4412,9 +4434,45 @@ export const $DAGWarningResponse = {
     description: 'Dag Warning serializer for responses.'
 } as const;
 
-export const $DagProcessorInfoResponse = {
+export const $DagBundleCollectionResponse = {
     properties: {
-        status: {
+        dag_bundles: {
+            items: {
+                '$ref': '#/components/schemas/DagBundleResponse'
+            },
+            type: 'array',
+            title: 'Dag Bundles'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['dag_bundles', 'total_entries'],
+    title: 'DagBundleCollectionResponse',
+    description: 'Dag bundle collection response.'
+} as const;
+
+export const $DagBundleDetailResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        active: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Active',
+            description: "Whether the bundle is still present in this deployment's configuration."
+        },
+        version: {
             anyOf: [
                 {
                     type: 'string'
@@ -4423,7 +4481,242 @@ export const $DagProcessorInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Status'
+            title: 'Version',
+            description: 'The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.'
+        },
+        last_refreshed: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Refreshed',
+            description: 'When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.'
+        },
+        bundle_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Url',
+            description: 'A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name',
+            description: 'The team owning the bundle, in a multi-team deployment.'
+        },
+        import_error_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Import Error Count',
+            description: 'Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.'
+        },
+        dag_count: {
+            type: 'integer',
+            title: 'Dag Count',
+            description: 'Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.'
+        }
+    },
+    type: 'object',
+    required: ['name', 'active', 'version', 'last_refreshed', 'bundle_url', 'team_name', 'import_error_count', 'dag_count'],
+    title: 'DagBundleDetailResponse',
+    description: 'Dag bundle serializer for the single-bundle response.'
+} as const;
+
+export const $DagBundleFileCollectionResponse = {
+    properties: {
+        dag_bundle_files: {
+            items: {
+                '$ref': '#/components/schemas/DagBundleFileResponse'
+            },
+            type: 'array',
+            title: 'Dag Bundle Files'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['dag_bundle_files', 'total_entries'],
+    title: 'DagBundleFileCollectionResponse',
+    description: 'Dag bundle file collection response.'
+} as const;
+
+export const $DagBundleFileResponse = {
+    properties: {
+        relative_fileloc: {
+            type: 'string',
+            title: 'Relative Fileloc'
+        },
+        dag_count: {
+            type: 'integer',
+            title: 'Dag Count',
+            description: 'Number of live Dags the file defines that the caller may read.'
+        },
+        last_parsed_time: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Parsed Time',
+            description: 'When the file was last parsed, or null if it has never parsed successfully.'
+        },
+        last_parse_duration: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Parse Duration',
+            description: 'How long the last successful parse of the file took, in seconds.'
+        },
+        import_error_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Import Error Count',
+            description: 'Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.'
+        }
+    },
+    type: 'object',
+    required: ['relative_fileloc', 'dag_count', 'last_parsed_time', 'last_parse_duration', 'import_error_count'],
+    title: 'DagBundleFileResponse',
+    description: 'A file in a Dag bundle, as the Dag processor last saw it.'
+} as const;
+
+export const $DagBundleResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        active: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Active',
+            description: "Whether the bundle is still present in this deployment's configuration."
+        },
+        version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Version',
+            description: 'The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.'
+        },
+        last_refreshed: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Refreshed',
+            description: 'When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.'
+        },
+        bundle_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Url',
+            description: 'A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name',
+            description: 'The team owning the bundle, in a multi-team deployment.'
+        },
+        import_error_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Import Error Count',
+            description: 'Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.'
+        }
+    },
+    type: 'object',
+    required: ['name', 'active', 'version', 'last_refreshed', 'bundle_url', 'team_name', 'import_error_count'],
+    title: 'DagBundleResponse',
+    description: 'Dag bundle serializer for responses.'
+} as const;
+
+export const $DagProcessorInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HealthStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         latest_dag_processor_heartbeat: {
             anyOf: [
@@ -4439,13 +4732,12 @@ export const $DagProcessorInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -4470,17 +4762,6 @@ export const $DagProcessorInfoResponse = {
 
 export const $DagProcessorInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -4519,7 +4800,7 @@ export const $DagProcessorInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
+    required: ['hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
     title: 'DagProcessorInstanceInfoResponse',
     description: 'Dag processor instance info serializer for responses.'
 } as const;
@@ -4849,6 +5130,13 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`
+} as const;
+
+export const $DetailedHealthStatus = {
+    type: 'string',
+    enum: ['healthy', 'degraded', 'down'],
+    title: 'DetailedHealthStatus',
+    description: "How much of a component's work has a live instance covering it."
 } as const;
 
 export const $DryRunBackfillCollectionResponse = {
@@ -5622,6 +5910,13 @@ export const $HealthInfoResponse = {
     required: ['metadatabase', 'scheduler', 'triggerer'],
     title: 'HealthInfoResponse',
     description: 'Health serializer for responses.'
+} as const;
+
+export const $HealthStatus = {
+    type: 'string',
+    enum: ['healthy', 'unhealthy'],
+    title: 'HealthStatus',
+    description: 'Aggregate health of a component: whether it has at least one live instance.'
 } as const;
 
 export const $ImportErrorCollectionResponse = {
@@ -6724,13 +7019,12 @@ export const $SchedulerInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         },
         latest_scheduler_heartbeat: {
             anyOf: [
@@ -6746,13 +7040,12 @@ export const $SchedulerInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -6777,17 +7070,6 @@ export const $SchedulerInfoResponse = {
 
 export const $SchedulerInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -6812,7 +7094,7 @@ export const $SchedulerInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_scheduler_heartbeat'],
+    required: ['hostname', 'latest_scheduler_heartbeat'],
     title: 'SchedulerInstanceInfoResponse',
     description: 'Scheduler instance info serializer for responses.'
 } as const;
@@ -8573,13 +8855,12 @@ export const $TriggererInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         },
         latest_triggerer_heartbeat: {
             anyOf: [
@@ -8595,13 +8876,12 @@ export const $TriggererInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -8626,17 +8906,6 @@ export const $TriggererInfoResponse = {
 
 export const $TriggererInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -8672,7 +8941,7 @@ export const $TriggererInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_triggerer_heartbeat', 'team_name'],
+    required: ['hostname', 'latest_triggerer_heartbeat', 'team_name'],
     title: 'TriggererInstanceInfoResponse',
     description: 'Triggerer instance info serializer for responses.'
 } as const;
@@ -10793,7 +11062,7 @@ export const $LightGridTaskInstanceSummary = {
 
 export const $MenuItem = {
     type: 'string',
-    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Deadlines', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
+    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Dag Bundles', 'Deadlines', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
     title: 'MenuItem',
     description: 'Define all menu items defined in the menu.'
 } as const;

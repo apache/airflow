@@ -204,6 +204,9 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+          # The docs build needs ~25 GB (image tar, loaded image, built docs); runners usually
+          # start with ~90 GB free, in which case the 3-minute cleanup is skipped.
+          min-free-space-gb: 40
       - name: "Restore docs inventory cache"
         # yamllint disable-line rule:line-length
         uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
@@ -453,7 +456,7 @@ jobs:
           inputs.canary-run == 'true' &&
           (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c  # v6.2.4
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

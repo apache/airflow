@@ -82,6 +82,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         "destination_project_dataset_table",
         "labels",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#e6f0e4"

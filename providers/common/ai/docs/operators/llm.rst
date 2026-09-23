@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm:
 
-``LLMOperator``
-===============
+Single prompts: ``LLMOperator`` and ``@task.llm``
+=================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` for
 general-purpose LLM calls — summarization, extraction, classification,
@@ -31,7 +31,7 @@ returns the output as XCom.
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
 
-Basic Usage
+Basic usage
 -----------
 
 Provide a ``prompt`` and the operator returns the LLM's response as a string:
@@ -41,23 +41,13 @@ Provide a ``prompt`` and the operator returns the LLM's response as a string:
     :start-after: [START howto_operator_llm_basic]
     :end-before: [END howto_operator_llm_basic]
 
-Structured Output
+Structured output
 -----------------
 
-Set ``output_type`` to a Pydantic ``BaseModel`` subclass. The LLM is instructed
-to return structured data, and the model instance is pushed to XCom unchanged
-so downstream tasks can type-hint the class directly
-(``def downstream(result: MyModel)``) and use attribute access (``result.field``).
-
-The declared ``output_type`` (and any ``BaseModel`` reachable from
-``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
-the worker when it loads the Dag, before any task runs -- so no edit to
-``[core] allowed_deserialization_classes`` is needed. The Pydantic class must be
-defined at **module scope** and bound to an attribute matching its ``__name__``;
-classes nested inside a function or ``@dag``-decorated body, parameterized
-generics, and dynamically-built classes whose ``__name__`` does not match the
-attribute they are bound to cannot be re-imported, so they are skipped with a
-warning at worker startup and the value fails to deserialize at the consumer.
+Set ``output_type`` to a Pydantic ``BaseModel`` subclass and the model instance is pushed to
+XCom unchanged, so downstream tasks can type-hint the class and use attribute access.
+:doc:`../structured_output` explains the XCom deserialization rules, the cross-Dag gap and
+``serialize_output``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
@@ -69,29 +59,7 @@ warning at worker startup and the value fails to deserialize at the consumer.
     :start-after: [START howto_operator_llm_structured]
     :end-before: [END howto_operator_llm_structured]
 
-Registration covers downstream tasks in the **same Dag**: every worker walks the
-loaded Dag's tasks at startup and registers each declared class, so it also works
-for mapped producers (``.expand(...)``) and for workers that load Dags from a
-cache that bypasses operator construction.
-
-The Airflow UI's XCom viewer renders Pydantic instances via the
-``stringify`` path, which produces a representation like
-``my_module.MyModel@version=1(field=value,...)`` without consulting the
-allow-list. It is not pretty (no field-by-field rendering today), but the value
-shows up; no configuration is required.
-
-The remaining gap is **cross-Dag** ``xcom_pull`` -- a task in a different Dag
-that pulls this XCom only parses its own Dag file, not the producer's, so the
-class is not auto-registered. Add the class qualified name to
-``[core] allowed_deserialization_classes`` (or a glob that matches it) to make
-that pattern work.
-
-If a downstream consumer needs the dict shape (e.g. forwarding to an external
-system that expects JSON-style payloads), pass ``serialize_output=True`` and the
-operator calls ``model_dump()`` before pushing to XCom. The pre-PR behavior is
-available on demand without giving up the typed default.
-
-Agent Parameters
+Agent parameters
 ----------------
 
 Pass additional keyword arguments to the pydantic-ai ``Agent`` constructor
@@ -104,7 +72,9 @@ the full list of supported parameters.
     :start-after: [START howto_operator_llm_agent_params]
     :end-before: [END howto_operator_llm_agent_params]
 
-Usage Limits
+.. _howto/operator:llm_usage_limits:
+
+Usage limits
 ------------
 
 Set ``usage_limits`` to a
@@ -174,7 +144,7 @@ Airflow task retry re-renders ``usage_limits`` and starts a fresh count, and for
 ``Decimal("0.50")`` caps one run, so it is not a bound on what the task spends in
 total.
 
-TaskFlow Decorator
+TaskFlow decorator
 ------------------
 
 The ``@task.llm`` decorator wraps ``LLMOperator``. The function returns the
@@ -203,7 +173,6 @@ the full example. ``require_approval=True`` is not currently supported with a
 ``Sequence`` prompt -- the approval session model expects a string -- and will
 raise at the approval boundary; widening that path is tracked as a follow-up.
 
-
 Classification with ``Literal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -231,19 +200,18 @@ to process a list of items in parallel:
     ``system_prompt`` is templated identically on ``@task.llm``, so the same
     upstream-XCom pattern applies here.
 
-Human-in-the-Loop Approval
+Human-in-the-loop approval
 --------------------------
 
-Set ``require_approval=True`` to pause the task after the LLM generates its
-output and wait for a human reviewer to approve or reject it via the Airflow
-HITL interface.  Optionally allow the reviewer to edit the output before
-approving with ``allow_modifications=True``, and set a deadline with
-``approval_timeout``:
+Set ``require_approval=True`` to pause the task after the model answers and wait for a human
+reviewer. The full guide, including timeouts, notifiers and assigned reviewers, is
+:doc:`../approval_gates`.
 
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
-    :language: python
-    :start-after: [START howto_operator_llm_approval]
-    :end-before: [END howto_operator_llm_approval]
+Reviewing uncertain output
+--------------------------
+
+A ``decision_policy`` with a confidence bar sends output the model is unsure about to the
+same review flow. See :doc:`../approval_gates`.
 
 Parameters
 ----------
@@ -255,6 +223,11 @@ Parameters
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic ``BaseModel``
   for structured output.
+- ``decision_policy``: A ``DecisionPolicy(min_confidence=..., on_uncertain=...)``.
+  ``min_confidence`` is the confidence the least confident reporting field needs for
+  the operator to return the output without a person, from 0 to 1; no reported
+  confidence counts as uncertain. ``on_uncertain`` is ``"review"`` (default) or
+  ``"fail"``. Default ``None``: no gate.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run, or a
@@ -262,11 +235,21 @@ Parameters
   Fails the task when token / request / tool-call budgets are exceeded, or when a
   templated dict value cannot be coerced.  Default ``None``.
 - ``require_approval``: If ``True``, the task defers after generating output and waits
-  for human review.  Default ``False``.
+  for human review. Default ``False``. Needs Airflow 3.1+.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires a
+  review path (``require_approval=True`` or a ``decision_policy`` that reviews)
+  and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
   approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review, as
+  ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's user id.
+  ``None`` (default) lets any user with the permission respond.  Fixed at first
+  run.  Needs Airflow 3.1+.
 
 Logging
 -------

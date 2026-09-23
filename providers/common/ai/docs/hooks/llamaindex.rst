@@ -17,8 +17,8 @@
 
 .. _howto/hook:llamaindex:
 
-``LlamaIndexHook``
-==================
+Using LlamaIndex directly: ``LlamaIndexHook``
+=============================================
 
 Use :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` to
 bridge an Airflow connection to `LlamaIndex <https://docs.llamaindex.ai/>`__

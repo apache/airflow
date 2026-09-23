@@ -401,6 +401,20 @@ in ``--from-ref`` and ``--to-ref`` flags.
 
 .. note::
 
+    Python bytecode (``.pyc``) compiled from the mounted sources inside the container is written
+    to the ``airflow-pycache-volume`` docker volume (``PYTHONPYCACHEPREFIX``) rather than next to
+    the sources, so it never shows up in your checkout but survives between ``breeze shell`` and
+    ``breeze start-airflow`` runs. This noticeably speeds up every ``airflow`` command and component
+    start-up, especially on macOS where reading sources through the bind mount is slow.
+    The cache is safe to share across Python versions: ``.pyc`` file names keep the
+    interpreter tag (``foo.cpython-310.pyc`` vs ``foo.cpython-312.pyc``), so bytecode is
+    never reused across versions. It is shared across worktrees, though -- sources always
+    mount at ``/opt/airflow`` and freshness is checked by source mtime and size, so
+    alternating between worktrees keeps invalidating the other one's entries.
+    Run ``breeze down --cleanup-pycache`` to wipe the volume.
+
+.. note::
+
     You cannot change Python version for static checks that are run within Breeze containers.
     The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
     The main reason is to keep consistency in the results of static checks and to make sure that

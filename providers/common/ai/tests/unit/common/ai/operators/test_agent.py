@@ -37,6 +37,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RequestUsage, UsageLimits
 
@@ -45,7 +46,9 @@ from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
+from airflow.providers.common.ai.sandbox.base import SandboxBackend
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
@@ -66,11 +69,28 @@ class Summary(BaseModel):
     score: float = 0.0
 
 
-def _make_mock_agent(output, make_mock_run_result):
+def _make_mock_agent(output, make_mock_run_result, *, cost=None):
     """Create a mock agent that returns the given output."""
-    mock_agent = MagicMock(spec=["run_sync"])
-    mock_agent.run_sync.return_value = make_mock_run_result(output)
+    mock_agent = MagicMock(spec=["run_sync", "instrument"])
+    mock_agent.run_sync.return_value = make_mock_run_result(output, cost=cost)
     return mock_agent
+
+
+def _make_ti(*, id="ti-1", dag_id="dag", task_id="task", run_id="run", map_index=-1, try_number=1):
+    """Return a task-instance double carrying the identity fields execute() reads."""
+    ti = MagicMock()
+    ti.configure_mock(
+        id=id, dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index, try_number=try_number
+    )
+    return ti
+
+
+def _make_context(ti=None):
+    """A context whose ``task_instance`` is a configured ti. Other keys stay generic mocks."""
+    ti = ti if ti is not None else _make_ti()
+    ctx = MagicMock()
+    ctx.__getitem__.side_effect = lambda key: ti if key == "task_instance" else MagicMock()
+    return ctx
 
 
 PRICED_COST = Decimal("0.10")
@@ -159,6 +179,7 @@ class TestAgentOperatorTemplateFields:
             "prompt",
             "llm_conn_id",
             "model_id",
+            "fallback_conn_ids",
             "system_prompt",
             "agent_params",
             "message_history",
@@ -201,9 +222,9 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             usage_limits=limits,
         )
-        op.execute(context=MagicMock())
+        op.execute(context=_make_context())
 
-        mock_agent.run_sync.assert_called_once_with("run", usage_limits=limits)
+        mock_agent.run_sync.assert_called_once_with("run", usage_limits=limits, run_id="ti-1")
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
@@ -301,7 +322,7 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_raises_valueerror_for_unparsable_usage_limits_value(self, mock_hook_cls):
         """An unparsable templated ``usage_limits`` value surfaces as ``ValueError`` before any model call."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(
@@ -360,14 +381,16 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             system_prompt="You are helpful.",
         )
-        result = op.execute(context=MagicMock())
+        result = op.execute(context=_make_context())
 
         assert result == "The answer is 42."
-        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": None}
+        )
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions="You are helpful."
         )
-        mock_agent.run_sync.assert_called_once_with("What is the answer?", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with("What is the answer?", usage_limits=None, run_id="ti-1")
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls, make_mock_run_result):
@@ -553,7 +576,47 @@ class TestAgentOperatorExecute:
         )
         op.execute(context=MagicMock())
 
-        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": "openai:gpt-5", "fallback_conn_ids": None}
+        )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """``fallback_conn_ids`` on the operator overrides the connection's own extra field."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            fallback_conn_ids=["conn_a", "conn_b"],
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": ["conn_a", "conn_b"]}
+        )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_forwards_empty_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """An explicit ``[]`` disables a chain configured on the connection, not just an override."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            fallback_conn_ids=[],
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": []}
+        )
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -567,7 +630,7 @@ class TestAgentOperatorExecute:
         msg_history = [MagicMock()]
         mock_result = make_mock_run_result("Initial output")
         mock_result.all_messages.return_value = msg_history
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_run_hitl.return_value = "Approved output"
@@ -596,7 +659,7 @@ class TestAgentOperatorExecute:
     ):
         """When enable_hitl_review=True and output_type is BaseModel, execute returns the model instance."""
         mock_result = make_mock_run_result(Summary(text="Approved summary", score=0.9))
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         # run_hitl_review returns JSON string (as stored in session.current_output)
@@ -627,7 +690,7 @@ class TestAgentOperatorExecute:
     ):
         """When enable_hitl_review=True and output_type is str, execute returns string as-is."""
         mock_result = make_mock_run_result("Initial output")
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_run_hitl.return_value = "Approved output"
@@ -657,7 +720,7 @@ class TestAgentOperatorExecute:
         from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 
         mock_result = make_mock_run_result("Initial output")
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_run_hitl.side_effect = HITLMaxIterationsError("Task exceeded max iterations.")
@@ -731,7 +794,7 @@ class TestAgentOperatorRegenerateWithFeedback:
         msg_history = [MagicMock()]
         mock_result = make_mock_run_result("Revised output")
         mock_result.all_messages.return_value = msg_history + [MagicMock()]
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -758,7 +821,7 @@ class TestAgentOperatorRegenerateWithFeedback:
         """regenerate_with_feedback returns JSON string for BaseModel output."""
         mock_result = make_mock_run_result(Summary(text="Revised"))
         mock_result.all_messages.return_value = []
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -854,10 +917,10 @@ class TestAgentOperatorDurable:
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
-        op.execute(context=MagicMock())
+        op.execute(context=_make_context())
 
         # run_sync called directly, no override
-        mock_agent.run_sync.assert_called_once_with("test", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with("test", usage_limits=None, run_id="ti-1")
 
     def test_build_durable_capabilities_wraps_toolset_capability(self):
         """A ``Toolset`` capability's inner toolset is wrapped with CachingToolset;
@@ -940,7 +1003,7 @@ class TestAgentOperatorDurable:
         storage = MagicMock(spec=DurableStorageProtocol)
         mock_build_storage.return_value = storage
 
-        mock_agent = MagicMock(spec=["run_sync", "model", "override"])
+        mock_agent = MagicMock(spec=["run_sync", "model", "override", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_agent.model = "test-model"
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -948,7 +1011,7 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, message_history="[]")
         with patch.object(op, "_emit_message_history", side_effect=RuntimeError("xcom down")):
             with pytest.raises(RuntimeError, match="xcom down"):
-                op.execute(context={})
+                op.execute(context=_make_context())
 
         storage.cleanup.assert_not_called()
 
@@ -966,7 +1029,7 @@ class TestAgentOperatorMultimodalPromptGuard:
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_rejects_sequence_prompt_with_hitl_review(self, mock_hook_cls):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(
@@ -1030,11 +1093,14 @@ class TestAgentOperatorMessageHistory:
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
-        context = MagicMock()
+        context = _make_context()
         op.execute(context=context)
 
         assert "message_history" not in mock_agent.run_sync.call_args.kwargs
-        context["task_instance"].xcom_push.assert_not_called()
+        # The transcript is not emitted without history, but run id + usage always are.
+        pushed_keys = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert "message_history" not in pushed_keys
+        assert pushed_keys == {"run_id", "usage"}
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_transcript_emitted_to_xcom_when_history_set(self, mock_hook_cls, make_mock_run_result):
@@ -1044,14 +1110,13 @@ class TestAgentOperatorMessageHistory:
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", message_history=[])
-        context = MagicMock()
+        context = _make_context()
         op.execute(context=context)
 
         ti = context["task_instance"]
-        ti.xcom_push.assert_called_once()
-        push_kwargs = ti.xcom_push.call_args.kwargs
-        assert push_kwargs["key"] == "message_history"
-        restored = ModelMessagesTypeAdapter.validate_json(push_kwargs["value"])
+        pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
+        assert set(pushes) == {"run_id", "usage", "message_history"}
+        restored = ModelMessagesTypeAdapter.validate_json(pushes["message_history"])
         assert len(restored) == 2
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -1096,7 +1161,7 @@ class TestAgentOperatorMessageHistory:
 
         mock_build_storage.return_value = MagicMock(spec=DurableStorageProtocol)
 
-        mock_agent = MagicMock(spec=["run_sync", "model", "override"])
+        mock_agent = MagicMock(spec=["run_sync", "model", "override", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_agent.model = "test-model"
         mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
@@ -1148,3 +1213,188 @@ class TestAgentOperatorHITLArgumentChecks:
                 enable_hitl_review=True,
                 **conflicting_kwargs,
             )
+
+
+class _NoopBackend(SandboxBackend):
+    """A backend that is never reached: these tests stop at the operator's constructor."""
+
+    name = "noop"
+
+    def create(self, *, spec=None):
+        raise AssertionError("constructor guards must not provision")
+
+    def run_command(self, sandbox, command, *, timeout, max_output_bytes):
+        raise AssertionError("constructor guards must not run commands")
+
+    def destroy(self, sandbox):
+        pass
+
+
+def _sandbox_toolset():
+    return SandboxToolset(_NoopBackend())
+
+
+class TestAgentOperatorSandboxContinuityGuards:
+    """
+    A sandbox is destroyed when the run ends, so features that replay or rerun against
+    it are refused up front rather than producing answers about files that are gone.
+    """
+
+    @pytest.mark.parametrize(
+        "toolsets",
+        [
+            pytest.param([_sandbox_toolset()], id="direct"),
+            pytest.param([_sandbox_toolset().prefixed("box")], id="prefixed"),
+            pytest.param([_sandbox_toolset().filtered(lambda ctx, tool: True)], id="filtered"),
+            pytest.param([CombinedToolset([FunctionToolset(), _sandbox_toolset()])], id="combined"),
+            pytest.param(
+                [CombinedToolset([FunctionToolset(), _sandbox_toolset().prefixed("a")]).prefixed("b")],
+                id="nested_twice",
+            ),
+        ],
+    )
+    def test_durable_with_a_sandbox_toolset_is_rejected_wherever_it_hides(self, toolsets):
+        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=toolsets)
+
+    def test_durable_with_a_sandbox_in_a_toolset_capability_is_rejected(self):
+        """Tools reaching the agent through ``capabilities=[Toolset(...)]`` are durably cached
+        too, so the same replay-against-nothing applies to them."""
+        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                durable=True,
+                agent_params={"capabilities": [Toolset(_sandbox_toolset())]},
+            )
+
+    def test_a_callable_toolset_capability_cannot_be_inspected_and_passes(self):
+        """A factory resolved per run has no concrete toolset to look inside at parse time."""
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            agent_params={"capabilities": [Toolset(lambda ctx: _sandbox_toolset())]},
+        )
+        assert op.durable is True
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    def test_hitl_review_with_a_sandbox_toolset_is_rejected(self):
+        with pytest.raises(ValueError, match="enable_hitl_review=True cannot be used with a SandboxToolset"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                enable_hitl_review=True,
+                toolsets=[_sandbox_toolset().prefixed("box")],
+            )
+
+    def test_the_message_names_the_ways_out(self):
+        with pytest.raises(ValueError, match="Drop durable=True, or move the sandbox work into its own task"):
+            AgentOperator(
+                task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[_sandbox_toolset()]
+            )
+
+    @pytest.mark.parametrize("flag", [{"durable": True}, {"enable_hitl_review": True}])
+    def test_the_flags_stay_usable_without_a_sandbox(self, flag):
+        if "enable_hitl_review" in flag and not AIRFLOW_V_3_1_PLUS:
+            pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0")
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            toolsets=[FunctionToolset().prefixed("fn"), CombinedToolset([FunctionToolset()])],
+            **flag,
+        )
+        assert op.toolsets is not None
+
+    def test_a_sandbox_toolset_without_either_flag_is_fine(self):
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", toolsets=[_sandbox_toolset()])
+        assert isinstance(op.toolsets[0], SandboxToolset)
+
+
+class TestAgentOperatorRunIdentity:
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_run_id_and_usage_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
+        """The pydantic-ai run id and token usage are exposed on XCom for downstream tasks."""
+        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+        mock_agent.run_sync.return_value.run_id = "the-run-id"
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
+        context = _make_context()
+        op.execute(context=context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["run_id"] == "the-run-id"
+        assert pushes["usage"] == {
+            "requests": 1,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "tool_calls": 0,
+            "cost": None,
+        }
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_usage_cost_is_stringified_on_xcom(self, mock_hook_cls, make_mock_run_result):
+        """A non-None run cost (Decimal) is stringified before it goes to XCom."""
+        mock_agent = _make_mock_agent("ok", make_mock_run_result, cost=PRICED_COST)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
+        context = _make_context()
+        op.execute(context=context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["usage"]["cost"] == str(PRICED_COST)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_run_metadata_not_pushed_when_do_xcom_push_false(self, mock_hook_cls, make_mock_run_result):
+        """do_xcom_push=False suppresses the run_id/usage pushes like any other operator XCom."""
+        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", do_xcom_push=False)
+        context = _make_context()
+        op.execute(context=context)
+
+        pushed_keys = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert "run_id" not in pushed_keys
+        assert "usage" not in pushed_keys
+
+    @patch("airflow.providers.common.ai.operators.agent.stamp_identity_on_agent_spans", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_stamps_identity_on_agent_spans(self, mock_hook_cls, mock_stamp, make_mock_run_result):
+        """execute() derives the identity from the task instance and stamps it on the agent's spans."""
+        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
+        op.execute(context=_make_context(_make_ti(id="ti-9")))
+
+        mock_stamp.assert_called_once()
+        agent_arg, attrs = mock_stamp.call_args.args
+        assert agent_arg is mock_agent
+        assert attrs["airflow.task_instance.id"] == "ti-9"
+
+    @patch("airflow.providers.common.ai.operators.agent.stamp_identity_on_agent_spans", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_stamps_identity(self, mock_hook_cls, mock_stamp, make_mock_run_result):
+        """A HITL re-run stamps the same identity the initial run resolved."""
+        mock_agent = _make_mock_agent("revised", make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
+        op._run_identity_attrs = {"airflow.task_instance.id": "ti-9"}
+        op.regenerate_with_feedback(feedback="more", message_history=[])
+
+        mock_stamp.assert_called_once_with(mock_agent, {"airflow.task_instance.id": "ti-9"})

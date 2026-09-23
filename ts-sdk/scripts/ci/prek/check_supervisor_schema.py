@@ -36,7 +36,6 @@ GENERATED = "ts-sdk/src/generated/supervisor.ts"
 
 if __name__ == "__main__":
     directory = AIRFLOW_ROOT_PATH / "ts-sdk"
-    run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=directory)
     run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=directory)
     # Regenerate, then format exactly as `pnpm run format` would, so the diff
     # reflects a stale schema and not raw-vs-prettier formatting noise.

@@ -34,6 +34,14 @@ inputs:
   make-mnt-writeable-and-cleanup:
     description: 'Whether to cleanup /mnt'
     required: true
+  min-free-space-gb:
+    description: >
+      Skip removing the runner's unused pre-installed tooling (close to three minutes) when the root
+      filesystem already has at least this many GB free. Empty means always remove it. Runners are
+      not uniform, so a job whose footprint is only the CI image (docs build) passes a threshold
+      rather than skipping unconditionally.
+    required: false
+    default: ""
   image-stash-ref:
     description: >
       Ref whose image stash to restore (empty = the per-branch one). An image built for a ref
@@ -53,7 +61,15 @@ runs:
       if: inputs.make-mnt-writeable-and-cleanup == 'true'
     - name: "Free up disk space"
       shell: bash
-      run: ./scripts/tools/free_up_disk_space.sh
+      env:
+        MIN_FREE_SPACE_GB: ${{ inputs.min-free-space-gb }}
+      run: |
+        FREE_GB=$(df --output=avail --block-size=1G / | tail -1 | tr -d ' ')
+        if [[ -n "${MIN_FREE_SPACE_GB}" && "${FREE_GB}" -ge "${MIN_FREE_SPACE_GB}" ]]; then
+          echo "${FREE_GB} GB free on / (>= ${MIN_FREE_SPACE_GB} GB), skipping the disk cleanup"
+        else
+          ./scripts/tools/free_up_disk_space.sh
+        fi
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze
