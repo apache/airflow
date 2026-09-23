@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import runpy
 from copy import deepcopy
 from unittest import mock
 from unittest.mock import PropertyMock, call
@@ -42,7 +43,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.google.cloud.links.base import BASE_LINK
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KUBERNETES_JOB_LINK,
@@ -50,6 +51,7 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineJobLink,
     KubernetesEnginePodLink,
 )
+from airflow.providers.google.cloud.operators import kubernetes_engine
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEClusterAuthDetails,
     GKECreateClusterOperator,
@@ -825,6 +827,14 @@ class TestGKEStartKueueInsideClusterOperator:
         mock_log.info.assert_called_once_with(
             "Cluster doesn't have ability to autoscale, will not install Kueue inside. Aborting"
         )
+
+
+@mock.patch.dict("sys.modules", {"airflow.providers.cncf.kubernetes.operators.pod_exec": None})
+def test_missing_kubernetes_pod_exec_operator_reports_required_provider_version():
+    with pytest.raises(
+        AirflowOptionalProviderFeatureException, match="cncf-kubernetes provider version >=10.22.0"
+    ):
+        runpy.run_path(kubernetes_engine.__file__)
 
 
 class TestGKEPodExecOperator:

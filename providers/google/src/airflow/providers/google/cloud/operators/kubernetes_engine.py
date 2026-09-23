@@ -36,7 +36,6 @@ from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesStartKueueJobOperator,
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
 from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
     KubernetesDeleteResourceOperator,
@@ -61,6 +60,16 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
+except ImportError:
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import KubernetesPodExecOperator. This operator is only available in cncf-kubernetes "
+        "provider version >=10.22.0"
+    )
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
