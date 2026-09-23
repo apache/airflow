@@ -40,3 +40,9 @@ class XComSequenceSliceResponse(RootModel):
     """XCom schema with minimal structure for slice-based access."""
 
     root: list[JsonValue]
+
+
+class XComKeysRequest(BaseModel):
+    """Request body for fetching multiple XCom values by key list in a single query."""
+
+    keys: list[str]
