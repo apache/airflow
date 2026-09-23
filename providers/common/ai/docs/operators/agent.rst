@@ -160,6 +160,87 @@ Open the **Rendered Template** tab on the task instance to see the
 substituted ``system_prompt`` after Jinja fills in ``classify``'s XCom
 values.
 
+.. _howto/operator:agent-reuse:
+
+Reuse one agent across tasks
+----------------------------
+
+When several tasks, or several Dags, run the same agent, define it once and
+import it. ``AgentOperator`` and ``@task.agent`` take the whole agent definition
+as keyword arguments, so a dict in a module next to your Dags is enough. A task
+that needs something different overrides single keys.
+
+.. code-block:: python
+
+    # dags/shared_agents/__init__.py
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    ORDERS_ANALYST = {
+        "llm_conn_id": "pydanticai_default",
+        "system_prompt": "You are the orders analyst. Answer only from the orders database.",
+        "toolsets": [SQLToolset(db_conn_id="orders_db", allowed_tables=["orders"])],
+        "agent_params": {"name": "orders_analyst"},
+    }
+
+.. code-block:: python
+
+    # dags/orders.py
+    from shared_agents import ORDERS_ANALYST
+
+    from airflow.sdk import dag, task
+
+
+    @dag(schedule=None)
+    def orders():
+        @task.agent(**ORDERS_ANALYST)
+        def weekly_summary() -> str:
+            return "Summarize this week's orders."
+
+        @task.agent(**{**ORDERS_ANALYST, "system_prompt": "Answer in one sentence."})
+        def one_liner() -> str:
+            return "How many orders are there?"
+
+        weekly_summary()
+        one_liner()
+
+
+    orders()
+
+When span export is on (see :doc:`../observability`), the ``name`` in
+``agent_params`` becomes the ``gen_ai.agent.name`` attribute on each agent run's
+span, so traces from every task that uses the definition group under one agent.
+
+To keep the definition out of Python, for example to share it with a program that
+does not run on Airflow, write a pydantic-ai
+`agent spec <https://pydantic.dev/docs/ai/core-concepts/agent-spec/>`__ file and pass its path through
+``agent_params``. A model set on the connection wins over a ``model`` in the
+file, and ``system_prompt`` is added to the file's ``instructions``:
+
+.. code-block:: yaml
+
+    # dags/shared_agents/orders_analyst.yaml
+    name: orders_analyst
+    instructions: >
+      You are the orders analyst. Answer only from the orders database.
+    retries: 2
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    AgentOperator(
+        task_id="orders_question",
+        llm_conn_id="pydanticai_default",
+        prompt="How many orders are there?",
+        agent_params={"spec_file": Path(__file__).parent / "shared_agents" / "orders_analyst.yaml"},
+    )
+
+Build the path from ``__file__``: a relative path resolves against the worker's
+working directory, not the Dag file.
+
+With ``durable=True``, tools from capabilities declared in the spec file are not
+replayed on retry; they run again. Pass tools you need replayed in ``toolsets=``.
+
 Agent features
 --------------
 
