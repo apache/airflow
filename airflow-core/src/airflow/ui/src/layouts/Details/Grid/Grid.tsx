@@ -240,7 +240,9 @@ export const Grid = ({
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
             <DurationAxis top="4px" />
-            <Flex flexDirection="row-reverse">
+            {/* Isolated so version indicators stay beneath the sticky task name column when scrolled
+              behind it. Pagination buttons sit outside on purpose: the older-runs button overlaps that column. */}
+            <Flex flexDirection="row-reverse" style={{ isolation: "isolate" }}>
               {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
               {runsWithVersionFlags?.map((dr) => (
                 <Bar
@@ -270,7 +272,7 @@ export const Grid = ({
         <Box left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
           <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
         </Box>
-        <Flex flexDirection="row-reverse" flexShrink={0}>
+        <Flex flexDirection="row-reverse" flexShrink={0} style={{ isolation: "isolate" }}>
           {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
           {gridRuns?.map((dr: GridRunsResponse) => (
             <TaskInstancesColumn
