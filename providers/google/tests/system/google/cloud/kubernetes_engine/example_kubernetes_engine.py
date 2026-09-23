@@ -59,7 +59,7 @@ GCP_LOCATION = "europe-west1"
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
-EXEC_POD_NAME = "existing-pod"
+EXEC_POD_NAME = f"existing-pod-{ENV_ID}".replace("_", "-")
 EXEC_CONTAINER_NAME = "main"
 EXPECTED_EXEC_OUTPUT = "command executed in existing GKE Pod"
 
