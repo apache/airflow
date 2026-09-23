@@ -3373,7 +3373,7 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    def test_executable_task_instances_to_queued_sets_workload_run_id(self, dag_maker, session):
+    def test_select_task_instances_to_queue_sets_workload_run_id(self, dag_maker, session):
         """workload_run_id is written for every TI on enqueue, for all executors."""
         dag_id = "SchedulerJobTest.test_executable_sets_workload_run_id"
         session = settings.Session()
@@ -3387,7 +3387,9 @@ class TestSchedulerJob:
         ti.state = State.SCHEDULED
         session.flush()
 
-        returned_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        returned_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         assert len(returned_tis) == 1
         assert returned_tis[0].workload_run_id is not None
         assert UUID(returned_tis[0].workload_run_id), "is valid uuid"

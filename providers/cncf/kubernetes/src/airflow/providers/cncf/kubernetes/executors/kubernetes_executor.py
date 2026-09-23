@@ -380,7 +380,7 @@ class KubernetesExecutor(BaseExecutor):
             else:
                 record_event(key, state, info, consume_run_id=consume_run_id)
             return
-        self.event_buffer[key] = (state, info, None)
+        self.event_buffer[key] = (state, info)
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
