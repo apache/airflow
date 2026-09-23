@@ -254,11 +254,12 @@ class DataflowJobStatusTrigger(BaseTrigger):
                     if job is None:
                         await asyncio.sleep(self.poll_sleep)
                         continue
-                    self.job_id = job.id
+                    job_id = job.id
                     job_status = job.current_state
                 else:
+                    job_id = self.job_id
                     job_status = await self.async_hook.get_job_status(
-                        job_id=self.job_id,
+                        job_id=job_id,
                         project_id=self.project_id,
                         location=self.location,
                     )
@@ -266,7 +267,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "success",
-                            "message": f"Job with id '{self.job_id}' has reached an expected state: {job_status.name}",
+                            "message": f"Job with id '{job_id}' has reached an expected state: {job_status.name}",
                         }
                     )
                     return
@@ -274,7 +275,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Job with id '{self.job_id}' is already in terminal state: {job_status.name}",
+                            "message": f"Job with id '{job_id}' is already in terminal state: {job_status.name}",
                         }
                     )
                     return
@@ -523,7 +524,7 @@ class DataflowJobMetricsTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Job with id '{self.job_id}' is already in terminal state: {job_status.name}",
+                            "message": f"Job with id '{job_id}' is already in terminal state: {job_status.name}",
                             "result": None,
                         }
                     )

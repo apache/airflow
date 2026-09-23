@@ -434,7 +434,7 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
             autoscaling_events.extend(response.get("autoscalingEvents", []))
         return autoscaling_events
 
-    def _fetch_all_jobs(self) -> list[dict]:
+    def fetch_all_jobs(self) -> list[dict]:
         request = (
             self._dataflow.projects()
             .locations()
@@ -458,7 +458,7 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
         return all_jobs
 
     def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> list[dict]:
-        jobs = self._fetch_all_jobs()
+        jobs = self.fetch_all_jobs()
         jobs = [job for job in jobs if job["name"].startswith(prefix_name)]
         return jobs
 
@@ -1193,12 +1193,11 @@ class DataflowHook(GoogleBaseHook):
             project_number=project_id,
             location=location,
         )
-        all_jobs = jobs_controller._fetch_all_jobs()
+        all_jobs = jobs_controller.fetch_all_jobs()
         matching_jobs = [job for job in all_jobs if job.get("name") == job_name]
         if not matching_jobs:
             return None
-        matching_jobs.sort(key=lambda job: job.get("createTime", ""), reverse=True)
-        return matching_jobs[0]
+        return max(matching_jobs, key=lambda job: job.get("createTime", ""))
 
     @GoogleBaseHook.fallback_to_default_project_id
     def fetch_job_metrics_by_id(
@@ -1594,7 +1593,9 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         matching_jobs = [job async for job in page_result if job.name == job_name]
         if not matching_jobs:
             return None
-        matching_jobs.sort(key=lambda job: job.create_time, reverse=True)
+        matching_jobs.sort(
+            key=lambda job: (job.create_time.seconds, job.create_time.nanos), reverse=True
+        )
         return matching_jobs[0]
 
     async def list_job_messages(

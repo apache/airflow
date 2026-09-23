@@ -692,6 +692,7 @@ class TestDataflowJobStatusTrigger:
             {
                 "project_id": PROJECT_ID,
                 "job_id": JOB_ID,
+                "job_name": None,
                 "expected_statuses": {JobState.JOB_STATE_DONE, JobState.JOB_STATE_FAILED},
                 "location": LOCATION,
                 "gcp_conn_id": GCP_CONN_ID,
@@ -813,6 +814,7 @@ class TestDataflowStartYamlJobTrigger:
             {
                 "project_id": PROJECT_ID,
                 "job_id": JOB_ID,
+                "job_name": None,
                 "location": LOCATION,
                 "gcp_conn_id": GCP_CONN_ID,
                 "poll_sleep": POLL_SLEEP,
