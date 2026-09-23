@@ -173,7 +173,7 @@ When to choose it
 
 **Choose it when** the question is a query and the data is in a DBAPI database.
 :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` gives the agent
-four tools — list tables, get schema, query, check query. Set ``allowed_tables``
+four tools: list tables, get schema, query, check query. Set ``allowed_tables``
 and that allow-list is enforced by parsing the SQL rather than by matching
 strings; see :ref:`allowed-tables-enforcement` for how the walk handles CTEs,
 subqueries and joins.
@@ -185,8 +185,8 @@ subqueries and joins.
   an engine or query the parser reads differently. Point ``db_conn_id`` at a
   least-privilege role whose grants match the allow-list.
 - It cannot bound the fetch for every driver. Hooks that hand their handler
-  something other than a DBAPI cursor — ``ExasolHook`` and its pyexasol
-  statement, for instance — fall back to a full fetch. The payload handed to the
+  something other than a DBAPI cursor (``ExasolHook`` and its pyexasol
+  statement, for instance) fall back to a full fetch. The payload handed to the
   model is still bounded; the transfer is not. See :ref:`bounded-query-results`.
 - Its parser-level closure is opt-in, not the default. The table walk returns
   immediately while ``allowed_tables`` is unset, so out of the box the agent
@@ -194,7 +194,7 @@ subqueries and joins.
   that: an explicit ``None`` or empty list is rejected at construction.
   ``DESCRIBE`` and ``SHOW`` both pass, on dialects that parse them, while
   ``allowed_tables`` stays unset. Set ``allowed_tables`` and the walk
-  turns fail-closed for ``SHOW`` — but not for ``DESCRIBE``: it instead
+  turns fail-closed for ``SHOW``, but not for ``DESCRIBE``: it instead
   becomes an ordinary table reference, allowed only when the table it names
   is on the list. See :ref:`allowed-tables-enforcement` for what else the
   walk rejects once ``allowed_tables`` is active. Statements that modify
@@ -207,7 +207,7 @@ subqueries and joins.
   ``check_query`` catches its own errors and reports them back as a normal
   ``{"valid": false, ...}`` result, and ``get_schema`` returns a normal
   ``{"error": ...}`` result instead of raising when the requested table is
-  outside ``allowed_tables`` — other ``get_schema`` failures still raise and
+  outside ``allowed_tables``; other ``get_schema`` failures still raise and
   still become a ``ModelRetry``.
 
 **A real example.** ``example_pydantic_ai_hook.py`` builds an agent around

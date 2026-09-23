@@ -63,7 +63,7 @@ class LLMSQLQueryOperator(LLMOperator):
 
     :param prompt: Natural language description of the desired query.
     :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-4o"``).
+    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when
         the primary provider is unavailable. Overrides the ``fallback_conn_ids``

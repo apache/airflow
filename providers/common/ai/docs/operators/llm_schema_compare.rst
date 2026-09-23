@@ -46,16 +46,19 @@ Provide ``db_conn_ids`` pointing to two or more database connections and
     :start-after: [START howto_operator_llm_schema_compare_basic]
     :end-before: [END howto_operator_llm_schema_compare_basic]
 
-Full Context Strategy
----------------------
+Basic context strategy
+----------------------
 
-Set ``context_strategy="full"`` to include primary keys, foreign keys, and indexes
-in the schema context sent to the LLM.
+By default the schema context sent to the model includes primary keys, foreign keys and
+indexes alongside the columns (``context_strategy="full"``). Set
+``context_strategy="basic"`` to send column names and types only, which shortens the
+prompt for tables with many indexes and constraints, or when the comparison is about
+columns alone:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
     :language: python
-    :start-after: [START howto_operator_llm_schema_compare_full]
-    :end-before: [END howto_operator_llm_schema_compare_full]
+    :start-after: [START howto_operator_llm_schema_compare_basic_context]
+    :end-before: [END howto_operator_llm_schema_compare_basic_context]
 
 With Object Storage or a Database Table
 ---------------------------------------
@@ -65,7 +68,7 @@ Use ``data_sources`` with
 object-storage sources (S3 or GCS Parquet, CSV, Iceberg, etc.) in the comparison.
 These can be freely combined with ``db_conn_ids``. Whether an entry is
 introspected via ``DbApiHook`` or DataFusion depends on what its ``conn_id``
-resolves to, not on its ``uri``/``format`` fields — a ``DataSourceConfig``
+resolves to, not on its ``uri``/``format`` fields: a ``DataSourceConfig``
 with neither ``uri`` nor ``format`` set only works when ``conn_id`` resolves
 to a ``DbApiHook``:
 
@@ -183,7 +186,7 @@ Parameters
   connection's extra field.
 - ``system_prompt``: Instructions included in the LLM system prompt. Defaults to
   ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and
-  severity definitions. Passing a value **replaces** the default — concatenate
+  severity definitions. Passing a value **replaces** the default, so concatenate
   with ``DEFAULT_SYSTEM_PROMPT`` to extend it (see
   :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
@@ -197,8 +200,8 @@ Parameters
 - ``data_sources``: List of ``DataSourceConfig`` objects for object-storage
   or catalog-managed sources. An entry with neither ``uri`` nor ``format``
   set works only if its ``conn_id`` resolves to a ``DbApiHook``.
-- ``context_strategy``: To fetch primary keys, foreign keys, and indexes.``full`` or ``basic``,
-  strongly recommended for cross-system comparisons. default is ``full``
+- ``context_strategy``: ``"full"`` (default) sends column names and types plus primary
+  keys, foreign keys and indexes; ``"basic"`` sends column names and types only.
 - ``require_approval``: If ``True``, the task pauses after the comparison and
   waits for human review before returning the result.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
@@ -217,5 +220,5 @@ Logging
 -------
 
 After each LLM call, the operator logs a summary with model name, token usage,
-and request count at INFO level. See :ref:`AgentOperator — Logging <howto/operator:agent>`
+and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.

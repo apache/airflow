@@ -24,33 +24,16 @@ The ``pydanticai_vertex`` connection type configures access to
 `Google Vertex AI <https://cloud.google.com/vertex-ai>`__ via the pydantic-ai
 framework. It backs ``PydanticAIVertexHook``, the dedicated subclass of
 ``PydanticAIHook`` for Google Cloud's project/location/service-account
-credential shape — none of which fit the plain ``api_key`` + ``base_url``
+credential shape, which does not fit the plain ``api_key`` + ``base_url``
 shape that the generic :doc:`pydantic_ai` connection assumes. All fields live
 in ``extra``; the ``password`` and ``host`` fields are hidden in the connection
 form.
 
 .. note::
 
-    This connection type was previously named ``pydanticai-vertex``.
-
-    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is
-    encoded in a URI scheme, so ``pydanticai-vertex`` is decoded to ``pydanticai_vertex``
-    on read and resolves as before. That covers ``AIRFLOW_CONN_*`` environment
-    variables and secrets backends such as HashiCorp Vault, AWS Secrets Manager and
-    GCP Secret Manager.
-
-    A connection whose type is stored verbatim does need updating, because the
-    hyphen is preserved and no longer matches a registered hook. That means rows in
-    the metadata database, including any created through the UI, and connections
-    imported in object form from a local file:
-
-    .. code-block:: bash
-
-        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-vertex'
-        airflow connections delete <conn_id>
-        airflow connections add <conn_id> --conn-type pydanticai_vertex ...
-
-    In the UI, edit the connection and re-pick its type.
+    This connection type was previously named ``pydanticai-vertex``. Connections
+    stored as a URI or as JSON keep working; a type stored verbatim, such as a row
+    created in the UI, must be re-created. See :ref:`troubleshooting-conn-type-rename`.
 
 Default Connection IDs
 ----------------------
@@ -86,10 +69,8 @@ Location / Region
     ``GOOGLE_CLOUD_LOCATION`` environment variable.
 
 Force Vertex AI Mode
-    Legacy flag from pydantic-ai 1.x, where a single ``GoogleProvider`` took a
-    ``vertexai`` argument. Not needed here: the ``google-cloud:`` model prefix
-    above already makes ``GoogleCloudProvider`` hard-code ``vertexai=True``
-    unconditionally when it builds its client.
+    Not needed: the ``google-cloud:`` model prefix above already makes
+    ``GoogleCloudProvider`` build a Vertex AI client.
 
     .. note::
         This field is accepted for backward compatibility but has no effect:
@@ -111,7 +92,7 @@ API Key
 
 Service Account Info
     Service account key as an inline JSON object (with ``type``,
-    ``project_id``, ``private_key``, etc.) — not a file path.
+    ``project_id``, ``private_key``, etc.), not a file path.
 
 Custom Endpoint URL
     Override the Google API base URL (optional).
@@ -130,13 +111,13 @@ when more than one credential source is set at once, ``credentials`` /
 ``project`` / ``location`` take precedence over ``api_key`` (which is then
 ignored):
 
-- ``service_account_info`` — loaded into Google Cloud credentials and passed
+- ``service_account_info``: loaded into Google Cloud credentials and passed
   as ``credentials`` to the provider.
 - Application Default Credentials (``GOOGLE_APPLICATION_CREDENTIALS``,
-  ``gcloud auth application-default login``, Workload Identity, …) — used
+  ``gcloud auth application-default login``, Workload Identity, …), used
   automatically once ``project`` and/or ``location`` are set without
   ``service_account_info``.
-- ``api_key`` — for Vertex AI Express Mode, only used when none of the above
+- ``api_key``: for Vertex AI Express Mode, only used when none of the above
   are set.
 
 Examples

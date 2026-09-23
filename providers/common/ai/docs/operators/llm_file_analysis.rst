@@ -192,5 +192,5 @@ Parquet and Avro readers require their corresponding optional extras:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai[parquet]
-    pip install apache-airflow-providers-common-ai[avro]
+    pip install "apache-airflow-providers-common-ai[parquet]"
+    pip install "apache-airflow-providers-common-ai[avro]"

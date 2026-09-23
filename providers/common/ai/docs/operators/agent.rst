@@ -21,7 +21,7 @@ Agents with tools: ``AgentOperator`` and ``@task.agent``
 ========================================================
 
 Use :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` or
-the ``@task.agent`` decorator to run an LLM agent with **tools** — the agent
+the ``@task.agent`` decorator to run an LLM agent with **tools**: the agent
 reasons about the prompt, calls tools (database queries, API calls, etc.) in
 a multi-turn loop, and returns a final answer.
 
@@ -65,7 +65,7 @@ Hook-based tools
 ----------------
 
 Wrap any Airflow Hook's methods as agent tools using ``HookToolset``. Only
-methods you explicitly list are exposed — there is no auto-discovery.
+methods you explicitly list are exposed; there is no auto-discovery.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
@@ -108,7 +108,6 @@ to the model. This mirrors the input types accepted by pydantic-ai's
     Combining a non-string prompt with ``enable_hitl_review=True`` is not
     currently supported -- the HITL session model stores the prompt as a
     string, so a ``Sequence`` prompt will raise at the review boundary.
-    Widening HITL review to multimodal prompts is tracked as a follow-up.
 
 Structured output
 -----------------
@@ -166,12 +165,12 @@ Agent features
 
 Four features have pages of their own:
 
-- :doc:`../message_history` — pass ``message_history`` to carry a conversation across runs.
-- :doc:`../durable_execution` — set ``durable=True`` to replay completed model and tool steps
+- :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
+- :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
   on retry instead of paying for them again.
-- :doc:`../guardrails` — pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
+- :doc:`../guardrails`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
   through ``agent_params``.
-- :doc:`../code_mode` — set ``code_mode=True`` to collapse the agent's tools into a single
+- :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
   ``run_code`` tool the model drives by writing Python.
 
 .. _agent-durable-execution:
@@ -243,23 +242,10 @@ Parameters
   Pydantic instance flows through XCom unchanged. Set to ``True`` when a
   downstream consumer needs the dict shape.
 
-**HITL Review parameters** (requires the ``hitl_review`` plugin -- see
-:doc:`../hitl_review` for the full review workflow):
-
-- ``enable_hitl_review``: When ``True``, the operator enters an iterative
-  review loop after the first generation. A human reviewer can approve,
-  reject, or request changes via the plugin's REST API at ``/hitl-review``
-  or through the **HITL Review** extra link on the task instance. Default
-  ``False``.
-- ``max_hitl_iterations``: Maximum outputs shown to the reviewer (1 = initial
-  output). When the reviewer requests changes at iteration >= this limit, the
-  task fails with ``HITLMaxIterationsError`` without calling the LLM. E.g. 5
-  allows changes at iterations 1-4. Default ``5``.
-- ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds
-  combined. ``None`` means no timeout (the operator blocks until a terminal
-  action).
-- ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
-  human response. Default ``10``.
+**HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
+``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
+loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
+parameter and the review workflow.
 
 Logging
 -------
@@ -268,7 +254,7 @@ All AI operators automatically log a post-run summary after ``run_sync()``
 completes. ``AgentOperator`` additionally wraps toolsets for real-time
 per-tool-call logging (controlled by ``enable_tool_logging``).
 
-**Real-time tool call logging** (AgentOperator only) — each tool call is
+**Real-time tool call logging** (AgentOperator only): each tool call is
 logged as it happens:
 
 .. code-block:: text
@@ -283,7 +269,7 @@ logged as it happens:
 Tool arguments are logged at DEBUG level to avoid leaking sensitive data at
 the default log level.
 
-**Post-run summary** (all operators) — after the LLM run finishes, a summary
+**Post-run summary** (all operators): after the LLM run finishes, a summary
 is logged with model name, token usage, and the full tool call sequence:
 
 .. code-block:: text
