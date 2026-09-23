@@ -124,9 +124,9 @@ internal class InputTaskTest {
   @DisplayName("Should decode a TaskInput wholesale from its wired input when no bindings arrive")
   fun shouldDecodeTaskInputFromWiredInput() {
     // A native Dag has no stub call site, so there are no argument names to
-    // match fields against: the input the Dag wired to this task decodes into
-    // the whole TaskInput at once.
-    val context = contextWiredWith(listOf(LiteralArg(mapOf("region" to "emea", "threshold" to 0.5))))
+    // match fields against: the input the wiring class fed this task decodes
+    // into the whole TaskInput at once.
+    val context = contextWiredWith(listOf(Arg.lit(mapOf("region" to "emea", "threshold" to 0.5))))
     val (client, _) = clientWith(null)
     val task = Summarize()
 

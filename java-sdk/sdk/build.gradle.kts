@@ -504,7 +504,8 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * Container for the annotation-based Dag-authoring API.
             | *
             | * Annotating a class with [Dag] generates a `<Class>Builder` whose static
-            | * `build()` returns the [DagDef] to add to a [Bundle].
+            | * `build()` returns the [DagDef] to add to a [Bundle], and — when the class
+            | * declares a [Deps] class — a `<Class>Deps` wiring view for it to implement.
             | *
             | * Example:
             | *
@@ -521,9 +522,10 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * ```
             | *
             | * A task method's data parameters — everything other than the injected
-            | * [Client] and [Context] — receive, by position, the arguments the Python
-            | * `@task.stub` call site bound. Keyword arguments bind by name instead
-            | * through a single [TaskInput] parameter.
+            | * [Client] and [Context] — receive, by position, the inputs the [Deps]
+            | * class wired. For a task the Python Dag file declares with `@task.stub`,
+            | * the arguments bound at that call site take their place. Keyword
+            | * arguments bind by name instead through a single [TaskInput] parameter.
             | */
             |class Builder internal constructor() {
             |  /**
@@ -587,6 +589,35 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |    val dag: String,
             |    val task: String = "",
             |  )
+            |
+            |  /**
+            |   * Marks the nested class that declares this Dag's task graph.
+            |   *
+            |   * Declare it as a `static` nested class that implements the generated
+            |   * `<Dag>Deps` wiring view and has a no-argument `depends()` method.
+            |   * Calling a view method registers its task; passing the handle one
+            |   * returned into another call wires a data edge, and `then` wires an
+            |   * ordering-only one:
+            |   *
+            |   * ```java
+            |   * @Builder.Deps
+            |   * static class Wiring implements EtlPipelineDeps {
+            |   *   void depends() {
+            |   *     var rows = extract();
+            |   *     var loaded = load(transform(rows, lit(0.9)));
+            |   *     rows.then(audit());
+            |   *     Flow.of(loaded, audit()).then(report());
+            |   *   }
+            |   * }
+            |   * ```
+            |   *
+            |   * Optional: a Dag class without one registers every task with no
+            |   * Java-side edges, which is the shape for stub-backed tasks whose
+            |   * graph the Python Dag file defines.
+            |   */
+            |  @Target(AnnotationTarget.CLASS)
+            |  @MustBeDocumented
+            |  annotation class Deps
             |}
             |
             """.trimMargin(),

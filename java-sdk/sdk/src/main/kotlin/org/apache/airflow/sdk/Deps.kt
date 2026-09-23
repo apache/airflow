@@ -19,7 +19,13 @@
 
 package org.apache.airflow.sdk
 
-/** Vocabulary for declaring a Dag's task graph in Java. */
+/**
+ * Vocabulary for declaring a Dag's task graph in Java, and the base of every
+ * generated `<Dag>Deps` wiring view.
+ *
+ * A [Builder.Deps] class inherits [lit] and [Flow] by simple name, so it needs
+ * no import and `Flow` does not collide with `java.util.concurrent.Flow`.
+ */
 interface Deps {
   /**
    * A point in the task graph: one task, or the set of tasks a [then] just
@@ -58,13 +64,22 @@ interface Deps {
        * Java has no list literal to call `.then` on.
        *
        * ```java
-       * Deps.Flow.of(a, b).then(c); // [a, b] >> c
+       * Flow.of(a, b).then(c); // [a, b] >> c
        * ```
        */
       @JvmStatic
       fun of(vararg flows: Flow): Flow = FlowSet(flows.flatMap { it.nodes() })
     }
   }
+
+  /**
+   * Wraps an inline constant as a task argument — `transform(extract(),
+   * lit(0.9))` — passed to the task as a constant, creating no dependency
+   * edge.
+   *
+   * @param value Constant to bind; may be null for a nullable parameter.
+   */
+  fun <T> lit(value: T?): Arg<T> = Arg.lit(value)
 }
 
 /** A frontier of more than one task, which no single [TaskRef] can represent. */

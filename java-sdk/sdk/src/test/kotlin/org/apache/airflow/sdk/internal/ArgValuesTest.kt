@@ -51,7 +51,7 @@ private class NoopArgTask : Task {
   ) = Unit
 }
 
-/** Resolution of the inputs a Dag declared in Java, without runtime bindings. */
+/** Resolution of the inputs a `@Builder.Deps` class recorded, without runtime bindings. */
 internal class ArgValuesTest {
   private fun clientWith(xcomsByTask: Map<String, Any?>): Client =
     Client(
@@ -101,8 +101,7 @@ internal class ArgValuesTest {
     val dag = DagDef("d")
     inputs.filterIsInstance<TaskRef<*>>().forEach { dag.addTask(it.def) }
     val def = TaskDef("consumer", NoopArgTask::class.java)
-    dag.addTask(def)
-    def.inputs += inputs
+    Refs.record(dag, listOf("consumer")) { Refs.call<Unit>(def, *inputs.toTypedArray()) }
     return contextWithoutTaskDef().also { it.taskDef = def }
   }
 

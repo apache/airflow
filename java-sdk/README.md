@@ -727,9 +727,9 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 - The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
   class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
   from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
-  `sdk/schema/dag-schema.json`). The `Arg`/`TaskRef` and `Deps`/`Flow` graph
-  types are hand-written next to the rest of the public surface in
-  `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  `sdk/schema/dag-schema.json`), `@Builder.Deps` included. The `Arg`/`TaskRef`
+  and `Deps`/`Flow` graph types are hand-written next to the rest of the public
+  surface in `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
   behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
