@@ -38,10 +38,9 @@ def _first_cell_is_truthy(dataframe: pd.DataFrame) -> bool:
         return False
 
     value = dataframe.iat[0, 0]
-    try:
-        if bool(pd.isna(value)):
-            return False
-    except ValueError as error:
-        raise TypeError("The first query result cell must be a scalar value") from error
+    if not pd.api.types.is_scalar(value):
+        raise TypeError("The first query result cell must be a scalar value")
+    if pd.isna(value):
+        return False
 
     return value not in (0, "0", "", None)
