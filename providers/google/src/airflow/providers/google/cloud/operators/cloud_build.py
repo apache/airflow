@@ -205,6 +205,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         # if no file is specified, skip
         if not isinstance(self.build, str):
             return
+        # Keep the path in a local: the branches below replace self.build with a dict.
         build_path = self.build
         with open(build_path) as file:
             if build_path.endswith((".yaml", ".yml")):
