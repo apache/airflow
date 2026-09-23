@@ -698,6 +698,13 @@ The runner is overlay-agnostic. For every overlay it:
   (``ImagePullBackOff``, ``ErrImagePull``, ``CrashLoopBackOff``,
   ``CreateContainerConfigError``, …) rather than waiting out the full
   ``timeout_seconds``,
+* checks pods in the target namespace with the Helm chart's
+  ``release=<release-name>`` label. Each pod must be ``Running`` with
+  its ``Ready`` condition true, or have completed successfully
+  (``Succeeded``). Terminating pods are retried until they disappear.
+  An empty selection or only completed pods cannot pass this check.
+  The check uses the overlay's ``verify.timeout_seconds`` (default 300)
+  and prints pod diagnostics on timeout. It also runs with ``--no-pytest``,
 * runs the optional per-overlay pytest module,
 * deletes the overlay (skip with ``--skip-cleanup``).
 
