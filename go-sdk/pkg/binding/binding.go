@@ -574,7 +574,9 @@ func hasArgTag(structType reflect.Type) bool {
 			}
 			continue
 		}
-		if f.IsExported() && f.Tag.Get("arg") != "" {
+		// `arg:"-"` names no argument, so it cannot be the typo the whole-value
+		// fallback is withheld from tagged structs to expose.
+		if tag := f.Tag.Get("arg"); f.IsExported() && tag != "" && tag != "-" {
 			return true
 		}
 	}
@@ -634,6 +636,12 @@ func collectStructFields(
 		}
 
 		tag := f.Tag.Get("arg")
+		// `arg:"-"` opts a field out of binding, the way `json:"-"` opts one out
+		// of encoding. Every other exported field is an argument the call has to
+		// fill, so this is how a struct carries a field that is not one.
+		if tag == "-" {
+			continue
+		}
 		if !isDecodableType(f.Type) {
 			// Only an explicitly tagged, undecodable field is an error.
 			if tag == "" {

@@ -157,9 +157,14 @@ An exported field binds the argument matching its own Go name, folding case and 
 tag when the names genuinely differ, as `Region` does above. Declaration order is irrelevant on both
 sides, and embedded structs contribute their fields just as they do to `encoding/json`.
 
-A field no argument matches is left at its Go zero value, like an unpassed keyword argument. The
-reverse is an error: every argument the Dag author explicitly passed must land in some field, so a
-typo'd tag fails the task instead of silently dropping the value.
+Every field has to be filled: a field no argument matches fails the task, naming the field, the
+argument it looked for, and what the call actually bound, so a typo'd tag fails instead of silently
+leaving a zero value. The spec carries one entry per stub parameter, captured defaults included, so
+an unfilled field always means the two signatures disagree. Tag a field `arg:"-"` to keep it out of
+binding, the way `json:"-"` keeps one out of encoding.
+
+The reverse is only a warning: an argument no field claims changes nothing the handler reads, so it
+is logged and the task runs. Arguments the call left at their stub default are not reported.
 
 A struct that is **not** the sole data parameter is decoded whole from its one positional argument
 instead, so `arg:` tags only apply to the sole-parameter form; pairing a tagged struct with other

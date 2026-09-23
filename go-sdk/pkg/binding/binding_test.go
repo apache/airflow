@@ -946,6 +946,36 @@ func (s *BindingSuite) TestResolveStructOnlyDefaultsFailsLoudly() {
 	}
 }
 
+type optedOutInput struct {
+	Name  string
+	Cache map[string]string `arg:"-"`
+}
+
+func (s *BindingSuite) TestResolveStructSkipsOptedOutField() {
+	fn := func(actx contexttest.Context, input optedOutInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err, `an arg:"-" field is not an argument, so nothing has to fill it`)
+	input := got[0].Interface().(optedOutInput)
+	s.Equal("widget", input.Name)
+	s.Nil(input.Cache)
+}
+
+func (s *BindingSuite) TestResolveOptedOutFieldLeavesStructUntagged() {
+	// `-` names no argument, so it must not withhold the whole-value fallback.
+	fn := func(actx contexttest.Context, input optedOutInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "payload",
+			Value:       map[string]any{"Name": "widget"},
+			ValueSchema: argSchema("object"),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal("widget", got[0].Interface().(optedOutInput).Name)
+}
+
 func (s *BindingSuite) TestResolveStructUnmatchedFieldFailsLoudly() {
 	fn := func(actx contexttest.Context, input twoFieldInput) error { return nil }
 	_, err := s.resolve(fn, []Arg{
