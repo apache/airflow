@@ -57,7 +57,7 @@ interface InputTask<I : TaskInput> : Task {
   override fun execute(
     context: Context,
     client: Client,
-  ) = execute(context, client, ArgValues.bindInput(client, inputType()))
+  ) = execute(context, client, ArgValues.bindInput(context, client, inputType()))
 
   /**
    * Executes this task.

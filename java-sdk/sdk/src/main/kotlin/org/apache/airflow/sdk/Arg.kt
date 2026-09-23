@@ -20,12 +20,19 @@
 package org.apache.airflow.sdk
 
 /**
- * A value a task can be given, of which [TaskRef] — the output of an upstream
- * task — is the only form so far.
+ * A value a task can be given: the output of an upstream task, carried by the
+ * [TaskRef] that task's registration returned, or an inline constant.
+ *
+ * A constant has to be wrapped because a bare `Double` cannot implement this
+ * type: boxed types only, no primitives.
  *
  * @param T Type of the value.
  */
 sealed class Arg<T>
+
+internal class LiteralArg<T>(
+  internal val value: T?,
+) : Arg<T>()
 
 /**
  * The output of a registered task, and the task's place in the flow.

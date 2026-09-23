@@ -65,10 +65,12 @@ class TaskArgs private constructor(
       client: Client,
       declared: Int,
     ): TaskArgs {
-      val bound = client.argBindings.size
-      check(bound == declared) {
+      val wired = ArgValues.wiredInputs(context, client)
+      val supplied = wired?.size ?: client.argBindings.size
+      val source = if (wired != null) "Dag wired" else "stub call bound"
+      check(supplied == declared) {
         "Task '${context.ti.taskId}' declares $declared data parameter(s) " +
-          "but the stub call bound $bound argument(s)"
+          "but the $source $supplied argument(s)"
       }
       return TaskArgs(context, client)
     }
@@ -83,7 +85,7 @@ class TaskArgs private constructor(
   fun <T : Any> get(
     position: Int,
     type: Class<T>,
-  ): T? = type.cast(ArgValues.valueAt(client, position, type))
+  ): T? = type.cast(ArgValues.valueAt(context, client, position, type))
 
   /**
    * Resolves the argument bound at [position] into the generic [type], passing
@@ -95,7 +97,7 @@ class TaskArgs private constructor(
   fun <T : Any> get(
     position: Int,
     type: TypeRef<T>,
-  ): T? = ArgValues.valueAt(client, position, type.type) as T?
+  ): T? = ArgValues.valueAt(context, client, position, type.type) as T?
 
   /**
    * Resolves the argument bound at [position] into [type], which must not be
@@ -123,7 +125,15 @@ class TaskArgs private constructor(
     type: TypeRef<T>,
   ): T = get(position, type) ?: throw missingAt(position)
 
-  // The stub signature's own parameter name is the clearest label for a failure
-  // here: it is what the Dag author has to change.
-  private fun missingAt(at: Int) = ArgValues.missing(client.argBindings[at], context.ti.taskId)
+  // A bound argument is labelled with the stub signature's own parameter name,
+  // which is what the Dag author has to change. A wired one has no such name,
+  // so it is labelled with the position it feeds.
+  private fun missingAt(at: Int): MissingXComException {
+    val wired = ArgValues.wiredInputs(context, client)
+    return if (wired != null) {
+      ArgValues.missingWired(wired[at], "position $at")
+    } else {
+      ArgValues.missing(client.argBindings[at], context.ti.taskId)
+    }
+  }
 }
