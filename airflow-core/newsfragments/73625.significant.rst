@@ -1,0 +1,15 @@
+``DeltaTable`` and Iceberg ``Table`` XCom values must now be allowed explicitly for deserialization
+
+Airflow's built-in serializers used to allow ``deltalake.table.DeltaTable`` and
+``pyiceberg.table.Table`` implicitly. Deserializing them opens the table or loads the catalog from
+the serialized values, so they are now opt-in.
+
+A new ``[core] denied_deserialization_classes`` option (glob list, empty by default) rejects
+matching classes even when they are otherwise allowed, including classes handled by the built-in
+serializers.
+
+**Migration:**
+
+- Deployments that pass ``DeltaTable`` or Iceberg ``Table`` objects through XCom must add
+  ``deltalake.table.DeltaTable`` and/or ``pyiceberg.table.Table`` to
+  ``[core] allowed_deserialization_classes``.
