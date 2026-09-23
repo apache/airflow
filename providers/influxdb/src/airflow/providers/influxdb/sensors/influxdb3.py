@@ -77,9 +77,8 @@ class InfluxDB3Sensor(BaseSensorOperator):
         if self.poke(context):
             return
 
-        timeout = timedelta(seconds=self.timeout) if isinstance(self.timeout, (int, float)) else self.timeout
         self.defer(
-            timeout=timeout,
+            timeout=timedelta(seconds=self.timeout),
             trigger=InfluxDB3SensorTrigger(
                 sql=self.sql,
                 influxdb3_conn_id=self.influxdb3_conn_id,
