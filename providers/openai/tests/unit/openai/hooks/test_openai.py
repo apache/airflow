@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -39,6 +40,7 @@ from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, Ve
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import (
+    OpenAIAgentSessionError,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -509,6 +511,41 @@ def test_create_embeddings(mock_openai_hook, mock_embeddings_response):
     assert embeddings == [0.1, 0.2, 0.3]
 
 
+@pytest.mark.parametrize(
+    ("input_text", "response_items", "expected"),
+    [
+        pytest.param(
+            ["First text", "Second text"],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="text-batch",
+        ),
+        pytest.param(
+            [[1, 2], [3, 4]],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="token-batch",
+        ),
+    ],
+)
+def test_create_batched_embeddings(input_text, response_items, expected):
+    hook = OpenAIHook(conn_id="unused")
+    conn = MagicMock(spec=OpenAI)
+    conn.embeddings.create.return_value = CreateEmbeddingResponse(
+        data=[
+            Embedding(embedding=vector, index=index, object="embedding") for index, vector in response_items
+        ],
+        model="text-embedding-3-small",
+        object="list",
+        usage={"prompt_tokens": 4, "total_tokens": 4},
+    )
+    hook.__dict__["conn"] = conn
+
+    embeddings = hook.create_embeddings(input_text)
+
+    assert embeddings == expected
+
+
 @patch("builtins.open", new_callable=mock_open, read_data="test-data")
 def test_upload_file(mock_file_open, mock_openai_hook, mock_file):
     mock_file.name = FILE_NAME
@@ -608,8 +645,19 @@ def test_delete_vector_store_file(mock_openai_hook):
 
 def test_create_batch(mock_openai_hook, mock_terminated_batch):
     mock_openai_hook.conn.batches.create.return_value = mock_terminated_batch
-    batch = mock_openai_hook.create_batch(endpoint="/v1/chat/completions", file_id=FILE_ID)
+    batch = mock_openai_hook.create_batch(
+        endpoint="/v1/chat/completions",
+        file_id=FILE_ID,
+        output_expires_after={"anchor": "created_at", "seconds": 3600},
+    )
     assert batch.id == mock_terminated_batch.id
+    mock_openai_hook.conn.batches.create.assert_called_once_with(
+        input_file_id=FILE_ID,
+        endpoint="/v1/chat/completions",
+        metadata=None,
+        completion_window="24h",
+        output_expires_after={"anchor": "created_at", "seconds": 3600},
+    )
 
 
 def test_get_batch(mock_openai_hook, mock_terminated_batch):
@@ -907,3 +955,10 @@ class TestValidateTriggerEvent:
     )
     def test_valid_event_is_returned(self, event):
         assert validate_execute_complete_event(event) is event
+
+
+def test_managed_agents_reports_sdk_upgrade_without_breaking_hook():
+    hook = OpenAIHook()
+    hook.conn = SimpleNamespace(beta=SimpleNamespace())
+    with pytest.raises(OpenAIAgentSessionError, match="requires openai>=3.13.0"):
+        hook.create_agent_session(input="Hello", environment={"type": "none"}, agent_id="agent")

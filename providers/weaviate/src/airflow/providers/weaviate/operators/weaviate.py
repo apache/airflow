@@ -53,7 +53,10 @@ class WeaviateIngestOperator(BaseOperator):
         Should match the desired hook constructor params.
     """
 
-    template_fields: Sequence[str] = ("input_data",)
+    template_fields: Sequence[str] = (
+        "input_data",
+        "conn_id",
+    )
 
     def __init__(
         self,
@@ -126,7 +129,10 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         Should match the desired hook constructor params.
     """
 
-    template_fields: Sequence[str] = ("input_data",)
+    template_fields: Sequence[str] = (
+        "input_data",
+        "conn_id",
+    )
 
     def __init__(
         self,

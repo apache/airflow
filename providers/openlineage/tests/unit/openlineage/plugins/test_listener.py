@@ -37,7 +37,12 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout, BaseOperator, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowTaskTimeout,
+    BaseOperator,
+    BaseSensorOperator,
+    timezone,
+)
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
@@ -2308,6 +2313,64 @@ class TestOpenLineageListenerAirflow3:
             try_number=1,
             map_index=-1,
         )
+
+    @pytest.mark.parametrize(
+        ("sensor_mode", "task_reschedule_count", "should_emit_start"),
+        [
+            pytest.param("reschedule", 0, True, id="sensor_first_poke_emits_start"),
+            pytest.param("reschedule", 3, False, id="sensor_later_poke_skips_start"),
+            pytest.param("poke", 3, True, id="poke_sensor_ignores_reschedule_rows"),
+            pytest.param(None, 3, True, id="non_sensor_with_reschedule_rows_still_emits"),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_on_task_instance_running_skips_start_event_only_for_rescheduled_sensors(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        sensor_mode,
+        task_reschedule_count,
+        should_emit_start,
+    ):
+        """Only a reschedule-mode sensor may have its repeat START suppressed.
+
+        Such a sensor re-runs to poke again without incrementing ``try_number``, so the run id is
+        unchanged and a second START would show consumers the same run entering RUNNING twice. Any
+        operator can accumulate ``TaskReschedule`` rows though, because a missing-Dag startup failure
+        writes them before any listener hook fires, and those attempts have emitted nothing yet.
+        """
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+        if sensor_mode is not None:
+            task_instance.task = BaseSensorOperator(  # type: ignore[assignment]
+                task_id="sensor_task", dag=task_instance.task.dag, mode=sensor_mode
+            )
+        task_instance._ti_context_from_server.task_reschedule_count = task_reschedule_count
+
+        listener.on_task_instance_running(None, task_instance)
+
+        if should_emit_start:
+            listener.adapter.start_task.assert_called_once()
+        else:
+            # Stopped at the guard rather than failing somewhere later in the emission path.
+            listener.adapter.build_dag_run_id.assert_not_called()
+            listener.adapter.start_task.assert_not_called()
 
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call

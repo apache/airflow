@@ -90,6 +90,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         "environment_id",
         "composer_dag_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -365,6 +366,7 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         "composer_external_task_ids",
         "composer_external_task_group_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

@@ -71,6 +71,9 @@ if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.task_instance_session import set_current_task_instance_session
+
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
@@ -116,6 +119,24 @@ def _clear_all_db_objects():
     db.clear_db_runs()
     if AIRFLOW_V_3_0_PLUS:
         db.clear_db_dag_bundles()
+
+
+@contextmanager
+def task_instance_session():
+    """
+    Provide the session Airflow 2 renders a mapped task's template fields with.
+
+    There, ``MappedOperator.render_template_fields`` takes its session from a module global
+    that ``get_current_task_instance_session`` fills in and never clears, so rendering outside
+    this context manager leaves a session behind and the next ``TaskInstance.run`` anywhere in
+    the process fails with "Session already set for this task". Airflow 3 renders without a
+    session, so there is nothing to set.
+    """
+    if AIRFLOW_V_3_0_PLUS:
+        yield
+        return
+    with create_session() as session, set_current_task_instance_session(session=session):
+        yield
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -270,7 +291,7 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.arguments
         assert dag_id == rendered.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
-        assert dag_id == rendered.env_from[0].config_map_ref.name
+        assert [dag_id] == rendered.configmaps
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 
@@ -413,6 +434,69 @@ class TestKubernetesPodOperator:
         expected = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].env_from == expected
+
+    def test_envs_from_templated_configmaps(self):
+        env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="from-env-from"))]
+        k = KubernetesPodOperator(
+            task_id="task",
+            env_from=env_from,
+            configmaps="{{ maps }}",
+            dag=DAG(
+                dag_id="dag",
+                schedule=None,
+                start_date=pendulum.now(),
+                render_template_as_native_obj=True,
+            ),
+        )
+        k.render_template_fields(context={"maps": ["from-configmaps"]})
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[0].env_from == [
+            *env_from,
+            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="from-configmaps")),
+        ]
+
+    def test_templated_volumes_are_converted_after_rendering(self):
+        volume = k8s.V1Volume(name="vol", empty_dir=k8s.V1EmptyDirVolumeSource())
+        volume_mount = k8s.V1VolumeMount(name="vol", mount_path="/mnt")
+        k = KubernetesPodOperator(
+            task_id="task",
+            volumes="{{ vols }}",
+            volume_mounts="{{ mounts }}",
+            dag=DAG(
+                dag_id="dag",
+                schedule=None,
+                start_date=pendulum.now(),
+                render_template_as_native_obj=True,
+            ),
+        )
+        k.render_template_fields(context={"vols": [volume], "mounts": [volume_mount]})
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.volumes == [volume]
+        assert pod.spec.containers[0].volume_mounts == [volume_mount]
+
+    def test_env_vars_rendered_for_mapped_task(self):
+        with DAG(dag_id="dag", schedule=None, start_date=pendulum.now()):
+            mapped = KubernetesPodOperator.partial(task_id="task", name="test").expand(
+                env_vars=[{"{{ bar }}": "{{ foo }}"}]
+            )
+        context = create_context(mapped, map_index=0)
+        context.update({"dag_run": context["ti"].dag_run, "foo": "footemplated", "bar": "bartemplated"})
+
+        with task_instance_session():
+            mapped.render_template_fields(context)
+
+        rendered = context["task"]
+        assert rendered.env_vars[0].name == "bartemplated"
+        assert rendered.env_vars[0].value == "footemplated"
+
+    def test_container_logs_falls_back_to_rendered_base_container_name(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            base_container_name="{{ container }}",
+            dag=DAG(dag_id="dag", schedule=None, start_date=pendulum.now()),
+        )
+        k.render_template_fields(context={"container": "rendered-base"})
+        assert k.container_logs == "rendered-base"
 
     def test_envs_from_secrets(self):
         secret_ref = "secret_name"

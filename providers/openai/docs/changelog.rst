@@ -20,6 +20,24 @@
 Changelog
 ---------
 
+.. note::
+    ``OpenAIResponseOperator.response_kwargs`` is now a template field. If an
+    existing Dag passes a ``response_kwargs`` dict containing a literal
+    ``{{ ... }}`` string, Jinja will now render it, and the outcome depends on
+    whether the referenced variable is defined: an undefined variable makes
+    the task **fail** at render time (Airflow's default ``template_undefined``
+    is ``StrictUndefined``), while a defined variable is substituted
+    **silently**, sending a different prompt or tool schema to the paid API
+    than before, with no error to signal the change.
+
+    To keep a ``{{ ... }}`` value literal, wrap it in a ``{% raw %}`` block,
+    for example ``{% raw %}{{ not_a_variable }}{% endraw %}``.
+
+    Rendered ``response_kwargs`` — including the full ``instructions`` text and
+    any tool schema — are written to ``rendered_task_instance_fields`` in the
+    metadata DB on every run, regardless of the operator's ``do_xcom_push``
+    setting.
+
 1.8.2
 .....
 

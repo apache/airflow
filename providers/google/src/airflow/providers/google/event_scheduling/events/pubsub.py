@@ -47,6 +47,7 @@ class PubSubMessageQueueEventTriggerContainer(BaseMessageQueueProvider):
             max_messages=1,
             gcp_conn_id="google_cloud_default",
             poke_interval=60.0,
+            return_immediately=False,
         )
 
         asset = Asset("pubsub_queue_asset", watchers=[AssetWatcher(name="pubsub_watcher", trigger=trigger)])

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 from unittest.mock import patch
 
 import pytest
@@ -24,10 +25,14 @@ import yaml
 from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.global_constants import MOUNT_SELECTED, PYCACHE_PREFIX_IN_CONTAINER
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
 )
 
 console = Console(width=400, color_system="standard")
@@ -259,6 +264,49 @@ def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
     assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]
 
 
+@pytest.mark.parametrize(
+    ("include_pycache_volume", "expected_prefix", "expected_dont_write"),
+    [(True, PYCACHE_PREFIX_IN_CONTAINER, ""), (False, "", "true")],
+)
+def test_bytecode_cache_is_enabled_only_together_with_its_volume(
+    include_pycache_volume: bool, expected_prefix: str, expected_dont_write: str
+):
+    env_vars = ShellParams(include_pycache_volume=include_pycache_volume).env_variables_for_docker_commands
+    assert env_vars["PYTHONPYCACHEPREFIX"] == expected_prefix
+    assert env_vars["PYTHONDONTWRITEBYTECODE"] == expected_dont_write
+
+
+@pytest.mark.parametrize(("include_pycache_volume", "expected_count"), [(True, 1), (False, 0)])
+def test_pycache_volume_compose_file_is_included_only_when_requested(
+    include_pycache_volume: bool, expected_count: int
+):
+    compose_files = ShellParams(include_pycache_volume=include_pycache_volume).compose_file.split(os.pathsep)
+    assert compose_files.count(str(SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH)) == expected_count
+
+
 def test_include_mypy_volume_adds_mypy_compose_file():
     compose_files = ShellParams(include_mypy_volume=True).compose_file.split(":")
     assert str(SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml") in compose_files
+
+
+@pytest.mark.parametrize(("force_lowest_dependencies", "expected_count"), [(True, 0), (False, 1)])
+def test_uv_lock_is_not_mounted_for_lowest_dependencies(force_lowest_dependencies: bool, expected_count: int):
+    """The lowest-direct ``uv sync`` rewrites uv.lock, so its mount is dropped for that run."""
+    compose_files = ShellParams(
+        mount_sources=MOUNT_SELECTED, force_lowest_dependencies=force_lowest_dependencies
+    ).compose_file.split(os.pathsep)
+    assert compose_files.count(str(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH)) == expected_count
+
+
+def test_uv_lock_is_mounted_only_by_its_own_compose_file():
+    """Guards the split: a stray uv.lock bind in local.yml would defeat the skip above."""
+    local_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH.read_text())
+    # local.yml mixes named volumes (plain "source:target" strings) with bind mappings.
+    local_volumes = local_compose_file["services"]["airflow"]["volumes"]
+    targets = [volume["target"] if isinstance(volume, dict) else volume for volume in local_volumes]
+    assert not any("uv.lock" in target for target in targets)
+
+    uv_lock_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH.read_text())
+    assert uv_lock_compose_file["services"]["airflow"]["volumes"] == [
+        {"type": "bind", "source": "../../../uv.lock", "target": "/opt/airflow/uv.lock"}
+    ]

@@ -24,7 +24,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
@@ -44,12 +44,12 @@ import (
 // cooperative task that honors ctx returns promptly on a supervisor shutdown.
 func RunTask(
 	ctx context.Context,
-	bundle bundlev1.Bundle,
+	b bundle.Bundle,
 	details *genmodels.StartupDetails,
 	comm *CoordinatorComm,
 	logger *slog.Logger,
 ) any {
-	task, exists := bundle.LookupTask(details.TI.DagID, details.TI.TaskID)
+	task, exists := b.LookupTask(details.TI.DagID, details.TI.TaskID)
 	if !exists {
 		logger.Error("Task not registered",
 			"dag_id", details.TI.DagID,
@@ -63,11 +63,12 @@ func RunTask(
 
 	client := NewCoordinatorClient(comm)
 
-	// Carries the task runtime context for sdk.TIRunContext injection. The
-	// scheduling timestamps live on the nested dag_run object in the
-	// supervisor's TIRunContext schema. The base context is a placeholder;
-	// bundlev1.Execute rebuilds the value around the live task context when
-	// binding the parameter.
+	// runtimeContext carries the task instance and Dag run that binding puts
+	// on the task's airflow.Context. The scheduling timestamps live on the
+	// nested dag_run object in the supervisor's TIRunContext schema. The base
+	// context is a placeholder, because binding reads only the task instance
+	// and Dag run from this value and builds the airflow.Context around the
+	// live task context.
 	dagRun := details.TIContext.DagRun
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
@@ -212,7 +213,7 @@ func mapIndexPtr(mapIndex *int) *int {
 // the terminal body: genmodels.SucceedTask, TaskState, or RetryTask.
 func executeTask(
 	ctx context.Context,
-	task bundlev1.Task,
+	task bundle.Task,
 	args []binding.Arg,
 	shouldRetry bool,
 	logger *slog.Logger,
