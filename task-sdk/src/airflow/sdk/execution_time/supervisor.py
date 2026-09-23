@@ -1598,18 +1598,9 @@ class ActivitySubprocess(WatchedSubprocess):
     """The HTTP client to use for communication with the API server."""
 
     _terminal_state: str | None = attrs.field(default=None, init=False)
-    _final_state: str | None = attrs.field(default=None, init=False)
-    # The terminal-state message currently being processed by `_handle_request`,
-    # captured BEFORE the dedicated API call (succeed / retry / defer /
-    # reschedule). If the API call raises (network blip, server 5xx, etc.),
-    # this attribute stays set and the dispatcher in
-    # `update_task_state_if_needed` re-issues the matching API call on
-    # subprocess exit — re-attempting the original transition rather than
-    # falling back to `finish()`, which doesn't accept SUCCESS / DEFERRED /
-    # SERVER_TERMINATED on the server side. Cleared (and `_terminal_state`
-    # set) only after the API call returns successfully.
+    # Retain the full report until delivery succeeds, including reports deferred until process exit.
     _pending_terminal_state_msg: (
-        SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
+        TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
     ) = attrs.field(default=None, init=False)
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
@@ -1736,23 +1727,18 @@ class ActivitySubprocess(WatchedSubprocess):
         return self._exit_code
 
     def update_task_state_if_needed(self):
-        # If a direct-state API call (succeed / retry / defer / reschedule)
-        # was attempted but raised, `_pending_terminal_state_msg` still holds
-        # the original request. Re-issue the matching dedicated API call so
-        # the server learns the terminal state we couldn't deliver earlier.
-        # Without this recovery, a transient API failure during the direct
-        # call would leave the TI stuck RUNNING on the server — `finish()`
-        # cannot substitute because the server-side `finish` endpoint does
-        # not accept SUCCESS / DEFERRED / SERVER_TERMINATED transitions.
-        if self._pending_terminal_state_msg is not None:
-            self._replay_pending_terminal_state_msg()
+        if self._terminal_state == SERVER_TERMINATED:
+            self._pending_terminal_state_msg = None
             return
 
-        # If the process has finished in a non-directly-patched state (e.g.
-        # FAILED, or SKIPPED reported via a TaskState message), `finish()` is
-        # the dedicated endpoint for those transitions. For states already in
-        # STATES_SENT_DIRECTLY whose direct API call succeeded, no further
-        # action is needed.
+        if self._pending_terminal_state_msg is not None:
+            if isinstance(self._pending_terminal_state_msg, TaskState):
+                self._send_terminal_state_msg(self._pending_terminal_state_msg)
+            else:
+                self._replay_pending_terminal_state_msg()
+            return
+
+        # Without a worker outcome, only report inferred states that finish() accepts.
         if self.final_state not in STATES_SENT_DIRECTLY:
             self.client.task_instances.finish(
                 id=self.id,
@@ -1762,14 +1748,20 @@ class ActivitySubprocess(WatchedSubprocess):
             )
 
     def _send_terminal_state_msg(
-        self, msg: SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask
+        self, msg: TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask
     ) -> None:
-        # Capture the message BEFORE the API call so the recovery dispatcher
-        # in `update_task_state_if_needed` can re-issue it if the call raises
-        # (network blip, transient server 5xx). Clear the pending slot and
-        # record the resulting state only after the call returns successfully.
+        if self._terminal_state == SERVER_TERMINATED:
+            return
+        self._terminal_state = msg.state
         self._pending_terminal_state_msg = msg
-        if isinstance(msg, SucceedTask):
+        if isinstance(msg, TaskState):
+            self.client.task_instances.finish(
+                id=self.id,
+                state=msg.state,
+                when=msg.end_date or datetime.now(tz=timezone.utc),
+                rendered_map_index=self._rendered_map_index,
+            )
+        elif isinstance(msg, SucceedTask):
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
@@ -1777,7 +1769,6 @@ class ActivitySubprocess(WatchedSubprocess):
                 outlet_events=msg.outlet_events,
                 rendered_map_index=self._rendered_map_index,
             )
-            self._terminal_state = msg.state
         elif isinstance(msg, RetryTask):
             self.client.task_instances.retry(
                 id=self.id,
@@ -1786,16 +1777,12 @@ class ActivitySubprocess(WatchedSubprocess):
                 retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
                 retry_reason=getattr(msg, "retry_reason", None),
             )
-            self._terminal_state = msg.state
         elif isinstance(msg, DeferTask):
             self.client.task_instances.defer(self.id, msg)
-            self._terminal_state = TaskInstanceState.DEFERRED
         elif isinstance(msg, RescheduleTask):
             self.client.task_instances.reschedule(self.id, msg)
-            self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
         elif isinstance(msg, AwaitInputTask):
             self.client.task_instances.await_input(self.id, msg)
-            self._terminal_state = TaskInstanceState.AWAITING_INPUT
         self._pending_terminal_state_msg = None
 
     def _replay_pending_terminal_state_msg(self) -> None:
@@ -1883,13 +1870,9 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _handle_process_overtime_if_needed(self):
         """Handle termination of auxiliary processes if the task exceeds the configured overtime."""
-        # If the task has reached a terminal state, we can start monitoring the overtime
-        if not self._terminal_state:
+        if self._task_end_time_monotonic is None:
             return
-        if (
-            self._task_end_time_monotonic
-            and (time.monotonic() - self._task_end_time_monotonic) > TASK_OVERTIME_THRESHOLD
-        ):
+        if (time.monotonic() - self._task_end_time_monotonic) > TASK_OVERTIME_THRESHOLD:
             log.warning(
                 "Task success overtime reached; terminating process. "
                 "Modify `task_success_overtime` setting in [core] section of "
@@ -1904,9 +1887,9 @@ class ActivitySubprocess(WatchedSubprocess):
         if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
             return
 
-        if self._terminal_state:
-            # If the task has finished, and we are in "overtime" (running OL listeners etc) we shouldn't
-            # heartbeat
+        if self._terminal_state == SERVER_TERMINATED:
+            return
+        if self._terminal_state and self._pending_terminal_state_msg is None:
             return
 
         self._last_heartbeat_attempt = time.monotonic()
@@ -1929,9 +1912,11 @@ class ActivitySubprocess(WatchedSubprocess):
                     "Server indicated the task shouldn't be running anymore. Terminating process",
                     detail=e.detail,
                 )
+                # kill() drains worker messages while waiting for the process to exit.
+                self._terminal_state = SERVER_TERMINATED
+                self._pending_terminal_state_msg = None
                 self.kill(signal.SIGTERM, force=True)
                 self.process_log.error("Task killed!")
-                self._terminal_state = SERVER_TERMINATED
             else:
                 # If we get any other error, we'll just log it and try again next time
                 self._handle_heartbeat_failures(e)
@@ -1962,14 +1947,17 @@ class ActivitySubprocess(WatchedSubprocess):
 
         By default, this will be derived from the exit code of the task
         (0=success, failed otherwise) but can be changed by the subprocess
-        sending a TaskState message, as long as the process exits with 0
+        sending a TaskState message, as long as the process exits with 0.
+
+        A nonzero exit code can override the worker outcome here. Deliver reports
+        using the message state, not this inferred state.
 
         Not valid before the process has finished.
         """
+        if self._terminal_state == SERVER_TERMINATED:
+            return self._terminal_state
         if self._exit_code == 0:
             return self._terminal_state or TaskInstanceState.SUCCESS
-        if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
-            return SERVER_TERMINATED
 
         # Any non zero exit code indicates a failure
         # If retries are configured, mark as UP_FOR_RETRY
@@ -1989,12 +1977,11 @@ class ActivitySubprocess(WatchedSubprocess):
         super()._handle_request(msg, log, req_id)
 
     def _handle_task_state(self, msg: TaskState, log: FilteringBoundLogger, req_id: int) -> RequestResult:
-        # No direct API call here — the recovery path in
-        # `update_task_state_if_needed` will call `finish()` for
-        # non-direct states (FAILED, etc.) once the subprocess exits.
-        self._terminal_state = msg.state
-        self._task_end_time_monotonic = time.monotonic()
-        self._rendered_map_index = msg.rendered_map_index
+        if self._terminal_state != SERVER_TERMINATED:
+            self._terminal_state = msg.state
+            self._pending_terminal_state_msg = msg
+            self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
         return None, {}
 
     def _handle_finished_task(
