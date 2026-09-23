@@ -10,5 +10,3 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneS
 providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py::CloudBuildCreateBuildOperator
 providers/google/src/airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py::CloudDataTransferServiceCreateJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::DataprocCreateClusterOperator
-providers/google/src/airflow/providers/google/cloud/operators/functions.py::CloudFunctionDeployFunctionOperator
-providers/google/src/airflow/providers/google/cloud/sensors/cloud_composer.py::CloudComposerExternalTaskSensor
