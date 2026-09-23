@@ -862,6 +862,17 @@ class TestGKEPodExecOperator:
         assert self.operator.do_xcom_push is True
         assert self.operator.max_xcom_output_size == 1024
 
+    def test_default_namespace_when_omitted(self):
+        operator = GKEPodExecOperator(
+            task_id=TEST_TASK_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            pod_name=K8S_POD_NAME,
+            command=["true"],
+        )
+
+        assert operator.namespace == "default"
+
     @pytest.mark.parametrize(
         ("kwargs", "expected_message"),
         [
@@ -870,11 +881,34 @@ class TestGKEPodExecOperator:
                 "`config_file` is not allowed for GKEPodExecOperator",
             ),
             (
+                {"config_file": None},
+                "`config_file` is not allowed for GKEPodExecOperator",
+            ),
+            (
+                {"kubernetes_conn_id": "kubernetes_default"},
+                "`kubernetes_conn_id` is not allowed for GKEPodExecOperator",
+            ),
+            (
+                {"in_cluster": True},
+                "`in_cluster` is not allowed for GKEPodExecOperator",
+            ),
+            (
+                {"cluster_context": "test-context"},
+                "`cluster_context` is not allowed for GKEPodExecOperator",
+            ),
+            (
                 {"gcp_conn_id": None},
                 "`gcp_conn_id` must not be None",
             ),
         ],
-        ids=["config-file", "missing-gcp-connection"],
+        ids=[
+            "config-file",
+            "config-file-none",
+            "kubernetes-connection",
+            "in-cluster",
+            "cluster-context",
+            "missing-gcp-connection",
+        ],
     )
     def test_invalid_auth_parameters(self, kwargs, expected_message):
         with pytest.raises(ValueError, match=expected_message):
