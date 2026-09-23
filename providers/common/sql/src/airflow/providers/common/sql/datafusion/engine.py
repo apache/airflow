@@ -234,10 +234,8 @@ class DataFusionEngine(LoggingMixin):
                 explicit_credential = False
                 if tenant_id:
                     if not conn.login or not conn.password:
-                        # Falling through instead of raising would silently authenticate with a
-                        # different identity than the one requested (ambient auth, or the client
-                        # secret sent as a shared key) -- DataFusion's binding also panics on a
-                        # partial client_id/client_secret/tenant_id combination.
+                        # Falling through here would silently switch identity (ambient auth, or
+                        # the client secret sent as a shared key) instead of failing clearly.
                         missing = "login (client_id)" if not conn.login else "password (client_secret)"
                         raise ValueError(
                             f"Connection extra 'tenant_id' is set for DataFusion Azure Blob Storage "
@@ -266,12 +264,10 @@ class DataFusionEngine(LoggingMixin):
                         explicit_credential = True
 
                 if explicit_credential:
-                    # DataFusion's binding always calls MicrosoftAzureBuilder::from_env() before
-                    # overlaying these credentials, and object_store checks an environment-derived
-                    # access key or workload-identity triple before the client secret or SAS query
-                    # pairs set here -- so any of these worker env vars would silently win over the
-                    # connection's credential. The binding has no way to skip from_env(), so this can
-                    # only be caught, not fixed, on the Python side.
+                    # The binding always reads these via from_env() first and checks that
+                    # env-derived access key / workload-identity ahead of what's set here, so
+                    # they'd silently win over the connection's credential. No way to skip
+                    # from_env(), so this can only be caught, not fixed, on the Python side.
                     conflicting_env_vars = [
                         var
                         for var in (
