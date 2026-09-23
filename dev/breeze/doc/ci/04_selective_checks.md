@@ -519,9 +519,11 @@ when some files are not changed. Those are the rules implemented:
     type errors (see #68919)
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
-  * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
-    wrapper, which downloads the Gradle distribution, so we avoid that download on PRs that do
-    not touch `java-sdk/`)
+  * if no `Java SDK files` changed - `ktlint` and `sync-java-sdk-dag-schema` checks are
+    skipped (both run the java-sdk Gradle wrapper, which downloads the Gradle distribution, so
+    we avoid that download on PRs that do not touch `java-sdk/`; re-vendoring
+    `java-sdk/sdk/schema/dag-schema.json` after an `airflow-core` schema change is the java-sdk
+    follow-up PR's job, not the schema author's)
   * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
     skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
     wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is

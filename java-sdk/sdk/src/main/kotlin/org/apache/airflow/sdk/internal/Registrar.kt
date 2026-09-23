@@ -17,23 +17,20 @@
  * under the License.
  */
 
-package org.apache.airflow.example;
+package org.apache.airflow.sdk.internal
 
-import org.apache.airflow.sdk.*;
-
-// One bundle serves every surface: Dags built in Java, and the handler classes
-// whose Dags the Python file owns.
-public class ExampleBundleBuilder {
-  public static Bundle build() {
-    return new Bundle()
-        .register(InterfaceExampleBuilder.build())
-        .register(AnnotationExample.class)
-        .register(XComCastingExample.class)
-        .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
-        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
-  }
-
-  public static void main(String[] args) {
-    Server.create(args).serve(build());
-  }
-}
+/**
+ * @suppress
+ *
+ * Names the registrar generated for a class of `@Builder.TaskHandler`
+ * methods: a top-level class in the handler class's package, named after that
+ * class and any class enclosing it, so `Outer.Inner` is served by
+ * `Outer_InnerHandlers`.
+ *
+ * Public so the annotation processor emits the name the runtime looks up; not
+ * user-facing API.
+ *
+ * @param binaryName Binary name of the handler class, as `Class.getName`
+ *    returns it.
+ */
+fun registrarName(binaryName: String): String = "${binaryName.replace('$', '_')}Handlers"
