@@ -381,21 +381,19 @@ The connection supplies one of the following credentials:
 3. Shared key -- ``password``, or the ``shared_access_key``/``account_key`` extra
 4. None of the above -- ambient auth (see below)
 
-**The worker's environment can still outrank the connection.** DataFusion's
-binding always reads ``AZURE_*`` environment variables before applying the
-connection's credential, and checks an environment-derived access key or
-workload-identity token ahead of the connection's SAS token or client
-secret -- the environment is not simply consulted last. If the connection
-supplies an explicit credential (1-3 above) while
-``AZURE_FEDERATED_TOKEN_FILE``, ``AZURE_STORAGE_ACCOUNT_KEY``,
-``AZURE_STORAGE_ACCESS_KEY``, ``AZURE_STORAGE_SAS_KEY``, or
-``AZURE_STORAGE_TOKEN`` is set on the worker, this raises rather than
-silently authenticating as a different identity.
+**A worker environment variable can override the connection.** DataFusion
+reads ``AZURE_*`` environment variables first, and an environment access
+key or workload-identity token wins over the connection's SAS token or
+client secret. If the connection sets an explicit credential (1-3 above)
+and the worker also has ``AZURE_FEDERATED_TOKEN_FILE``,
+``AZURE_STORAGE_ACCOUNT_KEY``, ``AZURE_STORAGE_ACCESS_KEY``,
+``AZURE_STORAGE_SAS_KEY``, or ``AZURE_STORAGE_TOKEN`` set, this raises
+instead of silently using the wrong identity.
 
 With no explicit credential, authentication falls back to ``AZURE_*``
 environment variables, managed identity, or workload identity. The Azure
-CLI is only used when ``AZURE_USE_AZURE_CLI=true`` is set; without it, the
-default ambient path is IMDS managed identity, not ``az login``.
+CLI is only used if ``AZURE_USE_AZURE_CLI=true`` is set; otherwise the
+default is IMDS managed identity, not ``az login``.
 
 ``connection_string``, ``managed_identity_client_id``, ``workload_identity_tenant_id``,
 and a URL-form ``sas_token`` are not supported.
