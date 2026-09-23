@@ -37,7 +37,7 @@
       "connectionTypeRequired": "连接类型是必填的",
       "extraFields": "额外字段",
       "extraFieldsJson": "额外字段 JSON",
-      "helperText": "找不到连接类型？请确保您已安装对应的 Airflow Providers 套件。",
+      "helperText": "找不到连接类型？请确保您已安装对应的 Airflow 整合套件。",
       "helperTextForRedactedFields": "已遮蔽的字段 ('***') 若未修改，将保持不变。",
       "selectConnectionType": "选择连接类型",
       "standardFields": "标准字段"

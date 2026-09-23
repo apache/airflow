@@ -70,7 +70,7 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
     :param parameters: The parameters to pass to the SQL query
     """
 
-    template_fields: Sequence[str] = ("sql", "slack_message")
+    template_fields: Sequence[str] = ("sql", "slack_message", "sql_conn_id")
     template_ext: Sequence[str] = (".sql", ".jinja", ".j2")
     template_fields_renderers = {"sql": "sql", "slack_message": "jinja"}
     times_rendered = 0

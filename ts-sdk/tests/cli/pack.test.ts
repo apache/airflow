@@ -427,7 +427,7 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const bigDag = new Dag("big_dag");',
-        'for (let i = 0; i < 5000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
+        'for (let i = 0; i < 5000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined)();',
         "await new Bundle(bigDag).serve();",
       ].join("\n"),
     );
@@ -472,7 +472,7 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         `const suspiciousDag = new Dag(${JSON.stringify(dagId)});`,
-        `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
+        `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined)();`,
         "await new Bundle(suspiciousDag).serve();",
       ].join("\n"),
     );
@@ -542,7 +542,7 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
-        'salesDag.task("extract", async () => undefined);',
+        'salesDag.task("extract", async () => undefined)();',
         'await new Bundle(salesDag, new Dag("empty_dag")).serve();',
       ].join("\n"),
     );
@@ -565,9 +565,9 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
-        'salesDag.task("extract", async () => undefined);',
+        'salesDag.task("extract", async () => undefined)();',
         'const billingDag = new Dag("billing_dag");',
-        'billingDag.task("charge", async () => undefined);',
+        'billingDag.task("charge", async () => undefined)();',
         "await new Bundle(salesDag).serve();",
       ].join("\n"),
     );

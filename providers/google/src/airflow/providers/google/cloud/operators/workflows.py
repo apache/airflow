@@ -71,7 +71,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Collection[str] = ("location", "workflow", "workflow_id")
+    template_fields: Collection[str] = ("location", "workflow", "workflow_id", "gcp_conn_id")
     template_fields_renderers = {"workflow": "json"}
     operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
@@ -192,7 +192,7 @@ class WorkflowsUpdateWorkflowOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("workflow_id", "update_mask")
+    template_fields: Sequence[str] = ("workflow_id", "update_mask", "gcp_conn_id")
     template_fields_renderers = {"update_mask": "json"}
     operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
@@ -271,7 +271,7 @@ class WorkflowsDeleteWorkflowOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "gcp_conn_id")
 
     def __init__(
         self,
@@ -333,7 +333,7 @@ class WorkflowsListWorkflowsOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "order_by", "filter_")
+    template_fields: Sequence[str] = ("location", "order_by", "filter_", "gcp_conn_id")
     operator_extra_links = (WorkflowsListOfWorkflowsLink(),)
 
     def __init__(
@@ -401,7 +401,7 @@ class WorkflowsGetWorkflowOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "gcp_conn_id")
     operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
     def __init__(
@@ -469,7 +469,7 @@ class WorkflowsCreateExecutionOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow_id", "execution")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution", "gcp_conn_id")
     template_fields_renderers = {"execution": "json"}
     operator_extra_links = (WorkflowsExecutionLink(),)
 
@@ -544,7 +544,7 @@ class WorkflowsCancelExecutionOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id", "gcp_conn_id")
     operator_extra_links = (WorkflowsExecutionLink(),)
 
     def __init__(
@@ -621,7 +621,7 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "gcp_conn_id")
     operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
     def __init__(
@@ -697,7 +697,7 @@ class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id", "gcp_conn_id")
     operator_extra_links = (WorkflowsExecutionLink(),)
 
     def __init__(

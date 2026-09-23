@@ -87,7 +87,6 @@ class PiiAnonymizer(Anonymizer):
             return value
 
         url_parts = urlsplit(value)
-        netloc = None
         if url_parts.netloc:
             # unpack
             userinfo = None
@@ -119,6 +118,10 @@ class PiiAnonymizer(Anonymizer):
                 netloc = host
             else:
                 netloc = ""
+        else:
+            # A netloc-less URL is a local-file backend (SQLite is the default), where
+            # the path itself is the identifying information.
+            return self.process_path(value)
 
         return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
 

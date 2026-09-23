@@ -40,7 +40,12 @@ class OracleToOracleOperator(BaseOperator):
     :param rows_chunk: number of rows per chunk to commit.
     """
 
-    template_fields: Sequence[str] = ("source_sql", "source_sql_params")
+    template_fields: Sequence[str] = (
+        "source_sql",
+        "source_sql_params",
+        "oracle_destination_conn_id",
+        "oracle_source_conn_id",
+    )
     template_fields_renderers = {"source_sql": "sql", "source_sql_params": "py"}
     ui_color = "#e08c8c"
 

@@ -16,21 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shlex
 import shutil
+import signal
 import sys
+import threading
+from collections.abc import Iterator
 from pathlib import Path
 from subprocess import run
 
 from rich.console import Console
+from sphinx.cmd.build import build_main
 
 from sphinx_exts.docs_build.code_utils import (
     AIRFLOW_CONTENT_ROOT_PATH,
     ALL_PROVIDER_YAMLS,
     ALL_PROVIDER_YAMLS_WITH_SUSPENDED,
     CONSOLE_WIDTH,
+    DOCS_SOURCES_PATH,
     GENERATED_PATH,
     PROCESS_TIMEOUT,
 )
@@ -38,6 +44,121 @@ from sphinx_exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
 from sphinx_exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
+
+# Sphinx is run in the current process (one worker builds many packages in a row) so that the fixed
+# start-up cost of a build is paid once per worker instead of once per package. For a small provider
+# that fixed cost is ~20s out of ~22s: importing airflow, parsing and validating every provider.yaml,
+# and - the largest part - autoapi's astroid parsing of the airflow modules every provider imports.
+# The astroid parse cache in particular stays warm across the packages a worker builds.
+
+
+def _forget_sphinx_conf_modules() -> None:
+    """
+    Drop the shared Sphinx configuration modules so the next conf.py re-executes them from scratch.
+
+    The per-package ``conf.py`` files do ``from docs.provider_conf import *`` (or import
+    ``docs.utils.conf_constants``) and then mutate the lists they get - ``extensions.append(...)``,
+    ``autoapi_ignore.extend(...)``. Reusing the cached module would leak one package's additions into
+    the next build, so everything under ``devel-common/src/docs`` except the build script is forgotten.
+    """
+    docs_sources_prefix = DOCS_SOURCES_PATH.as_posix()
+    for name, module in list(sys.modules.items()):
+        if name == "docs.build_docs" or not name.startswith("docs."):
+            continue
+        module_file = getattr(module, "__file__", None) or ""
+        if module_file.startswith(docs_sources_prefix):
+            del sys.modules[name]
+
+
+class _RedirectableStream:
+    """
+    Stand-in for ``sys.stdout`` / ``sys.stderr`` that lives as long as the worker process.
+
+    Libraries keep a reference to whatever stream is current when they first need one (docutils'
+    ``Reporter`` in sphinx-argparse's nested parser is one example). Redirecting straight to a
+    per-package log file would leave such references pointing at a closed file once that package is
+    done and crash the next build with "I/O operation on closed file". This object never closes; it
+    only changes where it writes: the current package's log file during a build, the worker's real
+    stream otherwise.
+    """
+
+    def __init__(self, fallback) -> None:
+        self._fallback = fallback
+        self.target = None
+
+    def _stream(self):
+        return self.target if self.target is not None else self._fallback
+
+    def write(self, data: str) -> int:
+        return self._stream().write(data)
+
+    def flush(self) -> None:
+        self._stream().flush()
+
+    def isatty(self) -> bool:
+        return False
+
+    @property
+    def encoding(self) -> str:
+        return getattr(self._stream(), "encoding", None) or "utf-8"
+
+
+_STDOUT_PROXY = _RedirectableStream(sys.stdout)
+_STDERR_PROXY = _RedirectableStream(sys.stderr)
+
+
+@contextlib.contextmanager
+def _output_to(log_file) -> Iterator[None]:
+    """Send everything written to stdout/stderr during the block to ``log_file``."""
+    _STDOUT_PROXY.target = log_file
+    _STDERR_PROXY.target = log_file
+    try:
+        with contextlib.redirect_stdout(_STDOUT_PROXY), contextlib.redirect_stderr(_STDERR_PROXY):
+            yield
+    finally:
+        _STDOUT_PROXY.target = None
+        _STDERR_PROXY.target = None
+
+
+@contextlib.contextmanager
+def _working_directory(path: Path) -> Iterator[None]:
+    previous = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
+
+
+@contextlib.contextmanager
+def _sys_path_prepended(paths: list[Path]) -> Iterator[None]:
+    entries = [path.as_posix() for path in paths]
+    sys.path[:0] = entries
+    try:
+        yield
+    finally:
+        for entry in entries:
+            with contextlib.suppress(ValueError):
+                sys.path.remove(entry)
+
+
+@contextlib.contextmanager
+def _build_timeout(seconds: int) -> Iterator[None]:
+    """Abort a runaway in-process build the way the previous subprocess timeout did."""
+    if not hasattr(signal, "SIGALRM") or threading.current_thread() is not threading.main_thread():
+        yield
+        return
+
+    def _raise_timeout(signum, frame):
+        raise TimeoutError(f"Sphinx build did not finish within {seconds} seconds")
+
+    previous_handler = signal.signal(signal.SIGALRM, _raise_timeout)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 class AirflowDocsBuilder:
@@ -183,25 +304,12 @@ class AirflowDocsBuilder:
         ]
         if os.environ.get("CI", "") != "true" and verbose:
             console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
-        env = os.environ.copy()
-        env["AIRFLOW_PACKAGE_NAME"] = self.package_name
-        if self.pythonpath:
-            env["PYTHONPATH"] = ":".join([path.as_posix() for path in self.pythonpath])
         if verbose:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] The output is hidden until an error occurs."
             )
-        with open(self.log_spelling_filename, "w") as output:
-            completed_proc = run(
-                build_cmd,
-                check=False,
-                cwd=AIRFLOW_CONTENT_ROOT_PATH,
-                env=env,
-                stdout=output if not verbose else None,
-                stderr=output if not verbose else None,
-                timeout=PROCESS_TIMEOUT,
-            )
-        if completed_proc.returncode != 0:
+        returncode = self._run_sphinx(build_cmd, log_file=self.log_spelling_filename, verbose=verbose)
+        if returncode != 0:
             spelling_errors.append(
                 SpellingError(
                     file_path=None,
@@ -209,9 +317,7 @@ class AirflowDocsBuilder:
                     spelling=None,
                     suggestion=None,
                     context_line=None,
-                    message=(
-                        f"Sphinx spellcheck returned non-zero exit status: {completed_proc.returncode}."
-                    ),
+                    message=f"Sphinx spellcheck returned non-zero exit status: {returncode}.",
                 )
             )
             spelling_warning_text = ""
@@ -265,31 +371,18 @@ class AirflowDocsBuilder:
         ]
         if os.environ.get("CI", "") != "true" and verbose:
             console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
-        env = os.environ.copy()
-        env["AIRFLOW_PACKAGE_NAME"] = self.package_name
-        if self.pythonpath:
-            env["PYTHONPATH"] = ":".join([path.as_posix() for path in self.pythonpath])
         if verbose:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] Running sphinx. "
                 f"The output is hidden until an error occurs."
             )
-        with open(self.log_build_filename, "w") as output:
-            completed_proc = run(
-                build_cmd,
-                check=False,
-                cwd=AIRFLOW_CONTENT_ROOT_PATH,
-                env=env,
-                stdout=output if not verbose else None,
-                stderr=output if not verbose else None,
-                timeout=PROCESS_TIMEOUT,
-            )
-        if completed_proc.returncode != 0:
+        returncode = self._run_sphinx(build_cmd, log_file=self.log_build_filename, verbose=verbose)
+        if returncode != 0:
             build_errors.append(
                 DocBuildError(
                     file_path=None,
                     line_no=None,
-                    message=f"Sphinx returned non-zero exit status: {completed_proc.returncode}.",
+                    message=f"Sphinx returned non-zero exit status: {returncode}.",
                 )
             )
         if self.log_build_warning_filename.is_file():
@@ -309,6 +402,42 @@ class AirflowDocsBuilder:
 
     def get_command(self) -> str:
         return "sphinx-autobuild" if self.is_autobuild else "sphinx-build"
+
+    def _run_sphinx(self, build_cmd: list[str], *, log_file: Path, verbose: bool) -> int:
+        """
+        Run a ``sphinx-build`` / ``sphinx-autobuild`` command line and return its exit status.
+
+        ``sphinx-build`` runs in the current process (see the module comment for why); its output goes
+        to ``log_file`` unless ``verbose`` is set. ``sphinx-autobuild`` is a long-running server and
+        keeps running as a subprocess.
+        """
+        if self.is_autobuild:
+            env = os.environ.copy()
+            env["AIRFLOW_PACKAGE_NAME"] = self.package_name
+            if self.pythonpath:
+                env["PYTHONPATH"] = ":".join([path.as_posix() for path in self.pythonpath])
+            with open(log_file, "w") as output:
+                completed_proc = run(
+                    build_cmd,
+                    check=False,
+                    cwd=AIRFLOW_CONTENT_ROOT_PATH,
+                    env=env,
+                    stdout=output if not verbose else None,
+                    stderr=output if not verbose else None,
+                    timeout=PROCESS_TIMEOUT,
+                )
+            return completed_proc.returncode
+        _forget_sphinx_conf_modules()
+        os.environ["AIRFLOW_PACKAGE_NAME"] = self.package_name
+        with (
+            open(log_file, "w") as output,
+            _output_to(output) if not verbose else contextlib.nullcontext(),
+            _working_directory(AIRFLOW_CONTENT_ROOT_PATH),
+            _sys_path_prepended(self.pythonpath),
+            _build_timeout(PROCESS_TIMEOUT),
+        ):
+            # Sphinx reports a TimeoutError raised by the alarm like any other build failure.
+            return build_main(build_cmd[1:])
 
 
 def get_available_providers_distributions(include_suspended: bool = False):

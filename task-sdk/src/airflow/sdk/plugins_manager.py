@@ -132,6 +132,19 @@ def integrate_macros_plugins() -> None:
     )
 
 
+@cache
+def get_macro_plugin_teams() -> dict[str, str | None]:
+    """
+    Map the name of each plugin contributing macros to the team owning it.
+
+    Macros are attached to one module per plugin name, so this is what lets a task be
+    offered its own team's and the global plugins' macros but not another team's. Only
+    plugins that actually contribute macros get a module, hence a submodule to hide.
+    """
+    plugins, _ = _get_plugins()
+    return {plugin.name: plugin.team_name for plugin in plugins if plugin.name and plugin.macros}
+
+
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
     """Add listeners from plugins."""
     plugins, _ = _get_plugins()
