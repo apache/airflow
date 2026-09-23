@@ -36,7 +36,9 @@ class SandboxError(Exception):
     A sandbox operation failed in a way the agent may be able to work around.
 
     The toolset turns this into a ``ModelRetry`` so the model can adjust and try
-    again within the run (a bad path, a command the image cannot run).
+    again within the run (a bad path, a command the image cannot run). Raised
+    from :meth:`SandboxBackend.create` it is treated as terminal instead, since
+    the model cannot influence provisioning.
     """
 
 
@@ -97,11 +99,22 @@ class SandboxSpec:
     :param allow_egress_to: Hostnames the sandbox may reach when
         ``block_network`` is ``True``. An empty or unset value with
         ``block_network=True`` means no egress at all.
+    :param allow_egress_to_cidrs: IPv4 address ranges, in CIDR notation such as
+        ``"203.0.113.0/24"`` or ``"203.0.113.7/32"``, the sandbox may reach when
+        ``block_network`` is ``True``, on any port and protocol. This is the
+        right field for one service at a fixed public address; it cannot serve
+        a package registry behind a CDN, whose addresses rotate, and a hosted
+        backend cannot reach private (RFC 1918) addresses at all. A backend that
+        enforces it does so at the address layer, which is a stronger guarantee
+        than a hostname list gives, so it needs no opt-in. Both lists may be set
+        together; how a backend combines them, and what that costs, is the
+        backend's to document.
     """
 
     env: Mapping[str, str] | None = None
     block_network: bool = True
     allow_egress_to: Sequence[str] | None = None
+    allow_egress_to_cidrs: Sequence[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -114,6 +127,13 @@ class SandboxExecResult:
     dropped bytes while reading that stream, before any model-facing formatting.
     ``sandbox_terminated`` means the backend destroyed the sandbox to stop the
     command, so the toolset must provision a fresh one before the next call.
+
+    ``applied_timeout`` is the deadline the backend actually gave the command,
+    when that differs from the one it was asked for -- a backend may have to
+    shorten it, for instance to fit what is left of a sandbox's life. ``None``
+    means the requested deadline was used as given. The toolset reports this
+    rather than the request, so a model that times out is told the budget it
+    really had and can ask for something that fits.
     """
 
     exit_code: int
@@ -123,6 +143,7 @@ class SandboxExecResult:
     stdout_truncated: bool = False
     stderr_truncated: bool = False
     sandbox_terminated: bool = False
+    applied_timeout: float | None = None
 
 
 class SandboxBackend(ABC):
@@ -163,6 +184,12 @@ class SandboxBackend(ABC):
         backend cannot enforce, rather than provisioning something weaker than
         was asked for. It is terminal rather than recoverable because it states
         a configuration fact the model cannot see and cannot fix by retrying.
+
+        Every failure raised here is terminal, whichever class carries it. The
+        model has no input into provisioning, so a :class:`SandboxError` from
+        ``create`` is not something it can work around; the toolset re-raises one
+        as :class:`SandboxTerminalError` and fails the task, so Airflow's retry
+        attempts the provisioning again.
         """
 
     @abstractmethod
@@ -192,9 +219,10 @@ class SandboxBackend(ABC):
     # needing coreutils at all.
     # ------------------------------------------------------------------
 
-    # Reserved exit status for "the path is not readable", distinct from any
-    # status the guest's own command might return.
+    # Reserved exit statuses for "the path is not readable" and "the path is a
+    # directory", distinct from any status the guest's own command might return.
     _MISSING_PATH_STATUS = 66
+    _IS_DIRECTORY_STATUS = 67
 
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         """
@@ -209,9 +237,13 @@ class SandboxBackend(ABC):
         # against anything ``stat`` reports as zero-length -- character devices,
         # FIFOs, procfs -- which stream without end when read. ``stat`` failing
         # is an error in its own right: without the explicit exit, a missing
-        # path yields an empty ``base64`` and reads back as an empty file.
+        # path yields an empty ``base64`` and reads back as an empty file. A
+        # directory needs its own check for the same reason: ``stat`` succeeds
+        # on it, ``head`` fails but the pipeline's status is ``base64``'s, so
+        # without it a directory reads back as an empty file too.
         script = (
             f"sz=$(stat -Lc %s -- {quoted} 2>/dev/null) || exit {self._MISSING_PATH_STATUS}; "
+            f"[ -d {quoted} ] && exit {self._IS_DIRECTORY_STATUS}; "
             f'printf "%s\n" "$sz"; '
             f"head -c {max_bytes + 1} -- {quoted} | base64"
         )
@@ -222,6 +254,8 @@ class SandboxBackend(ABC):
         )
         if result.exit_code == self._MISSING_PATH_STATUS:
             raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.")
+        if result.exit_code == self._IS_DIRECTORY_STATUS:
+            raise SandboxError(f"{path!r} is a directory. Use list_directory to see what is in it.")
         if result.exit_code:
             raise SandboxError(result.stderr.strip() or f"Could not read {path!r}.")
         reported, _, encoded = result.stdout.partition("\n")

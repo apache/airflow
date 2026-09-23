@@ -1,0 +1,13 @@
+Removed the ``--file-io`` option from the ``airflow info`` command
+
+``--file-io`` uploaded the report to file.io and printed a shareable link. file.io no longer
+accepts anonymous uploads, so the option could not succeed; it also ended in an unhandled
+traceback rather than reporting the failure.
+
+Redirect the output instead::
+
+    airflow info --anonymize > airflow-info.txt
+
+Note that ``--file-io`` applied ``--anonymize`` implicitly. Pass ``--anonymize`` explicitly when
+sharing a report: plain ``airflow info`` prints connection strings, including passwords, in
+cleartext.

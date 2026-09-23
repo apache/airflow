@@ -67,8 +67,8 @@ func TestPack_CrossArchExecutableWithMetadataFile(t *testing.T) {
 		t.Skipf("no cross-arch mapping for host arch %q", runtime.GOARCH)
 	}
 
-	// The example bundle is a real BundleProvider that answers
-	// --airflow-metadata, so it exercises the genuine metadata path.
+	// The example bundle is a real bundle that answers --airflow-metadata,
+	// so it exercises the genuine metadata path.
 	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "example", "bundle"))
 	require.NoError(t, err)
 	sourceFile := filepath.Join(exampleDir, "main.go")
@@ -166,6 +166,9 @@ dags:
       - "via_flat_map"
       - "via_struct_map"
       - "via_plain_map"
+  variable_write_dag:
+    tasks:
+      - "write_and_delete_variable"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

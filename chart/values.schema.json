@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.3.1",
+            "default": "3.3.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 3.1.0 and above is supported.",
             "type": "string",
-            "default": "3.3.1",
+            "default": "3.3.2",
             "x-docsSection": "Common"
         },
         "securityContexts": {
@@ -1661,6 +1661,11 @@
                             "type": "integer",
                             "default": 1
                         },
+                        "readonlyKerberosCache": {
+                            "description": "Should the celery kerberos cache be readonly for the workers.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "revisionHistoryLimit": {
                             "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
                             "type": [
@@ -2742,26 +2747,34 @@
                             },
                             "examples": [
                                 {
-                                    "name": "data-volume-1",
-                                    "storageClassName": "storage-class-1",
-                                    "accessModes": [
-                                        "ReadWriteOnce"
-                                    ],
-                                    "resources": {
-                                        "requests": {
-                                            "storage": "10Gi"
+                                    "metadata": {
+                                        "name": "data-volume-1"
+                                    },
+                                    "spec": {
+                                        "storageClassName": "storage-class-1",
+                                        "accessModes": [
+                                            "ReadWriteOnce"
+                                        ],
+                                        "resources": {
+                                            "requests": {
+                                                "storage": "10Gi"
+                                            }
                                         }
                                     }
                                 },
                                 {
-                                    "name": "data-volume-2",
-                                    "storageClassName": "storage-class-2",
-                                    "accessModes": [
-                                        "ReadWriteOnce"
-                                    ],
-                                    "resources": {
-                                        "requests": {
-                                            "storage": "20Gi"
+                                    "metadata": {
+                                        "name": "data-volume-2"
+                                    },
+                                    "spec": {
+                                        "storageClassName": "storage-class-2",
+                                        "accessModes": [
+                                            "ReadWriteOnce"
+                                        ],
+                                        "resources": {
+                                            "requests": {
+                                                "storage": "20Gi"
+                                            }
                                         }
                                     }
                                 }
@@ -3092,6 +3105,11 @@
                                     }
                                 }
                             }
+                        },
+                        "readonlyKerberosCache": {
+                            "description": "Should the kubernetes kerberos cache be readonly for the workers.",
+                            "type": "boolean",
+                            "default": true
                         },
                         "resources": {
                             "description": "Resource configuration for pods created with pod-template-file.",
@@ -6450,12 +6468,10 @@
                     "type": "array",
                     "default": [],
                     "examples": [
-                        [
-                            {
-                                "name": "FORWARDED_ALLOW_IPS",
-                                "value": "*"
-                            }
-                        ]
+                        {
+                            "name": "FORWARDED_ALLOW_IPS",
+                            "value": "*"
+                        }
                     ],
                     "items": {
                         "type": "object",
@@ -8747,7 +8763,7 @@
                             "user": "...",
                             "pass": "...",
                             "host": "...",
-                            "port": "..."
+                            "port": 9200
                         }
                     ]
                 }
@@ -8810,7 +8826,7 @@
                             "user": "...",
                             "pass": "...",
                             "host": "...",
-                            "port": "..."
+                            "port": 9200
                         }
                     ]
                 }

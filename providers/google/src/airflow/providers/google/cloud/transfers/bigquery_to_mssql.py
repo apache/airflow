@@ -54,6 +54,7 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     template_fields: Sequence[str] = (
         *BigQueryToSqlBaseOperator.template_fields,
         "source_project_dataset_table",
+        "mssql_conn_id",
     )
     operator_extra_links = (BigQueryTableLink(),)
 

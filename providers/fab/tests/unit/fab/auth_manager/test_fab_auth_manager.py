@@ -22,6 +22,7 @@ from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, Mock
+from urllib.parse import urlencode
 
 import pytest
 from flask import g
@@ -885,6 +886,26 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
+            # Dag bundle visibility rides on Dag access, so the menu entry is mapped onto
+            # RESOURCE_DAG. The mapping is load-bearing rather than cosmetic: unmapped items fall
+            # back to the enum value as a resource name, and "Dag Bundles" is not a FAB resource,
+            # so dropping the mapping would silently hide the entry for every FAB deployment.
+            *(
+                [
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                        [MenuItem.DAG_BUNDLES],
+                    ),
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, "Dag Bundles")],
+                        [],
+                    ),
+                ]
+                if hasattr(MenuItem, "DAG_BUNDLES")
+                else []
+            ),
             (
                 [],
                 [],
@@ -1051,6 +1072,17 @@ class TestFabAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
+
+    def test_get_url_login_with_next_url(self, auth_manager):
+        next_url = "http://localhost:8080/dags/example_dag/runs/manual__2026-05-20/tasks/example_task"
+        result = auth_manager.get_url_login(next_url=next_url)
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/?{urlencode({'next': next_url})}"
+
+    def test_get_url_login_without_next_url_kwarg(self, auth_manager):
+        # Callers that don't pass next_url (or pass an empty one) must keep getting the
+        # bare login url, matching the pre-existing behavior relied on elsewhere.
+        result = auth_manager.get_url_login(next_url=None)
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
 
     def test_get_url_logout(self, auth_manager):

@@ -31,8 +31,11 @@ merged alongside the sandbox `allowRead` / `allowWrite` entries Step P already
 writes there, surfaced in the same diff, and applied with the same approval.
 
 This seeds a per-machine baseline at install time; it does **not** introduce a
-committed project-scope `.claude/settings.json` (that path stays gitignored in
-this repo).
+committed project-scope `.claude/settings.json`. That path *is* committable here
+— `.gitignore` ignores `.claude/*` but un-ignores `!.claude/settings.json` for
+the apache-magpie plugin floor — so adding one is a deliberate project-level
+change that belongs in its own PR, not a side effect of an install. Per-machine
+settings belong in the ignored `.claude/settings.local.json`.
 
 ## Permissions to add
 

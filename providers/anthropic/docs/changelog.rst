@@ -20,6 +20,26 @@
 Changelog
 ---------
 
+1.0.0
+.....
+
+.. note::
+  The provider now requires the ``anthropic`` 1.x SDK (``anthropic>=1.0.0``) and no longer
+  installs alongside ``anthropic`` 0.x. Upgrading the provider therefore upgrades the client
+  library, so Dag code that calls the SDK directly has to be checked against the 1.x API.
+
+  ``anthropic`` 1.x also drops the implicit ``us-east-1`` fallback, so the ``bedrock`` and ``aws``
+  platforms now need an explicit region: set ``aws_region`` in the connection extra, or provide
+  ``AWS_REGION`` / ``AWS_DEFAULT_REGION`` (or a region on the AWS profile) on the worker.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate to the anthropic 1.x SDK (#72072, #72094)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.3.0
 .....
 

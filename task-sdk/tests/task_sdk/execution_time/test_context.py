@@ -86,6 +86,7 @@ from airflow.sdk.execution_time.context import (
     AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
+    MacrosAccessor,
     OutletEventAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
@@ -104,6 +105,7 @@ from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
 from airflow.sdk.state import BaseStoreBackend
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -1271,6 +1273,43 @@ class TestAsyncGetConnection:
             # Should not have tried SUPERVISOR_COMMS since secrets backend had the connection
             mock_supervisor_comms.send.assert_not_called()
             mock_supervisor_comms.asend.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_get_connection_uses_aget_uri_not_get_uri(self, mock_supervisor_comms):
+        """_async_get_connection must call aget_uri() when caching, never the sync get_uri().
+
+        get_uri() accesses extra_dejson which calls mask_secret() -> comms.send()
+        from the event-loop thread, triggering DeadlockImminentError in Airflow 3.3.1.
+        aget_uri() uses amask_secret() -> asend() and is safe in async contexts.
+        """
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        sample_connection = Connection(
+            conn_id="test_conn",
+            conn_type="postgres",
+            host="localhost",
+            port=5432,
+            extra='{"sslmode": "require"}',
+        )
+
+        class MockSecretsBackend:
+            def get_connection(self, conn_id: str) -> Connection | None:
+                return sample_connection if conn_id == "test_conn" else None
+
+        with (
+            patch(
+                "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
+            ) as mock_load,
+            mock.patch.object(SecretCache, "save_connection_uri"),
+        ):
+            mock_load.return_value = [MockSecretsBackend()]
+
+            await _async_get_connection("test_conn")
+
+            # get_uri() would reach the sync mask_secret() -> comms.send(), which deadlocks
+            # on the event-loop thread; aget_uri() must go through amask_secret() -> comms.asend().
+            mock_supervisor_comms.send.assert_not_called()
+            mock_supervisor_comms.asend.assert_awaited()
 
 
 class TestSecretsBackend:
@@ -2501,3 +2540,75 @@ class TestAssetStateStoreAccessorWithCustomBackend:
         result = await AssetStateStoreAccessor(name=self.ASSET_NAME).aget("watermark")
 
         assert result == "2026-05-01"
+
+
+class TestMacrosAccessorTeamScoping:
+    """A task may use its own team's and the global plugins' macros, but not another team's."""
+
+    @staticmethod
+    def _plugins():
+        from airflow.sdk.plugins_manager import AirflowPlugin
+
+        def team_a_macro():
+            return "team-a"
+
+        def shared_macro():
+            return "shared"
+
+        class TeamAPlugin(AirflowPlugin):
+            name = "team_a_macros"
+            team_name = "team-a"
+            macros = [team_a_macro]
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_macros"
+            macros = [shared_macro]
+
+        return [TeamAPlugin, GlobalPlugin]
+
+    @pytest.fixture
+    def integrated_macros(self):
+        from airflow.sdk.plugins_manager import integrate_macros_plugins
+
+        with mock_plugin_manager(plugins=self._plugins()):
+            integrate_macros_plugins()
+            yield
+
+    @pytest.mark.parametrize(
+        ("team_name", "reachable"),
+        [
+            pytest.param("team-a", True, id="owning-team"),
+            pytest.param("team-b", False, id="other-team"),
+            pytest.param(None, False, id="teamless-task"),
+        ],
+    )
+    def test_team_macros_reachable_only_by_their_team(self, integrated_macros, team_name, reachable):
+        accessor = MacrosAccessor(team_name=team_name, multi_team=True)
+
+        if reachable:
+            assert accessor.team_a_macros.team_a_macro() == "team-a"
+        else:
+            with pytest.raises(AttributeError, match="belong to team 'team-a'"):
+                accessor.team_a_macros
+
+    @pytest.mark.parametrize(
+        "team_name",
+        [pytest.param("team-a", id="team-task"), pytest.param(None, id="teamless-task")],
+    )
+    def test_global_plugin_macros_stay_reachable(self, integrated_macros, team_name):
+        accessor = MacrosAccessor(team_name=team_name, multi_team=True)
+
+        assert accessor.global_macros.shared_macro() == "shared"
+
+    def test_builtin_macros_stay_reachable(self, integrated_macros):
+        """Only plugin submodules are scoped; the macros module's own contents are not."""
+        accessor = MacrosAccessor(team_name="team-b", multi_team=True)
+
+        assert accessor.ds_add("2026-01-01", 1) == "2026-01-02"
+
+    def test_nothing_is_hidden_when_multi_team_is_off(self, integrated_macros):
+        """A plugin declaring a team in a single-team deployment keeps working as before."""
+        accessor = MacrosAccessor()
+
+        assert accessor.team_a_macros.team_a_macro() == "team-a"
+        assert accessor.global_macros.shared_macro() == "shared"

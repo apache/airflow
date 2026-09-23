@@ -72,7 +72,7 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ["dataplex_task_id"]
+    template_fields = ["dataplex_task_id", "gcp_conn_id"]
 
     def __init__(
         self,
@@ -156,7 +156,7 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
     :return: Boolean indicating if the job run has reached the ``DataScanJob.State.SUCCEEDED``.
     """
 
-    template_fields = ["job_id"]
+    template_fields = ["job_id", "gcp_conn_id"]
 
     def __init__(
         self,
@@ -271,7 +271,7 @@ class DataplexDataProfileJobStatusSensor(BaseSensorOperator):
     :return: Boolean indicating if the job run has reached the ``DataScanJob.State.SUCCEEDED``.
     """
 
-    template_fields = ["job_id"]
+    template_fields = ["job_id", "gcp_conn_id"]
 
     def __init__(
         self,

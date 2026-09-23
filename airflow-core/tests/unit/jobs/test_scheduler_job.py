@@ -63,6 +63,7 @@ from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.workloads import WorkloadType
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
 from airflow.models.asset import (
@@ -146,7 +147,7 @@ from airflow.timetables.simple import (
 )
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
+from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
@@ -798,6 +799,15 @@ class TestSchedulerJob:
             callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
             assert callback_lookups == []
 
+    def test_process_executor_events_raises_on_unknown_key_type(self, session):
+        """An unrecognised key must fail loudly, matching run_workload and state_class_for_key."""
+        executor = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.event_buffer["not-a-workload-key"] = (TaskInstanceState.SUCCESS, None)
+
+        with pytest.raises(TypeError, match="Unknown workload key type in event buffer"):
+            self.job_runner._process_executor_events(executor=executor, session=session)
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_event_missing_dag(
@@ -1152,6 +1162,7 @@ class TestSchedulerJob:
             schedule=[asset1],
             fileloc="/test_path1/",
             dagrun_timeout=timedelta(minutes=1),
+            on_failure_callback=lambda ctx: None,
         ):
             EmptyOperator(task_id="dummy_task")
 
@@ -1228,6 +1239,25 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SCHEDULED
         session.rollback()
+
+    def test_execute_task_instances_for_draining_dag(self, session, dag_maker):
+        with dag_maker(dag_id="test_execute_task_instances_for_draining_dag", session=session) as dag:
+            EmptyOperator(task_id="task")
+        assert isinstance(dag, SerializedDAG)
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        (task_instance,) = dag_run.task_instances
+        task_instance.state = State.SCHEDULED
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._critical_section_enqueue_task_instances(session)
+        session.flush()
+
+        task_instance.refresh_from_db(session=session)
+        assert task_instance.state == State.QUEUED
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_find_and_purge_task_instances_without_heartbeats_with_asset_events(
@@ -4171,6 +4201,7 @@ class TestSchedulerJob:
             start_date=DEFAULT_DATE,
             max_active_runs=1,
             dagrun_timeout=datetime.timedelta(seconds=60),
+            on_failure_callback=lambda ctx: None,
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -4235,6 +4266,7 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id="test_scheduler_fail_dagrun_timeout",
             dagrun_timeout=datetime.timedelta(seconds=60),
+            on_failure_callback=lambda ctx: None,
             session=session,
         ):
             EmptyOperator(task_id="dummy")
@@ -4292,6 +4324,35 @@ class TestSchedulerJob:
             mock.ANY,
             tags={"dag_id": dr.dag_id, "run_type": dr.run_type},
         )
+
+        session.rollback()
+        session.close()
+
+    @mock.patch.object(DagRun, "produce_dag_callback", autospec=True)
+    def test_dagrun_timeout_without_on_failure_callback_produces_no_callback(
+        self, mock_produce_dag_callback, dag_maker
+    ):
+        """A timed-out run of a Dag without on_failure_callback must not build a callback request."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_scheduler_dagrun_timeout_no_callback",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        callback = self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        assert dr.state == State.FAILED
+        assert callback is None
+        mock_produce_dag_callback.assert_not_called()
 
         session.rollback()
         session.close()
@@ -5365,6 +5426,57 @@ class TestSchedulerJob:
             )
             is not None
         )
+
+    @pytest.mark.parametrize("ti_state", [TaskInstanceState.QUEUED, TaskInstanceState.SCHEDULED])
+    def test_process_executor_events_queued_ti_retry_preserves_history(self, ti_state, dag_maker, session):
+        """
+        Regression test for #65366 / #67238.
+
+        When an executor reports FAILED for a TI that is QUEUED or SCHEDULED
+        (killed externally before it could start), the scheduler calls handle_failure()
+        which must call prepare_db_for_next_try() so that TaskInstanceHistory is recorded
+        with the correct hostname and start_date.
+        """
+        dag_id = "test_queued_ti_retry_history"
+        task_id = "dummy"
+        hostname = "worker-node-42"
+
+        with dag_maker(dag_id=dag_id, fileloc="/test_path/"):
+            task = EmptyOperator(task_id=task_id, retries=2)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.state = ti_state
+        ti.hostname = hostname
+        ti.start_date = DEFAULT_DATE
+        ti.try_number = 1
+        ti.max_tries = 2
+        session.merge(ti)
+        session.commit()
+
+        old_ti_id = ti.id
+
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[ti.key] = TaskInstanceState.FAILED, None
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
+
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_ti_id)
+        )
+        assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
+        assert tih.hostname == hostname
+        assert tih.start_date == DEFAULT_DATE
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -8795,6 +8907,81 @@ class TestSchedulerJob:
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
         assert backfill_run.state == State.SUCCESS
 
+    def test_finalize_draining_dag_after_active_runs_finish(self, dag_maker, session):
+        with dag_maker("test_finalize_draining_dag") as dag:
+            EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run.state = DagRunState.SUCCESS
+        session.flush()
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.PAUSED
+        session.flush()
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Log)
+                .where(
+                    Log.dag_id == dag.dag_id,
+                    Log.event == "drain_completed",
+                )
+            )
+            == 1
+        )
+
+    def test_finalize_draining_dag_waits_for_backfill_initialization(self, dag_maker, session):
+        with dag_maker("test_finalize_draining_dag_with_backfill", schedule="@daily") as dag:
+            EmptyOperator(task_id="task")
+
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        backfill = Backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-02"),
+            max_active_runs=1,
+            dag_run_conf={},
+            reprocess_behavior=ReprocessBehavior.NONE,
+        )
+        session.add(backfill)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        dag_run.backfill_id = backfill.id
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill.id,
+                dag_run_id=dag_run.id,
+                logical_date=dag_run.logical_date,
+                sort_ordinal=1,
+            )
+        )
+        session.flush()
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run.state = DagRunState.SUCCESS
+        session.flush()
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.PAUSED
+
     @staticmethod
     def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
         assets = session.execute(
@@ -11540,6 +11727,114 @@ def _produce_and_register_asset_event(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    "scheduling_state",
+    [DagSchedulingState.DRAINING, DagSchedulingState.PAUSED],
+)
+def test_partitioned_asset_dag_run_waits_while_not_active_and_fires_on_resume(
+    dag_maker: DagMaker, session: Session, scheduling_state: DagSchedulingState
+):
+    """
+    A pending APDR is frozen while its Dag is paused or draining, not consumed.
+
+    The run it would have created is deferred rather than dropped, so reactivating the
+    Dag fires it on the next tick.
+    """
+    asset = Asset(name="asset")
+    consumer_dag_id = "inactive-asset-event-consumer"
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(assets=asset),
+        session=session,
+    ):
+        EmptyOperator(task_id="consumer")
+    session.commit()
+
+    # Ordering is load-bearing: the asset event must be produced while the Dag is still
+    # active, because AssetManager.register_asset_change skips inactive Dags entirely.
+    # Pausing first would leave no APDR at all and the assertions below would pass
+    # vacuously.
+    apdr = _produce_and_register_asset_event(
+        dag_id="inactive-asset-event-producer",
+        asset=asset,
+        partition_key="partition",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    dag_model = session.get(DagModel, consumer_dag_id)
+    assert dag_model is not None
+    dag_model.set_scheduling_state(scheduling_state)
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert partition_dags == set()
+    assert apdr.created_dag_run_id is None
+
+    # The APDR is deferred, not dropped: a rollup that was already satisfiable before the
+    # pause fires as soon as the Dag is active again.
+    dag_model.set_scheduling_state(DagSchedulingState.ACTIVE)
+    session.commit()
+
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {consumer_dag_id}
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_asset_dag_run_is_not_created_after_a_drain_completes(
+    dag_maker: DagMaker, session: Session
+):
+    """
+    Completing a drain must not hand the drained Dag a fresh partition-driven run.
+
+    ``_finalize_draining_dags`` converges draining to paused in one step, so a pending
+    APDR that the draining filter had been holding would otherwise become eligible the
+    instant the drain finished -- against the very Dag the operator just drained.
+    """
+    asset = Asset(name="asset")
+    consumer_dag_id = "drained-asset-event-consumer"
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(assets=asset),
+        session=session,
+    ):
+        EmptyOperator(task_id="consumer")
+    session.commit()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="drained-asset-event-producer",
+        asset=asset,
+        partition_key="partition",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    dag_model = session.get(DagModel, consumer_dag_id)
+    assert dag_model is not None
+    dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == set()
+
+    # The Dag has no unfinished runs, so the drain converges to paused on this tick.
+    runner._finalize_draining_dags(session=session)
+    assert dag_model.scheduling_state == DagSchedulingState.PAUSED
+    session.flush()
+
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == set()
+    assert apdr.created_dag_run_id is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_partitioned_dag_run_with_invalid_mapping(dag_maker: DagMaker, session: Session):
     session.execute(delete(Log))
     asset_1 = Asset(name="asset-1")
@@ -13274,7 +13569,7 @@ def scheduler_job_runner_for_connection_tests(session):
     executor.name = ExecutorName(
         module_path="airflow.executors.local_executor.LocalExecutor", alias="LocalExecutor"
     )
-    executor.queued_connection_tests.clear()
+    executor.executor_queues[WorkloadType.TEST_CONNECTION].clear()
     yield _make_scheduler_runner_for_connection_tests([executor])
     session.execute(delete(ConnectionTestRequest))
     session.commit()
@@ -13300,7 +13595,14 @@ class TestDispatchConnectionTests:
         session.expire_all()
         ct = session.get(ConnectionTestRequest, ct.id)
         assert ct.state == ConnectionTestState.QUEUED
-        assert len(scheduler_job_runner_for_connection_tests.executor.queued_connection_tests) == 1
+        assert (
+            len(
+                scheduler_job_runner_for_connection_tests.executor.executor_queues[
+                    WorkloadType.TEST_CONNECTION
+                ]
+            )
+            == 1
+        )
 
     @mock.patch.dict(
         os.environ,
@@ -13362,7 +13664,7 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        queued = list(runner.executor.queued_connection_tests.values())
+        queued = list(runner.executor.executor_queues[WorkloadType.TEST_CONNECTION].values())
         assert len(queued) == 1
         assert queued[0].team_name == expected_workload_team
 
@@ -13401,7 +13703,7 @@ class TestDispatchConnectionTests:
     ):
         """Failure message names the executor that was tried, not 'no executor'."""
         unsupporting_executor = BaseExecutor()
-        unsupporting_executor.supports_connection_test = False
+        unsupporting_executor.supported_workload_types = frozenset({WorkloadType.EXECUTE_TASK})
         unsupporting_executor.name = ExecutorName(
             module_path="airflow.executors.base_executor.BaseExecutor", alias="celery"
         )
@@ -13549,11 +13851,11 @@ class TestDispatchConnectionTests:
 
         executor_a = LocalExecutor()
         executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
-        executor_a.queued_connection_tests.clear()
+        executor_a.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         executor_b = LocalExecutor()
         executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
-        executor_b.queued_connection_tests.clear()
+        executor_b.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
 
@@ -13563,8 +13865,8 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        assert len(executor_b.queued_connection_tests) == 1
-        assert len(executor_a.queued_connection_tests) == 0
+        assert len(executor_b.executor_queues[WorkloadType.TEST_CONNECTION]) == 1
+        assert len(executor_a.executor_queues[WorkloadType.TEST_CONNECTION]) == 0
 
     @mock.patch.dict(
         os.environ,
@@ -13580,11 +13882,11 @@ class TestDispatchConnectionTests:
 
         executor_a = LocalExecutor()
         executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
-        executor_a.queued_connection_tests.clear()
+        executor_a.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         executor_b = LocalExecutor()
         executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
-        executor_b.queued_connection_tests.clear()
+        executor_b.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
 
@@ -13596,8 +13898,8 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        assert len(executor_b.queued_connection_tests) == 1
-        assert len(executor_a.queued_connection_tests) == 0
+        assert len(executor_b.executor_queues[WorkloadType.TEST_CONNECTION]) == 1
+        assert len(executor_a.executor_queues[WorkloadType.TEST_CONNECTION]) == 0
 
     def test_dispatch_executor_matched_by_class_name(self, session):
         """When executor is specified by class name only, the matching executor is selected."""
@@ -13606,11 +13908,11 @@ class TestDispatchConnectionTests:
 
         executor_a = LocalExecutor()
         executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
-        executor_a.queued_connection_tests.clear()
+        executor_a.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         executor_b = LocalExecutor()
         executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
-        executor_b.queued_connection_tests.clear()
+        executor_b.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
 
@@ -13620,8 +13922,8 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        assert len(executor_b.queued_connection_tests) == 1
-        assert len(executor_a.queued_connection_tests) == 0
+        assert len(executor_b.executor_queues[WorkloadType.TEST_CONNECTION]) == 1
+        assert len(executor_a.executor_queues[WorkloadType.TEST_CONNECTION]) == 0
 
     @mock.patch.dict(
         os.environ,
@@ -13635,7 +13937,9 @@ class TestDispatchConnectionTests:
     ):
         """When the resolved executor does not support connection tests, the test is failed gracefully."""
         executor = scheduler_job_runner_for_connection_tests.executor
-        executor.supports_connection_test = False
+        executor.supported_workload_types = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
 
         ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
         session.add(ct)
