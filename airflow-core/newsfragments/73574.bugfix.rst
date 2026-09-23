@@ -1,0 +1,1 @@
+Fix manual copy from the Rendered Templates tab putting every word on its own line.
