@@ -391,9 +391,11 @@ and the worker also has ``AZURE_FEDERATED_TOKEN_FILE``,
 instead of silently using the wrong identity.
 
 With no explicit credential, authentication falls back to ``AZURE_*``
-environment variables, managed identity, or workload identity. The Azure
-CLI is only used if ``AZURE_USE_AZURE_CLI=true`` is set; otherwise the
-default is IMDS managed identity, not ``az login``.
+environment variables, managed identity, or workload identity. Unlike
+``WasbHook`` (which tries ``az login`` automatically), DataFusion's
+underlying ``object_store`` binding only tries the Azure CLI if
+``AZURE_USE_AZURE_CLI=true`` is set; otherwise it defaults straight to
+IMDS managed identity.
 
 ``connection_string``, ``managed_identity_client_id``, ``workload_identity_tenant_id``,
 and a URL-form ``sas_token`` are not supported.
