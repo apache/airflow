@@ -21,6 +21,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from pydantic import BaseModel
 from pydantic_ai.messages import ImageUrl
+from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
@@ -161,13 +162,13 @@ class TestAgentDecoratedOperator:
         mock_agent.run_sync.return_value = make_mock_run_result("result")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        mock_toolset = MagicMock()
+        toolset = FunctionToolset()
 
         op = _AgentDecoratedOperator(
             task_id="test",
             python_callable=lambda: "Do something",
             llm_conn_id="my_llm",
-            toolsets=[mock_toolset],
+            toolsets=[toolset],
         )
         op.execute(context=_make_context())
 
@@ -175,7 +176,7 @@ class TestAgentDecoratedOperator:
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert passed_toolsets[0].wrapped is mock_toolset
+        assert passed_toolsets[0].wrapped is toolset
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

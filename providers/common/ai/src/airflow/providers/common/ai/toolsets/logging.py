@@ -24,6 +24,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 
 if TYPE_CHECKING:
@@ -55,6 +56,11 @@ class LoggingToolset(WrapperToolset[Any]):
             self.logger.info("Tool %s returned in %.2fs", name, elapsed)
             self.logger.info("::endgroup::")
             return result
+        except ApprovalRequired:
+            # Not a failure: the run pauses here until a person approves or rejects the call.
+            self.logger.info("Tool %s is waiting to be approved", name)
+            self.logger.info("::endgroup::")
+            raise
         except Exception:
             elapsed = time.monotonic() - start
             self.logger.exception("Tool %s failed after %.2fs", name, elapsed)

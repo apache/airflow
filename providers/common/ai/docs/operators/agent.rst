@@ -244,7 +244,7 @@ replayed on retry; they run again. Pass tools you need replayed in ``toolsets=``
 Agent features
 --------------
 
-Four features have pages of their own:
+Five features have pages of their own:
 
 - :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
 - :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
@@ -253,6 +253,8 @@ Four features have pages of their own:
   through ``agent_params``.
 - :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
   ``run_code`` tool the model drives by writing Python.
+- :doc:`../tool_approval`: mark tools that need a person's approval, and the task pauses before
+  a marked call runs.
 
 .. _agent-durable-execution:
 
