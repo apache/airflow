@@ -26,24 +26,45 @@ Engine. Their reasoning loops execute on the vendor's infrastructure, so they
 are not something ``AgentOperator`` runs; they are something an Airflow task
 *consults*.
 
-:class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
-is the contract for exposing one of those as a tool. Each provider package
-ships its own subclass, so credentials keep flowing through that provider's
-existing hook and no new connection types are needed.
+Two pieces make that consultation vendor-neutral. The **contract**, in
+:mod:`airflow.providers.common.ai.managed_agents`, is what a vendor hook
+implements: a request goes in, an answer comes out, and the agent is an argument
+rather than a hook of its own, the way a statement is an argument to
+``DbApiHook.run``. The **toolset**,
+:class:`~airflow.providers.common.ai.toolsets.managed_agent.ManagedAgentToolset`,
+is what a Dag passes to ``AgentOperator``: it presents any client of that
+contract to the calling model as one tool with a bare-prompt schema.
 
-A subclass implements two members:
+.. code-block:: python
 
-``agent_ref``
-    Normalized identity of the remote agent — ``platform`` and ``name`` — logged
-    on every call so a run can be audited for which agents it consulted.
+    from airflow.providers.amazon.aws.hooks.bedrock_managed_agent import BedrockAgentCoreManagedAgentHook
+    from airflow.providers.common.ai.operators.agent import AgentOperator
+    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
 
-``invoke_sync(prompt)``
-    Send the prompt, return the agent's answer. Return the *answer*, not the
-    transport envelope.
+    claims = BedrockAgentCoreManagedAgentHook(aws_conn_id="aws_prod", region_name="us-east-1").agent(
+        "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/claims"
+    )
 
-Tool naming, argument validation, result serialisation, and logging are handled
-by the base class, so every provider's implementation presents the same surface
-to the calling model.
+    AgentOperator(
+        task_id="triage",
+        llm_conn_id="anthropic_default",
+        prompt="Review claim 4411 and decide whether to pay it.",
+        toolsets=[
+            ManagedAgentToolset(
+                claims,
+                tool_name="ask_claims_agent",
+                description="Reviews an insurance claim and returns a coverage determination.",
+            )
+        ],
+    )
+
+Credentials keep flowing through the vendor's own hook and connection; no new
+connection types are involved. The vendor hooks that adopt the contract today are
+:class:`~airflow.providers.amazon.aws.hooks.bedrock_managed_agent.BedrockAgentCoreManagedAgentHook`
+(install ``apache-airflow-providers-amazon[common.ai]``) and
+:class:`~airflow.providers.google.cloud.hooks.vertex_ai.managed_agent.AgentEngineManagedAgentHook`
+(install ``apache-airflow-providers-google[common.ai]``). Each provider documents
+how it maps the contract onto its service.
 
 ``tool_name`` is the required identifier — it is what the model emits when it
 calls the tool, and the Dag author chooses it. ``description`` is optional and
@@ -59,46 +80,70 @@ derives one from a method name when there is no docstring.
     name and the description are the whole of what the model knows about the
     agent.
 
-Sync or async?
+What the model receives
+-----------------------
+
+The model receives ``ManagedAgentResponse.text``: the answer, unwrapped from the
+vendor's transport envelope by the hook. The envelope itself is on
+``ManagedAgentResponse.raw`` for Python callers of the client and never reaches
+the model, so a vendor's citations, tool traces or metadata are neither lost nor
+pasted into a model's context. A Python caller who wants them calls the client
+directly::
+
+    response = claims.invoke(ManagedAgentRequest(prompt="Summarize claim 4411"))
+    response.text  # what a model would have seen
+    response.raw  # the vendor envelope
+
+``ManagedAgentRequest.vendor_options`` carries anything the contract does not
+type through to the vendor call; ``ManagedAgentToolset(vendor_options=...)``
+sends the same options on every request, for per-agent settings such as Agent
+Engine's ``class_method`` or AgentCore's ``text_key``. Hooks reject options that would re-target the call,
+such as another agent identity, account or connection, and refuse a
+``session_id`` when the agent keeps no conversation state.
+
+Error handling
 --------------
 
-An agent run is driven by a single event loop, shared by the model requests and
-every toolset's tool calls. A call that blocks that loop stalls all of them for
-as long as the remote agent reasons -- seconds to minutes, not milliseconds --
-and it does so silently, with no error to point at.
+Failures sort into three buckets, and conflating them is the most common way a
+vendor adoption goes wrong:
 
-Implement ``invoke_sync`` when the vendor call is blocking. The base class runs
-it in a worker thread, keeping the loop free::
+.. list-table::
+    :header-rows: 1
+    :widths: 22 30 48
 
-    class MyManagedAgentToolset(BaseManagedAgentToolset):
-        @property
-        def agent_ref(self) -> dict[str, str]:
-            return {"platform": "example.cloud", "name": self._agent_id}
+    * - Raise
+      - When
+      - Who recovers
+    * - :class:`~airflow.providers.common.ai.exceptions.ManagedAgentRejected`
+      - The agent rejected the request in a way rephrasing could fix.
+      - The calling model. The toolset turns it into a pydantic-ai ``ModelRetry``,
+        bounded by ``max_retries`` (one rephrase by default; ``0`` makes it fatal).
+    * - :class:`~airflow.providers.common.ai.exceptions.ManagedAgentInvocationError`
+      - Terminal: bad credentials, missing agent, malformed request, exhausted quota.
+      - No rephrase; a failover group moves to its next member. Airflow's own task
+        retries still apply, so pair the task with a retry rule that stops on it if
+        retrying would only repeat the failure.
+    * - *let it propagate*
+      - Transient: 429, 5xx, connection reset, read timeout.
+      - Airflow's task-level retry. A rephrase does nothing for a 503.
 
-        def invoke_sync(self, prompt: str) -> str:
-            return self._hook.conn.invoke(agent=self._agent_id, prompt=prompt)
-
-Override ``invoke(prompt)`` -- the async coroutine -- when the call is already
-asynchronous. Implement one hook or the other; a subclass that implements
-neither is rejected when it is constructed.
-
-.. warning::
-
-    A thread cannot be cancelled. A caller that stops waiting for
-    ``invoke_sync`` does not stop the call -- it keeps a worker thread and its
-    socket until the call returns. Set a timeout on the underlying request so
-    that is bounded.
+A vendor hook raises :class:`~airflow.providers.common.ai.exceptions.ManagedAgentRejected`
+rather than ``ModelRetry`` so that the contract module imports nothing from
+pydantic-ai; the toolset is the one place a rejection becomes something the
+calling model can act on. Neither platform adopted here has a rephrase-class
+error. AgentCore reports a container's own complaints inside a successful body,
+and Agent Engine's ``INVALID_ARGUMENT`` means an author-side mistake such as a
+wrong input key, so both hooks raise terminal errors or let transient ones
+propagate.
 
 Toolset or operator?
 --------------------
 
-Most managed-agent platforms do not offer a plain one-request-one-answer API. Some
-require polling a job; others require creating a session and tearing it down around
-each exchange. A toolset can do either, but only by blocking inside
-``invoke()`` — it cannot defer to the Triggerer, and it has no post-task hook to
-clean up with if the worker dies mid-call.
-
-That draws a boundary worth respecting:
+A toolset call runs in the worker and cannot defer to the Triggerer — it blocks
+for the duration of the call, in a worker thread so the agent's event loop keeps
+running. Some managed-agent platforms are built around a long-running job or a
+session rather than one request and one answer, and a toolset serves those
+poorly.
 
 .. list-table::
     :header-rows: 1
@@ -108,108 +153,75 @@ That draws a boundary worth respecting:
       - Surface to use
     * - A short consultation *inside* an agent's reasoning, where failing the task
         would discard the calling agent's accumulated context
-      - A managed agent toolset
+      - :class:`~airflow.providers.common.ai.toolsets.managed_agent.ManagedAgentToolset`
     * - Long-running submitted work as a pipeline step in its own right
       - That provider's own operator, with deferral or
-        :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin`
+        :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin`; for
+        Agent Engine query jobs, ``RunQueryJobOperator``
 
 ``ResumableJobMixin`` exists for exactly the second case: it persists the external
 job ID to the task state store before polling, so a worker crash reconnects to the
 running job instead of submitting a duplicate. A toolset cannot offer that, because
-the retry boundary is the task, not the tool call — on retry the agent loop restarts
-and re-issues the call. Durable execution covers the *completed* call (see
-``replayable`` below); it does not cover a call that was still in flight.
-
-Error handling
---------------
-
-Failures sort into three buckets, and conflating them is the most common way an
-implementation goes wrong:
-
-.. list-table::
-    :header-rows: 1
-    :widths: 22 30 48
-
-    * - Raise
-      - When
-      - Who recovers
-    * - ``ModelRetry``
-      - The agent rejected the request in a way rephrasing could fix.
-      - The calling model, bounded by its ``usage_limits``.
-    * - ``ManagedAgentInvocationError``
-      - Terminal: bad credentials, missing agent, revoked quota.
-      - Nobody — the task fails fast instead of burning retries.
-    * - *let it propagate*
-      - Transient: 429, 5xx, connection reset, read timeout.
-      - Airflow's task-level retry. A rephrase does nothing for a 503.
+the retry boundary is the task, not the tool call. Set ``timeout`` on the toolset
+so a call that stops being waited for is bounded: a thread cannot be cancelled,
+and the hooks apply the request's timeout to the vendor call itself.
 
 Durable execution
 -----------------
 
-``replayable`` is ``False`` by default. A managed agent may act on systems
-Airflow cannot observe, so replaying a cached answer on retry could skip a side
-effect. Implementations whose agent is read-only should set it to ``True`` to
-avoid paying for the same invocation twice.
-
-Deferral
---------
-
-A toolset call runs in the worker and cannot defer to the Triggerer — it blocks
-for the duration of the call. See `Toolset or operator?`_ above for when that is
-acceptable and when the provider's own deferrable operator is the right surface
-instead.
+``replayable`` is ``False`` by default, and ``AgentOperator(durable=True)``
+honors it: a managed-agent call is re-invoked on retry rather than served from
+the step cache, because the agent may have acted on systems Airflow cannot
+observe and replaying a cached answer could skip a side effect. Set
+``replayable=True`` only for an agent that is read-only.
 
 Failover between interchangeable agents
 ---------------------------------------
 
-:class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
-composes several managed agents into one tool, trying them in order until one
-answers. It is itself a ``BaseManagedAgentToolset``, so the calling model sees a
-single tool and has no say in which provider serves the request — the policy
-stays deterministic Python rather than a prompt instruction a model may ignore.
-Groups nest.
+:class:`~airflow.providers.common.ai.managed_agents.failover.FailoverManagedAgentClient`
+composes several clients into one, trying them in order until one answers. It is
+itself a client, so a toolset over it presents a single tool and the calling
+model has no say in which provider serves the request — the policy stays
+deterministic Python rather than a prompt instruction a model may ignore. Groups
+nest.
 
 .. code-block:: python
 
-    from airflow.providers.common.ai.toolsets import FailoverManagedAgentToolset
+    from airflow.providers.common.ai.managed_agents import FailoverManagedAgentClient
+    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
 
-    resilient = FailoverManagedAgentToolset(
+    resilient = ManagedAgentToolset(
+        FailoverManagedAgentClient([bedrock_claims, vertex_claims]),  # same agent, two clouds
         tool_name="ask_claims_agent",
         description="Reviews an insurance claim and returns a coverage determination.",
-        members=[bedrock_claims_agent, foundry_claims_agent],  # same image, two clouds
     )
 
-Members must satisfy two preconditions the class cannot check.
+Members must be **substitutable**: the same agent deployed twice, not two
+specialists with different data. Two containerized agents built from one image
+qualify; an agent bound to one platform's own objects — a Cortex Agent over
+Snowflake semantic models — does not, because there is nothing equivalent to fail
+over *to*. The group cannot check this.
 
-**Substitutability.** The same agent deployed twice, not two specialists with
-different data. Two containerised agents built from one image qualify; agents
-bound to one platform's own objects — a Cortex Agent over Snowflake semantic
-models — do not, because there is nothing equivalent to fail over *to*.
-
-**Statelessness per invocation.** Server-side conversation state is the norm
-across managed-agent platforms, not the exception — optional on some (Cortex
-``thread_id``), mandatory on others where a session is created and torn down
-around each exchange. Each member is invoked with a bare prompt and no thread
-reference, so a failover silently starts a fresh conversation on the standby:
-correct for a one-shot consultation, wrong for a multi-turn one. Treat one-shot
-as a restriction a group is deliberately held to, not a safe default.
+What it can check is **conversation state**. A failover starts a fresh conversation
+on the standby, which is correct for a one-shot consultation and wrong for a
+multi-turn one. The group therefore never reports ``capabilities.sessions`` and
+refuses a request that carries a ``session_id``, whatever its members support;
+a conversation belongs to one member, addressed directly.
 
 The three error buckets do real work here:
 
-- ``ManagedAgentInvocationError`` and transient failures move to the next member.
-- ``ModelRetry`` is re-raised immediately and never triggers failover. A prompt
-  the primary could not parse will not parse on the standby either, so failing
-  over would spend the standby's budget reproducing the same error.
+- :class:`~airflow.providers.common.ai.exceptions.ManagedAgentInvocationError`
+  and transient failures move to the next member.
+- :class:`~airflow.providers.common.ai.exceptions.ManagedAgentRejected` is
+  re-raised immediately and never triggers failover. A prompt the primary could
+  not parse will not parse on the standby either.
 - The last member's exception propagates unchanged, so a total outage still fails
   the task rather than returning something misleading.
 
 ``failover_on`` defaults to ``Exception`` because ``common.ai`` cannot enumerate
-the cloud SDKs' exception trees — ``requests``, ``botocore`` and the Azure SDK
+the cloud SDKs' exception trees — ``requests``, ``botocore`` and the Google SDK
 share no common base. It can be narrowed when the members' exception types are
 known.
-
-``replayable`` on a group is ``True`` only when every member is, because the
-durable cache cannot know which member produced the answer it holds.
 
 .. note::
 
@@ -232,20 +244,45 @@ healthy one:
     * - Metric
       - Tags
     * - ``managed_agent.failover``
-      - ``from_platform``, ``to_platform`` — one per failover transition
+      - ``from_platform``, ``to_platform`` — one per failover transition, emitted by
+        the group
     * - ``managed_agent.served``
-      - ``platform``, ``role`` (``primary`` / ``standby``) — one per answer
+      - ``tool``, ``platform`` — one per answer, emitted by the toolset; a toolset
+        over a group reports ``platform=failover``, and either counter reports
+        ``unknown`` when an agent's identity could not be resolved
 
-The standby-served fraction is a ratio over ``managed_agent.served`` alone, so
-"are we quietly running on the standby?" is a dashboard question rather than a log
-grep. Both are tagged by platform rather than agent name to keep cardinality
+``managed_agent.failover`` rising while ``managed_agent.served`` stays flat means
+the primary is down, and that is a dashboard question rather than a log grep. The
+counters do not say which member answered: that is in the task log, where each
+failover warning names the members involved and their positions, but not in XCom.
+Both counters are tagged by platform rather than agent name to keep cardinality
 bounded.
 
-One limitation remains: which member served a *particular* answer is in the task
-log but not in XCom. ``agent_ref`` on a group describes the group, not the
-responder, because the responder is not known until after the call. The counters
-cover the operational question; per-answer provenance for an audit trail would
-need ``AgentOperator`` to collect per-toolset metadata.
+Implementing the contract for a new vendor
+------------------------------------------
+
+A vendor hook adopts
+:class:`~airflow.providers.common.ai.managed_agents.contract.BaseManagedAgentHook`
+as a mixin beside its own base and implements three methods: ``resolve_agent``
+(normalize the agent identifier into a platform-qualified reference, without a
+network call), ``agent_capabilities`` (what the pair can do, so consumers can
+refuse rather than degrade) and ``invoke_agent`` (send a request, return an
+answer, sort failures into the three buckets). ``hook.agent(...)`` then returns a
+bound client the toolset accepts.
+
+Because ``common.ai`` requires Airflow 3 and most vendor providers still support
+Airflow 2, the adoption lives in a module of its own whose import of the contract
+is guarded, and the provider declares ``common.ai`` as an optional extra. That is
+the arrangement the Amazon provider already uses for ``common.messaging``'s
+``BaseMessageQueueProvider``; the Amazon and Google adoptions in this release are
+the templates.
+
+The only toolset most code needs is ``ManagedAgentToolset``. Subclass
+:class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
+directly only for an agent that has no hook at all; it takes an ``agent_ref`` and
+an ``invoke_sync`` (or an async ``invoke``) and supplies the same tool surface.
+A thread cannot be cancelled, so an ``invoke_sync`` must set a timeout on its own
+request.
 
 When to choose it
 -----------------
@@ -253,39 +290,31 @@ When to choose it
 **Choose it when** the reasoning itself belongs on the vendor's infrastructure —
 the agent is already deployed there, grounded in data that never leaves, and
 Airflow's job is to submit one request and read one answer.
-:ref:`managed-agent-toolsets` covers the shape.
-
-Read the first bullet before planning around this route.
 
 **What it cannot do**
 
-- It is an extension point, not a toolset you can use as-is. This provider ships
-  the base class only:
-  :class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
-  declares ``agent_ref`` abstract and raises ``TypeError`` at construction unless
-  a subclass implements ``invoke_sync`` or ``invoke``. No vendor subclass exists
-  in this repository — the Snowflake Cortex, Bedrock AgentCore, Azure AI Foundry
-  and Vertex AI Agent Engine names in its docstring describe the shape it expects,
-  not implementations that ship. Using this route means writing that subclass.
 - It has no allow-list to offer. The whole toolset is one tool: a prompt goes in,
   an answer comes out. Whatever governs what the remote agent may touch lives on
   the vendor's side, which is the trade you are making.
-- It does not define where the credential comes from. The base class leaves
-  that decision to the subclass; :ref:`managed-agent-toolsets` frames the
-  intended shape as routing authentication through the provider's own hook.
+- It cannot defer. The call blocks a worker thread for as long as the remote agent
+  reasons. Long-running submitted work belongs in the vendor's own operator.
 - Durable replay is off by default. ``replayable`` is ``False`` because a managed
   agent may act on systems Airflow cannot observe, so replaying from the cache
   could skip a side effect. Read-only agents can opt in.
-- Its failover variant relies on two preconditions the code cannot check.
-  :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
+- Its failover variant,
+  :class:`~airflow.providers.common.ai.managed_agents.failover.FailoverManagedAgentClient`,
   requires members that are genuinely interchangeable — the same agent deployed
-  twice, not two specialists over different data — and one-shot exchanges, because
-  each member is invoked with a bare prompt and no thread reference, so a failover
-  silently starts a fresh conversation rather than resuming the old one.
+  twice, not two specialists over different data. It refuses a request that
+  carries a ``session_id``, because a failover starts a fresh conversation on the
+  standby.
 
-**A real example.** There is none. No example Dag, no system test, and the only
-code in the documentation is an illustrative subclass on this page. Budget
-for writing and testing the subclass yourself.
+**Which vendors.** Amazon Bedrock AgentCore through
+:class:`~airflow.providers.amazon.aws.hooks.bedrock_managed_agent.BedrockAgentCoreManagedAgentHook`
+and Vertex AI Agent Engine through
+:class:`~airflow.providers.google.cloud.hooks.vertex_ai.managed_agent.AgentEngineManagedAgentHook`,
+each behind that provider's ``common.ai`` extra. Other vendors adopt the same
+contract; `Implementing the contract for a new vendor`_ describes how.
 
-**Credentials and where it runs.** Both are the subclass's decision. Reasoning
-runs on the vendor's infrastructure; the worker sends a request and waits.
+**Credentials and where it runs.** Credentials flow through the vendor hook's own
+connection. Reasoning runs on the vendor's infrastructure; the worker sends a
+request and waits.

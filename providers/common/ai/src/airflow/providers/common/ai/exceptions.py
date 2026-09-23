@@ -55,8 +55,19 @@ class ManagedAgentInvocationError(RuntimeError):
 
     Reserved for terminal conditions -- bad credentials, a missing agent, a
     revoked quota. Transient failures should propagate unchanged so Airflow's
-    task-level retry handles them, and requests the model could fix by
-    rephrasing should raise ``pydantic_ai.exceptions.ModelRetry`` instead.
+    task-level retry handles them, and requests the agent rejected in a way the
+    calling model could fix by rephrasing should raise
+    :class:`ManagedAgentRejected` instead.
+    """
+
+
+class ManagedAgentRejected(Exception):
+    """
+    Raised when a managed agent rejected a request in a way rephrasing could fix.
+
+    Vendor hooks raise this instead of pydantic-ai's ``ModelRetry`` so that the contract
+    module stays free of pydantic-ai; the managed-agent toolset translates it to
+    ``ModelRetry`` at the boundary, and the calling model sees the message and tries again.
     """
 
 
