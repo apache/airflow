@@ -163,6 +163,21 @@ class TestInfluxDB3SensorTrigger:
         assert events == [TriggerEvent({"status": "error", "message": "boom"})]
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.influxdb.triggers.influxdb3.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.influxdb.triggers.influxdb3.InfluxDB3Hook", autospec=True)
+    async def test_run_failure_after_unsuccessful_poll(self, mock_hook_class, mock_sleep):
+        mock_hook = mock_hook_class.return_value
+        mock_hook.query_async = mock.AsyncMock(
+            side_effect=[pd.DataFrame({"literal": []}), ValueError("boom")]
+        )
+
+        events = [event async for event in InfluxDB3SensorTrigger(sql=SQL, poll_interval=30).run()]
+
+        assert mock_hook.query_async.await_count == 2
+        mock_sleep.assert_awaited_once_with(30)
+        assert events == [TriggerEvent({"status": "error", "message": "boom"})]
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.influxdb.triggers.influxdb3.InfluxDB3Hook", autospec=True)
     async def test_run_propagates_cancellation_during_query(self, mock_hook_class):
         mock_hook = mock_hook_class.return_value
