@@ -722,10 +722,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # Remove result of apply defaults
-            if "params" in kwargs:
-                del kwargs["params"]
-
             if project_id is None:
                 raise AirflowException(
                     "project_id argument is required when building cluster from keywords parameters"
