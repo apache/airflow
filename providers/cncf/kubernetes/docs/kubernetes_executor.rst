@@ -231,6 +231,8 @@ the task will keep running until it completes (or times out, etc). But with Cele
 task will only keep running up until the grace period has elapsed, at which time the task will be terminated.  Another scenario where
 KubernetesExecutor can work well is when your tasks are not very uniform with respect to resource requirements or images.
 
+Finally, note that it does not have to be either-or; using [Multiple Executors Concurrently feature](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently), it is possible to use both CeleryExecutor and KubernetesExecutor simultaneously on the same cluster.
+
 Fault Tolerance
 ---------------
 
