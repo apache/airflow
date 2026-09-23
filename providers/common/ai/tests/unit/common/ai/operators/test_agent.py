@@ -19,6 +19,7 @@ from __future__ import annotations
 import sys
 from datetime import timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -39,6 +40,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
+from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, UsageLimits
 
 from airflow.providers.common.ai.durable.base import DurableStorageProtocol
@@ -47,9 +49,14 @@ from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
 from airflow.providers.common.ai.sandbox.base import SandboxBackend
+from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.toolsets import find_toolset
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
+from airflow.sdk import DAG, task
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -186,6 +193,245 @@ class TestAgentOperatorTemplateFields:
             "usage_limits",
         }
         assert set(AgentOperator.template_fields) == expected
+
+
+class _TenantHook(BaseHook):
+    conn_name_attr = "tenant_conn_id"
+
+    def __init__(self, tenant_conn_id: str):
+        super().__init__()
+        self.tenant_conn_id = tenant_conn_id
+
+    def get_records(self, sql: str) -> list:
+        """Run a query."""
+        return []
+
+
+class TestAgentOperatorToolsetTemplating:
+    """Connection IDs on SQLToolset / MCPToolset / HookToolset render per task instance, on a copy."""
+
+    CONTEXT = {"params": {"customer": "acme"}}
+
+    def test_sql_toolset_conn_id_is_rendered_on_a_copy(self):
+        toolset = SQLToolset(db_conn_id="tenant_{{ params.customer }}")
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", toolsets=[toolset])
+
+        op.render_template_fields(self.CONTEXT)
+
+        (rendered,) = op.toolsets
+        assert rendered._db_conn_id == "tenant_acme"
+        assert rendered.id == "sql-tenant_acme"
+        assert rendered is not toolset
+        assert toolset._db_conn_id == "tenant_{{ params.customer }}"
+
+    def test_shared_toolset_renders_independently_per_task(self):
+        """Mapped task instances and dag.test() share one toolset object in a process;
+        rendering it in place would hand the first customer's connection to the next."""
+        shared = SQLToolset(db_conn_id="tenant_{{ params.customer }}")
+        first = AgentOperator(task_id="a", prompt="p", llm_conn_id="llm", toolsets=[shared])
+        second = AgentOperator(task_id="b", prompt="p", llm_conn_id="llm", toolsets=[shared])
+
+        first.render_template_fields({"params": {"customer": "acme"}})
+        second.render_template_fields({"params": {"customer": "globex"}})
+
+        assert first.toolsets[0]._db_conn_id == "tenant_acme"
+        assert second.toolsets[0]._db_conn_id == "tenant_globex"
+
+    def test_hook_toolset_conn_id_is_rendered_on_a_copy(self):
+        hook = _TenantHook(tenant_conn_id="tenant_{{ params.customer }}")
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            toolsets=[HookToolset(hook, allowed_methods=["get_records"])],
+        )
+
+        op.render_template_fields(self.CONTEXT)
+
+        assert op.toolsets[0].id == "hook-_TenantHook-tenant_acme"
+        assert hook.tenant_conn_id == "tenant_{{ params.customer }}"
+
+    def test_mcp_toolset_conn_id_is_rendered(self):
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            toolsets=[MCPToolset(mcp_conn_id="mcp_{{ params.customer }}")],
+        )
+
+        op.render_template_fields(self.CONTEXT)
+
+        assert op.toolsets[0].id == "mcp-mcp_acme"
+
+    @pytest.mark.parametrize(
+        "wrap",
+        [
+            pytest.param(lambda ts: ts.prefixed("crm"), id="prefixed"),
+            pytest.param(lambda ts: ts.filtered(lambda ctx, tool: True), id="filtered"),
+            pytest.param(lambda ts: CombinedToolset([FunctionToolset(), ts]), id="combined"),
+        ],
+    )
+    def test_toolset_inside_wrapper_is_rendered(self, wrap):
+        inner = SQLToolset(db_conn_id="tenant_{{ params.customer }}")
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", toolsets=[wrap(inner)])
+
+        op.render_template_fields(self.CONTEXT)
+
+        found = find_toolset(op.toolsets, SQLToolset)
+        assert found is not None
+        assert found._db_conn_id == "tenant_acme"
+        assert inner._db_conn_id == "tenant_{{ params.customer }}"
+
+    def test_toolset_capability_is_rendered(self):
+        capability = Toolset(SQLToolset(db_conn_id="tenant_{{ params.customer }}"))
+        op = AgentOperator(
+            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
+        )
+
+        op.render_template_fields(self.CONTEXT)
+
+        (rendered,) = op.agent_params["capabilities"]
+        assert rendered.toolset._db_conn_id == "tenant_acme"
+        assert capability.toolset._db_conn_id == "tenant_{{ params.customer }}"
+
+    def test_callable_toolset_capability_is_left_as_is(self):
+        """A factory resolved per run has no toolset to render until the run starts."""
+        capability = Toolset(lambda ctx: SQLToolset(db_conn_id="tenant_{{ params.customer }}"))
+        op = AgentOperator(
+            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
+        )
+
+        op.render_template_fields(self.CONTEXT)
+
+        assert op.agent_params["capabilities"][0] is capability
+
+    def test_only_connection_ids_are_templated(self):
+        """allowed_tables is validated and canonicalised in __init__, so rendering it later
+        would bypass the fail-closed empty-list check."""
+        assert SQLToolset.agent_template_fields == ("_db_conn_id",)
+        assert MCPToolset.agent_template_fields == ("_mcp_conn_id",)
+        assert HookToolset.agent_template_fields == ("conn_id",)
+
+    @pytest.mark.parametrize("toolset_cls", [SQLToolset, MCPToolset, HookToolset])
+    def test_toolsets_do_not_opt_in_through_template_fields(self, toolset_cls):
+        """Airflow's templater renders any object with ``template_fields`` in place wherever it is
+        nested in a template field, which would leak one task instance's connection to the next."""
+        assert not hasattr(toolset_cls, "template_fields")
+
+    def test_toolsets_in_agent_params_render_on_a_copy_per_task(self):
+        shared = SQLToolset(db_conn_id="tenant_{{ params.customer }}")
+        first = AgentOperator(task_id="a", prompt="p", llm_conn_id="llm", agent_params={"toolsets": [shared]})
+        second = AgentOperator(
+            task_id="b", prompt="p", llm_conn_id="llm", agent_params={"toolsets": [shared]}
+        )
+
+        first.render_template_fields({"params": {"customer": "acme"}})
+        second.render_template_fields({"params": {"customer": "globex"}})
+
+        assert first.agent_params["toolsets"][0].id == "sql-tenant_acme"
+        assert second.agent_params["toolsets"][0].id == "sql-tenant_globex"
+        assert shared._db_conn_id == "tenant_{{ params.customer }}"
+
+    def test_wrapped_toolset_inside_a_capability_is_rendered(self):
+        capability = Toolset(SQLToolset(db_conn_id="tenant_{{ params.customer }}").prefixed("crm"))
+        op = AgentOperator(
+            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
+        )
+
+        op.render_template_fields(self.CONTEXT)
+
+        found = find_toolset([op.agent_params["capabilities"][0].toolset], SQLToolset)
+        assert found is not None
+        assert found.id == "sql-tenant_acme"
+
+    def test_rendered_toolset_id_is_logged(self, caplog):
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            toolsets=[SQLToolset(db_conn_id="tenant_{{ params.customer }}")],
+        )
+
+        with caplog.at_level("INFO"):
+            op.render_template_fields(self.CONTEXT)
+
+        assert "Rendered toolset sql-tenant_acme" in caplog.text
+
+    def test_rendering_twice_logs_once(self, caplog):
+        """@task.agent renders a second time; by then the id no longer changes."""
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            toolsets=[SQLToolset(db_conn_id="tenant_{{ params.customer }}")],
+        )
+
+        with caplog.at_level("INFO"):
+            op.render_template_fields(self.CONTEXT)
+            op.render_template_fields(self.CONTEXT)
+
+        assert caplog.text.count("Rendered toolset sql-tenant_acme") == 1
+
+    def test_toolset_without_template_fields_is_left_as_is(self):
+        toolset = FunctionToolset()
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", toolsets=[toolset])
+
+        op.render_template_fields(self.CONTEXT)
+
+        assert op.toolsets[0] is toolset
+
+    def test_untemplated_wrapper_subclass_is_not_rebuilt(self):
+        """visit_and_replace rebuilds wrappers with dataclasses.replace, which a subclass with its
+        own __init__ does not survive; nothing to render means nothing to rebuild."""
+
+        class Audited(WrapperToolset):
+            def __init__(self, wrapped, *, audit_name):
+                super().__init__(wrapped=wrapped)
+                self.audit_name = audit_name
+
+        toolset = Audited(FunctionToolset(), audit_name="x")
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", toolsets=[toolset])
+
+        op.render_template_fields(self.CONTEXT)
+
+        assert op.toolsets[0] is toolset
+
+    @pytest.mark.parametrize(
+        ("form", "template"),
+        [
+            pytest.param("operator", "tenant_{{ task.prompt }}", id="operator"),
+            pytest.param("decorator", "tenant_{{ task.op_kwargs.customer }}", id="decorator"),
+        ],
+    )
+    def test_each_map_index_gets_its_own_connection(self, form, template):
+        """Through the real MappedOperator render path, for both authoring forms."""
+        shared = SQLToolset(db_conn_id=template)
+        with DAG("d", schedule=None) as dag:
+            if form == "operator":
+                mapped = AgentOperator.partial(task_id="m", llm_conn_id="llm", toolsets=[shared]).expand(
+                    prompt=["acme", "globex"]
+                )
+            else:
+
+                @task.agent(llm_conn_id="llm", toolsets=[shared])
+                def report(customer: str) -> str:
+                    return customer
+
+                mapped = report.expand(customer=["acme", "globex"]).operator
+
+        ids = []
+        for map_index in (0, 1):
+            context: dict = {
+                "ti": SimpleNamespace(map_index=map_index),
+                "params": {},
+                "dag": dag,
+                "dag_run": SimpleNamespace(conf={}),
+            }
+            mapped.render_template_fields(context, dag.get_template_env())
+            ids.append(context["task"].toolsets[0].id)
+
+        assert ids == ["sql-tenant_acme", "sql-tenant_globex"]
+        assert shared._db_conn_id == template
 
 
 class TestAgentOperatorExecute:
