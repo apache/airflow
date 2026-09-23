@@ -23,6 +23,8 @@ import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
 
+import { Tooltip } from "src/system-components";
+
 type TableListProps<TData> = {
   readonly noRowsMessage?: ReactNode;
   readonly table: TanStackTable<TData>;
@@ -63,26 +65,31 @@ export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData
                 return (
                   <Table.ColumnHeader colSpan={colSpan} key={id} paddingBlock={1} whiteSpace="nowrap">
                     {isPlaceholder ? undefined : (
-                      <Button
-                        _focus={{ color: "brand.500" }}
-                        _hover={{ color: "brand.500" }}
-                        aria-label={translate("sort")}
-                        border={0}
-                        color={sort === false ? undefined : "brand.500"}
-                        disabled={!canSort}
-                        gap={1}
-                        onClick={column.getToggleSortingHandler()}
-                        p={0}
-                        variant="plain"
+                      <Tooltip
+                        content={translate("sortMultiColumnHint")}
+                        disabled={!column.getCanMultiSort()}
                       >
-                        {text}
-                        {rightIcon}
-                        {isMultiSorted && sort !== false ? (
-                          <Text as="span" data-testid={`sort-index-${column.id}`} fontSize="xs">
-                            {column.getSortIndex() + 1}
-                          </Text>
-                        ) : undefined}
-                      </Button>
+                        <Button
+                          _focus={{ color: "brand.500" }}
+                          _hover={{ color: "brand.500" }}
+                          aria-label={translate("sort")}
+                          border={0}
+                          color={sort === false ? undefined : "brand.500"}
+                          disabled={!canSort}
+                          gap={1}
+                          onClick={column.getToggleSortingHandler()}
+                          p={0}
+                          variant="plain"
+                        >
+                          {text}
+                          {rightIcon}
+                          {isMultiSorted && sort !== false ? (
+                            <Text as="span" data-testid={`sort-index-${column.id}`} fontSize="xs">
+                              {column.getSortIndex() + 1}
+                            </Text>
+                          ) : undefined}
+                        </Button>
+                      </Tooltip>
                     )}
                   </Table.ColumnHeader>
                 );
