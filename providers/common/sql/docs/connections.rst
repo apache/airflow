@@ -119,14 +119,16 @@ which database is on the other end.
      - Parameter placeholder in generated statements. Only ``%s`` and ``?`` are accepted; any
        other value is ignored with a warning. Some hooks set their own default, such as ``?``
        for SQLite.
-   * - ``dialect``
-     - derived from the connection URI
-     - Name of the :doc:`dialect <dialects>` to use, such as ``mssql`` or ``postgresql``. Set it
-       when the connection URI does not reveal the database, as with ODBC and JDBC.
    * - ``sqlalchemy_scheme``
-     - none
-     - Used to derive the dialect when the connection URI cannot be parsed. ``mssql+pyodbc``
-       resolves to the ``mssql`` dialect.
+     - none (``mssql+pyodbc`` for ODBC)
+     - SQLAlchemy scheme for connection types that have none of their own, such as ODBC and
+       JDBC. The :doc:`dialect <dialects>` is taken from it, so ``mssql+pyodbc`` selects the
+       ``mssql`` dialect. It takes precedence over ``dialect``.
+   * - ``dialect``
+     - ``default``
+     - Name of the dialect to use, such as ``mssql`` or ``postgresql``. Read only when neither the
+       connection URI nor ``sqlalchemy_scheme`` gives a dialect, as with a JDBC connection whose
+       ``host`` holds a ``jdbc:`` URL.
    * - ``insert_statement_format``
      - ``INSERT INTO {} {} VALUES ({})``
      - Template for insert statements. The three fields are the table, the column list and the
@@ -142,13 +144,21 @@ which database is on the other end.
      - Quote every column name. By default only reserved words and names containing special
        characters are quoted.
 
-For example, an ODBC connection to SQL Server that should generate ``MERGE``-style upserts and
+For example, an ODBC connection to SQL Server that uses pyodbc's ``?`` placeholders and
 bracket-quoted column names can set:
 
 .. code-block:: json
 
     {
-        "dialect": "mssql",
+        "sqlalchemy_scheme": "mssql+pyodbc",
         "placeholder": "?",
         "escape_word_format": "[{}]"
     }
+
+``mssql+pyodbc`` is already the ODBC default. An ODBC connection to any other database has to
+change it, because setting ``dialect`` alone keeps the ``mssql`` dialect.
+
+The ``mssql`` and ``postgresql`` dialects are registered by the Microsoft SQL Server and Postgres
+providers. If the provider for a dialect is not installed, the hook uses the default dialect
+without a warning, so an upsert through ODBC to SQL Server generates ``REPLACE INTO`` instead of
+``MERGE`` unless ``apache-airflow-providers-microsoft-mssql`` is installed.
