@@ -43,6 +43,7 @@ import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
+import { useGridScrollRestore } from "./useGridScrollRestore";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -90,7 +91,7 @@ export const Grid = ({
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
   const { openGroupIds, toggleGroupId } = useGroups();
-  const { dagId = "" } = useParams();
+  const { dagId = "", groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -185,6 +186,8 @@ export const Grid = ({
   const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
+  const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
+
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     estimateSize: () => ROW_HEIGHT,
@@ -192,8 +195,10 @@ export const Grid = ({
     getScrollElement: () =>
       usesSharedScroll ? (sharedScrollContainerRef?.current ?? null) : scrollContainerRef.current,
     overscan: 5,
-    scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
+    scrollPaddingStart: headerPad,
   });
+
+  useGridScrollRestore({ dagId, flatNodes, headerPad, rowVirtualizer, selectedGroupId, selectedTaskId });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
