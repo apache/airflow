@@ -72,7 +72,6 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/sensors/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_sagemaker.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
-            "providers/cloudant/tests/unit/cloudant/test_cloudant_fake.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
