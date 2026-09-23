@@ -385,19 +385,38 @@ class TestSnowflakeCortexAgentHook:
         assert SnowflakeCortexAgentHook.get_text_response(response) == expected
 
     @pytest.mark.parametrize(
-        ("create_mode", "comment", "profile", "instructions", "expected_params", "expected_payload"),
+        (
+            "create_mode",
+            "comment",
+            "profile",
+            "models",
+            "instructions",
+            "orchestration",
+            "tools",
+            "tool_resources",
+            "expected_params",
+            "expected_payload",
+        ),
         [
             pytest.param(
                 CreateMode.ERROR_IF_EXISTS,
                 "Created by Airflow",
                 {"display_name": "Airflow Agent"},
+                {"orchestration": "claude-4-sonnet"},
                 {"response": "Be concise"},
+                {"max_tokens": 1000},
+                [{"name": "search_tool"}],
+                {"search_tool": {"config": "value"}},
                 {"createMode": "errorIfExists"},
                 {
                     "name": AGENT_NAME,
                     "comment": "Created by Airflow",
                     "profile": {"display_name": "Airflow Agent"},
+                    "models": {"orchestration": "claude-4-sonnet"},
                     "instructions": {"response": "Be concise"},
+                    "orchestration": {"max_tokens": 1000},
+                    "tools": [{"name": "search_tool"}],
+                    "tool_resources": {"search_tool": {"config": "value"}},
                 },
                 id="default",
             ),
@@ -406,10 +425,12 @@ class TestSnowflakeCortexAgentHook:
                 None,
                 None,
                 None,
+                None,
+                None,
+                None,
+                None,
                 {"createMode": "orReplace"},
-                {
-                    "name": AGENT_NAME,
-                },
+                {"name": AGENT_NAME},
                 id="or_replace",
             ),
             pytest.param(
@@ -417,11 +438,26 @@ class TestSnowflakeCortexAgentHook:
                 None,
                 None,
                 None,
+                None,
+                None,
+                None,
+                None,
                 {"createMode": "ifNotExists"},
-                {
-                    "name": AGENT_NAME,
-                },
+                {"name": AGENT_NAME},
                 id="if_not_exists",
+            ),
+            pytest.param(
+                "orReplace",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                {"createMode": "orReplace"},
+                {"name": AGENT_NAME},
+                id="raw_string_create_mode",
             ),
         ],
     )
@@ -439,7 +475,11 @@ class TestSnowflakeCortexAgentHook:
         create_mode,
         comment,
         profile,
+        models,
         instructions,
+        orchestration,
+        tools,
+        tool_resources,
         expected_params,
         expected_payload,
     ):
@@ -460,7 +500,11 @@ class TestSnowflakeCortexAgentHook:
             create_mode=create_mode,
             comment=comment,
             profile=profile,
+            models=models,
             instructions=instructions,
+            orchestration=orchestration,
+            tools=tools,
+            tool_resources=tool_resources,
         )
 
         assert result == {"status": "created"}
@@ -481,6 +525,17 @@ class TestSnowflakeCortexAgentHook:
             params=expected_params,
             timeout=REQUEST_TIMEOUT,
         )
+
+    def test_create_agent_rejects_invalid_create_mode(self):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="invalid"):
+            hook.create_agent(
+                database=DATABASE,
+                schema=SCHEMA,
+                agent_name=AGENT_NAME,
+                create_mode="invalid",
+            )
 
     @mock.patch(f"{MODULE_PATH}.requests.request")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")

@@ -140,8 +140,8 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
 
         return data
 
+    @staticmethod
     def _build_agent_payload(
-        self,
         *,
         comment: str | None = None,
         profile: dict[str, Any] | None = None,
@@ -281,7 +281,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         orchestration: dict[str, Any] | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_resources: dict[str, Any] | None = None,
-        create_mode: CreateMode = CreateMode.ERROR_IF_EXISTS,
+        create_mode: CreateMode | str = CreateMode.ERROR_IF_EXISTS,
         timeout: int | None = 600,
     ) -> JsonDict:
         """
@@ -322,7 +322,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             method="POST",
             endpoint=endpoint,
             payload=payload,
-            params={"createMode": create_mode.value},
+            params={"createMode": CreateMode(create_mode).value},
             timeout=timeout,
             response_type="dict",
         )
@@ -345,11 +345,27 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         """
         Update a Snowflake Cortex Agent.
 
+        Only provided fields are updated; omitted fields retain their existing values.
+
         :param database: Database containing the agent.
         :param schema: Schema containing the agent.
         :param agent_name: Name of the Cortex Agent.
-        :param timeout: Maximum time in seconds to wait for the Cortex Agent request
-            to complete. Defaults to ``600``.
+        :param comment: Comment associated with the agent. Optional.
+            Defaults to ``None``.
+        :param profile: Agent profile configuration. Optional.
+            Defaults to ``None``.
+        :param models: Model configuration. Optional.
+            Defaults to ``None``.
+        :param instructions: Agent instructions. Optional.
+            Defaults to ``None``.
+        :param orchestration: Agent orchestration configuration. Optional.
+            Defaults to ``None``.
+        :param tools: Tools available to the agent. Optional.
+            Defaults to ``None``.
+        :param tool_resources: Resources used by the agent's tools. Optional.
+            Defaults to ``None``.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent
+            request to complete. Optional. Defaults to ``600``.
         :return: JSON response confirming the update, or an empty dictionary when
             Snowflake returns a successful response without a body.
         """
