@@ -416,8 +416,12 @@ def clear_task_instances(
         # set its state to RESTARTING so that
         # the task is terminated and becomes eligible for retry.
         else:
-            previous_try_number = ti.try_number
-            ti.prepare_db_for_next_try(session)
+            if ti.state in (None, TaskInstanceState.UP_FOR_RETRY):
+                # The pending attempt hasn't run, so base its retry budget on the preceding attempt.
+                previous_try_number = max(0, ti.try_number - 1)
+            else:
+                previous_try_number = ti.try_number
+                ti.prepare_db_for_next_try(session)
             dr = ti.dag_run
             # A run with no version of its own has nothing to re-run on but the latest, and the
             # run loop below moves it there.

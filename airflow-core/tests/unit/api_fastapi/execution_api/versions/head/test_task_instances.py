@@ -3138,19 +3138,6 @@ class TestTIHealthEndpoint:
     def teardown_method(self):
         clear_db_runs()
 
-    # ti_heartbeat runs on the async engine. The async engine binds its pool to
-    # the event loop that created it (once per process), but the test harness
-    # builds a fresh FastAPI app and event loop per test, so a pooled connection
-    # from a prior test's closed loop gets reused and fails ("attached to a
-    # different loop"). Re-configuring the async session before each test rebuilds
-    # the engine on the current loop. Same workaround as TestWaitDagRun in
-    # tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py.
-    @pytest.fixture(autouse=True)
-    def reconfigure_async_db_engine(self):
-        from airflow.settings import _configure_async_session
-
-        _configure_async_session()
-
     @pytest.mark.parametrize(
         ("hostname", "pid", "expected_status_code", "expected_detail"),
         [
