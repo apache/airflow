@@ -101,7 +101,10 @@ BIGQUERY_LEGACY_SQL_DEFAULT_WARNING = (
     "or set `use_legacy_sql=False` to use GoogleSQL."
 )
 
-BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
+if TYPE_CHECKING:
+    BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
+else:
+    BigQueryJob = Any
 
 _ROUTINE_WRITABLE_PROPERTIES: tuple[str, ...] = (
     "type_",
