@@ -114,6 +114,45 @@ class TestZipImporter:
         definitions = list(ZipImporter().list_dag_definitions(mock_bundle))
         assert sorted(d.file_path for d in definitions) == ["bar.pyc", "foo.py"]
 
+    def test_list_dedups_over_supported_candidates_only(self, mock_bundle):
+        # An unsupported .py must not suppress the supported .pyc beside it.
+        zip_path = mock_bundle.path / "bytecode_only.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("dag.py", "from airflow.sdk import DAG\n")
+            z.writestr("dag.pyc", b"airflow dag")
+
+        importer = ZipImporter(internal_importers={".pyc": PythonDagImporter()})
+        definitions = list(importer.list_dag_definitions(mock_bundle))
+        assert [d.file_path for d in definitions] == ["dag.pyc"]
+
+    def test_list_pairs_source_and_bytecode_case_insensitively(self, mock_bundle):
+        # `dag.PY` and `dag.pyc` are the same module, so only the source survives.
+        zip_path = mock_bundle.path / "mixed_case.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("dag.PY", "from airflow.sdk import DAG\n")
+            z.writestr("dag.pyc", b"airflow dag")
+
+        definitions = list(ZipImporter().list_dag_definitions(mock_bundle))
+        assert [d.file_path for d in definitions] == ["dag.PY"]
+
+    def test_list_continues_past_unreadable_member(self, mock_bundle):
+        # A single bad member is reported and the rest of the archive is still discovered.
+        zip_path = mock_bundle.path / "bad_member.zip"
+        payload = b"# airflow dag BBBB\n"
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as z:
+            z.writestr("a_dag.py", "from airflow.sdk import DAG\n")
+            z.writestr("b_bad.py", payload)
+            z.writestr("c_dag.py", "from airflow.sdk import DAG\n")
+        # Rewrite the stored bytes in place so the recorded CRC no longer matches.
+        zip_path.write_bytes(zip_path.read_bytes().replace(payload, b"# airflow dag CCCC\n"))
+
+        items = list(ZipImporter().list_dag_definitions(mock_bundle))
+        members = [i for i in items if not isinstance(i, DagImportError)]
+        errors = [i for i in items if isinstance(i, DagImportError)]
+        assert [d.file_path for d in members] == ["a_dag.py", "c_dag.py"]
+        assert [e.error_type for e in errors] == ["zip_read_error"]
+        assert errors[0].source_reference == os.path.join("bad_member.zip", "b_bad.py")
+
     def test_import_zip_archive_with_dags(self, mock_bundle):
         zip_path = mock_bundle.path / "sample_dags.zip"
         with zipfile.ZipFile(zip_path, "w") as z:

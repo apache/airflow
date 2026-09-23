@@ -26,6 +26,7 @@ from unittest import mock
 from airflow_shared.module_loading import (
     MODIFIED_DAG_MODULE_NAME,
     UNUSUAL_MODULE_PREFIX,
+    accepts_dag_definition,
     get_unique_dag_module_name,
     might_contain_dag,
     might_contain_dag_via_default_heuristic,
@@ -122,6 +123,36 @@ def test_default_heuristic_accepts_definition() -> None:
     # The default heuristic reads a definition's bytes directly, same as it reads a path.
     assert might_contain_dag_via_default_heuristic(_FakeDefinition(b"from airflow import DAG")) is True
     assert might_contain_dag_via_default_heuristic(_FakeDefinition(b"x = 1")) is False
+
+
+class _NoFileDefinition(_FakeDefinition):
+    """A definition that refuses to materialize, proving the bytes path was taken."""
+
+    def as_file(self):
+        raise AssertionError("definition should not be materialized")
+
+
+def test_configured_default_heuristic_reads_bytes() -> None:
+    # The shipped config points might_contain_dag_callable at the default heuristic, so a
+    # definition must still be passed straight through rather than written to a temp file.
+    mock_conf = mock.MagicMock()
+    mock_conf.getimport.return_value = might_contain_dag_via_default_heuristic
+
+    definition = _NoFileDefinition(b"from airflow import DAG")
+    assert might_contain_dag(definition, safe_mode=True, conf=mock_conf) is True
+
+
+def test_marked_custom_callable_receives_definition() -> None:
+    # Any callable can opt into taking definitions by marking itself.
+    @accepts_dag_definition
+    def custom(file_path, zip_file=None):
+        return b"airflow" in file_path.read_bytes()
+
+    mock_conf = mock.MagicMock()
+    mock_conf.getimport.return_value = custom
+
+    definition = _NoFileDefinition(b"from airflow import DAG")
+    assert might_contain_dag(definition, safe_mode=True, conf=mock_conf) is True
 
 
 def test_might_contain_dag_definition_materialized_for_custom_callable() -> None:

@@ -177,7 +177,9 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
         List importable members across the bundle's zip archives.
 
         Each member is yielded as a plain ZipMemberDagDefinition; import_definition
-        re-resolves the internal importer from the member's extension.
+        re-resolves the internal importer from the member's extension. An archive or a
+        member that cannot be read is reported as a DagImportError and the remaining
+        members are still yielded.
         """
         for archive in find_file_dag_definitions(bundle.path, self.supported_extensions):
             try:
@@ -192,33 +194,51 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
                 )
                 continue
 
-            member_set = set(member_names)
-            for member_name in member_names:
-                if member_name.endswith("/") or member_name.startswith("__MACOSX/"):
-                    continue
-                # ZipSlip defence: reject traversal or absolute member names.
-                member_path = Path(member_name)
-                if member_path.is_absolute() or ".." in member_path.parts:
-                    log.warning(
-                        "Skipping zip member %r in %s: directory traversal patterns detected",
-                        member_name,
-                        archive.path,
+            for member, importer in self._iter_supported_members(archive.path, member_names):
+                try:
+                    if safe_mode and not importer.might_contain_dag(member, safe_mode):
+                        continue
+                except Exception as e:
+                    # One unreadable member must not end discovery for the rest of the archive.
+                    log.warning("Cannot read zip member %s of %s: %s", member.file_path, archive.path, e)
+                    yield DagImportError(
+                        source_reference=member.get_relative_loc(bundle.path),
+                        message=f"Failed to read ZIP member: {e}",
+                        error_type="zip_read_error",
                     )
                     continue
-
-                # Skip compiled-bytecode caches, and prefer source over a side-by-side .pyc,
-                # so a member and its compiled form are never both imported.
-                if "__pycache__" in member_path.parts:
-                    continue
-                if member_name.endswith(".pyc") and member_name[:-1] in member_set:
-                    continue
-
-                if (importer := self._get_internal_importer(member_name)) is None:
-                    continue
-                member = ZipMemberDagDefinition(zip_path=archive.path, file_path=member_name)
-                if safe_mode and not importer.might_contain_dag(member, safe_mode):
-                    continue
                 yield member
+
+    def _iter_supported_members(
+        self, zip_path: Path, member_names: list[str]
+    ) -> Iterator[tuple[ZipMemberDagDefinition, AbstractDagImporter[Any]]]:
+        """Yield the archive's importable members, source preferred over bytecode."""
+        candidates: list[tuple[str, AbstractDagImporter[Any]]] = []
+        for member_name in member_names:
+            if member_name.endswith("/") or member_name.startswith("__MACOSX/"):
+                continue
+            # ZipSlip defence: reject traversal or absolute member names.
+            member_path = Path(member_name)
+            if member_path.is_absolute() or ".." in member_path.parts:
+                log.warning(
+                    "Skipping zip member %r in %s: directory traversal patterns detected",
+                    member_name,
+                    zip_path,
+                )
+                continue
+            if "__pycache__" in member_path.parts:
+                continue
+            if (importer := self._get_internal_importer(member_name)) is not None:
+                candidates.append((member_name, importer))
+
+        # A .pyc is kept only when no supported .py sibling survived the same filtering, so an
+        # unsupported source never hides a genuinely sourceless module. Suffixes are compared
+        # lowercased, so `dag.PY` and `dag.pyc` still pair up.
+        source_stems = {os.path.splitext(name)[0] for name, _ in candidates if get_file_suffix(name) == ".py"}
+        for member_name, importer in candidates:
+            if get_file_suffix(member_name) == ".pyc" and os.path.splitext(member_name)[0] in source_stems:
+                continue
+            yield ZipMemberDagDefinition(zip_path=zip_path, file_path=member_name), importer
 
     def import_definition(
         self,

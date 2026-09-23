@@ -250,6 +250,25 @@ class TestPythonDagImporter:
         assert result.dags[0].dag_id == "compiled_dag"
         assert len(result.errors) == 0
 
+    def test_import_sourceless_package_resolves_relative_import(self, mock_bundle, tmp_path):
+        # An __init__.pyc must load as a package, otherwise its relative imports fail with
+        # "attempted relative import with no known parent package".
+        pkg = mock_bundle.path / "sourceless_pkg"
+        pkg.mkdir()
+        (tmp_path / "helper.py").write_text("ID = 5\n")
+        (tmp_path / "__init__.py").write_text(
+            "from airflow.sdk import DAG\nfrom .helper import ID\ndag = DAG(f'sourceless_pkg_{ID}')\n"
+        )
+        for name in ("helper", "__init__"):
+            py_compile.compile(str(tmp_path / f"{name}.py"), cfile=str(pkg / f"{name}.pyc"))
+
+        result = PythonDagImporter().import_definition(
+            FilesystemDagDefinition(path=pkg / "__init__.pyc"), bundle=mock_bundle
+        )
+
+        assert result.errors == []
+        assert [d.dag_id for d in result.dags] == ["sourceless_pkg_5"]
+
     def test_file_dag_definition_freshness_token(self, tmp_path):
         dag_file = tmp_path / "fresh_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\n")

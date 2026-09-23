@@ -101,6 +101,11 @@ class _DefinitionBytecodeLoader(importlib.abc.Loader):
     def get_filename(self, fullname: str) -> str:
         return repr(self._definition)
 
+    def is_package(self, fullname: str) -> bool:
+        # importlib's file loaders report an ``__init__`` module as a package. Without this a
+        # sourceless Dag package loses ``__path__`` and its relative imports fail.
+        return Path(self.get_filename(fullname)).stem == "__init__"
+
     def get_code(self, fullname: str) -> types.CodeType:
         data = self._definition.read_bytes()
         if len(data) < 16 or data[:4] != importlib.util.MAGIC_NUMBER:

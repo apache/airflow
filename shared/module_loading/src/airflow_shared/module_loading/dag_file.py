@@ -34,7 +34,11 @@ if TYPE_CHECKING:
     from typing import Protocol
 
     class _MightContainDagCallable(Protocol):
-        def __call__(self, file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool: ...
+        def __call__(
+            self,
+            file_path: str | _DagDefinitionLike,
+            zip_file: zipfile.ZipFile | None = None,
+        ) -> bool: ...
 
     class _ConfLike(Protocol):
         def getimport(self, section: str, key: str, **kwargs: Any) -> Any: ...
@@ -56,6 +60,18 @@ def get_unique_dag_module_name(file_path: str) -> str:
     raise ValueError("file_path should be a string to generate unique module name")
 
 
+def accepts_dag_definition(func: _MightContainDagCallable) -> _MightContainDagCallable:
+    """
+    Mark a ``might_contain_dag_callable`` as accepting a Dag definition, not only a path.
+
+    A marked callable is handed the definition itself, so an archive member or any other
+    non-filesystem source is checked without being written to a temporary file first.
+    """
+    func.accepts_dag_definition = True  # type: ignore[attr-defined]
+    return func
+
+
+@accepts_dag_definition
 def might_contain_dag_via_default_heuristic(
     file_path: str | _DagDefinitionLike,
     zip_file: zipfile.ZipFile | None = None,
@@ -101,10 +117,10 @@ def might_contain_dag(
     archive-backed source without materializing a file. When safe_mode is off (with False
     value), this function always returns True.
 
-    The default heuristic reads a definition's bytes directly. A custom
-    ``might_contain_dag_callable`` only understands the legacy ``(file_path, zip_file)``
-    signature, so a definition is materialized through its own ``as_file()`` and passed by
-    path for compatibility.
+    A callable marked with :func:`accepts_dag_definition`, including the default heuristic,
+    is handed the definition and reads its bytes directly. Any other callable only
+    understands the legacy ``(file_path, zip_file)`` signature, so a definition is
+    materialized through its own ``as_file()`` and passed by path for compatibility.
     """
     if not safe_mode:
         return True
@@ -127,8 +143,10 @@ def might_contain_dag(
     if might_contain_dag_callable is None:
         return might_contain_dag_via_default_heuristic(file_path, zip_file=zip_file)
 
-    if isinstance(file_path, (str, os.PathLike)):
+    if isinstance(file_path, (str, os.PathLike)) or getattr(
+        might_contain_dag_callable, "accepts_dag_definition", False
+    ):
         return might_contain_dag_callable(file_path=file_path, zip_file=zip_file)
-    # Custom callables only accept (file_path, zip_file); let the definition materialize itself.
+    # Legacy callables only accept (file_path, zip_file); let the definition materialize itself.
     with file_path.as_file() as materialized:
         return might_contain_dag_callable(file_path=str(materialized), zip_file=None)
