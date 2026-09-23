@@ -53,8 +53,8 @@ contributors in case of simpler changes.
 >
 > `breeze verify` maps the `run_*` flags to local commands in
 > [`dev/breeze/src/airflow_breeze/utils/verification_plan.py`](../../src/airflow_breeze/utils/verification_plan.py).
-> Adding a `run_*` flag to `SelectiveChecks` also means classifying it there;
-> `dev/breeze/tests/test_verification_plan.py` fails until you do.
+> Gating a workflow job on a new selective-checks output also means classifying it there;
+> `dev/breeze/tests/test_verification_plan.py` scans every `if:` in `.github/workflows/` and fails until you do.
 
 ## Why selective checks exist (the optimisation goal)
 
