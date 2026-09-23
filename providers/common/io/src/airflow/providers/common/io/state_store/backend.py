@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 
 from airflow.sdk import ObjectStoragePath
-from airflow.sdk._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
+from airflow.sdk.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
 
 SECTION = "common.io"
 
