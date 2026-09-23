@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/toolsets:strands:
+.. _howto/frameworks:strands:
 
 Strands Agents
 ==============
@@ -75,6 +75,10 @@ Strands ``PythonAgentTool`` per tool. Each Strands tool:
 - Passes every result and error through Airflow's secret masker before it goes
   back to the model.
 - Writes a ``Tool call: <name>`` group to the task log with the call's duration.
+
+The adapter is built on the framework-neutral tool interface described in
+:ref:`howto/frameworks`, which is also the starting point for an adapter to another
+framework.
 
 Why masking tool results matters
 --------------------------------
@@ -148,22 +152,3 @@ of ``strands-agents`` instead of reporting a conflict. For ``AnthropicModel``,
 install ``anthropic`` through this provider's ``anthropic`` extra rather than
 through Strands' own ``anthropic`` extra, which requires an ``anthropic`` release
 older than 1.0.
-
-The framework-neutral tool interface
-------------------------------------
-
-``as_strands_tools`` is a thin adapter over an interface that belongs to no agent
-framework, in :mod:`airflow.providers.common.ai.tools`:
-
-- :class:`~airflow.providers.common.ai.tools.AirflowTool` is one operation: a
-  name, a description, a JSON Schema for its arguments and an async function.
-  Call it through ``AirflowTool.call``, which turns exceptions into error results
-  and applies the secret masker.
-- :class:`~airflow.providers.common.ai.tools.ToolResult` is what a call returns:
-  JSON-compatible content and an explicit ``is_error`` flag.
-- :class:`~airflow.providers.common.ai.tools.ToolProvider` is anything with an
-  ``airflow_tools()`` method returning ``AirflowTool`` objects.
-  ``SQLToolset.airflow_tools()`` and ``HookToolset.airflow_tools()`` implement it.
-
-An adapter for another framework maps these three onto that framework's tool type
-and error status, as ``as_strands_tools`` does for Strands.
