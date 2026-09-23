@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
     import paramiko
 
     from airflow.sdk import Context
+
+
+SKIPPED_SAMPLE_SIZE = 10
 
 
 class S3ToSFTPOperator(BaseOperator):
@@ -60,7 +64,8 @@ class S3ToSFTPOperator(BaseOperator):
         ``"/"``.
     :param s3_filenames: Only used if you want to move multiple files. You can pass
         a list with exact key suffixes present under the s3_key prefix, or a string
-        prefix that all filenames must match. Use ``"*"`` to move all objects under
+        prefix that all filenames must match. The prefix applies to the file name, the
+        last segment of each key under s3_key. Use ``"*"`` to move all objects under
         the s3_key prefix.
     :param sftp_filenames: Only used if you want to move multiple files and name them
         differently at the destination. It can be a list of filenames or a string
@@ -141,21 +146,32 @@ class S3ToSFTPOperator(BaseOperator):
                 if s3_prefix == "*":
                     files = filenames
                 else:
-                    files = [f for f in filenames if f.startswith(s3_prefix)]
-                    dropped = [f for f in filenames if s3_prefix in f and not f.startswith(s3_prefix)]
+                    # ``list_keys`` recurses, so the prefix applies to the file name, while the
+                    # substring test mirrors the old rule over the whole relative key.
+                    files = [f for f in filenames if posixpath.basename(f).startswith(s3_prefix)]
+                    dropped = [
+                        f
+                        for f in filenames
+                        if s3_prefix in f and not posixpath.basename(f).startswith(s3_prefix)
+                    ]
                     if dropped:
+                        omitted = len(dropped) - SKIPPED_SAMPLE_SIZE
                         self.log.warning(
                             "%d file(s) contain %r but are not selected, because a string prefix "
-                            "matches only at the start of the filename: %s",
+                            "matches only at the start of the filename: %s%s",
                             len(dropped),
                             s3_prefix,
-                            dropped,
+                            dropped[:SKIPPED_SAMPLE_SIZE],
+                            f" and {omitted} more" if omitted > 0 else "",
                         )
 
                 for file in files:
                     self.log.info("Moving file %s", file)
                     if self.sftp_filenames and isinstance(self.sftp_filenames, str):
-                        sftp_filename = file.replace(s3_prefix, self.sftp_filenames, 1)
+                        name = posixpath.basename(file)
+                        sftp_filename = posixpath.join(
+                            posixpath.dirname(file), name.replace(s3_prefix, self.sftp_filenames, 1)
+                        )
                     else:
                         sftp_filename = file
                     self._download_from_s3(

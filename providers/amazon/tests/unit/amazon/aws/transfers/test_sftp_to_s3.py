@@ -248,7 +248,7 @@ class TestSFTPToS3OperatorInit:
                 "destination/new_again_pre_.txt",
             ),
         ]
-        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"])
+        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"], "")
 
     def test_s3_conn_id_deprecated(self):
         """s3_conn_id is a deprecated alias for aws_conn_id and must raise DeprecationWarning."""

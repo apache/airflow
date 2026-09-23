@@ -142,7 +142,7 @@ class TestFTPToS3Operator:
             mock.call("pre_one.txt", "test/new_one.txt"),
             mock.call("pre_again_pre_.txt", "test/new_again_pre_.txt"),
         ]
-        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"])
+        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"], "")
 
     @pytest.mark.parametrize(
         ("ftp_filenames", "s3_filenames", "expected"),
@@ -229,7 +229,7 @@ class TestFTPToS3Operator:
 
         mock_upload_to_s3.assert_not_called()
         mock_log_warning.assert_called_once_with(
-            mock.ANY, 2, "data", ["/srv/data/report.csv", "/srv/data/summary.csv"]
+            mock.ANY, 2, "data", ["/srv/data/report.csv", "/srv/data/summary.csv"], ""
         )
 
 

@@ -34,6 +34,9 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
+SKIPPED_SAMPLE_SIZE = 10
+
+
 class SFTPToS3Operator(BaseOperator):
     """
     Transfer files from an SFTP server to Amazon S3.
@@ -182,12 +185,14 @@ class SFTPToS3Operator(BaseOperator):
                     files = [f for f in list_dir if f.startswith(sftp_prefix)]
                     dropped = [f for f in list_dir if sftp_prefix in f and not f.startswith(sftp_prefix)]
                     if dropped:
+                        omitted = len(dropped) - SKIPPED_SAMPLE_SIZE
                         self.log.warning(
                             "%d file(s) contain %r but are not selected, because a string prefix "
-                            "matches only at the start of the filename: %s",
+                            "matches only at the start of the filename: %s%s",
                             len(dropped),
                             sftp_prefix,
-                            dropped,
+                            dropped[:SKIPPED_SAMPLE_SIZE],
+                            f" and {omitted} more" if omitted > 0 else "",
                         )
 
                 for file in files:
