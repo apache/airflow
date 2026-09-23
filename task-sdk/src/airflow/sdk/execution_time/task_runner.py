@@ -1939,7 +1939,12 @@ def _finalize_task_failure(
         # Policy's own words only: attempt counts belong to whoever renders this, which has
         # try_number and max_tries alongside and need not guess when retries was never set.
         retry_reason = retry_reason[:500]
-        log.info("Retry policy decision", action="fail", reason=retry_reason)
+        log.info(
+            "Retry policy requested a retry but no attempts remain",
+            reason=retry_reason,
+            try_number=ti.try_number,
+            max_tries=ti._ti_context_from_server.max_tries if ti._ti_context_from_server else None,
+        )
     return (
         TaskState(
             state=TaskInstanceState.FAILED,

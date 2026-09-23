@@ -48,13 +48,13 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.sdk import TaskInstanceState
 from airflow.sdk.execution_time.comms import TaskState
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
     resolve_body_class,
 )
-from airflow.utils.state import TaskInstanceState
 
 
 class _MockBody(BaseModel):

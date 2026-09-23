@@ -1402,6 +1402,33 @@ def test_retry_policy_decision_logged_outside_post_execute_group(create_runtime_
     ]
 
 
+def test_exhausted_logs_about_retry_policy_decision(create_runtime_ti, mock_supervisor_comms):
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(
+        task_id="retry_exhausted_logging",
+        retries=2,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
+        ),
+    )
+    ti = create_runtime_ti(task=task, try_number=3)
+    log = mock.MagicMock(spec=["info", "debug", "warning", "error", "exception", "bind"])
+
+    run(ti, context=ti.get_template_context(), log=log)
+
+    events = [call.args[0] for call in log.info.call_args_list if call.args]
+    assert events.count("Retry policy decision") == 1
+    assert log.info.call_args_list[-1] == mock.call(
+        "Retry policy requested a retry but no attempts remain",
+        reason="rate limit",
+        try_number=3,
+        max_tries=2,
+    )
+
+
 def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
     """finalize() closes the post-execute log group but does not open it."""
     task = BaseOperator(task_id="some_task")
