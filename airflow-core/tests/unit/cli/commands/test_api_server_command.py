@@ -43,7 +43,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 sys.executable,
                 "-c",
                 "from airflow.cli.cli_parser import get_parser; "
-                "print(f\"worker_timeout={get_parser().parse_args(['api-server']).worker_timeout}\")",
+                "print(f\"worker_timeout={get_parser().parse_args(['api-server']).worker_timeout!r}\")",
             ],
             env={**os.environ, "AIRFLOW__API__WORKER_TIMEOUT": "321"},
             check=True,
