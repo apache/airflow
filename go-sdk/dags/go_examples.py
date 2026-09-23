@@ -151,7 +151,7 @@ def via_struct_arg_tag(region_code: str, threshold: float): ...
 
 
 @task.stub(queue="golang")
-def via_struct_unmatched_arg(region_code: str, sample_rate: float = 0.1): ...
+def via_struct_default_arg(region_code: str, sample_rate: float = 0.1): ...
 
 
 @task.stub(queue="golang")
@@ -173,16 +173,15 @@ def taskflow_binding_dag():
 
     A Go task declares either flat data parameters, which bind *positionally*
     (order matters, every one must be filled), or a single struct, whose fields
-    bind by *name* like keyword arguments -- an unmatched field stays at its Go
-    zero value instead of failing the task.
+    bind by *name* like keyword arguments. Either way every declared field must
+    be filled; a call argument no field claims is only a warning.
 
     * ``via_flat_args``: every scalar literal, an array literal, keyword args,
       an unpassed ``None`` default, and XComs fanned in from two upstream tasks.
     * ``via_struct_no_tags``: fields fall back to their own Go names, matched
       case- and underscore-insensitively.
     * ``via_struct_arg_tag``: fields bind via explicit ``arg:`` tags.
-    * ``via_struct_unmatched_arg``: a Go field no argument names, and a stub
-      default no Go field claims.
+    * ``via_struct_default_arg``: a stub default no Go field claims.
     * ``via_flat_map`` / ``via_struct_map`` / ``via_plain_map``: one dict bound
       whole into a struct, onto a struct's map field, and into a plain Go map.
 
@@ -202,7 +201,7 @@ def taskflow_binding_dag():
     region = make_region()
     via_struct_no_tags(region_code=region, threshold=0.75)
     via_struct_arg_tag(region_code=region, threshold=0.75)
-    via_struct_unmatched_arg(region_code=region)
+    via_struct_default_arg(region_code=region)
     via_flat_map(config={"region": "eu-west-1", "count": 3})
     via_struct_map(payload={"region": "eu-west-1", "count": 3})
     via_plain_map(labels={"team": "data", "tier": "gold"})

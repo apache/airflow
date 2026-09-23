@@ -107,24 +107,18 @@ func TestViaStructArgTagRejectsWrongBinding(t *testing.T) {
 	assert.ErrorContains(t, err, "struct fields bound incorrectly")
 }
 
-func TestViaStructUnmatchedArg(t *testing.T) {
-	got, err := ViaStructUnmatchedArg(testContext(t), ViaStructUnmatchedArgInput{
-		Region:  "eu-west-1",
-		Missing: "",
-	})
+func TestViaStructDefaultArg(t *testing.T) {
+	got, err := ViaStructDefaultArg(testContext(t), ViaStructDefaultArgInput{Region: "eu-west-1"})
 	require.NoError(t, err)
 
 	summary, ok := got.(map[string]any)
-	require.True(t, ok, "ViaStructUnmatchedArg should return a map summary, got %T", got)
-	assert.Equal(t, true, summary["missing_was_empty"])
+	require.True(t, ok, "ViaStructDefaultArg should return a map summary, got %T", got)
+	assert.Equal(t, "eu-west-1", summary["region"])
 }
 
-func TestViaStructUnmatchedArgRejectsNonZeroMissingField(t *testing.T) {
-	_, err := ViaStructUnmatchedArg(testContext(t), ViaStructUnmatchedArgInput{
-		Region:  "eu-west-1",
-		Missing: "unexpected",
-	})
-	assert.ErrorContains(t, err, "expected the unmatched field to stay at its Go zero value")
+func TestViaStructDefaultArgRejectsWrongBinding(t *testing.T) {
+	_, err := ViaStructDefaultArg(testContext(t), ViaStructDefaultArgInput{Region: "wrong-region"})
+	assert.ErrorContains(t, err, "struct field bound incorrectly")
 }
 
 func TestViaFlatMap(t *testing.T) {

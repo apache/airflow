@@ -162,7 +162,7 @@ dags:
       - "via_flat_args"
       - "via_struct_no_tags"
       - "via_struct_arg_tag"
-      - "via_struct_unmatched_arg"
+      - "via_struct_default_arg"
       - "via_flat_map"
       - "via_struct_map"
       - "via_plain_map"

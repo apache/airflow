@@ -164,7 +164,7 @@ func (p *Plan) Resolve(
 	ti, dagRun := storedRunMetadata(ctx)
 	out[0] = newAirflowContext(ctx, logger, client, ti, dagRun)
 	if p.loneStruct {
-		return p.resolveLoneStructParam(ctx, client, args, out)
+		return p.resolveLoneStructParam(ctx, logger, client, args, out)
 	}
 	return p.resolveFlatParams(ctx, client, args, out)
 }
@@ -219,6 +219,7 @@ func (p *Plan) resolveFlatParams(
 
 func (p *Plan) resolveLoneStructParam(
 	ctx context.Context,
+	logger *slog.Logger,
 	c sdk.XComClient,
 	args []Arg,
 	out []reflect.Value,
@@ -255,6 +256,7 @@ func (p *Plan) resolveLoneStructParam(
 		argIdx int
 	}
 	binds := make([]fieldBind, 0, len(plan.fields))
+	var unfilled []string
 	for _, sf := range plan.fields {
 		idx, ok := byName[sf.argName]
 		if !ok && !sf.tagged {
@@ -264,6 +266,7 @@ func (p *Plan) resolveLoneStructParam(
 			}
 		}
 		if !ok {
+			unfilled = append(unfilled, fmt.Sprintf("%s (argument %q)", sf.goName, sf.argName))
 			continue
 		}
 		claimed[idx] = true
@@ -277,14 +280,27 @@ func (p *Plan) resolveLoneStructParam(
 		}
 	}
 
-	if len(args) == 0 && len(plan.fields) > 0 {
+	// The spec carries one entry per stub parameter, captured defaults included, so
+	// a field nothing fills means the struct and the stub signature disagree rather
+	// than the call simply having left an argument out.
+	if len(unfilled) > 0 {
+		if len(args) == 0 {
+			return nil, fmt.Errorf(
+				"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
+					"%d bindable field(s); nothing can fill them on this execution path",
+				p.fnName, len(plan.fields),
+			)
+		}
 		return nil, fmt.Errorf(
-			"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
-				"%d bindable field(s); nothing can fill them on this execution path",
-			p.fnName, len(plan.fields),
+			"task function %s: %d struct field(s) match no TaskFlow call argument: %s; "+
+				"the call bound %s",
+			p.fnName, len(unfilled), strings.Join(unfilled, ", "), quotedArgNames(args),
 		)
 	}
 
+	// An argument no field takes is not fatal: a struct binds by name, so the
+	// extra one changes nothing the handler reads. Captured defaults are the
+	// normal case of this and stay silent.
 	var unclaimed []string
 	for i, c := range claimed {
 		if c {
@@ -295,15 +311,15 @@ func (p *Plan) resolveLoneStructParam(
 		}
 		name := "<nil>"
 		if args[i] != nil {
-			name = fmt.Sprintf("%q", args[i].ArgName())
+			name = args[i].ArgName()
 		}
 		unclaimed = append(unclaimed, name)
 	}
 	if len(unclaimed) > 0 {
-		return nil, fmt.Errorf(
-			"task function %s: %d TaskFlow call argument(s) not claimed by any struct "+
-				"field: %s",
-			p.fnName, len(unclaimed), strings.Join(unclaimed, ", "),
+		logger.Warn(
+			"TaskFlow call argument(s) not claimed by any struct field",
+			"function", p.fnName,
+			"arguments", unclaimed,
 		)
 	}
 
@@ -335,6 +351,20 @@ func (p *Plan) resolveLoneStructParam(
 		out[paramIdx] = structVal
 	}
 	return out, nil
+}
+
+func quotedArgNames(args []Arg) string {
+	names := make([]string, 0, len(args))
+	for _, a := range args {
+		if a == nil {
+			continue
+		}
+		names = append(names, fmt.Sprintf("%q", a.ArgName()))
+	}
+	if len(names) == 0 {
+		return "nothing"
+	}
+	return strings.Join(names, ", ")
 }
 
 func dropDefaultedArgs(args []Arg) []Arg {

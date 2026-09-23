@@ -61,8 +61,8 @@ func main() {
 		),
 		airflow.TaskHandler(
 			"taskflow_binding_dag",
-			"via_struct_unmatched_arg",
-			taskflowbinding.ViaStructUnmatchedArg,
+			"via_struct_default_arg",
+			taskflowbinding.ViaStructDefaultArg,
 		),
 		airflow.TaskHandler("taskflow_binding_dag", "via_flat_map", taskflowbinding.ViaFlatMap),
 		airflow.TaskHandler("taskflow_binding_dag", "via_struct_map", taskflowbinding.ViaStructMap),

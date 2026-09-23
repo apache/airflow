@@ -171,35 +171,23 @@ func ViaStructArgTag(actx airflow.Context, input ViaStructArgTagInput) (any, err
 	}, nil
 }
 
-// ViaStructUnmatchedArgInput includes a field no argument supplies.
-type ViaStructUnmatchedArgInput struct {
-	Region  string `arg:"region_code"`
-	Missing string `arg:"does_not_exist"`
+// ViaStructDefaultArgInput claims only the explicitly passed argument.
+type ViaStructDefaultArgInput struct {
+	Region string `arg:"region_code"`
 }
 
-// ViaStructUnmatchedArg exercises unmatched fields and captured defaults.
-func ViaStructUnmatchedArg(
+// ViaStructDefaultArg exercises a captured stub default no struct field claims.
+func ViaStructDefaultArg(
 	actx airflow.Context,
-	input ViaStructUnmatchedArgInput,
+	input ViaStructDefaultArgInput,
 ) (any, error) {
 	if input.Region != "eu-west-1" {
 		return nil, fmt.Errorf("struct field bound incorrectly: region=%q", input.Region)
 	}
-	if input.Missing != "" {
-		return nil, fmt.Errorf(
-			"expected the unmatched field to stay at its Go zero value, got missing=%q",
-			input.Missing,
-		)
-	}
 
-	actx.Logger().InfoContext(actx, "Bound struct (unmatched arg)",
-		"region", input.Region,
-		"missing_was_empty", input.Missing == "",
-	)
-	return map[string]any{
-		"region":            input.Region,
-		"missing_was_empty": input.Missing == "",
-	}, nil
+	actx.Logger().
+		InfoContext(actx, "Bound struct (defaulted arg unclaimed)", "region", input.Region)
+	return map[string]any{"region": input.Region}, nil
 }
 
 // FlatMapConfig receives one dict as a whole value.

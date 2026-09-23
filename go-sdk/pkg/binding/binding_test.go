@@ -18,6 +18,7 @@
 package binding
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -108,14 +109,31 @@ func analyze(s *BindingSuite, fn any) *Plan {
 }
 
 func (s *BindingSuite) resolve(fn any, args []Arg, client sdk.Client) ([]reflect.Value, error) {
+	values, _, err := s.resolveWithLogs(fn, args, client)
+	return values, err
+}
+
+// resolveWithLogs is resolve with the logger's output captured, for the checks
+// that warn rather than fail.
+func (s *BindingSuite) resolveWithLogs(
+	fn any,
+	args []Arg,
+	client sdk.Client,
+) ([]reflect.Value, string, error) {
+	var logs bytes.Buffer
 	plan := analyze(s, fn)
-	values, err := plan.Resolve(runtimeCtx(), slog.Default(), client, args)
+	values, err := plan.Resolve(
+		runtimeCtx(),
+		slog.New(slog.NewTextHandler(&logs, nil)),
+		client,
+		args,
+	)
 	if err != nil {
-		return nil, err
+		return nil, logs.String(), err
 	}
 	s.Require().True(values[0].IsValid(), "parameter 0 must be bound")
 	s.Require().IsType(contexttest.Context{}, values[0].Interface())
-	return values[1:], nil
+	return values[1:], logs.String(), nil
 }
 
 func (s *BindingSuite) TestAnalyzeClassification() {
@@ -869,24 +887,25 @@ func (s *BindingSuite) TestResolveTaggedStructNeverFallsBackToWholeValue() {
 		LiteralArg{Name: "region_code", Value: "eu-west-1", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
 	if s.Assert().Error(err) {
-		s.Contains(err.Error(), `not claimed by any struct field: "region_code"`)
+		s.Contains(err.Error(), `Region (argument "regon_code")`)
 	}
 }
 
-func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {
-	fn := func(actx contexttest.Context, input combineInput) error { return nil }
-	_, err := s.resolve(fn, []Arg{
+func (s *BindingSuite) TestResolveStructUnclaimedArgWarns() {
+	fn := func(actx contexttest.Context, input simpleInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "typo", Value: "x", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
-	if s.Assert().Error(err) {
-		s.Contains(err.Error(), `not claimed by any struct field: "typo"`)
-	}
+	s.Require().NoError(err, "an argument no field claims changes nothing the handler reads")
+	s.Equal("widget", got[0].Interface().(simpleInput).Name)
+	s.Contains(logs, "not claimed by any struct field")
+	s.Contains(logs, "typo")
 }
 
-func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultAllowed() {
-	fn := func(actx contexttest.Context, input combineInput) error { return nil }
-	got, err := s.resolve(fn, []Arg{
+func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultStaysSilent() {
+	fn := func(actx contexttest.Context, input simpleInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 		LiteralArg{
 			Name:        "threshold",
@@ -896,7 +915,8 @@ func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultAllowed() {
 		},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	s.Equal("widget", got[0].Interface().(combineInput).Name)
+	s.Equal("widget", got[0].Interface().(simpleInput).Name)
+	s.NotContains(logs, "not claimed by any struct field")
 }
 
 func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
@@ -911,9 +931,9 @@ func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
 	}
 }
 
-func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
+func (s *BindingSuite) TestResolveStructOnlyDefaultsFailsLoudly() {
 	fn := func(actx contexttest.Context, input twoFieldInput) error { return nil }
-	got, err := s.resolve(fn, []Arg{
+	_, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Name:        "threshold",
 			Value:       0.75,
@@ -921,21 +941,20 @@ func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
 			FromDefault: true,
 		},
 	}, &fakeXComClient{})
-	s.Require().NoError(err)
-	input := got[0].Interface().(twoFieldInput)
-	s.Equal("", input.Name, "no explicit entry arrived; fields keep kwarg-style zero values")
-	s.Equal("", input.Missing)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "2 struct field(s) match no TaskFlow call argument")
+	}
 }
 
-func (s *BindingSuite) TestResolveStructUnmatchedFieldZeroValued() {
+func (s *BindingSuite) TestResolveStructUnmatchedFieldFailsLoudly() {
 	fn := func(actx contexttest.Context, input twoFieldInput) error { return nil }
-	got, err := s.resolve(fn, []Arg{
+	_, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
-	s.Require().NoError(err)
-	input := got[0].Interface().(twoFieldInput)
-	s.Equal("widget", input.Name, "the matched field binds normally")
-	s.Equal("", input.Missing, "the unmatched field is left at its Go zero value, not an error")
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), `Missing (argument "missing")`)
+		s.Contains(err.Error(), `the call bound "Name"`)
+	}
 }
 
 func (s *BindingSuite) TestResolveFlatParamsToleratesCapturedDefaults() {
