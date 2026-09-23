@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from pydantic_ai.capabilities import Toolset
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
@@ -125,7 +126,10 @@ def _build_code_mode() -> Any:
     return CodeMode()
 
 
-class AgentOperator(BaseOperator, HITLReviewMixin):
+# CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
+# no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
+# test in tests/unit/common/ai/mixins/test_cancellable_run.py.
+class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
 
@@ -555,6 +559,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         storage = self._durable_storage
         counter = self._durable_counter
+        # A killed run raises RunCancelled (see run_agent_sync), which propagates to fail the
+        # task. The durable cache cleanup below is skipped on the raise, preserving it for retry.
         if self.durable and storage is not None and counter is not None:
             from pydantic_ai.models import infer_model
 
@@ -565,9 +571,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             resolved_model = infer_model(agent.model)
             caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
             with agent.override(model=caching_model):
-                result = agent.run_sync(self.prompt, **run_kwargs)
+                result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
         else:
-            result = agent.run_sync(self.prompt, **run_kwargs)
+            result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
 
         log_run_summary(self.log, result)
         self._emit_run_metadata(context, result)
@@ -680,7 +686,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         if identity:
             stamp_identity_on_agent_spans(agent, identity)
         messages = message_history or []
-        result = agent.run_sync(
+        result = self.run_agent_sync(
+            agent,
             feedback,
             message_history=messages,
             usage_limits=usage_limits,
