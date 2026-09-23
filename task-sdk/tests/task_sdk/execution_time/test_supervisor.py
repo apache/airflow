@@ -3357,9 +3357,9 @@ class TestHandleRequest:
         process, _ = watched_subprocess
         process._handle_request(TaskState(state=TaskInstanceState.FAILED), structlog.get_logger(), req_id=1)
         process.client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
-            httpx.Response(
+            httpx2.Response(
                 409,
-                request=httpx.Request("PUT", "http://server/heartbeat"),
+                request=httpx2.Request("PUT", "http://server/heartbeat"),
                 json={"detail": "already stopped"},
             )
         )
@@ -3437,10 +3437,10 @@ class TestHandleRequest:
         process._exit_code = 0
         process.client.task_instances.finish = mocker.Mock(
             spec=sdk_client.TaskInstanceOperations.finish,
-            side_effect=httpx.ConnectError("connection refused"),
+            side_effect=httpx2.ConnectError("connection refused"),
         )
 
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(httpx2.ConnectError):
             process.update_task_state_if_needed()
 
         assert process._terminal_state == TaskInstanceState.FAILED

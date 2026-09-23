@@ -59,13 +59,11 @@ if TYPE_CHECKING:
 _XCOM_PATH_PARTS = 5  # /xcoms/{dag_id}/{run_id}/{task_id}/{key}
 
 
-def resolve_sdk_httpx() -> ModuleType:
-    """Return the httpx implementation the *installed* Task SDK ``Client`` is built on.
+def _resolve_sdk_httpx() -> ModuleType:
+    """Return the httpx package the *installed* Task SDK ``Client`` subclasses.
 
-    Compat tests run this helper against released Airflow versions whose Task SDK is still
-    on ``httpx``, while the current one is on ``httpx2``. Transports and responses do not
-    cross that boundary — httpx asserts on its own stream types — so the transport MUST be
-    built from the same package the client subclasses.
+    Compat jobs pair this helper with a released SDK still on ``httpx``. A transport from the
+    wrong package trips httpx's own stream-type assertion.
     """
     from airflow.sdk.api.client import Client
 
@@ -78,7 +76,7 @@ def resolve_sdk_httpx() -> ModuleType:
 
 def _remembering_handler(store: dict, run_context_json: bytes) -> Callable:
     """A dry-run transport handler: valid run-context + XCom round-trip from ``store``, else no-op."""
-    httpx_impl = resolve_sdk_httpx()
+    httpx_impl = _resolve_sdk_httpx()
 
     from airflow.sdk.api.client import noop_handler
 
@@ -108,7 +106,7 @@ def build_in_memory_client(ti_context) -> Client:
     ``ti_context`` (a ``TIRunContext``) is replayed for the task-start request. Pushed XCom
     values are exposed as ``client.pushed_xcoms`` keyed by ``(dag_id, run_id, task_id, key)``.
     """
-    httpx_impl = resolve_sdk_httpx()
+    httpx_impl = _resolve_sdk_httpx()
 
     from airflow.sdk.api.client import Client
 
