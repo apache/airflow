@@ -17,20 +17,27 @@
  * under the License.
  */
 
-package org.apache.airflow.example;
+package org.apache.airflow.sdk
 
-import org.apache.airflow.sdk.*;
+/**
+ * A value a task can be given, of which [TaskRef] — the output of an upstream
+ * task — is the only form so far.
+ *
+ * @param T Type of the value.
+ */
+sealed class Arg<T>
 
-public class ExampleBundleBuilder {
-  public static Bundle build() {
-    return new Bundle()
-        .register(InterfaceExampleBuilder.build())
-        .register(AnnotationExample.class)
-        .register(XComCastingExample.class)
-        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
-  }
-
-  public static void main(String[] args) {
-    Server.create(args).serve(build());
-  }
+/**
+ * The output of a registered task, and the task's place in the flow.
+ *
+ * [Deps.Flow.then] wires an ordering-only edge from this task, where nothing
+ * flows but the sequence.
+ *
+ * @param T Return type of the task this handle refers to.
+ */
+class TaskRef<T> internal constructor(
+  internal val def: TaskDef,
+) : Arg<T>(),
+  Deps.Flow {
+  override fun nodes(): List<TaskDef> = listOf(def)
 }

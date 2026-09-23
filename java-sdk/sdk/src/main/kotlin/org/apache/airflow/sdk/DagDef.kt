@@ -32,9 +32,9 @@ import kotlin.Throws
  * class directly if you need to do low-level plumbing:
  *
  * ```java
- * var dag = new DagDef("java_etl")
- *     .addTask("extract", Extract.class)
- *     .addTask("load", Load.class);
+ * var dag = new DagDef("java_etl");
+ * var extract = dag.task("extract", Extract.class);
+ * extract.then(dag.task("load", Load.class));
  * ```
  *
  * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
@@ -63,11 +63,40 @@ class DagDef(
   ): DagDef = addTask(TaskDef(id, definition))
 
   /**
+   * Creates a task, registers it, and hands back its handle — so there is no
+   * second `addTask` call to forget, and the handle is ready to wire edges
+   * with [Deps.Flow.then].
+   *
+   * ```java
+   * var extract = dag.task("extract", Extract.class);
+   * var load = dag.task("load", Load.class);
+   * extract.then(load);
+   * ```
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [Task]. Must have a public no-arg
+   *    constructor.
+   * @return The handle representing this task.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  fun <T> task(
+    id: String,
+    definition: Class<out Task>,
+  ): TaskRef<T> {
+    val def = TaskDef(id, definition)
+    addTask(def)
+    return TaskRef(def)
+  }
+
+  /**
    * Registers a task with this Dag.
    *
    * A [TaskDef] belongs to at most one [DagDef]; registering the same instance
    * with a second Dag, or twice with the same one, fails. Task IDs must be
-   * unique within a Dag.
+   * unique within a Dag. Upstream tasks referenced via [TaskDef.dependsOn]
+   * must be registered with the same Dag by the time it is added to a
+   * [Bundle].
    *
    * @param task Task definition to register.
    * @return This Dag, for chaining.
@@ -84,13 +113,35 @@ class DagDef(
     task.owner = this
     return this
   }
+
+  /**
+   * Registers a task with this Dag, adding [upstreams] as its dependencies.
+   *
+   * Equivalent to `addTask(task.dependsOn(...))`; see [addTask] and
+   * [TaskDef.dependsOn].
+   *
+   * @param task Task definition to register.
+   * @param upstreams Tasks that [task] depends on (its upstream tasks).
+   * @return This Dag, for chaining.
+   * @throws IllegalArgumentException if the task already belongs to a Dag or a
+   *    task with the same ID is already registered.
+   */
+  fun addTask(
+    task: TaskDef,
+    upstreams: List<TaskDef>,
+  ): DagDef {
+    upstreams.forEach { task.dependsOn(it) }
+    return addTask(task)
+  }
 }
 
 /**
- * One task definition: its ID and the class that implements it.
+ * One task definition: its ID, the class that implements it, and its upstream
+ * dependencies.
  *
  * ```java
  * var extract = new TaskDef("extract", Extract.class);
+ * var load = new TaskDef("load", Load.class).dependsOn(extract);
  * ```
  *
  * @param id Task identifier, unique within a [DagDef].
@@ -110,7 +161,22 @@ class TaskDef(
     validateTaskInput(definition)
   }
 
+  internal val upstreams = linkedSetOf<TaskDef>()
   internal var owner: DagDef? = null
+
+  /**
+   * Declares that this task runs after [upstreams].
+   *
+   * Referenced tasks must be registered with the same [DagDef] as this task by
+   * the time it is added to a [Bundle].
+   *
+   * @param upstreams Tasks this task depends on.
+   * @return This task definition, for chaining.
+   */
+  fun dependsOn(vararg upstreams: TaskDef): TaskDef {
+    this.upstreams += upstreams
+    return this
+  }
 }
 
 /**

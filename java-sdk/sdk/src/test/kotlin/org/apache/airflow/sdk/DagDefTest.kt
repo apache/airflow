@@ -94,4 +94,93 @@ internal class DagDefTest {
 
     Assertions.assertEquals("Task 'extract' already belongs to Dag 'dag'", error.message)
   }
+
+  @Test
+  @DisplayName("Should register a task and hand back its handle")
+  fun shouldRegisterTaskFromFactory() {
+    val dag = DagDef("dag")
+
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+
+    Assertions.assertEquals(listOf("extract"), dag.tasks.keys.toList())
+    Assertions.assertEquals(listOf(dag.tasks.getValue("extract")), extract.nodes())
+  }
+
+  @Test
+  @DisplayName("Should record upstream task definitions from dependsOn")
+  fun shouldRecordUpstreams() {
+    val extract = TaskDef("extract", NoOp::class.java)
+    val load = TaskDef("load", NoOp::class.java).dependsOn(extract)
+    DagDef("dag").addTask(extract).addTask(load)
+
+    Assertions.assertEquals(emptySet<TaskDef>(), extract.upstreams)
+    Assertions.assertEquals(setOf(extract), load.upstreams)
+  }
+
+  @Test
+  @DisplayName("Should wire upstreams passed to the addTask overload")
+  fun shouldWireUpstreamsFromAddTaskOverload() {
+    val extract = TaskDef("extract", NoOp::class.java)
+    val load = TaskDef("load", NoOp::class.java)
+    DagDef("dag").addTask(extract).addTask(load, listOf(extract))
+
+    Assertions.assertEquals(setOf(extract), load.upstreams)
+  }
+
+  @Test
+  @DisplayName("Should wire an ordering-only edge through then")
+  fun shouldWireOrderingEdgeThroughThen() {
+    val dag = DagDef("dag")
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+    val join = dag.task<Unit>("join", NoOp::class.java)
+
+    extract.then(left, right).then(join)
+
+    Assertions.assertEquals(
+      setOf("extract"),
+      dag.tasks
+        .getValue("left")
+        .upstreams
+        .map { it.id }
+        .toSet(),
+    )
+    Assertions.assertEquals(
+      setOf("extract"),
+      dag.tasks
+        .getValue("right")
+        .upstreams
+        .map { it.id }
+        .toSet(),
+    )
+    Assertions.assertEquals(
+      setOf("left", "right"),
+      dag.tasks
+        .getValue("join")
+        .upstreams
+        .map { it.id }
+        .toSet(),
+    )
+  }
+
+  @Test
+  @DisplayName("Should open a chain from a set of tasks with Flow.of")
+  fun shouldOpenChainFromFlowOf() {
+    val dag = DagDef("dag")
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+    val join = dag.task<Unit>("join", NoOp::class.java)
+
+    Deps.Flow.of(left, right).then(join)
+
+    Assertions.assertEquals(
+      setOf("left", "right"),
+      dag.tasks
+        .getValue("join")
+        .upstreams
+        .map { it.id }
+        .toSet(),
+    )
+  }
 }
