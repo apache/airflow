@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 from io import StringIO
 from pathlib import Path
 from types import ModuleType
@@ -1302,6 +1303,14 @@ class TestSparkSubmitHook:
                 ("spark-submit",),
                 "spark-submit",
             ),
+            (
+                ("spark-submit", "--password='my secret pass'", "--foo", "bar"),
+                "spark-submit --password='******' --foo bar",
+            ),
+            (
+                ("spark-submit", "--password", "'my secret pass'", "--foo", "bar"),
+                "spark-submit --password '******' --foo bar",
+            ),
         ],
     )
     @pytest.mark.db_test
@@ -1314,6 +1323,25 @@ class TestSparkSubmitHook:
 
         # Then
         assert command_masked == expected
+
+    @pytest.mark.db_test
+    def test_mask_cmd_is_linear_time_on_long_unrelated_args(self) -> None:
+        """Regression test for a ReDoS: a long application_arg containing neither
+        "secret" nor "password" used to make _mask_cmd quadratic in that arg's
+        length, because the previous regex re-attempted a lazy prefix scan from
+        every position in the joined command string. 200k chars finishes in well
+        under a second on any reasonable hardware when the fix holds; the previous
+        implementation took tens of seconds at this size.
+        """
+        hook = SparkSubmitHook()
+        long_unrelated_arg = "a" * 200_000
+        command = ("spark-submit", "--conf", "spark.executor.memory=2g", long_unrelated_arg)
+
+        start = time.monotonic()
+        hook._mask_cmd(command)
+        elapsed = time.monotonic() - start
+
+        assert elapsed < 5
 
     @pytest.mark.db_test
     def test_submit_log_tail_empty_when_no_lines_captured(self) -> None:
