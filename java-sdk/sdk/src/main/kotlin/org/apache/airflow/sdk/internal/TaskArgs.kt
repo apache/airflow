@@ -22,6 +22,7 @@ package org.apache.airflow.sdk.internal
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.MissingXComException
+import org.apache.airflow.sdk.execution.ArgBinding
 
 /**
  * @suppress
@@ -44,17 +45,22 @@ import org.apache.airflow.sdk.MissingXComException
 class TaskArgs private constructor(
   private val context: Context,
   private val client: Client,
+  private val arguments: List<ArgBinding>,
 ) {
   companion object {
     /**
      * Opens a positional view over the arguments bound for this run, for a
      * task method declaring [declared] data parameters.
      *
-     * The two counts must match exactly. Positions carry the whole meaning of
-     * a flat binding, so a call site that bound a different number of
-     * arguments than the method takes has already shifted them: too few leaves
-     * a parameter unbound, and too many means the extras — or the ones ahead
-     * of them — are not the arguments the method believes it is reading.
+     * The counts must match. Positions carry the whole meaning of a flat
+     * binding, so a call site that bound a different number of arguments than
+     * the method takes has already shifted them: too few leaves a parameter
+     * unbound, and too many means the extras — or the ones ahead of them —
+     * are not the arguments the method believes it is reading.
+     *
+     * A parameter the call site omitted still arrives, carrying the stub
+     * signature's default. A method that does not declare it is not reading
+     * shifted arguments, so those are dropped before the counts are compared.
      *
      * @throws IllegalStateException if the call site bound a different number
      *    of arguments than the task declares.
@@ -65,12 +71,19 @@ class TaskArgs private constructor(
       client: Client,
       declared: Int,
     ): TaskArgs {
-      val bound = client.argBindings.size
-      check(bound == declared) {
+      val bound = client.argBindings
+      val arguments = if (bound.size == declared) bound else bound.filterNot { it.fromDefault }
+      check(arguments.size == declared) {
+        val defaults =
+          if (arguments.size == bound.size) {
+            ""
+          } else {
+            "; ${arguments.size} remain after dropping captured defaults"
+          }
         "Task '${context.ti.taskId}' declares $declared data parameter(s) " +
-          "but the stub call bound $bound argument(s)"
+          "but the stub call bound ${bound.size} argument(s)$defaults"
       }
-      return TaskArgs(context, client)
+      return TaskArgs(context, client, arguments)
     }
   }
 
@@ -83,7 +96,7 @@ class TaskArgs private constructor(
   fun <T : Any> get(
     position: Int,
     type: Class<T>,
-  ): T? = type.cast(ArgValues.valueAt(client, position, type))
+  ): T? = type.cast(ArgValues.valueAt(client, arguments[position], type))
 
   /**
    * Resolves the argument bound at [position] into the generic [type], passing
@@ -95,7 +108,7 @@ class TaskArgs private constructor(
   fun <T : Any> get(
     position: Int,
     type: TypeRef<T>,
-  ): T? = ArgValues.valueAt(client, position, type.type) as T?
+  ): T? = ArgValues.valueAt(client, arguments[position], type.type) as T?
 
   /**
    * Resolves the argument bound at [position] into [type], which must not be
@@ -125,5 +138,5 @@ class TaskArgs private constructor(
 
   // The stub signature's own parameter name is the clearest label for a failure
   // here: it is what the Dag author has to change.
-  private fun missingAt(at: Int) = ArgValues.missing(client.argBindings[at], context.ti.taskId)
+  private fun missingAt(at: Int) = ArgValues.missing(arguments[at], context.ti.taskId)
 }

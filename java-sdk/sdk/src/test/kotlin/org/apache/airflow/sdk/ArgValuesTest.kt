@@ -21,10 +21,13 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.execution.Level
+import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.internal.ArgValues
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -40,27 +43,29 @@ class ScoreInput : TaskInput {
 
   @JvmField
   var threshold: Double = 0.0
-
-  /** A generic field: its element type has to survive the decode. */
-  @JvmField
-  var tags: List<String>? = null
-
-  /** Left unbound by every call site below, so it stays null. */
-  @JvmField
-  var label: String? = null
-}
-
-private fun bind(
-  bindings: List<Map<String, Any?>>?,
-  xcoms: Map<String, Any?> = emptyMap(),
-): ScoreInput {
-  val (client, _) = clientWith(bindings, xcoms)
-  return ArgValues.bindInput(client, ScoreInput::class.java)
 }
 
 class FoldedInput : TaskInput {
   @JvmField
   var regionCode: String? = null
+}
+
+/** One primitive field, so resolving to nothing is the only failure possible. */
+class ThresholdInput : TaskInput {
+  @JvmField
+  var threshold: Double = 0.0
+}
+
+/** The boxed twin of [ThresholdInput], which can take the null. */
+class BoxedThresholdInput : TaskInput {
+  @JvmField
+  var threshold: Double? = null
+}
+
+/** A generic field: its element type has to survive the decode. */
+class TagsInput : TaskInput {
+  @JvmField
+  var tags: List<String>? = null
 }
 
 class CollidingInput : TaskInput {
@@ -81,10 +86,20 @@ private class CollidingInputTask : InputTask<CollidingInput> {
   ) = Unit
 }
 
-private fun bindFolded(bindings: List<Map<String, Any?>>): FoldedInput {
-  val (client, _) = clientWith(bindings)
-  return ArgValues.bindInput(client, FoldedInput::class.java)
+private fun <I : TaskInput> bind(
+  type: Class<I>,
+  bindings: List<Map<String, Any?>>,
+  xcoms: Map<String, Any?> = emptyMap(),
+): I {
+  val (client, _) = clientWith(bindings, xcoms)
+  return ArgValues.bindInput(client, type)
 }
+
+private fun literal(
+  name: String,
+  value: Any?,
+  fromDefault: Boolean = false,
+): Map<String, Any?> = mapOf("kind" to "literal", "name" to name, "value" to value, "from_default" to fromDefault)
 
 internal class ArgValuesTest {
   @Test
@@ -92,66 +107,43 @@ internal class ArgValuesTest {
   fun shouldBindFieldsByArgName() {
     val input =
       bind(
+        ScoreInput::class.java,
         listOf(
           mapOf("kind" to "xcom", "name" to "threshold", "task_id" to "upstream"),
-          mapOf("kind" to "literal", "name" to "region_code", "value" to "emea"),
+          literal("run_label", "nightly"),
+          literal("region_code", "emea"),
         ),
         xcoms = mapOf("upstream" to 0.5),
       )
 
     assertEquals("emea", input.region)
+    assertEquals("nightly", input.runLabel)
     assertEquals(0.5, input.threshold)
   }
 
   @Test
   @DisplayName("Should match a camelCase field to a snake_case argument through the fold")
   fun shouldFoldSnakeCaseArgument() {
-    val input = bindFolded(listOf(mapOf("kind" to "literal", "name" to "region_code", "value" to "emea")))
+    val input = bind(FoldedInput::class.java, listOf(literal("region_code", "emea")))
 
     assertEquals("emea", input.regionCode)
   }
 
   @Test
-  @DisplayName("Should take an @ArgName-pinned field literally rather than folding it")
-  fun shouldNotFoldPinnedField() {
-    val input =
-      bind(
-        listOf(
-          mapOf("kind" to "literal", "name" to "regionCode", "value" to "emea"),
-          mapOf("kind" to "literal", "name" to "run_label", "value" to "nightly"),
-          mapOf("kind" to "literal", "name" to "threshold", "value" to 0.5),
-        ),
-      )
+  @DisplayName("Should keep the element type of a generic field")
+  fun shouldKeepGenericFieldElementType() {
+    val input = bind(TagsInput::class.java, listOf(literal("tags", listOf("a", "b"))))
 
-    // 'region' is pinned to region_code, which this call site never bound.
-    assertNull(input.region)
-    // 'runLabel' is unpinned, so run_label reaches it.
-    assertEquals("nightly", input.runLabel)
-  }
-
-  @Test
-  @DisplayName("Should refuse to guess when two arguments fold to the same name")
-  fun shouldRefuseAmbiguousFold() {
-    val input =
-      bindFolded(
-        listOf(
-          mapOf("kind" to "literal", "name" to "region_code", "value" to "emea"),
-          mapOf("kind" to "literal", "name" to "regioncode", "value" to "apac"),
-        ),
-      )
-
-    assertNull(input.regionCode)
+    assertEquals(listOf("a", "b"), input.tags)
   }
 
   @Test
   @DisplayName("Should still bind an exact name that another argument folds onto")
   fun shouldPreferExactNameOverAmbiguousFold() {
     val input =
-      bindFolded(
-        listOf(
-          mapOf("kind" to "literal", "name" to "regionCode", "value" to "emea"),
-          mapOf("kind" to "literal", "name" to "region_code", "value" to "apac"),
-        ),
+      bind(
+        FoldedInput::class.java,
+        listOf(literal("regionCode", "emea"), literal("region_code", "apac")),
       )
 
     assertEquals("emea", input.regionCode)
@@ -173,45 +165,98 @@ internal class ArgValuesTest {
   }
 
   @Test
-  @DisplayName("Should leave a reference field null when the call site bound no argument for it")
-  fun shouldLeaveUnboundReferenceFieldNull() {
-    val input =
-      bind(
-        listOf(
-          mapOf("kind" to "literal", "name" to "region_code", "value" to "emea"),
-          mapOf("kind" to "literal", "name" to "threshold", "value" to 0.5),
-        ),
-      )
-
-    assertNull(input.label)
-  }
-
-  @Test
-  @DisplayName("Should keep the element type of a generic field")
-  fun shouldKeepGenericFieldElementType() {
-    val input =
-      bind(
-        listOf(
-          mapOf("kind" to "literal", "name" to "tags", "value" to listOf("a", "b")),
-          mapOf("kind" to "literal", "name" to "threshold", "value" to 0.5),
-        ),
-      )
-
-    assertEquals(listOf("a", "b"), input.tags)
-  }
-
-  @Test
-  @DisplayName("Should fail when a primitive field's argument is missing from the call site")
-  fun shouldFailOnUnboundPrimitiveField() {
+  @DisplayName("Should fail when a field matches no argument the call site passed")
+  fun shouldFailOnFieldMatchingNoArgument() {
     val error =
       assertThrows(IllegalStateException::class.java) {
-        bind(listOf(mapOf("kind" to "literal", "name" to "region_code", "value" to "emea")))
+        bind(FoldedInput::class.java, listOf(literal("threshold", 0.5)))
       }
 
     assertEquals(
-      "The stub call bound no argument named 'threshold', required by input field 'threshold'",
+      "The stub call bound no argument named 'regionCode', required by input field 'regionCode'",
       error.message,
     )
+  }
+
+  @Test
+  @DisplayName("Should fail when an @ArgName-pinned name is not among the arguments")
+  fun shouldFailWhenPinnedNameDoesNotFold() {
+    // 'region' is pinned to region_code, which the camelCase argument cannot reach.
+    val error =
+      assertThrows(IllegalStateException::class.java) {
+        bind(
+          ScoreInput::class.java,
+          listOf(
+            literal("regionCode", "emea"),
+            literal("run_label", "nightly"),
+            literal("threshold", 0.5),
+          ),
+        )
+      }
+
+    assertEquals(
+      "The stub call bound no argument named 'region_code', required by input field 'region'",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should fail rather than guess when two arguments fold to the field's name")
+  fun shouldFailOnAmbiguousFold() {
+    val error =
+      assertThrows(IllegalStateException::class.java) {
+        bind(
+          FoldedInput::class.java,
+          listOf(literal("region_code", "emea"), literal("regioncode", "apac")),
+        )
+      }
+
+    assertEquals(
+      "Input field 'regionCode' matches more than one stub argument differing only in case or " +
+        "underscores; add @ArgName to say which one it binds",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should bind and warn when the call site passes an argument no field claims")
+  fun shouldWarnOnUnclaimedArgument() {
+    LogSender.messages.clear()
+
+    val input =
+      bind(
+        FoldedInput::class.java,
+        listOf(literal("region_code", "emea"), literal("extra", 1L)),
+      )
+
+    assertEquals("emea", input.regionCode)
+    val message = LogSender.messages.single { it.level == Level.WARNING }
+    assertEquals("Stub call arguments claimed by no TaskInput field", message.event)
+    assertEquals(listOf("extra"), message.arguments["arguments"])
+    assertEquals("FoldedInput", message.arguments["input"])
+  }
+
+  @Test
+  @DisplayName("Should stay quiet about an unclaimed argument the call site never passed")
+  fun shouldNotWarnOnUnclaimedCapturedDefault() {
+    LogSender.messages.clear()
+
+    bind(
+      FoldedInput::class.java,
+      listOf(literal("region_code", "emea"), literal("extra", 1L, fromDefault = true)),
+    )
+
+    assertTrue(LogSender.messages.none { it.level == Level.WARNING }) {
+      "unexpected warnings: ${LogSender.messages.map { it.event }}"
+    }
+  }
+
+  @Test
+  @DisplayName("Should give a boxed field null when its argument resolves to nothing")
+  fun shouldPassNullToBoxedField() {
+    val input = bind(BoxedThresholdInput::class.java, listOf(literal("threshold", null)))
+
+    assertNull(input.threshold)
   }
 
   @Test
@@ -219,7 +264,7 @@ internal class ArgValuesTest {
   fun shouldNameFieldBoundToNullLiteral() {
     val error =
       assertThrows(MissingXComException::class.java) {
-        bind(listOf(mapOf("kind" to "literal", "name" to "threshold", "value" to null)))
+        bind(ThresholdInput::class.java, listOf(literal("threshold", null)))
       }
 
     assertEquals(
@@ -234,7 +279,10 @@ internal class ArgValuesTest {
   fun shouldNameUpstreamForPrimitiveField() {
     val error =
       assertThrows(MissingXComException::class.java) {
-        bind(listOf(mapOf("kind" to "xcom", "name" to "threshold", "task_id" to "upstream")))
+        bind(
+          ThresholdInput::class.java,
+          listOf(mapOf("kind" to "xcom", "name" to "threshold", "task_id" to "upstream")),
+        )
       }
 
     assertEquals(

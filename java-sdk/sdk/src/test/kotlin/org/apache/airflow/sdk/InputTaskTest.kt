@@ -22,7 +22,6 @@
 package org.apache.airflow.sdk
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -41,10 +40,6 @@ class SummaryInput : TaskInput {
 
   @JvmField
   var threshold: Double = 0.0
-
-  /** Left unbound by [NAMED_BINDINGS], so it stays null. */
-  @JvmField
-  var label: String? = null
 }
 
 private class Summarize : InputTask<SummaryInput> {
@@ -117,7 +112,6 @@ internal class InputTaskTest {
     val input = requireNotNull(task.received)
     assertEquals("emea", input.region)
     assertEquals(0.5, input.threshold)
-    assertNull(input.label)
   }
 
   @Test

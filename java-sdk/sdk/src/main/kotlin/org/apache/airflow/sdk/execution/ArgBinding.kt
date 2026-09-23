@@ -32,6 +32,13 @@ package org.apache.airflow.sdk.execution
 internal sealed class ArgBinding {
   abstract val name: String
 
+  /**
+   * Whether the call site omitted this argument, so the value carried here is
+   * the stub signature's own default rather than one the Dag author wrote.
+   */
+  open val fromDefault: Boolean
+    get() = false
+
   internal data class XCom(
     override val name: String,
     val taskId: String,
@@ -42,6 +49,7 @@ internal sealed class ArgBinding {
   internal data class Literal(
     override val name: String,
     val value: Any?,
+    override val fromDefault: Boolean = false,
   ) : ArgBinding()
 }
 
@@ -63,7 +71,12 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
     val name = checkNotNull(entry["name"] as? String) { "arg_bindings entry has no name: $entry" }
     check(seen.add(name)) { "arg_bindings entries have duplicate name: '$name'" }
     when (val kind = entry["kind"]) {
-      "literal" -> ArgBinding.Literal(name = name, value = entry["value"])
+      "literal" ->
+        ArgBinding.Literal(
+          name = name,
+          value = entry["value"],
+          fromDefault = entry["from_default"] == true,
+        )
       "xcom" ->
         ArgBinding.XCom(
           name = name,

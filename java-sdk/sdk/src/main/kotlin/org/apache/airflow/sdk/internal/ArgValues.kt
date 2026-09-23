@@ -27,6 +27,7 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.MissingXComException
 import org.apache.airflow.sdk.TaskInput
 import org.apache.airflow.sdk.execution.ArgBinding
+import org.apache.airflow.sdk.execution.Logger
 import java.lang.reflect.Field
 import java.lang.reflect.Type
 
@@ -44,6 +45,7 @@ import java.lang.reflect.Type
  */
 object ArgValues {
   private val mapper: ObjectMapper = JsonMapper.builder().build().findAndRegisterModules()
+  private val logger = Logger(ArgValues::class)
 
   /**
    * Materializes a [TaskInput] with every field bound by the argument name it
@@ -54,9 +56,15 @@ object ArgValues {
    * [org.apache.airflow.sdk.InputTask] calls it before handing the input to a
    * task written against the interface.
    *
+   * Every field has to find an argument: a field nothing binds means the input
+   * and the stub signature disagree, which is a wiring mistake rather than a
+   * value that happens to be absent. Arguments no field claims are the other
+   * way round and are harmless, so they are logged and the task runs.
+   *
    * @throws IllegalArgumentException if the input cannot be populated.
-   * @throws MissingXComException if a primitive field's binding resolves to
-   *    nothing.
+   * @throws IllegalStateException if a field matches no argument.
+   * @throws MissingXComException if a field's argument resolves to nothing and
+   *    the field is primitive.
    */
   @JvmStatic
   fun <I : TaskInput> bindInput(
@@ -66,24 +74,44 @@ object ArgValues {
     val input = newInput(type)
     val arguments = ArgIndex(client.argBindings)
     bindableFields(type).forEach { field -> field.set(input, resolveField(client, arguments, field)) }
+    warnUnclaimed(client, type, arguments)
     return input
   }
 
   /**
-   * Resolves the data parameter at [position] into [type], passing null
-   * through. Backs [TaskArgs]; a parameter that cannot be null goes through
-   * [TaskArgs.require], which turns null into [missing]. [TaskArgs.of] has
-   * already matched the declared parameters against the bindings, so a
-   * position always names one.
+   * Reports the arguments the call site passed that no field took. A captured
+   * default is not one of them: the Dag author did not write it, so a field
+   * has no reason to exist for it.
+   */
+  private fun warnUnclaimed(
+    client: Client,
+    type: Class<*>,
+    arguments: ArgIndex,
+  ) {
+    val unclaimed = arguments.unclaimed()
+    if (unclaimed.isEmpty()) return
+    logger.warning(
+      "Stub call arguments claimed by no TaskInput field",
+      mapOf(
+        "task_id" to client.details.ti.taskId,
+        "input" to type.simpleName,
+        "arguments" to unclaimed,
+      ),
+    )
+  }
+
+  /**
+   * Resolves one data parameter into [type], passing null through. Backs
+   * [TaskArgs]; a parameter that cannot be null goes through
+   * [TaskArgs.require], which turns null into [missing].
    *
-   * @param position Zero-based index among the task's data parameters, in
-   *    declaration order.
+   * @param binding The argument [TaskArgs] holds for that position.
    */
   internal fun valueAt(
     client: Client,
-    position: Int,
+    binding: ArgBinding,
     type: Type,
-  ): Any? = decode(client.resolveBinding(client.argBindings[position]), type)
+  ): Any? = decode(client.resolveBinding(binding), type)
 
   /**
    * Builds the failure for a binding that resolved to nothing where a value is
@@ -105,10 +133,12 @@ object ArgValues {
     }
 
   /**
-   * Resolves one [TaskInput] field from the argument it claims. A primitive
-   * field cannot hold null, so it fails with a clear [MissingXComException]
-   * when the binding resolves to nothing; boxed and reference fields receive
-   * null instead.
+   * Resolves one [TaskInput] field from the argument it claims.
+   *
+   * The field has to claim one. Once it has, an argument that resolves to
+   * nothing is a value, not a mistake: a boxed or reference field takes null,
+   * and a primitive field cannot, so it fails with a clear
+   * [MissingXComException].
    */
   private fun resolveField(
     client: Client,
@@ -116,17 +146,29 @@ object ArgValues {
     field: Field,
   ): Any? {
     val argName = argNameOf(field)
-    val binding = arguments.find(argName, pinned = isPinned(field))
-    if (!field.type.isPrimitive) return binding?.let { decode(client.resolveBinding(it), field.genericType) }
+    val pinned = isPinned(field)
+    val binding = arguments.claim(argName, pinned)
+    checkNotNull(binding) { unboundMessage(arguments, field, argName, pinned) }
 
-    checkNotNull(binding) {
-      "The stub call bound no argument named '$argName', required by input field '${field.name}'"
-    }
+    if (!field.type.isPrimitive) return decode(client.resolveBinding(binding), field.genericType)
     // The msgpack decoder yields boxed values, so a primitive field decodes
     // into its wrapper and unboxes on assignment.
     return decode(client.resolveBinding(binding), field.type.kotlin.javaObjectType)
       ?: throw missing(binding, client.details.ti.taskId, field.name)
   }
+
+  private fun unboundMessage(
+    arguments: ArgIndex,
+    field: Field,
+    argName: String,
+    pinned: Boolean,
+  ): String =
+    if (arguments.foldIsShared(argName, pinned)) {
+      "Input field '${field.name}' matches more than one stub argument differing only in case or " +
+        "underscores; add @ArgName to say which one it binds"
+    } else {
+      "The stub call bound no argument named '$argName', required by input field '${field.name}'"
+    }
 
   /**
    * Decodes a raw wire value into [type], which carries the full generic type
@@ -151,16 +193,17 @@ object ArgValues {
 
   /**
    * The run's bindings, addressable by the exact argument name and by the
-   * cross-language fold. A fold two arguments share is dropped rather than
-   * guessed at: either could be the one meant, and handing a field the wrong
-   * value is worse than not binding it.
+   * cross-language fold, and tracking which of them a field has taken. A fold
+   * two arguments share matches neither: either could be the one meant, and
+   * handing a field the wrong value is worse than failing.
    */
   private class ArgIndex(
-    bindings: List<ArgBinding>,
+    private val bindings: List<ArgBinding>,
   ) {
     private val byName = bindings.associateBy { it.name }
     private val byFold = mutableMapOf<String, ArgBinding>()
     private val sharedFolds = mutableSetOf<String>()
+    private val claimed = mutableSetOf<String>()
 
     init {
       bindings.forEach { binding ->
@@ -170,19 +213,36 @@ object ArgValues {
     }
 
     /**
-     * Finds the argument a field claims. An `@ArgName`-pinned name is taken
-     * literally, which is what makes the annotation an escape hatch for a
-     * Python name no Java identifier folds to.
+     * Takes the argument a field claims, marking it claimed. An
+     * `@ArgName`-pinned name is taken literally, which is what makes the
+     * annotation an escape hatch for a Python name no Java identifier folds
+     * to.
      */
-    fun find(
+    fun claim(
       name: String,
       pinned: Boolean,
     ): ArgBinding? {
-      byName[name]?.let { return it }
+      val match = byName[name] ?: foldMatch(name, pinned)
+      return match?.also { claimed += it.name }
+    }
+
+    private fun foldMatch(
+      name: String,
+      pinned: Boolean,
+    ): ArgBinding? {
       if (pinned) return null
       val fold = foldArgName(name)
       return if (fold in sharedFolds) null else byFold[fold]
     }
+
+    /** Whether [name] reaches two arguments the fold cannot tell apart. */
+    fun foldIsShared(
+      name: String,
+      pinned: Boolean,
+    ): Boolean = !pinned && name !in byName && foldArgName(name) in sharedFolds
+
+    /** Explicitly passed argument names no field took. */
+    fun unclaimed(): List<String> = bindings.filterNot { it.fromDefault || it.name in claimed }.map { it.name }
   }
 
   private fun numberConverter(type: Class<*>): ((Number) -> Any)? =

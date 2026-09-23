@@ -446,9 +446,11 @@ so renaming one in an IDE never rebinds an input.
 
 A primitive parameter cannot hold ``null``, so the task fails with ``MissingXComException`` when its
 binding resolves to nothing; declare a boxed type (``Long``, ``Double``, …) to receive ``null``
-instead.  The method must declare exactly as many data parameters as the call site bound: positions
-carry the whole meaning of a flat binding, so any other count has already shifted them, and the task
-fails rather than running on arguments it has mistaken for others.
+instead.  The method must declare as many data parameters as the call site bound: positions carry
+the whole meaning of a flat binding, so any other count has already shifted them, and the task fails
+rather than running on arguments it has mistaken for others.  A parameter the Python call omitted
+does not count towards that.  Its default still arrives, but a method that does not declare it is
+not reading shifted arguments, so the SDK drops it before comparing the two counts.
 
 Generic parameters are decoded element by element.  Declare ``List<Double>`` and ``values.get(0)``
 really is a ``Double``, even though the call site passed whole numbers and the wire carries them as
@@ -465,11 +467,16 @@ the stub's ``snake_case`` arguments reach ``camelCase`` Java fields with nothing
 the same fold the Go and TypeScript SDKs apply, so one Python signature binds identically in every
 SDK.
 
-The class needs a public no-argument constructor.  A reference field the call site did not bind stays
-``null``, so a ``TaskInput`` need not cover every argument; a primitive field fails the task instead,
-since it cannot hold ``null``.  No two fields may claim argument names that differ only in case or
-underscores, and two *arguments* that collide that way bind only to a field that names one of them
-exactly — the SDK refuses to guess rather than hand a field the wrong value.
+The class needs a public no-argument constructor.  Every field has to find an argument: a field
+nothing binds means the input and the stub signature disagree, so the task fails rather than run on a
+value nobody supplied.  Once a field has claimed its argument, an argument that resolves to nothing
+is a value and not a mistake, so a boxed or reference field takes ``null`` and a primitive field
+fails.  An argument no field claims is harmless the other way round, so the SDK logs a warning and
+the task runs.
+
+No two fields may claim argument names that differ only in case or underscores.  Two *arguments* that
+collide that way reach only a field naming one of them exactly; a field that would match both fails
+the task rather than being handed the wrong value.
 
 .. code-block:: python
 

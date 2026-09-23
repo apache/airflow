@@ -36,19 +36,25 @@ package org.apache.airflow.sdk
  *   public double threshold; // binds threshold
  * }
  *
- * @Builder.Task
+ * @Builder.TaskHandler(dag = "etl", task = "score")
  * public Result score(Client client, ScoreInput input) { ... }
  * ```
  *
  * A `TaskInput` binds the same way whichever authoring API declares it: as a
- * `@Builder.Task` parameter, as above, or as the input type of an [InputTask].
- * A task method may declare at most one `TaskInput` parameter and, if it does,
- * no other data parameters — the `TaskInput` owns the whole named-argument
+ * `@Builder.TaskHandler` parameter, as above, or as the input type of an
+ * [InputTask]. A task method may declare at most one `TaskInput` parameter
+ * and, if it does, no other data parameters — the `TaskInput` owns the whole named-argument
  * surface, so field names and flat positions cannot shift each other.
  *
  * The class needs a public no-argument constructor and public non-final
  * fields. No two of those fields may claim argument names that differ only in
  * case or underscores, since the fold cannot tell them apart.
+ *
+ * Every field has to find an argument. A field nothing binds means the input
+ * and the stub signature disagree, so the task fails rather than run on a
+ * value nobody supplied; declare a boxed type when the argument may resolve to
+ * nothing. An argument no field claims is harmless the other way round, and is
+ * logged rather than failed.
  *
  * @see InputTask
  */

@@ -222,6 +222,58 @@ internal class TaskArgsTest {
   }
 
   @Test
+  @DisplayName("Should drop a captured default the method does not declare")
+  fun shouldDropCapturedDefaultTheMethodOmits() {
+    val (args, _) =
+      argsWith(
+        listOf(
+          mapOf("kind" to "literal", "name" to "rows", "value" to 1L),
+          mapOf("kind" to "literal", "name" to "note", "value" to "unset", "from_default" to true),
+        ),
+        declared = 1,
+      )
+
+    assertEquals(1L, args.get(0, java.lang.Long::class.java))
+  }
+
+  @Test
+  @DisplayName("Should keep a captured default the method does declare")
+  fun shouldKeepCapturedDefaultTheMethodDeclares() {
+    val (args, _) =
+      argsWith(
+        listOf(
+          mapOf("kind" to "literal", "name" to "rows", "value" to 1L),
+          mapOf("kind" to "literal", "name" to "note", "value" to "unset", "from_default" to true),
+        ),
+        declared = 2,
+      )
+
+    assertEquals("unset", args.get(1, String::class.java))
+  }
+
+  @Test
+  @DisplayName("Should report both counts when dropping captured defaults still leaves a mismatch")
+  fun shouldFailWhenDroppingDefaultsStillMismatches() {
+    val error =
+      assertThrows(IllegalStateException::class.java) {
+        argsWith(
+          listOf(
+            mapOf("kind" to "literal", "name" to "rows", "value" to 1L),
+            mapOf("kind" to "literal", "name" to "ratio", "value" to 2.5),
+            mapOf("kind" to "literal", "name" to "note", "value" to "unset", "from_default" to true),
+          ),
+          declared = 1,
+        )
+      }
+
+    assertEquals(
+      "Task 't' declares 1 data parameter(s) but the stub call bound 3 argument(s); " +
+        "2 remain after dropping captured defaults",
+      error.message,
+    )
+  }
+
+  @Test
   @DisplayName("Should fail fast when the stub call bound more arguments than the task declares")
   fun shouldFailWhenMoreArgumentsBoundThanDeclared() {
     val error =
