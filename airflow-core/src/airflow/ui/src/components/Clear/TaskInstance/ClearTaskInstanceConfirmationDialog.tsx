@@ -137,9 +137,7 @@ const ClearTaskInstanceConfirmationDialog = ({
               </VStack>
             </Dialog.Header>
             <Dialog.Footer>
-              <Button colorPalette="blue" onClick={onClose}>
-                {translate("common:modal.confirm")}
-              </Button>
+              <Button onClick={onClose}>{translate("common:modal.confirm")}</Button>
             </Dialog.Footer>
           </>
         ) : null}
