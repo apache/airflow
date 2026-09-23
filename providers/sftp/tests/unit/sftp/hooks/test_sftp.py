@@ -1021,6 +1021,36 @@ class TestSFTPHookAsync:
         ]
 
     @pytest.mark.asyncio
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    async def test_known_hosts_explicit_constructor_path_not_overridden(
+        self, mock_get_connection, mock_connect
+    ):
+        """
+        An explicit `known_hosts` passed to the constructor must win over a connection's
+        `known_hosts` extra. The extra should only apply when the constructor left the
+        default in place. See #73584.
+        """
+        from unittest.mock import Mock
+
+        mock_get_connection.return_value = Mock(
+            host="localhost",
+            port=22,
+            login="username",
+            password="password",
+            extra='{"known_hosts": "/connection/known_hosts", "no_host_key_check": false}',
+            extra_dejson={
+                "known_hosts": "/connection/known_hosts",
+                "no_host_key_check": False,
+            },
+        )
+
+        hook = SFTPHookAsync(known_hosts="/explicit/known_hosts")
+        await hook._get_conn()
+
+        assert hook.known_hosts == "/explicit/known_hosts"
+
+    @pytest.mark.asyncio
     async def test_list_directory_path_does_not_exist(self, sftp_hook_mocked):
         """
         Assert that None is returned when path does not exist on SFTP server
