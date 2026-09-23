@@ -257,6 +257,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 1,
+            "ignore_upstream_deps": False,
             "queue": "default",
             "queued_when": None,
             "rendered_fields": {},

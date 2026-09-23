@@ -68,6 +68,7 @@ async function globalSetup(config: FullConfig) {
         testConfig.testDag.hitlId,
         testConfig.xcomDag.id,
         "example_python_operator",
+        "example_short_circuit_operator",
       ].map((dagId) => waitForDagReady(apiContext, dagId, { timeout: 300_000 })),
     );
   } finally {

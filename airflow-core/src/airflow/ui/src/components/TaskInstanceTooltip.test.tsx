@@ -77,6 +77,7 @@ describe("TaskInstanceTooltip", () => {
       executor_config: "{}",
       hostname: null,
       id: "test_my_task",
+      ignore_upstream_deps: false,
       logical_date: null,
       map_index: 0,
       max_tries: 3,

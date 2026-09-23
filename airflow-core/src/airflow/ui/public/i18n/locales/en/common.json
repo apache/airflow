@@ -433,6 +433,7 @@
     "dagVersion": "Dag Version",
     "executor": "Executor",
     "executorConfig": "Executor Config",
+    "forceRun": "Force Run",
     "hostname": "Hostname",
     "id": "ID",
     "maxTries": "Max Tries",
@@ -560,5 +561,6 @@
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
-  }
+  },
+  "yes": "Yes"
 }

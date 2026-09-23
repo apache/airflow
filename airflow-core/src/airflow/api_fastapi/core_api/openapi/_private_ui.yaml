@@ -4837,6 +4837,9 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        ignore_upstream_deps:
+          type: boolean
+          title: Ignore Upstream Deps
       type: object
       required:
       - id
@@ -4872,6 +4875,7 @@ components:
       - trigger
       - triggerer_job
       - dag_version
+      - ignore_upstream_deps
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:

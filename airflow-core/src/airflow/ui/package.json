@@ -84,6 +84,7 @@
     "@tanstack/eslint-plugin-query": "^5.102.8",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/culori": "^4.0.1",
     "@types/node": "^26.4.1",

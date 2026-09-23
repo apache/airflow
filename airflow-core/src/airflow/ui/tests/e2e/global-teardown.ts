@@ -38,6 +38,7 @@ async function globalTeardown() {
     testConfig.testDag.hitlId,
     testConfig.xcomDag.id,
     "asset_produces_1",
+    "example_short_circuit_operator",
   ];
 
   for (const dagId of dagIds) {

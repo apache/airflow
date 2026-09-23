@@ -36,6 +36,7 @@ import uuid6
 from opentelemetry import trace
 from sqlalchemy import (
     JSON,
+    Boolean,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -98,7 +99,7 @@ from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS, get_upstream_state_deps
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -379,6 +380,7 @@ def clear_task_instances(
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
+    ignore_upstream_deps: bool = False,
 ) -> None:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -396,6 +398,8 @@ def clear_task_instances(
     :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version.
         A run with no version of its own uses the latest either way, since there is nothing
         else for it to run on; a task instance with no version joins its run's.
+    :param ignore_upstream_deps: re-run the instances even if their dependencies on other task
+        instances are not met; stays set until the instance is cleared again.
 
     :meta private:
     """
@@ -405,6 +409,7 @@ def clear_task_instances(
     scheduler_dagbag = DBDagBag(load_op_links=False)
     for ti in tis:
         ti.prepare_db_for_next_try(session)
+        ti.ignore_upstream_deps = ignore_upstream_deps
 
         if ti.state == TaskInstanceState.RUNNING:
             if prevent_running_task:
@@ -687,6 +692,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     # Cleared on task start (ti_run).  Read by next_retry_datetime().
     retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    ignore_upstream_deps: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1214,6 +1223,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             assert self.task is not None
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
+            if self.ignore_upstream_deps and isinstance(dep, get_upstream_state_deps()):
+                continue
             for dep_status in dep.get_dep_statuses(self, dep_context, session=session):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
