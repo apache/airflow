@@ -145,9 +145,7 @@ class TestInfluxDB3SensorTrigger:
         mock_hook.query_async.assert_awaited_once_with(SQL)
         mock_sleep.assert_not_awaited()
         assert events == [
-            TriggerEvent(
-                {"status": "error", "message": "No rows returned, raising as per fail_on_empty flag"}
-            )
+            TriggerEvent({"status": "fail", "message": "No rows returned, raising as per fail_on_empty flag"})
         ]
 
     @pytest.mark.asyncio

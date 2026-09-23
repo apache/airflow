@@ -94,6 +94,8 @@ class InfluxDB3Sensor(BaseSensorOperator):
             raise RuntimeError("InfluxDB 3 sensor did not return an event")
 
         status = event.get("status")
+        if status == "fail":
+            raise AirflowFailException(event.get("message", "InfluxDB 3 sensor failed"))
         if status == "error":
             raise RuntimeError(event.get("message", "InfluxDB 3 sensor failed"))
         if status != "success":

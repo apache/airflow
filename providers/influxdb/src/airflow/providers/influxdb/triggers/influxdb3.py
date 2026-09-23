@@ -117,7 +117,7 @@ class InfluxDB3SensorTrigger(BaseTrigger):
 
             if dataframe.empty and self.fail_on_empty:
                 yield TriggerEvent(
-                    {"status": "error", "message": "No rows returned, raising as per fail_on_empty flag"}
+                    {"status": "fail", "message": "No rows returned, raising as per fail_on_empty flag"}
                 )
                 return
 

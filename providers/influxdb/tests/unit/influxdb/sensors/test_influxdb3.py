@@ -134,6 +134,27 @@ class TestInfluxDB3Sensor:
     @pytest.mark.parametrize(
         ("event", "match"),
         [
+            pytest.param(
+                {"status": "fail", "message": "No rows returned, raising as per fail_on_empty flag"},
+                "fail_on_empty",
+                id="fail-with-message",
+            ),
+            pytest.param(
+                {"status": "fail"},
+                "InfluxDB 3 sensor failed",
+                id="fail-without-message",
+            ),
+        ],
+    )
+    def test_execute_complete_fail_on_empty(self, event, match):
+        sensor = InfluxDB3Sensor(task_id="wait", sql=SQL, deferrable=True)
+
+        with pytest.raises(AirflowFailException, match=match):
+            sensor.execute_complete(context={}, event=event)
+
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
             pytest.param(None, "did not return an event", id="missing-event"),
             pytest.param({"status": "error", "message": "boom"}, "boom", id="error-with-message"),
             pytest.param({"status": "error"}, "InfluxDB 3 sensor failed", id="error-without-message"),
