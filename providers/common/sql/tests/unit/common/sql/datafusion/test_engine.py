@@ -564,6 +564,37 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match=f"{unsupported_field!r} is not supported"):
             engine._get_credentials(mock_conn)
 
+    def test_get_credentials_azure_reads_legacy_extra_prefixed_sas_token(self):
+        """Older Airflow connection UIs wrote custom extra fields as
+        extra__wasb__<field>; WasbHook still reads that spelling as a fallback."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"extra__wasb__sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "myaccount",
+            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
+        }
+        assert extra_config == {}
+
+    def test_get_credentials_azure_rejects_legacy_extra_prefixed_unsupported_field(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"extra__wasb__connection_string": "some-conn-string"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="'connection_string' is not supported"):
+            engine._get_credentials(mock_conn)
+
     def test_get_credentials_azure_rejects_url_form_sas_token(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
