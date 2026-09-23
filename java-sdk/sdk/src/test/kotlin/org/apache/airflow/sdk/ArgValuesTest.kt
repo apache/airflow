@@ -92,7 +92,7 @@ private fun <I : TaskInput> bind(
   xcoms: Map<String, Any?> = emptyMap(),
 ): I {
   val (client, _) = clientWith(bindings, xcoms)
-  return ArgValues.bindInput(client, type)
+  return ArgValues.bindInput(taskContext(), client, type)
 }
 
 private fun literal(

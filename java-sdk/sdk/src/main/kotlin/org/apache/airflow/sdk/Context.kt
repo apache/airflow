@@ -123,9 +123,14 @@ data class TaskInstance(
 data class Context(
   @JvmField val dagRun: DagRun,
   @JvmField val ti: TaskInstance,
+  /** Registration of the executing task; resolves wired data inputs. */
+  internal val taskDef: TaskDef? = null,
 ) {
   internal companion object {
-    fun from(request: StartupDetails) =
+    fun from(
+      request: StartupDetails,
+      taskDef: TaskDef? = null,
+    ): Context =
       Context(
         dagRun =
           with(request.tiContext.dagRun) {
@@ -141,6 +146,7 @@ data class Context(
             )
           },
         ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },
+        taskDef = taskDef,
       )
   }
 }
