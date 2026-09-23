@@ -371,7 +371,7 @@ comes from ``host`` (its first DNS label) when set, falling back to
 ``login`` only when ``host`` is empty; only the public
 ``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
 has no endpoint override. ``client_secret_auth_config`` (the authority
-override ``WasbHook`` honours) is not read here.
+override ``WasbHook`` honors) is not read here.
 
 The connection supplies one of the following credentials:
 
