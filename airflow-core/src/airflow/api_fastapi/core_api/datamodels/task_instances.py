@@ -34,6 +34,7 @@ from pydantic import (
     model_validator,
 )
 
+from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
@@ -90,6 +91,16 @@ class TaskInstanceResponse(BaseModel):
     dag_version: DagVersionResponse | None
     team_name: str | None = None
     state_reason: str | None = Field(default=None, validation_alias="retry_reason")
+
+    @field_validator("state_reason", mode="after")
+    @classmethod
+    def redact_state_reason(cls, v: str | None) -> str | None:
+        # A retry policy composes this from the exception text, and a policy may opt out of the
+        # worker-side redaction, so the same string that would be masked in a task log can reach
+        # here unmasked.
+        if v is None:
+            return None
+        return str(redact(v))
 
 
 class TaskInstanceCollectionResponse(BaseModel):

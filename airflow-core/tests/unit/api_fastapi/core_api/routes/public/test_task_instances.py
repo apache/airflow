@@ -31,6 +31,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -254,6 +255,19 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["state_reason"] == "auth error, do not retry"
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason(self, test_client, session):
+        """A policy may compose the reason from an unredacted exception, so mask on the way out."""
+        mask_secret("hunter2")
+        self.create_task_instances(
+            session, task_instances=[{"retry_reason": "auth: the token hunter2 expired"}]
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 200
+        assert "hunter2" not in response.json()["state_reason"]
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
@@ -2840,6 +2854,20 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["state_reason"] == "auth error, do not retry"
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason_from_history(self, test_client, session):
+        mask_secret("hunter2")
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.SUCCESS, "retry_reason": "auth: the token hunter2 expired"}],
+            with_ti_history=True,
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 200
+        assert "hunter2" not in response.json()["state_reason"]
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_should_respond_200_with_different_try_numbers(self, test_client, try_number, session):

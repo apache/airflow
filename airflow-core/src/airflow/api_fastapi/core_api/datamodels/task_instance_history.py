@@ -23,8 +23,10 @@ from pydantic import (
     AliasPath,
     BeforeValidator,
     Field,
+    field_validator,
 )
 
+from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.utils.state import TaskInstanceState
@@ -63,6 +65,13 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
     state_reason: str | None = Field(default=None, validation_alias="retry_reason")
+
+    @field_validator("state_reason", mode="after")
+    @classmethod
+    def redact_state_reason(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return str(redact(v))
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):

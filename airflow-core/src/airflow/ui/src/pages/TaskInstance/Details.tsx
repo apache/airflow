@@ -47,9 +47,17 @@ import { TriggererInfo } from "./TriggererInfo";
 type StateReasonSummary = { reason: string; status: "error" | "warning"; title: string };
 
 // The reason is only cleared once the task next reaches RUNNING, so a cleared task still carries
-// the previous attempt's reason. Both the banner and the per-try row key off the state to avoid
-// explaining a state the task is no longer in.
-const STATES_WITH_REASON = ["failed", "up_for_retry"];
+// the previous attempt's reason. Both the banner and the per-try row look the state up here, so a
+// state added to one surface cannot be forgotten on the other: it has to bring a title with it.
+const STATE_REASON_DISPLAY = {
+  failed: { status: "error", titleKey: "failed" },
+  up_for_retry: { status: "warning", titleKey: "upForRetry" },
+} as const satisfies Record<string, { status: "error" | "warning"; titleKey: string }>;
+
+const stateReasonDisplay = (state: string | null | undefined) =>
+  state === null || state === undefined
+    ? undefined
+    : (STATE_REASON_DISPLAY as Record<string, { status: "error" | "warning"; titleKey: string }>)[state];
 
 export const Details = () => {
   const { t: translate } = useTranslation();
@@ -124,35 +132,20 @@ export const Details = () => {
 
   const stateReasonSummary = ((): StateReasonSummary | undefined => {
     const reason = taskInstance?.state_reason;
+    const display = stateReasonDisplay(taskInstance?.state);
 
-    if (
-      reason === null ||
-      reason === undefined ||
-      taskInstance === undefined ||
-      !STATES_WITH_REASON.includes(taskInstance.state ?? "")
-    ) {
+    if (reason === null || reason === undefined || taskInstance === undefined || display === undefined) {
       return undefined;
     }
 
-    const counts = { totalTries: taskInstance.max_tries + 1, tryNumber: taskInstance.try_number };
-
-    if (taskInstance.state === "failed") {
-      return {
-        reason,
-        status: "error",
-        title: translate("taskInstance.stateReasonSummary.failed", counts),
-      };
-    }
-
-    if (taskInstance.state === "up_for_retry") {
-      return {
-        reason,
-        status: "warning",
-        title: translate("taskInstance.stateReasonSummary.upForRetry", counts),
-      };
-    }
-
-    return undefined;
+    return {
+      reason,
+      status: display.status,
+      title: translate(`taskInstance.stateReasonSummary.${display.titleKey}`, {
+        totalTries: taskInstance.max_tries + 1,
+        tryNumber: taskInstance.try_number,
+      }),
+    };
   })();
 
   // Keyed off the selected try's own state, so an earlier failed try keeps its reason while the
@@ -160,7 +153,7 @@ export const Details = () => {
   const tryStateReason =
     tryInstance?.state_reason !== null &&
     tryInstance?.state_reason !== undefined &&
-    STATES_WITH_REASON.includes(tryInstance.state ?? "")
+    stateReasonDisplay(tryInstance.state) !== undefined
       ? tryInstance.state_reason
       : undefined;
 

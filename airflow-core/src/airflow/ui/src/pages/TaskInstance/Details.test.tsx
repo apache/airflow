@@ -18,13 +18,14 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
 
+import commonLocale from "../../../public/i18n/locales/en/common.json";
 import { Details } from "./Details";
 
 // Sibling panels each fetch their own data and are unrelated to the state-reason
@@ -94,6 +95,12 @@ const renderDetails = (
 };
 
 describe("Details state reason", () => {
+  // Without the bundle, i18n.t() echoes the key back and every title assertion compares a key
+  // against itself, so interpolated counts are never checked.
+  beforeEach(() => {
+    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  });
+
   it("does not render the banner when there is no reason", () => {
     renderDetails(buildTaskInstance({ state_reason: null }));
 
@@ -102,15 +109,27 @@ describe("Details state reason", () => {
   });
 
   it.each([
-    { state: "failed", titleKey: "failed" },
-    { state: "up_for_retry", titleKey: "upForRetry" },
-  ] as const)("titles the banner for a $state task", ({ state, titleKey }) => {
-    renderDetails(buildTaskInstance({ max_tries: 2, state, state_reason: "auth error", try_number: 3 }));
+    { maxTries: 2, state: "failed", titleKey: "failed", totalTries: 3, tryNumber: 3 },
+    // try_number != max_tries + 1 is the norm mid-retry, and the differing numbers are what make
+    // a swapped or off-by-one interpolation visible.
+    { maxTries: 3, state: "up_for_retry", titleKey: "upForRetry", totalTries: 4, tryNumber: 2 },
+  ] as const)(
+    "titles the banner for a $state task",
+    ({ maxTries, state, titleKey, totalTries, tryNumber }) => {
+      renderDetails(
+        buildTaskInstance({
+          max_tries: maxTries,
+          state,
+          state_reason: "auth error",
+          try_number: tryNumber,
+        }),
+      );
 
-    expect(screen.getByTestId("state-reason-alert")).toHaveTextContent(
-      i18n.t(`common:taskInstance.stateReasonSummary.${titleKey}`, { totalTries: 3, tryNumber: 3 }),
-    );
-  });
+      expect(screen.getByTestId("state-reason-alert")).toHaveTextContent(
+        i18n.t(`common:taskInstance.stateReasonSummary.${titleKey}`, { totalTries, tryNumber }),
+      );
+    },
+  );
 
   // Chakra encodes `status` in a generated class rather than a DOM attribute, so the error/warning
   // distinction can only be pinned as "the two states do not render identically".
