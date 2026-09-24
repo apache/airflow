@@ -835,6 +835,9 @@ class TestSFTPHookAsync:
                 "/EoQkv8bXVtfOwdMP1ETpHVsYpm5QG/7tsLlKdE8h6EoV/OFw7XQtoibNZp/l5ABjE=",
             ),
         ],
+        # TEST_HOST_KEY is generated at import time, so explicit ids keep collection
+        # identical across pytest-xdist workers.
+        ids=["ed25519", "ed25519-with-comment", "bare-rsa", "ecdsa"],
     )
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("asyncssh.import_private_key")
