@@ -1134,7 +1134,7 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-    # Should the kerberos-ccache mount be readonly for Celery Workers
+    # Should the kerberos-ccache mount be readonly for Kubernetes Workers
     readonlyKerberosCache: true
 
     # Resource configuration for pods created with pod-template-file
