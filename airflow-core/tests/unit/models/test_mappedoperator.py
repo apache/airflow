@@ -30,6 +30,7 @@ from sqlalchemy import delete, select
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
@@ -1828,10 +1829,10 @@ def test_batched_ti_count_is_batch_size_regardless_of_items(dag_maker, session, 
         pytest.param(0, None, id="zero-is-unusable"),
     ],
 )
-def test_runtime_batch_size_counts_from_task_map(dag_maker, session, length, expected, serialized):
-    """``.batch(size=<XComArg>)``: the scheduler never reads the XCom, it counts instances from the
-    task_map row the size task's push leaves behind, cannot count before that row exists, and does
-    not trust a row below 2 (the worker never writes one). An unserialized operator, as tests and
+def test_runtime_batch_size_counts_from_xcom_mapped_length(dag_maker, session, length, expected, serialized):
+    """``.batch(size=<XComArg>)``: the scheduler never reads the XCom value, it counts instances from
+    the ``mapped_length`` the size task's push records on its XCom row, cannot count before that row
+    exists, and does not trust a length below 2 (the worker never writes one). An unserialized operator, as tests and
     direct callers hand over, counts the same way instead of erroring."""
     from airflow.models.expandinput import NotFullyPopulated
     from airflow.sdk.definitions.xcom_arg import XComArg
@@ -1856,8 +1857,15 @@ def test_runtime_batch_size_counts_from_task_map(dag_maker, session, length, exp
         get_mapped_ti_count(task, dr.run_id, session=session)
     assert ctx.value.missing == {"size"}
 
-    session.add(
-        TaskMap(dag_id=dag.dag_id, task_id="size", run_id=dr.run_id, map_index=-1, length=length, keys=None)
+    XComModel.set(
+        key=XCOM_RETURN_KEY,
+        value=length,
+        dag_id=dag.dag_id,
+        task_id="size",
+        run_id=dr.run_id,
+        map_index=-1,
+        mapped_length=length,
+        session=session,
     )
     session.flush()
     if expected is None:

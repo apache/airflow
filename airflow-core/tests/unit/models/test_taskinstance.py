@@ -3506,7 +3506,7 @@ class TestMappedTaskInstanceReceiveValue:
         with pytest.raises(NotMapped):
             show_task.get_parse_time_mapped_ti_count()
         with pytest.raises(NotMapped):
-            TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+            expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
 
         tis = session.scalars(
             select(TaskInstance)
@@ -3538,7 +3538,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         show_task = dag.get_task("show")
         assert show_task.get_parse_time_mapped_ti_count() == 2
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 1
 

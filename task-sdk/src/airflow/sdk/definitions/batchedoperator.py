@@ -78,7 +78,7 @@ def validate_batch_size(size: int | XComArg) -> int | XComArg:
 
     A literal size must be at least 2 (``.iterate()`` covers a single task instance). A runtime
     size must be the return value of a plain, non-mapped task: the scheduler learns it from the
-    ``task_map`` row that the return value's push leaves behind (never from the XCom itself), so
+    ``mapped_length`` that the return value's push records on its XCom row (never from the XCom itself), so
     a ``.map()``/``.filter()`` result, a pushed key or a mapped upstream cannot provide one.
     """
     if isinstance(size, PlainXComArg):

@@ -411,7 +411,7 @@ class TestRuntimeBatchSize:
         self, run_ti: RunTI, mock_supervisor_comms
     ):
         """The scheduler only reads metadata, so the size reaches it as the mapped_length of the size
-        task's push (a task_map row), while the input list stays untagged as for any batched iterate."""
+        task's push (the XCom row's mapped_length), while the input list stays untagged as for any batched iterate."""
         dag = self._dag()
 
         assert run_ti(dag, "get_size", -1) == TaskInstanceState.SUCCESS

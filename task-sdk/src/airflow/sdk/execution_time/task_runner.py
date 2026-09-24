@@ -2496,7 +2496,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         mapped_length = len(xcom_value)
     elif not ti.is_mapped and is_batch_size_source(ti.task):
         # A runtime batch size (.batch(size=<XComArg>)) reaches the scheduler the same way a mapped
-        # length does, through the task_map row the API server writes for this push; the scheduler
+        # length does, through the mapped_length the API server records on the XCom row for this push; the scheduler
         # may only read metadata, never the XCom value. The value is an int, so it is the length.
         # Below 2 is rejected here: 0 would leave nothing to run and 1 is what .iterate() already
         # is, so either means the size task computed something wrong.
