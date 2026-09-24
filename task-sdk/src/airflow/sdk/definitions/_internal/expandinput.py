@@ -27,6 +27,7 @@ import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions.xcom_arg import XComArg
+from airflow.sdk.exceptions import AirflowSkipException
 
 if TYPE_CHECKING:
     from typing import TypeGuard
@@ -218,6 +219,44 @@ class DecoratedExpandInput(ExpandInput):
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context)
+
+
+class SpreadExpandInput(DecoratedExpandInput):
+    """
+    ExpandInput that spreads another ExpandInput's items across ``across`` task instances.
+
+    Items are distributed round-robin — item ``i`` goes to task instance ``i % across`` — so each
+    instance ends up with roughly ``len(values) / across`` items, but they are *not* contiguous
+    chunks of the original sequence (unlike ``itertools.batched(iterable, n)``). This affects
+    mapping cardinality, NOT resolve-time behavior.
+
+    Round-robin is used instead of contiguous chunking because the scheduler fixes the number of
+    task instances before the task runs, when only ``across`` is known: contiguous chunking would
+    need ``ceil(N / across)`` instances, and ``N`` is only known once the task resolves its input.
+    Fewer than ``across`` items simply leaves the surplus task instances empty. See
+    :ref:`sdk-mapped-tasks-vs-iterable-tasks` for the full rationale.
+
+    A runtime ``across`` (``.spread(across=<XComArg>)``) is resolved by ``MappedIterableOperator``
+    before this class is built, so ``across`` is always the int the scheduler expanded the task to.
+    """
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "spread"
+
+    def __init__(self, expand_input: ExpandInput, across: int):
+        if across < 2:
+            raise ValueError(f"across must be at least 2, got {across}")
+
+        super().__init__(expand_input)
+        self.across = across
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+        length, aget = await self.delegate.aresolve(context)
+        if length == 0:
+            # Every instance is skipped, as the task instances of a mapped task over an empty input
+            # are. One whose share of a non-empty input is empty is not (see IterableOperator).
+            raise AirflowSkipException("The input to iterate over is empty.")
+        indices = range(context["ti"].map_index, length, self.across)
+        return Resolved(len(indices), lambda index: aget(indices[index]))
 
 
 @attrs.define(kw_only=True)

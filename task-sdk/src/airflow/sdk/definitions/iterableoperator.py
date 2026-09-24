@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import os
 import threading
 import time
-from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -37,6 +38,8 @@ from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.definitions._internal.expandinput import SpreadExpandInput
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
@@ -64,9 +67,9 @@ from airflow.sdk.serde import serialize
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import ExpandInput, Resolved
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import Logger
 
@@ -340,7 +343,10 @@ class IndexedTaskOutcomes:
             )
         if self.exceptions:
             raise self._failure_for_the_runner()
-        if self.total == 0:
+        # A spread instance whose share of a short input is empty is not skipped: the task has
+        # indexed tasks, just not for it, and skipping it would skip an all_success downstream
+        # task. An empty input skips every spread instance in SpreadExpandInput.aresolve.
+        if self.total == 0 and not isinstance(self._operator.expand_input, SpreadExpandInput):
             raise AirflowSkipException("The input to iterate over is empty.")
         if self.skipped and len(self.skipped) == self.total:
             raise next(iter(self.skipped.values()))
@@ -555,7 +561,7 @@ class IterableOperator(BaseOperator):
         each element of ``expand_input``. Each indexed runtime receives a
         deep copy/unmapped instance of this operator.
 
-    :param expand_input: Provider of the values to iterate
+    :param expand_input: Provider of the values (or this task instance's share of them) to iterate
         over. Its ``aresolve(context)`` method gives the indexed task count and the
         per-index ``mapped_kwargs`` used to unmap the operator.
 
@@ -1290,3 +1296,114 @@ class IterableOperator(BaseOperator):
             # Renewed once the run ended, not when it starts (see IterationState): a kill that lands
             # before the run must stop it, and a rerun in the same process must not see that kill.
             self._state = IterationState()
+
+
+class MappedIterableOperator(MappedOperator):
+    """A thin wrapper around an existing MappedOperator that unmaps an MappedOperator within an IterableOperator."""
+
+    # Shadows MappedOperator's read-only spread_across property (which reads partial_kwargs) so the
+    # instance can hold its own value: the int or XComArg it was built with, replaced by the
+    # resolved int in render_template_fields. partial_kwargs keeps the original, which is what
+    # gets serialized and what the scheduler counts instances from.
+    spread_across: int | XComArg = 0
+
+    def __init__(
+        self,
+        mapped_operator: MappedOperator,
+        expand_input: ExpandInput,
+        spread_across: int | XComArg,
+    ):
+        IterableOperator._refuse_operators_that_skip_downstream(mapped_operator)
+        self.delegate = mapped_operator
+        self.delegate.partial_kwargs["spread_across"] = spread_across
+        self.spread_across = spread_across
+        self.expand_input = expand_input
+        self._register_with_dag = True
+        self.__attrs_post_init__()
+
+    def __getattr__(self, name):
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+        return getattr(self.delegate, name)
+
+    def prepare_for_execution(self) -> MappedOperator:
+        return self
+
+    def iter_mapped_dependencies(self) -> Iterator[AbstractOperator]:
+        # The instance count is fixed by spread_across, so no upstream XCom determines this task's
+        # mapping. Reporting one would make the upstream tag its push with the raw item count, which
+        # the API server caps at core.max_map_length: the very limit .spread() exists to sidestep.
+        # A runtime across is not reported either: its upstream is tagged with the integer it
+        # returned by the runner instead (see is_spread_across_source).
+        return iter(())
+
+    @property
+    def multiple_outputs(self) -> bool:
+        # Same contract as IterableOperator; without this __getattr__ would report the wrapped @task's flag.
+        return False
+
+    @property
+    def retries(self) -> int:
+        return self.delegate.retries
+
+    @retries.setter
+    def retries(self, value: int) -> None:
+        self.delegate.retries = value
+
+    def __repr__(self):
+        return f"<MappedIterable({self.task_type}): {self.task_id}>"
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        # Runs on the runner's main thread before execute, so this synchronous pull is safe and
+        # SpreadExpandInput only ever sees an int (see unmap).
+        self._resolve_spread_across(context)
+        # Not MappedOperator's: that resolves the input item at this instance's map_index, which a
+        # spread instance never uses (it iterates over its share) and which fails on an empty input.
+        # The IterableOperator renders nothing itself; each iteration is rendered when it runs.
+        context_update_for_unmapped(context, self.unmap({}))
+
+    def _resolve_spread_across(self, context: Context) -> None:
+        """Replace an XComArg ``across`` with its value, pulled once for this task instance."""
+        if not isinstance(self.spread_across, XComArg):
+            return
+        value = self.spread_across.resolve(context)
+        try:
+            if (across := int(value)) < 2:
+                raise ValueError(value)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"{self.task_id!r} spreads across {self.spread_across!r}, which must be an integer of at least 2, got {value!r}"
+            ) from None
+        self.spread_across = across
+
+    def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
+        if isinstance(self.spread_across, XComArg):
+            raise RuntimeError(
+                f"{self.task_id!r} spreads across an XComArg that render_template_fields has not resolved yet"
+            )
+        op = IterableOperator(
+            operator=copy.deepcopy(self.delegate),
+            expand_input=SpreadExpandInput(self.expand_input, self.spread_across),
+            _airflow_from_mapped=True,
+        )
+        # As MappedOperator.unmap does: the instance keeps the task's downstream tasks, so that a
+        # partial skip of its iterations skips those a skipped mapped task instance would.
+        op.downstream_task_ids = self.downstream_task_ids
+        return op
+
+
+def is_spread_across_source(task: BaseOperator) -> bool:
+    """Whether ``task``'s return value is the number of task instances a downstream task spreads across."""
+    if task.dag is None:
+        return False
+    for task_id in task.downstream_task_ids:
+        across = getattr(task.dag.task_dict.get(task_id), "spread_across", None)
+        if isinstance(across, XComArg) and any(
+            op.task_id == task.task_id for op, _ in across.iter_references()
+        ):
+            return True
+    return False

@@ -426,6 +426,9 @@ The following table illustrates these differences using the Pokémon example fro
    * - ``get_pokemon.iterate(url=urls)``
      - 1
      - 100 Pokémon
+   * - ``get_pokemon.spread(across=2).iterate(url=urls)``
+     - 2
+     - ~50 Pokémon each
 
 When to Use Mapped Tasks
 ------------------------
@@ -479,6 +482,57 @@ Avoid Iterable Tasks when:
    deferrable operators. It is not intended as a replacement for either.
    Triggerers remain the right choice for long-running polling or waiting tasks
    (e.g., monitoring a remote job or waiting for a Kubernetes pod to complete).
+
+Combining mapping and IT (Task Spreading)
+-----------------------------------------
+
+Mapping and IT are not mutually exclusive in principle. *Task Spreading*
+uses mapping to spread a large dataset across ``across`` task instances,
+where each mapped task instance then iterates over its share using IT.
+
+For example, downloading 17,000 files with ``.spread(across=17).iterate(url=urls)``
+creates 17 mapped task instances. Each task instance streams the *same*
+underlying iterable but only keeps the items routed to it round-robin (item
+``i`` goes to task instance ``i % 17``), then iterates over those ~1,000 files
+using a shared event loop for concurrent I/O. ``across`` is keyword-only:
+``spread(17)`` is rejected, because a bare number could be read as a chunk
+length as easily as a task instance count.
+
+``across`` may also be an ``XComArg`` — the return value of a plain, non-mapped
+upstream task — when the right number of task instances is only known at run
+time, e.g. ``.spread(across=count_instances()).iterate(url=urls)``. The upstream
+becomes an ordinary dependency of the spread task. The scheduler never reads
+the XCom value: the worker pushes the integer as the ``mapped_length`` of that
+push, which lands in the ``task_map`` table exactly like a mapped task's
+length, and the scheduler creates that many task instances from it; every task
+instance then resolves the same XCom to pick its round-robin share. The value
+must be an integer of at least 2 (``0`` leaves nothing to run and ``1`` is what
+``.iterate()`` already is) and at most ``core.max_map_length``, or the upstream
+task fails at push time; ``.map()``/``.zip()`` results, pushed keys and mapped
+upstreams are rejected at parse time.
+
+.. note::
+
+   ``across`` is the number of task instances to create, **not** a chunk length —
+   items are distributed round-robin, not split into ``across`` contiguous
+   chunks (this differs from :func:`itertools.batched`). The distinction
+   matters because the scheduler fixes the task instance count *before* the
+   task runs, when only ``across`` is known: with round-robin, that count is
+   simply ``across`` itself, a constant chosen independently of how many items
+   the input holds. A contiguous-chunk scheme would instead need
+   ``ceil(total_items / across)`` task instances, and the item count is only
+   known once the task has resolved its input.
+
+   A consequence is that the upstream value is not subject to
+   ``core.max_map_length``: only ``.expand()`` needs the item count to size its
+   fan-out, so only its upstream is length-checked. A ``.spread().iterate()``
+   can consume inputs far larger than that limit.
+
+This pattern would provide:
+
+- **Coarse-grained retry**: if a task instance fails, only its share is retried — not all 17,000 items.
+- **Reduced scheduler load**: the scheduler manages task instances (e.g., 17) instead of individual items (17,000 tasks).
+- **High throughput within each task instance**: async I/O processes items concurrently inside each task.
 
 Relationship with Async Operators
 ----------------------------------

@@ -2934,9 +2934,11 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     else:
         xcom_value = None
 
+    from airflow.sdk.definitions.iterableoperator import is_spread_across_source
+
     has_mapped_dep = next(ti.task.iter_mapped_dependants(), None) is not None
     if xcom_value is None:
-        if not ti.is_mapped and has_mapped_dep:
+        if not ti.is_mapped and (has_mapped_dep or is_spread_across_source(ti.task)):
             # Uhoh, a downstream mapped task depends on us to push something to map over
             from airflow.sdk.exceptions import XComForMappingNotPushed
 
@@ -2951,6 +2953,20 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         if not is_mappable_value(xcom_value):
             raise UnmappableXComTypePushed(xcom_value)
         mapped_length = len(xcom_value)
+    elif not ti.is_mapped and is_spread_across_source(ti.task):
+        # A runtime across (.spread(across=<XComArg>)) reaches the scheduler the same way a mapped
+        # length does, through the mapped_length the API server records on the XCom row for this push; the scheduler
+        # may only read metadata, never the XCom value. The value is an int, so it is the length.
+        # Below 2 is rejected here: 0 would leave nothing to run and 1 is what .iterate() already
+        # is, so either means the upstream task computed something wrong.
+        try:
+            if (mapped_length := int(xcom_value)) < 2:
+                raise ValueError(xcom_value)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"{ti.task_id!r} is the number of task instances a downstream task spreads across "
+                f"and must return an integer of at least 2, got {xcom_value!r}"
+            ) from None
 
     log.info("Pushing xcom", ti=ti)
 
