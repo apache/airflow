@@ -257,7 +257,7 @@ class CeleryExecutor(BaseExecutor):
                 record_event(key, state, info, consume_run_id=consume_run_id)
             return
         # Older BaseExecutor: event buffer is a plain (state, info) tuple.
-        self.event_buffer[key] = (state, info)
+        self.event_buffer[key] = (state, info)  # type: ignore[assignment]
 
     def _send_workloads_to_celery(self, workload_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_workload_to_executor

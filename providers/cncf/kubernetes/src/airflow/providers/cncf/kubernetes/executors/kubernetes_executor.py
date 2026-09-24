@@ -380,7 +380,7 @@ class KubernetesExecutor(BaseExecutor):
             else:
                 record_event(key, state, info, consume_run_id=consume_run_id)
             return
-        self.event_buffer[key] = (state, info)
+        self.event_buffer[key] = (state, info)  # type: ignore[assignment]
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
@@ -497,7 +497,12 @@ class KubernetesExecutor(BaseExecutor):
     def _discard_stale_pod_creation_task(self, task: KubernetesJob) -> None:
         """Remove executor bookkeeping for a stale job that will not create a pod."""
         self.running.discard(task.key)
-        if self.event_buffer.get(task.key) == (TaskInstanceState.QUEUED, self.scheduler_job_id):
+        queued_event = self.event_buffer.get(task.key)
+        if (
+            queued_event is not None
+            and queued_event[0] == TaskInstanceState.QUEUED
+            and queued_event[1] == self.scheduler_job_id
+        ):
             self.event_buffer.pop(task.key, None)
 
     def sync(self) -> None:
