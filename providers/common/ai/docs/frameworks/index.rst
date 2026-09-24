@@ -41,17 +41,22 @@ is Airflow's and which part stays yours.
      - What this provider gives you
      - Who runs the agent
      - Install
-   * - Pydantic AI
+   * - Pydantic AI, through ``AgentOperator``
      - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`,
        ``@task.agent``, the ``@task.llm`` family and every toolset, plus durable
        replay, human review, approval gates, retry policies and tracing.
      - The operator
      - Included
+   * - Pydantic AI, your own agent
+     - A model from a connection through ``PydanticAIHook``, and every toolset, since they
+       are Pydantic AI toolsets. Guide: :doc:`pydantic_ai`.
+     - You
+     - Included
    * - Strands Agents
      - The :class:`~airflow.providers.common.ai.tools.strands.AirflowTools` plugin gives
-       a Strands agent the tools of ``SQLToolset``, ``HookToolset`` and the other
-       toolsets, with Airflow's secret masker applied to every result. Guide:
-       :doc:`strands`.
+       a Strands agent the tools of ``SQLToolset``, ``HookToolset``,
+       ``ObjectStorageToolset`` and the other toolsets, with Airflow's secret masker
+       applied to every result. Guide: :doc:`strands`.
      - You
      - ``strands-agents``
    * - Google ADK
@@ -77,7 +82,7 @@ is Airflow's and which part stays yours.
 
 The Strands and ADK integrations, the framework-neutral tool interface under them, and
 the tracing helper are experimental: they can change or be removed in a minor release of
-this provider.
+this provider. See :ref:`howto/stability`.
 
 Tested versions
 ---------------
@@ -107,6 +112,8 @@ Choosing a route
 
 Start from the agent you already have:
 
+- **An existing Pydantic AI agent**: keep it, give it a model with ``PydanticAIHook`` and
+  pass Airflow's toolsets to it. See :doc:`pydantic_ai`.
 - **An existing Strands agent**: keep it, and add Airflow's toolsets with the
   ``AirflowTools`` plugin. See :doc:`strands`.
 - **An existing ADK agent**: keep it, and add Airflow's toolsets with the ADK
@@ -141,15 +148,27 @@ what the Strands and ADK integrations are written against:
 - :class:`~airflow.providers.common.ai.tools.ToolProvider` is anything with an
   ``airflow_tools()`` method returning ``AirflowTool`` objects.
   Every toolset this provider ships that reads from a connection implements it, except
-  ``MCPToolset``, which works in Pydantic AI agents and through the LangChain bridge.
+  ``MCPToolset`` and the Agent Skills toolset. ``MCPToolset`` works in Pydantic AI agents
+  and through the LangChain bridge; for Strands, ADK and other frameworks, connect the
+  framework's own MCP client to the server.
 
 An adapter maps these onto the framework's own tool type and error status, and makes
 sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
-plugin does.
+plugin does. :func:`~airflow.providers.common.ai.tools.collect_tools` turns the toolsets and
+tools an adapter is given into one list, as the Strands and ADK adapters do.
+
+Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
+agent that calls two database tools at once gets its answers one after the other.
+
+Run a Strands or ADK agent inside
+:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` to keep its
+spans tied to the task, and free of prompt text unless ``[common.ai] capture_content`` is
+on; see :doc:`../observability`.
 
 .. toctree::
     :hidden:
     :titlesonly:
 
+    Pydantic AI <pydantic_ai>
     Strands Agents <strands>
     Google ADK <adk>
