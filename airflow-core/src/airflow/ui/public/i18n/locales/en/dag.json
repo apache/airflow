@@ -93,7 +93,7 @@
     "debug": "DEBUG",
     "error": "ERROR",
     "info": "INFO",
-    "noLogsHelp": "Check the <AuditLogLink>Audit Log</AuditLogLink> for details.",
+    "noLogsHelp": "Check the Dag's <AuditLogLink>Audit Log</AuditLogLink> for related activity.",
     "noLogsTitle": "No task logs are available.",
     "noTryNumber": "No try number",
     "search": {

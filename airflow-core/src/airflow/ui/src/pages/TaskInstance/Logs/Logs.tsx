@@ -33,7 +33,6 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
-import { getTaskInstanceLink } from "src/utils/links";
 
 import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
@@ -245,7 +244,7 @@ export const Logs = () => {
       <Alert data-testid="no-task-logs" status="info" title={translate("logs.noLogsTitle")}>
         <Trans
           components={{
-            AuditLogLink: <RouterLink to={getTaskInstanceLink(taskInstance, "events")} />,
+            AuditLogLink: <RouterLink to={`/dags/${dagId}/events`} />,
           }}
           i18nKey="logs.noLogsHelp"
           ns="dag"
