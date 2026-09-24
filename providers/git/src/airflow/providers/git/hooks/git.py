@@ -29,7 +29,7 @@ import warnings
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import quote as urlquote, unquote, urlsplit
+from urllib.parse import unquote, urlsplit
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
