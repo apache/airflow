@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from subprocess import CompletedProcess
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from click.testing import CliRunner
@@ -123,8 +123,9 @@ class TestSyncStagingToMain:
 
         assert result.exit_code == expected_exit_code
         if expected_triggered:
-            mock_trigger.assert_called_once_with(
-                workflow_name="reset-staging.yml", repo="apache/airflow-site", branch="main"
-            )
+            assert mock_trigger.call_args_list == [
+                call(workflow_name="reset-staging.yml", repo="apache/airflow-site", branch="main"),
+                call(workflow_name="reset-staging.yml", repo="apache/airflow-site-archive", branch="main"),
+            ]
         else:
             mock_trigger.assert_not_called()

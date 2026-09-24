@@ -1083,15 +1083,16 @@ These are all available flags of ``workflow-run publish-docs`` command:
 Syncing the staging site with main
 """"""""""""""""""""""""""""""""""
 
-Before publishing release candidate docs to staging, reset the ``staging`` branch of
-``apache/airflow-site`` to ``main`` with the ``breeze workflow-run sync-staging-to-main`` command. It triggers
-the ``reset-staging.yml`` workflow in ``apache/airflow-site``, which force-updates the ``staging`` branch to
-the current ``main`` commit (``main`` itself is not changed) and rebuilds the staging site.
+Before publishing release candidate docs to staging, reset the ``staging`` branches of
+``apache/airflow-site`` and ``apache/airflow-site-archive`` to ``main`` with the
+``breeze workflow-run sync-staging-to-main`` command. It triggers the ``reset-staging.yml`` workflow in both
+repositories, which force-updates each ``staging`` branch to the current ``main`` commit (``main`` itself is
+not changed); in ``apache/airflow-site`` it also rebuilds the staging site.
 
 .. warning::
 
-   Skip this step if a vote for any other release is in progress. The ``staging`` branch holds the
-   docs prepared for that vote, and resetting it to ``main`` overwrites them. The command asks for
+   Skip this step if a vote for any other release is in progress. The ``staging`` branches hold the
+   docs prepared for that vote, and resetting them to ``main`` overwrites them. The command asks for
    confirmation before triggering the workflow.
 
 These are all available flags of ``workflow-run sync-staging-to-main`` command:

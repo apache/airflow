@@ -322,22 +322,25 @@ def workflow_run_release_constraints(version: str, ref: str, workflow_branch: st
 
 @workflow_run_group.command(
     name="sync-staging-to-main",
-    help="Reset the staging branch of apache/airflow-site to main and rebuild the staging site.",
+    help="Reset the staging branches of apache/airflow-site and apache/airflow-site-archive to main.",
 )
 @option_answer
 def workflow_run_sync_staging_to_main():
     console_print(
-        f"[warning]This force-updates the `staging` branch of {APACHE_AIRFLOW_SITE_REPO} to the "
-        "current `main` commit, dropping everything that is only on `staging`.[/warning]\n"
-        "[warning]If a vote for ANY other release is in progress, its staging docs live on that "
-        "branch - SKIP this step, or you will overwrite the docs prepared for that vote.[/warning]"
+        f"[warning]This force-updates the `staging` branches of {APACHE_AIRFLOW_SITE_REPO} and "
+        f"{APACHE_AIRFLOW_SITE_ARCHIVE_REPO} to their current `main` commits, dropping everything that "
+        "is only on `staging`.[/warning]\n"
+        "[warning]If a vote for ANY other release is in progress, its staging docs live on those "
+        "branches - SKIP this step, or you will overwrite the docs prepared for that vote.[/warning]"
     )
     answer = user_confirm("Is no other release vote in progress, and should staging be reset to main?")
     if answer != Answer.YES:
         console_print("[info]Skipping the reset of staging to main.[/info]")
         sys.exit(0 if answer == Answer.NO else 1)
-    trigger_workflow_and_monitor(
-        workflow_name=WORKFLOW_NAME_MAPS["reset-staging"],
-        repo=APACHE_AIRFLOW_SITE_REPO,
-        branch="main",
-    )
+    for repo in (APACHE_AIRFLOW_SITE_REPO, APACHE_AIRFLOW_SITE_ARCHIVE_REPO):
+        console_print(f"[blue]Resetting staging to main in {repo}[/blue]")
+        trigger_workflow_and_monitor(
+            workflow_name=WORKFLOW_NAME_MAPS["reset-staging"],
+            repo=repo,
+            branch="main",
+        )
