@@ -1544,7 +1544,6 @@ export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryC
 * Get Jobs
 * Get all jobs.
 * @param data The data for the request.
-* @param data.isAlive
 * @param data.startDateGte
 * @param data.startDateGt
 * @param data.startDateLte
@@ -1562,6 +1561,7 @@ export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryC
 * @param data.hostname
 * @param data.executorClass
 * @param data.teams
+* @param data.isAlive
 * @returns JobCollectionResponse Successful Response
 * @throws ApiError
 */
