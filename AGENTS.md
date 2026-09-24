@@ -191,6 +191,8 @@ Before working on an issue, check for existing PRs. Push only to the user's fork
 never upstream or `main`. Never list an agent as a commit co-author. Retain the
 required Gen-AI disclosure and GitHub-message attribution; do not tag individuals
 outside the exceptions in the message guidance. Drafting does not authorize posting.
+Agent-drafted PR descriptions start with a `## Human Summary` that the user types and
+you paste verbatim — never write, suggest, or paraphrase it yourself.
 
 ## apache-magpie framework
 
