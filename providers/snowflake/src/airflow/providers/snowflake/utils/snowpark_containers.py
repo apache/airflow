@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from enum import Enum
 
+NOT_FOUND_STATUS = "NOT_FOUND"
+OBJECT_NOT_EXIST_ERROR_CODE = 2003
+
 
 class SnowparkContainerJobStatus(str, Enum):
     """Statuses of a Snowpark Container Services job service."""
