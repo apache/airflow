@@ -55,25 +55,19 @@ const waitForLogs = async () => {
 };
 
 describe("Missing task logs", () => {
-  it.each(["empty_logs", "no_logs"])(
-    "links to the task instance audit log when %s are returned",
-    async (taskId) => {
-      render(
-        <AppWrapper initialEntries={[`/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/${taskId}`]} />,
-      );
+  it.each(["empty_logs", "no_logs"])("links to the Dag audit log when %s are returned", async (taskId) => {
+    render(
+      <AppWrapper initialEntries={[`/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/${taskId}`]} />,
+    );
 
-      const noLogsAlert = await screen.findByTestId("no-task-logs");
-      const auditLogLink = within(noLogsAlert).getByRole("link", { name: "Audit Log" });
+    const noLogsAlert = await screen.findByTestId("no-task-logs");
+    const auditLogLink = within(noLogsAlert).getByRole("link", { name: "Audit Log" });
 
-      expect(noLogsAlert).toHaveTextContent(
-        /No task logs are available\.\s*Check the Audit Log for details\./u,
-      );
-      expect(auditLogLink).toHaveAttribute(
-        "href",
-        `/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/${taskId}/events`,
-      );
-    },
-  );
+    expect(noLogsAlert).toHaveTextContent(
+      /No task logs are available\.\s*Check the Dag's Audit Log for related activity\./u,
+    );
+    expect(auditLogLink).toHaveAttribute("href", "/dags/log_grouping/events");
+  });
 
   it("does not show audit log guidance when task logs are available", async () => {
     render(
