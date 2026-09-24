@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_ai._run_context import RunContext
 from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.hook import (
@@ -255,10 +257,51 @@ class TestHookToolsetCallTool:
 
         result = asyncio.run(
             ts.call_tool(
-                "storage_read_file", {"key": "test.txt"}, ctx=MagicMock(), tool=tools["storage_read_file"]
+                "storage_read_file",
+                {"key": "test.txt"},
+                ctx=MagicMock(spec=RunContext),
+                tool=tools["storage_read_file"],
             )
         )
         assert result == "contents of test.txt"
+
+    @pytest.mark.enable_redact
+    def test_a_result_carrying_a_registered_secret_reaches_the_model_masked(self, registered_secret):
+        hook = _FakeHook()
+        ts = HookToolset(hook, allowed_methods=["read_file"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+
+        result = asyncio.run(
+            ts.call_tool(
+                "read_file",
+                {"key": registered_secret},
+                ctx=MagicMock(spec=RunContext),
+                tool=tools["read_file"],
+            )
+        )
+
+        assert result == "contents of ***"
+
+    def test_the_hook_method_runs_off_the_event_loop_thread(self):
+        calls: list[int] = []
+
+        class _ThreadRecordingHook:
+            def whoami(self) -> str:
+                """Report the calling thread."""
+                calls.append(threading.get_ident())
+                return "ok"
+
+        ts = HookToolset(_ThreadRecordingHook(), allowed_methods=["whoami"])
+
+        async def call() -> int:
+            tools = await ts.get_tools(ctx=MagicMock(spec=RunContext))
+            await ts.call_tool("whoami", {}, ctx=MagicMock(spec=RunContext), tool=tools["whoami"])
+            return threading.get_ident()
+
+        loop_thread = asyncio.run(call())
+
+        assert calls
+        assert calls[0] != loop_thread
 
 
 class TestBuildJsonSchemaFromSignature:

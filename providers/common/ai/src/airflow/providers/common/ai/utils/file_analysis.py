@@ -46,6 +46,7 @@ from airflow.providers.common.ai.exceptions import (
     LLMFileAnalysisMultimodalRequiredError,
     LLMFileAnalysisUnsupportedFormatError,
 )
+from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
 if TYPE_CHECKING:
@@ -445,7 +446,7 @@ def _render_json(
         estimated_rows = len(document)
     else:
         estimated_rows = None
-    pretty = json.dumps(document, indent=2, sort_keys=True, default=str)
+    pretty = dumps_masked(document, indent=2, sort_keys=True)
     return _RenderResult(
         text=_truncate_text(pretty),
         estimated_rows=estimated_rows,
@@ -508,7 +509,7 @@ def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_by
                 group_rows = row_group.slice(0, remaining_rows).to_pylist()
                 sampled_rows.extend(group_rows)
                 remaining_rows -= len(group_rows)
-    payload = [f"Schema: {schema}", "Sample rows:", json.dumps(sampled_rows, indent=2, default=str)]
+    payload = [f"Schema: {schema}", "Sample rows:", dumps_masked(sampled_rows, indent=2)]
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),
         estimated_rows=num_rows,
@@ -547,9 +548,9 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
             else:
                 fully_read = True
     payload = [
-        f"Schema: {json.dumps(writer_schema, indent=2, default=str)}",
+        f"Schema: {dumps_masked(writer_schema, indent=2)}",
         "Sample rows:",
-        json.dumps(sampled_rows, indent=2, default=str),
+        dumps_masked(sampled_rows, indent=2),
     ]
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),

@@ -44,11 +44,13 @@ from airflow.providers.common.ai.sandbox.output import (
     render_file_window,
     truncate_output,
 )
+from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     code_arg_kwargs,
     return_schema_kwargs,
 )
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 from airflow.providers.common.compat.sdk import get_current_context
 
 if TYPE_CHECKING:
@@ -140,7 +142,7 @@ _DESCRIPTIONS = {
 }
 
 
-class SandboxToolset(AbstractToolset[Any]):
+class SandboxToolset(AirflowToolset):
     """
     Give an agent shell and file access inside a disposable sandbox, off the Airflow worker.
 
@@ -628,7 +630,7 @@ class SandboxToolset(AbstractToolset[Any]):
             )
         return tools
 
-    async def call_tool(
+    async def _execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
@@ -725,8 +727,9 @@ class SandboxToolset(AbstractToolset[Any]):
         return output
 
     def _truncate(self, text: str, already_truncated: bool) -> str:
+        # Masked before it is cut, or a secret split at the cut would no longer match.
         return truncate_output(
-            text,
+            mask_secrets(text),
             max_lines=self._max_output_lines,
             max_bytes=self._max_output_bytes,
             already_truncated=already_truncated,
@@ -740,7 +743,7 @@ class SandboxToolset(AbstractToolset[Any]):
             max_bytes=self._max_read_bytes,
         )
         return render_file_window(
-            data,
+            mask_secrets(data),
             offset=tool_args.get("offset"),
             limit=tool_args.get("limit"),
             max_lines=self._max_output_lines,

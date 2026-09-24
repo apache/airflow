@@ -20,16 +20,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from typing_extensions import Self
+
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pydantic_ai._run_context import RunContext
+    from pydantic_ai.toolsets.abstract import ToolsetTool
 
 
-class MCPToolset(AbstractToolset[Any]):
+class MCPToolset(AirflowToolset):
     """
     Toolset that connects to an MCP server configured via an Airflow connection.
 
@@ -109,8 +111,12 @@ class MCPToolset(AbstractToolset[Any]):
             self._server = hook.get_conn()
         return self._server
 
+    async def _server_once_resolved(self) -> Any:
+        # Resolving the connection talks to the supervisor, so it takes the blocking-call lock.
+        return self._server if self._server is not None else await self.run_blocking(self._get_server)
+
     async def __aenter__(self) -> Self:
-        await self._get_server().__aenter__()
+        await (await self._server_once_resolved()).__aenter__()
         return self
 
     async def __aexit__(self, *args: Any) -> bool | None:
@@ -119,13 +125,13 @@ class MCPToolset(AbstractToolset[Any]):
         return None
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        return await self._get_server().get_tools(ctx)
+        return await (await self._server_once_resolved()).get_tools(ctx)
 
-    async def call_tool(
+    async def _execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        return await self._get_server().call_tool(name, tool_args, ctx, tool)
+        return await (await self._server_once_resolved()).call_tool(name, tool_args, ctx, tool)

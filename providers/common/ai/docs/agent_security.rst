@@ -76,6 +76,22 @@ No single layer is sufficient on its own. They work together.
        The LLM agent cannot see API keys or database passwords.
      - Does not prevent the agent from using the connection to access data
        the connection has access to.
+   * - **Secret masking of tool output**
+     - What a tool returns, and the error text handed to the model so it can correct a
+       call, pass through Airflow's secret masker first. A connection password that shows
+       up in a database error or a hook's return value reaches the model, the model
+       provider and any trace as ``***``. ``AgentOperator`` applies this to the toolsets
+       you pass in ``toolsets``, in ``agent_params["toolsets"]`` and in a ``Toolset``
+       capability, including your own. The SQL, hook, DataFusion, MCP, sandbox and
+       managed-agent toolsets apply it wherever they run, including in a Pydantic AI agent
+       you build yourself.
+     - Masks only secrets Airflow has registered, such as connection passwords and
+       sensitive connection extras. A credential that exists only in the data itself is
+       not recognized. Not masked: prompts, model output, function tools passed as
+       ``agent_params["tools"]``, a ``Toolset`` capability built by a function, a
+       framework's own tools, and MCP servers a framework connects to itself. In a
+       sandbox, the model writes the commands, so it can print a secret in a form the
+       masker does not recognize; masking there guards against accidents only.
    * - **HookToolset: explicit allow-list**
      - Only methods listed in ``allowed_methods`` are exposed as tools.
        Auto-discovery is not supported. Methods are validated at Dag parse

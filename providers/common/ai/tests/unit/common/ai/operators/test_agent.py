@@ -43,6 +43,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.wrapper import WrapperModel
+from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
@@ -68,6 +69,7 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 from airflow.providers.common.ai.utils.toolsets import find_toolset
 from airflow.providers.common.ai.utils.usage_budget import (
     USAGE_BUDGET_KEY,
@@ -748,12 +750,12 @@ class TestAgentOperatorExecute:
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls, make_mock_run_result):
-        """Toolsets are passed through to the agent constructor."""
+        """Toolsets reach the agent wrapped for masking, then for logging."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "done", make_mock_run_result
         )
 
-        mock_toolset = MagicMock()
+        mock_toolset = MagicMock(spec=AbstractToolset)
         op = AgentOperator(
             task_id="test",
             prompt="Do something",
@@ -766,16 +768,17 @@ class TestAgentOperatorExecute:
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert passed_toolsets[0].wrapped is mock_toolset
+        assert isinstance(passed_toolsets[0].wrapped, MaskingToolset)
+        assert passed_toolsets[0].wrapped.wrapped is mock_toolset
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls, make_mock_run_result):
-        """enable_tool_logging=False passes toolsets through unwrapped."""
+        """enable_tool_logging=False skips the logging wrapper; masking still applies."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "done", make_mock_run_result
         )
 
-        mock_toolset = MagicMock()
+        mock_toolset = MagicMock(spec=AbstractToolset)
         op = AgentOperator(
             task_id="test",
             prompt="Do something",
@@ -786,7 +789,7 @@ class TestAgentOperatorExecute:
         op.execute(context=MagicMock())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_call[1]["toolsets"] == [mock_toolset]
+        assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=mock_toolset)]
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_agent_params(self, mock_hook_cls, make_mock_run_result):
@@ -3080,3 +3083,87 @@ class TestAgentOperatorDurableUsageBudgetEndToEnd:
         # second call's preamble raises; what matters is that neither ever exceeds the limit.
         assert scenario.get_last_saved_usage()["tool_calls"] <= 3
         assert scenario.live_tool_calls <= 3
+
+
+def _echo_tool_result(messages, info: AgentInfo) -> ModelResponse:
+    """Call ``read_setting`` once, then answer with whatever it returned."""
+    returns = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+    if returns:
+        return ModelResponse(parts=[TextPart(content=str(returns[-1].content))])
+    return ModelResponse(parts=[ToolCallPart(tool_name="read_setting", args={}, tool_call_id="c1")])
+
+
+@pytest.mark.enable_redact
+class TestAgentOperatorMasksToolOutput:
+    """What any tool hands the model is masked, however the toolset reaches the agent."""
+
+    @staticmethod
+    def _run(op: AgentOperator, storage=None) -> str:
+        if storage is not None:
+            op._durable_storage = storage
+            op._durable_counter = DurableStepCounter()
+        hook = MagicMock(spec=["create_agent"])
+        hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(_echo_tool_result), **kw)
+        op.llm_hook = hook
+        return op._build_agent().run_sync("hi").output
+
+    @staticmethod
+    def _dag_authors_toolset(secret: str) -> FunctionToolset:
+        def read_setting() -> str:
+            return f"api key: {secret}"
+
+        return FunctionToolset(tools=[read_setting])
+
+    def test_a_toolset_passed_as_toolsets(self, registered_secret):
+        op = AgentOperator(
+            task_id="t", prompt="hi", llm_conn_id="c", toolsets=[self._dag_authors_toolset(registered_secret)]
+        )
+
+        assert self._run(op) == "api key: ***"
+
+    def test_a_toolset_passed_through_agent_params(self, registered_secret):
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            agent_params={"toolsets": [self._dag_authors_toolset(registered_secret)]},
+        )
+
+        assert self._run(op) == "api key: ***"
+
+    def test_a_function_that_builds_a_toolset_per_run(self, registered_secret):
+        """pydantic-ai accepts such a function wherever it accepts a toolset."""
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            agent_params={"toolsets": [lambda ctx: self._dag_authors_toolset(registered_secret)]},
+        )
+
+        assert self._run(op) == "api key: ***"
+
+    def test_a_toolset_capability_is_masked_before_the_durable_cache_stores_it(self, registered_secret):
+        storage = _InMemoryDurableStorage()
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            agent_params={"capabilities": [Toolset(self._dag_authors_toolset(registered_secret))]},
+        )
+
+        assert self._run(op, storage) == "api key: ***"
+        cached = [value for value, _ in storage.tools.values()]
+        assert cached == ["api key: ***"]
+
+    def test_a_toolset_that_masks_its_own_output_is_not_wrapped_again(self):
+        sql = SQLToolset("pg_default")
+        op = AgentOperator(
+            task_id="t", prompt="hi", llm_conn_id="c", toolsets=[sql], enable_tool_logging=False
+        )
+        hook = MagicMock(spec=["create_agent"])
+        op.llm_hook = hook
+
+        op._build_agent()
+
+        assert hook.create_agent.call_args.kwargs["toolsets"] == [sql]
