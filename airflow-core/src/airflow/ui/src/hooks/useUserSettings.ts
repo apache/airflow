@@ -25,6 +25,7 @@ import {
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
@@ -43,6 +44,9 @@ export type LandingPageOption = "dags" | "dashboard";
 /** Fallback graph layout direction used when a graph has no per-graph choice. */
 export const useDefaultGraphDirection = () =>
   useLocalStorage<Direction>(DEFAULT_GRAPH_DIRECTION_KEY, "RIGHT");
+
+export const useDefaultTaskGroupsExpanded = () =>
+  useLocalStorage<boolean>(DEFAULT_TASK_GROUPS_EXPANDED_KEY, false);
 
 /** Default selection for the Dag-run Clear dialog toggle (existing / only-failed / queue-new). */
 export const useClearRunDefaultOptions = () =>

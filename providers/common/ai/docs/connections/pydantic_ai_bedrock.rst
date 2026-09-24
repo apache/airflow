@@ -23,33 +23,16 @@ Pydantic AI (AWS Bedrock) connection
 The ``pydanticai_bedrock`` connection type configures access to
 `AWS Bedrock <https://aws.amazon.com/bedrock/>`__ via the pydantic-ai framework.
 It backs ``PydanticAIBedrockHook``, the dedicated subclass of ``PydanticAIHook``
-for Bedrock's AWS-style credentials — IAM keys, a bearer token, or the default
-credential chain — none of which fit the plain ``api_key`` + ``base_url`` shape
+for Bedrock's AWS-style credentials (IAM keys, a bearer token, or the default
+credential chain), none of which fit the plain ``api_key`` + ``base_url`` shape
 that the generic :doc:`pydantic_ai` connection assumes. All fields live in
 ``extra``; the ``password`` and ``host`` fields are hidden in the connection form.
 
 .. note::
 
-    This connection type was previously named ``pydanticai-bedrock``.
-
-    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is
-    encoded in a URI scheme, so ``pydanticai-bedrock`` is decoded to ``pydanticai_bedrock``
-    on read and resolves as before. That covers ``AIRFLOW_CONN_*`` environment
-    variables and secrets backends such as HashiCorp Vault, AWS Secrets Manager and
-    GCP Secret Manager.
-
-    A connection whose type is stored verbatim does need updating, because the
-    hyphen is preserved and no longer matches a registered hook. That means rows in
-    the metadata database, including any created through the UI, and connections
-    imported in object form from a local file:
-
-    .. code-block:: bash
-
-        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-bedrock'
-        airflow connections delete <conn_id>
-        airflow connections add <conn_id> --conn-type pydanticai_bedrock ...
-
-    In the UI, edit the connection and re-pick its type.
+    This connection type was previously named ``pydanticai-bedrock``. Connections
+    stored as a URI or as JSON keep working; a type stored verbatim, such as a row
+    created in the UI, must be re-created. See :ref:`troubleshooting-conn-type-rename`.
 
 Default Connection IDs
 ----------------------
@@ -114,10 +97,10 @@ The hook passes every field you set on to ``BedrockProvider`` together; when
 more than one credential source is set at once, the bearer token
 (``api_key``) takes precedence over IAM keys:
 
-- A bearer token (``api_key``, mapped to ``AWS_BEARER_TOKEN_BEDROCK``) — used
+- A bearer token (``api_key``, mapped to ``AWS_BEARER_TOKEN_BEDROCK``), used
   first if set.
 - IAM keys (``aws_access_key_id`` + ``aws_secret_access_key``, optionally
-  ``aws_session_token``) — used only when no bearer token is set.
+  ``aws_session_token``), used only when no bearer token is set.
 - The environment-variable / instance-role credential chain
   (``AWS_PROFILE``, IAM role, …) when none of the fields above are set.
 

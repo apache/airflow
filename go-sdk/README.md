@@ -94,7 +94,11 @@ func main() {
 
 `TaskHandler` names the `dag_id` and the `task_id` explicitly; neither is derived from the Go function
 name, so a handler can be called whatever reads best in Go. It checks the signature of the function and
-panics if the check fails, which stops the executable as it starts rather than when the task first runs.
+panics if the check fails -- a variadic `...` parameter, which no stub argument can fill, is one such
+failure -- so the executable stops as it starts rather than when the task first runs. `Serve` then closes
+registration, so a `Register` left below it in `main` panics instead of changing what the running bundle
+answers for.
+
 A package that defines handlers of its own can export them as a `[]airflow.Registerable` for `main` to
 pass on with `bundle.Register(reports.Handlers()...)`.
 

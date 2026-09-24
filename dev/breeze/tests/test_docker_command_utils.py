@@ -39,6 +39,7 @@ from airflow_breeze.utils.docker_command_utils import (
     check_docker_version,
     discover_running_compose_projects,
     enter_shell,
+    fix_ownership_using_docker,
     get_images_to_pull,
     is_known_breeze_compose_project,
     prepare_docker_build_command,
@@ -640,3 +641,30 @@ def test_prepare_docker_build_command_does_not_add_sources_hash_label_to_prod_im
     mock_check_if_buildx_plugin_installed.return_value = False
     command = prepare_docker_build_command(BuildProdParams())
     assert not any(flag.startswith(CI_IMAGE_SOURCES_HASH_LABEL) for flag in command)
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_main_git_dir_for_worktree", return_value=None)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_group_id", return_value=1000)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_user_id", return_value=1000)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_os", return_value="linux")
+@mock.patch("airflow_breeze.utils.docker_command_utils.is_docker_rootless")
+@pytest.mark.parametrize(
+    ("rootless", "expected"),
+    [(True, "DOCKER_IS_ROOTLESS=true"), (False, "DOCKER_IS_ROOTLESS=false")],
+)
+def test_fix_ownership_using_docker_passes_lowercase_rootless_flag(
+    mock_is_docker_rootless,
+    _mock_get_host_os,
+    _mock_get_host_user_id,
+    _mock_get_host_group_id,
+    _mock_get_main_git_dir,
+    mock_run_command,
+    rootless,
+    expected,
+):
+    """The in-container script compares the flag with lowercase ``true``, so ``True`` would never skip."""
+    mock_is_docker_rootless.return_value = rootless
+    fix_ownership_using_docker()
+    docker_command = mock_run_command.call_args[0][0]
+    assert expected in docker_command

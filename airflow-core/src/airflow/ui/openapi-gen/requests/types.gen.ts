@@ -703,6 +703,10 @@ export type ClearTaskInstancesBody = {
     string,
     number
 ])> | null;
+    /**
+     * Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.
+     */
+    task_group_id?: string | null;
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -1607,6 +1611,10 @@ export type ImportErrorResponse = {
     filename: string;
     bundle_name: string | null;
     stack_trace: string;
+    /**
+     * Return a signed token identifying the file, used to request its reparse.
+     */
+    readonly file_token: string;
 };
 
 /**
@@ -6772,6 +6780,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

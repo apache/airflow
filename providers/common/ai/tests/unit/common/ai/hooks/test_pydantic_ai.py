@@ -1444,7 +1444,7 @@ class TestPydanticAIAzureHook:
     def test_ui_metadata(self):
         expected_placeholders = {
             "host": "https://<resource>.openai.azure.com/openai/v1",
-            "extra": '{"model": "azure:gpt-4o"}',
+            "extra": '{"model": "azure:gpt-5"}',
         }
         expected_api_version_description = (
             "Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not "

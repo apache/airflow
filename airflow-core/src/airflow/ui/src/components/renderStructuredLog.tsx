@@ -52,6 +52,7 @@ type RenderStructuredLogProps = {
   logLink: string;
   logMessage: string | StructuredLogMessage;
   renderingMode?: "jsx" | "text";
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
@@ -181,6 +182,7 @@ const renderStructuredLogImpl = ({
   logLink,
   logMessage,
   renderingMode = "jsx",
+  showLogLevel = true,
   showSource = true,
   showTimestamp = true,
   sourceFilters,
@@ -227,7 +229,7 @@ const renderStructuredLogImpl = ({
     }
   }
 
-  if (typeof level === "string") {
+  if (typeof level === "string" && showLogLevel) {
     const formattedLevel = level.toUpperCase();
 
     if (renderingMode === "text") {

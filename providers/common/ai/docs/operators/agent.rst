@@ -21,7 +21,7 @@ Agents with tools: ``AgentOperator`` and ``@task.agent``
 ========================================================
 
 Use :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` or
-the ``@task.agent`` decorator to run an LLM agent with **tools** — the agent
+the ``@task.agent`` decorator to run an LLM agent with **tools**: the agent
 reasons about the prompt, calls tools (database queries, API calls, etc.) in
 a multi-turn loop, and returns a final answer.
 
@@ -65,7 +65,7 @@ Hook-based tools
 ----------------
 
 Wrap any Airflow Hook's methods as agent tools using ``HookToolset``. Only
-methods you explicitly list are exposed — there is no auto-discovery.
+methods you explicitly list are exposed; there is no auto-discovery.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
@@ -108,7 +108,6 @@ to the model. This mirrors the input types accepted by pydantic-ai's
     Combining a non-string prompt with ``enable_hitl_review=True`` is not
     currently supported -- the HITL session model stores the prompt as a
     string, so a ``Sequence`` prompt will raise at the review boundary.
-    Widening HITL review to multimodal prompts is tracked as a follow-up.
 
 Structured output
 -----------------
@@ -161,17 +160,98 @@ Open the **Rendered Template** tab on the task instance to see the
 substituted ``system_prompt`` after Jinja fills in ``classify``'s XCom
 values.
 
+.. _howto/operator:agent-reuse:
+
+Reuse one agent across tasks
+----------------------------
+
+When several tasks, or several Dags, run the same agent, define it once and
+import it. ``AgentOperator`` and ``@task.agent`` take the whole agent definition
+as keyword arguments, so a dict in a module next to your Dags is enough. A task
+that needs something different overrides single keys.
+
+.. code-block:: python
+
+    # dags/shared_agents/__init__.py
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    ORDERS_ANALYST = {
+        "llm_conn_id": "pydanticai_default",
+        "system_prompt": "You are the orders analyst. Answer only from the orders database.",
+        "toolsets": [SQLToolset(db_conn_id="orders_db", allowed_tables=["orders"])],
+        "agent_params": {"name": "orders_analyst"},
+    }
+
+.. code-block:: python
+
+    # dags/orders.py
+    from shared_agents import ORDERS_ANALYST
+
+    from airflow.sdk import dag, task
+
+
+    @dag(schedule=None)
+    def orders():
+        @task.agent(**ORDERS_ANALYST)
+        def weekly_summary() -> str:
+            return "Summarize this week's orders."
+
+        @task.agent(**{**ORDERS_ANALYST, "system_prompt": "Answer in one sentence."})
+        def one_liner() -> str:
+            return "How many orders are there?"
+
+        weekly_summary()
+        one_liner()
+
+
+    orders()
+
+When span export is on (see :doc:`../observability`), the ``name`` in
+``agent_params`` becomes the ``gen_ai.agent.name`` attribute on each agent run's
+span, so traces from every task that uses the definition group under one agent.
+
+To keep the definition out of Python, for example to share it with a program that
+does not run on Airflow, write a pydantic-ai
+`agent spec <https://pydantic.dev/docs/ai/core-concepts/agent-spec/>`__ file and pass its path through
+``agent_params``. A model set on the connection wins over a ``model`` in the
+file, and ``system_prompt`` is added to the file's ``instructions``:
+
+.. code-block:: yaml
+
+    # dags/shared_agents/orders_analyst.yaml
+    name: orders_analyst
+    instructions: >
+      You are the orders analyst. Answer only from the orders database.
+    retries: 2
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    AgentOperator(
+        task_id="orders_question",
+        llm_conn_id="pydanticai_default",
+        prompt="How many orders are there?",
+        agent_params={"spec_file": Path(__file__).parent / "shared_agents" / "orders_analyst.yaml"},
+    )
+
+Build the path from ``__file__``: a relative path resolves against the worker's
+working directory, not the Dag file.
+
+With ``durable=True``, tools from capabilities declared in the spec file are not
+replayed on retry; they run again. Pass tools you need replayed in ``toolsets=``.
+
 Agent features
 --------------
 
 Four features have pages of their own:
 
-- :doc:`../message_history` — pass ``message_history`` to carry a conversation across runs.
-- :doc:`../durable_execution` — set ``durable=True`` to replay completed model and tool steps
+- :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
+- :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
   on retry instead of paying for them again.
-- :doc:`../guardrails` — pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
+- :doc:`../guardrails`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
   through ``agent_params``.
-- :doc:`../code_mode` — set ``code_mode=True`` to collapse the agent's tools into a single
+- :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
   ``run_code`` tool the model drives by writing Python.
 
 .. _agent-durable-execution:
@@ -243,23 +323,10 @@ Parameters
   Pydantic instance flows through XCom unchanged. Set to ``True`` when a
   downstream consumer needs the dict shape.
 
-**HITL Review parameters** (requires the ``hitl_review`` plugin -- see
-:doc:`../hitl_review` for the full review workflow):
-
-- ``enable_hitl_review``: When ``True``, the operator enters an iterative
-  review loop after the first generation. A human reviewer can approve,
-  reject, or request changes via the plugin's REST API at ``/hitl-review``
-  or through the **HITL Review** extra link on the task instance. Default
-  ``False``.
-- ``max_hitl_iterations``: Maximum outputs shown to the reviewer (1 = initial
-  output). When the reviewer requests changes at iteration >= this limit, the
-  task fails with ``HITLMaxIterationsError`` without calling the LLM. E.g. 5
-  allows changes at iterations 1-4. Default ``5``.
-- ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds
-  combined. ``None`` means no timeout (the operator blocks until a terminal
-  action).
-- ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
-  human response. Default ``10``.
+**HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
+``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
+loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
+parameter and the review workflow.
 
 Logging
 -------
@@ -268,7 +335,7 @@ All AI operators automatically log a post-run summary after ``run_sync()``
 completes. ``AgentOperator`` additionally wraps toolsets for real-time
 per-tool-call logging (controlled by ``enable_tool_logging``).
 
-**Real-time tool call logging** (AgentOperator only) — each tool call is
+**Real-time tool call logging** (AgentOperator only): each tool call is
 logged as it happens:
 
 .. code-block:: text
@@ -283,7 +350,7 @@ logged as it happens:
 Tool arguments are logged at DEBUG level to avoid leaking sensitive data at
 the default log level.
 
-**Post-run summary** (all operators) — after the LLM run finishes, a summary
+**Post-run summary** (all operators): after the LLM run finishes, a summary
 is logged with model name, token usage, and the full tool call sequence:
 
 .. code-block:: text

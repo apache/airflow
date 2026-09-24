@@ -27,16 +27,25 @@
 Changelog
 ---------
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+4.0.0
+.....
 
-* ``Stop defaulting PsrpOperator task_id to cmdlet``
-
+.. warning::
   ``PsrpOperator`` no longer uses ``cmdlet`` as the default ``task_id``; ``task_id`` is now required, as
   on every other operator. ``cmdlet`` is a template field rendered after the constructor runs, so the
   default read the un-rendered value. To keep the existing task identity (history, logs, XComs), pass
   ``task_id`` explicitly with the same value as ``cmdlet``, for example
   ``PsrpOperator(task_id="Get-Process", cmdlet="Get-Process", psrp_conn_id="psrp_default")``.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Stop defaulting PsrpOperator task_id to cmdlet (#73036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
 
 3.2.7
 .....
