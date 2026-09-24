@@ -29,7 +29,9 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
@@ -179,6 +181,17 @@ def test_mapped_operator_reads_inherits_from_empty_operator(operator_class, expe
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
         BaseOperator.partial(task_id="a").expand(file=[1, 2, {"a": "b"}])
+
+
+def test_map_spread_across():
+    with DAG("test-dag", schedule=None):
+        expand_input = DictOfListsExpandInput({"arg1": [1, 2, 3]})
+        iterated = MockOperator.partial(task_id="task_1")._iterate(expand_input, strict=False)
+        assert isinstance(iterated, IterableOperator)
+
+        spread = MockOperator.partial(task_id="task_2").spread(across=3)._iterate(expand_input, strict=False)
+        assert isinstance(spread, MappedIterableOperator)
+        assert spread.spread_across == 3
 
 
 def test_map_xcom_arg():
