@@ -84,8 +84,9 @@ blocked. Tell the model in its instructions what the image already has; the tool
 description says whether the sandbox has network access and where its working
 directory is, but not which packages are installed.
 
-**Resources.** A default Modal sandbox is a fraction of a core (``nproc`` reports
-1) with the standard library and no ``curl``, ``git`` or ``wget``. Set ``cpu`` for
+**Resources.** A default Modal sandbox requests 0.125 of a CPU core and 128 MiB of
+memory, Modal's own defaults (``nproc`` still reports 1), and its image has the
+Python standard library and no ``curl``, ``git`` or ``wget``. Set ``cpu`` for
 anything heavier. ``memory`` on Modal is a scheduling request, not a ceiling: a
 sandbox created with ``memory=512`` allocated 1.5 GiB without complaint when
 measured, so do not reach for it to bound what model-written code can consume.
@@ -134,9 +135,10 @@ inside cannot call Modal as you or create further sandboxes.
 Before you put a real secret in ``env``, four things are true of it.
 
 **The model can read it.** Model-generated code can print the environment, and a
-tool result travels into the model's context, the task log and whatever the agent
-returns to XCom. Treat a credential given to a sandbox as disclosed to the model
-and to everything that records the run, and scope it to that one job. If the model
+tool result travels into the model's context, from where it can reach the agent's
+output in XCom, its message history and any traces you record. Treat a credential
+given to a sandbox as disclosed to the model and to everything that records the
+run, and scope it to that one job. If the model
 only needs to *use* a system rather than hold its credential, a
 :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` or
 :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` runs the hook in
@@ -184,7 +186,7 @@ An agent's result is whatever the model returns: findings, a mapping, a table
 small enough to read. That reaches XCom through ``output_type`` like any other
 agent output, and the examples on :doc:`index` end that way.
 
-What does not come out is a *file* the agent built. The sandbox is destroyed when
+What does not come out is a *file* the agent built. The sandbox is torn down when
 the run ends; ``read_file`` is text-only, replacing any byte it cannot decode, so a
 parquet or an image cannot survive the round trip at any size; and everything the
 model reads is capped, 50 KiB per stream for ``run_command`` and ``max_read_bytes``
@@ -219,7 +221,7 @@ Lifecycle, failures and retries
 -------------------------------
 
 The sandbox is created lazily on the first tool call, shared by every call in that
-agent run, and destroyed when the run ends. A run that never calls a tool never
+agent run, and torn down when the run ends. A run that never calls a tool never
 provisions one, and concurrent runs never share a sandbox. Files written by one
 call are visible to later calls in the same run; each ``run_command`` is a fresh
 shell, so shell variables and background jobs do not survive between calls.
@@ -242,8 +244,8 @@ to start over. Any other failure that loses the sandbox is reported the same way
 ``idle_timeout`` passes mid-run, the next tool call reaches a sandbox that is gone,
 which is terminal. This is the normal end of any run longer than its sandbox's
 lifetime. Human output review is not part of the run: it starts after the agent
-has finished and the sandbox has been destroyed, so a review pause costs no
-sandbox time and keeps no files.
+has finished and the sandbox's teardown has been requested, so the toolset holds
+no sandbox and no files through a review pause.
 
 **A failed provisioning fails the task.** The model has no input into ``create``:
 it takes only the spec, which is fixed in the Dag file. So whatever a backend
@@ -263,7 +265,7 @@ is a ``SandboxToolset``:
   sandbox exists, and the first call that misses the cache would run against a
   fresh empty one.
 - ``enable_hitl_review=True`` regenerates after reviewer feedback by starting a
-  second agent run, and the first run's sandbox was destroyed when that run ended.
+  second agent run, and the first run's sandbox was torn down when that run ended.
   The regenerated agent would get an empty sandbox while its own history describes
   files it wrote earlier.
 
@@ -271,6 +273,8 @@ The two ways out are dropping the flag, or moving the sandbox work into its own
 task and keeping the durable or reviewed agent free of sandbox tools. A toolset
 resolved per run from a callable cannot be inspected when the operator is built,
 so it is the one composition the check does not see.
+
+.. _sandbox-cost:
 
 Cost and operations
 -------------------
@@ -281,17 +285,28 @@ sandbox is around two cents an hour, so this rarely matters; a data-sized one
 (``cpu=8, memory=32768``) is around two dollars an hour, and Modal bills the larger
 of what you requested and what you used, which is the second reason ``memory`` is
 worth setting deliberately. With ``idle_timeout`` unset, ``sandbox_timeout`` is
-the worst-case bill for one run. Fan-out is not the thing to worry about: 25
+the worst-case bill for one run. ``usage_limits`` does not bound this: its
+``cost_limit`` counts what the model calls cost and nothing a sandbox bills, so a
+run can stay well inside its model budget while its sandbox runs to
+``sandbox_timeout``. Fan-out is not the thing to worry about: 25
 sandboxes created concurrently from one process all came up in under three
 seconds.
 
 **Teardown runs inside the task.** A graceful end and an ordinary exception both
-destroy the sandbox. A worker killed outright, an OOM or a lost node never run that
-code, and what happens next is the backend's business alone: Modal reclaims the
-sandbox at ``sandbox_timeout`` whatever became of the worker; ``sbx`` has no
-server-side lifetime, so the microVM and its workspace directory survive with no
-owner. A teardown that fails is logged with the sandbox identity and does not fail
+call the backend's ``destroy``. A worker killed outright, an OOM or a lost node
+never run that code, and what happens next is the backend's business alone: Modal
+reclaims the sandbox at ``sandbox_timeout`` whatever became of the worker; ``sbx``
+has no server-side lifetime, so the microVM and its workspace directory survive
+with no owner. A teardown that fails is logged with the sandbox identity and does not fail
 the task.
+
+**Modal teardown does not wait.** The backend asks Modal to terminate the sandbox
+and returns at once, so the end of a run is not held up while the sandbox stops.
+The sandbox shows an exit status within about 35 seconds. If the request never
+lands, or the worker dies before sending it, the sandbox keeps running and billing
+until Modal reclaims it: at ``sandbox_timeout`` at the latest, or earlier at
+``idle_timeout`` if you set one. Size ``sandbox_timeout`` against the cost of an
+orphan as well as the length of a run.
 
 **Finding what a Dag left behind.** Modal sandboxes are named ``airflow-sandbox-*``
 and carry an ``airflow_sandbox`` tag plus whatever ``tags`` you pass, and

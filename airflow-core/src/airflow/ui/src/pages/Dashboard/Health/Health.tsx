@@ -44,7 +44,7 @@ const triggererInstances = (instances?: Array<TriggererInstanceInfoResponse> | n
   instances?.map((instance): HealthInstance => ({
     hostname: instance.hostname,
     latestHeartbeat: instance.latest_triggerer_heartbeat,
-    teamName: instance.team_name,
+    teamNames: instance.team_names,
   }));
 
 const dagProcessorInstances = (instances?: Array<DagProcessorInstanceInfoResponse> | null) =>

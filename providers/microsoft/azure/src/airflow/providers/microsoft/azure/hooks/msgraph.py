@@ -189,7 +189,9 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
-            if status_code == HTTPStatus.UNAUTHORIZED:
+            if status_code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN}:
+                # Power BI reports an expired access token as 403 Forbidden with error code
+                # ``TokenExpired`` rather than 401, so both must evict the cached request adapter.
                 raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)

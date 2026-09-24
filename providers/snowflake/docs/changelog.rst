@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+6.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add SnowflakeNotebookOperator for executing Snowflake Notebooks (#63470)``
+* ``Add Cortex Agent management methods to SnowflakeCortexAgentHook (#70101)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate Snowflake account and region before building the SQL API URL (#72174)``
+* ``Fix Snowflake SQL API OAuth for client_credentials and azure_conn_id (#73162)``
+
+Misc
+~~~~
+
+* ``Log when a Snowpark container job returns no logs (#73011)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+
 6.17.0
 ......
 

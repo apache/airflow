@@ -789,6 +789,34 @@ class TestSFTPHookAsync:
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
     @pytest.mark.asyncio
+    async def test_explicit_known_hosts_constructor_arg_is_not_overridden_by_connection_extra(
+        self, mock_get_connection, mock_connect
+    ):
+        """
+        An explicit `known_hosts` passed to the constructor must win over the connection's
+        `known_hosts` extra. `_parse_extras` should only fall back to the extra when the
+        constructor was left at its default, mirroring `SSHHookAsync`.
+
+        `no_host_key_check` is pinned to `False` so that unrelated default-skip behavior
+        does not also overwrite `known_hosts`, which would mask what this test checks.
+        """
+        mock_get_connection.return_value = SimpleNamespace(
+            host="localhost",
+            port=22,
+            login="username",
+            password="password",
+            extra="{}",
+            extra_dejson={"known_hosts": "/connection/known_hosts", "no_host_key_check": False},
+        )
+
+        hook = SFTPHookAsync(known_hosts="/explicit/known_hosts")
+        await hook._get_conn()
+
+        assert mock_connect.call_args.kwargs["known_hosts"] == "/explicit/known_hosts"
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
     async def test_extra_dejson_fields_for_connection_building_known_hosts_none(
         self, mock_get_connection, mock_connect, caplog
     ):

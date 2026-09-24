@@ -77,6 +77,7 @@ from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
+from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
@@ -256,7 +257,33 @@ def requires_access_dag_from_file_token(
             )
         )
         if not dag_ids:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+            # A file with an import error has no registered Dag to authorize per-Dag against, so
+            # reparsing it is gated on the dedicated ``REPARSE_ALL`` permission -- admin-by-default,
+            # scoped to the file's team via its bundle -- rather than on the permission to view
+            # import errors. Reparse is an action, so it must not ride on being able to see the error.
+            # The auth check runs before the existence check so an unauthorized caller cannot tell a
+            # file with an import error apart from one Airflow has never heard of.
+            team_name = (
+                DagBundleModel.get_team_name(payload["bundle_name"], session=session)
+                if payload["bundle_name"]
+                else None
+            )
+            if not get_auth_manager().authorize_view(
+                access_view=AccessView.REPARSE_ALL, user=user, team_name=team_name
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "You do not have permission to reparse files with no registered Dag",
+                )
+            has_import_error = session.scalar(
+                select(ParseImportError.id).where(
+                    ParseImportError.bundle_name == payload["bundle_name"],
+                    ParseImportError.filename == payload["relative_fileloc"],
+                )
+            )
+            if has_import_error is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+            return
 
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         requests: list[IsAuthorizedDagRequest] = [

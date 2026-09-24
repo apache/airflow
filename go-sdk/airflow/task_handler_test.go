@@ -120,6 +120,11 @@ func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
 			fn:   func(Context, chan int) error { return nil },
 			want: "type chan int cannot receive a task argument",
 		},
+		{
+			name: "variadic",
+			fn:   func(Context, ...string) error { return nil },
+			want: "is variadic; a task argument cannot fill a ... parameter",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

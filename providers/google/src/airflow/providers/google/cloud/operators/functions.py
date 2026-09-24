@@ -171,20 +171,18 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.zip_path = zip_path
-        self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
+        self.validate_body = validate_body
+        self.zip_path_preprocessor: ZipPathPreprocessor | None = None
         self._field_validator: GcpBodyFieldValidator | None = None
         self.impersonation_chain = impersonation_chain
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION, api_version=api_version)
-        self._validate_inputs()
         super().__init__(**kwargs)
 
-    def _validate_inputs(self) -> None:
+    def _validate_inputs(self, zip_path_preprocessor: ZipPathPreprocessor) -> None:
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
-        self.zip_path_preprocessor.preprocess_body()
+        zip_path_preprocessor.preprocess_body()
 
     def _validate_all_body_fields(self) -> None:
         if self._field_validator:
@@ -227,12 +225,19 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         }
 
     def execute(self, context: Context):
+        zip_path_preprocessor = ZipPathPreprocessor(self.body, self.zip_path)
+        self.zip_path_preprocessor = zip_path_preprocessor
+        if self.validate_body:
+            self._field_validator = GcpBodyFieldValidator(
+                CLOUD_FUNCTION_VALIDATION, api_version=self.api_version
+            )
+        self._validate_inputs(zip_path_preprocessor)
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        if self.zip_path_preprocessor.should_upload_function():
+        if zip_path_preprocessor.should_upload_function():
             self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code(hook)
         self._validate_all_body_fields()
         self._set_airflow_version_label()

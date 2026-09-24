@@ -284,6 +284,13 @@ class ClearTaskInstancesBody(BaseModel):
             title="Task Ids",
         ),
     ] = None
+    task_group_id: Annotated[
+        str | None,
+        Field(
+            description="Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.",
+            title="Task Group Id",
+        ),
+    ] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -920,6 +927,13 @@ class ImportErrorResponse(BaseModel):
     filename: Annotated[str, Field(title="Filename")]
     bundle_name: Annotated[str | None, Field(title="Bundle Name")]
     stack_trace: Annotated[str, Field(title="Stack Trace")]
+    file_token: Annotated[
+        str,
+        Field(
+            description="Return a signed token identifying the file, used to request its reparse.",
+            title="File Token",
+        ),
+    ]
 
 
 class JobResponse(BaseModel):
@@ -937,7 +951,7 @@ class JobResponse(BaseModel):
     executor_class: Annotated[str | None, Field(title="Executor Class")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     unixname: Annotated[str | None, Field(title="Unixname")]
-    team_name: Annotated[str | None, Field(title="Team Name")] = None
+    team_names: Annotated[list[str] | None, Field(title="Team Names")] = None
     bundle_names: Annotated[list[str] | None, Field(title="Bundle Names")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
@@ -1349,7 +1363,7 @@ class TriggererInstanceInfoResponse(BaseModel):
 
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")]
-    team_name: Annotated[str | None, Field(title="Team Name")]
+    team_names: Annotated[list[str], Field(title="Team Names")]
 
 
 class UpdateHITLDetailPayload(BaseModel):
