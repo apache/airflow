@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiBookOpen } from "react-icons/fi";
+import { FiAlertTriangle, FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 
-import { RouterLink } from "src/system-components";
+import { RouterLink, Tooltip } from "src/system-components";
 
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
@@ -113,7 +114,17 @@ export const Header = ({
     },
     ...nextRunStat,
     {
-      label: translate("dagDetails.activeRuns"),
+      label:
+        dag?.exceeds_max_active_runs === true ? (
+          <HStack gap={1}>
+            {translate("dagDetails.activeRuns")}
+            <Tooltip content={translate("dagDetails.activeRunsExceedsMaxTooltip")}>
+              <FiAlertTriangle color="warning.fg" data-testid="active-runs-exceeds-max-warning" />
+            </Tooltip>
+          </HStack>
+        ) : (
+          translate("dagDetails.activeRuns")
+        ),
       value:
         dag?.max_active_runs === undefined
           ? undefined

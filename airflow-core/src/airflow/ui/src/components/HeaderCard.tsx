@@ -31,7 +31,7 @@ type Props = {
   readonly actions?: ReactNode;
   readonly icon: ReactNode;
   readonly state?: TaskInstanceState | null;
-  readonly stats: Array<{ key?: string; label: string; value: ReactNode | string }>;
+  readonly stats: Array<{ key?: string; label: ReactNode | string; value: ReactNode | string }>;
   readonly subTitle?: ReactNode | string;
   readonly title: ReactNode | string;
   readonly type: "asset" | "dag" | "dagBundle" | "dagRun" | "task" | "taskGroup" | "taskInstance";
@@ -77,8 +77,8 @@ export const HeaderCard = ({ actions, icon, state, stats, subTitle, title, type 
         </Flex>
 
         <HStack alignItems="flex-start" flexWrap="wrap" gap={6} my={3}>
-          {stats.map((stat) => (
-            <Box data-testid="stat" key={stat.key ?? stat.label}>
+          {stats.map((stat, index) => (
+            <Box data-testid="stat" key={stat.key ?? index}>
               <Box
                 color="fg.muted"
                 fontSize="xs"
