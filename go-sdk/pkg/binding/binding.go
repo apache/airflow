@@ -280,27 +280,33 @@ func (p *Plan) resolveLoneStructParam(
 		}
 	}
 
-	// The spec carries one entry per stub parameter, captured defaults included, so
-	// a field nothing fills means the struct and the stub signature disagree rather
-	// than the call simply having left an argument out.
-	if len(unfilled) > 0 {
-		if len(args) == 0 {
-			return nil, fmt.Errorf(
-				"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
-					"%d bindable field(s); nothing can fill them on this execution path",
-				p.fnName, len(plan.fields),
-			)
-		}
+	// A spec that arrived empty is a different thing from one that disagrees with
+	// the struct: nothing reached this task at all, which an Airflow too old to
+	// send bindings also looks like, so there is nothing to bind rather than a
+	// mismatch to report.
+	if len(args) == 0 && len(plan.fields) > 0 {
 		return nil, fmt.Errorf(
-			"task function %s: %d struct field(s) match no TaskFlow call argument: %s; "+
-				"the call bound %s",
-			p.fnName, len(unfilled), strings.Join(unfilled, ", "), quotedArgNames(args),
+			"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
+				"%d bindable field(s); nothing can fill them on this execution path",
+			p.fnName, len(plan.fields),
 		)
 	}
 
-	// An argument no field takes is not fatal: a struct binds by name, so the
-	// extra one changes nothing the handler reads. Captured defaults are the
-	// normal case of this and stay silent.
+	// Neither direction of a name mismatch is fatal, because a struct binds by
+	// name: an unfilled field keeps its Go zero value and an unclaimed argument
+	// changes nothing the handler reads. Both are logged so the mismatch is still
+	// visible, since the spec carries one entry per stub parameter and either side
+	// of it means the Go signature and the stub signature disagree.
+	if len(unfilled) > 0 {
+		logger.Warn(
+			"struct field(s) match no TaskFlow call argument, left at their zero value",
+			"function", p.fnName,
+			"fields", unfilled,
+			"bound", quotedArgNames(args),
+		)
+	}
+
+	// Captured defaults are the normal case of an unclaimed argument and stay silent.
 	var unclaimed []string
 	for i, c := range claimed {
 		if c {
@@ -574,9 +580,7 @@ func hasArgTag(structType reflect.Type) bool {
 			}
 			continue
 		}
-		// `arg:"-"` names no argument, so it cannot be the typo the whole-value
-		// fallback is withheld from tagged structs to expose.
-		if tag := f.Tag.Get("arg"); f.IsExported() && tag != "" && tag != "-" {
+		if f.IsExported() && f.Tag.Get("arg") != "" {
 			return true
 		}
 	}
@@ -636,12 +640,6 @@ func collectStructFields(
 		}
 
 		tag := f.Tag.Get("arg")
-		// `arg:"-"` opts a field out of binding, the way `json:"-"` opts one out
-		// of encoding. Every other exported field is an argument the call has to
-		// fill, so this is how a struct carries a field that is not one.
-		if tag == "-" {
-			continue
-		}
 		if !isDecodableType(f.Type) {
 			// Only an explicitly tagged, undecodable field is an error.
 			if tag == "" {

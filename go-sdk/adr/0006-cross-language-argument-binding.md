@@ -108,8 +108,7 @@ ordered bindings / raw values             | named bindings / raw values
 arity must match data slots               | `arg:` exact name or untagged folded name
 captured defaults may be dropped          |
                                           | claimed value -> field
-                                          | unmatched field -> error
-                                          |   (`arg:"-"` opts a field out)
+                                          | unmatched field -> zero value + warning
                                           | unclaimed explicit arg -> warning
                                           | untagged + one explicit arg + no field claim
                                           |   -> decode whole struct
@@ -137,13 +136,13 @@ captured defaults may be dropped          |
 - Captured Python defaults may remain unclaimed. Flat bindings must match the data-parameter
   count. A sole struct claims arguments by field name, except that one explicit argument may
   decode as the whole value when the struct is untagged and no field matches.
-- A declared field nothing fills is an error, both for flat parameters and for struct fields.
-  The spec carries one entry per stub parameter, captured defaults included, so a field left
-  unfilled means the Go signature and the stub signature disagree. `arg:"-"` opts a field out of
-  binding for the case where a struct carries something that is not an argument.
-- An explicit argument no field claims is a warning, not an error: a struct binds by name, so
-  the extra argument changes nothing the handler reads. Incompatible schemas or Go types still
-  fail before the task body runs.
+- Neither direction of a sole-struct name mismatch fails the task, following the cross-language
+  rule in [lang-SDK ADR 0007](../../airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md):
+  an unfilled field keeps its zero value and an unclaimed explicit argument is ignored, and both
+  are logged. Flat bindings still fail either way, because a dropped or added positional argument
+  shifts every later one. Incompatible schemas or Go types still fail before the task body runs.
+- A spec that arrives empty is not a mismatch but an absence, which an Airflow too old to send
+  bindings also looks like, so a struct with bindable fields and no bindings at all still fails.
 - A known JSON Schema shape is checked against the Go target type before strict JSON decoding.
   Missing or unknown schema forms remain unconstrained and rely on the decoder.
 - Cross-language TaskFlow binding uses the coordinator path described in

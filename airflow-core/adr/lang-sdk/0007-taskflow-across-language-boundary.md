@@ -105,6 +105,35 @@ Materializing is what makes the contract work at all: the spec is the *only* thi
 receives, so it must be complete and self-describing rather than a reference the runtime is
 expected to resolve on its own.
 
+#### What a runtime does when the two signatures disagree
+
+The spec describes the stub signature. Nothing checks it against the foreign handler's own
+signature, in either direction, so every SDK has to answer the same two questions the same way.
+"More" means the call passed arguments the handler does not take; "fewer" means the handler
+declared something no argument supplies.
+
+| the handler binds | more | fewer |
+| --- | --- | --- |
+| by position | fail | fail |
+| by name | log, do not fail | log, do not fail |
+
+Positional binding fails either way because positions carry the whole meaning of the binding: an
+argument dropped or added shifts every later one, so the handler would read values it has mistaken
+for others. The one exception is a trailing `from_default` entry, which the runtime may drop to
+match the handler's arity, since a captured default carries no intent from the call site.
+
+Name binding cannot shift, so neither direction is worth failing a task over: a field nothing fills
+takes the language's absent value, and an argument no field claims changes nothing the handler
+reads. Both are logged instead, naming the mismatch from whichever side the runtime can see it, so
+a mistyped name still surfaces in the task log. `from_default` entries are not reported, since a
+handler ignoring a captured default is the normal case.
+
+How much a runtime can see differs by language and is not a difference in the rule. A runtime with
+a declared field list, such as Go's sole struct or Java's `TaskInput`, knows both directions before
+the handler runs. One that has no declared list, such as the TypeScript SDK, whose handler
+destructures an object whose type is erased, can only report the arguments the handler never read,
+after the fact.
+
 ### B. Materialization belongs in core Dag serialization, behind a generic `is_stub` flag
 
 The spec is built in Airflow core, from `OperatorSerialization._serialize_node`, for a non-mapped
