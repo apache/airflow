@@ -13438,9 +13438,13 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
-        is_at_max_active_runs:
+        queued_runs_count:
+          type: integer
+          title: Queued Runs Count
+          default: 0
+        exceeds_max_active_runs:
           type: boolean
-          title: Is At Max Active Runs
+          title: Exceeds Max Active Runs
         team_name:
           anyOf:
           - type: string
@@ -13514,7 +13518,7 @@ components:
       - timezone
       - last_parsed
       - default_args
-      - is_at_max_active_runs
+      - exceeds_max_active_runs
       - is_backfillable
       - file_token
       - concurrency

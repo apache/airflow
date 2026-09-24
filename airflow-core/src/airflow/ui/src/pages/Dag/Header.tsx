@@ -18,7 +18,7 @@
  */
 import { HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiAlertTriangle, FiBookOpen } from "react-icons/fi";
+import { FiBookOpen, FiInfo } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
@@ -115,11 +115,11 @@ export const Header = ({
     ...nextRunStat,
     {
       label:
-        dag?.exceeds_max_active_runs === true ? (
+        (dag?.queued_runs_count ?? 0) > 0 ? (
           <HStack gap={1}>
             {translate("dagDetails.activeRuns")}
             <Tooltip content={translate("dagDetails.activeRunsExceedsMaxTooltip")}>
-              <FiAlertTriangle color="warning.fg" data-testid="active-runs-exceeds-max-warning" />
+              <FiInfo data-testid="active-runs-exceeds-max-info" />
             </Tooltip>
           </HStack>
         ) : (
@@ -128,7 +128,13 @@ export const Header = ({
       value:
         dag?.max_active_runs === undefined
           ? undefined
-          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
+          : (dag.queued_runs_count ?? 0) > 0
+            ? translate("dagDetails.activeRunsWithQueued", {
+                activeRuns: dag.active_runs_count ?? 0,
+                maxActiveRuns: dag.max_active_runs,
+                queuedRuns: dag.queued_runs_count,
+              })
+            : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
     },
     {
       label: translate("dagDetails.owner"),

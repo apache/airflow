@@ -274,9 +274,20 @@ def get_dag_details(
         or 0
     )
 
-    # Add is_favorite and active_runs_count fields to the Dag model
+    # Count queued Dag runs: these are waiting for an active run to finish before they can start.
+    queued_runs_count = (
+        session.scalar(
+            select(func.count())
+            .select_from(DagRun)
+            .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.QUEUED)
+        )
+        or 0
+    )
+
+    # Add is_favorite, active_runs_count, and queued_runs_count fields to the Dag model
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+    setattr(dag_model, "queued_runs_count", queued_runs_count)
 
     return DAGDetailsResponse.model_validate(dag_model)
 

@@ -222,6 +222,7 @@ class DAGDetailsResponse(DAGResponse):
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
     active_runs_count: int = 0
+    queued_runs_count: int = 0
     is_at_max_active_runs: bool
     team_name: str | None = None
 
