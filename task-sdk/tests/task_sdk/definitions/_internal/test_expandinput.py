@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import threading
 from collections import deque
+from collections.abc import ItemsView
 
 import pytest
 from task_sdk.definitions.conftest import make_xcom_arg
@@ -29,6 +30,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
     ExpandInput,
     ListOfDictsExpandInput,
+    _to_iterable,
     aiterate,
 )
 
@@ -210,9 +212,28 @@ class TestAiterate:
         assert await _alist(aiterate(AsyncOnlyValues([1, 2]))) == [1, 2]
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("container", [[1, 2], (1, 2), range(1, 3), deque([1, 2])])
-    async def test_in_memory_containers_are_iterated_in_place(self, container):
+    @pytest.mark.parametrize(
+        "container",
+        [
+            [1, 2],
+            (1, 2),
+            range(1, 3),
+            deque([1, 2]),
+            {1: "a", 2: "b"},
+            {1: "a", 2: "b"}.keys(),
+            {"a": 1, "b": 2}.values(),
+        ],
+    )
+    async def test_in_memory_containers_are_iterated_in_place(self, container, monkeypatch):
+        """Nothing here can block on a supervisor call, so no item is pulled through a worker thread."""
+        monkeypatch.setattr(asyncio, "to_thread", lambda *a, **kw: pytest.fail("to_thread used"))
         assert await _alist(aiterate(container)) == [1, 2]
+
+    @pytest.mark.asyncio
+    async def test_mapping_items_view_is_iterated_in_place(self, monkeypatch):
+        """The (key, value) view ``_to_iterable`` hands over for a dict argument is in memory too."""
+        monkeypatch.setattr(asyncio, "to_thread", lambda *a, **kw: pytest.fail("to_thread used"))
+        assert await _alist(aiterate({"x": 1, "y": 2}.items())) == [("x", 1), ("y", 2)]
 
     @pytest.mark.asyncio
     async def test_other_iterables_are_advanced_off_the_loop_thread_and_lazily(self):
@@ -236,6 +257,29 @@ class TestAiterate:
         assert len(threads) == 3
         assert all(thread is not threading.current_thread() for thread in threads)
         assert asyncio.get_running_loop().is_running()
+
+
+class TestToIterable:
+    """One helper serves ``iter_values`` and ``aiter_values``, so both paths agree on every input."""
+
+    def test_mapping_expands_to_its_items_view(self):
+        result = _to_iterable({"x": 1, "y": 2})
+        assert isinstance(result, ItemsView)
+        assert list(result) == [("x", 1), ("y", 2)]
+
+    @pytest.mark.parametrize("value", [[1, 2], (1, 2), (x for x in [1]), AsyncOnlyValues([1, 2])])
+    def test_iterables_sync_or_async_pass_through_untouched(self, value):
+        assert _to_iterable(value) is value
+
+    @pytest.mark.parametrize("value", ["hello", b"bytes", 1, None, 2.5])
+    def test_scalars_and_strings_become_a_single_item(self, value):
+        assert _to_iterable(value) == (value,)
+
+    def test_sync_and_async_paths_agree_on_a_dict_argument(self):
+        expand_input = DictOfListsExpandInput({"a": {"x": 1, "y": 2}, "b": [10]})
+        sync_result = list(expand_input.iter_values({}))
+        async_result = asyncio.run(_alist(expand_input.aiter_values({})))
+        assert sync_result == async_result == [{"a": ("x", 1), "b": 10}, {"a": ("y", 2), "b": 10}]
 
 
 class TestBatchedExpandInput:

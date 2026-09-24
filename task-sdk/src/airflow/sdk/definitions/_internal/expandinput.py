@@ -24,11 +24,14 @@ from collections.abc import (
     AsyncIterable,
     AsyncIterator,
     Callable,
+    ItemsView,
     Iterable,
     Iterator,
+    KeysView,
     Mapping,
     Sequence,
     Sized,
+    ValuesView,
 )
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
@@ -66,7 +69,9 @@ async def aiterate(iterable: Any) -> AsyncIterator[Any]:
             yield item
         return
 
-    if isinstance(iterable, (list, tuple, set, frozenset, range, deque)):
+    if isinstance(
+        iterable, (list, tuple, set, frozenset, range, deque, dict, ItemsView, KeysView, ValuesView)
+    ):
         for item in iterable:
             yield item
         return
@@ -75,6 +80,24 @@ async def aiterate(iterable: Any) -> AsyncIterator[Any]:
     sentinel = object()
     while (item := await asyncio.to_thread(next, iterator, sentinel)) is not sentinel:
         yield item
+
+
+def _to_iterable(value: Any) -> Any:
+    """
+    Normalise one expand argument into what :meth:`ExpandInput.iter_values` and its async twin walk.
+
+    Shared by the sync and async paths so they cannot drift. A Mapping expands to its (key, value)
+    pairs, matching ``_expand_mapped_field``'s dict handling, so classic ``.expand()`` and
+    ``.iterate()`` hand sub-tasks the same per-index value for a dict argument. Any other iterable,
+    sync or async, is walked as-is (``str``/``bytes`` count as scalars) and a scalar becomes a
+    one-element tuple. The sync path cannot walk an async-only iterable and fails on ``iter()``
+    rather than treating it as a scalar.
+    """
+    if isinstance(value, Mapping):
+        return value.items()
+    if hasattr(value, "__aiter__") or (hasattr(value, "__iter__") and not isinstance(value, (str, bytes))):
+        return value
+    return (value,)
 
 
 class _NotFullyPopulated(RuntimeError):
@@ -366,14 +389,6 @@ class DictOfListsExpandInput(ExpandInput):
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
         from airflow.sdk.definitions.xcom_arg import XComArg
 
-        def _to_iterable(v: Any) -> Iterable:
-            # Match _expand_mapped_field's dict handling below: a dict value expands to
-            # its (key, value) pairs, not just its keys, so that classic .expand() and
-            # .iterate() hand sub-tasks the same per-index value for a dict argument.
-            if isinstance(v, Mapping):
-                return v.items()
-            return v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)) else (v,)
-
         def _make_factory(v: Any) -> Callable[[], Iterable]:
             # Capture v (already bound to self.value[k]) so each factory closes
             # over its own value rather than a shared loop variable.
@@ -408,13 +423,6 @@ class DictOfListsExpandInput(ExpandInput):
     def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[Any]:
         """Async twin of :meth:`iter_values`: the same lazy product, with sources read on the loop."""
         from airflow.sdk.definitions.xcom_arg import XComArg
-
-        def _to_iterable(v: Any) -> Any:
-            if isinstance(v, Mapping):
-                return list(v.items())
-            if hasattr(v, "__aiter__") or (hasattr(v, "__iter__") and not isinstance(v, (str, bytes))):
-                return v
-            return (v,)
 
         def _make_factory(v: Any) -> Callable[[], AsyncIterator[Any]]:
             async def factory() -> AsyncIterator[Any]:
