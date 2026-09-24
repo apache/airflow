@@ -787,6 +787,68 @@ def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
     assert finished[0].parent is None
 
 
+UNSAMPLED_TRACE_ID = 0x4BF92F3577B34DA6A3CE929D0E0E4736
+UNSAMPLED_CARRIER = {"traceparent": f"00-{UNSAMPLED_TRACE_ID:032x}-00f067aa0ba902b7-00"}
+
+
+def _startup_with_carrier(make_ti_context, carrier: dict[str, str]) -> StartupDetails:
+    return StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+            context_carrier=carrier,
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+
+def test_with_no_tracer_provider_an_unsampled_parent_is_not_made_current(make_ti_context):
+    """A span the task code starts under its own provider must not inherit "not sampled"."""
+    task_code_exporter = InMemorySpanExporter()
+    task_code_provider = TracerProvider()
+    task_code_provider.add_span_processor(SimpleSpanProcessor(task_code_exporter))
+
+    with (
+        mock.patch("airflow.sdk.execution_time.task_runner.tracer", trace.NoOpTracer()),
+        mock.patch.object(trace, "get_tracer_provider", return_value=trace.ProxyTracerProvider()),
+        _make_task_span(_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
+    ):
+        current = trace.get_current_span().get_span_context()
+        with task_code_provider.get_tracer("agent_framework").start_as_current_span("agent run"):
+            pass
+
+    assert not current.is_valid
+    recorded = task_code_exporter.get_finished_spans()
+    assert [span.name for span in recorded] == ["agent run"]
+    assert recorded[0].parent is None
+
+
+def test_with_a_tracer_provider_installed_the_dag_runs_sampling_decision_holds(make_ti_context):
+    """Core tracing or auto-instrumentation installed a provider: the run was sampled out, so stay out."""
+    installed = TracerProvider()
+    task_code_exporter = InMemorySpanExporter()
+    installed.add_span_processor(SimpleSpanProcessor(task_code_exporter))
+
+    with (
+        mock.patch("airflow.sdk.execution_time.task_runner.tracer", installed.get_tracer("airflow")),
+        mock.patch.object(trace, "get_tracer_provider", return_value=installed),
+        _make_task_span(_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
+    ):
+        with installed.get_tracer("agent_framework").start_as_current_span("agent run"):
+            pass
+
+    assert task_code_exporter.get_finished_spans() == ()
+
+
 def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     """Check that the bundle path is added to sys.path, so Dags can import shared modules."""
     tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
