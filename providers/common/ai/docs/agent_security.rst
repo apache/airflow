@@ -104,7 +104,8 @@ No single layer is sufficient on its own. They work together.
      - Only methods listed in ``allowed_methods`` are exposed as tools.
        Auto-discovery is not supported. Methods are validated at Dag parse
        time.
-     - Does not restrict what arguments the agent passes to allowed methods.
+     - Restricts only the arguments named in ``pinned_arguments``, and only by parameter
+       name; the agent chooses every other argument of an allowed method.
    * - **SQLToolset: read-only by default**
      - ``allow_writes=False`` (default) validates every SQL query through
        ``validate_sql()``: SELECT-family and read-only metadata
@@ -235,7 +236,8 @@ database user with the minimum privileges required.
   ``get_connection()``: these give broad access.
 - Prefer read-only methods (``list_*``, ``get_*``, ``describe_*``).
 - The agent controls arguments. If a method accepts a ``path`` parameter,
-  the agent can pass any path the hook has access to.
+  the agent can pass any path the hook has access to, unless the Dag author pins it with
+  ``pinned_arguments`` (see :doc:`toolsets/hook`).
 
 .. code-block:: python
 
@@ -290,7 +292,7 @@ Before deploying an agent task to production:
 2. **Database permissions**: Create a dedicated database user with minimum
    required grants. Don't reuse the admin connection.
 3. **Tool allow-list**: Review ``allowed_methods`` / ``allowed_tables``. The
-   agent can call any exposed tool with any arguments.
+   agent can call any exposed tool with any arguments it does not pin.
 4. **Read-only default**: Keep ``allow_writes=False`` unless the task
    specifically requires writes.
 5. **Result limits**: Set ``max_rows`` and ``max_result_bytes`` appropriate to
