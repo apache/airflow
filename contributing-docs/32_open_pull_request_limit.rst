@@ -32,9 +32,9 @@ Reviewer attention is the scarcest resource in the project. When we had around 1
 Requests, we could promise - and mostly delivered - at least an initial review for each of them.
 With more than 1,000 open Pull Requests, that promise is impossible to keep, and hundreds of Pull
 Requests sit without any review at all. Opening more Pull Requests does not make any of them get
-merged faster - it only makes the queue longer for everyone, including you.
+merged faster - it only makes the queue longer for everyone.
 
-Generating code has also become fast and cheap. A submitted Pull Request no longer shows on its own
+Generating code has also become fast. A submitted Pull Request no longer shows on its own
 that its author understands Airflow or is invested in the change, and deciding whether a Pull Request
 deserves a deeper review takes time that maintainers do not have for a queue of that size.
 
@@ -55,8 +55,7 @@ How the limit works
 * The limit uses GitHub's
   `pull request limit for users without write access <https://docs.github.com/en/communities/moderating-comments-and-conversations/limiting-interactions-in-your-repository#limiting-concurrent-open-pull-requests-for-users-without-write-access>`__,
   enabled in the repository's ``.asf.yaml`` file.
-* It applies to every user **without write access** to the repository. Committers are not affected.
-  Triage collaborators do not have write access, so the limit applies to them as well.
+* It applies to every user **without write access** to the repository.
 * Draft Pull Requests do not count towards the limit yet, because GitHub does not support counting
   them. Once GitHub adds that, we will start counting drafts as well - so do not rely on drafts to
   get around the limit. Keep unfinished work on a branch in your fork instead.
@@ -124,7 +123,6 @@ and they are what maintainers look at when deciding who to invite as a committer
 * Join the discussions on the ``dev@airflow.apache.org`` mailing list and in the dev calls.
 * Help other contributors on `Slack <https://s.apache.org/airflow-slack>`__, for example in the
   ``#new-contributors`` channel.
-* Improve the documentation.
 
 See `How to contribute <04_how_to_contribute.rst>`__ and
 `How to communicate <02_how_to_communicate.rst>`__ for more ways to get involved.
