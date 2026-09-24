@@ -349,6 +349,7 @@ def decode_deadline_alert_model(deadline_alert: DeadlineAlertModel) -> Serialize
     """
     return decode_deadline_alert(
         {
+            DeadlineAlertFields.NAME: deadline_alert.name,
             DeadlineAlertFields.REFERENCE: deadline_alert.reference,
             DeadlineAlertFields.INTERVAL: deadline_alert.interval,
             DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
@@ -357,7 +358,7 @@ def decode_deadline_alert_model(deadline_alert: DeadlineAlertModel) -> Serialize
 
 
 def resolve_deadline_alert_interval(
-    alert: SerializedDeadlineAlert, *, session: Session | None = None
+    alert: SerializedDeadlineAlert, *, session: Session
 ) -> datetime.timedelta:
     """
     Resolve a decoded alert's interval to a ``timedelta``.
@@ -367,9 +368,10 @@ def resolve_deadline_alert_interval(
     missing or is not an integer number of seconds.
 
     :param alert: The decoded alert whose interval should be resolved.
-    :param session: Existing SQLAlchemy Session. Both callers run under the scheduler's
-        ``prohibit_commit`` guard, so the open session has to reach ``Variable.get`` instead of
-        ``provide_session`` handing back the same scoped session and rolling it back on exit.
+    :param session: Existing SQLAlchemy Session. Required rather than defaulted: both callers run
+        under the scheduler's ``prohibit_commit`` guard, so the open session has to reach
+        ``Variable.get`` instead of ``provide_session`` handing back the same scoped session and
+        rolling it back on exit.
 
     :meta private:
     """

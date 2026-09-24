@@ -1566,8 +1566,7 @@ class TestDagRun:
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_uses_callers_session(self, _, session, deadline_test_dag):
         """DagRun creation resolves the interval inside an open transaction, so the caller's
-        session has to reach ``Variable.get``. Without it ``provide_session`` hands back the same
-        scoped session and rolls it back under the scheduler's ``prohibit_commit`` guard."""
+        session has to reach ``Variable.get``. See ``resolve_deadline_alert_interval()``."""
         future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
         scheduler_dag = deadline_test_dag(

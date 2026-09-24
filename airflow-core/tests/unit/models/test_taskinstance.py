@@ -73,6 +73,7 @@ from airflow.models.taskinstance import (
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -92,10 +93,11 @@ from airflow.sdk import (
 )
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineReference, VariableInterval
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
+from airflow.sdk.serde import serialize
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -4145,10 +4147,6 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
     to ``timedelta()``. Storing the interval via ``serialize`` here mirrors production and covers
     both interval kinds.
     """
-    from airflow.models.variable import Variable
-    from airflow.sdk.definitions.deadline import VariableInterval
-    from airflow.sdk.serde import serialize
-
     variable_key = "deadline_interval_key"
     variable_seconds = 3600
 
@@ -4245,8 +4243,7 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
         clear_task_instances(tis, session)
 
     if use_variable_interval:
-        # The clear runs inside an open transaction, so the caller's session has to reach
-        # Variable.get rather than provide_session handing back the same scoped session.
+        # See resolve_deadline_alert_interval() for why the caller's session has to be forwarded.
         assert mock_variable_get.call_args_list == [
             mock.call(variable_key, session=session),
             mock.call(variable_key, session=session),
@@ -4276,10 +4273,6 @@ def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_make
     missing or is not an integer, and that happens while the DAG run is being cleared. The clear
     should still go through, leaving the unresolvable deadline at its old time.
     """
-    from airflow.models.variable import Variable
-    from airflow.sdk.definitions.deadline import VariableInterval
-    from airflow.sdk.serde import serialize
-
     with dag_maker(
         dag_id="test_recalculate_deadlines_unresolvable",
         schedule=datetime.timedelta(days=1),
