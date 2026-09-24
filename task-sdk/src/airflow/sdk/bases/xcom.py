@@ -567,19 +567,26 @@ class BaseXCom:
         )
 
 
+def _normalize_index(index: int, length: int) -> int:
+    """Map a sequence index, negative ones included, onto a position in ``[0, length)``."""
+    if index < 0:
+        index += length
+    if not (0 <= index < length):
+        raise IndexError(index)
+    return index
+
+
 class XComIterable(Sequence):
     """
     An iterable that lazily fetches XCom values one by one instead of loading all at once.
 
-    The class has two sides. The *producing* task builds it and grows it with :meth:`append` /
-    :meth:`aappend`, each call pushing one more ``return_value_<index>`` XCom, before returning it as
-    the task's result. Everything *downstream* (``.iterate()``, ``.expand()``, a plain ``xcom_pull``)
-    only ever reads it, which is why the class implements the read-only
-    :class:`collections.abc.Sequence` rather than ``MutableSequence``: once handed over it is a fixed
-    view of the values already pushed, and the two append methods are not part of that contract.
+    This is a read-only :class:`collections.abc.Sequence` over the ``return_value_<index>`` XComs an
+    iterated task pushed, one per index: the values are written by the producing task's runner as
+    each sub-task finishes (see ``IterableOperator.axcom_push``), and the iterable only ever reads
+    them. Nothing on this class mutates the underlying XComs.
 
-    Negative indices are not supported: every element is a remote fetch, and resolving a negative
-    index against a lazily counted stream would cost a full walk just to find the end.
+    Indexing follows the usual sequence rules, negative indices included: ``result[-1]`` is the last
+    value. Every element is a remote fetch, so random access costs one XCom read per element.
     """
 
     def __init__(
@@ -595,7 +602,6 @@ class XComIterable(Sequence):
         self.run_id = run_id
         self.map_index = map_index
         self.length = length or 0
-        self._index = self.length
 
     def __iter__(self) -> Iterator[Any]:
         return _XComIterator(self)
@@ -617,11 +623,8 @@ class XComIterable(Sequence):
             start, stop, step = key.indices(len(self))
             return [self[i] for i in range(start, stop, step)]
 
-        if not (0 <= key < self.length):
-            raise IndexError(key)
-
         return XCom.get_one(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_{key}",
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{_normalize_index(key, self.length)}",
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
@@ -638,11 +641,8 @@ class XComIterable(Sequence):
         """
         from airflow.sdk.execution_time.xcom import XCom
 
-        if not (0 <= index < self.length):
-            raise IndexError(index)
-
         return await XCom.aget_one(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_{index}",
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{_normalize_index(index, self.length)}",
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
@@ -651,42 +651,6 @@ class XComIterable(Sequence):
 
     def __aiter__(self) -> AsyncIterator[Any]:
         return _AsyncXComIterator(self)
-
-    def append(self, value: Any):
-        """
-        Push ``value`` as the next indexed XCom of the producing task.
-
-        Producer-side only: call it from the task that owns this iterable, before returning the
-        iterable as the task's result. Downstream consumers see a read-only ``Sequence``.
-        """
-        from airflow.sdk.execution_time.xcom import XCom
-
-        XCom.set(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index}",
-            value=value,
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
-            map_index=self.map_index,
-        )
-        self._index += 1
-        self.length += 1
-
-    async def aappend(self, value: Any):
-        """Async version of :meth:`append`; the same producer-side-only rule applies."""
-        from airflow.sdk.execution_time.xcom import XCom
-
-        await XCom.aset(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index}",
-            value=value,
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
-            map_index=self.map_index,
-        )
-
-        self._index += 1
-        self.length += 1
 
     def flatten(self) -> XComIterable:
         """Return a FlattenedXComIterable that recursively expands nested iterables (except str/bytes)."""
@@ -773,11 +737,10 @@ class FlattenedXComIterable(XComIterable):
                     found[index] = item
             return [found[index] for index in positions]
 
-        # Same rule as XComIterable: no negative indices. Checked before len() so a negative key
-        # does not trigger a full walk of the stream just to be rejected.
-        if key < 0 or key >= len(self):
-            raise IndexError(key)
-
+        # Bounds are flattened positions, so measure against len(self), not the page count. len()
+        # walks the stream once and caches the count, which the bounds check needs anyway, so a
+        # negative key costs nothing extra to resolve from the end.
+        key = _normalize_index(key, len(self))
         for current_index, item in enumerate(self):
             if current_index == key:
                 return item
@@ -799,7 +762,14 @@ class FlattenedXComIterable(XComIterable):
     async def aget(self, index: int) -> Any:
         """Async counterpart of ``self[index]`` in flattened positions; walks the pages like it."""
         if index < 0:
-            raise IndexError(index)
+            # Same rule as __getitem__, but the count must be discovered on the loop: walk the
+            # stream through aget rather than the blocking len().
+            if self._flattened_length is None:
+                async for _ in self:
+                    pass
+            index += cast("int", self._flattened_length)
+            if index < 0:
+                raise IndexError(index)
         current_index = 0
         async for item in self:
             if current_index == index:

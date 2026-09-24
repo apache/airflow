@@ -280,84 +280,11 @@ class TestXComIterable:
     def make_iterable(self, length: int = 0, map_index: int | None = None) -> XComIterable:
         return XComIterable(task_id="task", dag_id="dag", run_id="run", map_index=map_index, length=length)
 
-    @patch.object(XCom, "set")
-    def test_append_calls_xcom_set_with_correct_key(self, mock_set):
-        iterable = self.make_iterable()
-        iterable.append("value1")
-        mock_set.assert_called_once_with(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_0",
-            value="value1",
-            dag_id="dag",
-            task_id="task",
-            run_id="run",
-            map_index=None,
-        )
-
-    @patch.object(XCom, "set")
-    def test_append_uses_sequential_keys(self, mock_set):
-        iterable = self.make_iterable()
-        iterable.append("a")
-        iterable.append("b")
-        iterable.append("c")
-        keys = [c.kwargs["key"] for c in mock_set.call_args_list]
-        assert keys == [
-            f"{BaseXCom.XCOM_RETURN_KEY}_0",
-            f"{BaseXCom.XCOM_RETURN_KEY}_1",
-            f"{BaseXCom.XCOM_RETURN_KEY}_2",
-        ]
-
-    @patch.object(XCom, "set")
-    def test_append_increments_index_and_length(self, mock_set):
-        iterable = self.make_iterable()
-        iterable.append("a")
-        iterable.append("b")
-        assert iterable._index == 2
-        assert iterable.length == 2
-
-    @patch.object(XCom, "set", side_effect=RuntimeError("oops"))
-    def test_append_does_not_increment_index_on_error(self, mock_set):
-        """index/length must not advance when XCom.set raises, to avoid phantom entries."""
-        iterable = self.make_iterable()
-        with pytest.raises(RuntimeError, match="oops"):
-            iterable.append("value")
-        assert iterable._index == 0
-        assert iterable.length == 0
-
-    @pytest.mark.asyncio
-    @patch.object(XCom, "aset", new_callable=AsyncMock)
-    async def test_aappend_calls_xcom_aset_with_correct_key(self, mock_aset):
-        iterable = self.make_iterable()
-        await iterable.aappend("value1")
-        mock_aset.assert_called_once_with(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_0",
-            value="value1",
-            dag_id="dag",
-            task_id="task",
-            run_id="run",
-            map_index=None,
-        )
-
-    @pytest.mark.asyncio
-    @patch.object(XCom, "aset", new_callable=AsyncMock)
-    async def test_aappend_uses_sequential_keys(self, mock_aset):
-        iterable = self.make_iterable()
-        await iterable.aappend("a")
-        await iterable.aappend("b")
-        keys = [c.kwargs["key"] for c in mock_aset.call_args_list]
-        assert keys == [
-            f"{BaseXCom.XCOM_RETURN_KEY}_0",
-            f"{BaseXCom.XCOM_RETURN_KEY}_1",
-        ]
-
-    @pytest.mark.asyncio
-    @patch.object(XCom, "aset", new_callable=AsyncMock, side_effect=RuntimeError("oops"))
-    async def test_aappend_does_not_increment_index_on_error(self, mock_aset):
-        """index/length must not advance when XCom.aset raises, to avoid phantom entries."""
-        iterable = self.make_iterable()
-        with pytest.raises(RuntimeError, match="oops"):
-            await iterable.aappend("value")
-        assert iterable._index == 0
-        assert iterable.length == 0
+    def test_has_no_append(self):
+        """The consumer-facing Sequence is read-only: nothing on it mutates the underlying XComs."""
+        iterable = self.make_iterable(length=1)
+        assert not hasattr(iterable, "append")
+        assert not hasattr(iterable, "aappend")
 
     def test_serialize_returns_expected_dict(self):
         iterable = self.make_iterable(length=3, map_index=1)
@@ -378,19 +305,6 @@ class TestXComIterable:
         assert iterable.map_index == 2
         assert iterable.length == 5
 
-    def test_index_starts_at_length_after_construction(self):
-        """Creating an XComIterable with length>0 must start index at length, not 0."""
-        iterable = self.make_iterable(length=3)
-        assert iterable._index == 3
-
-    @patch.object(XCom, "set")
-    def test_deserialize_then_append_continues_from_correct_index(self, mock_set):
-        """After round-tripping through serialize/deserialize, append must not overwrite existing entries."""
-        data = {"task_id": "task", "dag_id": "dag", "run_id": "run", "map_index": None, "length": 3}
-        iterable = XComIterable.deserialize(data, version=1)
-        iterable.append("new_value")
-        assert mock_set.call_args.kwargs["key"] == f"{BaseXCom.XCOM_RETURN_KEY}_3"
-
     @pytest.mark.asyncio
     @patch.object(XCom, "aget_one", new_callable=AsyncMock, return_value="value-1")
     async def test_aget_calls_xcom_aget_one_with_indexed_key(self, mock_aget_one):
@@ -405,13 +319,20 @@ class TestXComIterable:
         )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("index", [-1, 2])
+    @pytest.mark.parametrize("index", [-3, 2])
     @patch.object(XCom, "aget_one", new_callable=AsyncMock)
     async def test_aget_out_of_range_raises_index_error_without_fetching(self, mock_aget_one, index):
         iterable = self.make_iterable(length=2)
         with pytest.raises(IndexError):
             await iterable.aget(index)
         mock_aget_one.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock, return_value="last")
+    async def test_aget_negative_index_counts_from_the_end(self, mock_aget_one):
+        iterable = self.make_iterable(length=3)
+        assert await iterable.aget(-1) == "last"
+        assert mock_aget_one.await_args.kwargs["key"] == f"{BaseXCom.XCOM_RETURN_KEY}_2"
 
     @pytest.mark.asyncio
     @patch.object(XCom, "get_one")
@@ -451,10 +372,9 @@ class TestXComIterable:
         mock_aget_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
         flattened = self.make_iterable(length=2).flatten()
         assert await flattened.aget(2) == "c"
+        assert await flattened.aget(-1) == "c"
         with pytest.raises(IndexError):
             await flattened.aget(3)
-        with pytest.raises(IndexError):
-            await flattened.aget(-1)
 
     @patch.object(XCom, "get_one")
     def test_flatten_expands_list_items(self, mock_get_one):
@@ -542,14 +462,39 @@ class TestXComIterable:
         return _get_one
 
     @patch.object(XCom, "get_one")
-    def test_negative_indices_are_rejected_on_both_iterables(self, mock_get_one):
+    def test_negative_indices_count_from_the_end_on_both_iterables(self, mock_get_one):
+        """Both classes honour the Sequence contract: ``[-1]`` is the last element of each view."""
         mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
         iterable = self.make_iterable(length=2)
 
-        with pytest.raises(IndexError, match="-1"):
-            iterable[-1]
-        with pytest.raises(IndexError, match="-1"):
-            iterable.flatten()[-1]
+        assert iterable[-1] == ["c"]
+        assert iterable[-2] == ["a", "b"]
+        assert iterable.flatten()[-1] == "c"
+        assert iterable.flatten()[-3] == "a"
+
+    @patch.object(XCom, "get_one")
+    def test_negative_indices_out_of_range_raise_on_both_iterables(self, mock_get_one):
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
+        iterable = self.make_iterable(length=2)
+
+        with pytest.raises(IndexError):
+            iterable[-3]
+        with pytest.raises(IndexError):
+            iterable.flatten()[-4]
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "get_one")
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_flattened_aget_negative_index_counts_from_the_end_without_sync_reads(
+        self, mock_aget_one, mock_get_one
+    ):
+        mock_aget_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
+        flattened = self.make_iterable(length=2).flatten()
+
+        assert await flattened.aget(-1) == "c"
+        assert await flattened.aget(-3) == "a"
+        with pytest.raises(IndexError):
+            await flattened.aget(-4)
         mock_get_one.assert_not_called()
 
     @patch.object(XCom, "get_one")
