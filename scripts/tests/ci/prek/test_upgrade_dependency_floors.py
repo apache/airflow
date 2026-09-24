@@ -23,6 +23,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+import requests
 from common_prek_utils import AIRFLOW_ROOT_PATH
 from packaging.requirements import Requirement
 from packaging.version import Version
@@ -594,3 +595,73 @@ def test_main_reports_why_floors_were_not_updated(tmp_path, monkeypatch, error):
     text = report_path.read_text()
     assert "### Dependency floors" in text
     assert "Not updated: bad config" in text
+
+
+def test_render_report_lists_files_of_raised_floors():
+    amazon = AIRFLOW_ROOT_PATH / "providers" / "amazon" / "pyproject.toml"
+    google = AIRFLOW_ROOT_PATH / "providers" / "google" / "pyproject.toml"
+    bump = Bump(
+        unit="boto3",
+        packages=("boto3",),
+        old_floors=("1.41.0",),
+        target=Version("1.42.0"),
+        edits=(
+            Edit(path=google, old="a", new="b"),
+            Edit(path=amazon, old="c", new="d"),
+            Edit(path=amazon, old="e", new="f"),
+        ),
+    )
+    text = render_report(Report(raised=[bump], skipped={}, rolled_back=[]))
+    assert (
+        "- `boto3`: 1.41.0 → 1.42.0 (providers/amazon/pyproject.toml, providers/google/pyproject.toml)"
+        in text
+    )
+
+
+@pytest.mark.parametrize("table", ["constraint-dependencies", "override-dependencies"])
+def test_run_respects_holds_in_root_uv_settings(tree, table):
+    root, amazon = tree
+    (root / "pyproject.toml").write_text(
+        ROOT_CONFIG + f'\n[tool.uv]\n{table} = ["google-cloud-bigquery<3.5"]\n'
+    )
+    report = run(root, [amazon], WORKSPACE, NOW, _fetch, _green)
+    assert report.skipped["google-cloud-bigquery"] == f"held back by <3.5 in [tool.uv] {table}"
+    assert '"google-cloud-bigquery>=3.0.0"' in amazon.read_text()
+
+
+MANY_GOOGLE = [f"google-cloud-p{i}" for i in range(6)]
+
+
+@pytest.fixture
+def many_tree(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(ROOT_CONFIG)
+    provider = tmp_path / "pyproject.provider.toml"
+    deps = ",\n".join(f'    "{name}>=1.0"' for name in MANY_GOOGLE)
+    provider.write_text(f'[project]\nname = "p"\ndependencies = [\n{deps}\n]\n')
+    return tmp_path, provider
+
+
+def test_run_stops_asking_pypi_when_it_is_unreachable(many_tree):
+    root, provider = many_tree
+    calls = []
+
+    def unreachable(name):
+        calls.append(name)
+        raise requests.ConnectionError("connection timed out")
+
+    report = run(root, [provider], frozenset(), NOW, unreachable, _green)
+    assert len(calls) == 3
+    assert set(report.skipped) == set(MANY_GOOGLE)
+    assert report.skipped[MANY_GOOGLE[-1]] == "PyPI unreachable (3 consecutive connection failures)"
+
+
+def test_http_errors_do_not_count_as_unreachable(many_tree):
+    root, provider = many_tree
+    calls = []
+
+    def not_found(name):
+        calls.append(name)
+        raise requests.HTTPError("404 Not Found")
+
+    run(root, [provider], frozenset(), NOW, not_found, _green)
+    assert len(calls) == len(MANY_GOOGLE)

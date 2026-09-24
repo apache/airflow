@@ -144,13 +144,37 @@ def _get_display_path(path: Path) -> Path:
         return path
 
 
+UV_HOLD_TABLES = ("constraint-dependencies", "override-dependencies")
+
+
+def find_uv_holds(root_pyproject: Path) -> dict[str, list[RequirementSite]]:
+    """Requirements in the root ``[tool.uv]`` tables that cap packages without declaring a dependency."""
+    tool_uv = tomllib.loads(root_pyproject.read_text()).get("tool", {}).get("uv", {})
+    holds: dict[str, list[RequirementSite]] = defaultdict(list)
+    for table in UV_HOLD_TABLES:
+        for raw in tool_uv.get(table, []):
+            requirement = Requirement(raw)
+            holds[canonicalize_name(requirement.name)].append(
+                RequirementSite(
+                    path=root_pyproject, section=f"tool.uv.{table}", raw=raw, requirement=requirement
+                )
+            )
+    return dict(holds)
+
+
+def _get_site_location(site: RequirementSite) -> str:
+    if site.section.startswith("tool.uv."):
+        return f"[tool.uv] {site.section.removeprefix('tool.uv.')}"
+    return str(_get_display_path(site.path))
+
+
 def get_exclusion_reason(name: str, sites: list[RequirementSite], config: FloorConfig) -> str | None:
     if reason := config.exclude.get(canonicalize_name(name)):
         return reason
     for site in sites:
         held = [str(s) for s in site.requirement.specifier if s.operator in HOLD_BACK_OPERATORS]
         if held:
-            return f"held back by {','.join(held)} in {_get_display_path(site.path)}"
+            return f"held back by {','.join(held)} in {_get_site_location(site)}"
     return None
 
 
@@ -368,6 +392,8 @@ def apply_with_rollback(
 
 
 PYPI_TIMEOUT_SECONDS = 30
+# Without a cut-off an unreachable PyPI would cost PYPI_TIMEOUT_SECONDS for every curated package.
+MAX_CONSECUTIVE_CONNECTION_FAILURES = 3
 REPORT_ENV = "DEPENDENCY_FLOORS_REPORT"
 
 
@@ -406,21 +432,36 @@ def run(
 ) -> Report:
     config = load_config(root / "pyproject.toml")
     sites = find_requirements(pyproject_paths, workspace_names)
+    uv_holds = find_uv_holds(root / "pyproject.toml")
     curated = sorted(name for name in sites if is_curated(name, config))
     skipped: dict[str, str] = {}
     bumps: list[Bump] = []
+    connection_failures = 0
     for unit, members in _get_units(curated, config):
         member_sites = [site for member in members for site in sites.get(member, [])]
-        reasons = (get_exclusion_reason(member, sites.get(member, []), config) for member in members)
+        reasons = (
+            get_exclusion_reason(member, sites.get(member, []) + uv_holds.get(member, []), config)
+            for member in members
+        )
         if reason := next((r for r in reasons if r), None):
             skipped[unit] = reason
+            continue
+        if connection_failures >= MAX_CONSECUTIVE_CONNECTION_FAILURES:
+            skipped[unit] = f"PyPI unreachable ({connection_failures} consecutive connection failures)"
             continue
         try:
             releases = {member: fetch(member) for member in members}
             target = find_group_target(releases, config.min_age, now)
-        except (OSError, requests.RequestException, KeyError, TypeError, ValueError) as error:
+        except (requests.HTTPError, KeyError, TypeError, ValueError) as error:
+            # PyPI answered, just not with usable data for this package.
             skipped[unit] = f"PyPI metadata unavailable: {error!r}"
             continue
+        except OSError as error:
+            # requests' own exceptions subclass OSError, so this covers connection errors and timeouts.
+            connection_failures += 1
+            skipped[unit] = f"PyPI metadata unavailable: {error!r}"
+            continue
+        connection_failures = 0
         if target is None:
             skipped[unit] = f"no release older than {config.min_age.days} days"
             continue
@@ -435,7 +476,8 @@ def render_report(report: Report) -> str:
     lines.append("Raised:" if report.raised else "Raised: none")
     for bump in report.raised:
         names = ", ".join(f"`{p}`" for p in bump.packages)
-        lines.append(f"- {names}: {', '.join(bump.old_floors)} → {bump.target}")
+        files = ", ".join(sorted({str(_get_display_path(edit.path)) for edit in bump.edits}))
+        lines.append(f"- {names}: {', '.join(bump.old_floors)} → {bump.target} ({files})")
     if report.rolled_back:
         lines += ["", "Rolled back (resolution failed):"]
         for bump, error in report.rolled_back:

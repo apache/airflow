@@ -22,6 +22,8 @@ from airflow_breeze.commands.ci_commands import (
     UPGRADE_COMMANDS,
     build_update_pr_body_command,
     build_upgrade_pr_body,
+    get_step_enabled,
+    read_floors_report,
     upgrade,
 )
 
@@ -72,3 +74,38 @@ def test_existing_pr_body_is_replaced_with_the_new_report():
         "--body",
         "body with report",
     ]
+
+
+ALL_STEPS_ON = dict(
+    autoupdate=True,
+    update_chart_dependencies=True,
+    upgrade_important_versions=True,
+    upgrade_dependency_floors=True,
+    update_uv_lock=True,
+)
+
+
+def test_step_enabled_covers_every_step():
+    assert set(get_step_enabled(**ALL_STEPS_ON)) == set(STEP_NAMES)
+
+
+def test_no_upgrade_dependency_floors_disables_only_that_step():
+    enabled = get_step_enabled(**{**ALL_STEPS_ON, "upgrade_dependency_floors": False})
+    assert [name for name, on in enabled.items() if not on] == ["upgrade-dependency-floors"]
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param("### Dependency floors\n", "### Dependency floors\n", id="report"),
+        pytest.param(None, None, id="missing"),
+    ],
+)
+def test_read_floors_report_removes_its_temp_dir(tmp_path, content, expected):
+    report_dir = tmp_path / "floors"
+    report_dir.mkdir()
+    report_path = report_dir / "dependency-floors.md"
+    if content is not None:
+        report_path.write_text(content)
+    assert read_floors_report(report_path) == expected
+    assert not report_dir.exists()

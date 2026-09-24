@@ -116,15 +116,20 @@ manual-stage prek hook `upgrade-dependency-floors` (`pass_filenames: false`,
    `pyproject.toml` (members from `[tool.uv.workspace]`, reusing the logic in
    `check_dependency_lower_bounds.get_workspace_distribution_names`), every requirement in
    `project.dependencies`, `project.optional-dependencies` and `dependency-groups`, with file,
-   section and the raw string. Workspace distributions and URL requirements are ignored.
+   section and the raw string. Workspace distributions and URL requirements are ignored. Members with a
+   `uv.lock` of their own (`dev/breeze`) are not scanned: the resolve check covers only the
+   root lock, so raising their floors would leave their lock stale.
 3. **`get_exclusion_reason(package, sites, config) -> str | None`** — returns a reason when the
    package is in `exclude`, or when any site constrains it with `<`, `<=`, `!=`, `==`, `~=`
-   or `===` ("held back by `<spec>` in `<file>`"). Otherwise `None`.
+   or `===` ("held back by `<spec>` in `<file>`"). Caps in the root `[tool.uv]`
+   `constraint-dependencies` and `override-dependencies` count as well. Otherwise `None`.
 4. **`find_target_version(releases, min_age, now) -> Version | None`** — newest final
    (non-pre, non-dev), non-yanked release whose earliest upload time is `<= now - min_age`.
    `now` is a parameter, so tests need no clock mocking. PyPI JSON
-   (`https://pypi.org/pypi/<name>/json`) is fetched once per package; a fetch failure skips
-   the package with a reason instead of failing the run.
+   (`https://pypi.org/pypi/<name>/json`) is fetched once per package; a fetch failure or
+   malformed release data skips the package with a reason instead of failing the run. After
+   three consecutive connection failures PyPI is treated as unreachable and the remaining
+   packages are skipped without further requests.
 5. **`find_group_target(...)`** — for a group, the newest version that satisfies (4) for
    *every* member; if none, the group is skipped.
 6. **`rewrite_requirement(raw, target) -> str | None`** — replaces the `>=`/`>` value only
@@ -137,7 +142,9 @@ manual-stage prek hook `upgrade-dependency-floors` (`pass_filenames: false`,
    Nothing is written.
 8. **`apply_with_rollback(bumps)`** — applies all bumps (per package/group), runs (7); on
    failure bisects over the package/group units to find the failing ones, rolls those back,
-   and re-checks until green. Each rolled-back unit carries the resolver error.
+   and re-checks until green. Each rolled-back unit carries the resolver error. A bump is
+   applied to all of its files or to none, and a rollback restores only the occurrences the
+   bump changed, so an identical requirement already at the target is never lowered.
 
 Edits are text-level on the `pyproject.toml` files (replace the exact requirement string) so
 comments and layout are preserved; provider `pyproject.toml` regeneration already preserves
@@ -150,28 +157,32 @@ dependency lists.
   sections: **Raised** (`package: old → new`, with files), **Skipped** (reason),
   **Rolled back** (resolver error, first lines).
 - Exit code 0 whenever the run completes (a rolled-back bump is a reported outcome, not an
-  error), non-zero only for configuration errors.
+  error), non-zero only for configuration errors or a lock that is broken before any bump. In
+  that case the report says "Not updated: <error>", so the failure shows in the PR.
 
 ### Integration: `breeze ci upgrade`
 
 - New flag `--upgrade-dependency-floors/--no-upgrade-dependency-floors`, default on, added to
   the command's option groups in the config file.
-- New step `upgrade-dependency-floors` in `upgrade_commands`, **after**
+- New step `upgrade-dependency-floors` in `UPGRADE_COMMANDS`, **after**
   `upgrade-important-versions` and **before** `update-uv-lock`, so `uv lock --upgrade`
   incorporates the new floors.
-- breeze sets `DEPENDENCY_FLOORS_REPORT` to a temp file and appends its contents to the
-  generated PR body (currently a fixed one-line string).
+- breeze sets `DEPENDENCY_FLOORS_REPORT` to a file in a temporary directory, reads it (and
+  removes the directory) after the steps, and appends it to the PR body. The upgrade branch
+  name is stable, so most runs update an already-open PR: its body is replaced as well, so
+  the report always matches the pushed diff.
 
 ### Error handling
 
 | Situation | Behaviour |
 |---|---|
-| PyPI fetch fails for a package | Skip it, reason "PyPI metadata unavailable" |
+| PyPI fetch fails for a package, or its data is malformed | Skip it, reason "PyPI metadata unavailable" |
+| Three consecutive connection failures | Skip the remaining packages, reason "PyPI unreachable" |
 | No release old enough | Skip, reason "no release older than min-age" |
 | Floor already at/above target | Nothing to do; not listed |
 | Resolve check fails | Bisect, roll back offending units, report error |
 | Resolve check fails with *no* bumps applied | Abort the step with the error (the lock was already broken) and leave files untouched |
-| Invalid config | Non-zero exit with a clear message |
+| Invalid config | Non-zero exit with a clear message, also written to the report |
 
 ### Testing
 

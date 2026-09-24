@@ -635,6 +635,31 @@ def build_upgrade_pr_body(floors_report: str | None) -> str:
     return f"{UPGRADE_PR_BODY}\n\n{floors_report}"
 
 
+def get_step_enabled(
+    *,
+    autoupdate: bool,
+    update_chart_dependencies: bool,
+    upgrade_important_versions: bool,
+    upgrade_dependency_floors: bool,
+    update_uv_lock: bool,
+) -> dict[str, bool]:
+    return {
+        "autoupdate": autoupdate,
+        "update-chart-dependencies": update_chart_dependencies,
+        "upgrade-important-versions": upgrade_important_versions,
+        "upgrade-dependency-floors": upgrade_dependency_floors,
+        "update-uv-lock": update_uv_lock,
+        "regenerate-datamodels": update_uv_lock,
+    }
+
+
+def read_floors_report(report_path: Path) -> str | None:
+    """Return the report the floors step wrote, if any, and remove its temporary directory."""
+    report = report_path.read_text() if report_path.exists() else None
+    shutil.rmtree(report_path.parent, ignore_errors=True)
+    return report
+
+
 def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
     return ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow", "--body", pr_body]
 
@@ -910,14 +935,13 @@ def upgrade(
     floors_report_path = Path(tempfile.mkdtemp()) / "dependency-floors.md"
     command_env[DEPENDENCY_FLOORS_REPORT_ENV] = str(floors_report_path)
 
-    step_enabled = {
-        "autoupdate": autoupdate,
-        "update-chart-dependencies": update_chart_dependencies,
-        "upgrade-important-versions": upgrade_important_versions,
-        "upgrade-dependency-floors": upgrade_dependency_floors,
-        "update-uv-lock": update_uv_lock,
-        "regenerate-datamodels": update_uv_lock,
-    }
+    step_enabled = get_step_enabled(
+        autoupdate=autoupdate,
+        update_chart_dependencies=update_chart_dependencies,
+        upgrade_important_versions=upgrade_important_versions,
+        upgrade_dependency_floors=upgrade_dependency_floors,
+        update_uv_lock=update_uv_lock,
+    )
 
     # Execute upgrade commands
     for step_name, command in UPGRADE_COMMANDS:
@@ -925,6 +949,7 @@ def upgrade(
             run_command(command.split(), check=False, env=command_env)
         else:
             console_print(f"[info]Skipping {step_name} (disabled).[/]")
+    floors_report = read_floors_report(floors_report_path)
 
     # Sync K8s schemas to airflow-site
     if k8s_schema_sync:
@@ -1004,7 +1029,6 @@ def upgrade(
             console_print("[warning]Could not determine fork repository. Using branch name only.[/]")
 
         pr_title = f"[{target_branch}] Upgrade important CI environment"
-        floors_report = floors_report_path.read_text() if floors_report_path.exists() else None
         pr_body = build_upgrade_pr_body(floors_report)
 
         # Check if there's already an open PR for this branch.
