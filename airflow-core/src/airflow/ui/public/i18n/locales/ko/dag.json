@@ -197,7 +197,7 @@
         "title": "Dag 재구문 분석 실패"
       },
       "success": {
-        "description": "Dag이(가) 곧 재구문 분석될 예정입니다.",
+        "description": "Dag가 곧 재구문 분석될 예정입니다.",
         "title": "재구문 분석 요청이 성공적으로 제출되었습니다."
       }
     }
