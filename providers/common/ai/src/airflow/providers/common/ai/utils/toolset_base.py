@@ -33,6 +33,7 @@ from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from typing_extensions import ParamSpec
 
+from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.masking import mask_secrets
 
 if TYPE_CHECKING:
@@ -41,6 +42,8 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
     from pydantic_ai.toolsets import ToolsetFunc
     from pydantic_ai.toolsets.abstract import ToolsetTool
+
+    from airflow.providers.common.ai.tools import AirflowTool
 
 log = logging.getLogger(__name__)
 
@@ -166,6 +169,14 @@ class AirflowToolset(AbstractToolset[Any]):
         tool: ToolsetTool[Any],
     ) -> Any:
         """Run tool ``name`` with validated ``tool_args``; :meth:`call_tool` masks what it returns."""
+
+    def airflow_tools(self) -> list[AirflowTool]:
+        """
+        Return this toolset's tools for an agent framework other than Pydantic AI.
+
+        See :mod:`airflow.providers.common.ai.tools` for the adapters that take them.
+        """
+        return airflow_tools_from_toolset(self)
 
     @staticmethod
     async def run_blocking(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:

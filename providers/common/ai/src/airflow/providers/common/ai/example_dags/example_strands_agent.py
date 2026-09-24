@@ -19,10 +19,10 @@ Run a Strands Agents agent in an Airflow task, with Airflow's SQL toolset as its
 
 The agent is plain Strands: you build the model and the ``Agent`` yourself and call
 it as you would anywhere else. Airflow supplies two things. The model's API key comes
-from an Airflow connection, and
-:func:`~airflow.providers.common.ai.tools.strands.as_strands_tools` turns a
-``SQLToolset`` into Strands tools, with read-only SQL validation and bounded
-results, and with Airflow's secret masker applied to every tool result.
+from an Airflow connection, and the
+:class:`~airflow.providers.common.ai.tools.strands.AirflowTools` plugin gives the agent a
+``SQLToolset``'s tools, with read-only SQL validation and bounded results, and with
+Airflow's secret masker applied to every tool result.
 
 Before running:
 
@@ -58,7 +58,7 @@ def example_strands_agent():
         from strands import Agent
         from strands.models.anthropic import AnthropicModel
 
-        from airflow.providers.common.ai.tools.strands import as_strands_tools
+        from airflow.providers.common.ai.tools.strands import AirflowTools
         from airflow.providers.common.ai.toolsets.sql import SQLToolset
         from airflow.providers.common.compat.sdk import BaseHook
 
@@ -70,7 +70,7 @@ def example_strands_agent():
         )
         agent = Agent(
             model=model,
-            tools=as_strands_tools(SQLToolset(db_conn_id=DB_CONN_ID)),
+            plugins=[AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID))],
             system_prompt=(
                 "You are a SQL analyst. Use list_tables and get_schema to explore "
                 "the database, then run read-only queries to answer the question."

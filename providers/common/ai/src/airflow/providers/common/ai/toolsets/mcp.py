@@ -30,6 +30,8 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
+    from airflow.providers.common.ai.tools import AirflowTool
+
 
 class MCPToolset(AirflowToolset):
     """
@@ -135,3 +137,17 @@ class MCPToolset(AirflowToolset):
         tool: ToolsetTool[Any],
     ) -> Any:
         return await (await self._server_once_resolved()).call_tool(name, tool_args, ctx, tool)
+
+    def airflow_tools(self) -> list[AirflowTool]:
+        """
+        Not supported: use the agent framework's own MCP client instead.
+
+        An MCP session belongs to the event loop that opened it, and the framework-neutral
+        tools run outside the Pydantic AI run that manages it, so every call would reconnect
+        to the server, and a stdio server would restart each time.
+        """
+        raise NotImplementedError(
+            "MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through "
+            "the framework-neutral tools. Connect your framework's own MCP client to the server "
+            "instead, such as Strands' MCPClient or ADK's McpToolset."
+        )

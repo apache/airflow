@@ -48,11 +48,17 @@ is Airflow's and which part stays yours.
      - The operator
      - Included
    * - Strands Agents
-     - :func:`~airflow.providers.common.ai.tools.strands.as_strands_tools` turns
-       ``SQLToolset`` and ``HookToolset`` into Strands tools, with Airflow's secret
-       masker applied to every result. Guide: :doc:`strands`.
+     - The :class:`~airflow.providers.common.ai.tools.strands.AirflowTools` plugin gives
+       a Strands agent the tools of ``SQLToolset``, ``HookToolset`` and the other
+       toolsets, with Airflow's secret masker applied to every result. Guide:
+       :doc:`strands`.
      - You
      - ``strands-agents``
+   * - Google ADK
+     - The :class:`~airflow.providers.common.ai.tools.adk.AirflowTools` toolset gives an
+       ADK agent the same tools, with the same masking. Guide: :doc:`adk`.
+     - You
+     - ``google-adk``
    * - LangChain
      - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` returns chat
        and embedding models configured from a connection, and
@@ -69,17 +75,41 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands adapter, and the framework-neutral tool interface under it, are
-experimental and may change in a minor release. The rest follows this provider's usual
-release policy.
+The Strands and ADK integrations, and the framework-neutral tool interface under them, are
+experimental: they can change or be removed in a minor release of this provider.
+
+Tested versions
+---------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 20 55
+
+   * - Framework
+     - Version
+     - Notes
+   * - Strands Agents
+     - 1.56.0
+     - Pins ``mcp`` below 2.2, so installing it downgrades ``mcp`` if a newer one is
+       installed.
+   * - Google ADK
+     - 2.9.1
+     - Pins OpenTelemetry at 1.42.1 or lower, below the version in Airflow's constraints
+       file. Airflow itself accepts 1.42.1.
+
+These are the versions the adapter tests have been run against. CI does not run those
+tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44, which Strands and ADK
+exclude. They run in an environment with the framework installed.
 
 Choosing a route
 ----------------
 
 Start from the agent you already have:
 
-- **An existing Strands agent**: keep it, and add Airflow's toolsets with
-  ``as_strands_tools``. See :doc:`strands`.
+- **An existing Strands agent**: keep it, and add Airflow's toolsets with the
+  ``AirflowTools`` plugin. See :doc:`strands`.
+- **An existing ADK agent**: keep it, and add Airflow's toolsets with the ADK
+  ``AirflowTools`` toolset. See :doc:`adk`.
 - **An existing LangChain agent**: build its model with ``LangChainHook`` and add
   Airflow's toolsets with ``airflow_toolset_to_langchain_tools``.
 - **No agent yet, or no preference**: use ``AgentOperator`` or ``@task.agent``. That route
@@ -97,23 +127,28 @@ Airflow also depends on, such as OpenTelemetry or a vendor SDK.
 
 To give such a framework Airflow's toolsets rather than hand-written tools, build on
 the framework-neutral interface in :mod:`airflow.providers.common.ai.tools`, which is
-what ``as_strands_tools`` is written against:
+what the Strands and ADK integrations are written against:
 
 - :class:`~airflow.providers.common.ai.tools.AirflowTool` is one operation: a name, a
   description, a JSON Schema for its arguments and an async function. Call it through
-  ``AirflowTool.call``, which turns exceptions into error results and applies the secret
-  masker to what the tool returns.
+  ``AirflowTool.call``, which applies the secret masker to what the tool returns. A
+  failure the model can correct comes back as an error result; any other failure raises
+  :class:`~airflow.providers.common.ai.tools.ToolCallError`, which should end the run.
 - :class:`~airflow.providers.common.ai.tools.ToolResult` is what a call returns:
-  JSON-compatible content and an explicit ``is_error`` flag.
+  JSON-compatible content and an explicit ``is_error`` flag for failures the model can
+  correct.
 - :class:`~airflow.providers.common.ai.tools.ToolProvider` is anything with an
   ``airflow_tools()`` method returning ``AirflowTool`` objects.
-  ``SQLToolset.airflow_tools()`` and ``HookToolset.airflow_tools()`` implement it.
+  Every toolset this provider ships that reads from a connection implements it, except
+  ``MCPToolset``, which works in Pydantic AI agents and through the LangChain bridge.
 
-An adapter maps these three onto the framework's own tool type and error status, as
-``as_strands_tools`` does for Strands.
+An adapter maps these onto the framework's own tool type and error status, and makes
+sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
+plugin does.
 
 .. toctree::
     :hidden:
     :titlesonly:
 
     Strands Agents <strands>
+    Google ADK <adk>

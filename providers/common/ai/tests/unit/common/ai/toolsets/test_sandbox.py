@@ -17,13 +17,18 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 import time_machine
+from pydantic_ai import Agent
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import ValidationError
 
@@ -41,6 +46,7 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxTerminalError,
     encode_network_policy,
 )
+from airflow.providers.common.ai.tools import ToolCallError
 from airflow.providers.common.ai.toolsets import sandbox as sandbox_module
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 
@@ -686,8 +692,6 @@ class TestLifecycle:
         class SlowBackend(_RecordingBackend):
             def create(self, *, spec=None):
                 started.set()
-                import time
-
                 time.sleep(0.2)
                 return super().create(spec=spec)
 
@@ -704,6 +708,36 @@ class TestLifecycle:
         with pytest.raises(asyncio.CancelledError):
             await task
 
+        assert backend.destroyed == ["box-1"]
+
+    def test_first_calls_from_threads_with_their_own_loops_share_one_sandbox(self):
+        """A native framework may make its first tool calls from several threads at once."""
+        both_waiting = threading.Barrier(2)
+
+        class SlowBackend(_RecordingBackend):
+            def create(self, *, spec=None):
+                time.sleep(0.2)
+                return super().create(spec=spec)
+
+        backend = SlowBackend()
+        errors: list[BaseException] = []
+
+        def first_call():
+            both_waiting.wait()
+            try:
+                asyncio.run(_call(ts, "run_command", {"command": "x"}))
+            except BaseException as e:
+                errors.append(e)
+
+        with SandboxToolset(backend) as ts:
+            threads = [threading.Thread(target=first_call) for _ in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        assert errors == []
+        assert [command[0] for command in backend.commands] == ["box-1", "box-1"]
         assert backend.destroyed == ["box-1"]
 
 
@@ -895,7 +929,7 @@ class TestAttachMode:
         backend = _AttachableRecordingBackend(tags=_owned())
         ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
 
-        with pytest.raises(SandboxTerminalError, match="Not attached to sandbox 'sb-1'"):
+        with pytest.raises(SandboxTerminalError, match="not open"):
             await _call(ts, "run_command", {"command": "ls"})
 
         assert backend.created == []
@@ -966,6 +1000,24 @@ class TestAttachMode:
         with pytest.raises(SandboxTerminalError, match="stopped while running a command"):
             async with ts:
                 await _call(ts, "run_command", {"command": "x"})
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_a_call_after_the_sandbox_stopped_does_not_provision_a_replacement(self):
+        backend = _AttachableRecordingBackend(
+            tags=_owned(),
+            run_result=SandboxExecResult(
+                exit_code=-1, stdout="", stderr="", timed_out=True, sandbox_terminated=True
+            ),
+        )
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        async with ts:
+            with pytest.raises(SandboxTerminalError, match="stopped while running a command"):
+                await _call(ts, "run_command", {"command": "x"})
+            with pytest.raises(SandboxTerminalError, match="the sandbox ended"):
+                await _call(ts, "run_command", {"command": "y"})
 
         assert backend.created == []
 
@@ -1077,3 +1129,91 @@ class TestAttachMode:
         assert backend.created == []
         assert backend.destroyed == []
         assert HOLDER_TAG not in backend.tags["sb-1"]
+
+
+class TestOutsideAnAgentRun:
+    """Native frameworks call the tools directly, so the toolset has to own its sandbox's life."""
+
+    def test_a_block_that_ends_while_the_sandbox_is_created_still_destroys_it(self):
+        """A task timeout ends the block on the main thread while a framework thread provisions."""
+        creating = threading.Event()
+
+        class SlowBackend(_RecordingBackend):
+            def create(self, *, spec=None):
+                creating.set()
+                time.sleep(0.2)
+                return super().create(spec=spec)
+
+        backend = SlowBackend()
+        errors: list[BaseException] = []
+
+        def first_call():
+            try:
+                asyncio.run(_call(ts, "run_command", {"command": "x"}))
+            except BaseException as e:
+                errors.append(e)
+
+        with SandboxToolset(backend) as ts:
+            worker = threading.Thread(target=first_call)
+            worker.start()
+            creating.wait(5)
+        worker.join()
+
+        assert backend.destroyed == ["box-1"]
+        assert backend.commands == []
+        assert [type(e) for e in errors] == [SandboxTerminalError]
+
+    @pytest.mark.asyncio
+    async def test_a_call_before_entering_is_refused_and_provisions_nothing(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend)
+
+        with pytest.raises(SandboxTerminalError, match="not open"):
+            await _call(ts, "run_command", {"command": "ls"})
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_a_call_after_exiting_is_refused(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend)
+        async with ts:
+            await _call(ts, "run_command", {"command": "ls"})
+
+        with pytest.raises(SandboxTerminalError, match="not open"):
+            await _call(ts, "run_command", {"command": "ls"})
+
+        assert backend.created == [SandboxSpec()]
+
+    def test_a_with_block_destroys_the_sandbox_its_tools_provisioned(self):
+        backend = _RecordingBackend()
+
+        with SandboxToolset(backend) as sandbox:
+            run_command = {tool.name: tool for tool in sandbox.airflow_tools()}["run_command"]
+            result = asyncio.run(run_command.call({"command": "ls"}))
+
+        assert not result.is_error
+        assert backend.destroyed == ["box-1"]
+
+    def test_a_call_outside_the_block_ends_a_native_agent_run(self):
+        run_command = {tool.name: tool for tool in SandboxToolset(_RecordingBackend()).airflow_tools()}[
+            "run_command"
+        ]
+
+        with pytest.raises(ToolCallError, match="not open"):
+            asyncio.run(run_command.call({"command": "ls"}))
+
+
+class TestInsideAPydanticAIRun:
+    def test_the_run_opens_the_sandbox_and_destroys_it_when_it_ends(self):
+        backend = _RecordingBackend()
+
+        def model(messages, info):
+            if any(isinstance(p, ToolReturnPart) for m in messages for p in m.parts):
+                return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(parts=[ToolCallPart("run_command", {"command": "ls"}, tool_call_id="c")])
+
+        Agent(FunctionModel(model), toolsets=[SandboxToolset(backend)]).run_sync("go")
+
+        assert backend.created == [SandboxSpec()]
+        assert backend.destroyed == ["box-1"]

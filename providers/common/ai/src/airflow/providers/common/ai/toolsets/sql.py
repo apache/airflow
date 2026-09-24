@@ -40,7 +40,6 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
-from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_RESULT_BYTES,
@@ -56,7 +55,6 @@ if TYPE_CHECKING:
 
     from pydantic_ai._run_context import RunContext
 
-    from airflow.providers.common.ai.tools import AirflowTool
 
 # Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
 # table) from an explicit value. Every explicit falsy value -- ``None`` as much as
@@ -349,21 +347,6 @@ class SQLToolset(AirflowToolset):
     @property
     def id(self) -> str:
         return f"sql-{self._db_conn_id}"
-
-    def airflow_tools(self) -> list[AirflowTool]:
-        """
-        Return this toolset's tools as framework-neutral tools.
-
-        Each is an :class:`~airflow.providers.common.ai.tools.AirflowTool`. Use
-        them to give the tools to an agent framework other than pydantic-ai,
-        for example through
-        :func:`~airflow.providers.common.ai.tools.strands.as_strands_tools`. The
-        tools behave as they do in ``AgentOperator``, and every result and error
-        passes through Airflow's secret masker before the model sees it.
-
-        .. warning:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
-        """
-        return airflow_tools_from_toolset(self)
 
     # ------------------------------------------------------------------
     # Lazy hook resolution

@@ -33,17 +33,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pydantic import ValidationError
-from pydantic_ai import RunContext
-from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.models.test import TestModel
-from pydantic_ai.usage import RunUsage
+# Imported at run time, not for type checking only: LangChain's agent runtime evaluates each
+# tool function's type hints to find injected arguments.
+from pydantic import JsonValue  # noqa: TC002
 
+from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 
 if TYPE_CHECKING:
-    from langchain_core.tools import StructuredTool
-    from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+    from langchain_core.tools import StructuredTool, ToolException
+    from pydantic_ai.toolsets.abstract import AbstractToolset
+
+    from airflow.providers.common.ai.tools import AirflowTool
 
 
 def airflow_toolset_to_langchain_tools(
@@ -59,42 +60,28 @@ def airflow_toolset_to_langchain_tools(
         Experimental: this can change or be removed in a minor release of this provider.
         See :ref:`howto/stability`.
 
-    Each returned tool is backed by ``toolset.call_tool`` and carries the
-    ``args_schema`` derived from the tool's JSON schema, so a LangChain agent or
-    chain can call it the same way it calls any native LangChain tool.
+    Each returned tool carries the ``args_schema`` of the toolset's tool, so a
+    LangChain agent or chain can call it the same way it calls any native LangChain
+    tool. What it returns passes through Airflow's secret masker first.
 
-    If a tool raises pydantic-ai's :exc:`~pydantic_ai.exceptions.ModelRetry`
-    (the bundled SQL toolsets do this to ask the model to correct its input,
-    e.g. an unknown column), the bridge returns the retry message as the tool's
-    output so the model sees it and tries again. ``ModelRetry`` is a
-    feed-the-model-and-retry signal, not a failure; returning it mirrors that and
-    works regardless of how the agent handles tool errors. Raising instead would
-    abort the run under ``create_agent``'s default tool-error handling.
-
-    Argument validation failures are handled the same way: each tool validates
-    its arguments with the toolset's ``args_validator`` before dispatch, and a
-    :exc:`pydantic.ValidationError` from that step is fed back to the model as
-    the tool output so it can correct the call. This mirrors pydantic-ai's
-    native two-stage behaviour: only arg-validation ``ValidationError`` is
-    retried; a ``ValidationError`` raised inside ``call_tool`` (for example from
-    a Hook method or MCP client) propagates rather than being fed back, so a
-    non-idempotent tool that already ran a side effect is not re-invoked.
-
-    The retry message is bounded by the tool's ``max_retries``: a tool that keeps
-    raising ``ModelRetry`` (or keeps failing arg validation) stops being fed back
-    and propagates once the budget is exhausted, so the run fails instead of
-    looping forever. The count resets after a successful call.
+    A failure the model can correct reaches it as an error result, a LangChain
+    ``ToolMessage`` with ``status="error"``, so it can try again: an argument that fails
+    the toolset's validation, or a pydantic-ai :exc:`~pydantic_ai.exceptions.ModelRetry`,
+    which the bundled SQL toolsets raise to ask for a corrected query. These retries are
+    bounded by
+    the tool's ``max_retries``: once they are used up, and for any other exception the
+    tool raises, the call raises
+    :class:`~airflow.providers.common.ai.tools.ToolCallError`, so the run fails
+    instead of looping. A ``ValidationError`` raised by the tool itself also
+    propagates, since the call may already have had a side effect.
 
     The toolset's ``get_tools`` is invoked eagerly here to enumerate the tools.
 
     .. warning::
-        The bridge does not hold a toolset session open across calls. ``get_tools``
-        and every ``call_tool`` each run under their own event loop, and pydantic-ai
-        opens and tears the connection down around each one. For ``MCPToolset`` this
-        means the server is reconnected on every tool call. That is fine for
-        stateless tools (and for HTTP/SSE servers, modulo per-call latency), but a
-        stdio server, or any server that keeps state between calls, will lose that
-        state because each call starts a fresh process/session.
+        The bridge does not keep a toolset open between calls, so an ``MCPToolset``
+        reconnects to its server on every call, on the sync and async paths alike, and a
+        stdio server loses any state it keeps between calls. A ``SandboxToolset`` has to be
+        used inside its ``with`` block.
 
     .. note::
         A pydantic-ai toolset is normally driven inside an agent run, where a
@@ -113,87 +100,38 @@ def airflow_toolset_to_langchain_tools(
         toolset.
     """
     try:
-        from langchain_core.tools import StructuredTool
+        from langchain_core.tools import StructuredTool, ToolException
     except ImportError as e:
         from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
         raise AirflowOptionalProviderFeatureException(e)
 
-    # An inert placeholder context. The curated common.ai toolsets ignore it;
-    # TestModel satisfies RunContext's required `model` field without reaching a
-    # real LLM (the bridge never runs the model, only the tools).
-    ctx: RunContext[Any] = RunContext(deps=deps, model=TestModel(), usage=RunUsage())
-
-    toolset_tools = run_coroutine_sync(toolset.get_tools(ctx))
-
     return [
-        _build_structured_tool(toolset, name, toolset_tool, ctx, StructuredTool)
-        for name, toolset_tool in toolset_tools.items()
+        _to_structured_tool(tool, StructuredTool, ToolException)
+        for tool in airflow_tools_from_toolset(toolset, deps=deps)
     ]
 
 
-def _build_structured_tool(
-    toolset: AbstractToolset[Any],
-    name: str,
-    toolset_tool: ToolsetTool[Any],
-    ctx: RunContext[Any],
+def _to_structured_tool(
+    tool: AirflowTool,
     structured_tool_cls: type[StructuredTool],
+    tool_exception_cls: type[ToolException],
 ) -> StructuredTool:
-    """Build a single LangChain ``StructuredTool`` from one pydantic-ai tool."""
-    tool_def = toolset_tool.tool_def
+    async def call(**kwargs: Any) -> JsonValue:
+        result = await tool.call(kwargs)
+        if result.is_error:
+            # With handle_tool_error, LangChain hands this text to the model as an error result.
+            raise tool_exception_cls(str(result.content))
+        return result.content
 
-    def _validate(kwargs: dict[str, Any]) -> dict[str, Any]:
-        # Mirrors what pydantic-ai's ToolManager does before dispatch, which the
-        # bridge bypasses. A passthrough validator (the bundled toolsets) returns
-        # the args unchanged; a typed one coerces them (e.g. "5" -> 5).
-        return toolset_tool.args_validator.validate_python(kwargs)
-
-    # Mirror pydantic-ai's ToolManager two-stage handling: ValidationError from
-    # arg validation is a "feed this back and retry" signal; ModelRetry from
-    # call_tool is too; a ValidationError raised inside call_tool is not (it
-    # would otherwise re-invoke a non-idempotent tool that already ran). Bound
-    # retries via the tool's max_retries so a tool that keeps failing eventually
-    # propagates. The count resets on the first successful call.
-    max_retries = toolset_tool.max_retries if toolset_tool.max_retries is not None else 1
-    retries = {"count": 0}
-
-    def _handle_retry(error: ModelRetry | ValidationError) -> str:
-        retries["count"] += 1
-        if retries["count"] > max_retries:
-            # Reset before propagating so a reused tool starts the next run with a
-            # fresh budget instead of staying permanently exhausted.
-            retries["count"] = 0
-            raise error
-        return str(error)
-
-    def _sync_call(**kwargs: Any) -> Any:
-        try:
-            validated = _validate(kwargs)
-        except ValidationError as e:
-            return _handle_retry(e)
-        try:
-            result = run_coroutine_sync(toolset.call_tool(name, validated, ctx, toolset_tool))
-        except ModelRetry as e:
-            return _handle_retry(e)
-        retries["count"] = 0
-        return result
-
-    async def _async_call(**kwargs: Any) -> Any:
-        try:
-            validated = _validate(kwargs)
-        except ValidationError as e:
-            return _handle_retry(e)
-        try:
-            result = await toolset.call_tool(name, validated, ctx, toolset_tool)
-        except ModelRetry as e:
-            return _handle_retry(e)
-        retries["count"] = 0
-        return result
+    def call_sync(**kwargs: Any) -> JsonValue:
+        return run_coroutine_sync(call(**kwargs))
 
     return structured_tool_cls.from_function(
-        func=_sync_call,
-        coroutine=_async_call,
-        name=name,
-        description=tool_def.description or name,
-        args_schema=tool_def.parameters_json_schema,
+        func=call_sync,
+        coroutine=call,
+        name=tool.name,
+        description=tool.description,
+        args_schema=tool.parameters,
+        handle_tool_error=True,
     )

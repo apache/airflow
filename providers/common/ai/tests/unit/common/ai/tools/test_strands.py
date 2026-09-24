@@ -18,34 +18,66 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
 from typing import Any
 
 import pytest
 
 pytest.importorskip("strands")
 
+from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.toolsets.function import FunctionToolset
+from strands import Agent
+from strands.models.model import Model
 from strands.tools.registry import ToolRegistry
+from strands.types.exceptions import EventLoopException
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolResult
-from airflow.providers.common.ai.tools.strands import as_strands_tools
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
+from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
+from airflow.providers.common.ai.tools.strands import AirflowTools
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
 
-def _run(strands_tool, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Invoke a Strands tool the way the Strands executor does and return its ToolResult."""
-    tool_use = {"toolUseId": "tu-1", "name": strands_tool.tool_name, "input": arguments}
+class _OneToolCallModel(Model):
+    """Asks for one call of ``tool_name``, then answers with the status and text it got back."""
 
-    async def collect():
-        return [event async for event in strands_tool.stream(tool_use, {})]
+    def __init__(self, tool_name: str, tool_input: dict[str, Any]) -> None:
+        self._tool_name = tool_name
+        self._tool_input = tool_input
 
-    return asyncio.run(collect())[-1].tool_result
+    def update_config(self, **model_config: Any) -> None:
+        pass
+
+    def get_config(self) -> dict[str, Any]:
+        return {}
+
+    async def structured_output(self, *args: Any, **kwargs: Any):
+        raise NotImplementedError
+        yield
+
+    async def stream(self, messages, tool_specs=None, system_prompt=None, **kwargs: Any):
+        results = [block["toolResult"] for block in messages[-1]["content"] if "toolResult" in block]
+        yield {"messageStart": {"role": "assistant"}}
+        if not results:
+            start = {"toolUse": {"toolUseId": "call-1", "name": self._tool_name}}
+            yield {"contentBlockStart": {"start": start}}
+            yield {"contentBlockDelta": {"delta": {"toolUse": {"input": json.dumps(self._tool_input)}}}}
+            yield {"contentBlockStop": {}}
+            yield {"messageStop": {"stopReason": "tool_use"}}
+            return
+        answer = f"{results[0]['status']}: {json.dumps(results[0]['content'])}"
+        yield {"contentBlockDelta": {"delta": {"text": answer}}}
+        yield {"contentBlockStop": {}}
+        yield {"messageStop": {"stopReason": "end_turn"}}
 
 
-def _tool(content, *, is_error: bool = False) -> AirflowTool:
+def _tool(result: ToolResult | Exception) -> AirflowTool:
     async def function(arguments: dict[str, Any]) -> ToolResult:
-        return ToolResult(content=content, is_error=is_error)
+        if isinstance(result, Exception):
+            raise result
+        return result
 
     return AirflowTool(
         name="lookup",
@@ -55,53 +87,111 @@ def _tool(content, *, is_error: bool = False) -> AirflowTool:
     )
 
 
-class TestAsStrandsTools:
-    def test_converts_every_tool_of_a_toolset(self):
-        tools = as_strands_tools(SQLToolset("pg_default"))
+def _run_agent(plugin: AirflowTools, tool_name: str, tool_input: dict[str, Any]) -> str:
+    agent = Agent(model=_OneToolCallModel(tool_name, tool_input), plugins=[plugin], callback_handler=None)
+    return str(agent("go"))
 
-        assert [t.tool_name for t in tools] == ["list_tables", "get_schema", "query", "check_query"]
-        query = next(t for t in tools if t.tool_name == "query")
+
+class TestAirflowTools:
+    def test_adds_every_tool_of_a_toolset(self):
+        plugin = AirflowTools(SQLToolset("pg_default"))
+
+        assert [t.tool_name for t in plugin.tools] == ["list_tables", "get_schema", "query", "check_query"]
+        query = next(t for t in plugin.tools if t.tool_name == "query")
         assert query.tool_spec["inputSchema"]["json"]["required"] == ["sql"]
 
     def test_accepts_individual_tools_alongside_toolsets(self):
-        tools = as_strands_tools(_tool("ok"), SQLToolset("pg_default"))
+        plugin = AirflowTools(_tool(ToolResult("ok")), SQLToolset("pg_default"))
 
-        assert [t.tool_name for t in tools][:2] == ["lookup", "list_tables"]
+        assert [t.tool_name for t in plugin.tools][:2] == ["lookup", "list_tables"]
 
     def test_registering_does_not_mutate_the_source_schema(self):
         """Strands fills in schema gaps in place; the toolset's own schema must stay untouched."""
-        source = _tool("ok")
+        source = _tool(ToolResult("ok"))
         before = copy.deepcopy(source.parameters)
 
         registry = ToolRegistry()
-        for tool in as_strands_tools(source):
+        for tool in AirflowTools(source).tools:
             registry.register_tool(tool)
         registry.get_all_tool_specs()
 
         assert source.parameters == before
 
-    def test_text_result_is_a_success(self):
-        result = _run(as_strands_tools(_tool("42 rows"))[0], {"key": "a"})
+    @pytest.mark.parametrize(
+        ("result", "block"),
+        [
+            pytest.param(ToolResult("42 rows"), {"text": "42 rows"}, id="text"),
+            pytest.param(ToolResult({"rows": [[1]]}), {"json": {"rows": [[1]]}}, id="json"),
+        ],
+    )
+    def test_maps_a_result_to_a_strands_content_block(self, result, block):
+        strands_tool = AirflowTools(_tool(result)).tools[0]
 
-        assert result == {"toolUseId": "tu-1", "status": "success", "content": [{"text": "42 rows"}]}
+        async def collect():
+            tool_use = {"toolUseId": "call-1", "name": "lookup", "input": {"key": "a"}}
+            return [event async for event in strands_tool.stream(tool_use, {})][-1].tool_result
 
-    def test_json_result_is_passed_as_json(self):
-        result = _run(as_strands_tools(_tool({"rows": [[1]]}))[0], {"key": "a"})
+        assert asyncio.run(collect()) == {"toolUseId": "call-1", "status": "success", "content": [block]}
 
-        assert result["content"] == [{"json": {"rows": [[1]]}}]
 
-    def test_error_result_maps_to_error_status(self):
-        result = _run(as_strands_tools(_tool("Unknown column", is_error=True))[0], {"key": "a"})
-
-        assert result["status"] == "error"
-        assert result["content"] == [{"text": "Unknown column"}]
-
-    def test_runs_the_toolset_through_the_strands_executor_path(self):
+class TestAgentRun:
+    def test_the_agent_reads_a_toolset_result(self):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook(records=[(1, "Ada")], last_description=[("id",), ("name",)])
-        query = next(t for t in as_strands_tools(ts) if t.tool_name == "query")
 
-        result = _run(query, {"sql": "SELECT id, name FROM users"})
+        answer = _run_agent(AirflowTools(ts), "query", {"sql": "SELECT id, name FROM users"})
 
-        assert result["status"] == "success"
-        assert '"rows":[[1,"Ada"]]' in result["content"][0]["text"].replace(" ", "")
+        assert answer.startswith("success:")
+        assert "Ada" in answer
+
+    def test_a_correctable_failure_reaches_the_model_as_an_error(self):
+        answer = _run_agent(
+            AirflowTools(_tool(ToolResult("Unknown column 'nme'", is_error=True))), "lookup", {"key": "a"}
+        )
+
+        assert answer.startswith("error:")
+        assert "Unknown column" in answer
+
+    def test_any_other_failure_fails_the_run(self):
+        """Strands alone would hand the exception to the model and carry on."""
+        plugin = AirflowTools(_tool(PermissionError("role cannot read orders")))
+
+        # Strands wraps what ends the run in its own EventLoopException.
+        with pytest.raises(EventLoopException) as caught:
+            _run_agent(plugin, "lookup", {"key": "a"})
+
+        assert isinstance(caught.value.original_exception, ToolCallError)
+        assert "PermissionError: role cannot read orders" in str(caught.value)
+
+    def test_two_plugins_can_be_attached_to_one_agent(self):
+        """Strands refuses two plugins with the same name."""
+        agent = Agent(
+            model=_OneToolCallModel("lookup", {"key": "a"}),
+            plugins=[AirflowTools(_tool(ToolResult("a"))), AirflowTools(SQLToolset("pg_default"))],
+            callback_handler=None,
+        )
+
+        assert {"lookup", "query"} <= set(agent.tool_names)
+
+    def test_each_run_of_a_reused_agent_starts_with_a_fresh_retry_budget(self):
+        def lookup(key: str) -> str:
+            """Look a key up."""
+            raise ModelRetry("no such key")
+
+        agent = Agent(
+            model=_OneToolCallModel("lookup", {"key": "a"}),
+            plugins=[AirflowTools(*airflow_tools_from_toolset(FunctionToolset([lookup], max_retries=1)))],
+            callback_handler=None,
+        )
+
+        assert str(agent("go")).startswith("error:")
+        assert str(agent("go again")).startswith("error:")
+
+    @pytest.mark.enable_redact
+    def test_a_secret_in_a_result_reaches_the_model_masked(self, registered_secret):
+        answer = _run_agent(
+            AirflowTools(_tool(ToolResult(f"key={registered_secret}"))), "lookup", {"key": "a"}
+        )
+
+        assert registered_secret not in answer
+        assert "key=***" in answer
