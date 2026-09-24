@@ -42,8 +42,10 @@ from upgrade_dependency_floors import (
     find_requirements,
     find_target_version,
     get_exclusion_reason,
+    get_workspace_pyprojects,
     is_curated,
     load_config,
+    main,
     parse_duration,
     render_report,
     resolve_check,
@@ -496,3 +498,99 @@ def test_exclusion_reason_shows_path_relative_to_repository(tmp_path):
     site = _site("boto3>=1.41,<2", str(AIRFLOW_ROOT_PATH / "providers" / "amazon" / "pyproject.toml"))
     reason = get_exclusion_reason("boto3", [site], config)
     assert reason == "held back by <2 in providers/amazon/pyproject.toml"
+
+
+def test_workspace_pyprojects_skip_members_with_own_lock(tmp_path):
+    # A member with its own uv.lock (dev/breeze) is not covered by the root resolve check,
+    # so raising its floors would leave that lock stale.
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.uv.workspace]\nmembers = [".", "providers/*", "dev/breeze"]\n'
+    )
+    for member in ("providers/amazon", "providers/google", "dev/breeze"):
+        (tmp_path / member).mkdir(parents=True)
+        (tmp_path / member / "pyproject.toml").write_text("[project]\n")
+    (tmp_path / "dev/breeze/uv.lock").write_text("")
+    assert get_workspace_pyprojects(tmp_path) == [
+        tmp_path / "pyproject.toml",
+        tmp_path / "providers/amazon/pyproject.toml",
+        tmp_path / "providers/google/pyproject.toml",
+    ]
+
+
+def test_revert_restores_only_the_edited_occurrences(tmp_path):
+    path = tmp_path / "pyproject.toml"
+    original = (
+        '[project]\ndependencies = ["google-cloud-x>=1.0"]\n'
+        '[dependency-groups]\ndev = ["google-cloud-x>=2.0"]\n'
+    )
+    path.write_text(original)
+    sites = [_site("google-cloud-x>=1.0", str(path)), _site("google-cloud-x>=2.0", str(path))]
+    bump = build_bump("google-cloud-x", sites, Version("2.0"))
+    apply_bump(bump)
+    assert path.read_text().count('"google-cloud-x>=2.0"') == 2
+    revert_bump(bump)
+    # The requirement that was already at the target must not be lowered by the rollback.
+    assert path.read_text() == original
+
+
+def test_apply_bump_is_all_or_nothing(tmp_path):
+    first, second = tmp_path / "a.toml", tmp_path / "b.toml"
+    first.write_text('dependencies = ["boto3>=1.41.0"]\n')
+    # The parsed requirement does not match the file text (escaped quotes), so this edit cannot apply.
+    second.write_text('dependencies = ["boto3>=1.41.0; python_version < \\"3.14\\""]\n')
+    bump = build_bump(
+        "boto3",
+        [_site("boto3>=1.41.0", str(first)), _site("boto3>=1.40.0; python_version < '3.14'", str(second))],
+        Version("1.43.0"),
+    )
+    with pytest.raises(ValueError, match="not found"):
+        apply_bump(bump)
+    assert first.read_text() == 'dependencies = ["boto3>=1.41.0"]\n'
+
+
+def test_failed_apply_reverts_earlier_bumps(workspace, monkeypatch):
+    ws = workspace([])
+
+    def apply_or_fail(bump):
+        if bump.unit == "b":
+            raise ValueError("Requirement not found")
+        ws.apply(bump)
+
+    monkeypatch.setattr("upgrade_dependency_floors.apply_bump", apply_or_fail)
+    with pytest.raises(ValueError, match="not found"):
+        apply_with_rollback([_bump("a"), _bump("b")], ws.check)
+    assert ws.applied == set()
+
+
+def test_run_skips_package_with_malformed_release_data(tree):
+    root, amazon = tree
+
+    def fetch(name):
+        if name == "google-cloud-bigquery":
+            return {"3.9.0": [{"yanked": False}]}
+        return _fetch(name)
+
+    report = run(root, [amazon], WORKSPACE, NOW, fetch, _green)
+    assert report.skipped["google-cloud-bigquery"].startswith("PyPI metadata unavailable")
+    assert {b.unit for b in report.raised} == {"boto3+botocore"}
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(ValueError("bad config"), id="config"),
+        pytest.param(LockAlreadyBrokenError("bad config"), id="lock"),
+    ],
+)
+def test_main_reports_why_floors_were_not_updated(tmp_path, monkeypatch, error):
+    report_path = tmp_path / "report.md"
+    monkeypatch.setenv("DEPENDENCY_FLOORS_REPORT", str(report_path))
+
+    def fail(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr("upgrade_dependency_floors.run", fail)
+    assert main() == 1
+    text = report_path.read_text()
+    assert "### Dependency floors" in text
+    assert "Not updated: bad config" in text

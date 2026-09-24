@@ -246,24 +246,49 @@ def build_bump(unit: str, sites: list[RequirementSite], target: Version) -> Bump
     )
 
 
-def _replace_quoted(path: Path, old: str, new: str) -> None:
-    content = path.read_text()
-    updated = content
-    for quote in ('"', "'"):
-        updated = updated.replace(f"{quote}{old}{quote}", f"{quote}{new}{quote}")
-    if updated == content:
-        raise ValueError(f"Requirement {old!r} not found in {path}")
-    path.write_text(updated)
+# Which quoted occurrences of ``edit.new`` each applied edit produced, so a revert restores only
+# those and never lowers an identical requirement that was already at the target.
+_APPLIED_OCCURRENCES: dict[Edit, list[int]] = {}
+
+
+def _find_quoted(content: str, text: str) -> list[int]:
+    """Return the start offsets of ``text`` quoted with either TOML quote character."""
+    return sorted(
+        match.start()
+        for quote in ('"', "'")
+        for match in re.finditer(re.escape(f"{quote}{text}{quote}"), content)
+    )
+
+
+def _replace_at(content: str, starts: list[int], old: str, new: str) -> str:
+    for start in sorted(starts, reverse=True):
+        quote = content[start]
+        content = content[:start] + f"{quote}{new}{quote}" + content[start + len(old) + 2 :]
+    return content
 
 
 def apply_bump(bump: Bump) -> None:
     for edit in bump.edits:
-        _replace_quoted(edit.path, edit.old, edit.new)
+        if not _find_quoted(edit.path.read_text(), edit.old):
+            raise ValueError(f"Requirement {edit.old!r} not found in {edit.path}")
+    for edit in bump.edits:
+        content = edit.path.read_text()
+        old_starts = _find_quoted(content, edit.old)
+        updated = _replace_at(content, old_starts, edit.old, edit.new)
+        shift = len(edit.new) - len(edit.old)
+        new_starts = {start + shift * index for index, start in enumerate(old_starts)}
+        _APPLIED_OCCURRENCES[edit] = [
+            index for index, start in enumerate(_find_quoted(updated, edit.new)) if start in new_starts
+        ]
+        edit.path.write_text(updated)
 
 
 def revert_bump(bump: Bump) -> None:
-    for edit in bump.edits:
-        _replace_quoted(edit.path, edit.new, edit.old)
+    for edit in reversed(bump.edits):
+        content = edit.path.read_text()
+        occurrences = _find_quoted(content, edit.new)
+        starts = [occurrences[index] for index in _APPLIED_OCCURRENCES.pop(edit)]
+        edit.path.write_text(_replace_at(content, starts, edit.new, edit.old))
 
 
 RESOLVE_COMMANDS: tuple[tuple[str, ...], ...] = (
@@ -293,12 +318,14 @@ def resolve_check(root: Path) -> ResolveResult:
 
 
 def _check_with(bumps: list[Bump], check: Callable[[], ResolveResult]) -> ResolveResult:
-    for bump in bumps:
-        apply_bump(bump)
+    applied: list[Bump] = []
     try:
+        for bump in bumps:
+            apply_bump(bump)
+            applied.append(bump)
         return check()
     finally:
-        for bump in reversed(bumps):
+        for bump in reversed(applied):
             revert_bump(bump)
 
 
@@ -390,10 +417,10 @@ def run(
             continue
         try:
             releases = {member: fetch(member) for member in members}
-        except (OSError, requests.RequestException, KeyError, ValueError) as error:
-            skipped[unit] = f"PyPI metadata unavailable: {error}"
+            target = find_group_target(releases, config.min_age, now)
+        except (OSError, requests.RequestException, KeyError, TypeError, ValueError) as error:
+            skipped[unit] = f"PyPI metadata unavailable: {error!r}"
             continue
-        target = find_group_target(releases, config.min_age, now)
         if target is None:
             skipped[unit] = f"no release older than {config.min_age.days} days"
             continue
@@ -421,9 +448,20 @@ def render_report(report: Report) -> str:
 
 
 def get_workspace_pyprojects(root: Path) -> list[Path]:
+    """Return the root and member pyproject.toml files whose floors the root ``uv.lock`` validates.
+
+    Members with a ``uv.lock`` of their own (dev/breeze) are left out: the resolve check only
+    covers the root lock, so raising their floors would leave their lock stale.
+    """
     data = tomllib.loads((root / "pyproject.toml").read_text())
     members = data.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
-    return [root / "pyproject.toml", *sorted(p for m in members for p in root.glob(f"{m}/pyproject.toml"))]
+    member_pyprojects = sorted(
+        path
+        for member in members
+        for path in root.glob(f"{member}/pyproject.toml")
+        if path.parent != root and not (path.parent / "uv.lock").exists()
+    )
+    return list(dict.fromkeys([root / "pyproject.toml", *member_pyprojects]))
 
 
 def main() -> int:
@@ -439,12 +477,18 @@ def main() -> int:
         )
     except (ValueError, LockAlreadyBrokenError) as error:
         console.print(f"[red]Dependency floors not updated: {error}[/]")
+        # Say so in the upgrade PR too, or a broken step would go unnoticed run after run.
+        _write_report(f"### Dependency floors\n\nNot updated: {error}\n")
         return 1
     text = render_report(report)
     console.print(text)
+    _write_report(text)
+    return 0
+
+
+def _write_report(text: str) -> None:
     if report_path := os.environ.get(REPORT_ENV):
         Path(report_path).write_text(text)
-    return 0
 
 
 if __name__ == "__main__":

@@ -635,6 +635,10 @@ def build_upgrade_pr_body(floors_report: str | None) -> str:
     return f"{UPGRADE_PR_BODY}\n\n{floors_report}"
 
 
+def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
+    return ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow", "--body", pr_body]
+
+
 @ci_group.command(
     name="upgrade",
     help="Perform important upgrade steps of the CI environment. And create a PR",
@@ -1034,6 +1038,14 @@ def upgrade(
 
         if existing_pr and existing_pr != "null" and existing_pr != "":
             console_print(f"[success]Existing PR found and updated with force push: {existing_pr}[/]")
+            # The body carries this run's dependency-floors report, so it must follow the pushed diff.
+            run_command(
+                build_update_pr_body_command(branch_name, pr_body),
+                capture_output=True,
+                text=True,
+                check=False,
+                env=command_env,
+            )
             if draft:
                 # Convert back to draft so a human must undraft to trigger CI
                 run_command(

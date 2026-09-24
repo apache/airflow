@@ -18,7 +18,12 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.commands.ci_commands import UPGRADE_COMMANDS, build_upgrade_pr_body, upgrade
+from airflow_breeze.commands.ci_commands import (
+    UPGRADE_COMMANDS,
+    build_update_pr_body_command,
+    build_upgrade_pr_body,
+    upgrade,
+)
 
 STEP_NAMES = [name for name, _ in UPGRADE_COMMANDS]
 
@@ -53,3 +58,17 @@ def test_build_upgrade_pr_body(report, expected_suffix):
 def test_upgrade_has_floor_flag():
     option = next(p for p in upgrade.params if p.name == "upgrade_dependency_floors")
     assert option.default is True
+
+
+def test_existing_pr_body_is_replaced_with_the_new_report():
+    # The upgrade branch name is stable, so most runs update an open PR instead of creating one.
+    assert build_update_pr_body_command("ci-upgrade-main", "body with report") == [
+        "gh",
+        "pr",
+        "edit",
+        "ci-upgrade-main",
+        "--repo",
+        "apache/airflow",
+        "--body",
+        "body with report",
+    ]
