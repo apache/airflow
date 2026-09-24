@@ -23,6 +23,6 @@ import { Bundle, Dag } from "../../../src/index.js";
 console.log("noise from an import-time dependency");
 
 const noisyDag = new Dag("noisy_dag");
-noisyDag.task("only", async () => undefined);
+noisyDag.task("only", async () => undefined)();
 
 await new Bundle(noisyDag).serve();

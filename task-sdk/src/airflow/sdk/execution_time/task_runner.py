@@ -303,8 +303,12 @@ class RuntimeTaskInstance(TaskInstance):
         integrate_macros_plugins()
 
         dag_run_conf: dict[str, Any] | None = None
+        macros_accessor = MacrosAccessor()
         if from_server := self._ti_context_from_server:
             dag_run_conf = from_server.dag_run.conf or dag_run_conf
+            macros_accessor = MacrosAccessor(
+                team_name=from_server.dag_run.team_name, multi_team=bool(from_server.multi_team)
+            )
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
@@ -323,7 +327,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "ti": self,
                 "outlet_events": OutletEventAccessors(),
                 "inlet_events": InletEventsAccessors(self.task.inlets),
-                "macros": MacrosAccessor(),
+                "macros": macros_accessor,
                 "params": validated_params,
                 # TODO: Make this go through Public API longer term.
                 # "test_mode": task_instance.test_mode,

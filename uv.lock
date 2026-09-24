@@ -315,6 +315,8 @@ members = [
     "apache-airflow-task-sdk",
     "apache-airflow-task-sdk-integration-tests",
 ]
+constraints = [{ name = "azure-ai-projects", specifier = "<2.5" }]
+overrides = [{ name = "openai", specifier = ">=2.47.0,<3" }]
 
 [[package]]
 name = "a2wsgi"
@@ -1311,6 +1313,9 @@ exasol = [
 fab = [
     { name = "apache-airflow-providers-fab" },
 ]
+fab-oauth = [
+    { name = "apache-airflow-providers-fab", extra = ["oauth"] },
+]
 facebook = [
     { name = "apache-airflow-providers-facebook" },
 ]
@@ -1324,15 +1329,13 @@ github = [
     { name = "apache-airflow-providers-github" },
 ]
 github-enterprise = [
-    { name = "apache-airflow-providers-fab" },
-    { name = "authlib" },
+    { name = "apache-airflow-providers-fab", extra = ["oauth"] },
 ]
 google = [
     { name = "apache-airflow-providers-google" },
 ]
 google-auth = [
-    { name = "apache-airflow-providers-fab" },
-    { name = "authlib" },
+    { name = "apache-airflow-providers-fab", extra = ["oauth"] },
 ]
 graphviz = [
     { name = "apache-airflow-core", extra = ["graphviz"] },
@@ -1604,7 +1607,7 @@ leveldb = [
 [package.metadata]
 requires-dist = [
     { name = "amqp", marker = "extra == 'rabbitmq'", specifier = ">=5.2.0" },
-    { name = "apache-airflow", extras = ["aiobotocore", "amazon-aws-auth", "apache-atlas", "apache-webhdfs", "async", "cloudpickle", "github-enterprise", "google-auth", "graphviz", "gunicorn", "kerberos", "ldap", "memray", "otel", "pandas", "polars", "rabbitmq", "s3fs", "sentry", "statsd", "uv"], marker = "extra == 'all'", editable = "." },
+    { name = "apache-airflow", extras = ["aiobotocore", "amazon-aws-auth", "apache-atlas", "apache-webhdfs", "async", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "graphviz", "gunicorn", "kerberos", "ldap", "memray", "otel", "pandas", "polars", "rabbitmq", "s3fs", "sentry", "statsd", "uv"], marker = "extra == 'all'", editable = "." },
     { name = "apache-airflow-core", editable = "airflow-core" },
     { name = "apache-airflow-core", extras = ["all"], marker = "extra == 'all'", editable = "airflow-core" },
     { name = "apache-airflow-core", extras = ["all"], marker = "extra == 'all-core'", editable = "airflow-core" },
@@ -1715,8 +1718,9 @@ requires-dist = [
     { name = "apache-airflow-providers-exasol", marker = "extra == 'exasol'", editable = "providers/exasol" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'all'", editable = "providers/fab" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
-    { name = "apache-airflow-providers-fab", marker = "extra == 'github-enterprise'", editable = "providers/fab" },
-    { name = "apache-airflow-providers-fab", marker = "extra == 'google-auth'", editable = "providers/fab" },
+    { name = "apache-airflow-providers-fab", extras = ["oauth"], marker = "extra == 'fab-oauth'", editable = "providers/fab" },
+    { name = "apache-airflow-providers-fab", extras = ["oauth"], marker = "extra == 'github-enterprise'", editable = "providers/fab" },
+    { name = "apache-airflow-providers-fab", extras = ["oauth"], marker = "extra == 'google-auth'", editable = "providers/fab" },
     { name = "apache-airflow-providers-facebook", marker = "extra == 'all'", editable = "providers/facebook" },
     { name = "apache-airflow-providers-facebook", marker = "extra == 'facebook'", editable = "providers/facebook" },
     { name = "apache-airflow-providers-ftp", marker = "extra == 'all'", editable = "providers/ftp" },
@@ -1836,6 +1840,7 @@ requires-dist = [
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "apache-airflow-task-sdk", extras = ["all"], marker = "extra == 'all-task-sdk'", editable = "task-sdk" },
     { name = "atlasclient", marker = "extra == 'apache-atlas'", specifier = ">=0.1.2" },
+    { name = "authlib", marker = "extra == 'fab-oauth'", specifier = ">=1.0.0" },
     { name = "authlib", marker = "extra == 'github-enterprise'", specifier = ">=1.0.0" },
     { name = "authlib", marker = "extra == 'google-auth'", specifier = ">=1.0.0" },
     { name = "cloudpickle", marker = "extra == 'cloudpickle'", specifier = ">=2.2.1,<3.1.2" },
@@ -1843,7 +1848,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.12.13" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -4703,22 +4708,22 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
-    { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.13.0" },
+    { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
-    { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
+    { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.8" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.0" },
-    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.45.0" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0" },
-    { name = "pydantic-ai-slim", specifier = ">=2.23.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=2.23.0" },
-    { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=2.23.0" },
-    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'", specifier = ">=2.23.0" },
-    { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=2.23.0" },
-    { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'", specifier = ">=2.23.0" },
+    { name = "pydantic-ai-slim", specifier = ">=2.33.0" },
+    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=2.33.0" },
+    { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=2.33.0" },
+    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'", specifier = ">=2.33.0" },
+    { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=2.33.0" },
+    { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'", specifier = ">=2.33.0" },
     { name = "pypdf", marker = "extra == 'pdf'", specifier = ">=4.0.0" },
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
@@ -4738,12 +4743,12 @@ dev = [
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "langchain", specifier = ">=1.0.0" },
-    { name = "llama-index-core", specifier = ">=0.13.0" },
+    { name = "llama-index-core", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
-    { name = "llama-index-llms-openai", specifier = ">=0.6.0" },
-    { name = "openai", specifier = ">=2.45.0" },
+    { name = "llama-index-llms-openai", specifier = ">=0.6.8" },
+    { name = "openai", specifier = ">=2.47.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
-    { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.23.0" },
+    { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.33.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -6192,6 +6197,11 @@ dependencies = [
     { name = "requests-toolbelt" },
 ]
 
+[package.optional-dependencies]
+srv = [
+    { name = "dnspython" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
@@ -6210,10 +6220,12 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
+    { name = "dnspython", marker = "extra == 'srv'", specifier = ">=2.0.0" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "requests-toolbelt", specifier = ">=1.0.0" },
 ]
+provides-extras = ["srv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -6391,8 +6403,8 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "influxdb-client", specifier = ">=1.19.0" },
     { name = "influxdb3-python", specifier = ">=0.12.0" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "requests", specifier = ">=2.32.0,<3" },
 ]
@@ -20797,22 +20809,22 @@ wheels = [
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "2.31.1"
+version = "2.44.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
     { name = "genai-prices" },
     { name = "griffelib" },
-    { name = "httpx" },
+    { name = "httpx2" },
     { name = "opentelemetry-api" },
     { name = "pydantic" },
     { name = "pydantic-graph" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/28/9d/a100fed1873151d930c45ed4e394647ba4d0bad5794d24d384b20dad3bad/pydantic_ai_slim-2.31.1.tar.gz", hash = "sha256:f04611e65e9a619b077732651240753cfb058bd844bd3c4e1eea549a48d38376", size = 1214403, upload-time = "2026-08-18T03:39:52.762Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/dc/563e7157b940f0274b0687e523f46f9d3ea4936e472c66c8c17b7856eb2e/pydantic_ai_slim-2.44.0.tar.gz", hash = "sha256:88be3150dc6c89383e4dd596414dda3479c2773ee6e9e40789596d82fc34a783", size = 1519519, upload-time = "2026-09-17T04:11:32.578Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/76/90841be18ff357a39c27d5bee5246af6bb71f13399b55ab318c4c32cc4c8/pydantic_ai_slim-2.31.1-py3-none-any.whl", hash = "sha256:4647d801c5febbd150203d130ddff6db2c481675626b648653e832f419609702", size = 1432432, upload-time = "2026-08-18T03:39:45.947Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/69/1acef0ae723f28ec0554cfad06fac1004b6d75ef2540ef29ff8e46688d58/pydantic_ai_slim-2.44.0-py3-none-any.whl", hash = "sha256:67063d1b2900e92dc558079fa3854e0141ed6f81ec5fb7d9c4d1b3b86bd0c9b6", size = 1800583, upload-time = "2026-09-17T04:11:23.706Z" },
 ]
 
 [package.optional-dependencies]
@@ -20967,18 +20979,17 @@ wheels = [
 
 [[package]]
 name = "pydantic-graph"
-version = "2.31.1"
+version = "2.44.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
-    { name = "httpx" },
     { name = "logfire-api" },
     { name = "pydantic" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2e/40/da6b9b7ee8c77b5c5e910ecc49a7d4ed93422a9bddb1726ed876b6abbeea/pydantic_graph-2.31.1.tar.gz", hash = "sha256:ac5f34e7bbf518a18a9c22f1e33418c3343542a8ea269ee8ee58e637e3f4fd56", size = 45179, upload-time = "2026-08-18T03:39:54.732Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/3d/22cecd0197d171cdf09e47de5e8ab906ce8b7632f282433046340564cf03/pydantic_graph-2.44.0.tar.gz", hash = "sha256:e6d62aa8579b83815b9adcb3dbff210647951ef4fa5f6526b24ee9d168d385bb", size = 45191, upload-time = "2026-09-17T04:11:35.238Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/40/ca98101077f17c1773c1aad617d03f6a0666936a8c6aeb4aac4c3e61eb54/pydantic_graph-2.31.1-py3-none-any.whl", hash = "sha256:7a5a9a8143d52f509a917263eeb49b4466eda6caf5131d1e71143fc6e9710157", size = 52662, upload-time = "2026-08-18T03:39:49.133Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/21/699faf6b87b785e15a7ebe163052ac74606a19d5275211e28bf725e17e22/pydantic_graph-2.44.0-py3-none-any.whl", hash = "sha256:7a7aec1399d8dfc09f0485c4f9749c568bc451ed517ee1f3e903c3d216ea17e5", size = 52698, upload-time = "2026-09-17T04:11:27.685Z" },
 ]
 
 [[package]]

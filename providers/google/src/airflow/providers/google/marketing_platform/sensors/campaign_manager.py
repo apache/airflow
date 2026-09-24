@@ -61,6 +61,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         "report_id",
         "file_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def poke(self, context: Context) -> bool:

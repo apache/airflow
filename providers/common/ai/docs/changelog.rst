@@ -26,31 +26,23 @@ Changelog
 ---------
 
 .. note::
-  ``LLMRetryPolicy`` now asks the model only which category a failure is; whether that
-  category is retried, and after how long, comes from the policy's ``categories`` table
-  (``ErrorCategory(description, retry, delay, min_confidence)``), not from the model.
-  ``ErrorClassification`` and its ``should_retry``, ``suggested_delay_seconds`` and
-  ``reasoning`` fields are removed, so a Dag file that imports the class fails to parse,
-  and with it every Dag in that file. The new public names are ``ErrorCategory`` and
-  ``DEFAULT_CATEGORIES``.
+  ``LLMBranchOperator`` and ``LLMOperator`` now push a ``decision`` XCom on every run, next to
+  ``return_value``, with the model's pick, the action taken, the confidence and probabilities
+  when the model reports them, and the ``decision_policy`` that applied. ``LLMBranchOperator``
+  also offers the downstream task IDs to the model in sorted order (it was set order, which
+  differed between workers), gained ``branches`` as a template field, and builds its option
+  type from pydantic-ai's ``Choices`` on 2.46+ or an equivalent enum whose member names are
+  generated; the option values are still the task IDs, so ``do_branch`` receives the same
+  strings as before.
 
-  A policy built with only ``llm_conn_id`` classifies into the same seven categories with
-  the same retry/fail split and the same 60s/10s/30s delays. The delays are now fixed by
-  the table rather than chosen by the model, so an error the model previously answered
-  with its own delay now waits the category's. Custom ``instructions`` that named a delay,
-  said "do NOT retry", or introduced category names outside the seven still parse but no
-  longer steer anything: the model is constrained to ``categories``, so a name of your own
-  is either mapped onto the nearest default or rejected by the schema and sent to the
-  fallback path. The 0.9.0 guide's Snowflake example asked for ``rate_limit`` after 120s
-  and now gets the default 60s. Move each such rule into an ``ErrorCategory`` entry and
-  keep ``instructions`` for teaching the model your error strings; passing custom
-  ``instructions`` without ``categories`` now raises a ``UserWarning`` at Dag parse time
-  saying so.
-
-  The ``retry_reason`` written on a retry is now a generated line
-  (``category=... confidence=... threshold=... action=... delay=...``) rather than the
-  model's prose, and a decision that came from ``fallback_rules`` has its reason prefixed
-  with ``LLM classification not applied (<why>);``. See :doc:`retry_policies`.
+.. note::
+  ``execute_complete`` on ``LLMOperator``, ``LLMBranchOperator``, ``LLMSQLQueryOperator`` and
+  ``LLMSchemaCompareOperator`` gained a keyword argument, ``decision``. ``LLMOperator`` and
+  ``LLMBranchOperator`` pass it on resume, so a subclass of either that overrides
+  ``execute_complete`` with the old three-argument signature raises ``TypeError`` when the
+  reviewed task resumes; add ``decision=None`` to the override. The other two accept the
+  keyword but do not pass it yet. A review that was already pending when you upgraded
+  resumes without it and is unaffected.
 
 .. note::
   Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator

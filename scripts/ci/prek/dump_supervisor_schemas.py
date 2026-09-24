@@ -70,6 +70,18 @@ for key in list(defs):
         continue
     defs[title] = entry
 
+# Pydantic renders ``JsonValue`` as an empty schema. That is valid JSON Schema for "any
+# JSON value", but it leaves a code generator with no type to emit: go-jsonschema aborts on
+# ``anyOf: [JsonValue, null]`` with "types list is empty". Spell the union out instead.
+# The title keeps ``--struct-name-from-title`` emitting a named type rather than inlining
+# the union at every use site.
+for key, val in defs.items():
+    if not val:
+        defs[key] = {
+            "title": key,
+            "type": ["object", "array", "string", "number", "boolean", "null"],
+        }
+
 output = json.dumps(snapshot, indent=2)
 for old, new in renames.items():
     output = output.replace(f'"#/$defs/{old}"', f'"#/$defs/{new}"')
