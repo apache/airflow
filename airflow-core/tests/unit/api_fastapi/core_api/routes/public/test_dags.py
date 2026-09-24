@@ -1352,6 +1352,7 @@ class TestDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "end_date": None,
+            "exceeds_max_active_runs": False,
             "fileloc": __file__,
             "file_token": file_token,
             "has_import_errors": False,
@@ -1511,6 +1512,27 @@ class TestDagDetails(TestDagEndpoint):
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
+
+    def test_dag_details_includes_exceeds_max_active_runs(self, session, test_client):
+        """Test that DAG details include the exceeds_max_active_runs field."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.exceeds_max_non_backfill = True
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "exceeds_max_active_runs" in body
+        assert body["exceeds_max_active_runs"] is True
+
+        # Test with a DAG that has not hit its max_active_runs
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "exceeds_max_active_runs" in body
+        assert body["exceeds_max_active_runs"] is False
 
     def test_dag_details_team_name_none_without_multi_team(self, test_client):
         """Without multi-team enabled, ``team_name`` stays ``None`` and no lookup happens."""

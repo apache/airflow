@@ -1120,6 +1120,7 @@ class TestDagOperations:
         doc_md=None,
         start_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
         end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        exceeds_max_active_runs=False,
         is_paused_upon_creation=False,
         params={},
         render_template_as_native_obj=True,
