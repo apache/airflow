@@ -86,13 +86,9 @@ produced by an agent. PRs written by humans with the regular template are unaffe
 ```markdown
 closes: #ISSUE  (if applicable)
 
-## Human Summary
-
 <!-- The human author's own words, pasted verbatim. Agents must never write this. -->
 
-## AI Summary
-
-<details><summary>Click here</summary>
+<details><summary>AI Summary</summary>
 
 Agent-written description of what the PR changes and why.
 
