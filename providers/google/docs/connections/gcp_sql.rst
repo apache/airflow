@@ -82,9 +82,9 @@ Using Cloud SQL Auth Proxy v2
 -----------------------------
 
 By default Airflow runs Cloud SQL Auth Proxy v1. To run Cloud SQL Auth Proxy v2 instead, set
-``"sql_proxy_major_version": 2`` in the ``extra`` field. Unless ``sql_proxy_binary_path`` points to an
-existing v2 binary, ``sql_proxy_version`` must also be set to the v2 release to download, as there is no
-"latest" download for v2.
+``"sql_proxy_major_version": 2`` in the ``extra`` field. ``sql_proxy_version`` must also be set to the v2
+release to download, as there is no "latest" download for v2, unless the ``sql_proxy_binary_path`` argument
+of the hook or operator points to an existing v2 binary.
 
 Example "extras" field:
 
@@ -146,9 +146,10 @@ Configure ``gcpcloudsql`` connection with Cloud SQL Auth Proxy IAM authenticatio
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 For using Cloud SQL Auth Proxy IAM authentication, enable ``"use_proxy": "True"`` and
-``"sql_proxy_enable_iam_login": "True"`` in the ``extra`` field. This option is supported for both
-Postgres and MySQL. Airflow passes ``-enable_iam_login`` to Cloud SQL Auth Proxy v1 (or
-``--auto-iam-authn`` to v2), so the ``password`` field can be empty.
+``"sql_proxy_enable_iam_login": "True"`` in the ``extra`` field. Airflow passes ``-enable_iam_login`` to
+Cloud SQL Auth Proxy v1 or ``--auto-iam-authn`` to v2, so the ``password`` field can be empty.
+Cloud SQL Auth Proxy v1 supports IAM database authentication for Postgres only; for MySQL, use
+Cloud SQL Auth Proxy v2 (see `Using Cloud SQL Auth Proxy v2`_).
 
 Example "extras" field for Postgres:
 
@@ -175,7 +176,9 @@ Example "extras" field for MySQL:
       "instance": "testinstance",
       "use_proxy": true,
       "sql_proxy_use_tcp": true,
-      "sql_proxy_enable_iam_login": true
+      "sql_proxy_enable_iam_login": true,
+      "sql_proxy_major_version": 2,
+      "sql_proxy_version": "v2.14.0"
    }
 
 .. note::

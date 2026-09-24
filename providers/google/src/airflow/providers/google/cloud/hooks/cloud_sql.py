@@ -38,7 +38,7 @@ from pathlib import Path
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import parse_qs, quote_plus
+from urllib.parse import quote_plus
 
 import httpx2
 from aiohttp import ClientSession
@@ -80,7 +80,7 @@ UNIX_PATH_MAX = 108
 TIME_TO_SLEEP_IN_SECONDS = 20
 
 CLOUD_SQL_PROXY_VERSION_REGEX = re.compile(r"^v?(\d+\.\d+\.\d+)(-\w*.?\d?)?$")
-CLOUD_SQL_PROXY_V2_VERSION_REGEX = re.compile(r"^v2\.\d+\.\d+$")
+CLOUD_SQL_PROXY_V2_VERSION_REGEX = re.compile(r"v2\.\d+\.\d+")
 
 
 class CloudSqlOperationStatus:
@@ -603,7 +603,26 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.cloud_sql_proxy_socket_directory = self.path_prefix
         self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
         self.credentials_path = self.path_prefix + "_credentials.json"
+        self._validate_sql_proxy_configuration()
         self._build_command_line_parameters()
+
+    def _validate_sql_proxy_configuration(self) -> None:
+        # Validated here rather than in start_proxy(): callers stop the proxy on failure, and
+        # stop_proxy() on a proxy that never started raises and hides the original error.
+        if self.sql_proxy_major_version == 1:
+            if self.sql_proxy_version and self.sql_proxy_version.lstrip("v").startswith("2."):
+                raise ValueError(
+                    f"The sql_proxy_version {self.sql_proxy_version!r} is a Cloud SQL Auth Proxy v2 "
+                    "release. Set sql_proxy_major_version to 2 to use it!"
+                )
+            return
+        if not self.instance_specification:
+            raise ValueError(
+                "Cloud SQL Auth Proxy v2 does not support forwarding all instances of a project. "
+                "The instance_specification must be provided!"
+            )
+        if not os.path.isfile(self.sql_proxy_path):
+            self._get_sql_proxy_download_url()
 
     def _build_command_line_parameters(self) -> None:
         if self.sql_proxy_major_version == 2:
@@ -615,15 +634,10 @@ class CloudSqlProxyRunner(LoggingMixin):
             self.command_line_parameters.append("-enable_iam_login")
 
     def _build_v2_command_line_parameters(self) -> None:
-        # v2 rejects --unix-socket combined with a per-instance TCP port or address.
-        _, _, query = self.instance_specification.partition("?")
-        options = parse_qs(query)
-        if "port" not in options and "address" not in options:
-            self.command_line_parameters.extend(["--unix-socket", self.cloud_sql_proxy_socket_directory])
+        self.command_line_parameters.extend(["--unix-socket", self.cloud_sql_proxy_socket_directory])
         if self.sql_proxy_enable_iam_login:
             self.command_line_parameters.append("--auto-iam-authn")
-        if self.instance_specification:
-            self.command_line_parameters.append(self.instance_specification)
+        self.command_line_parameters.append(self.instance_specification)
 
     @staticmethod
     def _is_os_64bit() -> bool:
@@ -665,7 +679,7 @@ class CloudSqlProxyRunner(LoggingMixin):
                     "The sql_proxy_version must be specified to download Cloud SQL Auth Proxy v2 "
                     "(for example 'v2.14.0')!"
                 )
-            if not CLOUD_SQL_PROXY_V2_VERSION_REGEX.match(self.sql_proxy_version):
+            if not CLOUD_SQL_PROXY_V2_VERSION_REGEX.fullmatch(self.sql_proxy_version):
                 raise ValueError(
                     "The sql_proxy_version should match the regular expression "
                     f"{CLOUD_SQL_PROXY_V2_VERSION_REGEX.pattern}"
@@ -713,11 +727,6 @@ class CloudSqlProxyRunner(LoggingMixin):
             credential_params = []
 
         if not self.instance_specification:
-            if self.sql_proxy_major_version == 2:
-                raise ValueError(
-                    "Cloud SQL Auth Proxy v2 does not support forwarding all instances of a project. "
-                    "The instance_specification must be provided!"
-                )
             project_id = get_field(extras, "project")
             if self.project_id:
                 project_id = self.project_id
@@ -887,8 +896,8 @@ class CloudSQLDatabaseHook(BaseHook):
     * **use_iam** - (default False) Whether IAM should be used to connect to Cloud SQL DB.
       With using IAM password field should be empty string.
     * **sql_proxy_enable_iam_login** - (default False) Whether Cloud SQL Auth Proxy should use
-      IAM database authentication. This requires ``use_proxy`` and is supported for both Postgres
-      and MySQL.
+      IAM database authentication. This requires ``use_proxy``. With Cloud SQL Auth Proxy v1 it is
+      supported for Postgres only, with v2 for both Postgres and MySQL.
     * **sql_proxy_use_tcp** - (default False) If set to true, TCP is used to connect via
       proxy, otherwise UNIX sockets are used.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
@@ -961,7 +970,9 @@ class CloudSQLDatabaseHook(BaseHook):
         )
         self.sql_proxy_use_tcp = self._get_bool(self.extras.get("sql_proxy_use_tcp", "False"))
         self.sql_proxy_version = self.extras.get("sql_proxy_version")
-        self.sql_proxy_major_version = int(self.extras.get("sql_proxy_major_version", 1))
+        self.sql_proxy_major_version = self._get_sql_proxy_major_version(
+            self.extras.get("sql_proxy_major_version", 1)
+        )
         self.sql_proxy_binary_path = sql_proxy_binary_path
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
@@ -1076,6 +1087,12 @@ class CloudSQLDatabaseHook(BaseHook):
         if val == "False" or val is False:
             return False
         return True
+
+    @staticmethod
+    def _get_sql_proxy_major_version(val: Any) -> int:
+        if str(val) not in ("1", "2"):
+            raise ValueError(f"The extra 'sql_proxy_major_version' must be 1 or 2, got {val!r}")
+        return int(val)
 
     @staticmethod
     def _check_ssl_file(file_to_check, name) -> None:
