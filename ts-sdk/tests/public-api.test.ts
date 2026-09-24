@@ -291,12 +291,11 @@ describe("public API", () => {
     // a wider one is, and not the other way round.
     expectTypeOf<TaskRef<boolean>>().toMatchTypeOf<TaskRef>();
     expectTypeOf<TaskRef>().not.toMatchTypeOf<TaskRef<boolean>>();
-    // Wiring moved to the factory call, so `inputs` is no longer an option and
-    // the only remaining one is the spec.
-    expectTypeOf<TaskOptions>().toEqualTypeOf<{
-      readonly spec?: TaskSpec;
-      readonly argNames?: readonly string[];
-    }>();
+    // Wiring moved to the factory call and the spec is the trailing argument
+    // itself, alongside the argument names the packer fills in.
+    expectTypeOf<TaskOptions>().toEqualTypeOf<
+      TaskSpec & { readonly argBindings?: readonly string[] }
+    >();
     // Each named argument takes any upstream reference or a literal of its own type.
     expectTypeOf<TaskInputs<{ rows: number }>>().toEqualTypeOf<{ rows: TaskRef | number }>();
     // A positional argument takes a literal or a reference of the argument's own
@@ -321,11 +320,22 @@ describe("public API", () => {
       ) => TaskFactory<TParams, TReturn>
     >();
     expectTypeOf<Dag["taskIds"]>().toEqualTypeOf<readonly string[]>();
-    // Reserved with no fields yet, so only `{}` is expressible. Generated specs
-    // will be all-optional (weak) types, and `{}` stays assignable to those, so
-    // filling these in later cannot break a call site.
-    expectTypeOf<DagSpec>().toEqualTypeOf<Record<string, never>>();
-    expectTypeOf<TaskSpec>().toEqualTypeOf<Record<string, never>>();
+    // Both specs are all-optional, so `{}` stays assignable and a field the
+    // schema gains later cannot break a call site.
+    const emptyDagSpec: DagSpec = {};
+    const emptyTaskSpec: TaskSpec = {};
+    expect([emptyDagSpec, emptyTaskSpec]).toEqual([{}, {}]);
+    expectTypeOf<DagSpec["schedule"]>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<DagSpec["tags"]>().toEqualTypeOf<readonly string[] | undefined>();
+    expectTypeOf<DagSpec["startDate"]>().toEqualTypeOf<Date | undefined>();
+    expectTypeOf<TaskSpec["retries"]>().toEqualTypeOf<number | undefined>();
+    // A timedelta is seconds, not a Date, and a bool defaulting to true is
+    // still a plain optional: `undefined` already means "unset".
+    expectTypeOf<TaskSpec["retryDelay"]>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<TaskSpec["doXcomPush"]>().toEqualTypeOf<boolean | undefined>();
+    // Identity is positional, so it is not restated in either spec.
+    expectTypeOf<DagSpec>().not.toHaveProperty("dagId");
+    expectTypeOf<TaskSpec>().not.toHaveProperty("taskId");
   });
 
   it("uses idiomatic TypeScript names for public client types", () => {
@@ -417,16 +427,20 @@ describe("public API", () => {
       new Dag("example").task("extract");
       const dag = new Dag("example");
       const extract = dag.task("extract", async () => undefined);
-      // @ts-expect-error wiring belongs to the factory call, not the options.
+      // @ts-expect-error wiring belongs to the factory call, not the spec.
       dag.task("transform", async () => undefined, { inputs: { count: 1 } });
-      // @ts-expect-error the spec is keyword-only, not positional.
+      // @ts-expect-error the spec holds task options, not task references.
       dag.task("transform2", async () => undefined, { extract });
       // @ts-expect-error a Dag spec is an options object, not a primitive.
       new Dag("spec_dag", 42);
-      // @ts-expect-error DagSpec has no fields yet, so a schedule cannot be declared here.
-      new Dag("spec_dag", { schedule: "@daily" });
-      // @ts-expect-error TaskSpec has no fields yet, so retries cannot be declared here.
-      dag.task("transform3", async () => undefined, { spec: { retries: 2 } });
+      new Dag("scheduled_dag", { schedule: "@daily", tags: ["team-a"] });
+      dag.task("transform3", async () => undefined, { retries: 2 });
+      // @ts-expect-error specs use the camelCased field name, not the schema key.
+      new Dag("snake_case_dag", { dag_display_name: "Example" });
+      // @ts-expect-error a field the schema does not define is a typo.
+      new Dag("typo_dag", { scheduled: "@daily" });
+      // @ts-expect-error a timedelta field is seconds, not a Date.
+      dag.task("retry_dag", async () => undefined, { retryDelay: new Date() });
       // @ts-expect-error a handler with no arguments is called with none.
       extract({ rows: 1 });
       const transform = dag.task("transform4", async (_: { rows: number }) => undefined);

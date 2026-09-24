@@ -51,7 +51,8 @@
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "verify:package": "node scripts/verify-package.mjs",
     "prepack": "pnpm run build",
-    "generate:supervisor": "node scripts/generate-supervisor.mjs"
+    "generate:supervisor": "node scripts/generate-supervisor.mjs",
+    "generate:dag-schema": "node scripts/generate-dag-schema.mjs"
   },
   "keywords": [
     "airflow",

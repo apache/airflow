@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -25,6 +25,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
 } from "src/constants/localStorage";
@@ -60,6 +61,7 @@ beforeAll(async () => {
             },
             graph: {
               defaultDirection: { helper: "helper", label: "Default graph direction" },
+              taskGroupsExpanded: { helper: "helper", label: "Expand task groups by default" },
               title: "Graph",
             },
             marking: {
@@ -152,5 +154,19 @@ describe("Settings page", () => {
     expect(screen.getByTestId("default-graph-direction")).toHaveTextContent("DOWN-LABEL");
     expect(screen.getByTestId("default-task-instance-tab")).toHaveTextContent("DETAILS-TAB");
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "unchecked");
+  });
+});
+
+describe("task group setting", () => {
+  it("defaults to collapsed and persists the expanded preference", async () => {
+    const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
+    const toggle = screen.getByTestId("default-task-groups-expanded");
+
+    expect(toggle).toHaveAttribute("data-state", "unchecked");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Expand task groups by default" }));
+    await waitFor(() => expect(localStorage.getItem(DEFAULT_TASK_GROUPS_EXPANDED_KEY)).toBe("true"));
+    unmount();
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByTestId("default-task-groups-expanded")).toHaveAttribute("data-state", "checked");
   });
 });

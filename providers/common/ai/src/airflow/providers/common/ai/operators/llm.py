@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.policies.decision import DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
     DECISION_XCOM_KEY,
@@ -70,7 +71,10 @@ if TYPE_CHECKING:
 __all__ = ["DecisionPolicy", "LLMOperator"]
 
 
-class LLMOperator(BaseOperator, LLMApprovalMixin):
+# CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
+# no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
+# test in tests/unit/common/ai/mixins/test_cancellable_run.py.
+class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -319,7 +323,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
+        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

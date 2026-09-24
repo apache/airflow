@@ -163,9 +163,14 @@ Dag, and the ``task_id`` must match a ``@task.stub`` function in that Dag. Neith
 function name, so a handler can be named whatever reads best in Go.
 
 ``TaskHandler`` also checks the signature of the function it is given and panics if the check fails -- for
-instance when the function does not take an ``airflow.Context`` first, or does not return an ``error``.
-Because ``main`` registers every handler before ``Serve``, a mistake stops the executable as soon as it
-starts rather than when the task first runs.
+instance when the function does not take an ``airflow.Context`` first, does not return an ``error``, or
+declares a variadic ``...`` parameter, which no stub argument can fill. Because ``main`` registers every
+handler before ``Serve``, a mistake stops the executable as soon as it starts rather than when the task
+first runs.
+
+``Serve`` closes registration: a ``Register`` left below it in ``main`` panics rather than adding a handler
+to the map the runtime is already answering from, so what a bundle can run never depends on how far
+``main`` has got.
 
 A package that defines task handlers of its own can export them as a ``[]airflow.Registerable`` for ``main``
 to pass on with ``bundle.Register(reports.Handlers()...)``.

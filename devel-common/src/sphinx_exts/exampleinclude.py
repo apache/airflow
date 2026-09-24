@@ -127,13 +127,14 @@ class ExampleInclude(SphinxDirective):
             return [document.reporter.warning(str(exc), line=self.lineno)]
 
 
-def register_source(app, env, modname):
+def register_source(app, env, modname, filepath):
     """
     Registers source code.
 
     :param app: application
     :param env: environment of the plugin
-    :param modname: name of the module to load
+    :param modname: name of the module the file corresponds to
+    :param filepath: path of the file holding the source code
     :return: True if the code is registered successfully, False otherwise
     """
     if modname is None:
@@ -147,10 +148,11 @@ def register_source(app, env, modname):
 
     if code_tags is None:
         try:
-            analyzer = ModuleAnalyzer.for_module(modname)
+            # for_file() over for_module(): the latter imports the module; these are not importable
+            analyzer = ModuleAnalyzer.for_file(filepath, modname)
         except Exception as ex:
             logger.info(
-                'Module "%s" could not be loaded. Full source will not be available. "%s"', modname, ex
+                'Module "%s" could not be parsed. Full source will not be available. "%s"', modname, ex
             )
             # We cannot use regular warnings or exception methods because those warnings are interpreted
             # by running python process and converted into "real" warnings, so we need to print the
@@ -254,7 +256,7 @@ def doctree_read(app, doctree):
         else:
             modname = None
             module_path = filepath.resolve()
-        show_button = register_source(app, env, modname)
+        show_button = register_source(app, env, modname, filepath)
         onlynode = create_node(env, module_path.as_posix(), show_button)
 
         objnode.replace_self(onlynode)

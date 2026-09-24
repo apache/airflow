@@ -23,7 +23,9 @@ import {
   finalizeDag,
   getDagTaskInputs,
   getDagTaskRecords,
+  type DagSpec,
   type TaskRef,
+  type TaskSpec,
 } from "../../src/sdk/dag.js";
 import { Bundle, finalizeBundleDags } from "../../src/sdk/bundle.js";
 
@@ -45,7 +47,7 @@ describe("Dag", () => {
       "transform",
       async (_: { extracted: { rows: number } }) => undefined,
     );
-    const load = dag.task("load", async (_: { transformed: undefined }) => undefined, { spec: {} });
+    const load = dag.task("load", async (_: { transformed: undefined }) => undefined, {});
 
     const extracted = extract();
     const transformed = transform({ extracted });
@@ -203,11 +205,11 @@ describe("Dag", () => {
     expect(Object.keys(getDagTaskInputs(dag).get("transform")!)).toEqual(["arg0", "arg1"]);
   });
 
-  it("names positional arguments from argNames", () => {
+  it("names positional arguments from argBindings", () => {
     const dag = new Dag("example_dag");
     const extract = dag.task("extract", async (): Promise<number> => 1);
     const transform = dag.task("transform", async (rows: number, region: string) => `${region}`, {
-      argNames: ["rows", "region"],
+      argBindings: ["rows", "region"],
     });
 
     const extracted = extract();
@@ -216,10 +218,10 @@ describe("Dag", () => {
     expect(getDagTaskInputs(dag).get("transform")).toEqual({ rows: extracted, region: "us" });
   });
 
-  it("labels the arguments argNames does not reach", () => {
+  it("labels the arguments argBindings does not reach", () => {
     const dag = new Dag("example_dag");
     const transform = dag.task("transform", async (rows: number, region: string) => `${region}`, {
-      argNames: ["rows"],
+      argBindings: ["rows"],
     });
 
     transform(1, "us");
@@ -228,12 +230,20 @@ describe("Dag", () => {
   });
 
   it.each([
-    ["not an array", { argNames: 1 }, /argNames for Dag "d" task "t" must be an array of names/],
-    ["not a string", { argNames: [1] }, /holds 1; each name must be a non-empty string/],
-    ["empty", { argNames: [""] }, /holds ""; each name must be a non-empty string/],
-    ["a number", { argNames: ["0"] }, /holds "0"; each name must be a non-empty string/],
-    ["a duplicate", { argNames: ["a", "a"] }, /argNames for Dag "d" task "t" names "a" twice/],
-  ])("rejects argNames that are %s", (_label, options, expected) => {
+    [
+      "not an array",
+      { argBindings: 1 },
+      /argBindings for Dag "d" task "t" must be an array of names/,
+    ],
+    ["not a string", { argBindings: [1] }, /holds 1; each name must be a non-empty string/],
+    ["empty", { argBindings: [""] }, /holds ""; each name must be a non-empty string/],
+    ["a number", { argBindings: ["0"] }, /holds "0"; each name must be a non-empty string/],
+    [
+      "a duplicate",
+      { argBindings: ["a", "a"] },
+      /argBindings for Dag "d" task "t" names "a" twice/,
+    ],
+  ])("rejects argBindings that are %s", (_label, options, expected) => {
     const dag = new Dag("d");
 
     expect(() => dag.task("t", async (a: number) => a, options as never)).toThrowError(expected);
@@ -268,7 +278,7 @@ describe("Dag", () => {
       async (rows: number, region: string) => {
         seen.push(rows, region);
       },
-      { argNames: ["rows", "region"] },
+      { argBindings: ["rows", "region"] },
     );
 
     transform(1, "us");
@@ -361,7 +371,7 @@ describe("Dag", () => {
     const taskSpec = {};
     const handler = async () => "hello";
     const dag = new Dag("example_dag", dagSpec);
-    dag.task("my_task", handler, { spec: taskSpec })();
+    dag.task("my_task", handler, taskSpec)();
 
     expect(dag.dagId).toBe("example_dag");
     expect(dag.spec).toEqual(dagSpec);
@@ -372,29 +382,101 @@ describe("Dag", () => {
     expect(Object.isFrozen(record!.spec)).toBe(true);
   });
 
+  it("copies a spec deeply, so editing the array afterwards cannot change what ships", () => {
+    // Nothing reads a spec until the Dag is packed, long after the author's
+    // module has run, and `tags` is an array they still hold.
+    const tags = ["etl"];
+    const dag = new Dag("deep_spec_dag", { tags });
+
+    tags.push("injected");
+
+    expect(dag.spec.tags).toEqual(["etl"]);
+    expect(Object.isFrozen(dag.spec.tags)).toBe(true);
+  });
+
+  it("copies a Date in a spec, so a setter afterwards cannot change what ships", () => {
+    const startDate = new Date("2026-01-01T00:00:00Z");
+    const dag = new Dag("dated_dag", { startDate });
+    const task = dag.task("extract", async () => undefined, { startDate });
+
+    startDate.setFullYear(2030);
+    task();
+
+    expect(dag.spec.startDate?.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(getDagTaskRecords(dag).get("extract")?.spec.startDate?.toISOString()).toBe(
+      "2026-01-01T00:00:00.000Z",
+    );
+  });
+
+  it("rejects a spec value that is neither JSON nor a Date", () => {
+    expect(() => new Dag("map_dag", { tags: [new Map()] as unknown as string[] })).toThrowError(
+      /holds a Map, which cannot be recorded/,
+    );
+  });
+
+  it("rejects a spec that refers back to itself", () => {
+    const spec: Record<string, unknown> = {};
+    spec["tags"] = spec;
+
+    expect(() => new Dag("cyclic_dag", spec as never)).toThrowError(
+      /The spec for Dag "cyclic_dag" refers back to itself/,
+    );
+  });
+
+  it("accepts the generated Dag and task fields", () => {
+    const dag = new Dag("specced_dag", { schedule: "@daily", tags: ["etl"], catchup: false });
+    dag.task("extract", async () => undefined, { retries: 2, retryDelay: 30 })();
+
+    expect(dag.spec).toEqual({ schedule: "@daily", tags: ["etl"], catchup: false });
+    expect(getDagTaskRecords(dag).get("extract")?.spec).toEqual({ retries: 2, retryDelay: 30 });
+  });
+
   it.each([
-    ["a populated object", { schedule: "@daily" }],
-    ["null", null],
-    ["an array", []],
-    ["a non-plain object", new Date()],
-  ])("rejects a Dag spec that is not an empty object: %s", (_label, spec) => {
-    expect(() => new Dag("example_dag", spec as unknown as Record<string, never>)).toThrowError(
-      /spec for Dag "example_dag" must be an empty object/,
+    ["a misspelling", "scheduled"],
+    // The generated fields are camelCase, so the schema's own spelling is a
+    // typo here rather than a second accepted name.
+    ["the raw schema key", "dag_display_name"],
+    // Identity is positional, so it is not a spec field.
+    ["the positional dag_id", "dagId"],
+  ])("rejects %s in the Dag spec", (_label, key) => {
+    expect(() => new Dag("example_dag", { [key]: "x" } as unknown as DagSpec)).toThrowError(
+      new RegExp(`Unknown option "${key}" in the spec for Dag "example_dag"`),
     );
   });
 
   it.each([
-    ["a populated object", { retries: 2 }],
+    ["a misspelling", "retry"],
+    ["the raw schema key", "retry_delay"],
+    ["the positional task_id", "taskId"],
+  ])("rejects %s in the task spec", (_label, key) => {
+    const dag = new Dag("example_dag");
+    expect(() =>
+      dag.task("transform", async () => undefined, { [key]: 1 } as unknown as TaskSpec),
+    ).toThrowError(
+      new RegExp(`Unknown option "${key}" in the spec for Dag "example_dag" task "transform"`),
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it.each([
     ["null", null],
     ["an array", []],
     ["a non-plain object", new Date()],
-  ])("rejects a task spec that is not an empty object: %s", (_label, spec) => {
+  ])("rejects a Dag spec that is not an options object: %s", (_label, spec) => {
+    expect(() => new Dag("example_dag", spec as unknown as DagSpec)).toThrowError(
+      /spec for Dag "example_dag" must be an object/,
+    );
+  });
+
+  it.each([
+    ["null", null],
+    ["an array", []],
+    ["a non-plain object", new Date()],
+  ])("rejects a task spec that is not an options object: %s", (_label, spec) => {
     const dag = new Dag("example_dag");
     expect(() =>
-      dag.task("transform", async () => undefined, {
-        spec: spec as unknown as Record<string, never>,
-      }),
-    ).toThrowError(/spec for Dag "example_dag" task "transform" must be an empty object/);
+      dag.task("transform", async () => undefined, spec as unknown as TaskSpec),
+    ).toThrowError(/spec for Dag "example_dag" task "transform" must be an object/);
     expect(dag.taskIds).toEqual([]);
   });
 
@@ -408,26 +490,14 @@ describe("Dag", () => {
 
   it.each([
     ["inputs, which the factory call now carries", { inputs: {} }],
-    ["a misspelled spec key", { specs: {} }],
-    ["an upstream reference passed as an option", { upstream: { dagId: "d", taskId: "t" } }],
-  ])("rejects %s in the task options", (_label, options) => {
+    ["a nested spec, left over from the old options object", { spec: {} }],
+    ["an upstream reference", { upstream: { dagId: "d", taskId: "t" } }],
+  ])("rejects %s in the task spec", (_label, spec) => {
     const dag = new Dag("example_dag");
     expect(() =>
-      dag.task("transform", async () => undefined, options as unknown as Record<string, never>),
-    ).toThrowError(/Unknown option ".+" for Dag "example_dag" task "transform"/);
+      dag.task("transform", async () => undefined, spec as unknown as TaskSpec),
+    ).toThrowError(/Unknown option ".+" in the spec for Dag "example_dag" task "transform"/);
     expect(dag.taskIds).toEqual([]);
-  });
-
-  it.each([
-    ["null", null],
-    ["an array", []],
-    ["a string", "spec"],
-    ["a non-plain object", new Date()],
-  ])("rejects task options that are not an options object: %s", (_label, options) => {
-    const dag = new Dag("example_dag");
-    expect(() =>
-      dag.task("transform", async () => undefined, options as unknown as Record<string, never>),
-    ).toThrowError(/options for Dag "example_dag" task "transform" must be an object/);
   });
 
   it("rejects duplicate taskIds within a Dag", () => {

@@ -156,6 +156,15 @@ func (f *taskFunction) validateFn(fnType reflect.Type) error {
 		return fmt.Errorf("expected a func as input but was %s", fnType.Kind())
 	}
 
+	// Execute calls the function with Call, which passes a variadic parameter its slice
+	// rather than spreading it, so a variadic task function would panic at execution.
+	if fnType.IsVariadic() {
+		return fmt.Errorf(
+			"task function %s is variadic; a task argument cannot fill a ... parameter",
+			f.fullName,
+		)
+	}
+
 	// Return values
 	//     `<result>, error`,  or just `error`
 	if fnType.NumOut() < 1 || fnType.NumOut() > 2 {

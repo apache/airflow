@@ -36,12 +36,13 @@ inputs:
     required: true
   min-free-space-gb:
     description: >
-      Skip removing the runner's unused pre-installed tooling (close to three minutes) when the root
-      filesystem already has at least this many GB free. Empty means always remove it. Runners are
-      not uniform, so a job whose footprint is only the CI image (docs build) passes a threshold
-      rather than skipping unconditionally.
+      Skip removing the runner's unused pre-installed tooling when the root filesystem already has
+      at least this many GB free, in the units df --block-size=1G reports. Empty always removes.
+      The default clears today's runners (86 free on ubuntu-22.04, 110 on ubuntu-22.04-arm) with
+      room over the heaviest measured footprint of a job that prepares an image, 24 for a full CI
+      image build, so a runner shipping less free space brings the removal back on its own.
     required: false
-    default: ""
+    default: "60"
   image-stash-ref:
     description: >
       Ref whose image stash to restore (empty = the per-branch one). An image built for a ref

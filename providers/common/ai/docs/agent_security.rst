@@ -49,7 +49,7 @@ the same standard the bundled toolsets below are built to.
 Defense layers
 --------------
 
-No single layer is sufficient — they work together.
+No single layer is sufficient on its own. They work together.
 
 .. list-table::
    :header-rows: 1
@@ -115,7 +115,7 @@ No single layer is sufficient — they work together.
        not stop an agent reaching connections through some other tool. It also
        does not sanitize what the code computes or returns. Custom images can
        carry secrets and a backend you add can expose its own identity. The
-       ``sbx`` backend leaks orphaned microVMs if the worker is killed, and its
+       ``sbx`` backend leaks orphaned microVMs if the worker is killed outright (SIGKILL), and its
        CPU allocation defaults to every host CPU; the Modal backend reclaims its
        sandboxes on a server-side timeout, and if you opt into
        ``egress_enforcement="sni"`` its hostname allowlist is enforced at the TLS
@@ -123,7 +123,7 @@ No single layer is sufficient — they work together.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.
-     - Requires explicit configuration — the default allows many rounds.
+     - Requires explicit configuration; the default allows many rounds.
 
 .. _allowed-tables-enforcement:
 
@@ -195,7 +195,7 @@ database user with the minimum privileges required.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - List only the methods the agent needs. Never expose ``run()`` or
-  ``get_connection()`` — these give broad access.
+  ``get_connection()``: these give broad access.
 - Prefer read-only methods (``list_*``, ``get_*``, ``describe_*``).
 - The agent controls arguments. If a method accepts a ``path`` parameter,
   the agent can pass any path the hook has access to.
@@ -225,9 +225,9 @@ Recommended configuration
     SQLToolset(
         db_conn_id="analytics_readonly",  # Connection with SELECT-only grants
         allowed_tables=["orders", "customers"],  # Hide other tables from agent
-        allow_writes=False,  # Default — validates SQL
-        max_rows=50,  # Default — cap rows
-        max_result_bytes=65536,  # Default — cap bytes; lower it for wide tables
+        allow_writes=False,  # Default; validates SQL
+        max_rows=50,  # Default; cap rows
+        max_result_bytes=65536,  # Default; cap bytes. Lower it for wide tables
     )
 
 **Agents that need to modify data** (use with caution):
@@ -237,7 +237,7 @@ Recommended configuration
     SQLToolset(
         db_conn_id="app_db",
         allowed_tables=["user_preferences"],
-        allow_writes=True,  # Disables SQL validation — agent can INSERT/UPDATE
+        allow_writes=True,  # Disables SQL validation; agent can INSERT/UPDATE
         max_rows=100,
     )
 
