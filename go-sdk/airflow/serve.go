@@ -78,6 +78,8 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 	// The flags go on their own FlagSet. On pflag.CommandLine, every program that imports this
 	// package would get them, and one that defines its own --format there would panic.
 	flags := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	// pflag writes usage and flag errors to stderr unless it is told otherwise.
+	flags.SetOutput(stdout)
 	printMetadata := flags.Bool(
 		"airflow-metadata",
 		false,

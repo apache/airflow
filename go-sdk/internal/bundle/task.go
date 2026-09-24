@@ -67,9 +67,12 @@ var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
 func NewTaskFunction(fn any) (Task, error) {
+	// The kind comes first: Value.Pointer and Value.Type both panic on a non-func.
 	v := reflect.ValueOf(fn)
-	fullName := runtime.FuncForPC(v.Pointer()).Name()
-	f := &taskFunction{fn: v, fullName: fullName}
+	if v.Kind() != reflect.Func {
+		return nil, fmt.Errorf("expected a func as input but was %s", v.Kind())
+	}
+	f := &taskFunction{fn: v, fullName: runtime.FuncForPC(v.Pointer()).Name()}
 	if err := f.validateFn(v.Type()); err != nil {
 		return nil, err
 	}
@@ -152,15 +155,11 @@ func (f *taskFunction) sendXcom(
 }
 
 func (f *taskFunction) validateFn(fnType reflect.Type) error {
-	if fnType.Kind() != reflect.Func {
-		return fmt.Errorf("expected a func as input but was %s", fnType.Kind())
-	}
-
-	// Execute calls the function with Call, which passes a variadic parameter its slice
-	// rather than spreading it, so a variadic task function would panic at execution.
+	// A ... tail is one []T parameter that a single task argument has to fill, which is what
+	// []T already says. Rejecting it keeps one spelling for that signature.
 	if fnType.IsVariadic() {
 		return fmt.Errorf(
-			"task function %s is variadic; a task argument cannot fill a ... parameter",
+			"task function %s is variadic; declare the last parameter as []T instead of ...T",
 			f.fullName,
 		)
 	}

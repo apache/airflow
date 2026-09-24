@@ -195,7 +195,10 @@ func TestServeRejectsBadFlags(t *testing.T) {
 }
 
 func TestServeHelpIsNotAnError(t *testing.T) {
-	assert.NoError(t, etlBundle().serve([]string{"--help"}, io.Discard))
+	var stdout bytes.Buffer
+	require.NoError(t, etlBundle().serve([]string{"--help"}, &stdout))
+
+	assert.Contains(t, stdout.String(), "--airflow-metadata")
 }
 
 // A fake supervisor sends StartupDetails over the comm socket, as the Python
