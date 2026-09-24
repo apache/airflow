@@ -38,13 +38,14 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fnmatch import fnmatchcase
 from pathlib import Path
 
 from check_dependency_lower_bounds import extract_requirements
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
+from packaging.version import InvalidVersion, Version
 
 try:
     import tomllib
@@ -138,3 +139,35 @@ def get_exclusion_reason(name: str, sites: list[RequirementSite], config: FloorC
         if held:
             return f"held back by {','.join(held)} in {site.path}"
     return None
+
+
+def _parse_upload_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def get_eligible_versions(releases: dict[str, list[dict]], min_age: timedelta, now: datetime) -> set[Version]:
+    cutoff = now - min_age
+    eligible: set[Version] = set()
+    for version_str, files in releases.items():
+        if not files or any(f.get("yanked") for f in files):
+            continue
+        try:
+            version = Version(version_str)
+        except InvalidVersion:
+            continue
+        if version.is_prerelease or version.is_devrelease:
+            continue
+        if min(_parse_upload_time(f["upload_time_iso_8601"]) for f in files) <= cutoff:
+            eligible.add(version)
+    return eligible
+
+
+def find_target_version(releases: dict[str, list[dict]], min_age: timedelta, now: datetime) -> Version | None:
+    return max(get_eligible_versions(releases, min_age, now), default=None)
+
+
+def find_group_target(
+    releases_by_member: dict[str, dict[str, list[dict]]], min_age: timedelta, now: datetime
+) -> Version | None:
+    eligible = [get_eligible_versions(r, min_age, now) for r in releases_by_member.values()]
+    return max(set.intersection(*eligible), default=None) if eligible else None

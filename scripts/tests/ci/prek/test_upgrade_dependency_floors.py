@@ -17,16 +17,19 @@
 from __future__ import annotations
 
 import textwrap
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 from common_prek_utils import AIRFLOW_ROOT_PATH
 from packaging.requirements import Requirement
+from packaging.version import Version
 from upgrade_dependency_floors import (
     FloorConfig,
     RequirementSite,
+    find_group_target,
     find_requirements,
+    find_target_version,
     get_exclusion_reason,
     is_curated,
     load_config,
@@ -178,3 +181,55 @@ def test_exclusion_explicit_list(tmp_path):
 def test_no_exclusion_for_plain_floor(tmp_path):
     config = load_config(_write(tmp_path, CONFIG))
     assert get_exclusion_reason("boto3", [_site("boto3>=1.40; python_version < '3.14'")], config) is None
+
+
+NOW = datetime(2026, 9, 24, tzinfo=timezone.utc)
+AGE = timedelta(days=180)
+
+
+def _files(*uploads: str, yanked: bool = False) -> list[dict]:
+    return [{"upload_time_iso_8601": u, "yanked": yanked} for u in uploads]
+
+
+RELEASES = {
+    "1.0.0": _files("2025-01-01T00:00:00.000000Z"),
+    # the earliest upload of a release counts
+    "1.1.0": _files("2026-03-01T00:00:00.000000Z", "2026-06-01T00:00:00.000000Z"),
+    "1.2.0": _files("2026-03-10T00:00:00.000000Z", yanked=True),
+    "1.3.0rc1": _files("2026-01-01T00:00:00.000000Z"),
+    "1.3.0.dev1": _files("2026-01-01T00:00:00.000000Z"),
+    "1.4.0": _files("2026-09-01T00:00:00.000000Z"),
+    "1.5.0": [],
+}
+
+
+def test_target_is_newest_old_enough_final_release():
+    assert find_target_version(RELEASES, AGE, NOW) == Version("1.1.0")
+
+
+@pytest.mark.parametrize(
+    ("upload", "eligible"),
+    [
+        pytest.param("2026-03-28T00:00:00.000000Z", True, id="exactly-min-age"),
+        pytest.param("2026-03-28T00:00:01.000000Z", False, id="one-second-too-new"),
+    ],
+)
+def test_min_age_boundary(upload, eligible):
+    target = find_target_version({"2.0.0": _files(upload)}, AGE, NOW)
+    assert (target == Version("2.0.0")) is eligible
+
+
+def test_no_release_old_enough():
+    assert find_target_version({"9.0.0": _files("2026-09-20T00:00:00.000000Z")}, AGE, NOW) is None
+
+
+def test_group_target_is_common_version():
+    boto3 = {"1.40.0": _files("2026-01-01T00:00:00Z"), "1.40.5": _files("2026-02-01T00:00:00Z")}
+    botocore = {"1.40.0": _files("2026-01-01T00:00:00Z"), "1.40.3": _files("2026-02-01T00:00:00Z")}
+    assert find_group_target({"boto3": boto3, "botocore": botocore}, AGE, NOW) == Version("1.40.0")
+
+
+def test_group_without_common_version():
+    boto3 = {"1.40.5": _files("2026-01-01T00:00:00Z")}
+    botocore = {"1.40.3": _files("2026-01-01T00:00:00Z")}
+    assert find_group_target({"boto3": boto3, "botocore": botocore}, AGE, NOW) is None
