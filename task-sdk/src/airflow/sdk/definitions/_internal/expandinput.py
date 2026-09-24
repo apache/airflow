@@ -59,10 +59,16 @@ async def aiterate(iterable: Any) -> AsyncIterator[Any]:
     Iterate ``iterable`` from a coroutine without a blocking SDK call on the loop thread.
 
     An async iterable (``XComIterable``, ``LazyXComSequence``) is consumed with ``async for``, so
-    its reads go through ``asend``. In-memory containers are iterated in place. Anything else may
-    fetch on ``next()`` through a synchronous supervisor call, so each ``next()`` runs in a worker
-    thread: from there a blocking send waits for in-flight ``asend`` calls instead of deadlocking
-    with them (see ``AsyncAwareExecutor.imap_unordered``).
+    its reads go through ``asend``. In-memory containers (list, tuple, set, range, dict and its
+    views, ...) are iterated in place. Anything else may fetch on ``next()`` through a synchronous
+    supervisor call, so each ``next()`` runs in a worker thread: from there a blocking send waits
+    for in-flight ``asend`` calls instead of deadlocking with them (see
+    ``AsyncAwareExecutor.imap_unordered``).
+
+    The last path costs one ``asyncio.to_thread`` dispatch per item: a 1000-item generator means
+    1000 thread hand-offs, each far more expensive than a plain ``next()``. That is the price of
+    not knowing whether ``next()`` blocks. Sources known not to block take the in-place path above,
+    and an async iterable is consumed on the loop, so prefer either for large inputs.
     """
     if hasattr(iterable, "__aiter__"):
         async for item in iterable:
