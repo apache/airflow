@@ -78,6 +78,28 @@ Extra (optional)
 
         export AIRFLOW_CONN_GOOGLE_CLOUD_SQL_DEFAULT='gcpcloudsql://user:XXXXXXXXX@1.1.1.1:3306/mydb?database_type=mysql&project_id=example-project&location=europe-west1&instance=testinstance&use_proxy=True&sql_proxy_use_tcp=False'
 
+Using Cloud SQL Auth Proxy v2
+-----------------------------
+
+By default Airflow runs Cloud SQL Auth Proxy v1. To run Cloud SQL Auth Proxy v2 instead, set
+``"sql_proxy_major_version": 2`` in the ``extra`` field. Unless ``sql_proxy_binary_path`` points to an
+existing v2 binary, ``sql_proxy_version`` must also be set to the v2 release to download, as there is no
+"latest" download for v2.
+
+Example "extras" field:
+
+.. code-block:: json
+
+   {
+      "database_type": "mysql",
+      "project_id": "example-project",
+      "location": "europe-west1",
+      "instance": "testinstance",
+      "use_proxy": true,
+      "sql_proxy_major_version": 2,
+      "sql_proxy_version": "v2.14.0"
+   }
+
 Configuring and using IAM authentication
 ----------------------------------------
 
@@ -124,9 +146,9 @@ Configure ``gcpcloudsql`` connection with Cloud SQL Auth Proxy IAM authenticatio
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 For using Cloud SQL Auth Proxy IAM authentication, enable ``"use_proxy": "True"`` and
-``"sql_proxy_enable_iam_login": "True"`` in the ``extra`` field. With the current Cloud SQL Auth Proxy
-v1 integration this option is supported for both Postgres and MySQL. Airflow passes
-``-enable_iam_login`` to the proxy, so the ``password`` field can be empty.
+``"sql_proxy_enable_iam_login": "True"`` in the ``extra`` field. This option is supported for both
+Postgres and MySQL. Airflow passes ``-enable_iam_login`` to Cloud SQL Auth Proxy v1 (or
+``--auto-iam-authn`` to v2), so the ``password`` field can be empty.
 
 Example "extras" field for Postgres:
 
