@@ -367,7 +367,7 @@
         "max_active_tis_per_dag": {"type": "integer"},
         "max_active_tis_per_dagrun": {"type": "integer"},
         "_arg_bindings": {
-          "$comment": "Only present on @task.stub tasks called with TaskFlow arguments",
+          "$comment": "Only present on a stub task (is_stub) whose call captured TaskFlow arguments: a Python @task.stub task, or a task of a Dag a language SDK declared and serialized itself",
           "type": "array",
           "items": { "$ref": "#/definitions/arg_binding" }
         }
