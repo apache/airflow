@@ -171,3 +171,83 @@ def find_group_target(
 ) -> Version | None:
     eligible = [get_eligible_versions(r, min_age, now) for r in releases_by_member.values()]
     return max(set.intersection(*eligible), default=None) if eligible else None
+
+
+FLOOR_OPERATORS = {">=", ">"}
+
+
+def get_floor(requirement: Requirement) -> Version | None:
+    floors = [Version(s.version) for s in requirement.specifier if s.operator in FLOOR_OPERATORS]
+    return max(floors, default=None)
+
+
+def rewrite_requirement(raw: str, target: Version) -> str | None:
+    """Return ``raw`` with its floor raised to ``target``, or None when it would not be raised."""
+    requirement = Requirement(raw)
+    floor = get_floor(requirement)
+    if floor is None or target <= floor:
+        return None
+    rewritten = raw
+    for specifier in requirement.specifier:
+        if specifier.operator in FLOOR_OPERATORS and Version(specifier.version) == floor:
+            pattern = re.compile(
+                rf"{re.escape(specifier.operator)}(\s*){re.escape(specifier.version)}(?![\w.])"
+            )
+            rewritten = pattern.sub(lambda m: f">={m.group(1)}{target}", rewritten, count=1)
+    return rewritten
+
+
+@dataclass(frozen=True)
+class Edit:
+    path: Path
+    old: str
+    new: str
+
+
+@dataclass(frozen=True)
+class Bump:
+    unit: str
+    packages: tuple[str, ...]
+    old_floors: tuple[str, ...]
+    target: Version
+    edits: tuple[Edit, ...]
+
+
+def build_bump(unit: str, sites: list[RequirementSite], target: Version) -> Bump | None:
+    edits: dict[tuple[Path, str], Edit] = {}
+    old_floors: set[str] = set()
+    packages: set[str] = set()
+    for site in sites:
+        if (new := rewrite_requirement(site.raw, target)) is not None:
+            edits[(site.path, site.raw)] = Edit(path=site.path, old=site.raw, new=new)
+            old_floors.add(str(get_floor(site.requirement)))
+            packages.add(canonicalize_name(site.requirement.name))
+    if not edits:
+        return None
+    return Bump(
+        unit=unit,
+        packages=tuple(sorted(packages)),
+        old_floors=tuple(sorted(old_floors, key=Version)),
+        target=target,
+        edits=tuple(edits.values()),
+    )
+
+
+def _replace_quoted(path: Path, old: str, new: str) -> None:
+    content = path.read_text()
+    updated = content
+    for quote in ('"', "'"):
+        updated = updated.replace(f"{quote}{old}{quote}", f"{quote}{new}{quote}")
+    if updated == content:
+        raise ValueError(f"Requirement {old!r} not found in {path}")
+    path.write_text(updated)
+
+
+def apply_bump(bump: Bump) -> None:
+    for edit in bump.edits:
+        _replace_quoted(edit.path, edit.old, edit.new)
+
+
+def revert_bump(bump: Bump) -> None:
+    for edit in bump.edits:
+        _replace_quoted(edit.path, edit.new, edit.old)

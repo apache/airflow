@@ -25,8 +25,11 @@ from common_prek_utils import AIRFLOW_ROOT_PATH
 from packaging.requirements import Requirement
 from packaging.version import Version
 from upgrade_dependency_floors import (
+    Edit,
     FloorConfig,
     RequirementSite,
+    apply_bump,
+    build_bump,
     find_group_target,
     find_requirements,
     find_target_version,
@@ -34,6 +37,8 @@ from upgrade_dependency_floors import (
     is_curated,
     load_config,
     parse_duration,
+    revert_bump,
+    rewrite_requirement,
 )
 
 CONFIG = """
@@ -233,3 +238,56 @@ def test_group_without_common_version():
     boto3 = {"1.40.5": _files("2026-01-01T00:00:00Z")}
     botocore = {"1.40.3": _files("2026-01-01T00:00:00Z")}
     assert find_group_target({"boto3": boto3, "botocore": botocore}, AGE, NOW) is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        pytest.param("boto3>=1.41.0", "boto3>=1.43.0", id="plain"),
+        pytest.param("boto3 >= 1.41.0", "boto3 >= 1.43.0", id="spaced"),
+        pytest.param("boto3>1.41.0", "boto3>=1.43.0", id="exclusive"),
+        pytest.param("pydantic-ai-slim[mcp]>=1.0", "pydantic-ai-slim[mcp]>=1.43.0", id="extras"),
+        pytest.param(
+            "boto3>=1.41.0; python_version < '3.14'", "boto3>=1.43.0; python_version < '3.14'", id="marker"
+        ),
+        pytest.param("boto3>=1.44.0; python_version >= '3.14'", None, id="floor-already-higher"),
+        pytest.param("boto3>=1.43.0", None, id="floor-equal"),
+        pytest.param("boto3", None, id="no-floor"),
+    ],
+)
+def test_rewrite(raw, expected):
+    assert rewrite_requirement(raw, Version("1.43.0")) == expected
+
+
+def test_build_bump_skips_sites_already_high():
+    low, high = _site("boto3>=1.41.0"), _site("boto3>=1.44.0; python_version >= '3.14'")
+    bump = build_bump("boto3", [low, high], Version("1.43.0"))
+    assert bump.edits == (Edit(path=low.path, old="boto3>=1.41.0", new="boto3>=1.43.0"),)
+    assert bump.old_floors == ("1.41.0",)
+
+
+def test_build_bump_nothing_to_raise():
+    assert build_bump("boto3", [_site("boto3>=1.44.0")], Version("1.43.0")) is None
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [pytest.param('"', id="apply_bump_double_quotes"), pytest.param("'", id="apply_bump_single_quotes")],
+)
+def test_apply_and_revert_bump(tmp_path, quote):
+    path = tmp_path / "pyproject.toml"
+    original = f"dependencies = [\n    {quote}boto3>=1.41.0{quote},  # keep me\n]\n"
+    path.write_text(original)
+    bump = build_bump("boto3", [_site("boto3>=1.41.0", str(path))], Version("1.43.0"))
+    apply_bump(bump)
+    assert path.read_text() == original.replace("1.41.0", "1.43.0")
+    revert_bump(bump)
+    assert path.read_text() == original
+
+
+def test_apply_bump_missing_text_raises(tmp_path):
+    path = tmp_path / "pyproject.toml"
+    path.write_text("dependencies = []\n")
+    bump = build_bump("boto3", [_site("boto3>=1.41.0", str(path))], Version("1.43.0"))
+    with pytest.raises(ValueError, match="boto3>=1.41.0"):
+        apply_bump(bump)
