@@ -145,18 +145,21 @@ def example_bash_decorator():
         return """
             set -e
             echo "42" > "$AIRFLOW_XCOM_DIR/row_count"
-            xcom push --json summary '{"rows": 42, "errors": 0}'
+            echo '{"rows": 42, "errors": 0}' > "$AIRFLOW_XCOM_DIR/summary.json"
         """
 
-    @task.bash
-    def read_multiple_xcoms(row_count: str, summary: dict) -> str:
-        return f'echo "row_count={row_count} errors={summary["errors"]}"'
-
-    write_multiple_xcoms_task = write_multiple_xcoms()
-    read_multiple_xcoms(
-        row_count=write_multiple_xcoms_task["row_count"],
-        summary=write_multiple_xcoms_task["summary"],
+    # Pass pulled values through env: interpolated into the returned command, they would run as
+    # shell code, and @task.bash also renders that command as a Jinja template.
+    @task.bash(
+        env={
+            "ROW_COUNT": "{{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='row_count') }}",
+            "ERRORS": "{{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='summary')['errors'] }}",
+        }
     )
+    def read_multiple_xcoms() -> str:
+        return 'echo "row_count=$ROW_COUNT errors=$ERRORS"'
+
+    write_multiple_xcoms() >> read_multiple_xcoms()
     # [END howto_decorator_bash_xcom_dir]
 
     chain(run_me_loop, run_this)

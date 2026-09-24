@@ -113,16 +113,18 @@ with DAG(
         bash_command="""
             set -e
             echo "42" > "$AIRFLOW_XCOM_DIR/row_count"
-            xcom push --json summary '{"rows": 42, "errors": 0}'
+            echo '{"rows": 42, "errors": 0}' > "$AIRFLOW_XCOM_DIR/summary.json"
         """,
     )
 
+    # Pass pulled values through env: templated into bash_command, they would run as shell code.
     read_multiple_xcoms = BashOperator(
         task_id="read_multiple_xcoms",
-        bash_command=(
-            "echo \"row_count={{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='row_count') }}"
-            " summary={{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='summary') }}\""
-        ),
+        bash_command='echo "row_count=$ROW_COUNT summary=$SUMMARY"',
+        env={
+            "ROW_COUNT": "{{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='row_count') }}",
+            "SUMMARY": "{{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='summary') | tojson }}",
+        },
     )
     # [END howto_operator_bash_xcom_dir]
     write_multiple_xcoms >> read_multiple_xcoms >> run_this_last

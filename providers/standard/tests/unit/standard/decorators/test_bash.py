@@ -515,7 +515,7 @@ class TestBashDecorator:
                 return """
                     set -e
                     printf 'a b "c"' > "$AIRFLOW_XCOM_DIR/message"
-                    xcom push --json summary '{"rows": 42}'
+                    echo '{"rows": 42}' > "$AIRFLOW_XCOM_DIR/summary.json"
                 """
 
             bash_task = bash()
@@ -535,7 +535,7 @@ class TestBashDecorator:
             @task.bash
             def bash():
                 return """
-                    xcom push stage "loading"
+                    echo loading > "$AIRFLOW_XCOM_DIR/stage"
                     exit 1
                 """
 

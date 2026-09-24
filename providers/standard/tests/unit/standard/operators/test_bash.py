@@ -331,6 +331,16 @@ def _pushed_xcoms(context) -> dict[str, object]:
     return {call.kwargs["key"]: call.kwargs["value"] for call in context["ti"].xcom_push.call_args_list}
 
 
+def _execute(op: BashOperator, context, exit_code: int) -> None:
+    """Run ``op`` and check it ends the way ``exit_code`` alone dictates."""
+    if exit_code == 0:
+        op.execute(context)
+    else:
+        with pytest.raises(AirflowSkipException if exit_code == 99 else AirflowException) as exc_info:
+            op.execute(context)
+        assert f"exit code {exit_code}" in str(exc_info.value)
+
+
 class TestBashOperatorXComDir:
     def test_plain_file_strips_one_trailing_newline(self, context):
         op = BashOperator(task_id="abc", bash_command="printf 'a\\n\\n' > \"$AIRFLOW_XCOM_DIR/k\"")
@@ -369,100 +379,78 @@ class TestBashOperatorXComDir:
             "k": "line one\nline two with 'single' and \"double\" quotes\nlast line"
         }
 
-    def test_non_zero_exit_still_pushes_and_raises(self, context):
-        op = BashOperator(task_id="abc", bash_command='printf x > "$AIRFLOW_XCOM_DIR/k"; exit 7')
-        with pytest.raises(AirflowException):
-            op.execute(context)
+    @pytest.mark.parametrize("exit_code", [7, 99])
+    def test_entries_are_pushed_when_the_command_fails_or_skips(self, exit_code, context):
+        op = BashOperator(task_id="abc", bash_command=f'printf x > "$AIRFLOW_XCOM_DIR/k"; exit {exit_code}')
+        _execute(op, context, exit_code)
         assert _pushed_xcoms(context) == {"k": "x"}
 
-    def test_skip_exit_code_still_pushes_and_raises(self, context):
-        op = BashOperator(task_id="abc", bash_command='printf x > "$AIRFLOW_XCOM_DIR/k"; exit 99')
-        with pytest.raises(AirflowSkipException):
-            op.execute(context)
-        assert _pushed_xcoms(context) == {"k": "x"}
-
-    def test_shim_push_with_inline_value(self, context):
-        op = BashOperator(task_id="abc", bash_command="xcom push k v")
-        op.execute(context)
-        assert _pushed_xcoms(context) == {"k": "v"}
-
-    def test_shim_push_reads_value_from_stdin(self, context):
-        op = BashOperator(task_id="abc", bash_command="printf hello | xcom push k")
-        op.execute(context)
-        assert _pushed_xcoms(context) == {"k": "hello"}
-
-    def test_shim_push_json_flag(self, context):
-        op = BashOperator(task_id="abc", bash_command="xcom push --json k '{\"a\": 1}'")
-        op.execute(context)
-        assert _pushed_xcoms(context) == {"k": {"a": 1}}
-
-    @pytest.mark.parametrize("bad_key", ["/abs", "../x", "", "a/b"])
-    def test_shim_rejects_invalid_keys(self, bad_key, context):
-        op = BashOperator(task_id="abc", bash_command=f'xcom push "{bad_key}" v')
-        with pytest.raises(AirflowException):
-            op.execute(context)
-
-    def test_malformed_json_on_success_path_raises_value_error(self, context):
-        op = BashOperator(
-            task_id="abc", bash_command="printf '{not json' > \"$AIRFLOW_XCOM_DIR/config.json\""
-        )
-        with pytest.raises(ValueError, match="config.json"):
-            op.execute(context)
-        assert _pushed_xcoms(context) == {"config.json": "{not json"}
-
-    def test_malformed_json_on_failure_path_keeps_original_exception(self, context):
+    @pytest.mark.parametrize("exit_code", [0, 3, 99])
+    @pytest.mark.parametrize(
+        ("write_bad_entry", "entry_name"),
+        [
+            pytest.param('mkdir "$AIRFLOW_XCOM_DIR/tmp"', "tmp", id="subdirectory"),
+            pytest.param('ln -s good "$AIRFLOW_XCOM_DIR/link"', "link", id="symlink"),
+            pytest.param('printf abcdefgh > "$AIRFLOW_XCOM_DIR/big"', "big", id="too-large"),
+            pytest.param("printf '\\377' > \"$AIRFLOW_XCOM_DIR/binary\"", "binary", id="undecodable"),
+            pytest.param('printf v > "$AIRFLOW_XCOM_DIR/a?b"', "a?b", id="unsafe-name"),
+            pytest.param('printf v > "$AIRFLOW_XCOM_DIR/return_value"', "return_value", id="return-value"),
+            pytest.param(
+                'printf "{}" > "$AIRFLOW_XCOM_DIR/return_value.json"',
+                "return_value.json",
+                id="return-value-json",
+            ),
+        ],
+    )
+    def test_bad_entry_is_skipped_without_changing_the_outcome(
+        self, write_bad_entry, entry_name, exit_code, context, caplog
+    ):
         op = BashOperator(
             task_id="abc",
-            bash_command="printf '{not json' > \"$AIRFLOW_XCOM_DIR/config.json\"; exit 3",
-        )
-        with pytest.raises(AirflowException) as exc_info:
-            op.execute(context)
-        assert not isinstance(exc_info.value, ValueError)
-        assert "exit code 3" in str(exc_info.value)
-        assert _pushed_xcoms(context) == {"config.json": "{not json"}
-
-    def test_file_over_max_size_is_not_pushed_and_raises(self, context):
-        op = BashOperator(
-            task_id="abc",
-            bash_command='printf "abcdefgh" > "$AIRFLOW_XCOM_DIR/big"',
+            bash_command=f'{write_bad_entry}; printf v > "$AIRFLOW_XCOM_DIR/good"; exit {exit_code}',
             max_xcom_file_size=5,
         )
-        with pytest.raises(ValueError, match="max_xcom_file_size"):
-            op.execute(context)
-        assert _pushed_xcoms(context) == {}
+        _execute(op, context, exit_code)
+        assert _pushed_xcoms(context) == {"good": "v"}
+        assert any(m.startswith(f"Skipped XCom directory entry {entry_name!r}: ") for m in caplog.messages)
 
-    @pytest.mark.parametrize("dirname", ["stats", "stats.json"])
-    def test_subdirectory_is_an_error(self, dirname, context):
+    @pytest.mark.parametrize("exit_code", [0, 3, 99])
+    def test_malformed_json_is_pushed_raw_under_its_full_name(self, exit_code, context, caplog):
+        op = BashOperator(
+            task_id="abc",
+            bash_command=f"printf '{{not json' > \"$AIRFLOW_XCOM_DIR/config.json\"; exit {exit_code}",
+        )
+        _execute(op, context, exit_code)
+        assert _pushed_xcoms(context) == {"config.json": "{not json"}
+        assert any(m.startswith("XCom file 'config.json' contains invalid JSON") for m in caplog.messages)
+
+    @pytest.mark.parametrize("exit_code", [0, 3, 99])
+    def test_unreadable_directory_does_not_change_the_outcome(self, exit_code, context, caplog):
+        op = BashOperator(task_id="abc", bash_command=f'rm -rf "$AIRFLOW_XCOM_DIR"; exit {exit_code}')
+        _execute(op, context, exit_code)
+        context["ti"].xcom_push.assert_not_called()
+        assert any(m.startswith("Could not read the XCom directory: ") for m in caplog.messages)
+
+    def test_dot_entries_are_ignored_silently(self, context, caplog):
         op = BashOperator(
             task_id="abc",
             bash_command=(
-                f'mkdir -p "$AIRFLOW_XCOM_DIR/{dirname}"; printf v > "$AIRFLOW_XCOM_DIR/{dirname}/x"'
+                'mkdir "$AIRFLOW_XCOM_DIR/.scratch"; printf v > "$AIRFLOW_XCOM_DIR/.partial"; '
+                'printf v > "$AIRFLOW_XCOM_DIR/k"'
             ),
         )
-        with pytest.raises(ValueError, match=r"\.json"):
-            op.execute(context)
-        pushed = _pushed_xcoms(context)
-        assert dirname not in pushed
-
-    def test_subdirectory_error_does_not_mask_command_failure(self, context):
-        op = BashOperator(
-            task_id="abc",
-            bash_command=('mkdir -p "$AIRFLOW_XCOM_DIR/stats"; printf v > "$AIRFLOW_XCOM_DIR/k"; exit 3'),
-        )
-        with pytest.raises(AirflowException) as exc_info:
-            op.execute(context)
-        assert not isinstance(exc_info.value, ValueError)
-        assert "exit code 3" in str(exc_info.value)
+        op.execute(context)
         assert _pushed_xcoms(context) == {"k": "v"}
+        assert not any(m.startswith("Skipped XCom directory entry") for m in caplog.messages)
 
-    def test_symlink_is_an_error(self, context):
+    def test_return_value_file_does_not_replace_the_return_value(self, context):
         op = BashOperator(
             task_id="abc",
-            bash_command=('printf v > "$AIRFLOW_XCOM_DIR/real"; ln -s real "$AIRFLOW_XCOM_DIR/link"'),
+            bash_command='printf rv > "$AIRFLOW_XCOM_DIR/return_value"; echo "last line"',
+            output_processor=str.upper,
         )
-        with pytest.raises(ValueError, match="not a regular file"):
-            op.execute(context)
-        assert _pushed_xcoms(context) == {"real": "v"}
+        assert op.execute(context) == "LAST LINE"
+        assert _pushed_xcoms(context) == {}
 
     def test_do_xcom_push_false_disables_the_mechanism(self, context):
         op = BashOperator(
@@ -472,28 +460,6 @@ class TestBashOperatorXComDir:
         )
         op.execute(context)
         context["ti"].xcom_push.assert_not_called()
-
-    def test_xcom_helper_name_none_removes_helper_but_keeps_dir(self, context):
-        op = BashOperator(
-            task_id="abc",
-            bash_command=('command -v xcom >/dev/null 2>&1 && exit 1; printf v > "$AIRFLOW_XCOM_DIR/k"'),
-            xcom_helper_name=None,
-        )
-        op.execute(context)
-        assert _pushed_xcoms(context) == {"k": "v"}
-
-    def test_return_value_file_overrides_stdout_last_line(self, context):
-        op = BashOperator(
-            task_id="abc",
-            bash_command='printf rv > "$AIRFLOW_XCOM_DIR/return_value"; echo "last line"',
-        )
-        result = op.execute(context)
-        assert result == "rv"
-
-    def test_no_return_value_entry_keeps_stdout_last_line(self, context):
-        op = BashOperator(task_id="abc", bash_command='echo "last line"')
-        result = op.execute(context)
-        assert result == "last line"
 
     def test_execute_does_not_mutate_the_operators_env(self, context):
         user_env = {"var": "value"}
@@ -507,15 +473,4 @@ class TestBashOperatorXComDir:
 
         assert _pushed_xcoms(context) == {"seen": "value"}
         assert "AIRFLOW_XCOM_DIR" not in op.env
-        assert "PATH" not in op.env
         assert user_env["var"] == "value"
-
-    def test_helper_found_via_defpath_fallback_when_env_has_no_path(self, context):
-        op = BashOperator(
-            task_id="abc",
-            bash_command="command -v xcom >/dev/null 2>&1 || exit 1; xcom push k v",
-            env={"FOO": "bar"},
-            append_env=False,
-        )
-        op.execute(context)
-        assert _pushed_xcoms(context) == {"k": "v"}

@@ -289,14 +289,11 @@ Two rules govern what ends up as an XCom:
 
 * A **file's name is the XCom key**. Its content, decoded and with a single trailing newline
   stripped, becomes the value.
-* A file named with a **``.json`` suffix** has its content parsed with ``json.loads``; the key
+* A file named with a ``.json`` **suffix** has its content parsed with ``json.loads``; the key
   is the filename without the suffix.
 
-Subdirectories under ``$AIRFLOW_XCOM_DIR`` are not supported; put structured or nested values in
-a ``.json`` file instead (or use ``xcom push --json``).
-
-You can write directly into the directory, or use the ``xcom push`` helper command that the
-operator puts on ``PATH`` (unless ``xcom_helper_name`` is set to ``None``):
+Because the key is carried by the filename, the value never needs quoting or escaping: it can
+contain quotes, spaces, or newlines and still round-trips.
 
 .. tab-set::
 
@@ -318,22 +315,36 @@ operator puts on ``PATH`` (unless ``xcom_helper_name`` is set to ``None``):
             :start-after: [START howto_operator_bash_xcom_dir]
             :end-before: [END howto_operator_bash_xcom_dir]
 
+The consuming task in these examples reads the values through ``env`` rather than templating them
+into ``bash_command``, for the reason given in the caution under `Templating`_: a value templated
+into the command is run as shell code.
+
 .. code-block:: bash
 
-    # Equivalent to the helper: a plain redirect, since the filename is the key.
-    echo "42" > "$AIRFLOW_XCOM_DIR/row_count"
+    # Large or multiline output can be piped straight into a file.
+    generate_report > "$AIRFLOW_XCOM_DIR/report"
 
-    # The helper also accepts a value on stdin, which is convenient for large or multiline output.
-    generate_report | xcom push report
-
-    # --json parses the value before storing it, same as writing a ".json" file directly.
-    xcom push --json summary '{"rows": 42, "errors": 0}'
+    # Write a ".json" file when the downstream task needs a non-string value.
+    echo '{"rows": 42, "errors": 0}' > "$AIRFLOW_XCOM_DIR/summary.json"
 
 .. important::
 
-    Values written this way are **strings** unless you use ``.json`` -- ``xcom push row_count
-    42`` pushes the string ``"42"``, not the integer ``42``. Use ``xcom push --json`` or a
-    ``.json`` file when you need a non-string type.
+    Values written this way are **strings** unless you use ``.json`` -- writing ``42`` to
+    ``row_count`` pushes the string ``"42"``, not the integer ``42``.
+
+A few entries are skipped, with a warning in the task log, rather than pushed:
+
+* names that contain anything other than ASCII letters, digits, ``_``, ``-`` and ``.``;
+* ``return_value`` and ``return_value.json`` -- the task's return value still comes from the last
+  line of stdout and ``output_processor``;
+* anything that is not a regular file, such as a subdirectory or a symlink;
+* files larger than ``max_xcom_file_size`` (1 MiB by default), or that cannot be decoded with
+  ``output_encoding``.
+
+A file whose ``.json`` content is not valid JSON is pushed as a raw string under its full name,
+``.json`` suffix included, also with a warning. Entries whose name starts with ``.`` are ignored
+silently, so you can use them as scratch space, or write a value to a dotfile and ``mv`` it into
+place once it is complete. None of these ever changes the outcome of the task.
 
 .. note::
 
@@ -343,10 +354,6 @@ operator puts on ``PATH`` (unless ``xcom_helper_name`` is set to ``None``):
     cannot cover is the task process itself being killed (for example, ``SIGKILL``): that
     prevents the ``finally`` block from running, so nothing is pushed. This covers command
     failure, not worker death.
-
-If the script writes a ``return_value`` entry (a plain file or a ``return_value.json`` file) and
-the command succeeds, that value is returned from the task instead of the last line of stdout,
-so it becomes the task's XCom return value as usual.
 
 Executing commands from files
 -----------------------------

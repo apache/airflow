@@ -20,9 +20,10 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import shutil
 import tempfile
-from collections.abc import Callable, Container, Iterator, Sequence
+from collections.abc import Callable, Container, Sequence
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -39,20 +40,9 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.standard.version_compat import ArgNotSet
 
-# POSIX sh, no bashisms: this shim runs inside whatever shell the user's bash_command uses to
-# invoke it, which is not necessarily bash (e.g. a script that re-execs into sh).
-_XCOM_HELPER_SHIM = """#!/bin/sh
-set -e
-[ "$1" = push ] || { echo "usage: xcom push [--json] <key> [value]" >&2; exit 2; }
-shift
-ext=""
-[ "$1" = --json ] && { ext=.json; shift; }
-key=$1
-case "$key" in ""|.|..|*/*) echo "xcom: invalid key '$key'" >&2; exit 2 ;; esac
-shift
-target=$AIRFLOW_XCOM_DIR/$key$ext
-if [ $# -gt 0 ]; then printf '%s' "$1" > "$target"; else cat > "$target"; fi
-"""
+# The Execution API client puts the XCom key into the request path unescaped, so "?", "#" and
+# "%" in a filename would silently change the key that gets pushed.
+_XCOM_FILE_NAME_RE = re.compile(r"[A-Za-z0-9_.-]+")
 
 
 class BashOperator(BaseOperator):
@@ -67,8 +57,7 @@ class BashOperator(BaseOperator):
     will also be pushed to an XCom when the bash command completes.
 
     Additionally, when ``do_xcom_push`` is True, the operator exposes an ``$AIRFLOW_XCOM_DIR``
-    directory (and, unless ``xcom_helper_name`` is ``None``, an ``xcom push`` helper command on
-    ``PATH``) that the script can use to push multiple, named XComs -- one file per XCom -- and
+    directory that the script can use to push multiple, named XComs -- one file per XCom -- and
     those are pushed whether the command succeeds, fails, or is skipped. See
     :ref:`howto/operator:BashOperator` for details.
 
@@ -95,9 +84,6 @@ class BashOperator(BaseOperator):
         template) into a new temporary file in this directory.
     :param output_processor: Function to further process the output of the bash script
         (default is lambda output: output).
-    :param xcom_helper_name: Name of an ``xcom push`` helper command installed on ``PATH`` for the
-        bash command (default ``"xcom"``). Set to ``None`` to skip installing the helper; the
-        ``$AIRFLOW_XCOM_DIR`` directory is still made available either way.
     :param max_xcom_file_size: Maximum size, in bytes, of a single file under
         ``$AIRFLOW_XCOM_DIR`` that will be read and pushed as an XCom.
 
@@ -174,10 +160,6 @@ class BashOperator(BaseOperator):
     .. versionadded:: 2.10.0
        The `output_processor` parameter.
 
-    .. versionadded:: NEXT
-       The ``xcom_helper_name`` and ``max_xcom_file_size`` parameters, and the
-       ``$AIRFLOW_XCOM_DIR`` XCom directory mechanism.
-
     """
 
     template_fields: Sequence[str] = ("bash_command", "env", "cwd")
@@ -195,7 +177,6 @@ class BashOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
         output_processor: Callable[[str], Any] = lambda result: result,
-        xcom_helper_name: str | None = "xcom",
         max_xcom_file_size: int = 1_048_576,
         **kwargs,
     ) -> None:
@@ -213,7 +194,6 @@ class BashOperator(BaseOperator):
         self.cwd = cwd
         self.append_env = append_env
         self.output_processor = output_processor
-        self.xcom_helper_name = xcom_helper_name
         self.max_xcom_file_size = max_xcom_file_size
         self._is_inline_cmd: bool | None = None
 
@@ -252,20 +232,14 @@ class BashOperator(BaseOperator):
 
         self._is_inline_cmd = self._is_inline_command(bash_command=cast("str", self.bash_command))
 
-        pushed_xcoms: dict[str, Any] = {}
         with contextlib.ExitStack() as stack:
             xcom_dir: Path | None = None
             if self.do_xcom_push:
-                xcom_dir, bin_dir = stack.enter_context(self._xcom_workspace())
-                # get_env() returns self.env itself when append_env is False, so copy before
-                # adding per-run vars -- otherwise these temp paths leak into the operator's
-                # own env attribute and survive into later runs.
-                env = dict(env)
-                env["AIRFLOW_XCOM_DIR"] = os.fspath(xcom_dir)
-                if bin_dir is not None:
-                    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH') or os.defpath}"
+                xcom_dir = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="airflow-bash-xcom-")))
+                # get_env() returns self.env itself when append_env is False, so copy rather than
+                # mutate it -- otherwise the temp path leaks into the operator and later runs.
+                env = {**env, "AIRFLOW_XCOM_DIR": os.fspath(xcom_dir)}
 
-            exception_in_flight = False
             try:
                 if self._is_inline_cmd:
                     result = self._run_inline_command(bash_path=bash_path, env=env)
@@ -280,19 +254,12 @@ class BashOperator(BaseOperator):
                     raise AirflowException(
                         f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
                     )
-            except BaseException:
-                exception_in_flight = True
-                raise
             finally:
                 # Collecting here (rather than after the exit-code checks above) means XComs are
                 # pushed whether the command succeeded, failed, or was skipped.
                 if xcom_dir is not None:
-                    pushed_xcoms = self._collect_and_push_xcom(
-                        context=context, xcom_dir=xcom_dir, exception_in_flight=exception_in_flight
-                    )
+                    self._push_xcom_dir(context=context, xcom_dir=xcom_dir)
 
-        if "return_value" in pushed_xcoms:
-            return pushed_xcoms["return_value"]
         return self.output_processor(result.output)
 
     def _run_inline_command(self, bash_path: str, env: dict) -> SubprocessResult:
@@ -328,95 +295,64 @@ class BashOperator(BaseOperator):
         """Return True if the bash command is an inline string. False if it's a bash script file."""
         return not bash_command.endswith(tuple(cls.template_ext))
 
-    @contextlib.contextmanager
-    def _xcom_workspace(self) -> Iterator[tuple[Path, Path | None]]:
+    def _push_xcom_dir(self, context: Context, xcom_dir: Path) -> None:
         """
-        Create the ``$AIRFLOW_XCOM_DIR`` workspace for a single run.
+        Push each file in ``$AIRFLOW_XCOM_DIR`` as its own XCom.
 
-        Kept separate from the ``working_directory()`` script cwd tempdir so a rendered ``.sh``
-        file can never collide with an XCom key.
+        Runs in a ``finally`` block, so an entry that cannot be pushed is logged and skipped rather
+        than raised: it must neither fail a successful command nor replace a failure or skip.
         """
-        with tempfile.TemporaryDirectory(prefix="airflow-bash-xcom-") as workspace:
-            xcom_dir = Path(workspace) / "xcom"
-            xcom_dir.mkdir()
-            bin_dir: Path | None = None
-            if self.xcom_helper_name:
-                bin_dir = Path(workspace) / "bin"
-                bin_dir.mkdir()
-                helper_path = bin_dir / self.xcom_helper_name
-                helper_path.write_text(_XCOM_HELPER_SHIM)
-                helper_path.chmod(0o755)
-            yield xcom_dir, bin_dir
-
-    def _read_xcom_file(self, path: Path) -> tuple[str | None, Any, str | None]:
-        """Read one file under ``$AIRFLOW_XCOM_DIR`` and return ``(key, value, error)``."""
-        size = path.stat().st_size
-        if size > self.max_xcom_file_size:
-            return (
-                None,
-                None,
-                f"XCom file {path} is {size} bytes, exceeding max_xcom_file_size "
-                f"({self.max_xcom_file_size} bytes); it was not pushed.",
-            )
-        text = path.read_bytes().decode(self.output_encoding)
-        value = text[:-1] if text.endswith("\n") else text
-        if path.suffix != ".json":
-            return path.name, value, None
         try:
-            return path.stem, json.loads(text), None
+            entries = sorted(os.scandir(xcom_dir), key=lambda e: e.name)
+        except OSError as exc:
+            self.log.warning("Could not read the XCom directory: %s", exc)
+            return
+        for entry in entries:
+            if entry.name.startswith("."):
+                continue
+            try:
+                key, value = self._read_xcom_entry(entry)
+            except (OSError, ValueError) as exc:
+                self.log.warning("Skipped XCom directory entry %r: %s", entry.name, exc)
+                continue
+            context["ti"].xcom_push(key=key, value=value)
+
+    def _read_xcom_entry(self, entry: os.DirEntry[str]) -> tuple[str, Any]:
+        """
+        Return the ``(key, value)`` pair to push for one ``$AIRFLOW_XCOM_DIR`` entry.
+
+        :raises ValueError: If the entry must not be pushed, or its content cannot be decoded.
+        :raises OSError: If the entry cannot be read.
+        """
+        name = entry.name
+        if not _XCOM_FILE_NAME_RE.fullmatch(name):
+            raise ValueError("an XCom file name may only contain ASCII letters, digits, '_', '-' and '.'")
+        if name.removesuffix(".json") == "return_value":
+            raise ValueError(
+                "'return_value' is reserved for the task's return value, which comes from the last "
+                "line of stdout and output_processor"
+            )
+        # is_symlink() is checked first because is_file() follows symlinks.
+        if entry.is_symlink() or not entry.is_file():
+            raise ValueError("only regular files are pushed; use a '.json' file for structured values")
+        with open(entry.path, "rb") as file:
+            content = file.read(self.max_xcom_file_size + 1)
+        if len(content) > self.max_xcom_file_size:
+            raise ValueError(f"it is larger than max_xcom_file_size ({self.max_xcom_file_size} bytes)")
+        text = content.decode(self.output_encoding)
+        if not name.endswith(".json"):
+            return name, text.removesuffix("\n")
+        try:
+            return name.removesuffix(".json"), json.loads(text)
         except json.JSONDecodeError as exc:
             # Keep the ".json" suffix on the key so downstream consumers can tell this value
             # was not parsed, and never silently drop the diagnostic content.
-            return (
-                path.name,
-                value,
-                f"XCom file {path} contains invalid JSON ({exc}); the raw content was pushed "
-                f"under {path.name!r} instead.",
+            self.log.warning(
+                "XCom file %r contains invalid JSON (%s); pushed the raw content under that name instead.",
+                name,
+                exc,
             )
-
-    def _read_xcom_dir(self, xcom_dir: Path, errors: list[str]) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        for entry in sorted(os.scandir(xcom_dir), key=lambda e: e.name):
-            # is_symlink() is checked first because is_dir()/is_file() follow symlinks.
-            if entry.is_symlink() or not (entry.is_dir() or entry.is_file()):
-                errors.append(
-                    f"XCom directory entry {entry.path!r} is not a regular file; it was not pushed."
-                )
-                continue
-            if entry.is_dir():
-                errors.append(
-                    f"XCom directory entry {entry.path!r} is a subdirectory; subdirectories are not "
-                    "supported. Use a '.json' file (or `xcom push --json`) for structured values."
-                )
-                continue
-            key, value, error = self._read_xcom_file(Path(entry.path))
-            if error is not None:
-                errors.append(error)
-            if key is not None:
-                result[key] = value
-        return result
-
-    def _collect_and_push_xcom(
-        self, context: Context, xcom_dir: Path, exception_in_flight: bool
-    ) -> dict[str, Any]:
-        """
-        Read ``$AIRFLOW_XCOM_DIR`` and push every entry found in it.
-
-        Called from a ``finally`` block, so collection errors are gathered rather than raised
-        inline, and are downgraded to a warning when the command already failed or skipped --
-        an original Bash failure must never be masked by a bad XCom file.
-        """
-        errors: list[str] = []
-        entries = self._read_xcom_dir(xcom_dir, errors=errors)
-        for key, value in entries.items():
-            context["ti"].xcom_push(key=key, value=value)
-        if errors:
-            message = "; ".join(errors)
-            if exception_in_flight:
-                self.log.warning("Errors while collecting the XCom directory: %s", message)
-            else:
-                raise ValueError(f"Errors while collecting the XCom directory: {message}")
-        return entries
+            return name, text.removesuffix("\n")
 
     def on_kill(self) -> None:
         self.subprocess_hook.send_sigterm()
