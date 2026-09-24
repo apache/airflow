@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, Union
 import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.exceptions import AirflowSkipException
 
 if TYPE_CHECKING:
     from typing import TypeGuard
@@ -239,12 +240,14 @@ class ExpandInput(ABC, ResolveMixin):
         """The value of the expand input."""
         ...
 
-    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
         """
         Resolve every index of the input for an iterated task; see :class:`Resolved`.
 
         Implementations must not make a blocking supervisor call on the loop thread: XComArg
         sources are pulled with ``XComArg.aresolve`` and read through :class:`Source`.
+        ``stride`` is how far apart the positions the task reads are, ``across`` for an
+        instance of a spread task: a source shares its reads only when that pays off for it.
         """
         raise NotImplementedError()
 
@@ -267,8 +270,8 @@ class DecoratedExpandInput(ExpandInput):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return self.delegate.iter_references()
 
-    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
-        length, aget = await self.delegate.aresolve(context)
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        length, aget = await self.delegate.aresolve(context, stride=stride)
 
         async def aget_op_kwargs(index: int) -> Mapping[str, Any]:
             return {"op_kwargs": await aget(index)}
@@ -277,6 +280,46 @@ class DecoratedExpandInput(ExpandInput):
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context)
+
+
+class SpreadExpandInput(DecoratedExpandInput):
+    """
+    ExpandInput that spreads another ExpandInput's items across ``across`` task instances.
+
+    Items are distributed round-robin — item ``i`` goes to task instance ``i % across`` — so each
+    instance ends up with roughly ``len(values) / across`` items, but they are *not* contiguous
+    chunks of the original sequence (unlike ``itertools.batched(iterable, n)``). This affects
+    mapping cardinality, NOT resolve-time behavior.
+
+    Round-robin is used instead of contiguous chunking because the scheduler fixes the number of
+    task instances before the task runs, when only ``across`` is known: contiguous chunking would
+    need ``ceil(N / across)`` instances, and ``N`` is only known once the task resolves its input.
+    Fewer than ``across`` items simply leaves the surplus task instances empty. See
+    :ref:`sdk-mapped-tasks-vs-iterable-tasks` for the full rationale.
+
+    A runtime ``across`` (``.spread(across=<XComArg>)``) is resolved by ``MappedIterableOperator``
+    before this class is built, so ``across`` is always the int the scheduler expanded the task to.
+    """
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "spread"
+
+    def __init__(self, expand_input: ExpandInput, across: int):
+        if across < 2:
+            raise ValueError(f"across must be at least 2, got {across}")
+
+        super().__init__(expand_input)
+        self.across = across
+
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        # This instance reads every across-th position, so a source helps it by sharing its reads
+        # only when one of its elements is used over more positions in a row than that.
+        length, aget = await self.delegate.aresolve(context, stride=self.across)
+        if length == 0:
+            # Every instance is skipped, as the task instances of a mapped task over an empty input
+            # are. One whose share of a non-empty input is empty is not (see IterableOperator).
+            raise AirflowSkipException("The input to iterate over is empty.")
+        indices = range(context["ti"].map_index, length, self.across)
+        return Resolved(len(indices), lambda index: aget(indices[index]))
 
 
 @attrs.define(kw_only=True)
@@ -372,14 +415,15 @@ class DictOfListsExpandInput(ExpandInput):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
-    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
         sources = {key: await Source.from_argument(value, context) for key, value in self.value.items()}
-        # The cross product asks for an element of a source again over the positions in a row that
-        # use it: every one of the sources after it. The last source, varying fastest, uses each
-        # element for one position only, as a single source does, so it is read as it is.
-        *outer, _last = sources
-        sources = {key: source.shared() if key in outer else source for key, source in sources.items()}
         lengths = {key: await source.alen() for key, source in sources.items()}
+        # The cross product uses an element of a source over a run of positions in a row: the
+        # product of the lengths of the sources after it. Read every stride-th position (an
+        # instance of a spread task), a source shares its reads only when that run is longer than
+        # the stride; the last source, whose run is one position, never does.
+        runs = {key: math.prod(list(lengths.values())[i + 1 :]) for i, key in enumerate(lengths)}
+        sources = {key: source.shared() if runs[key] > stride else source for key, source in sources.items()}
 
         async def aget(index: int) -> Mapping[str, Any]:
             positions = compute_index_for_each_field(index, lengths)
@@ -441,7 +485,8 @@ class ListOfDictsExpandInput(ExpandInput):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
-    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        # A single source uses each element for one position: nothing to share, whatever the stride.
         from airflow.sdk.definitions.xcom_arg import XComArg
 
         if isinstance(self.value, XComArg):

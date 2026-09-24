@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import types
 from collections.abc import Sequence
 
 import pytest
@@ -32,9 +33,10 @@ from airflow.sdk.definitions._internal.expandinput import (
     Resolved,
     SharedReadsSource,
     Source,
+    SpreadExpandInput,
     compute_index_for_each_field,
 )
-from airflow.sdk.exceptions import UnmappableXComTypePushed, XComForMappingNotPushed
+from airflow.sdk.exceptions import AirflowSkipException, UnmappableXComTypePushed, XComForMappingNotPushed
 
 
 class AsyncOnlyValues(Sequence):
@@ -343,6 +345,33 @@ class TestSource:
         assert asyncio.get_running_loop().is_running()
 
 
+class TestSharingFollowsTheStride:
+    """A spread instance reads every across-th position: a source shares only when that pays off."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("across", "a_shared"), [(2, True), (3, False)])
+    async def test_an_outer_source_shares_only_when_its_run_is_longer_than_across(
+        self, across, a_shared, monkeypatch
+    ):
+        wrapped: list = []
+        original_init = SharedReadsSource.__init__
+
+        def recording_init(self, value):
+            wrapped.append(value)
+            original_init(self, value)
+
+        monkeypatch.setattr(SharedReadsSource, "__init__", recording_init)
+        a, b = AsyncOnlyValues([0, 1, 2, 3]), AsyncOnlyValues([0, 1, 2])
+        spread = SpreadExpandInput(DictOfListsExpandInput({"a": a, "b": b}), across=across)
+        context = {"ti": types.SimpleNamespace(map_index=0)}
+
+        length, aget = await spread.aresolve(context)
+
+        assert [await aget(index) for index in range(length)]
+        assert (a in wrapped) is a_shared
+        assert b not in wrapped
+
+
 class TestSharedReadsSource:
     """A lazy source of a cross product, which shares the reads of the positions asked for recently."""
 
@@ -463,3 +492,49 @@ def test_mapped_argument_is_keyword_only():
     with pytest.raises(TypeError):
         MappedArgument(expand_input, "a")  # type: ignore[misc]
     assert MappedArgument(input=expand_input, key="a") == MappedArgument(input=expand_input, key="a")
+
+
+class TestSpreadExpandInput:
+    @pytest.mark.parametrize(
+        "across",
+        [pytest.param(-1), pytest.param(0), pytest.param(1)],
+    )
+    def test_invalid_across_raises(self, across: int):
+        inner = DictOfListsExpandInput({"a": [1, 2, 3]})
+        with pytest.raises(ValueError, match="across must be at least 2"):
+            SpreadExpandInput(inner, across=across)
+
+    @pytest.mark.asyncio
+    async def test_aresolve_skips_every_instance_of_an_empty_input(self):
+        """As a mapped task over an empty input is skipped, whatever the instance."""
+        spread = SpreadExpandInput(DictOfListsExpandInput({"a": []}), across=3)
+        context = {"ti": type("TI", (), {"map_index": 1})()}
+
+        with pytest.raises(AirflowSkipException, match="empty"):
+            await spread.aresolve(context)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("across", "map_index", "items", "expected"),
+        [
+            (2, 0, [1, 2, 3, 4, 5], [1, 3, 5]),
+            (2, 1, [1, 2, 3, 4, 5], [2, 4]),
+            (3, 0, [1, 2, 3, 4, 5, 6], [1, 4]),
+            (3, 1, [1, 2, 3, 4, 5, 6], [2, 5]),
+            (3, 2, [1, 2, 3, 4, 5, 6], [3, 6]),
+            (3, 2, [1, 2], []),
+        ],
+    )
+    async def test_aresolve_strides_over_the_delegate(
+        self, across: int, map_index: int, items: list, expected: list
+    ):
+        """Task instance ``map_index`` gets items ``map_index, map_index + across, ...``; a short input leaves it empty."""
+        inner = DictOfListsExpandInput({"a": items})
+        spread = SpreadExpandInput(inner, across=across)
+        context = {"ti": type("TI", (), {"map_index": map_index})()}
+
+        length, aget = await spread.aresolve(context)
+        assert length == len(expected)
+        assert [(await aget(index))["a"] for index in range(length)] == expected
+        # the delegate still sees the whole input, not this instance's share
+        assert (await inner.aresolve(context)).length == len(items)
