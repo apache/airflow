@@ -296,13 +296,13 @@ class TestMetrics:
         assert "resumable_job.reconnect_success" not in called_names
         assert "resumable_job.fresh_submit" not in called_names
 
-    @pytest.mark.parametrize("failing_method", ["get_job_status", "is_job_active"])
+    @pytest.mark.parametrize("failing_method", ["get_job_status", "is_job_active", "is_job_succeeded"])
     def test_reconnect_failure_fires_when_reconnect_decision_raises(self, failing_method):
         def boom(*args, **kwargs):
             raise ConnectionError("external system unreachable")
 
         op = ConcreteResumableOperator(task_id="test_task")
-        op._status_map["job-001"] = "RUNNING"
+        op._status_map["job-001"] = "SUCCEEDED"
         setattr(op, failing_method, boom)
         mock_incr = MagicMock()
         with patch(self._PATCH, mock_incr):
@@ -315,6 +315,28 @@ class TestMetrics:
         assert "resumable_job.already_succeeded" not in called_names
         assert "resumable_job.terminal_resubmit" not in called_names
         assert "resumable_job.fresh_submit" not in called_names
+
+    @pytest.mark.parametrize(
+        ("status", "outcome", "log_level"),
+        [
+            ("RUNNING", "reconnect_success", "info"),
+            ("SUCCEEDED", "already_succeeded", "info"),
+            ("FAILED", "terminal_resubmit", "warning"),
+        ],
+    )
+    def test_logging_failure_does_not_add_reconnect_failure(self, status, outcome, log_level):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = status
+        mock_incr = MagicMock()
+        error = ConnectionError("log sink unreachable")
+        with patch(self._PATCH, mock_incr), patch.object(op.log, log_level, side_effect=error):
+            with pytest.raises(ConnectionError, match="log sink unreachable") as exc:
+                op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        assert exc.value is error
+        assert mock_incr.call_args_list == [
+            mock.call("resumable_job.reconnect_attempt", tags=self._TAG),
+            mock.call(f"resumable_job.{outcome}", tags=self._TAG),
+        ]
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tag"),
@@ -388,6 +410,30 @@ class TestTracing:
         exporter, module_tracer = self._make_tracer()
         with mock.patch(self._MODULE_TRACER, module_tracer):
             op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        span = self._get_decision_span(exporter)
+        assert span is not None
+        assert span.attributes["resumable.decision"] == expected_decision
+        assert span.attributes["resumable.external_id"] == "job-001"
+        assert span.attributes["resumable.prior_status"] == status
+
+    @pytest.mark.parametrize(
+        ("status", "expected_decision", "log_level"),
+        [
+            ("RUNNING", "reconnect", "info"),
+            ("SUCCEEDED", "already_succeeded", "info"),
+            ("FAILED", "terminal_resubmit", "warning"),
+        ],
+    )
+    def test_logging_failure_preserves_decision(self, status, expected_decision, log_level):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = status
+        exporter, module_tracer = self._make_tracer()
+        with (
+            mock.patch(self._MODULE_TRACER, module_tracer),
+            patch.object(op.log, log_level, side_effect=ConnectionError("log sink unreachable")),
+        ):
+            with pytest.raises(ConnectionError, match="log sink unreachable"):
+                op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
         span = self._get_decision_span(exporter)
         assert span is not None
         assert span.attributes["resumable.decision"] == expected_decision
