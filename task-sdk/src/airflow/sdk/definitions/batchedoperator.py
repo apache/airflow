@@ -391,7 +391,7 @@ class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
             )
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
-        self._validate_arg_names("expand", map_kwargs)
+        self._validate_arg_names("iterate", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.

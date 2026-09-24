@@ -234,6 +234,23 @@ class TestBatchedOperator:
             else:
                 assert isinstance(iterable_op, IterableOperator)
 
+    def test_decorated_iterate_validates_as_iterate_not_expand(self):
+        """The decorated ``.iterate()`` names itself in its errors and, like the classic path, does not
+        impose ``.expand()``'s mappable-type rule: a scalar is a valid one-item input to iterate over."""
+        with DAG(dag_id="test_decorated_iterate_validation") as dag:
+
+            @dag.task
+            def show(number):
+                return number
+
+            with pytest.raises(TypeError, match=r"iterate\(\) got an unexpected keyword argument 'bogus'"):
+                show.iterate(bogus=1)
+            with pytest.raises(ValueError, match=r"cannot call iterate\(\) on task context variable 'ti'"):
+                show.iterate(ti=1)
+            with pytest.raises(ValueError, match=r"expand\(\) got an unexpected type 'int'"):
+                show.expand(number=5)
+            show.iterate(number=5)
+
     @pytest.mark.parametrize("batch_size", [0, 3])
     def test_iterate_marks_partial_as_expanded(self, batch_size, recwarn):
         """Test that .iterate() (unlike .expand()'s dedicated OperatorPartial._expand(), which sets
