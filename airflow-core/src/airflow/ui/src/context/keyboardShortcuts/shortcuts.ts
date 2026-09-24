@@ -101,6 +101,11 @@ export const SHORTCUTS = {
       descriptionKey: "shortcuts.descriptions.toggleFullscreen",
       keys: "f",
     },
+    toggleLogLevel: {
+      category: "logs",
+      descriptionKey: "shortcuts.descriptions.toggleLogLevel",
+      keys: "l",
+    },
     toggleSource: { category: "logs", descriptionKey: "shortcuts.descriptions.toggleSource", keys: "s" },
     toggleTimestamp: {
       category: "logs",

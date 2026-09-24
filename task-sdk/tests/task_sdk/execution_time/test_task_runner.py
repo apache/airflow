@@ -1217,33 +1217,41 @@ def test_retry_policy_fail_persists_reason(create_runtime_ti, mock_supervisor_co
     assert msg.retry_reason == "do not retry"
 
 
-def test_retry_policy_retry_exhausted_persists_combined_reason(create_runtime_ti, mock_supervisor_comms):
-    """A policy-chosen RETRY that hits an exhausted budget still fails, with both reasons recorded."""
+@pytest.mark.parametrize(
+    ("task_id", "retries", "try_number"),
+    [
+        pytest.param("retry_exhausted", 2, 3, id="budget-exhausted"),
+        # `retries` defaults to 0, so this branch is reached on the very first attempt.
+        pytest.param("retry_no_budget", 0, 1, id="no-budget-configured"),
+    ],
+)
+def test_retry_policy_retry_without_budget_persists_policy_reason(
+    create_runtime_ti, mock_supervisor_comms, task_id, retries, try_number
+):
+    """A policy-chosen RETRY that cannot run fails, recording the reason with no counts appended."""
 
     class _AlwaysFails(BaseOperator):
         def execute(self, context):
             raise RuntimeError("boom")
 
     task = _AlwaysFails(
-        task_id="retry_exhausted",
-        retries=2,
+        task_id=task_id,
+        retries=retries,
         retry_policy=ExceptionRetryPolicy(
             rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
         ),
     )
-    ti = create_runtime_ti(task=task, try_number=3)
+    ti = create_runtime_ti(task=task, try_number=try_number)
 
     state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
 
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
-    assert msg.retry_reason == "rate limit; retries exhausted (3 of 3)"
+    assert msg.retry_reason == "rate limit"
 
 
-def test_retry_policy_retry_exhausted_reason_is_truncated_with_suffix_kept(
-    create_runtime_ti, mock_supervisor_comms
-):
-    """A long reason is truncated to 500 chars total, with the exhausted-suffix always kept."""
+def test_retry_policy_retry_exhausted_reason_is_truncated(create_runtime_ti, mock_supervisor_comms):
+    """A long reason is truncated to the column width."""
 
     class _AlwaysFails(BaseOperator):
         def execute(self, context):
@@ -1263,9 +1271,7 @@ def test_retry_policy_retry_exhausted_reason_is_truncated_with_suffix_kept(
 
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
-    assert msg.retry_reason is not None
-    assert len(msg.retry_reason) == 500
-    assert msg.retry_reason.endswith("; retries exhausted (3 of 3)")
+    assert msg.retry_reason == "z" * 500
 
 
 def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_supervisor_comms):
@@ -1394,6 +1400,33 @@ def test_retry_policy_decision_logged_outside_post_execute_group(create_runtime_
         "Retry policy decision",
         "::endgroup::",
     ]
+
+
+def test_exhausted_logs_about_retry_policy_decision(create_runtime_ti, mock_supervisor_comms):
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(
+        task_id="retry_exhausted_logging",
+        retries=2,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
+        ),
+    )
+    ti = create_runtime_ti(task=task, try_number=3)
+    log = mock.MagicMock(spec=["info", "debug", "warning", "error", "exception", "bind"])
+
+    run(ti, context=ti.get_template_context(), log=log)
+
+    events = [call.args[0] for call in log.info.call_args_list if call.args]
+    assert events.count("Retry policy decision") == 1
+    assert log.info.call_args_list[-1] == mock.call(
+        "Retry policy requested a retry but no attempts remain",
+        reason="rate limit",
+        try_number=3,
+        max_tries=2,
+    )
 
 
 def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
@@ -2360,6 +2393,39 @@ class TestRuntimeTaskInstance:
             ),
             "ti": runtime_ti,
         }
+
+    def test_macros_in_context_are_scoped_to_the_tasks_team(self, create_runtime_ti, mock_supervisor_comms):
+        """The accessor placed in the context must carry the team the server reported."""
+        from airflow.sdk.plugins_manager import AirflowPlugin
+
+        from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+        def team_a_macro():
+            return "team-a"
+
+        class TeamAPlugin(AirflowPlugin):
+            name = "team_a_macros"
+            team_name = "team-a"
+            macros = [team_a_macro]
+
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="hello"), dag_id="basic_task")
+        # Stand in for a multi-team server handing this task to a worker as team-b's.
+        runtime_ti._ti_context_from_server.multi_team = True
+        runtime_ti._ti_context_from_server.dag_run.team_name = "team-b"
+
+        dr = runtime_ti._ti_context_from_server.dag_run
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        with mock_plugin_manager(plugins=[TeamAPlugin]):
+            macros = runtime_ti.get_template_context()["macros"]
+
+            with pytest.raises(AttributeError, match="belong to team 'team-a'"):
+                macros.team_a_macros
 
     def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""

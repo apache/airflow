@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-influxdb``
 
-Release: ``2.11.1``
+Release: ``2.12.0``
 
 
 `InfluxDB <https://www.influxdata.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``influxdb`` provider. All classes for this provi
 are in ``airflow.providers.influxdb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.11.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.12.0/>`_.
 
 Installation
 ------------
@@ -50,15 +50,18 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  =================================================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  =================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.17.0``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``influxdb-client``                         ``>=1.19.0``
-``influxdb3-python``                        ``>=0.7.0``
+``influxdb3-python``                        ``>=0.12.0``
 ``requests``                                ``>=2.32.0,<3``
-==========================================  ==================
+==========================================  =================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.11.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.12.0/changelog.html>`_.

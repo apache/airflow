@@ -75,8 +75,8 @@ capabilities:
     since: "3.3"
     note: "GetConnection"
   variable-read-write:
-    supported: false
-    note: "GetVariable only; no write over the comm socket yet"
+    supported: true
+    since: "3.4"
   self-contained-bundle:
     supported: true
     since: "3.3"

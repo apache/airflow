@@ -2222,6 +2222,18 @@ export const $ClearTaskInstancesBody = {
             title: 'Task Ids',
             description: 'A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.'
         },
+        task_group_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Group Id',
+            description: "Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are."
+        },
         dag_run_id: {
             anyOf: [
                 {
@@ -4454,6 +4466,172 @@ export const $DagBundleCollectionResponse = {
     description: 'Dag bundle collection response.'
 } as const;
 
+export const $DagBundleDetailResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        active: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Active',
+            description: "Whether the bundle is still present in this deployment's configuration."
+        },
+        version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Version',
+            description: 'The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.'
+        },
+        last_refreshed: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Refreshed',
+            description: 'When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.'
+        },
+        bundle_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Url',
+            description: 'A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name',
+            description: 'The team owning the bundle, in a multi-team deployment.'
+        },
+        import_error_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Import Error Count',
+            description: 'Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.'
+        },
+        dag_count: {
+            type: 'integer',
+            title: 'Dag Count',
+            description: 'Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.'
+        }
+    },
+    type: 'object',
+    required: ['name', 'active', 'version', 'last_refreshed', 'bundle_url', 'team_name', 'import_error_count', 'dag_count'],
+    title: 'DagBundleDetailResponse',
+    description: 'Dag bundle serializer for the single-bundle response.'
+} as const;
+
+export const $DagBundleFileCollectionResponse = {
+    properties: {
+        dag_bundle_files: {
+            items: {
+                '$ref': '#/components/schemas/DagBundleFileResponse'
+            },
+            type: 'array',
+            title: 'Dag Bundle Files'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['dag_bundle_files', 'total_entries'],
+    title: 'DagBundleFileCollectionResponse',
+    description: 'Dag bundle file collection response.'
+} as const;
+
+export const $DagBundleFileResponse = {
+    properties: {
+        relative_fileloc: {
+            type: 'string',
+            title: 'Relative Fileloc'
+        },
+        dag_count: {
+            type: 'integer',
+            title: 'Dag Count',
+            description: 'Number of live Dags the file defines that the caller may read.'
+        },
+        last_parsed_time: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Parsed Time',
+            description: 'When the file was last parsed, or null if it has never parsed successfully.'
+        },
+        last_parse_duration: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Parse Duration',
+            description: 'How long the last successful parse of the file took, in seconds.'
+        },
+        import_error_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Import Error Count',
+            description: 'Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.'
+        }
+    },
+    type: 'object',
+    required: ['relative_fileloc', 'dag_count', 'last_parsed_time', 'last_parse_duration', 'import_error_count'],
+    title: 'DagBundleFileResponse',
+    description: 'A file in a Dag bundle, as the Dag processor last saw it.'
+} as const;
+
 export const $DagBundleResponse = {
     properties: {
         name: {
@@ -5802,10 +5980,16 @@ export const $ImportErrorResponse = {
         stack_trace: {
             type: 'string',
             title: 'Stack Trace'
+        },
+        file_token: {
+            type: 'string',
+            title: 'File Token',
+            description: 'Return a signed token identifying the file, used to request its reparse.',
+            readOnly: true
         }
     },
     type: 'object',
-    required: ['import_error_id', 'timestamp', 'filename', 'bundle_name', 'stack_trace'],
+    required: ['import_error_id', 'timestamp', 'filename', 'bundle_name', 'stack_trace', 'file_token'],
     title: 'ImportErrorResponse',
     description: 'Import Error Response.'
 } as const;

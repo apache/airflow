@@ -107,6 +107,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _get_task_group_task_ids,
     _get_task_group_task_instances,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -904,6 +905,14 @@ def post_clear_task_instances(
 
     if future:
         body.end_date = None
+
+    # A task group has no per-task list at the call site; resolve every task in it from the dag
+    # structure so all are cleared, not just the first page the UI could enumerate.
+    if body.task_group_id is not None:
+        body.task_ids = cast(
+            "list[str | tuple[str, int]]",
+            _get_task_group_task_ids(dag_id, body.task_group_id, dag),
+        )
 
     if (task_markers_to_clear := body.task_ids) is not None:
         mapped_tasks_tuples = {t for t in task_markers_to_clear if isinstance(t, tuple)}

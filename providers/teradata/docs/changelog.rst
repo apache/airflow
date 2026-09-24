@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Teradata compute cluster trigger swallowing task cancellation (#72695)``
+* ``Keep object store credentials out of the task log in Teradata transfers (#72176)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Constrain the Teradata compute-cluster example Dag's user-settable Params (#72714)``
+
 3.6.3
 .....
 

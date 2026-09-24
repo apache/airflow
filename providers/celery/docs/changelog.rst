@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+3.24.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix airflow celery stop crashing on stale PID file (#72817)``
+
+Misc
+~~~~
+
+* ``Unify executor workload queues (#63491)``
+* ``Stop recommending psycopg3 connection strings on older Airflow (#70619)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove note about airflow 2.7.0 from docs (#72913)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 3.24.0
 ......
 

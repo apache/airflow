@@ -61,6 +61,13 @@ file to open, if any, and how the engine should be configured.
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-duckdb/>
     Installing from sources <installing-providers-from-sources>
 
+DuckDB version compatibility
+----------------------------
+
+The DuckDB storage format and the extension ABI are both tied to the DuckDB minor version. A
+deployment that persists DuckDB database files, or that pre-installs extensions into an extension
+directory, should pin ``duckdb`` itself rather than relying on this provider's lower bound.
+
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 

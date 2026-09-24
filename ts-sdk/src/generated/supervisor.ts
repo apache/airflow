@@ -26,13 +26,18 @@ export type Name = string;
 export type Id = number;
 export type Timestamp = string;
 export type Extra = {
-  [k: string]: unknown;
+  [k: string]: JsonValue | null;
 } | null;
+/**
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "JsonValue".
+ */
+export type JsonValue = {} | unknown[] | string | number | boolean | null;
 export type Name1 = string;
 export type Uri = string;
 export type Group = string;
 export type Extra1 = {
-  [k: string]: unknown;
+  [k: string]: JsonValue | null;
 } | null;
 export type RunId = string;
 export type DagId = string;
@@ -58,7 +63,7 @@ export type Name3 = string;
 export type Uri2 = string;
 export type Group1 = string;
 export type Extra2 = {
-  [k: string]: unknown;
+  [k: string]: JsonValue | null;
 } | null;
 export type Type2 = "AssetResult";
 export type Type3 = "AssetStateStoreResult";
@@ -68,7 +73,7 @@ export type State1 = "awaiting_input";
 export type Timeout = string | null;
 export type NextMethod = string;
 export type NextKwargs = {
-  [k: string]: unknown;
+  [k: string]: JsonValue | null;
 } | null;
 export type RenderedMapIndex = string | null;
 export type Type5 = "AwaitInputTask";
@@ -166,11 +171,6 @@ export type Conf = {
 export type TriggeringUserName = string | null;
 export type Name7 = string;
 export type Uri4 = string;
-/**
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "JsonValue".
- */
-export type JsonValue = unknown;
 export type SourceTaskId1 = string | null;
 export type SourceDagId1 = string | null;
 export type SourceRunId1 = string | null;
@@ -257,6 +257,7 @@ export type TaskId1 = string;
 export type Name9 = string;
 export type Kind1 = "literal";
 export type FromDefault = boolean;
+export type MultiTeam = boolean;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
 export type BundleName3 = string;
@@ -310,7 +311,7 @@ export type State2 = "deferred";
 export type Classpath = string;
 export type TriggerKwargs =
   | {
-      [k: string]: unknown;
+      [k: string]: JsonValue | null;
     }
   | string
   | null;
@@ -318,7 +319,7 @@ export type TriggerTimeout = string | null;
 export type Queue1 = string | null;
 export type NextMethod2 = string;
 export type NextKwargs2 = {
-  [k: string]: unknown;
+  [k: string]: JsonValue | null;
 } | null;
 export type RenderedMapIndex1 = string | null;
 export type Type20 = "DeferTask";
@@ -743,7 +744,7 @@ export interface AssetResult {
  * via the `definition` "AssetStateStoreResult".
  */
 export interface AssetStateStoreResult {
-  value: unknown;
+  value: JsonValue | null;
   type?: Type3;
 }
 /**
@@ -1033,6 +1034,7 @@ export interface TIRunContext {
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
   arg_bindings?: ArgBindings;
+  multi_team?: MultiTeam;
 }
 /**
  * Variable schema for responses with fields that are needed for Runtime.
@@ -1073,7 +1075,7 @@ export interface LiteralArgBinding {
   name: Name9;
   value_schema?: ArgValueSchema | null;
   kind: Kind1;
-  value?: unknown;
+  value?: JsonValue | null;
   from_default?: FromDefault;
 }
 /**
@@ -1835,7 +1837,7 @@ export interface TaskState {
  * via the `definition` "TaskStateStoreResult".
  */
 export interface TaskStateStoreResult {
-  value: unknown;
+  value: JsonValue | null;
   type?: Type79;
 }
 /**
@@ -1918,7 +1920,7 @@ export interface XComCountResponse {
  */
 export interface XComResult {
   key: Key20;
-  value: unknown;
+  value: JsonValue | null;
   type?: Type87;
 }
 /**

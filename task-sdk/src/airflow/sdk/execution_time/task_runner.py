@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -302,8 +303,12 @@ class RuntimeTaskInstance(TaskInstance):
         integrate_macros_plugins()
 
         dag_run_conf: dict[str, Any] | None = None
+        macros_accessor = MacrosAccessor()
         if from_server := self._ti_context_from_server:
             dag_run_conf = from_server.dag_run.conf or dag_run_conf
+            macros_accessor = MacrosAccessor(
+                team_name=from_server.dag_run.team_name, multi_team=bool(from_server.multi_team)
+            )
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
@@ -322,7 +327,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "ti": self,
                 "outlet_events": OutletEventAccessors(),
                 "inlet_events": InletEventsAccessors(self.task.inlets),
-                "macros": MacrosAccessor(),
+                "macros": macros_accessor,
                 "params": validated_params,
                 # TODO: Make this go through Public API longer term.
                 # "test_mode": task_instance.test_mode,
@@ -901,6 +906,14 @@ def _xcom_push(
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
+
+    if key == XCOM_SKIPMIXIN_KEY:
+        # The branch/skip decision is control-plane data the scheduler reads (via
+        # NotPreviouslySkippedDep) to skip mapped or cleared downstream tasks. It must
+        # bypass any custom XCom backend, which could externalize it into a pointer the
+        # scheduler cannot interpret, silently leaving those tasks unskipped (#50491).
+        _xcom_push_to_db(ti, key, value)
+        return
 
     XCom.set(
         key=key,
@@ -1935,13 +1948,16 @@ def _finalize_task_failure(
         if retry_reason is not None:
             retry_kwargs["retry_reason"] = retry_reason[:500]
         return RetryTask(**retry_kwargs), TaskInstanceState.UP_FOR_RETRY
-    if retry_reason is not None and ti._ti_context_from_server is not None:
-        max_tries = ti._ti_context_from_server.max_tries
-        if max_tries > 0:
-            # max_tries is the retry count, not the attempt count -- total attempts is max_tries + 1.
-            suffix = f"; retries exhausted ({ti.try_number} of {max_tries + 1})"
-            retry_reason = f"{retry_reason[: 500 - len(suffix)]}{suffix}"
-        log.info("Retry policy decision", action="fail", reason=retry_reason)
+    if retry_reason is not None:
+        # Policy's own words only: attempt counts belong to whoever renders this, which has
+        # try_number and max_tries alongside and need not guess when retries was never set.
+        retry_reason = retry_reason[:500]
+        log.info(
+            "Retry policy requested a retry but no attempts remain",
+            reason=retry_reason,
+            try_number=ti.try_number,
+            max_tries=ti._ti_context_from_server.max_tries if ti._ti_context_from_server else None,
+        )
     return (
         TaskState(
             state=TaskInstanceState.FAILED,
