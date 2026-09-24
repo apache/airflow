@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``5182d0596ee2`` (head) | ``b6a9c2e7d410`` | ``3.4.0``         | Widen revoked_token.jti to store external-issuer token       |
+| ``3b7a91c5df20`` (head) | ``5182d0596ee2`` | ``3.4.0``         | Fold task_map into xcom.mapped_length.                       |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``5182d0596ee2``        | ``b6a9c2e7d410`` | ``3.4.0``         | Widen revoked_token.jti to store external-issuer token       |
 |                         |                  |                   | identifiers.                                                 |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``b6a9c2e7d410``        | ``f8c2a1d94e03`` | ``3.4.0``         | Add draining state to DagModel.                              |

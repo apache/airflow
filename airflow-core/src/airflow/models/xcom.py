@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -76,12 +77,16 @@ class XComModel(TaskInstanceDependencies):
     value: Mapped[Any] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
+    # NULL unless the value can expand a downstream mapped task (AIP-42).
+    mapped_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     __table_args__ = (
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
         # but it goes over MySQL's index length limit. So we instead index 'key'
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
+        CheckConstraint(mapped_length >= 0, name="mapped_length_not_negative"),
         PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -166,6 +171,7 @@ class XComModel(TaskInstanceDependencies):
         map_index: int = -1,
         serialize: bool = True,
         dag_result: bool = False,
+        mapped_length: int | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -179,6 +185,8 @@ class XComModel(TaskInstanceDependencies):
         :param map_index: Optional map index to assign XCom for a mapped task.
         :param serialize: Optional parameter to specify if value should be serialized or not.
             The default is ``True``.
+        :param mapped_length: Length of the value, if it can be used to expand a
+            downstream mapped task.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -245,6 +253,7 @@ class XComModel(TaskInstanceDependencies):
             dag_id=dag_id,
             map_index=map_index,
             dag_result=dag_result,
+            mapped_length=mapped_length,
         )
         session.add(new)
         session.flush()
