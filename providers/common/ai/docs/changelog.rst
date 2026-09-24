@@ -87,6 +87,7 @@ Breaking changes
 Features
 ~~~~~~~~
 
+* ``Allow templated connection IDs in agent toolsets (#73578)``
 * ``Cancel the agent run when a common.ai LLM or agent task is killed (#73495)``
 * ``Add JSON Lines support for DocumentLoaderOperator (#72246)``
 * ``Add an address-layer egress allowlist for hosted sandboxes (#73534)``

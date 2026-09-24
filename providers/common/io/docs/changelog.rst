@@ -33,6 +33,11 @@ Features
 
 * ``Template every connection id accepted by provider operators (#73286)``
 
+Misc
+~~~~
+
+* ``Export StoreScope from airflow.sdk as public interface (#73600)``
+
 Doc-only
 ~~~~~~~~
 
