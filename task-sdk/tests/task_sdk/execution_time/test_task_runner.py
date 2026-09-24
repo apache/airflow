@@ -3815,6 +3815,28 @@ class TestRuntimeTaskInstance:
         assert response.dag_id == "test_dag"
         assert response.is_paused is False
 
+    @pytest.mark.parametrize(
+        ("map_index", "state", "expected_middle"),
+        [
+            pytest.param(-1, TaskInstanceState.FAILED, "[failed]", id="unmapped"),
+            pytest.param(2, TaskInstanceState.FAILED, "map_index=2 [failed]", id="mapped"),
+            pytest.param(-1, None, "[None]", id="no-state"),
+            pytest.param(None, TaskInstanceState.FAILED, "[failed]", id="map-index-none"),
+        ],
+    )
+    def test_str_is_human_readable(self, create_runtime_ti, map_index, state, expected_middle):
+        ti_id = uuid7()
+        runtime_ti = create_runtime_ti(
+            task=BaseOperator(task_id="hello"),
+            dag_id="my_dag",
+            run_id="my_run",
+            map_index=map_index,
+            ti_id=ti_id,
+        )
+        runtime_ti.state = state
+
+        assert str(runtime_ti) == f"<TaskInstance: my_dag.hello my_run {expected_middle} ti_id={ti_id}>"
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
@@ -4217,8 +4239,12 @@ class TestEmailNotifications:
                     assert kwargs["from_email"] == self.FROM
                     assert kwargs["to"] == emails
                     assert (
+                        kwargs["subject"]
+                        == "[Airflow] {{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
+                    )
+                    assert (
                         kwargs["html_content"]
-                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>'
                     )
 
     @pytest.mark.parametrize(
@@ -4275,9 +4301,15 @@ class TestEmailNotifications:
                     assert kwargs["from_email"] == self.FROM
                     assert kwargs["to"] == emails
                     assert (
-                        kwargs["html_content"]
-                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        kwargs["subject"]
+                        == "[Airflow] {{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
                     )
+                    assert (
+                        kwargs["html_content"]
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>'
+                    )
+                    email_context = mock_smtp_notifier.return_value.call_args.args[0]
+                    assert email_context["task_state"] == "failed"
 
     def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):
         """Test email notification respects custom subject and html_content templates."""
@@ -4325,6 +4357,42 @@ class TestEmailNotifications:
                     == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
                 )
                 assert kwargs["from_email"] == self.FROM
+
+    def test_default_email_body_renders_without_dates(self, create_runtime_ti, mock_supervisor_comms):
+        from airflow.sdk.execution_time.task_runner import _send_error_email_notification
+
+        task = BaseOperator(task_id="callback_task", email=["test@example.com"], email_on_failure=True)
+        runtime_ti = create_runtime_ti(task=task)
+        # The Dag-processor callback path builds the task instance from the callback request alone,
+        # which carries no dates, and the Dag's Jinja environment is StrictUndefined.
+        callback_ti = RuntimeTaskInstance.model_construct(
+            id=runtime_ti.id,
+            task_id=runtime_ti.task_id,
+            dag_id=runtime_ti.dag_id,
+            run_id=runtime_ti.run_id,
+            try_number=runtime_ti.try_number,
+            dag_version_id=runtime_ti.dag_version_id,
+            task=task,
+            _ti_context_from_server=None,
+            max_tries=0,
+        )
+        context = callback_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                _send_error_email_notification(task, callback_ti, context, ValueError("boom"), log)
+
+        kwargs = mock_smtp_notifier.call_args.kwargs
+        email_context = mock_smtp_notifier.return_value.call_args.args[0]
+        env = task.dag.get_template_env()
+
+        assert env.from_string(kwargs["subject"]).render(email_context) == (
+            f"[Airflow] {callback_ti.dag_id}.{callback_ti.task_id} unknown - Run {callback_ti.run_id}"
+        )
+        rendered_body = env.from_string(kwargs["html_content"]).render(email_context)
+        assert "Started:" not in rendered_body
+        assert "Ended:" not in rendered_body
 
     def test_custom_email_backend_is_used(self, create_runtime_ti, mock_supervisor_comms):
         """A custom ``[email] email_backend`` is wrapped and invoked with rendered fields."""

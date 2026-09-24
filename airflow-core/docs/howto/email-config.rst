@@ -76,11 +76,23 @@ For example a ``html_content_template`` file could look like this:
 
 .. code-block::
 
-  Try {{try_number}} out of {{max_tries + 1}}<br>
+  Dag: {{ti.dag_id}}<br>
+  Task: {{ti.task_id}}<br>
+  Run: {{ti.run_id}}<br>
+  State: {{task_state}}<br>
+  Try: {{try_number}} out of {{max_tries + 1}}<br>
+  {% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}
+  {% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}
   Exception:<br>{{exception_html}}<br>
   Log: <a href="{{ti.log_url}}">Link</a><br>
   Host: {{ti.hostname}}<br>
-  Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
+
+``task_state`` is the task instance state as a plain string (``failed``, ``up_for_retry``, or ``unknown``
+when the state is not known); ``{{ti.state}}`` renders the Python enum name instead.
+
+``ti.mark_success_url`` is still available for templates carried over from Airflow 2, but it now returns
+the same URL as ``ti.log_url`` -- Airflow 3 has no dedicated mark-success endpoint, so mark a task
+successful from the task instance page that link opens.
 
 .. note::
     For more information on setting the configuration, see :doc:`set-config`

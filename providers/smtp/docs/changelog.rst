@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+.. warning::
+  The default ``SmtpNotifier`` templates changed. The subject went from
+  ``DAG <dag_id> - Task <task_id> - Run ID <run_id> in State <state>`` to
+  ``[Airflow] <dag_id>.<task_id> <state> - Run <run_id>``, the body now names the Dag, the task,
+  the run and the timestamps, and the ``Mark Success`` row is dropped unless its URL differs from
+  the log URL. Point the ``subject_template`` / ``html_content_template`` connection extras at your
+  own template files to keep the previous wording.
+
+
 3.0.4
 .....
 

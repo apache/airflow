@@ -1872,6 +1872,7 @@ class TestExecuteEmailCallbacks:
         assert call_args[0] == task
         assert call_args[1].task_id == runtime_ti.task_id
         assert call_args[1].dag_id == runtime_ti.dag_id
+        assert call_args[1].state == TaskInstanceState.FAILED
         assert call_args[2] is not None  # context
         assert isinstance(call_args[3], Exception)
         assert call_args[3].args[0] == request.msg
@@ -1942,6 +1943,7 @@ class TestExecuteEmailCallbacks:
         assert call_args[0] == task
         assert call_args[1].task_id == runtime_ti.task_id
         assert call_args[1].dag_id == runtime_ti.dag_id
+        assert call_args[1].state == TaskInstanceState.UP_FOR_RETRY
         assert call_args[2] is not None  # context
         assert isinstance(call_args[3], Exception)
         assert call_args[3].args[0] == request.msg
