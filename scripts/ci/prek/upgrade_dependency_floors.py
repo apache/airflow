@@ -35,8 +35,9 @@ dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
 from __future__ import annotations
 
 import re
+import subprocess
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from fnmatch import fnmatchcase
@@ -251,3 +252,77 @@ def apply_bump(bump: Bump) -> None:
 def revert_bump(bump: Bump) -> None:
     for edit in bump.edits:
         _replace_quoted(edit.path, edit.new, edit.old)
+
+
+RESOLVE_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("uv", "lock", "--dry-run"),
+    ("uv", "lock", "--dry-run", "--resolution", "lowest-direct"),
+)
+ERROR_TAIL_LINES = 20
+
+
+@dataclass(frozen=True)
+class ResolveResult:
+    ok: bool
+    error: str = ""
+
+
+class LockAlreadyBrokenError(Exception):
+    """The workspace does not resolve even without any floor bump."""
+
+
+def resolve_check(root: Path) -> ResolveResult:
+    for command in RESOLVE_COMMANDS:
+        result = subprocess.run(list(command), cwd=root, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            tail = "\n".join(result.stderr.strip().splitlines()[-ERROR_TAIL_LINES:])
+            return ResolveResult(ok=False, error=f"$ {' '.join(command)}\n{tail}")
+    return ResolveResult(ok=True)
+
+
+def _check_with(bumps: list[Bump], check: Callable[[], ResolveResult]) -> ResolveResult:
+    for bump in bumps:
+        apply_bump(bump)
+    try:
+        return check()
+    finally:
+        for bump in reversed(bumps):
+            revert_bump(bump)
+
+
+def _find_failing(
+    bumps: list[Bump], check: Callable[[], ResolveResult], context: list[Bump]
+) -> list[tuple[Bump, str]]:
+    """Return the bumps that break resolution when applied on top of ``context`` (known-good bumps)."""
+    result = _check_with(context + bumps, check)
+    if result.ok:
+        return []
+    if len(bumps) == 1:
+        return [(bumps[0], result.error)]
+    middle = len(bumps) // 2
+    left, right = bumps[:middle], bumps[middle:]
+    failing_left = _find_failing(left, check, context)
+    failing_units = {bump.unit for bump, _ in failing_left}
+    # The right half is judged on top of the surviving left half, so a failure that needs
+    # one bump from each half is pinned on the right-hand one instead of on both halves.
+    surviving_left = [bump for bump in left if bump.unit not in failing_units]
+    return failing_left + _find_failing(right, check, context + surviving_left)
+
+
+def apply_with_rollback(
+    bumps: list[Bump], check: Callable[[], ResolveResult]
+) -> tuple[list[Bump], list[tuple[Bump, str]]]:
+    rolled_back: list[tuple[Bump, str]] = []
+    remaining = list(bumps)
+    while remaining:
+        if _check_with(remaining, check).ok:
+            break
+        if not rolled_back and not (baseline := check()).ok:
+            raise LockAlreadyBrokenError(baseline.error)
+        failing = _find_failing(remaining, check, context=[])
+        failing_units = {bump.unit for bump, _ in failing}
+        rolled_back.extend(failing)
+        remaining = [bump for bump in remaining if bump.unit not in failing_units]
+    for bump in remaining:
+        apply_bump(bump)
+    return remaining, rolled_back

@@ -16,19 +16,26 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 import textwrap
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 import pytest
 from common_prek_utils import AIRFLOW_ROOT_PATH
 from packaging.requirements import Requirement
 from packaging.version import Version
 from upgrade_dependency_floors import (
+    RESOLVE_COMMANDS,
+    Bump,
     Edit,
     FloorConfig,
+    LockAlreadyBrokenError,
     RequirementSite,
+    ResolveResult,
     apply_bump,
+    apply_with_rollback,
     build_bump,
     find_group_target,
     find_requirements,
@@ -37,6 +44,7 @@ from upgrade_dependency_floors import (
     is_curated,
     load_config,
     parse_duration,
+    resolve_check,
     revert_bump,
     rewrite_requirement,
 )
@@ -291,3 +299,90 @@ def test_apply_bump_missing_text_raises(tmp_path):
     bump = build_bump("boto3", [_site("boto3>=1.41.0", str(path))], Version("1.43.0"))
     with pytest.raises(ValueError, match="boto3>=1.41.0"):
         apply_bump(bump)
+
+
+def _bump(unit: str) -> Bump:
+    return Bump(unit=unit, packages=(unit,), old_floors=("1.0",), target=Version("2.0"), edits=())
+
+
+class FakeWorkspace:
+    """Tracks which bumps are applied; the check fails while any 'bad' set is fully applied."""
+
+    def __init__(self, bad_sets: list[set[str]], broken: bool = False):
+        self.applied: set[str] = set()
+        self.bad_sets = bad_sets
+        self.broken = broken
+
+    def apply(self, bump):
+        self.applied.add(bump.unit)
+
+    def revert(self, bump):
+        self.applied.discard(bump.unit)
+
+    def check(self) -> ResolveResult:
+        if self.broken:
+            return ResolveResult(ok=False, error="lock broken")
+        for bad in self.bad_sets:
+            if bad <= self.applied:
+                return ResolveResult(ok=False, error=f"conflict {sorted(bad)}")
+        return ResolveResult(ok=True)
+
+
+@pytest.fixture
+def workspace(monkeypatch):
+    def _make(bad_sets, broken=False):
+        ws = FakeWorkspace(bad_sets, broken)
+        monkeypatch.setattr("upgrade_dependency_floors.apply_bump", ws.apply)
+        monkeypatch.setattr("upgrade_dependency_floors.revert_bump", ws.revert)
+        return ws
+
+    return _make
+
+
+def test_rollback_nothing_when_green(workspace):
+    ws = workspace([])
+    applied, rolled_back = apply_with_rollback([_bump(u) for u in "abcd"], ws.check)
+    assert [b.unit for b in applied] == list("abcd")
+    assert rolled_back == []
+    assert ws.applied == set("abcd")
+
+
+def test_rollback_single_bad(workspace):
+    ws = workspace([{"c"}])
+    applied, rolled_back = apply_with_rollback([_bump(u) for u in "abcdefg"], ws.check)
+    assert [(b.unit, e) for b, e in rolled_back] == [("c", "conflict ['c']")]
+    assert ws.applied == set("abdefg")
+
+
+def test_rollback_interacting_pair(workspace):
+    ws = workspace([{"b", "e"}])
+    applied, rolled_back = apply_with_rollback([_bump(u) for u in "abcdef"], ws.check)
+    assert ws.check().ok
+    # Only one side of the conflicting pair is dropped, not the whole batch.
+    assert [b.unit for b, _ in rolled_back] == ["e"]
+    assert ws.applied == set("abcdf") == {b.unit for b in applied}
+
+
+def test_lock_broken_before_bumps(workspace):
+    ws = workspace([], broken=True)
+    with pytest.raises(LockAlreadyBrokenError, match="lock broken"):
+        apply_with_rollback([_bump("a")], ws.check)
+    assert ws.applied == set()
+
+
+@mock.patch("upgrade_dependency_floors.subprocess.run", autospec=True)
+def test_resolve_check_runs_both_resolutions(mock_run, tmp_path):
+    mock_run.return_value = mock.Mock(spec=subprocess.CompletedProcess, returncode=0, stderr="")
+    assert resolve_check(tmp_path) == ResolveResult(ok=True)
+    assert [c.args[0] for c in mock_run.call_args_list] == [list(cmd) for cmd in RESOLVE_COMMANDS]
+
+
+@mock.patch("upgrade_dependency_floors.subprocess.run", autospec=True)
+def test_resolve_check_reports_stderr_tail(mock_run, tmp_path):
+    mock_run.return_value = mock.Mock(
+        spec=subprocess.CompletedProcess, returncode=1, stderr="\n".join(f"line {i}" for i in range(50))
+    )
+    result = resolve_check(tmp_path)
+    assert not result.ok
+    assert result.error.splitlines()[-1] == "line 49"
+    assert "line 0" not in result.error
