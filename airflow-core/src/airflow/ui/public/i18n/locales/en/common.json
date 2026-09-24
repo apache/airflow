@@ -44,7 +44,7 @@
   "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Active Runs",
-    "activeRunsExceedsMaxTooltip": "This Dag has more active runs than its Max Active Runs limit allows. Runs beyond the limit will not start until an existing active run completes.",
+    "activeRunsExceedsMaxTooltip": "Runs beyond the limit will not start until an existing active run completes.",
     "activeRunsWithQueued": "{{activeRuns}} of {{maxActiveRuns}} ({{queuedRuns}} queued)",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run Timeout",
