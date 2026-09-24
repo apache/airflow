@@ -211,3 +211,28 @@ def test_is_version_within_cooldown_uses_per_package_override():
     assert _is_version_within_cooldown(releases, "1.0.1") is True
     # 6-hour override → version is older than that → "outside cooldown".
     assert _is_version_within_cooldown(releases, "1.0.1", cooldown_hours=6) is False
+
+
+def test_flit_core_upgrade_updates_provider_pyproject_template(monkeypatch):
+    """Provider pyproject.toml files are regenerated from the template, so its pin must move with them."""
+    from ci.prek import upgrade_important_versions as uiv
+
+    monkeypatch.setattr(uiv, "UPGRADE_FLIT_CORE", True)
+    monkeypatch.setattr(uiv, "UPGRADE_PYTHON", False)
+    template = (
+        uiv.AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "templates"
+        / "pyproject_TEMPLATE.toml.jinja2"
+    )
+    files_to_update = dict(uiv.FILES_TO_UPDATE)
+    assert template in files_to_update
+
+    new_content = uiv.update_file_with_versions(
+        template.read_text(), files_to_update[template], {"flit_core": "99.0.0"}, latest_python_versions={}
+    )
+
+    assert 'requires = ["flit_core==99.0.0"]' in new_content
