@@ -1097,6 +1097,7 @@ class TestDBCleanup:
             "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
             "hitl_detail",  # cascade from task_instance
             "hitl_detail_history",  # cascade from task_instance_history
+            "job_team",  # cascade from job
             "task_inlet_asset_reference",  # cascade from dag
         }
 
