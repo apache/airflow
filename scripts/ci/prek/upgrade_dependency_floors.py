@@ -35,11 +35,15 @@ dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
 from __future__ import annotations
 
 import re
+from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import timedelta
 from fnmatch import fnmatchcase
 from pathlib import Path
 
+from check_dependency_lower_bounds import extract_requirements
+from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 try:
@@ -92,3 +96,45 @@ def load_config(pyproject_path: Path) -> FloorConfig:
             if not is_curated(member, config):
                 raise ValueError(f"Group member {member!r} is not covered by 'packages'")
     return config
+
+
+# A site with any of these means we are deliberately holding the package back.
+HOLD_BACK_OPERATORS = {"<", "<=", "!=", "==", "~=", "==="}
+
+
+@dataclass(frozen=True)
+class RequirementSite:
+    path: Path
+    section: str
+    raw: str
+    requirement: Requirement
+
+
+def find_requirements(
+    pyproject_paths: Iterable[Path], workspace_names: frozenset[str]
+) -> dict[str, list[RequirementSite]]:
+    sites: dict[str, list[RequirementSite]] = defaultdict(list)
+    for path in pyproject_paths:
+        for section, raw in extract_requirements(tomllib.loads(path.read_text())):
+            if section == "build-system.requires":
+                continue
+            try:
+                requirement = Requirement(raw)
+            except InvalidRequirement:
+                # check-dependency-lower-bounds reports these
+                continue
+            name = canonicalize_name(requirement.name)
+            if requirement.url or name in workspace_names:
+                continue
+            sites[name].append(RequirementSite(path=path, section=section, raw=raw, requirement=requirement))
+    return dict(sites)
+
+
+def get_exclusion_reason(name: str, sites: list[RequirementSite], config: FloorConfig) -> str | None:
+    if reason := config.exclude.get(canonicalize_name(name)):
+        return reason
+    for site in sites:
+        held = [str(s) for s in site.requirement.specifier if s.operator in HOLD_BACK_OPERATORS]
+        if held:
+            return f"held back by {','.join(held)} in {site.path}"
+    return None

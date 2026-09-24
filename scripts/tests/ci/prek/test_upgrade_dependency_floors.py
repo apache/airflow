@@ -18,10 +18,20 @@ from __future__ import annotations
 
 import textwrap
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from common_prek_utils import AIRFLOW_ROOT_PATH
-from upgrade_dependency_floors import FloorConfig, is_curated, load_config, parse_duration
+from packaging.requirements import Requirement
+from upgrade_dependency_floors import (
+    FloorConfig,
+    RequirementSite,
+    find_requirements,
+    get_exclusion_reason,
+    is_curated,
+    load_config,
+    parse_duration,
+)
 
 CONFIG = """
 [tool.airflow.dependency-floors]
@@ -98,3 +108,73 @@ def test_repository_config_loads():
     config = load_config(AIRFLOW_ROOT_PATH / "pyproject.toml")
     assert config.min_age == timedelta(days=180)
     assert ("boto3", "botocore") in config.groups
+
+
+PROVIDER = """
+[project]
+name = "apache-airflow-providers-amazon"
+dependencies = [
+    "Boto3>=1.41.0",
+    "apache-airflow-core>=3.0.0",
+    "foo @ https://example.com/foo.whl",
+]
+[project.optional-dependencies]
+"s3fs" = ["s3fs>=2023.10.0"]
+[dependency-groups]
+dev = ["boto3>=1.41.0", {include-group = "docs"}]
+[build-system]
+requires = ["hatchling==1.31.0"]
+"""
+
+
+def test_find_requirements_canonicalizes_names(tmp_path):
+    path = _write(tmp_path, PROVIDER)
+    sites = find_requirements([path], frozenset({"apache-airflow-core"}))
+    assert [(s.section, s.raw) for s in sites["boto3"]] == [
+        ("project.dependencies", "Boto3>=1.41.0"),
+        ('dependency-groups."dev"', "boto3>=1.41.0"),
+    ]
+
+
+def test_find_requirements_skips_workspace_and_urls(tmp_path):
+    sites = find_requirements([_write(tmp_path, PROVIDER)], frozenset({"apache-airflow-core"}))
+    assert "apache-airflow-core" not in sites
+    assert "foo" not in sites
+    # build-system.requires is never edited
+    assert "hatchling" not in sites
+
+
+def _site(raw: str, path: str = "p/pyproject.toml") -> RequirementSite:
+    return RequirementSite(
+        path=Path(path), section="project.dependencies", raw=raw, requirement=Requirement(raw)
+    )
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param("boto3>=1.41,<2", id="upper"),
+        pytest.param("boto3>=1.41,<=1.50", id="upper-inclusive"),
+        pytest.param("boto3>=1.41,!=1.42.0", id="exclusion"),
+        pytest.param("boto3==1.41.0", id="pin"),
+        pytest.param("boto3~=1.41", id="compatible"),
+        pytest.param("boto3===1.41.0", id="arbitrary"),
+    ],
+)
+def test_exclusion_when_held_back(tmp_path, raw):
+    config = load_config(_write(tmp_path, CONFIG))
+    reason = get_exclusion_reason("boto3", [_site("boto3>=1.40"), _site(raw, "q/pyproject.toml")], config)
+    assert reason is not None
+    assert "q/pyproject.toml" in reason
+
+
+def test_exclusion_explicit_list(tmp_path):
+    config = load_config(_write(tmp_path, CONFIG))
+    assert (
+        get_exclusion_reason("sagemaker-studio", [_site("sagemaker-studio>=1.0")], config) == "Ask AWS first"
+    )
+
+
+def test_no_exclusion_for_plain_floor(tmp_path):
+    config = load_config(_write(tmp_path, CONFIG))
+    assert get_exclusion_reason("boto3", [_site("boto3>=1.40; python_version < '3.14'")], config) is None
