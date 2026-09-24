@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 from functools import cached_property
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import structlog
 
@@ -146,7 +147,8 @@ class WasbDagBundle(BaseDagBundle):
         if hasattr(self, "_view_url_template") and self._view_url_template:
             return self._view_url_template
         account_url = self.wasb_hook.blob_service_client.url
-        url = f"{account_url.rstrip('/')}/{self.container_name}"
+        scheme, netloc, path, query, fragment = urlsplit(account_url)
+        path = f"{path.rstrip('/')}/{self.container_name}"
         if self.prefix:
-            return f"{url}/{self.prefix}"
-        return url
+            path = f"{path}/{self.prefix}"
+        return urlunsplit((scheme, netloc, path, query, fragment))
