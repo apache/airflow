@@ -166,9 +166,7 @@ class DataFusionEngine(LoggingMixin):
             # Older Airflow connection UIs wrote custom extra fields as
             # extra__wasb__<field_name> instead of the bare key; WasbHook still reads that
             # legacy spelling as a fallback, so this must too.
-            if field_name in extra_dejson:
-                return extra_dejson[field_name]
-            return extra_dejson.get(f"extra__wasb__{field_name}")
+            return extra_dejson.get(field_name, extra_dejson.get(f"extra__wasb__{field_name}"))
 
         match conn.conn_type:
             case "aws":
@@ -229,10 +227,8 @@ class DataFusionEngine(LoggingMixin):
                             "identity, or az login) are used."
                         )
                 credentials = {"account": self._resolve_wasb_account(conn.host, conn.login)}
-                tenant_id = _get_wasb_extra_field(extra_dejson, "tenant_id")
-                sas_token = _get_wasb_extra_field(extra_dejson, "sas_token")
                 explicit_credential = False
-                if tenant_id:
+                if tenant_id := _get_wasb_extra_field(extra_dejson, "tenant_id"):
                     if not conn.login or not conn.password:
                         # Falling through here would silently switch identity (ambient auth, or
                         # the client secret sent as a shared key) instead of failing clearly.
@@ -245,7 +241,7 @@ class DataFusionEngine(LoggingMixin):
                         {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
                     )
                     explicit_credential = True
-                elif sas_token:
+                elif sas_token := _get_wasb_extra_field(extra_dejson, "sas_token"):
                     if sas_token.startswith("http"):
                         raise ValueError(
                             "A URL-form `sas_token` is not supported for DataFusion Azure Blob Storage "
