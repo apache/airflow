@@ -395,32 +395,27 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match="'impersonation_chain' is not supported"):
             engine._get_credentials(mock_conn)
 
-    def test_get_credentials_azure_with_shared_key(self):
+    @pytest.mark.parametrize(
+        ("password", "extra_dejson", "expected_access_key"),
+        [
+            ("mykey", {}, "mykey"),
+            (None, {"shared_access_key": "extra-key"}, "extra-key"),
+            (None, {"account_key": "extra-key"}, "extra-key"),
+        ],
+        ids=["password", "shared_access_key_extra", "account_key_extra"],
+    )
+    def test_get_credentials_azure_with_shared_key(self, password, extra_dejson, expected_access_key):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
         mock_conn.host = None
         mock_conn.login = "myaccount"
-        mock_conn.password = "mykey"
-        mock_conn.extra_dejson = {}
+        mock_conn.password = password
+        mock_conn.extra_dejson = extra_dejson
         engine = DataFusionEngine()
 
         credentials, extra_config = engine._get_credentials(mock_conn)
 
-        assert credentials == {"account": "myaccount", "access_key": "mykey"}
-        assert extra_config == {}
-
-    def test_get_credentials_azure_with_shared_access_key_extra(self):
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = None
-        mock_conn.extra_dejson = {"shared_access_key": "extra-key"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"account": "myaccount", "access_key": "extra-key"}
+        assert credentials == {"account": "myaccount", "access_key": expected_access_key}
         assert extra_config == {}
 
     def test_get_credentials_azure_with_service_principal(self):
