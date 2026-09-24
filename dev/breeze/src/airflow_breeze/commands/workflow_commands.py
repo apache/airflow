@@ -23,8 +23,9 @@ import sys
 
 import click
 
-from airflow_breeze.commands.common_options import argument_doc_packages
+from airflow_breeze.commands.common_options import argument_doc_packages, option_answer
 from airflow_breeze.utils.click_utils import BreezeGroup
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
@@ -35,6 +36,7 @@ WORKFLOW_NAME_MAPS = {
     "airflow-refresh-site": "build.yml",
     "sync-s3-to-github": "s3-to-github.yml",
     "release-constraints": "release-constraints.yml",
+    "reset-staging": "reset-staging.yml",
 }
 
 # X.Y.Z or X.Y.ZrcN - the workflow derives the release stage from which of the two it is given,
@@ -315,4 +317,27 @@ def workflow_run_release_constraints(version: str, ref: str, workflow_branch: st
         branch=workflow_branch,
         version=version,
         ref=ref,
+    )
+
+
+@workflow_run_group.command(
+    name="sync-staging-to-main",
+    help="Reset the staging branch of apache/airflow-site to main and rebuild the staging site.",
+)
+@option_answer
+def workflow_run_sync_staging_to_main():
+    console_print(
+        f"[warning]This force-updates the `staging` branch of {APACHE_AIRFLOW_SITE_REPO} to the "
+        "current `main` commit, dropping everything that is only on `staging`.[/warning]\n"
+        "[warning]If a vote for ANY other release is in progress, its staging docs live on that "
+        "branch - SKIP this step, or you will overwrite the docs prepared for that vote.[/warning]"
+    )
+    answer = user_confirm("Is no other release vote in progress, and should staging be reset to main?")
+    if answer != Answer.YES:
+        console_print("[info]Skipping the reset of staging to main.[/info]")
+        sys.exit(0 if answer == Answer.NO else 1)
+    trigger_workflow_and_monitor(
+        workflow_name=WORKFLOW_NAME_MAPS["reset-staging"],
+        repo=APACHE_AIRFLOW_SITE_REPO,
+        branch="main",
     )
