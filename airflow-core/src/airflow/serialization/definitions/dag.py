@@ -712,6 +712,24 @@ class SerializedDAG:
         if params_dag.deadline:
             self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
+        if state == DagRunState.QUEUED and backfill_id is None and self.max_active_runs:
+            num_running = (
+                session.scalar(
+                    select(func.count())
+                    .select_from(DagRun)
+                    .where(DagRun.dag_id == self.dag_id, DagRun.state == DagRunState.RUNNING)
+                )
+                or 0
+            )
+            if num_running >= self.max_active_runs:
+                log.info(
+                    "created DagRun will not be scheduled yet, dag is at max_active_runs",
+                    dag_id=self.dag_id,
+                    run_id=run_id,
+                    active_runs=num_running,
+                    max_active_runs=self.max_active_runs,
+                )
+
         return orm_dagrun
 
     def _process_dagrun_deadline_alerts(
