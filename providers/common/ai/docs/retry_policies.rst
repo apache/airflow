@@ -405,8 +405,8 @@ Under ``LLMRetryPolicy`` it answers four fields: ``category``, ``should_retry``,
 upper limit; zero or negative means no override, so the task's own
 ``retry_delay`` and backoff apply.
 
-``category`` and ``reasoning`` become the ``retry_reason``, recorded on both
-outcomes. On a RETRY the value is cleared once the next attempt starts running;
+``category`` and ``reasoning`` become the ``retry_reason`` (truncated to 500
+characters), recorded on both outcomes. On a RETRY the value is cleared once the next attempt starts running;
 a FAIL is terminal, so there is no next attempt to clear it and the reason stays
 on the row. Only the model's own words are stored -- attempt counts are left to
 whatever displays the reason. Recording on a FAIL requires Airflow 3.4.0; on
@@ -419,11 +419,6 @@ the generated line in the task log, which says what mattered (the category,
 the confidence, the bar, the action). A model cannot return a category the
 policy does not recognize, and it cannot return a category paired with an
 action that contradicts it.
-
-The ``retry_reason`` is only recorded on a RETRY. It is written to the task
-instance (truncated to 500 characters), then cleared once the next attempt
-starts running. On a FAIL it is not written anywhere -- it only shows up in the
-task log.
 
 RETRY cannot give a task more attempts than ``retries`` allows. FAIL ends the
 task straight away even when attempts were left, so a wrong classification into
