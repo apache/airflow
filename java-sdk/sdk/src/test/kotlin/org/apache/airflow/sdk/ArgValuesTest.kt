@@ -165,56 +165,63 @@ internal class ArgValuesTest {
   }
 
   @Test
-  @DisplayName("Should fail when a field matches no argument the call site passed")
-  fun shouldFailOnFieldMatchingNoArgument() {
-    val error =
-      assertThrows(IllegalStateException::class.java) {
-        bind(FoldedInput::class.java, listOf(literal("threshold", 0.5)))
-      }
+  @DisplayName("Should warn in each direction at once and default the unfilled field")
+  fun shouldWarnOnFieldMatchingNoArgument() {
+    LogSender.messages.clear()
 
-    assertEquals(
-      "The stub call bound no argument named 'regionCode', required by input field 'regionCode'",
-      error.message,
-    )
+    // The field and the argument miss each other, so both directions report.
+    val input = bind(FoldedInput::class.java, listOf(literal("threshold", 0.5)))
+
+    assertNull(input.regionCode)
+    val unfilled = LogSender.messages.single { it.event == "Task handler declares argument(s) the Dag's call did not pass" }
+    assertEquals(listOf("regionCode (argument 'regionCode')"), unfilled.arguments["declared_not_passed"])
+    assertEquals(listOf("threshold"), unfilled.arguments["passed"])
+    val unclaimed = LogSender.messages.single { it.event == "Dag's call passed argument(s) the task handler does not declare" }
+    assertEquals(listOf("threshold"), unclaimed.arguments["passed_not_declared"])
+    assertEquals(listOf("regionCode"), unclaimed.arguments["declared"])
   }
 
   @Test
-  @DisplayName("Should fail when an @ArgName-pinned name is not among the arguments")
-  fun shouldFailWhenPinnedNameDoesNotFold() {
+  @DisplayName("Should warn when an @ArgName-pinned name is not among the arguments")
+  fun shouldWarnWhenPinnedNameDoesNotFold() {
+    LogSender.messages.clear()
+
     // 'region' is pinned to region_code, which the camelCase argument cannot reach.
-    val error =
-      assertThrows(IllegalStateException::class.java) {
-        bind(
-          ScoreInput::class.java,
-          listOf(
-            literal("regionCode", "emea"),
-            literal("run_label", "nightly"),
-            literal("threshold", 0.5),
-          ),
-        )
-      }
+    val input =
+      bind(
+        ScoreInput::class.java,
+        listOf(
+          literal("regionCode", "emea"),
+          literal("run_label", "nightly"),
+          literal("threshold", 0.5),
+        ),
+      )
 
-    assertEquals(
-      "The stub call bound no argument named 'region_code', required by input field 'region'",
-      error.message,
-    )
+    assertNull(input.region)
+    assertEquals("nightly", input.runLabel)
+    val unfilled = LogSender.messages.single { it.event == "Task handler declares argument(s) the Dag's call did not pass" }
+    assertEquals(listOf("region (argument 'region_code')"), unfilled.arguments["declared_not_passed"])
   }
 
   @Test
-  @DisplayName("Should fail rather than guess when two arguments fold to the field's name")
-  fun shouldFailOnAmbiguousFold() {
-    val error =
-      assertThrows(IllegalStateException::class.java) {
-        bind(
-          FoldedInput::class.java,
-          listOf(literal("region_code", "emea"), literal("regioncode", "apac")),
-        )
-      }
+  @DisplayName("Should warn rather than guess when two arguments fold to the field's name")
+  fun shouldWarnOnAmbiguousFold() {
+    LogSender.messages.clear()
 
+    val input =
+      bind(
+        FoldedInput::class.java,
+        listOf(literal("region_code", "emea"), literal("regioncode", "apac")),
+      )
+
+    assertNull(input.regionCode)
+    val message = LogSender.messages.single { it.event == "Task handler declares argument(s) the Dag's call did not pass" }
     assertEquals(
-      "Input field 'regionCode' matches more than one stub argument differing only in case or " +
-        "underscores; add @ArgName to say which one it binds",
-      error.message,
+      listOf(
+        "regionCode (argument 'regionCode' matches more than one passed argument differing only " +
+          "in case or underscores; add @ArgName)",
+      ),
+      message.arguments["declared_not_passed"],
     )
   }
 
@@ -231,8 +238,9 @@ internal class ArgValuesTest {
 
     assertEquals("emea", input.regionCode)
     val message = LogSender.messages.single { it.level == Level.WARNING }
-    assertEquals("Stub call arguments claimed by no TaskInput field", message.event)
-    assertEquals(listOf("extra"), message.arguments["arguments"])
+    assertEquals("Dag's call passed argument(s) the task handler does not declare", message.event)
+    assertEquals(listOf("extra"), message.arguments["passed_not_declared"])
+    assertEquals(listOf("regionCode"), message.arguments["declared"])
     assertEquals("FoldedInput", message.arguments["input"])
   }
 

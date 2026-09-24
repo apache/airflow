@@ -22,18 +22,26 @@ package org.apache.airflow.sdk
 import org.apache.airflow.sdk.internal.registrarName
 
 /**
- * An immutable snapshot of all [DagDef]s that this JVM process can execute.
+ * All [DagDef]s that this JVM process can execute.
  *
- * Build a [Bundle] by implementing [BundleBuilder], then pass it to
- * [Server.serve] to start accepting task-execution requests.
+ * Register everything before passing the bundle to [Server.serve]: serving
+ * ends registration, so a `register` left below it fails rather than racing
+ * the running task.
  *
- * @property dags All registered Dags keyed by [DagDef.id].
+ * @property dags Dags declared in Java, keyed by [DagDef.id].
  * @throws IllegalArgumentException if any two Dags share the same ID.
  */
 class Bundle(
   dags: Iterable<DagDef>,
 ) {
+  /** Dags declared in Java, which own their own tasks. */
   internal val dags = linkedMapOf<String, DagDef>()
+
+  /** Dags the Python file owns, holding the task handlers registered for them. */
+  internal val taskHandlers = linkedMapOf<String, DagDef>()
+
+  @Volatile
+  private var served = false
 
   /** Creates an empty bundle to [register] into. */
   constructor() : this(emptyList())
@@ -46,9 +54,16 @@ class Bundle(
    * Registers a Dag.
    *
    * @return This bundle, for chaining.
-   * @throws IllegalArgumentException if another Dag shares its ID.
+   * @throws IllegalArgumentException if another Dag shares its ID, or task
+   *    handlers are already registered against it.
+   * @throws IllegalStateException if [Server.serve] has already been called.
    */
   fun register(dag: DagDef): Bundle {
+    checkOpen()
+    require(dag.id !in taskHandlers) {
+      "Dag '${dag.id}' already has registered task handlers; a Dag declared in Java owns its " +
+        "own tasks, so one Dag ID cannot have both"
+    }
     require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
@@ -65,6 +80,7 @@ class Bundle(
    *    registrar, because annotation processing did not run over it.
    */
   fun register(handlerClass: Class<*>): Bundle {
+    checkOpen()
     val name = registrarName(handlerClass.name)
     val registrar =
       try {
@@ -92,15 +108,40 @@ class Bundle(
    * @param taskId Task ID as declared by the `@task.stub` function.
    * @param definition Class that implements [Task].
    * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if a Dag declared in Java already holds
+   *    that ID.
+   * @throws IllegalStateException if [Server.serve] has already been called.
    */
   fun register(
     dagId: String,
     taskId: String,
     definition: Class<out Task>,
   ): Bundle {
-    dags.getOrPut(dagId) { DagDef(dagId) }.addTask(taskId, definition)
+    checkOpen()
+    require(dagId !in dags) {
+      "Dag '$dagId' is declared in Java; attach its tasks with addTask(...) rather than " +
+        "registering task handlers for them"
+    }
+    taskHandlers.getOrPut(dagId) { DagDef(dagId) }.addTask(taskId, definition)
     return this
   }
+
+  /** The task to run for a request, from whichever side registered its Dag. */
+  internal fun taskDef(
+    dagId: String,
+    taskId: String,
+  ): TaskDef? = (dags[dagId] ?: taskHandlers[dagId])?.tasks?.get(taskId)
+
+  /**
+   * Ends registration, so a `register` left below `serve` is reported as the
+   * mistake it is rather than racing the runtime. [Server] calls it when it
+   * starts serving, whatever the run turns out to do.
+   */
+  internal fun finalizeRegistration() {
+    served = true
+  }
+
+  private fun checkOpen() = check(!served) { "Server.serve has already been called; register everything before serve" }
 }
 
 /**

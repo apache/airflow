@@ -50,11 +50,10 @@ package org.apache.airflow.sdk
  * fields. No two of those fields may claim argument names that differ only in
  * case or underscores, since the fold cannot tell them apart.
  *
- * Every field has to find an argument. A field nothing binds means the input
- * and the stub signature disagree, so the task fails rather than run on a
- * value nobody supplied; declare a boxed type when the argument may resolve to
- * nothing. An argument no field claims is harmless the other way round, and is
- * logged rather than failed.
+ * A name mismatch in either direction is logged rather than failed: a field
+ * nothing supplies keeps its Java default, and an argument no field claims
+ * changes nothing the task reads. Once a field has claimed its argument,
+ * declare a boxed type when that argument may resolve to nothing.
  *
  * @see InputTask
  */

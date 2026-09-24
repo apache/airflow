@@ -467,16 +467,16 @@ the stub's ``snake_case`` arguments reach ``camelCase`` Java fields with nothing
 the same fold the Go and TypeScript SDKs apply, so one Python signature binds identically in every
 SDK.
 
-The class needs a public no-argument constructor.  Every field has to find an argument: a field
-nothing binds means the input and the stub signature disagree, so the task fails rather than run on a
-value nobody supplied.  Once a field has claimed its argument, an argument that resolves to nothing
-is a value and not a mistake, so a boxed or reference field takes ``null`` and a primitive field
-fails.  An argument no field claims is harmless the other way round, so the SDK logs a warning and
-the task runs.
+The class needs a public no-argument constructor.  A name mismatch in either direction is logged
+rather than failed, because a field binds by name: a field nothing supplies keeps its Java default,
+and an argument no field claims changes nothing the task reads.  Once a field has claimed its
+argument, an argument that resolves to nothing is a value and not a mistake, so a boxed or reference
+field takes ``null`` and a primitive field fails.
 
-No two fields may claim argument names that differ only in case or underscores.  Two *arguments* that
-collide that way reach only a field naming one of them exactly; a field that would match both fails
-the task rather than being handed the wrong value.
+No two fields may claim argument names that differ only in case or underscores; that fails when the
+bundle is built, because the fold cannot tell them apart.  Two *arguments* that collide that way
+reach only a field naming one of them exactly, and a field that would match both is left unfilled
+and reported rather than handed the wrong value.
 
 .. code-block:: python
 

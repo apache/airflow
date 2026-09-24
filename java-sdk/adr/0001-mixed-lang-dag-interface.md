@@ -175,20 +175,24 @@ One verb, overloaded, and everything registers as a class: nothing is constructe
   the generated body calls `new Parent().method(...)`.
 - A parameter whose type has type arguments binds through the `TypeReference<T>` overload, so the
   element type survives and the generated code never contains an unchecked cast.
-- **A declared parameter must find an argument; a passed argument need not find a parameter.** The
-  two directions are not symmetric. A `TaskInput` field, or a flat position, that no argument
-  supplies means the Java signature and the Python stub disagree, which is a wiring mistake and
-  fails. An argument no field claims is harmless, so it is logged and the task runs. Captured
-  defaults are not logged, since the Dag author never passed them.
+- **Neither direction of a `TaskInput` name mismatch fails the task.** A field binds by name, so a
+  field nothing supplies keeps its Java default and an argument no field claims changes nothing the
+  task reads. Both are logged, since either one means the Java signature and the Python stub
+  disagree. Captured defaults are not logged, since the Dag author never passed them. Flat
+  positional binding still fails either way, because a dropped or added argument shifts every later
+  one.
+- **Two fields whose argument names fold alike fail when the bundle is built**, because the fold
+  cannot tell them apart and there is no value either could safely take. Two *arguments* that fold
+  alike are the other way round: they reach a field naming one of them exactly, and a field that
+  would match both is left unfilled and reported.
 - **An argument that resolves to nothing is a value, not a mistake.** Once a parameter has claimed
   its argument, a null literal or an upstream that pushed no XCom gives `null` to a reference or
   boxed type, and fails for a primitive, which cannot hold it. Declaring a boxed type is how a
   task says the value is optional.
-- This differs from the Go SDK, which zero-values an unmatched struct field and errors on an
-  unclaimed argument ([go-sdk ADR-0006](../../go-sdk/adr/0006-cross-language-argument-binding.md)).
-  Go has no null, so its only place to raise the alarm is the argument side; Java's primitive and
-  boxed types say per field whether a value is required, so the alarm belongs where the mismatch
-  actually is.
+- This matches the Go SDK, which logs both directions and zero-values an unmatched struct field
+  ([go-sdk ADR-0006](../../go-sdk/adr/0006-cross-language-argument-binding.md)), and it follows the
+  cross-language rule in
+  [lang-SDK ADR-0007](../../airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md).
 - `@Builder.XCom` is removed, keeping the Python call site as the single source of data-flow
   wiring.
 - **The generated `Task` is one more branch of an existing classifier.** `BuilderProcessor` already

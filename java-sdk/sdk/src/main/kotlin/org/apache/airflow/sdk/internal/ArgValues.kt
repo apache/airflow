@@ -57,12 +57,12 @@ object ArgValues {
    * task written against the interface.
    *
    * Every field has to find an argument: a field nothing binds means the input
-   * and the stub signature disagree, which is a wiring mistake rather than a
-   * value that happens to be absent. Arguments no field claims are the other
-   * way round and are harmless, so they are logged and the task runs.
+   * and the stub signature disagree. Neither direction of that disagreement
+   * fails the task, because a field binds by name: a field nothing supplies
+   * keeps its Java default, and an argument no field claims changes nothing
+   * the task reads. Both are logged so the mismatch stays visible.
    *
    * @throws IllegalArgumentException if the input cannot be populated.
-   * @throws IllegalStateException if a field matches no argument.
    * @throws MissingXComException if a field's argument resolves to nothing and
    *    the field is primitive.
    */
@@ -73,9 +73,42 @@ object ArgValues {
   ): I {
     val input = newInput(type)
     val arguments = ArgIndex(client.argBindings)
-    bindableFields(type).forEach { field -> field.set(input, resolveField(client, arguments, field)) }
+    val unfilled = mutableListOf<String>()
+    bindableFields(type).forEach { field ->
+      val argName = argNameOf(field)
+      val pinned = isPinned(field)
+      val binding = arguments.claim(argName, pinned)
+      if (binding == null) {
+        unfilled += unfilledField(arguments, field, argName, pinned)
+      } else {
+        field.set(input, resolveClaimed(client, binding, field))
+      }
+    }
+    warnUnfilled(client, type, unfilled, arguments)
     warnUnclaimed(client, type, arguments)
     return input
+  }
+
+  /**
+   * Reports the fields the call site supplied nothing for. Each keeps its Java
+   * default, so the task runs on a value nobody passed.
+   */
+  private fun warnUnfilled(
+    client: Client,
+    type: Class<*>,
+    unfilled: List<String>,
+    arguments: ArgIndex,
+  ) {
+    if (unfilled.isEmpty()) return
+    logger.warning(
+      "Task handler declares argument(s) the Dag's call did not pass",
+      mapOf(
+        "task_id" to client.details.ti.taskId,
+        "input" to type.simpleName,
+        "declared_not_passed" to unfilled,
+        "passed" to arguments.passed(),
+      ),
+    )
   }
 
   /**
@@ -91,11 +124,12 @@ object ArgValues {
     val unclaimed = arguments.unclaimed()
     if (unclaimed.isEmpty()) return
     logger.warning(
-      "Stub call arguments claimed by no TaskInput field",
+      "Dag's call passed argument(s) the task handler does not declare",
       mapOf(
         "task_id" to client.details.ti.taskId,
         "input" to type.simpleName,
-        "arguments" to unclaimed,
+        "passed_not_declared" to unclaimed,
+        "declared" to bindableFields(type).map(::argNameOf),
       ),
     )
   }
@@ -133,23 +167,17 @@ object ArgValues {
     }
 
   /**
-   * Resolves one [TaskInput] field from the argument it claims.
+   * Resolves one [TaskInput] field from the argument it claimed.
    *
-   * The field has to claim one. Once it has, an argument that resolves to
-   * nothing is a value, not a mistake: a boxed or reference field takes null,
-   * and a primitive field cannot, so it fails with a clear
-   * [MissingXComException].
+   * An argument that resolves to nothing is a value, not a mistake: a boxed or
+   * reference field takes null, and a primitive field cannot, so it fails with
+   * a clear [MissingXComException].
    */
-  private fun resolveField(
+  private fun resolveClaimed(
     client: Client,
-    arguments: ArgIndex,
+    binding: ArgBinding,
     field: Field,
   ): Any? {
-    val argName = argNameOf(field)
-    val pinned = isPinned(field)
-    val binding = arguments.claim(argName, pinned)
-    checkNotNull(binding) { unboundMessage(arguments, field, argName, pinned) }
-
     if (!field.type.isPrimitive) return decode(client.resolveBinding(binding), field.genericType)
     // The msgpack decoder yields boxed values, so a primitive field decodes
     // into its wrapper and unboxes on assignment.
@@ -157,17 +185,22 @@ object ArgValues {
       ?: throw missing(binding, client.details.ti.taskId, field.name)
   }
 
-  private fun unboundMessage(
+  /**
+   * Names a field the call site supplied nothing for, saying which of the two
+   * reasons it was: no argument of that name, or two that the fold cannot tell
+   * apart, where `@ArgName` is the way to say which one is meant.
+   */
+  private fun unfilledField(
     arguments: ArgIndex,
     field: Field,
     argName: String,
     pinned: Boolean,
   ): String =
     if (arguments.foldIsShared(argName, pinned)) {
-      "Input field '${field.name}' matches more than one stub argument differing only in case or " +
-        "underscores; add @ArgName to say which one it binds"
+      "${field.name} (argument '$argName' matches more than one passed argument differing only " +
+        "in case or underscores; add @ArgName)"
     } else {
-      "The stub call bound no argument named '$argName', required by input field '${field.name}'"
+      "${field.name} (argument '$argName')"
     }
 
   /**
@@ -243,6 +276,9 @@ object ArgValues {
 
     /** Explicitly passed argument names no field took. */
     fun unclaimed(): List<String> = bindings.filterNot { it.fromDefault || it.name in claimed }.map { it.name }
+
+    /** Every argument name the call site passed, captured defaults included. */
+    fun passed(): List<String> = bindings.map { it.name }
   }
 
   private fun numberConverter(type: Class<*>): ((Number) -> Any)? =
