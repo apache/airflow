@@ -73,6 +73,25 @@ and Authlib, some OAuth2 providers may not be supported. Currently supported pro
 ``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``auth0``, ``keycloak``, ``keycloak_before_17`` and ``authentik``.
 If your provider is not on the list, you may need to adjust the ``remote_app`` configuration to match your provider's OAuth2 specification.
 
+.. note::
+
+    When using the ``authentik`` provider, the ``id_token`` is checked against the issuer
+    and the audience of the configured application. The issuer is normally discovered from
+    the provider's OpenID metadata, so configuring ``server_metadata_url`` is sufficient.
+    If the metadata does not publish an ``issuer``, login fails with a clear error rather
+    than skipping the check; set ``issuer`` in the provider's ``client_kwargs`` to supply
+    it explicitly:
+
+    .. code-block:: python
+
+        {
+            "name": "authentik",
+            "client_id": "airflow-client-id",
+            "client_kwargs": {
+                "issuer": "https://authentik.example.com/application/o/airflow/",
+            },
+        }
+
 By default, the following entry in the ``$AIRFLOW_HOME/webserver_config.py`` is used.
 
 .. code-block:: ini

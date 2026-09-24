@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.35.1``
+Release: ``9.37.0``
 
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.35.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.37.0/>`_.
 
 Installation
 ------------
@@ -111,6 +111,7 @@ Extra                 Dependencies
 ``aiobotocore``       ``aiobotocore>=3.0.0``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
 ``s3fs``              ``s3fs>=2023.10.0``
+``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
 ``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
 ``apache.hive``       ``apache-airflow-providers-apache-hive``
 ``exasol``            ``apache-airflow-providers-exasol``
@@ -130,4 +131,4 @@ Extra                 Dependencies
 ====================  ============================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.35.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.37.0/changelog.html>`_.

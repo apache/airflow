@@ -644,6 +644,28 @@ class TestCliDb:
             (
                 {
                     "to_revision": None,
+                    "to_version": "abc",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "Invalid version 'abc' supplied as `--to-version`",
+            ),
+            (
+                {
+                    "to_revision": "abc1",
+                    "to_version": None,
+                    "from_revision": None,
+                    "from_version": "abc",
+                    "show_sql_only": True,
+                    "yes": True,
+                },
+                "Invalid version 'abc' supplied as `--from-version`",
+            ),
+            (
+                {
+                    "to_revision": None,
                     "to_version": None,
                     "from_revision": "abc",
                     "from_version": None,
@@ -726,7 +748,12 @@ class TestCliDb:
                 ["-y", "--to-revision", "abc", "--from-version", "2.2.0", "--from-revision", "abc"],
                 "may not be combined",
             ),
-            (["-y", "--to-version", "abc"], r"Downgrading to .* not supported\."),
+            (["-y", "--to-version", "2.1.25"], r"Downgrading to .* not supported\."),
+            (["-y", "--to-version", "abc"], "Invalid version 'abc' supplied as `--to-version`"),
+            (
+                ["-y", "--to-revision", "abc1", "--from-version", "abc", "-s"],
+                "Invalid version 'abc' supplied as `--from-version`",
+            ),
             (["-y"], "Must provide either"),
         ],
     )
@@ -801,6 +828,19 @@ class TestCliDb:
             # With N retries there are N+1 total checks, hence N sleeps
             always_fail.assert_has_calls([call()] * (retry + 1))
             sleep.assert_has_calls([call(retry_delay)] * retry)
+
+    def test_check_warns_about_the_retries_that_are_actually_left(self, caplog):
+        args = self.parser.parse_args(["db", "check", "--retry", "3", "--retry-delay", "9"])
+        always_fail = Mock(side_effect=OperationalError("", None, None))
+
+        with patch("time.sleep", new=MagicMock()), patch("airflow.utils.db.check", new=always_fail):
+            with pytest.raises(OperationalError):
+                db_command.check(args)
+
+        assert "3 retries remain. Will retry in 9 seconds" in caplog
+        assert "2 retries remain. Will retry in 9 seconds" in caplog
+        assert "1 retries remain. Will retry in 9 seconds" in caplog
+        assert "0 retries remain. Will retry in 9 seconds" not in caplog
 
 
 class TestCLIDBClean:

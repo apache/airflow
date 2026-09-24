@@ -149,6 +149,9 @@ labelPRBasedOnFilePath:
   provider:docker:
     - providers/docker/**
 
+  provider:duckdb:
+    - providers/duckdb/**
+
   provider:edge:
     - providers/edge3/**
 

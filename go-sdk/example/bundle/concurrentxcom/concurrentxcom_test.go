@@ -25,6 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -75,6 +76,14 @@ func (m *mockXComClient) UnmarshalJSONVariable(ctx context.Context, key string, 
 	panic("unimplemented")
 }
 
+func (m *mockXComClient) SetVariable(ctx context.Context, key, value, description string) error {
+	panic("unimplemented")
+}
+
+func (m *mockXComClient) DeleteVariable(ctx context.Context, key string) error {
+	panic("unimplemented")
+}
+
 func (m *mockXComClient) GetConnection(ctx context.Context, connID string) (sdk.Connection, error) {
 	panic("unimplemented")
 }
@@ -82,17 +91,19 @@ func (m *mockXComClient) GetConnection(ctx context.Context, connID string) (sdk.
 var _ sdk.Client = (*mockXComClient)(nil)
 
 func Test_PullXComsConcurrently(t *testing.T) {
-	ctx := sdk.NewTIRunContext(
+	actx := airflow.NewContext(
 		context.Background(),
-		sdk.TaskInstance{
+		slog.Default(),
+		newMockXComClient(),
+		airflow.TaskInstance{
 			DagID:  "concurrent_xcom_dag",
 			RunID:  "run",
 			TaskID: "pull_xcoms_concurrently",
 		},
-		sdk.DagRun{},
+		airflow.DagRun{},
 	)
 
-	result, err := PullXComsConcurrently(ctx, newMockXComClient(), slog.Default())
+	result, err := PullXComsConcurrently(actx)
 	assert.NoError(t, err)
 
 	m, ok := result.(map[string]any)

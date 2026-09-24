@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-cloudant``
 
-Release: ``4.3.5``
+Release: ``4.3.6``
 
 
 `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
@@ -36,7 +36,7 @@ This is a provider package for ``cloudant`` provider. All classes for this provi
 are in ``airflow.providers.cloudant`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cloudant/4.3.5/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cloudant/4.3.6/>`_.
 
 Installation
 ------------
@@ -59,4 +59,4 @@ PIP package                                 Version required
 ==========================================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cloudant/4.3.5/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cloudant/4.3.6/changelog.html>`_.

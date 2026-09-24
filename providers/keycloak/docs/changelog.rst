@@ -25,6 +25,29 @@
 Changelog
 ---------
 
+0.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Include the Dag Bundles menu item in the team role resources generated for Keycloak (#72909)``
+* ``Support exchanging a Keycloak-issued access token for an Airflow API token with the JWT bearer grant, gated by the new jwt_federated_client_ids allow-list (#72978)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return 403 when Keycloak UMA ticket grant returns invalid_grant (#73234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+
+0.10.0
+......
+
 .. note::
     The unauthenticated ``POST /auth/token`` endpoint now accepts the ``client_credentials``
     grant only for the client configured in ``[keycloak_auth_manager] client_id``. Previously
@@ -32,6 +55,21 @@ Changelog
     Airflow token. If a deployment authenticates with a service account belonging to a different
     client, either point ``[keycloak_auth_manager] client_id`` at that client or issue the
     credentials against the configured one -- other clients now receive ``403``.
+
+Features
+~~~~~~~~
+
+* ``Scope asset API responses to the assets a user may read (#72682)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep API tokens usable with the Authorization header (#72381)``
+* ``Bind Keycloak cookie tokens to the Airflow session identity (#72207)``
+* ``Accept only the configured client on the Keycloak client_credentials grant (#72205)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 0.9.0
 .....
