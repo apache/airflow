@@ -23,10 +23,12 @@ import sys
 from unittest.mock import ANY, Mock, patch
 
 import pytest
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job, health_check_threshold, most_recent_job, perform_heartbeat, run_job
+from airflow.models.team import JobTeam, Team
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -278,3 +280,68 @@ class TestJob:
 
     def test_health_check_threshold_unknown_job_uses_heartrate_fallback(self):
         assert health_check_threshold("UnknownJob", 30) == 30 * 2.1
+
+
+class TestJobTeams:
+    @pytest.fixture
+    def teams(self, session):
+        names = ["team-b", "team-a"]
+        session.add_all(Team(name=name) for name in names)
+        session.commit()
+        yield names
+        session.execute(delete(JobTeam))
+        session.execute(delete(Team).where(Team.name.in_(names)))
+        session.commit()
+
+    def test_no_teams_by_default(self, session):
+        job = Job()
+        session.add(job)
+        session.commit()
+
+        assert job.team_names == []
+
+    def test_multiple_teams_round_trip_sorted(self, session, teams):
+        job = Job(team_names=teams)
+        session.add(job)
+        session.commit()
+        session.expunge(job)
+
+        assert session.get(Job, job.id).team_names == ["team-a", "team-b"]
+
+    def test_repeated_team_name_is_stored_once(self, session, teams):
+        job = Job(team_names=["team-a", "team-a"])
+        session.add(job)
+        session.commit()
+
+        assert job.team_names == ["team-a"]
+        assert session.scalar(select(func.count()).select_from(JobTeam)) == 1
+
+    def test_reassigning_teams_replaces_the_previous_ones(self, session, teams):
+        job = Job(team_names=["team-a"])
+        session.add(job)
+        session.commit()
+
+        job.team_names = ["team-b"]
+        session.commit()
+
+        assert job.team_names == ["team-b"]
+        assert session.scalars(select(JobTeam.team_name)).all() == ["team-b"]
+
+    def test_teams_survive_the_heartbeat_merge(self, session, teams):
+        """``prepare_for_execution`` detaches the Job, so the heartbeat merge must not duplicate links."""
+        job = Job(team_names=teams)
+        job.prepare_for_execution()
+        job.heartbeat(heartbeat_callback=Mock())
+
+        assert session.scalar(select(func.count()).select_from(JobTeam)) == 2
+        assert session.get(Job, job.id).team_names == ["team-a", "team-b"]
+
+    def test_deleting_a_job_removes_its_team_links(self, session, teams):
+        job = Job(team_names=teams)
+        session.add(job)
+        session.commit()
+
+        session.delete(job)
+        session.commit()
+
+        assert session.scalar(select(func.count()).select_from(JobTeam)) == 0

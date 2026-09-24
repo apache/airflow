@@ -2100,13 +2100,19 @@ workers:
     max_failed_heartbeats:
       description: |
         The maximum number of consecutive failed heartbeats before terminating the task instance process.
+
+        Unlike other calls to the execution API, heartbeats are not retried. This setting and
+        ``min_heartbeat_interval`` together determine how long a worker tolerates an unreachable API server
+        before killing running tasks.
       version_added: 3.0.0
       type: integer
       example: ~
-      default: "3"
+      default: "30"
     execution_api_retries:
       description: |
         The maximum number of retry attempts to the execution API server.
+
+        Note that task instance heartbeats are not retried.
       version_added: 3.0.0
       type: integer
       example: ~

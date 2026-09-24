@@ -45,10 +45,9 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.sdk import BaseOperator
+from airflow.sdk import BaseOperator, TaskGroup
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -63,6 +62,7 @@ from tests_common.test_utils.db import (
     clear_rendered_ti_fields,
 )
 from tests_common.test_utils.logs import check_last_log
+from tests_common.test_utils.mapping import expand_mapped_task_instances, push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.team import attach_dag_to_team
@@ -421,7 +421,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "end_date": None,
                 "job_type": "TriggererJob",
                 "state": "running",
-                "team_name": None,
+                "team_names": [],
                 "unixname": getuser(),
             },
             "team_name": None,
@@ -733,15 +733,8 @@ class TestGetMappedTaskInstances:
                 data_interval=(DEFAULT_DATETIME_1, DEFAULT_DATETIME_2),
             )
             dag_version = DagVersion.get_latest_version(dag_id)
-            session.add(
-                TaskMap(
-                    dag_id=dr.dag_id,
-                    task_id=task1.task_id,
-                    run_id=dr.run_id,
-                    map_index=-1,
-                    length=count,
-                    keys=None,
-                )
+            push_mapped_length(
+                dr.get_task_instance(task1.task_id, session=session), list(range(count)), session=session
             )
 
             if count:
@@ -773,7 +766,7 @@ class TestGetMappedTaskInstances:
             sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
 
-            TaskMap.expand_mapped_task(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
+            expand_mapped_task_instances(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):
@@ -4276,6 +4269,102 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response_data["total_entries"] == 1
         ti_id = response_data["task_instances"][0]["id"]
         _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
+    @pytest.mark.parametrize(
+        ("task_group_id", "expected_task_ids"),
+        [
+            pytest.param(
+                "section_1",
+                ["section_1.task_1", "section_1.task_2", "section_1.task_3"],
+                id="flat group",
+            ),
+            pytest.param(
+                "section_2",
+                [
+                    "section_2.task_1",
+                    "section_2.inner_section_2.task_2",
+                    "section_2.inner_section_2.task_3",
+                    "section_2.inner_section_2.task_4",
+                ],
+                id="nested group resolves recursively",
+            ),
+        ],
+    )
+    def test_clear_by_task_group_id_targets_every_task_in_the_group(
+        self, test_client, session, task_group_id, expected_task_ids
+    ):
+        """Clearing by task_group_id resolves the whole group server-side from the dag structure."""
+        self.create_task_instances(session, dag_id="example_task_group")
+        response = test_client.post(
+            "/dags/example_task_group/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "task_group_id": task_group_id,
+            },
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == len(expected_task_ids)
+        assert sorted(ti["task_id"] for ti in response_data["task_instances"]) == sorted(expected_task_ids)
+
+    def test_clear_by_task_group_id_not_found(self, test_client, session):
+        """An unknown task_group_id returns 404."""
+        self.create_task_instances(session, dag_id="example_task_group")
+        response = test_client.post(
+            "/dags/example_task_group/clearTaskInstances",
+            json={"dry_run": True, "dag_run_id": "TEST_DAG_RUN_ID", "task_group_id": "nonexistent_group"},
+        )
+        assert response.status_code == 404
+        assert "nonexistent_group" in response.json()["detail"]
+
+    def test_clear_rejects_both_task_ids_and_task_group_id(self, test_client, session):
+        """task_ids and task_group_id are mutually exclusive."""
+        self.create_task_instances(session, dag_id="example_task_group")
+        response = test_client.post(
+            "/dags/example_task_group/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "task_ids": ["section_1.task_1"],
+                "task_group_id": "section_1",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_clear_by_task_group_id_handles_group_larger_than_page_size(
+        self, test_client, dag_maker, session
+    ):
+        """A group with more tasks than the API page size is cleared in full (regression for #59235)."""
+        group_size = 60  # deliberately larger than the default 50-row page the UI used to cap at
+        dag_id = "large_task_group_dag"
+        with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True):
+            with TaskGroup("big_group"):
+                for index in range(group_size):
+                    BaseOperator(task_id=f"task_{index}")
+        dr = dag_maker.create_dagrun(
+            run_id="run_large_group",
+            logical_date=DEFAULT_DATETIME_1,
+            data_interval=(DEFAULT_DATETIME_1, DEFAULT_DATETIME_2),
+        )
+        DagBundlesManager().sync_bundles_to_db()
+        dagbag = DagBag(os.devnull)
+        dagbag.dags = {dag_id: dag_maker.dag}
+        sync_bag_to_db(dagbag, "dags-folder", None)
+        session.flush()
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": dr.run_id,
+                "task_group_id": "big_group",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == group_size
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):

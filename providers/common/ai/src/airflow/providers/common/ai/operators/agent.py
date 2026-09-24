@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
+import copy
 import json
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from datetime import timedelta
 from functools import cached_property
@@ -27,6 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 from pydantic_ai.capabilities import Toolset
+from pydantic_ai.toolsets.abstract import AbstractToolset
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
@@ -38,7 +40,7 @@ from airflow.providers.common.ai.observability import (
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
-from airflow.providers.common.ai.utils.toolsets import find_toolset
+from airflow.providers.common.ai.utils.toolsets import find_toolset, iter_toolsets
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
@@ -57,9 +59,9 @@ except ImportError:  # pragma: no cover - cores before the worker-side registrat
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    import jinja2
     from pydantic_ai import Agent
     from pydantic_ai.messages import ModelMessage
-    from pydantic_ai.toolsets.abstract import AbstractToolset
     from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
@@ -99,6 +101,18 @@ class HITLReviewLink(BaseOperatorLink):
             f"{base_path}/dags/{ti_key.dag_id}/runs/{ti_key.run_id}"
             f"/tasks/{ti_key.task_id}{mapped}/plugin/hitl-review"
         )
+
+
+def _is_concrete_toolset_capability(capability: Any) -> bool:
+    """Whether *capability* is a ``Toolset`` holding a toolset, not a callable factory resolved per run."""
+    return isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset)
+
+
+def _declares_agent_template_fields(toolset: Any) -> bool:
+    """Whether *toolset*, or a toolset it wraps or combines, has connection IDs to render."""
+    return isinstance(toolset, AbstractToolset) and any(
+        getattr(leaf, "agent_template_fields", None) for leaf in iter_toolsets(toolset)
+    )
 
 
 def _build_code_mode() -> Any:
@@ -162,7 +176,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
-        (e.g. ``SQLToolset``, ``HookToolset``).
+        (e.g. ``SQLToolset``, ``HookToolset``). The connection IDs of
+        ``SQLToolset``, ``MCPToolset`` and ``HookToolset`` (its hook's
+        ``conn_name_attr``) are templated, e.g.
+        ``SQLToolset(db_conn_id="warehouse_{{ var.value.environment }}")`` per
+        environment, or ``"tenant_{{ task.op_kwargs.customer }}"`` per map index of
+        a mapped ``@task.agent``. Each task instance renders its own copy and logs
+        the rendered toolset id; the toolset object in the Dag file is not
+        modified. Derive the connection ID from values the Dag controls rather than
+        ``params`` or ``dag_run.conf``, which whoever triggers the Dag controls.
     :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
         ``LoggingToolset`` that logs tool calls with timing at INFO level and
         arguments at DEBUG level. Set to ``False`` to disable.
@@ -393,7 +415,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         """
         candidates = list(self.toolsets or [])
         for capability in self.agent_params.get("capabilities") or ():
-            if isinstance(capability, Toolset) and not callable(capability.toolset):
+            if _is_concrete_toolset_capability(capability):
                 candidates.append(capability.toolset)
         if find_toolset(candidates, SandboxToolset) is None:
             return
@@ -408,6 +430,78 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             f"{flag} cannot be used with a SandboxToolset: {why}. "
             f"Drop {flag}, or move the sandbox work into its own task."
         )
+
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Context,
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
+    ) -> None:
+        super()._do_render_template_fields(parent, template_fields, context, jinja_env, seen_oids)
+        # Hooked here rather than in render_template_fields because a mapped task never calls
+        # that one -- MappedOperator renders through _do_render_template_fields on the unmapped task.
+        if parent is self:
+            self._render_toolsets(context, jinja_env, seen_oids)
+
+    def _render_toolsets(self, context: Context, jinja_env: jinja2.Environment, seen_oids: set[int]) -> None:
+        """
+        Render the connection IDs of toolsets that declare ``agent_template_fields``.
+
+        ``toolsets`` is not itself a template field: serializing it would put each
+        toolset's repr -- which for pydantic-ai's dataclass toolsets embeds function
+        addresses -- into the Dag hash and the rendered-fields view. Instead, each leaf
+        toolset that opts in (``SQLToolset``, ``MCPToolset``, ``HookToolset``) is
+        rendered here, found with pydantic-ai's ``visit_and_replace`` inside
+        ``.prefixed()`` / ``.filtered()`` wrappers, ``Toolset`` capabilities, and a
+        ``toolsets`` list passed through ``agent_params``. A ``Toolset`` capability
+        backed by a callable factory is resolved per run and is not rendered.
+
+        A rendered *copy* replaces the original, which is left untouched: mapped task
+        instances and ``dag.test()`` share one toolset object across runs in the same
+        process, and rendering it in place would hand one map index's connection to
+        the next. That is also why the opt-in is ``agent_template_fields`` and not
+        ``template_fields``: Airflow's templater renders any object carrying
+        ``template_fields`` in place wherever it sits inside another template field,
+        such as ``agent_params``.
+        """
+
+        def render(toolset: AbstractToolset[Any]) -> AbstractToolset[Any]:
+            fields = getattr(toolset, "agent_template_fields", None)
+            if not fields:
+                return toolset
+            rendered = copy.copy(toolset)
+            self._do_render_template_fields(rendered, fields, context, jinja_env, seen_oids)
+            # The rendered connection is recorded nowhere else, so this line is the audit trail
+            # of which connection this task instance's agent was given. @task.agent renders a
+            # second time, when the id no longer changes, so this logs once per task instance.
+            if rendered.id != toolset.id:
+                self.log.info("Rendered toolset %s", rendered.id)
+            return rendered
+
+        def render_all(toolsets: list[Any]) -> list[Any]:
+            # Leave anything without a templated leaf alone: rebuilding a wrapper via
+            # visit_and_replace breaks wrapper subclasses with their own __init__.
+            return [
+                toolset.visit_and_replace(render) if _declares_agent_template_fields(toolset) else toolset
+                for toolset in toolsets
+            ]
+
+        if self.toolsets:
+            self.toolsets = render_all(self.toolsets)
+        agent_params = dict(self.agent_params)
+        if agent_params.get("toolsets"):
+            agent_params["toolsets"] = render_all(agent_params["toolsets"])
+        if agent_params.get("capabilities"):
+            agent_params["capabilities"] = [
+                replace(capability, toolset=capability.toolset.visit_and_replace(render))
+                if _is_concrete_toolset_capability(capability)
+                and _declares_agent_template_fields(capability.toolset)
+                else capability
+                for capability in agent_params["capabilities"]
+            ]
+        self.agent_params = agent_params
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
@@ -469,18 +563,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         unchanged, as does a ``Toolset`` holding a callable factory rather than a
         concrete toolset (only a concrete toolset can be wrapped here).
         """
-        # pydantic-ai (and the pydantic-ai-importing CachingToolset) are imported
-        # lazily to keep them out of DAG-parse-time imports, matching
-        # ``_build_durable_toolsets`` and the rest of this module.
-        from pydantic_ai.toolsets.abstract import AbstractToolset
-
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 
         rewrapped: list[Any] = []
         for capability in capabilities:
             # ``Toolset.toolset`` can be a concrete toolset or a callable factory
             # resolved per run; only a concrete toolset can be wrapped here.
-            if isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset):
+            if _is_concrete_toolset_capability(capability):
                 cached = CachingToolset(wrapped=capability.toolset, storage=storage, counter=counter)
                 rewrapped.append(replace(capability, toolset=cached))
                 continue

@@ -430,7 +430,7 @@ def patch_dags(
 @dags_router.post(
     "/{dag_id}/favorite",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
 def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
@@ -440,6 +440,19 @@ def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Dag with id '{dag_id}' not found")
 
     user_id = str(user.get_id())
+
+    favorite_exists = session.execute(
+        select(DagFavorite)
+        .where(
+            DagFavorite.dag_id == dag_id,
+            DagFavorite.user_id == user_id,
+        )
+        .limit(1)
+    ).first()
+
+    if favorite_exists:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Dag is already marked as favorite")
+
     session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
 
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 from cadwyn import VersionChange, schema
 
 from airflow.sdk.api.datamodels._generated import TIRunContext
+from airflow.sdk.execution_time.comms import TaskState
 
 
 class AddArgBindingsToSupervisorTIRunContext(VersionChange):
@@ -34,3 +35,11 @@ class AddArgBindingsToSupervisorTIRunContext(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+
+
+class AddRetryReasonToTaskState(VersionChange):
+    """Add `retry_reason` to `TaskState`."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TaskState).field("retry_reason").didnt_exist,)

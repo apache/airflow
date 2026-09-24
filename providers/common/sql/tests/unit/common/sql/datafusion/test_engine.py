@@ -372,6 +372,28 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match=f"{unsupported_field!r} is not supported"):
             engine._get_credentials(mock_conn)
 
+    def test_get_credentials_gcs_reads_legacy_extra_prefixed_key_path(self):
+        """Older Airflow connection UIs wrote custom extra fields as
+        extra__google_cloud_platform__<field>; GoogleBaseHook still reads that spelling."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.extra_dejson = {"extra__google_cloud_platform__key_path": "/path/to/key.json"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"key_path": "/path/to/key.json"}
+        assert extra_config == {}
+
+    def test_get_credentials_gcs_rejects_legacy_extra_prefixed_unsupported_field(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.extra_dejson = {"extra__google_cloud_platform__impersonation_chain": "some-chain"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="'impersonation_chain' is not supported"):
+            engine._get_credentials(mock_conn)
+
     def test_get_credentials_unknown_type(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "dummy"

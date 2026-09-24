@@ -56,6 +56,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
     AddMultiTeamToTIRunContext,
+    AddTerminalStateRetryReasonField,
 )
 
 bundle = VersionBundle(
@@ -64,6 +65,7 @@ bundle = VersionBundle(
         "2026-10-30",
         AddArgBindingsToTIRunContext,
         AddCallbackRunEndpoint,
+        AddTerminalStateRetryReasonField,
         AddMultiTeamToTIRunContext,
     ),
     Version(

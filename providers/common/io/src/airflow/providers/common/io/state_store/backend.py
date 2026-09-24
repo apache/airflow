@@ -33,9 +33,11 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.state import StoreScope
+
 
 from airflow.sdk import ObjectStoragePath
-from airflow.sdk._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
+from airflow.sdk.state import AssetScope, BaseStoreBackend, TaskScope
 
 SECTION = "common.io"
 
