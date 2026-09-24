@@ -415,7 +415,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,fab-oauth,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-akeyless>=0.1.0",
@@ -545,13 +545,14 @@ apache-airflow = "airflow.__main__:main"
     # tracked at https://github.com/apache/airflow/issues/70084
     "cloudpickle>=2.2.1,<3.1.2",
 ]
+"fab-oauth" = [
+    "apache-airflow-providers-fab[oauth]",
+]
 "github-enterprise" = [
-    "apache-airflow-providers-fab>=2.2.0",
-    "authlib>=1.0.0",
+    "apache-airflow-providers-fab[oauth]",
 ]
 "google-auth" = [
-    "apache-airflow-providers-fab>=2.2.0",
-    "authlib>=1.0.0",
+    "apache-airflow-providers-fab[oauth]",
 ]
 "ldap" = [
     "python-ldap>=3.4.4",
@@ -1451,8 +1452,15 @@ no-build-isolation-package = ["sphinx-redoc"]
 # (pip ignores extra-gated requirements, but not llama-index's unconditional cap). pydantic-ai's
 # OpenAI model works against openai 2.x at runtime; the declared floor tracks the SDK's httpx2
 # move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
-# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and both allow openai 3.
+# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and google-cloud-aiplatform
+# lifts its litellm cap (<1.86 below Python 3.14) far enough to reach the fixed litellm.
 override-dependencies = ["openai>=2.47.0,<3"]
+# The override replaces every package's openai requirement, not only pydantic-ai-slim's, so the
+# resolver no longer rejects a release that needs openai>=3 unconditionally, and only `pip check`
+# in the image build catches it. Cap each such package here at its last openai 2.x release, which
+# is what the resolver would pick without the override. azure-ai-projects 2.5.0 moved to
+# openai>=3.0.0; the Azure provider needs >=2.2.0.
+constraint-dependencies = ["azure-ai-projects<2.5"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 

@@ -35,7 +35,7 @@ from operator import attrgetter
 from random import randint
 from textwrap import dedent
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_args, get_type_hints
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -1091,6 +1091,9 @@ class TestWatchedSubprocess:
                 False,
                 id="no_terminal_state",
             ),
+            pytest.param(None, None, 10, False, id="execution_still_running"),
+            pytest.param(None, 9.0, 10, True, id="finalization_without_reported_state"),
+            pytest.param(None, 0.0, 10, True, id="finalization_started_at_zero"),
             pytest.param(TaskInstanceState.SUCCESS, 15.0, 10, False, id="below_threshold"),
             pytest.param(TaskInstanceState.SUCCESS, 9.0, 10, True, id="above_threshold"),
             pytest.param(TaskInstanceState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
@@ -2643,7 +2646,7 @@ REQUEST_TEST_CASES = [
         test_id="validate_inlets_and_outlets",
     ),
     RequestTestCase(
-        message=GetPrevSuccessfulDagRun(ti_id=TI_ID),
+        message=GetPrevSuccessfulDagRun(ti_id=uuid7()),
         expected_body={
             "data_interval_start": timezone.parse("2025-01-10T12:00:00Z"),
             "data_interval_end": timezone.parse("2025-01-10T14:00:00Z"),
@@ -3330,20 +3333,256 @@ REQUEST_TEST_CASES = [
 
 
 class TestHandleRequest:
-    @pytest.fixture
-    def watched_subprocess(self, mocker):
-        read_end, write_end = socket.socketpair()
+    @pytest.mark.parametrize("arrival", ["during_kill", "after_kill"])
+    @pytest.mark.parametrize(
+        ("msg", "api_method"),
+        [
+            (TaskState(state=TaskInstanceState.FAILED), "finish"),
+            (SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")), "succeed"),
+            (RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")), "retry"),
+            (DeferTask(next_method="execute_complete", classpath="test.Trigger", trigger_kwargs={}), "defer"),
+            (
+                RescheduleTask(
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    reschedule_date=timezone.parse("2024-10-31T12:01:00Z"),
+                ),
+                "reschedule",
+            ),
+            (AwaitInputTask(next_method="execute_complete"), "await_input"),
+        ],
+    )
+    def test_server_termination_ignores_late_outcome(
+        self, watched_subprocess, mocker, arrival, msg, api_method
+    ):
+        process, _ = watched_subprocess
+        process._handle_request(TaskState(state=TaskInstanceState.FAILED), structlog.get_logger(), req_id=1)
+        process.client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
+            httpx.Response(
+                409,
+                request=httpx.Request("PUT", "http://server/heartbeat"),
+                json={"detail": "already stopped"},
+            )
+        )
+        observed_at_kill = []
 
-        subprocess = ActivitySubprocess(
-            process_log=mocker.MagicMock(),
+        def terminate(self, signal_to_send, force):
+            observed_at_kill.append((self._terminal_state, self._pending_terminal_state_msg))
+            if arrival == "during_kill":
+                self._handle_request(msg, structlog.get_logger(), req_id=2)
+            self._exit_code = -signal.SIGTERM
+
+        mocker.patch.object(ActivitySubprocess, "kill", autospec=True, side_effect=terminate)
+        process._should_retry = True
+
+        process._send_heartbeat_if_needed()
+        if arrival == "after_kill":
+            process._handle_request(msg, structlog.get_logger(), req_id=2)
+        process.update_task_state_if_needed()
+
+        assert observed_at_kill == [(supervisor.SERVER_TERMINATED, None)]
+        assert process.final_state == supervisor.SERVER_TERMINATED
+        assert process._pending_terminal_state_msg is None
+        getattr(process.client.task_instances, api_method).assert_not_called()
+        process.client.task_instances.finish.assert_not_called()
+
+    @pytest.mark.parametrize("exit_code", [0, -signal.SIGTERM])
+    def test_server_termination_cancels_pending_report(self, watched_subprocess, exit_code):
+        process, _ = watched_subprocess
+        process._handle_request(TaskState(state=TaskInstanceState.FAILED), structlog.get_logger(), req_id=1)
+        process._terminal_state = supervisor.SERVER_TERMINATED
+        process._exit_code = exit_code
+
+        process._send_heartbeat_if_needed()
+        process.update_task_state_if_needed()
+
+        process.client.task_instances.heartbeat.assert_not_called()
+        process.client.task_instances.finish.assert_not_called()
+        assert process._pending_terminal_state_msg is None
+        assert process.final_state == supervisor.SERVER_TERMINATED
+
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.FAILED, TaskInstanceState.SKIPPED, TaskInstanceState.REMOVED]
+    )
+    @pytest.mark.parametrize("exit_code", [0, 1, -signal.SIGTERM])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    @pytest.mark.parametrize("end_date", [None, timezone.parse("2024-10-31T12:00:00Z")])
+    def test_task_state_waits_for_exit_and_keeps_heartbeating(
+        self, watched_subprocess, time_machine, state, exit_code, should_retry, end_date
+    ):
+        process, _ = watched_subprocess
+        process._should_retry = should_retry
+        msg = TaskState(state=state, rendered_map_index="label", end_date=end_date)
+
+        process._handle_request(msg, structlog.get_logger(), req_id=1)
+
+        assert process._terminal_state == state
+        assert process._pending_terminal_state_msg is msg
+        process.client.task_instances.finish.assert_not_called()
+        process._send_heartbeat_if_needed()
+        process.client.task_instances.heartbeat.assert_called_once()
+        process._exit_code = exit_code
+        report_time = timezone.parse("2024-10-31T12:01:00Z")
+        time_machine.move_to(report_time, tick=False)
+        process.update_task_state_if_needed()
+
+        assert process.client.task_instances.finish.call_args.kwargs["state"] == state
+        assert process.client.task_instances.finish.call_args.kwargs["when"] == (end_date or report_time)
+        assert process.client.task_instances.finish.call_args.kwargs["rendered_map_index"] == "label"
+        assert process._pending_terminal_state_msg is None
+
+    def test_failed_finish_retains_pending_report(self, watched_subprocess, mocker):
+        process, _ = watched_subprocess
+        msg = TaskState(state=TaskInstanceState.FAILED)
+        process._handle_request(msg, structlog.get_logger(), req_id=1)
+        process._exit_code = 0
+        process.client.task_instances.finish = mocker.Mock(
+            spec=sdk_client.TaskInstanceOperations.finish,
+            side_effect=httpx.ConnectError("connection refused"),
+        )
+
+        with pytest.raises(httpx.ConnectError):
+            process.update_task_state_if_needed()
+
+        assert process._terminal_state == TaskInstanceState.FAILED
+        assert process._pending_terminal_state_msg is msg
+
+    class _OverrideActivitySubprocess(ActivitySubprocess):
+        def _handle_set_rendered_map_index(
+            self, msg: SetRenderedMapIndex, log: FilteringBoundLogger, req_id: int
+        ) -> supervisor.RequestResult:
+            return OKResponse(ok=True), {}
+
+    @patch.object(
+        ActivitySubprocess, "_handle_set_rendered_map_index", autospec=True, return_value=(None, {})
+    )
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    def test_dispatch_resolves_patched_method(self, send_msg, handler, watched_subprocess):
+        process, _ = watched_subprocess
+        msg = SetRenderedMapIndex(rendered_map_index="label")
+        log = structlog.get_logger()
+
+        process._handle_request(msg, log, req_id=42)
+
+        handler.assert_called_once_with(process, msg, log, 42)
+        send_msg.assert_called_once_with(process, None, request_id=42, error=None)
+        assert not process.client.mock_calls
+
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize("watched_subprocess", [_OverrideActivitySubprocess], indirect=True)
+    def test_dispatch_resolves_subclass_override(self, send_msg, watched_subprocess):
+        process, _ = watched_subprocess
+
+        process._handle_request(
+            SetRenderedMapIndex(rendered_map_index="label"), structlog.get_logger(), req_id=42
+        )
+
+        send_msg.assert_called_once_with(process, OKResponse(ok=True), request_id=42, error=None)
+        assert not process.client.mock_calls
+
+    @patch.object(ActivitySubprocess, "_handle_set_rendered_map_index", autospec=True, return_value=None)
+    def test_missing_handler_result_sends_error(self, handler, watched_subprocess, mocker):
+        process, read_socket = watched_subprocess
+        generator = process.handle_requests(log=mocker.Mock(spec=FilteringBoundLogger))
+        next(generator)
+
+        msg = SetRenderedMapIndex(rendered_map_index="label")
+        generator.send(_RequestFrame(id=42, body=msg.model_dump()))
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+        assert frame.id == 42
+        assert frame.error is not None
+        assert frame.error["error"] == ErrorType.API_SERVER_ERROR.value
+        assert frame.error["detail"]["exception_type"] == "TypeError"
+        handler.assert_called_once()
+
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize("registry", [None, {}], ids=["undeclared", "empty"])
+    def test_undeclared_registry_is_distinct_from_empty_registry(
+        self, send_msg, watched_subprocess, monkeypatch, registry
+    ):
+        process, _ = watched_subprocess
+        monkeypatch.setattr(ActivitySubprocess, "_request_handlers", registry)
+        msg = GetVariable(key="key")
+
+        if registry is None:
+            with pytest.raises(NotImplementedError, match="must declare its request handlers"):
+                process._handle_request(msg, structlog.get_logger(), req_id=42)
+            send_msg.assert_not_called()
+        else:
+            process._handle_request(msg, structlog.get_logger(), req_id=42)
+            send_msg.assert_called_once_with(
+                process,
+                None,
+                request_id=42,
+                error=ErrorResponse(
+                    error=ErrorType.API_SERVER_ERROR,
+                    detail={"status_code": 400, "message": "Unhandled request"},
+                ),
+            )
+
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize(
+        "message",
+        [
+            GetHITLDetailResponse(ti_id=TI_ID),
+            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]),
+        ],
+    )
+    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess, message):
+        process, _ = watched_subprocess
+        process._handle_request(message, structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(
+            process,
+            None,
+            request_id=42,
+            error=ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={"status_code": 400, "message": "Unhandled request"},
+            ),
+        )
+        assert not process.client.mock_calls
+
+    @patch.object(ActivitySubprocess, "_send_new_log_fd", autospec=True)
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    @pytest.mark.parametrize("fd_supported", [True, False])
+    def test_resend_logging_fd_sends_one_response(
+        self, send_msg, send_new_log_fd, watched_subprocess, monkeypatch, fd_supported
+    ):
+        process, _ = watched_subprocess
+        monkeypatch.setattr(supervisor, "send_fds", object() if fd_supported else None)
+
+        process._handle_request(ResendLoggingFD(), structlog.get_logger(), req_id=42)
+
+        if fd_supported:
+            send_new_log_fd.assert_called_once_with(process, 42)
+            send_msg.assert_not_called()
+        else:
+            send_new_log_fd.assert_not_called()
+            send_msg.assert_called_once_with(process, None, request_id=42, error=None)
+
+    @pytest.fixture
+    def watched_subprocess(self, mocker, request):
+        read_end, write_end = socket.socketpair()
+        process_type = getattr(request, "param", ActivitySubprocess)
+
+        subprocess = process_type(
+            process_log=mocker.MagicMock(spec=FilteringBoundLogger),
             id=TI_ID,
             pid=12345,
             stdin=write_end,
-            client=mocker.Mock(),
-            process=mocker.Mock(),
+            client=mocker.Mock(spec=sdk_client.Client),
+            process=mocker.Mock(spec=psutil.Process),
         )
 
-        return subprocess, read_end
+        try:
+            yield subprocess, read_end
+        finally:
+            subprocess.selector.close()
+            read_end.close()
+            write_end.close()
 
     @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
     @pytest.mark.parametrize("test_case", REQUEST_TEST_CASES, ids=lambda tc: tc.test_id)
@@ -3416,31 +3655,10 @@ class TestHandleRequest:
             decoder = CommsDecoder(socket=None).body_decoder  # type: ignore[var-annotated, arg-type]
             assert decoder.validate_python(frame.body) == client_mock.response
 
-    def test_all_to_supervisor_messages_are_covered(self):
-        """Ensure all ToSupervisor message types have test coverage."""
-
-        # Extract the individual message types from the Union
-        union_type = ToSupervisor.__args__[0]
-        supervisor_message_types = set(union_type.__args__)
-
-        # Get all message types covered in our test cases
-        tested_message_types = {type(test_case.message) for test_case in REQUEST_TEST_CASES}
-
-        # Message types which are excluded for a good reason
-        excluded_message_types = {
-            GetHITLDetailResponse,  # Only used in Triggerer, not needed in worker
-            UpdateHITLDetail,  # Only used in Triggerer, not needed in worker
-        }
-
-        untested_types = supervisor_message_types - tested_message_types - excluded_message_types
-
-        # Assert all types are covered
-        assert not untested_types, (
-            f"Missing test coverage for {len(untested_types)}/{len(supervisor_message_types)} "
-            f"ToSupervisor message types:\n"
-            + "\n".join(f"  - {t.__name__}" for t in sorted(untested_types, key=lambda x: x.__name__))
-            + "\n\nPlease add test cases to REQUEST_TEST_CASES."
-        )
+    def test_registered_message_types(self):
+        expected = set(get_args(get_args(ToSupervisor)[0])) - {GetHITLDetailResponse, UpdateHITLDetail}
+        assert set(ActivitySubprocess._request_handlers) == expected
+        assert {type(case.message) for case in REQUEST_TEST_CASES} == expected
 
     def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
         """Test that API server errors are properly handled and sent back to the task."""
@@ -3609,32 +3827,35 @@ class TestHandleRequest:
                 TaskInstanceState.UP_FOR_RESCHEDULE,
                 id="reschedule",
             ),
+            pytest.param(
+                AwaitInputTask(next_method="execute_complete"),
+                "await_input",
+                TaskInstanceState.AWAITING_INPUT,
+                id="await_input",
+            ),
         ],
     )
-    def test_terminal_state_not_set_when_direct_api_fails(
+    def test_worker_outcome_retained_when_direct_api_fails(
         self, watched_subprocess, mocker, msg, api_method, expected_state
     ):
-        """`_terminal_state` must NOT be set when the dedicated terminal-state
-        API raises.
-
-        The original message is captured in `_pending_terminal_state_msg`
-        BEFORE the API call so the recovery dispatcher in
-        `update_task_state_if_needed` can re-issue it on subprocess exit.
-        Covers all four terminal-state message types.
-        """
         watched_subprocess, _ = watched_subprocess
         setattr(
             watched_subprocess.client.task_instances,
             api_method,
-            mocker.Mock(side_effect=httpx.ConnectError("connection refused")),
+            mocker.Mock(
+                spec=getattr(sdk_client.TaskInstanceOperations, api_method),
+                side_effect=httpx.ConnectError("connection refused"),
+            ),
         )
 
         with pytest.raises(httpx.ConnectError):
-            watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
+            watched_subprocess._handle_request(msg, structlog.get_logger(), req_id=1)
 
-        assert watched_subprocess._terminal_state is None
+        assert watched_subprocess._terminal_state == expected_state
         # Pending msg preserved so the recovery dispatcher can re-issue.
         assert watched_subprocess._pending_terminal_state_msg is msg
+        watched_subprocess._send_heartbeat_if_needed()
+        watched_subprocess.client.task_instances.heartbeat.assert_called_once()
 
     @pytest.mark.parametrize(
         ("msg", "api_method", "expected_state"),
@@ -3670,6 +3891,12 @@ class TestHandleRequest:
                 TaskInstanceState.UP_FOR_RESCHEDULE,
                 id="reschedule",
             ),
+            pytest.param(
+                AwaitInputTask(next_method="execute_complete"),
+                "await_input",
+                TaskInstanceState.AWAITING_INPUT,
+                id="await_input",
+            ),
         ],
     )
     def test_update_task_state_replays_pending_terminal_state_call(
@@ -3678,7 +3905,7 @@ class TestHandleRequest:
         """If a direct terminal-state API call was attempted and raised, the
         recovery dispatcher must re-issue the dedicated endpoint (not
         `finish()`, which the server-side endpoint refuses for SUCCESS /
-        DEFERRED / SERVER_TERMINATED). Covers all four message types.
+        DEFERRED / SERVER_TERMINATED).
         """
         watched_subprocess, _ = watched_subprocess
         watched_subprocess._exit_code = 0
@@ -3727,6 +3954,24 @@ class TestHandleRequest:
             rendered_map_index=None,
             retry_reason="auth error, do not retry",
         )
+
+
+@pytest.mark.parametrize(
+    "test_name",
+    [
+        "test_worker_outcome_retained_when_direct_api_fails",
+        "test_update_task_state_replays_pending_terminal_state_call",
+    ],
+)
+def test_terminal_message_parameter_coverage(test_name):
+    marks = getattr(TestHandleRequest, test_name).pytestmark
+    cases = next(mark.args[1] for mark in marks if mark.name == "parametrize")
+    message_types = set(get_args(get_type_hints(ActivitySubprocess._send_terminal_state_msg)["msg"]))
+    assert {type(case.values[0]) for case in cases} == message_types - {TaskState}
+
+    marks = TestHandleRequest.test_task_state_waits_for_exit_and_keeps_heartbeating.pytestmark
+    states = next(mark.args[1] for mark in marks if mark.name == "parametrize" and mark.args[0] == "state")
+    assert set(states) == set(get_args(TaskState.model_fields["state"].annotation))
 
 
 class TestSetSupervisorComms:

@@ -50,7 +50,7 @@ model a disposable workspace for that code instead. It exposes four tools:
 
 The sandbox is provisioned by a
 :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` on the model's first
-tool call and destroyed when the agent run ends. Two backends ship: a hosted one on
+tool call and torn down when the agent run ends. Two backends ship: a hosted one on
 `Modal <https://modal.com/docs/guide/sandbox>`__ for production and Kubernetes,
 and a local microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__
 for development. The four tool names and shapes match pydantic-ai's own sandbox
@@ -237,6 +237,52 @@ fold into ``run_code`` as callables the generated code can loop over, and
 written as a shell command rather than quoted inside generated Python. Both paths
 reach the same sandbox: there is one per agent run whichever way a call arrives.
 
+.. _sandbox-substrates:
+
+What enforces the boundary
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Swapping ``SbxSandboxBackend`` for ``ModalSandboxBackend`` changes how the tool-call
+boundary is enforced and leaves its contents alone: the same four tools run in the
+sandbox, and every other toolset stays on the worker.
+
+.. list-table::
+   :widths: 20 28 26 26
+   :header-rows: 1
+
+   * - Enforced by
+     - Isolation
+     - Where the code runs
+     - If the worker dies
+   * - Monty, under :ref:`code mode <code-mode>`
+     - Language-level confinement. The worker subprocess isolates a crash but is
+       not an OS security boundary.
+     - A subprocess on the worker host. Every tool the generated code calls runs
+       in the task process.
+     - Nothing remote to reclaim. The subprocess lives on the worker host
+       beside the task.
+   * - A container on the worker host (no shipped backend; one you write)
+     - Namespaces over the host's shared kernel.
+     - The worker host.
+     - Up to the backend. Without its own expiry or reaper, the container stays
+       until someone removes it.
+   * - ``SbxSandboxBackend``
+     - A microVM with its own kernel.
+     - The worker host.
+     - Left running. No server-side lifetime, so the microVM and its workspace
+       directory survive.
+   * - ``ModalSandboxBackend``
+     - Modal's container runtime, which Modal documents as gVisor.
+     - Modal's infrastructure, off the worker.
+     - Ended by Modal at ``sandbox_timeout``, or ``idle_timeout`` if set.
+
+When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
+removal command and waits up to two minutes for it; Modal sends a termination
+request and returns without waiting for the sandbox to stop. Either can return with
+the sandbox still present, and neither case fails the task. A SIGKILL, an
+out-of-memory kill or a lost node skips that teardown entirely, and then only the
+last column applies.
+
 Why not ``KubernetesPodOperator`` or the ``KubernetesExecutor``?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -297,16 +343,16 @@ other toolset route answers "call this thing"; this one answers "here is
 somewhere to work". This page has the worked scenarios above and
 the limitations below to read before designing a Dag around it.
 
-Before reaching for it, check whether the actual need is narrower than that:
-``code_mode=True`` is a flag on ``AgentOperator``, not a toolset. It changes
-how the model invokes the tools it already has, letting it write
-code to call several of them instead of emitting one call per step. It does not
-give the agent somewhere to run arbitrary code of its own, and it avoids the
-``sbx`` backend's production-readiness, network-isolation, and reclamation
-caveats on :doc:`backends` and needs no backend at all, but not the reachability one: the generated code runs in
-Monty's deny-by-default sandbox, but the tools it calls still run in the
-worker, so a credential-bearing toolset on the same agent stays within reach
-whether or not code mode is on. See :ref:`code-mode` and
+Before reaching for it, check whether the actual need is narrower than that.
+``code_mode=True`` is a flag on ``AgentOperator``. It changes how the
+model invokes the tools it already has, letting it write code that calls several
+of them instead of emitting one call per step. It does not give the agent somewhere
+to run arbitrary code of its own. Because it needs no backend, it avoids the
+production-readiness, network-isolation and reclamation caveats of the ``sbx``
+backend on :doc:`backends`. It does not change what the agent can reach: the
+generated code runs in Monty's deny-by-default sandbox, but the tools it calls
+still run in the worker, so a credential-bearing toolset on the same agent stays
+within reach whether or not code mode is on. See :ref:`code-mode` and
 :ref:`sandbox-boundaries`.
 
 **What it cannot do**
@@ -418,6 +464,66 @@ capability toolset, which lets the model *use* a connection without ever holding
 it, over a credential in ``SandboxSpec.env``, which the model can read. And treat
 a table allowlist as a guardrail that contains intent rather than a boundary that
 contains access.
+
+Isolation is one of several controls an agent needs, and each has a limit:
+
+.. list-table::
+   :widths: 20 25 27 28
+   :header-rows: 1
+
+   * - Protection
+     - Question it answers
+     - Where it stops
+     - What provides it
+   * - Tool selection and argument checks
+     - Which actions can the model request?
+     - An allowed action can still be harmful.
+     - The toolsets you register, ``allowed_methods`` on ``HookToolset``,
+       ``allowed_tables`` on ``SQLToolset``.
+   * - Restricted interpreter
+     - What can generated glue execute directly?
+     - Tools it calls keep their full authority.
+     - :ref:`Code mode <code-mode>`.
+   * - Process, container or sandbox isolation
+     - Which filesystem, processes and host resources can code reach?
+     - A credential injected into the sandbox is readable inside it.
+     - ``SandboxToolset``; for the whole task, ``KubernetesExecutor`` from the
+       ``cncf.kubernetes`` provider.
+   * - Identity and entitlement
+     - Which data and operations may this workload use?
+     - Hiding a password does not remove the power to use it.
+     - Least-privilege roles on the connections you pass. Nothing in this
+       provider enforces them.
+   * - Network policy
+     - Which destinations can each component contact?
+     - A sandbox's egress policy does not govern worker-side tools or model
+       requests.
+     - ``SandboxSpec`` network fields, for the sandbox only.
+   * - Approval
+     - Which effects need sign-off before they happen?
+     - Reviewing the final answer does not undo writes made during the run.
+     - Keep writes out of the agent and gate the task that makes them.
+       ``AgentOperator`` refuses ``enable_hitl_review`` beside a
+       ``SandboxToolset`` it can inspect; see :ref:`Lifecycle <sandbox-lifecycle>`.
+   * - Deadlines, resource limits, cleanup
+     - What bounds runaway work and orphaned resources?
+     - A resource request or a cost report is not an enforced ceiling.
+     - Command timeouts, ``sandbox_timeout``, ``usage_limits``.
+   * - Audit
+     - Can you establish what happened afterwards?
+     - A record does not prevent the action.
+     - :doc:`LoggingToolset <../toolsets/logging>` and
+       :doc:`tracing <../observability>`.
+
+A sandbox with no egress can still leak data. A secret printed inside comes back
+through the tool result to the worker and the model's context, and from there it
+can reach the agent's output, its message history and any traces you record.
+Keeping a credential out of the prompt does not limit its use either. A
+``SQLToolset`` never shows the model its password, yet every query the toolset lets
+through runs with the connection's grants. Its read-only default and
+``allowed_tables`` narrow what reaches the database; the connection's role sets the
+limit.
+:ref:`toolset-defense-layers` covers the same controls toolset by toolset.
 
 What the sandbox does contain, verified against a live worker environment carrying
 sentinel credentials: nothing Airflow-shaped reaches it. No connection, variable,

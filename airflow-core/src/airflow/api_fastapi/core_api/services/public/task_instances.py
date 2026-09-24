@@ -180,6 +180,16 @@ def _patch_ti_validate_request(
     return dag, list(tis), data
 
 
+def _get_task_group_task_ids(dag_id: str, task_group_id: str, dag: SerializedDAG) -> list[str]:
+    """Return the ids of every task in a task group, resolved from the dag structure."""
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
+        )
+    return [task.task_id for task in task_group.iter_tasks()]
+
+
 def _get_task_group_task_instances(
     dag_id: str,
     dag_run_id: str,
@@ -188,13 +198,7 @@ def _get_task_group_task_instances(
     session: Session,
 ) -> list[TI]:
     """Get all task instances in a task group for a specific DAG run."""
-    task_group = dag.task_group_dict.get(task_group_id)
-    if not task_group:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
-        )
-
-    task_ids = [task.task_id for task in task_group.iter_tasks()]
+    task_ids = _get_task_group_task_ids(dag_id, task_group_id, dag)
 
     query = (
         select(TI)

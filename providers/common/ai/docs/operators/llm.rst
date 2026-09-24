@@ -134,7 +134,9 @@ Common knobs on ``UsageLimits``:
   alone still inherits the ``request_limit=50`` default; see the ``request_limit`` note
   above. Note that ``cost_limit`` only caps the operator's own LLM calls --
   the meta-agent that ``LLMRetryPolicy`` runs to classify a failed task is a separate,
-  uncapped LLM call; see :doc:`../retry_policies`.
+  uncapped LLM call; see :doc:`../retry_policies`. It counts model spend only, so
+  compute billed by a ``SandboxToolset`` backend is outside it; see
+  :ref:`sandbox-cost`.
 
 When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
 propagates to Airflow as a task failure, so Airflow's standard retry policy

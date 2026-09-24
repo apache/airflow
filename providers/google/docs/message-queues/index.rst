@@ -32,9 +32,27 @@ The Google Cloud Pub/Sub Queue Provider is a message queue provider that uses Go
 It allows you to send and receive messages using Cloud Pub/Sub in your Airflow workflows
 with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
-.. include:: /../src/airflow/providers/google/event_scheduling/events/pubsub.py
-    :start-after: [START pubsub_message_queue_provider_description]
-    :end-before: [END pubsub_message_queue_provider_description]
+* It uses ``google+pubsub`` as the scheme for identifying the provider.
+* For parameter definitions, take a look at :class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger`.
+
+.. code-block:: python
+
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+    from airflow.sdk import Asset, AssetWatcher
+
+    trigger = MessageQueueTrigger(
+        scheme="google+pubsub",
+        # Additional PubsubPullTrigger parameters as needed
+        project_id="my_project",
+        subscription="my_subscription",
+        ack_messages=True,
+        max_messages=1,
+        gcp_conn_id="google_cloud_default",
+        poke_interval=60.0,
+        return_immediately=False,
+    )
+
+    asset = Asset("pubsub_queue_asset", watchers=[AssetWatcher(name="pubsub_watcher", trigger=trigger)])
 
 Pub/Sub Message Queue Trigger
 -----------------------------

@@ -86,10 +86,100 @@ fall back to ``schema``, and table-name matching is case-insensitive (databases
 reflect identifiers in their own case). For tables in a different *database*, use
 a separate toolset whose connection points at that database.
 
+.. _sql-toolset-templated-connection:
+
+Templated connection IDs
+------------------------
+
+``db_conn_id`` is a Jinja template, rendered for each task instance just before it
+runs, so one toolset definition can reach a different database depending on where
+and for what the task runs:
+
+- **Per environment.** The same Dag reads the staging warehouse in staging and the
+  production one in production, with the environment name kept in a Variable:
+  ``SQLToolset(db_conn_id="warehouse_{{ var.value.environment }}")``.
+- **Per unit of work.** A mapped task gives each map index its own connection --
+  one per customer, region, or shard -- as in the example below.
+
+Each task instance renders its own copy of the toolset, so the object in the Dag
+file keeps its template and no rendered connection carries over to another task
+instance. The task log records which connection each instance got, as a
+``Rendered toolset sql-warehouse_prod`` line. A toolset wrapped with
+``.prefixed()`` or ``.filtered()``, passed as a ``Toolset`` capability, or passed
+in ``agent_params["toolsets"]`` is rendered the same way. A ``Toolset``
+capability built from a callable is resolved when the run starts and is not
+rendered. ``MCPToolset.mcp_conn_id`` and ``HookToolset``'s hook connection ID are
+templated the same way (see :ref:`hook-toolset-templated-connection`).
+
+.. warning::
+
+    Build the connection ID from values the Dag controls -- a Variable, upstream
+    task output -- not from ``params`` or ``dag_run.conf``. Whoever triggers the Dag
+    controls those, and a task can read any connection it names, so a templated
+    ``db_conn_id`` taken from trigger input lets the trigger pick the database.
+
+Only the connection ID is templated. ``allowed_tables`` is validated when the
+toolset is created, so a template in it stays a literal table name.
+``DataFusionToolset`` takes data source configs and is not templated.
+
+One connection per customer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Customer-facing analytics must only ever read one customer's rows. The boundary
+that holds is the database's own: a role or database per customer, reached
+through its own Airflow connection. A mapped agent task can give each customer's
+task instance that customer's connection:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+    from airflow.sdk import dag, task
+
+
+    @dag
+    def customer_reports():
+        @task
+        def customers() -> list[str]:
+            return ["acme", "globex"]
+
+        @task.agent(
+            llm_conn_id="pydanticai_default",
+            toolsets=[SQLToolset(db_conn_id="analytics_{{ task.op_kwargs.customer }}")],
+        )
+        def report(customer: str) -> str:
+            return f"Summarize this month's orders for {customer}."
+
+        report.expand(customer=customers())
+
+
+    customer_reports()
+
+The ``acme`` task instance queries through ``analytics_acme`` and the ``globex``
+one through ``analytics_globex``. Write ``{{ task.op_kwargs.customer }}``, not
+``{{ customer }}``: the task's arguments are not template variables, and the
+undefined name fails the task.
+
+``AgentOperator`` mapped over prompts has no customer argument to read, so the
+connection has to come from the map index. That works when the prompts are built
+from the same list, in the same order, as the one the template indexes:
+
+.. code-block:: python
+
+    names = customers()
+    AgentOperator.partial(
+        task_id="report",
+        llm_conn_id="pydanticai_default",
+        toolsets=[SQLToolset(db_conn_id="analytics_{{ ti.xcom_pull(task_ids='customers')[ti.map_index] }}")],
+    ).expand(prompt=names.map(lambda name: f"Summarize this month's orders for {name}."))
+
+Prefer ``@task.agent`` where you can: ``task.op_kwargs`` names the customer
+directly instead of relying on the two lists lining up.
+
 Parameters
 ----------
 
-- ``db_conn_id``: Airflow connection ID for the database.
+- ``db_conn_id``: Airflow connection ID for the database. Templated (see
+  :ref:`sql-toolset-templated-connection`).
 - ``allowed_tables``: Restrict the agent to a fixed set of tables. Omit the
   argument (the default) to expose all tables in ``schema``. No value means
   allow-all: ``None`` and an empty list both raise ``ValueError``, so an allow-list
