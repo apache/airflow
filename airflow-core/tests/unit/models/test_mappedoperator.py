@@ -1852,6 +1852,7 @@ def test_batched_ti_count_is_batch_size_regardless_of_items(dag_maker, session, 
     assert get_mapped_ti_count(task, dr.run_id, session=session) == batch_size
 
 
+@pytest.mark.parametrize("serialized", [True, False], ids=["serialized", "unserialized"])
 @pytest.mark.parametrize(
     ("length", "expected"),
     [
@@ -1860,15 +1861,18 @@ def test_batched_ti_count_is_batch_size_regardless_of_items(dag_maker, session, 
         pytest.param(0, None, id="zero-is-unusable"),
     ],
 )
-def test_runtime_batch_size_counts_from_task_map(dag_maker, session, length, expected):
+def test_runtime_batch_size_counts_from_task_map(dag_maker, session, length, expected, serialized):
     """``.batch(size=<XComArg>)``: the scheduler never reads the XCom, it counts instances from the
     task_map row the size task's push leaves behind, cannot count before that row exists, and does
-    not trust a row below 2 (the worker never writes one)."""
+    not trust a row below 2 (the worker never writes one). An unserialized operator, as tests and
+    direct callers hand over, counts the same way instead of erroring."""
     from airflow.models.expandinput import NotFullyPopulated
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
-    with dag_maker(dag_id=f"test_runtime_batch_size_{length}", session=session, serialized=True) as dag:
+    with dag_maker(
+        dag_id=f"test_runtime_batch_size_{length}_{serialized}", session=session, serialized=serialized
+    ) as dag:
         size = BaseOperator(task_id="size")
         MockOperator.partial(task_id="task").batch(size=XComArg(size)).iterate(arg1=[1, 2, 3])
 
@@ -1877,9 +1881,10 @@ def test_runtime_batch_size_counts_from_task_map(dag_maker, session, length, exp
 
     assert "size" in task.upstream_task_ids
     assert list(task.iter_mapped_dependencies()) == []
-    with pytest.raises(NotFullyPopulated) as ctx:
-        task.get_parse_time_mapped_ti_count()
-    assert ctx.value.missing == {"size"}
+    if serialized:  # the parse-time count is scheduler-side only
+        with pytest.raises(NotFullyPopulated) as ctx:
+            task.get_parse_time_mapped_ti_count()
+        assert ctx.value.missing == {"size"}
     with pytest.raises(NotFullyPopulated) as ctx:
         get_mapped_ti_count(task, dr.run_id, session=session)
     assert ctx.value.missing == {"size"}
