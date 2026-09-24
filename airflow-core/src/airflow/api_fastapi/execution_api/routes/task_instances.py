@@ -314,6 +314,7 @@ def ti_run(
             connections=[],
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
+            multi_team=conf.getboolean("core", "multi_team"),
         )
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
@@ -671,6 +672,8 @@ def _create_ti_state_update_query_and_update_state(
 
         if updated_state == TaskInstanceState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload
+            if isinstance(ti_patch_payload, TITerminalStatePayload) and ti_patch_payload.retry_reason:
+                query = query.values(retry_reason=ti_patch_payload.retry_reason[:500])
             if ti is not None:
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):

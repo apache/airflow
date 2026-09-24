@@ -291,6 +291,11 @@ ARG_DR_STATE = Arg(
     metavar=", ".join(dagrun_states),
     choices=dagrun_states,
 )
+ARG_DR_LIMIT = Arg(
+    ("--limit",),
+    type=positive_int(allow_zero=False),
+    help="Return a limited number of Dag runs, ordered by most recent run_after first",
+)
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
@@ -370,6 +375,11 @@ ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
 # teams
 ARG_TEAM_NAME = Arg(("name",), help="Team name")
+ARG_TEAMS_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Show what would be synchronized without making changes.",
+    action="store_true",
+)
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -1253,13 +1263,15 @@ DAGS_COMMANDS = (
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
             "dagruns that were executed before this date. If end_date is given, it will filter out "
-            "all the dagruns that were executed after this date. "
+            "all the dagruns that were executed after this date. If limit is given, it will return "
+            "only the most recent N runs after filters and sorting are applied."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
             ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
+            ARG_DR_LIMIT,
             ARG_OUTPUT,
             ARG_VERBOSE,
             ARG_START_DATE,
@@ -1683,7 +1695,7 @@ TEAMS_COMMANDS = (
         help="Sync teams",
         description=("Sync missing teams from the dag bundle config into the database.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
-        args=(ARG_VERBOSE,),
+        args=(ARG_TEAMS_DRY_RUN, ARG_VERBOSE),
     ),
     ActionCommand(
         name="verify",
@@ -1691,6 +1703,13 @@ TEAMS_COMMANDS = (
         description=("Verify that the multi-team configuration is internally consistent.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_verify"),
         args=(ARG_VERBOSE,),
+    ),
+    ActionCommand(
+        name="inspect",
+        help="Inspect a team",
+        description="Display resources associated with a team.\n",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_inspect"),
+        args=(ARG_TEAM_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 STATE_STORE_COMMANDS = (

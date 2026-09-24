@@ -23,8 +23,8 @@ some text and a typed question, and it answers with a value from a set you named
 advance, plus a confidence. Ask it for a string and the request is refused before it
 leaves your process.
 
-TypeSafe's Jev is the one pydantic-ai supports, as the ``typesafe:`` provider. Nothing in
-this provider is specific to it -- it arrives through the same
+`TypeSafe <https://typesafe.ai>`__'s Jev is the one pydantic-ai supports, as the
+``typesafe:`` provider. Nothing in this provider is specific to it -- it arrives through the same
 :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook` as every other
 model, so a model id is the whole integration.
 
@@ -37,16 +37,15 @@ Setup
 
        pip install 'apache-airflow-providers-common-ai[typesafe]'
 
-   The extra installs the TypeSafe SDK; the model adapter itself is part of pydantic-ai
-   from 2.45.0, so make sure ``pydantic-ai-slim>=2.45.0`` is installed as well. The
-   provider does not raise its own floor to that release yet, because pydantic-ai's
-   ``openai`` extra needs openai 3.x while other Airflow providers still pin openai 2.x.
+   The extra installs the TypeSafe SDK. The ``typesafe:`` model adapter is part of
+   pydantic-ai itself from ``pydantic-ai-slim`` 2.45.0, which is newer than the floor the
+   provider's other extras set, so check that release or later is installed.
 
 2. Create a connection (``Admin > Connections``):
 
    - **Connection Id**: ``jev_default``
    - **Connection Type**: ``Pydantic AI``
-   - **Password**: your TypeSafe API key
+   - **Password**: your TypeSafe API key, from your `TypeSafe account <https://typesafe.ai>`__
    - **Extra**: ``{"model": "typesafe:jev-1.13.0"}``
 
 Leave **Host** empty unless you are pointing at a proxy; the provider defaults to
@@ -152,7 +151,7 @@ transcript when that is enabled, and a hook-level call has it on the result:
 .. code-block:: python
 
     from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-    from airflow.providers.common.compat.sdk import task
+    from airflow.sdk import task
     from typing import Literal
 
 
@@ -182,7 +181,8 @@ classification that escalates when the confidence is low.
 What it answers badly
 ---------------------
 
-Read `pydantic-ai's model page <https://pydantic.dev/docs/ai/models/typesafe/>`__ before you
+Read `pydantic-ai's model page <https://pydantic.dev/docs/ai/models/typesafe/>`__ and
+`TypeSafe's own documentation <https://docs.typesafe.ai/>`__ before you
 trust a number from one of these models. Two of its failure modes matter more than the
 rest in a Dag:
 

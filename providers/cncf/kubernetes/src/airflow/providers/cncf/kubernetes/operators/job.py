@@ -666,6 +666,7 @@ class KubernetesDeleteJobOperator(BaseOperator):
         "name",
         "namespace",
         "cluster_context",
+        "kubernetes_conn_id",
     )
 
     def __init__(
@@ -771,6 +772,7 @@ class KubernetesPatchJobOperator(BaseOperator):
         "namespace",
         "body",
         "cluster_context",
+        "kubernetes_conn_id",
     )
 
     def __init__(

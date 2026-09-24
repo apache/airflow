@@ -3150,7 +3150,17 @@
       "title": "InactiveAssetsResult",
       "type": "object"
     },
-    "JsonValue": {},
+    "JsonValue": {
+      "title": "JsonValue",
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ]
+    },
     "LazyDeserializedDAG": {
       "description": "Lazily build information from the serialized DAG structure.\n\nAn object that will present \"enough\" of the DAG like interface to update DAG db models etc, without having\nto deserialize the full DAG and Task hierarchy.",
       "properties": {
@@ -4203,6 +4213,18 @@
           ],
           "default": null,
           "title": "Rendered Map Index"
+        },
+        "retry_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry Reason"
         }
       },
       "required": [
@@ -5111,6 +5133,11 @@
           ],
           "default": null,
           "title": "Arg Bindings"
+        },
+        "multi_team": {
+          "default": false,
+          "title": "Multi Team",
+          "type": "boolean"
         }
       },
       "required": [

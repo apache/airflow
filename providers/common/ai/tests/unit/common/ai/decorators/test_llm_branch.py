@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import ImageUrl
@@ -57,7 +57,9 @@ class TestLLMBranchDecoratedOperator:
 
         assert result == "positive"
         assert op.prompt == "Route this review"
-        mock_agent.run_sync.assert_called_once_with("Route this review", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Route this review", usage_limits=None, cancellation_token=ANY
+        )
         mock_do_branch.assert_called_once()
 
     @pytest.mark.parametrize(
@@ -121,7 +123,7 @@ class TestLLMBranchDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

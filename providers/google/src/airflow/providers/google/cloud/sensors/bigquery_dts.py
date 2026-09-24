@@ -43,13 +43,14 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/operator:BigQueryDataTransferServiceTransferRunSensor`
 
-    :param expected_statuses: The expected state of the operation.
+    :param expected_statuses: The expected state of the operation. (templated)
         See:
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
-    :param run_id: ID of the transfer run.
-    :param transfer_config_id: ID of transfer config to be used.
+    :param run_id: ID of the transfer run. (templated)
+    :param transfer_config_id: ID of transfer config to be used. (templated)
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :param request_timeout: The amount of time, in seconds, to wait for the request to
@@ -99,7 +100,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.retry = retry
         self.request_timeout = request_timeout
         self.metadata = metadata
-        self.expected_statuses = self._normalize_state_list(expected_statuses)
+        self.expected_statuses = expected_statuses
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -110,9 +111,15 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         result = set()
         for state in states:
             if isinstance(state, str):
-                # The proto.Enum type is indexable (via MetaClass and aliased) but MyPy is not able to
-                # infer this https://github.com/python/mypy/issues/8968
-                result.add(TransferState[state.upper()])  # type: ignore[misc]
+                try:
+                    # The proto.Enum type is indexable (via MetaClass and aliased) but MyPy is not able to
+                    # infer this https://github.com/python/mypy/issues/8968
+                    result.add(TransferState[state.upper()])  # type: ignore[misc]
+                except KeyError:
+                    raise ValueError(
+                        f"Invalid expected status {state!r}. "
+                        f"Valid statuses: {sorted(TransferState.__members__)}"
+                    ) from None
             elif isinstance(state, int):
                 result.add(TransferState(state))
             elif isinstance(state, TransferState):
@@ -144,4 +151,4 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         if run.state in (TransferState.FAILED, TransferState.CANCELLED):
             message = f"Transfer {self.run_id} did not succeed"
             raise AirflowException(message)
-        return run.state in self.expected_statuses
+        return run.state in self._normalize_state_list(self.expected_statuses)

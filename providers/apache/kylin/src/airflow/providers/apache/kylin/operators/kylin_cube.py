@@ -84,6 +84,7 @@ class KylinCubeOperator(BaseOperator):
         "segment_name",
         "offset_start",
         "offset_end",
+        "kylin_conn_id",
     )
     ui_color = "#E79C46"
     build_command = {

@@ -114,12 +114,15 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
-    ("uv.lock", "/opt/airflow/uv.lock"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
     ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
+
+# ``uv.lock`` is deliberately absent above: it is mounted from ``mount-uv-lock.yml``, which
+# ShellParams skips for ``--force-lowest-dependencies`` so that the lowest-direct ``uv sync``
+# run in the container cannot write its re-resolved lock back over the host's.
 
 DOCKER_INFO_TIMEOUT = 30
 
@@ -711,7 +714,7 @@ def fix_ownership_using_docker(quiet: bool = True):
             "-e",
             f"VERBOSE={str(get_verbose()).lower()}",
             "-e",
-            f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+            f"DOCKER_IS_ROOTLESS={str(is_docker_rootless()).lower()}",
             "--rm",
             "-t",
             OWNERSHIP_CLEANUP_DOCKER_TAG,

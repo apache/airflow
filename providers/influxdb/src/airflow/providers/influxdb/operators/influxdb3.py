@@ -47,7 +47,10 @@ class InfluxDB3Operator(BaseOperator):
         ``operators.default_deferrable`` configuration (``False`` if unset).
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = (
+        "sql",
+        "influxdb3_conn_id",
+    )
 
     def __init__(
         self,

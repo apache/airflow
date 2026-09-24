@@ -51,6 +51,9 @@ const (
 
 // Serve runs the bundle. Call it as the last statement of main.
 //
+// Serve closes registration: a [BundleRef.Register] call that reaches the bundle afterwards
+// panics rather than changing what the running bundle answers for.
+//
 // The command-line flags of the executable decide what Serve does.
 // With --airflow-metadata it prints the bundle's manifest and returns, which is how
 // airflow-go-pack reads the registered Dag and task ids.
@@ -68,6 +71,10 @@ func (b *BundleRef) Serve() error {
 }
 
 func (b *BundleRef) serve(args []string, stdout io.Writer) error {
+	// Registration closes here, whatever this run turns out to do, so that a Register left
+	// below Serve in main is reported as the mistake it is rather than racing the runtime.
+	b.closed.Store(true)
+
 	// The flags go on their own FlagSet. On pflag.CommandLine, every program that imports this
 	// package would get them, and one that defines its own --format there would panic.
 	flags := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
