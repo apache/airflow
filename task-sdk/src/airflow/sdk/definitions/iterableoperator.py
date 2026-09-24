@@ -17,10 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import os
 import threading
 import warnings
-from collections.abc import AsyncIterable, AsyncIterator, Iterable, Sequence
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping, Sequence
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -33,8 +34,10 @@ except NameError:
 from airflow.sdk import BaseXCom, TaskInstanceState
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
 from airflow.sdk.definitions.context import clone_context
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
     AirflowFailException,
@@ -52,9 +55,9 @@ from airflow.sdk.execution_time.task_runner import IndexedTaskInstance, IndexedT
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -209,7 +212,7 @@ class IterableOperator(BaseOperator):
         each element of ``expand_input``. Each indexed runtime receives a
         deep copy/unmapped instance of this operator.
 
-    :param expand_input: Provider of the values to iterate
+    :param expand_input: Provider of the values (or batches) to iterate
         over. Its ``iter_values(context)`` method is used to produce the
         per-index ``mapped_kwargs`` used to unmap the operator.
 
@@ -712,3 +715,104 @@ class IterableOperator(BaseOperator):
                 index += 1
 
         return self._run_tasks(context=context, tasks=tasks())
+
+
+class MappedIterableOperator(MappedOperator):
+    """A thin wrapper around an existing MappedOperator that unmaps an MappedOperator within an IterableOperator."""
+
+    # Shadows MappedOperator's read-only batch_size property (which reads partial_kwargs) so the
+    # instance can hold its own value: the int or XComArg it was built with, replaced by the
+    # resolved int in render_template_fields. partial_kwargs keeps the original, which is what
+    # gets serialized and what the scheduler counts instances from.
+    batch_size: int | XComArg = 0
+
+    def __init__(
+        self,
+        mapped_operator: MappedOperator,
+        expand_input: ExpandInput,
+        batch_size: int | XComArg,
+    ):
+        self.delegate = mapped_operator
+        self.delegate.partial_kwargs["batch_size"] = batch_size
+        self.batch_size = batch_size
+        self.expand_input = expand_input
+        self._register_with_dag = True
+        self.__attrs_post_init__()
+
+    def __getattr__(self, name):
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+        return getattr(self.delegate, name)
+
+    def prepare_for_execution(self) -> MappedOperator:
+        return self
+
+    def iter_mapped_dependencies(self) -> Iterator[AbstractOperator]:
+        # The instance count is fixed by batch_size, so no upstream XCom determines this task's
+        # mapping. Reporting one would make the upstream tag its push with the raw item count, which
+        # the API server caps at core.max_map_length: the very limit .batch() exists to sidestep.
+        # A runtime batch size is not reported either: its upstream is tagged with the integer it
+        # returned by the runner instead (see is_batch_size_source).
+        return iter(())
+
+    @property
+    def multiple_outputs(self) -> bool:
+        # Same contract as IterableOperator; without this __getattr__ would report the wrapped @task's flag.
+        return False
+
+    @property
+    def retries(self) -> int:
+        return self.delegate.retries
+
+    @retries.setter
+    def retries(self, value: int) -> None:
+        self.delegate.retries = value
+
+    def __repr__(self):
+        return f"<MappedIterable({self.task_type}): {self.task_id}>"
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        # Runs on the runner's main thread before execute, so this synchronous pull is safe and
+        # BatchedExpandInput only ever sees an int (see unmap).
+        self._resolve_batch_size(context)
+        super().render_template_fields(context, jinja_env)
+
+    def _resolve_batch_size(self, context: Context) -> None:
+        """Replace an XComArg batch size with its value, pulled once for this task instance."""
+        if not isinstance(self.batch_size, XComArg):
+            return
+        value = self.batch_size.resolve(context)
+        try:
+            if (size := int(value)) < 2:
+                raise ValueError(value)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"batch size of {self.task_id!r} from {self.batch_size!r} must be an integer of at least 2, got {value!r}"
+            ) from None
+        self.batch_size = size
+
+    def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
+        if isinstance(self.batch_size, XComArg):
+            raise RuntimeError(
+                f"batch size of {self.task_id!r} is an XComArg that render_template_fields has not resolved yet"
+            )
+        return IterableOperator(
+            operator=copy.deepcopy(self.delegate),
+            expand_input=BatchedExpandInput(self.expand_input, self.batch_size),
+            _airflow_from_mapped=True,
+        )
+
+
+def is_batch_size_source(task: BaseOperator) -> bool:
+    """Whether ``task``'s return value is the runtime batch size of a downstream batched task."""
+    if task.dag is None:
+        return False
+    for task_id in task.downstream_task_ids:
+        size = getattr(task.dag.task_dict.get(task_id), "batch_size", None)
+        if isinstance(size, XComArg) and any(op.task_id == task.task_id for op, _ in size.iter_references()):
+            return True
+    return False

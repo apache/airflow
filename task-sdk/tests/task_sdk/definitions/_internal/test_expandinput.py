@@ -25,6 +25,7 @@ import pytest
 from task_sdk.definitions.conftest import make_xcom_arg
 
 from airflow.sdk.definitions._internal.expandinput import (
+    BatchedExpandInput,
     DecoratedExpandInput,
     DictOfListsExpandInput,
     ExpandInput,
@@ -279,3 +280,58 @@ class TestToIterable:
         sync_result = list(expand_input.iter_values({}))
         async_result = asyncio.run(_alist(expand_input.aiter_values({})))
         assert sync_result == async_result == [{"a": ("x", 1), "b": 10}, {"a": ("y", 2), "b": 10}]
+
+
+class TestBatchedExpandInput:
+    @pytest.mark.parametrize(
+        "size",
+        [pytest.param(-1), pytest.param(0), pytest.param(1)],
+    )
+    def test_invalid_size_raises(self, size: int):
+        inner = DictOfListsExpandInput({"a": [1, 2, 3]})
+        with pytest.raises(ValueError, match="batch size must be at least 2"):
+            BatchedExpandInput(inner, size=size)
+
+    @pytest.mark.parametrize(
+        ("size", "map_index", "items", "expected"),
+        [
+            (2, 0, [1, 2, 3, 4, 5], [1, 3, 5]),
+            (2, 1, [1, 2, 3, 4, 5], [2, 4]),
+            (3, 0, [1, 2, 3, 4, 5, 6], [1, 4]),
+            (3, 1, [1, 2, 3, 4, 5, 6], [2, 5]),
+            (3, 2, [1, 2, 3, 4, 5, 6], [3, 6]),
+        ],
+    )
+    def test_iter_values_striding(self, size: int, map_index: int, items: list, expected: list):
+        inner = DictOfListsExpandInput({"a": items})
+        batched = BatchedExpandInput(inner, size=size)
+        context = {"ti": type("TI", (), {"map_index": map_index})()}
+
+        with pytest.raises(RuntimeError, match="Length of BatchedExpandInput is not yet known"):
+            len(batched)
+
+        result = [combo["a"] for combo in batched.iter_values(context)]
+        assert result == expected
+        assert len(batched) == len(expected)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("size", "map_index", "items", "expected"),
+        [
+            (2, 0, [1, 2, 3, 4, 5], [1, 3, 5]),
+            (2, 1, [1, 2, 3, 4, 5], [2, 4]),
+            (3, 0, [1, 2, 3, 4, 5, 6], [1, 4]),
+            (3, 1, [1, 2, 3, 4, 5, 6], [2, 5]),
+            (3, 2, [1, 2, 3, 4, 5, 6], [3, 6]),
+        ],
+    )
+    async def test_aiter_values_striding(self, size: int, map_index: int, items: list, expected: list):
+        inner = DictOfListsExpandInput({"a": items})
+        batched = BatchedExpandInput(inner, size=size)
+        context = {"ti": type("TI", (), {"map_index": map_index})()}
+
+        result = [combo["a"] async for combo in batched.aiter_values(context)]
+        assert result == expected
+        assert len(batched) == len(expected)
+        # delegate length must remain the full item count, not the batch slice
+        assert len(inner) == len(items)

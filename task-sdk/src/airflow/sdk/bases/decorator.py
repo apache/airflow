@@ -62,6 +62,7 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.batchedoperator import DecoratedBatchedOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
@@ -753,6 +754,29 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` instead of one task
         instance per item.
         """
+        # Since the input is already checked at parse time, we can set strict
+        # to False to skip the checks on execution.
+        return self._iterate(self._iterate_input(**map_kwargs), strict=False)
+
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        """Iterate the task over a list of dicts or an XComArg; see :meth:`iterate`."""
+        return self._iterate(self._iterate_kwargs_input(kwargs), strict=strict)
+
+    def batch(self, size: int | XComArg) -> DecoratedBatchedOperator:
+        """
+        Spread the iteration over ``size`` task instances instead of one.
+
+        Returns a :class:`~airflow.sdk.definitions.batchedoperator.DecoratedBatchedOperator` whose
+        ``iterate()`` / ``iterate_kwargs()`` build a ``MappedIterableOperator``. ``size`` may be an
+        ``XComArg`` (the return value of a plain, non-mapped task): the number of task instances is
+        then decided at run time, once that upstream has run.
+        """
+        from airflow.sdk.definitions.batchedoperator import DecoratedBatchedOperator, validate_batch_size
+
+        return DecoratedBatchedOperator(operator_partial=self, size=validate_batch_size(size))
+
+    def _iterate_input(self, **map_kwargs: OperatorExpandArgument) -> DictOfListsExpandInput:
+        """Validate ``iterate()`` keyword arguments and wrap them; shared with ``DecoratedBatchedOperator``."""
         if self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS and any(
             [isinstance(expanded, XComArg) for expanded in map_kwargs.values()]
         ):
@@ -763,16 +787,14 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             raise TypeError("no arguments to expand against")
         self._validate_arg_names("iterate", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
-        # Since the input is already checked at parse time, we can set strict
-        # to False to skip the checks on execution.
         if self.is_teardown:
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        return self._iterate(DictOfListsExpandInput(map_kwargs), strict=False)
+        return DictOfListsExpandInput(map_kwargs)
 
-    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
-        """Iterate the task over a list of dicts or an XComArg; see :meth:`iterate`."""
+    def _iterate_kwargs_input(self, kwargs: OperatorExpandKwargsArgument) -> ListOfDictsExpandInput:
+        """Validate ``iterate_kwargs()`` input and wrap it; shared with ``DecoratedBatchedOperator``."""
         if (
             self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS
             and not isinstance(kwargs, XComArg)
@@ -794,7 +816,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
-        return self._iterate(ListOfDictsExpandInput(kwargs), strict=strict)
+        return ListOfDictsExpandInput(kwargs)
 
     def _iterate(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
         from airflow.sdk.definitions.iterableoperator import IterableOperator

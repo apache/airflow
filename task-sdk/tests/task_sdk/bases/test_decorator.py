@@ -417,7 +417,7 @@ class TestAsyncCallable:
 
 class TestTaskDecoratorTaskConcurrency:
     """task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread count
-    consumed by IterableOperator via .iterate()/.iterate_kwargs()). A plain
+    consumed by IterableOperator/MappedIterableOperator via .iterate()/.iterate_kwargs()). A plain
     .expand()/.expand_kwargs() on a @task-decorated function never reaches that code path, so it
     must be rejected instead of silently accepted as a dead value -- mirroring OperatorPartial."""
 
@@ -487,7 +487,8 @@ class TestTaskDecoratorTaskConcurrency:
             assert xcom_arg.operator.max_workers == 2
 
 
-def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation():
+@pytest.mark.parametrize("batch_size", [None, 2])
+def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation(batch_size):
     with DAG("test_dag"):
 
         @task
@@ -495,6 +496,19 @@ def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation():
             return {"x": x}
 
         assert to_dict.multiple_outputs is True
-        xcom_arg = to_dict.iterate(x=[1, 2, 3])
+        target = to_dict if batch_size is None else to_dict.batch(size=batch_size)
+        xcom_arg = target.iterate(x=[1, 2, 3])
 
         assert xcom_arg.operator.multiple_outputs is False
+
+
+@pytest.mark.parametrize("size", [-1, 0, 1])
+def test_batch_rejects_sizes_below_two(size):
+    with DAG("test_dag"):
+
+        @task
+        def add_one(x):
+            return x + 1
+
+        with pytest.raises(ValueError, match=f"batch size must be at least 2, got {size}"):
+            add_one.batch(size=size)

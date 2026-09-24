@@ -232,7 +232,62 @@ class DecoratedExpandInput(ExpandInput):
         return self.delegate.resolve(context)
 
 
-@attrs.define()
+class BatchedExpandInput(DecoratedExpandInput):
+    """
+    ExpandInput that partitions another ExpandInput's values across ``size`` task instances.
+
+    Items are distributed round-robin — item ``i`` is routed to task instance ``i % size`` — so
+    each task instance ends up with roughly ``len(values) / size`` items, but they are *not*
+    contiguous chunks of the original sequence (unlike ``itertools.batched(iterable, size)``).
+    This affects mapping cardinality, NOT resolve-time behavior.
+
+    Round-robin is used instead of contiguous chunking because the number of task instances must be
+    fixed before the underlying iterable is consumed: with round-robin that count is ``size`` itself,
+    independent of how many items the iterable actually yields (fewer than ``size`` items simply
+    leaves the surplus task instances empty). Contiguous chunking would instead
+    need ``ceil(N / size)`` task instances, which is unknowable until the iterable — potentially an
+    unbounded or paginated stream — has been fully drained. See
+    :ref:`sdk-dynamic-task-mapping-vs-iteration` for the full rationale.
+
+    A runtime batch size (``.batch(size=<XComArg>)``) is resolved by ``MappedIterableOperator``
+    before this class is built, so ``size`` is always the int the scheduler expanded the task to.
+    """
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "batched"
+
+    def __init__(self, expand_input: ExpandInput, size: int):
+        if size < 2:
+            raise ValueError(f"batch size must be at least 2, got {size}")
+
+        super().__init__(expand_input=expand_input)
+        self.size = size
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
+        map_index = context["ti"].map_index
+
+        return count(
+            self,
+            (
+                item
+                for index, item in enumerate(self.delegate.iter_values(context))
+                if index % self.size == map_index
+            ),
+        )
+
+    def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[dict]:
+        map_index = context["ti"].map_index
+
+        async def values() -> AsyncIterator[dict]:
+            index = 0
+            async for item in self.delegate.aiter_values(context):
+                if index % self.size == map_index:
+                    yield item
+                index += 1
+
+        return async_count(self, values())
+
+
+@attrs.define(kw_only=True)
 class MappedArgument(ResolveMixin):
     """
     Stand-in stub for task-group-mapping arguments.

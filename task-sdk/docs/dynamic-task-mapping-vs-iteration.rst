@@ -351,6 +351,9 @@ The following table illustrates these differences using the Pokémon example fro
    * - ``get_pokemon.iterate(url=urls)``
      - 1
      - 100 Pokémon
+   * - ``get_pokemon.batch(size=2).iterate(url=urls)``
+     - 2
+     - ~50 Pokémon each
 
 When to Use Dynamic Task Mapping
 --------------------------------
@@ -394,6 +397,56 @@ Avoid Iterable Tasks when:
    deferrable operators. It is not intended as a replacement for either.
    Triggerers remain the right choice for long-running polling or waiting tasks
    (e.g., monitoring a remote job or waiting for a Kubernetes pod to complete).
+
+Combining DTM and IT (Batched Task Mapping)
+-------------------------------------------
+
+DTM and IT are not mutually exclusive in principle. The *Batched Task Mapping*
+pattern uses DTM to fan a large dataset out across ``size`` task instances,
+where each mapped task instance then iterates over its share using IT.
+
+For example, downloading 17,000 files with ``.batch(size=17).iterate(url=urls)``
+creates 17 task instances via DTM. Each task instance streams the *same*
+underlying iterable but only keeps the items routed to it round-robin (item
+``i`` goes to task instance ``i % 17``), then iterates over those ~1,000 files
+using a shared event loop for concurrent I/O.
+
+``size`` may also be an ``XComArg`` — the return value of a plain, non-mapped
+upstream task — when the right number of task instances is only known at run
+time, e.g. ``.batch(size=count_batches()).iterate(url=urls)``. The upstream
+becomes an ordinary dependency of the batched task. The scheduler never reads
+the XCom value: the worker pushes the integer as the ``mapped_length`` of that
+push, which lands in the ``task_map`` table exactly like a mapped task's
+length, and the scheduler creates that many task instances from it; every task
+instance then resolves the same XCom to pick its round-robin share. The value
+must be an integer of at least 2 (``0`` leaves nothing to run and ``1`` is what
+``.iterate()`` already is) and at most ``core.max_map_length``, or the upstream
+task fails at push time; ``.map()``/``.zip()`` results, pushed keys and mapped
+upstreams are rejected at parse time.
+
+.. note::
+
+   ``size`` is the number of task instances to create, **not** a chunk length —
+   items are distributed round-robin, not split into ``size`` contiguous
+   chunks (this differs from :func:`itertools.batched`). The distinction
+   matters because the task instance count must be fixed *before* the
+   underlying iterable is consumed: with round-robin, that count is simply
+   ``size`` itself, a constant chosen independently of how many items the
+   iterable actually yields. A contiguous-chunk scheme would instead need
+   ``ceil(total_items / size)`` task instances, which is unknowable until the
+   iterable — potentially an unbounded or paginated stream — has been fully
+   drained, defeating the purpose of iterating over it lazily.
+
+   A consequence is that the upstream value is not subject to
+   ``core.max_map_length``: only ``.expand()`` needs the item count to size its
+   fan-out, so only its upstream is length-checked. A ``.batch().iterate()``
+   can consume inputs far larger than that limit.
+
+This pattern would provide:
+
+- **Coarse-grained retry**: if a task instance fails, only its share is retried — not all 17,000 items.
+- **Reduced scheduler load**: the scheduler manages task instances (e.g., 17) instead of individual items (17,000 tasks).
+- **High throughput within each task instance**: async I/O processes items concurrently inside each task.
 
 Relationship with Async Operators
 ----------------------------------

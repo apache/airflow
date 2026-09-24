@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeGuard, overload
 import attrs
 import methodtools
 import structlog
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import NotMapped
@@ -51,6 +52,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.operatorlink import XComOperatorLink
+    from airflow.serialization.serialized_objects import _XComRef
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -345,6 +347,38 @@ class SerializedMappedOperator(DAGNode):
     def on_failure_fail_dagrun(self, v) -> None:
         self.partial_kwargs["on_failure_fail_dagrun"] = bool(v)
 
+    @property
+    def batch_size(self) -> int | _XComRef:
+        """
+        The batch size of a ``.batch().iterate()`` task, 0 when not batched.
+
+        A runtime batch size (``.batch(size=<XComArg>)``) is deserialized into the same ``_XComRef``
+        placeholder as any other XComArg in ``partial_kwargs``; it is only dereferenced and looked
+        up in :func:`resolve_batch_size`, per DAG run.
+        """
+        return self.partial_kwargs.get("batch_size", 0)
+
+    def resolve_batch_size(self, run_id: str, *, session: Session) -> int:
+        """
+        Return the batch size for ``run_id``.
+
+        A runtime batch size is never read from the XCom value itself (the scheduler only reads
+        metadata): the worker pushes it as the ``mapped_length`` of the upstream's return value, which
+        the API server records on the XCom row, where a mapped task's length lives too. The referenced
+        upstream is a plain task connected through an ordinary upstream edge, so a missing row means
+        it has not run yet, or did not push a usable value; both raise :class:`NotFullyPopulated` so
+        the scheduler waits or, once the upstream has finished, marks the task ``upstream_failed``.
+        A row below 2 is treated the same way: the worker never writes one (0 leaves nothing to run
+        and 1 is what ``.iterate()`` already is), so it cannot be a size this task was meant to have.
+        """
+        size = self.batch_size
+        if isinstance(size, int):
+            return size
+        if TYPE_CHECKING:
+            assert isinstance(self.dag, SerializedDAG)
+        upstream_task_id = next(op.task_id for op, _ in size.deref(self.dag).iter_references())
+        return _batch_size_from_xcom_mapped_length(self.dag_id, upstream_task_id, run_id, session=session)
+
     @classmethod
     def get_serialized_fields(cls):
         """Fields to extract from JSON-Serialized DAG."""
@@ -476,6 +510,21 @@ class SerializedMappedOperator(DAGNode):
                 return 1
 
         parent_count = _get_parent_count()
+        # A batched task always creates ``batch_size`` instances: items are routed round-robin at
+        # runtime, so the count never depends on (or needs to measure) the input.
+        if not isinstance(self.batch_size, int):
+            # A runtime batch size is only known once its upstream has run; the scheduler then
+            # falls back to get_mapped_ti_count, exactly as it does for an XComArg expand input.
+            from airflow.models.expandinput import NotFullyPopulated
+
+            if TYPE_CHECKING:
+                assert isinstance(self.dag, SerializedDAG)
+            raise NotFullyPopulated(
+                {op.task_id for op, _ in self.batch_size.deref(self.dag).iter_references()}
+            )
+        if self.batch_size > 0:
+            return parent_count * self.batch_size
+
         current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
         return parent_count * current_count
 
@@ -507,6 +556,32 @@ def get_mapped_ti_count(task: DAGNode | TaskSDKDAGNode, run_id: str, *, session:
     raise NotImplementedError(f"Not implemented for {type(task)}")
 
 
+def _batch_size_from_xcom_mapped_length(
+    dag_id: str, upstream_task_id: str, run_id: str, *, session: Session
+) -> int:
+    """
+    Read a runtime batch size from the ``mapped_length`` the size task's push recorded for ``run_id``.
+
+    See :meth:`SerializedMappedOperator.resolve_batch_size` for why the length column, not the XCom
+    value, is read and why a missing row or one below 2 raises :class:`NotFullyPopulated`.
+    """
+    from airflow.models.expandinput import NotFullyPopulated
+    from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
+
+    length = session.scalar(
+        select(XComModel.mapped_length).where(
+            XComModel.dag_id == dag_id,
+            XComModel.task_id == upstream_task_id,
+            XComModel.run_id == run_id,
+            XComModel.map_index == -1,
+            XComModel.key == XCOM_RETURN_KEY,
+        )
+    )
+    if length is None or length < 2:
+        raise NotFullyPopulated({upstream_task_id})
+    return length
+
+
 # Still accept TaskSDKBaseOperator because some tests don't go through serialization.
 # TODO (GH-52141): Rewrite tests so we can drop SDK references at some point.
 @get_mapped_ti_count.register(SerializedBaseOperator)
@@ -529,6 +604,22 @@ def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, se
         if (group := task.get_closest_mapped_task_group()) is None:
             return 1
         return get_mapped_ti_count(group, run_id, session=session)
+
+    # See get_parse_time_mapped_ti_count: a batched task's count is fixed by batch_size alone.
+    if isinstance(task, SerializedMappedOperator):
+        batch_size = task.resolve_batch_size(run_id, session=session)
+    elif isinstance(task.batch_size, int):
+        batch_size = task.batch_size
+    else:
+        # An unserialized operator: dag.test() serialises before scheduling, so this is reached from
+        # tests and direct callers only, but it counts the same way. The XComArg is live here, so
+        # its reference is read directly instead of through a serialized _XComRef.
+        upstream_task_id = next(op.task_id for op, _ in task.batch_size.iter_references())
+        batch_size = _batch_size_from_xcom_mapped_length(
+            task.dag_id, upstream_task_id, run_id, session=session
+        )
+    if batch_size > 0:
+        return _get_parent_count() * batch_size
 
     exp_input = task._get_specified_expand_input()
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.
