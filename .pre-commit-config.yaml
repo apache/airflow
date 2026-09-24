@@ -308,6 +308,16 @@ repos:
         additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
         pass_filenames: false
         require_serial: true
+      - id: sync-ts-sdk-dag-schema
+        name: Sync TypeScript SDK Dag serialization schema with airflow-core
+        description: "Copy airflow-core's serialization schema when TS SDK's vendored dag-schema.json drifts"
+        entry: ./ts-sdk/scripts/ci/prek/sync_dag_schema.py
+        language: python
+        pass_filenames: false
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^ts-sdk/schema/dag-schema\.json$
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py

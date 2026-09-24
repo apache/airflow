@@ -19,6 +19,9 @@
 Changelog
 ---------
 
+1.0.0
+.....
+
 .. warning::
   Token authentication over ``http(s)`` now hands the credential to git through a credential
   helper configured with ``GIT_CONFIG_COUNT``, which requires git 2.31 or newer. On git 2.31+, a
@@ -29,6 +32,16 @@ Changelog
   or, where the deployment configures its own credential helper, authenticates with that
   helper's credential instead of the connection's token. Upgrade git on the Dag processor and on
   workers before upgrading this provider, or switch the connection to SSH key authentication.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Prevent cleartext credential storage in Git Dag bundles (#64105)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
 
 0.5.0
 .....

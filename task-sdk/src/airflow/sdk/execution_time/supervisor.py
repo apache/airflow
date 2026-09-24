@@ -1760,6 +1760,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 state=msg.state,
                 when=msg.end_date or datetime.now(tz=timezone.utc),
                 rendered_map_index=self._rendered_map_index,
+                retry_reason=msg.retry_reason,
             )
         elif isinstance(msg, SucceedTask):
             self.client.task_instances.succeed(
@@ -2386,7 +2387,8 @@ class InProcessTestSupervisor(ActivitySubprocess):
     class _Client(Client):
         def request(self, *args, **kwargs):
             # Bypass the tenacity retries!
-            return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
+            kwargs["retry"] = False
+            return super().request(*args, **kwargs)
 
     def _check_subprocess_exit(
         self, raise_on_timeout: bool = False, expect_signal: None | int = None
