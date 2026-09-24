@@ -80,6 +80,8 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
         "via_struct_no_tags",
         "via_struct_arg_tag",
         "via_struct_default_arg",
+        "via_struct_more_args",
+        "via_struct_fewer_args",
         "via_flat_map",
         "via_struct_map",
         "via_plain_map",
@@ -142,6 +144,23 @@ def test_via_struct_default_arg_tolerates_unclaimed_default(completed_run: _Comp
     ``sample_rate`` is unpassed, so the spec carries it as ``from_default`` and no Go
     field claims it. The task succeeding at all is the assertion."""
     assert completed_run.xcom("via_struct_default_arg") == {"region": "eu-west-1"}
+
+
+def test_via_struct_more_args_runs_anyway(completed_run: _CompletedRun):
+    """The call passes ``unused_label``, which the Go struct does not declare. Name
+    binding cannot shift, so the extra argument is warned about rather than failing
+    the task, and everything the struct does declare still binds."""
+    assert completed_run.xcom("via_struct_more_args") == {"region": "eu-west-1"}
+
+
+def test_via_struct_fewer_args_runs_anyway(completed_run: _CompletedRun):
+    """The Go struct declares ``not_in_dag``, which the stub has no parameter for. The
+    field keeps its Go zero value and the mismatch is warned about rather than failing
+    the task, so the two sides can drift without breaking the Dag."""
+    assert completed_run.xcom("via_struct_fewer_args") == {
+        "region": "eu-west-1",
+        "not_in_dag_was_empty": True,
+    }
 
 
 def test_via_flat_map_decodes_single_dict_whole(completed_run: _CompletedRun):

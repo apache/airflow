@@ -124,15 +124,22 @@ match the handler's arity, since a captured default carries no intent from the c
 
 Name binding cannot shift, so neither direction is worth failing a task over: a field nothing fills
 takes the language's absent value, and an argument no field claims changes nothing the handler
-reads. Both are logged instead, naming the mismatch from whichever side the runtime can see it, so
-a mistyped name still surfaces in the task log. `from_default` entries are not reported, since a
-handler ignoring a captured default is the normal case.
+reads. Both are logged instead, before the task runs, so a mistyped name surfaces in the task log
+ahead of anything the task itself prints. `from_default` entries are not reported, since a handler
+ignoring a captured default is the normal case.
 
-How much a runtime can see differs by language and is not a difference in the rule. A runtime with
-a declared field list, such as Go's sole struct or Java's `TaskInput`, knows both directions before
-the handler runs. One that has no declared list, such as the TypeScript SDK, whose handler
-destructures an object whose type is erased, can only report the arguments the handler never read,
-after the fact.
+A single call can be wrong in both directions at once, so each gets its own message rather than one
+line a reader has to untangle. Every SDK uses the same two, so one query finds them across
+languages:
+
+- `Dag's call passed argument(s) the task handler does not declare`
+- `Task handler declares argument(s) the Dag's call did not pass`
+
+Where the declaration comes from differs by language and is not a difference in the rule. Go's sole
+struct and Java's `TaskInput` are field lists the runtime can read directly. The TypeScript SDK has
+no such list, because parameter types are erased, so it reads the handler's destructuring pattern
+instead; a handler that takes the whole argument object has declared nothing to compare a call
+against, and nothing is reported for it.
 
 ### B. Materialization belongs in core Dag serialization, behind a generic `is_stub` flag
 

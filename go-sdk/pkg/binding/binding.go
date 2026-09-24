@@ -299,9 +299,9 @@ func (p *Plan) resolveLoneStructParam(
 	// of it means the Go signature and the stub signature disagree.
 	if len(unfilled) > 0 {
 		logger.Warn(
-			"struct field(s) match no TaskFlow call argument, left at their zero value",
+			"Task handler declares argument(s) the Dag's call did not pass",
 			"function", p.fnName,
-			"fields", unfilled,
+			"declared_not_passed", unfilled,
 			"bound", quotedArgNames(args),
 		)
 	}
@@ -323,9 +323,10 @@ func (p *Plan) resolveLoneStructParam(
 	}
 	if len(unclaimed) > 0 {
 		logger.Warn(
-			"TaskFlow call argument(s) not claimed by any struct field",
+			"Dag's call passed argument(s) the task handler does not declare",
 			"function", p.fnName,
-			"arguments", unclaimed,
+			"passed_not_declared", unclaimed,
+			"declared", declaredFieldNames(plan.fields),
 		)
 	}
 
@@ -357,6 +358,14 @@ func (p *Plan) resolveLoneStructParam(
 		out[paramIdx] = structVal
 	}
 	return out, nil
+}
+
+func declaredFieldNames(fields []structField) []string {
+	names := make([]string, 0, len(fields))
+	for _, sf := range fields {
+		names = append(names, sf.argName)
+	}
+	return names
 }
 
 func quotedArgNames(args []Arg) string {

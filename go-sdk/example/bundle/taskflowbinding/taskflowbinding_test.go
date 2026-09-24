@@ -121,6 +121,32 @@ func TestViaStructDefaultArgRejectsWrongBinding(t *testing.T) {
 	assert.ErrorContains(t, err, "struct field bound incorrectly")
 }
 
+func TestViaStructMoreArgs(t *testing.T) {
+	got, err := ViaStructMoreArgs(testContext(t), ViaStructMoreArgsInput{Region: "eu-west-1"})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaStructMoreArgs should return a map summary, got %T", got)
+	assert.Equal(t, "eu-west-1", summary["region"])
+}
+
+func TestViaStructFewerArgs(t *testing.T) {
+	got, err := ViaStructFewerArgs(testContext(t), ViaStructFewerArgsInput{Region: "eu-west-1"})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaStructFewerArgs should return a map summary, got %T", got)
+	assert.Equal(t, true, summary["not_in_dag_was_empty"])
+}
+
+func TestViaStructFewerArgsRejectsFilledField(t *testing.T) {
+	_, err := ViaStructFewerArgs(testContext(t), ViaStructFewerArgsInput{
+		Region:   "eu-west-1",
+		NotInDag: "unexpected",
+	})
+	assert.ErrorContains(t, err, "expected the undeclared field to keep its zero value")
+}
+
 func TestViaFlatMap(t *testing.T) {
 	got, err := ViaFlatMap(testContext(t), FlatMapConfig{Region: "eu-west-1", Count: 3})
 	require.NoError(t, err)

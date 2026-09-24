@@ -190,6 +190,51 @@ func ViaStructDefaultArg(
 	return map[string]any{"region": input.Region}, nil
 }
 
+// ViaStructMoreArgsInput takes fewer arguments than the stub passes.
+type ViaStructMoreArgsInput struct {
+	Region string `arg:"region_code"`
+}
+
+// ViaStructMoreArgs exercises the Dag passing an argument the struct does not
+// declare: warned about, and the task still runs.
+func ViaStructMoreArgs(actx airflow.Context, input ViaStructMoreArgsInput) (any, error) {
+	if input.Region != "eu-west-1" {
+		return nil, fmt.Errorf("struct field bound incorrectly: region=%q", input.Region)
+	}
+
+	actx.Logger().InfoContext(actx, "Bound struct (call passed more)", "region", input.Region)
+	return map[string]any{"region": input.Region}, nil
+}
+
+// ViaStructFewerArgsInput declares a field the stub has no parameter for.
+type ViaStructFewerArgsInput struct {
+	Region   string `arg:"region_code"`
+	NotInDag string `arg:"not_in_dag"`
+}
+
+// ViaStructFewerArgs exercises the struct declaring an argument the Dag's call
+// does not pass: warned about, and the field keeps its Go zero value.
+func ViaStructFewerArgs(actx airflow.Context, input ViaStructFewerArgsInput) (any, error) {
+	if input.Region != "eu-west-1" {
+		return nil, fmt.Errorf("struct field bound incorrectly: region=%q", input.Region)
+	}
+	if input.NotInDag != "" {
+		return nil, fmt.Errorf(
+			"expected the undeclared field to keep its zero value, got not_in_dag=%q",
+			input.NotInDag,
+		)
+	}
+
+	actx.Logger().InfoContext(actx, "Bound struct (call passed fewer)",
+		"region", input.Region,
+		"not_in_dag_was_empty", input.NotInDag == "",
+	)
+	return map[string]any{
+		"region":               input.Region,
+		"not_in_dag_was_empty": input.NotInDag == "",
+	}, nil
+}
+
 // FlatMapConfig receives one dict as a whole value.
 type FlatMapConfig struct {
 	Region string `json:"region"`

@@ -64,6 +64,16 @@ func main() {
 			"via_struct_default_arg",
 			taskflowbinding.ViaStructDefaultArg,
 		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_more_args",
+			taskflowbinding.ViaStructMoreArgs,
+		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_fewer_args",
+			taskflowbinding.ViaStructFewerArgs,
+		),
 		airflow.TaskHandler("taskflow_binding_dag", "via_flat_map", taskflowbinding.ViaFlatMap),
 		airflow.TaskHandler("taskflow_binding_dag", "via_struct_map", taskflowbinding.ViaStructMap),
 		airflow.TaskHandler("taskflow_binding_dag", "via_plain_map", taskflowbinding.ViaPlainMap),

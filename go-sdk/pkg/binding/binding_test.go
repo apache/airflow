@@ -894,7 +894,7 @@ func (s *BindingSuite) TestResolveTaggedStructNeverFallsBackToWholeValue() {
 	)
 	// A typo'd tag shows up from both sides at once, which is what names it.
 	s.Contains(logs, `Region (argument \"regon_code\")`)
-	s.Contains(logs, "not claimed by any struct field")
+	s.Contains(logs, "the task handler does not declare")
 }
 
 func (s *BindingSuite) TestResolveStructUnclaimedArgWarns() {
@@ -905,7 +905,7 @@ func (s *BindingSuite) TestResolveStructUnclaimedArgWarns() {
 	}, &fakeXComClient{})
 	s.Require().NoError(err, "an argument no field claims changes nothing the handler reads")
 	s.Equal("widget", got[0].Interface().(simpleInput).Name)
-	s.Contains(logs, "not claimed by any struct field")
+	s.Contains(logs, "the task handler does not declare")
 	s.Contains(logs, "typo")
 }
 
@@ -922,7 +922,7 @@ func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultStaysSilent() {
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal("widget", got[0].Interface().(simpleInput).Name)
-	s.NotContains(logs, "not claimed by any struct field")
+	s.NotContains(logs, "the task handler does not declare")
 }
 
 func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
@@ -951,7 +951,7 @@ func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
 	input := got[0].Interface().(twoFieldInput)
 	s.Equal("", input.Name, "no explicit entry arrived; fields keep kwarg-style zero values")
 	s.Equal("", input.Missing)
-	s.Contains(logs, "match no TaskFlow call argument")
+	s.Contains(logs, "the Dag's call did not pass")
 }
 
 func (s *BindingSuite) TestResolveStructUnmatchedFieldWarns() {
@@ -963,8 +963,25 @@ func (s *BindingSuite) TestResolveStructUnmatchedFieldWarns() {
 	input := got[0].Interface().(twoFieldInput)
 	s.Equal("widget", input.Name, "the matched field binds normally")
 	s.Equal("", input.Missing, "the unmatched field keeps its Go zero value")
-	s.Contains(logs, "match no TaskFlow call argument")
+	s.Contains(logs, "the Dag's call did not pass")
 	s.Contains(logs, `Missing (argument \"missing\")`)
+	s.NotContains(logs, "the task handler does not declare", "every argument was claimed")
+}
+
+func (s *BindingSuite) TestResolveStructWarnsInEachDirectionAtOnce() {
+	// A call can be wrong both ways at the same time, so each direction is its
+	// own message rather than one line a reader has to untangle.
+	fn := func(actx contexttest.Context, input twoFieldInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "typo", Value: "x", ValueSchema: argSchema("string")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal("widget", got[0].Interface().(twoFieldInput).Name)
+	s.Contains(logs, "the Dag's call did not pass")
+	s.Contains(logs, `declared_not_passed="[Missing (argument \"missing\")]"`)
+	s.Contains(logs, "the task handler does not declare")
+	s.Contains(logs, "passed_not_declared=[typo]")
 }
 
 func (s *BindingSuite) TestResolveFlatParamsToleratesCapturedDefaults() {
