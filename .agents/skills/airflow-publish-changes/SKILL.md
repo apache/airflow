@@ -141,13 +141,9 @@ git push -u origin <branch-name>
 gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
 closes: #ISSUE  (if applicable)
 
-## Human Summary
-
 <!-- The human author's own words, pasted verbatim. Agents must never write this. -->
 
-## AI Summary
-
-<details><summary>Click here</summary>
+<details><summary>AI Summary</summary>
 
 Agent-written description of what the PR changes and why.
 
@@ -171,7 +167,7 @@ pre-fills the PR template with the generative AI disclosure already completed.
 Remind the user to:
 
 1. Review the PR title — keep it short (under 70 chars), in the imperative mood, and focused on user impact. Do not use Conventional Commits prefixes (`fix:`, `feat:`, `chore:`, …).
-2. Check the `## Human Summary` is their own words — or type it in the browser now if they
+2. Check the content before the "AI Summary" tag is their own words — or type it in the browser now if they
    left it for later.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
 
