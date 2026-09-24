@@ -102,11 +102,15 @@ cache:
    never replays responses that belong to a different conversation.
 4. After successful completion, the cached steps are deleted.
 
-Fingerprints are computed from values normalized through pydantic, so ordinary
-types that are not JSON -- a ``datetime`` or ``Decimal`` tool argument, a
-dataclass in ``tool_choice`` -- still fingerprint normally. If a value cannot be
-serialized even then, that step is not cached, and on retry it runs live rather
-than replaying an unverified entry.
+Fingerprints are computed from canonicalized values, so ordinary types that are
+not JSON -- a ``datetime`` or ``Decimal`` tool argument, a dataclass in
+``tool_choice``, a ``set`` whose members are ordered before hashing -- fingerprint
+normally and still match on a later attempt. If a value cannot be canonicalized,
+that step is not cached, and on retry it runs live rather than replaying an
+unverified entry. A parameter annotated ``Iterable[...]`` is one such case:
+pydantic validates it lazily, and reading it in order to hash it would consume
+the input the tool itself has not read yet, so the step runs live instead of
+being cached.
 
 On the model path this is rarely confined to a single step: the causes are such a
 value in ``model_settings``, which is attached to every request, or in the message
@@ -117,7 +121,10 @@ replay, so the retry re-runs the agent at full cost. The
 
 A tool call is fingerprinted from its name, arguments and call id alone, so
 neither of those causes reaches it. One that cannot be fingerprinted is reported
-as ``could not fingerprint tool call`` and costs only that call.
+as ``could not fingerprint tool call``. It costs that call, and -- if the live
+re-run returns something different from the first attempt -- the model steps
+after it, because the result becomes part of the message history they
+fingerprint, the same cascade step 3 describes for a changed agent.
 
 Replay verification compares the **requests** sent to models and tools, not
 the code behind them. Editing a tool's implementation between attempts does
