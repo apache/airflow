@@ -79,6 +79,12 @@ class XComArg(ResolveMixin, DependencyMixin):
     :param operator: Operator instance to which the XComArg references.
     :param key: Key used to pull the XCom value. Defaults to *XCOM_RETURN_KEY*,
         i.e. the referenced operator's return value.
+
+    **Subclassing.** A subclass has to implement :meth:`iter_references` and :meth:`resolve`. The
+    rest of the surface an iterated task (``.iterate()``) uses has working defaults built on those
+    two: :meth:`aresolve` runs ``resolve`` in a worker thread, and :meth:`iter_values` /
+    :meth:`aiter_values` walk what ``resolve`` / ``aresolve`` return. Override them only to do
+    better, as the built-in subclasses do by pulling through ``ti.axcom_pull`` directly.
     """
 
     @overload
@@ -98,6 +104,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         raise NotImplementedError()
 
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        """Yield the items an iterated task runs over: the resolved value, or its elements if iterable."""
         resolved = self.resolve(context)
 
         if isinstance(resolved, (str, bytes, dict)):
@@ -108,7 +115,7 @@ class XComArg(ResolveMixin, DependencyMixin):
             yield resolved
 
     async def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[Any]:
-        """Async twin of :meth:`iter_values`; see ``ExpandInput.aiter_values``."""
+        """Async twin of :meth:`iter_values`, built on :meth:`aresolve`; see ``ExpandInput.aiter_values``."""
         from airflow.sdk.definitions._internal.expandinput import aiterate
 
         resolved = await self.aresolve(context)
@@ -209,10 +216,14 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         Async twin of :meth:`resolve`, for callers running on the task's event loop.
 
-        XComs are pulled through ``ti.axcom_pull`` so the call never blocks the loop thread on the
-        supervisor channel (see ``AsyncAwareExecutor.imap_unordered`` for why that matters).
+        The default runs :meth:`resolve` in a worker thread, so any subclass that implements
+        ``resolve`` works on the iterated path unchanged: a blocking supervisor call made from that
+        thread waits for the in-flight ``asend`` calls of other sub-tasks instead of deadlocking
+        with them, which the same call on the loop thread would do (see
+        ``AsyncAwareExecutor.imap_unordered``). The built-in subclasses override this to pull
+        through ``ti.axcom_pull`` directly and skip the thread hand-off.
         """
-        raise NotImplementedError()
+        return await asyncio.to_thread(self.resolve, context)
 
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:

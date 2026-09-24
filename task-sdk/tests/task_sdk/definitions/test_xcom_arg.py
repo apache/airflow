@@ -30,7 +30,7 @@ from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.xcom_arg import PlainXComArg
+from airflow.sdk.definitions.xcom_arg import PlainXComArg, XComArg
 from airflow.sdk.exceptions import AirflowSkipException, XComNotFound
 from airflow.sdk.execution_time.comms import GetXCom, XComResult, XComSequenceSliceResult
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
@@ -544,6 +544,45 @@ class AsyncOnlyValues:
             yield value
 
 
+class CustomXComArg(XComArg):
+    """A third-party subclass that only implements the two required methods."""
+
+    def __init__(self, values):
+        self.values = values
+        self.threads: list[threading.Thread] = []
+
+    def iter_references(self):
+        yield from ()
+
+    def resolve(self, context):
+        self.threads.append(threading.current_thread())
+        return self.values
+
+
+class TestXComArgSubclassDefaults:
+    """A subclass implementing only ``iter_references`` and ``resolve`` works on the iterated path."""
+
+    @pytest.mark.asyncio
+    async def test_aresolve_defaults_to_resolve_off_the_loop_thread(self):
+        arg = CustomXComArg([1, 2, 3])
+
+        assert await arg.aresolve({}) == [1, 2, 3]
+        assert arg.threads
+        assert all(thread is not threading.current_thread() for thread in arg.threads)
+
+    def test_iter_values_defaults_to_resolve(self):
+        assert list(CustomXComArg([1, 2]).iter_values({})) == [1, 2]
+        assert list(CustomXComArg("scalar").iter_values({})) == ["scalar"]
+
+    @pytest.mark.asyncio
+    async def test_aiter_values_defaults_to_aresolve(self):
+        arg = CustomXComArg([1, 2])
+
+        assert [item async for item in arg.aiter_values({})] == [1, 2]
+        assert arg.threads
+        assert all(thread is not threading.current_thread() for thread in arg.threads)
+
+
 class TestXComArg:
     @pytest.mark.parametrize(
         ("actual", "expected"),
@@ -651,6 +690,6 @@ class TestXComArg:
         with pytest.raises(ValueError, match="expects sequence or dict"):
             composite.resolve({})
 
-    def test_base_aresolve_is_abstract(self):
-        with pytest.raises(NotImplementedError):
-            asyncio.run(super(PlainXComArg, make_xcom_arg([])).aresolve({}))
+    def test_base_aresolve_falls_back_to_resolve(self):
+        """The base default is resolve() in a worker thread; PlainXComArg's axcom_pull override is an optimisation."""
+        assert asyncio.run(super(PlainXComArg, make_xcom_arg([1, 2])).aresolve({})) == [1, 2]
