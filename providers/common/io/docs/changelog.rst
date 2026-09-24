@@ -36,7 +36,7 @@ Features
 Misc
 ~~~~
 
-* ``Export StoreScope from airflow.sdk as public interface (#73600)``
+* ``Import the state store types from the public 'airflow.sdk.state' module (#73600)``
 
 Doc-only
 ~~~~~~~~
