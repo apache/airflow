@@ -129,15 +129,29 @@ git rebase upstream/<target_branch>
 If there are conflicts, resolve them and continue the rebase. If the rebase is too complex,
 ask the user for guidance.
 
+Before creating the PR, ask the user to type the `## Human Summary` and paste it
+verbatim — never write it yourself. See
+[PR descriptions: Human Summary and AI Summary](../airflow-pr-draft-summary/SKILL.md#pr-descriptions-human-summary-and-ai-summary).
+
 Then push the branch to your fork (`origin`) and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):
 
 ```bash
 git push -u origin <branch-name>
 gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
-Brief description of the changes.
-
 closes: #ISSUE  (if applicable)
+
+## Human Summary
+
+<!-- The human author's own words, pasted verbatim. Agents must never write this. -->
+
+## AI Summary
+
+<details><summary>Click here</summary>
+
+Agent-written description of what the PR changes and why.
+
+</details>
 
 ---
 
@@ -157,7 +171,8 @@ pre-fills the PR template with the generative AI disclosure already completed.
 Remind the user to:
 
 1. Review the PR title — keep it short (under 70 chars), in the imperative mood, and focused on user impact. Do not use Conventional Commits prefixes (`fix:`, `feat:`, `chore:`, …).
-2. Add a brief description of the changes at the top of the body.
+2. Check the `## Human Summary` is their own words — or type it in the browser now if they
+   left it for later.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
 
 ## Golden rule: when a fix is imminent, open the PR, not an issue

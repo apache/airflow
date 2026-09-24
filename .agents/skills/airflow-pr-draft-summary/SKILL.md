@@ -62,6 +62,45 @@ For `airflow-core` (and `chart/`, `dev/mypy/`) **user-facing** changes, add a ne
 
 - NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
 
+## PR descriptions: Human Summary and AI Summary
+
+An agent-drafted PR description starts with a `## Human Summary`: a few sentences
+**typed by the human author in their own words** — why the change is needed, the key
+decision or trade-off, and anything reviewers should watch for. The agent-written
+description goes below it, collapsed under `## AI Summary`. Reviewers read the Human
+Summary as evidence that a person understood and owns the change, so it must never be
+produced by an agent. PRs written by humans with the regular template are unaffected.
+
+1. **Ask the user to type the Human Summary** — e.g. "Please type a short Human Summary
+   (2–5 sentences, your own words: why this change, key decisions, caveats). I will paste
+   it verbatim." Then wait for their reply.
+2. **Paste the reply verbatim.** Do not reword, expand, shorten, translate, reformat, or
+   "fix" it — typos included.
+3. **Never write, draft, suggest, or pre-fill it yourself** — not a proposed wording for
+   the user to approve, not a paraphrase of something the user said earlier in the
+   session, not a summary of the commits, not a copy of the AI Summary. If the user asks
+   you to write it, decline and explain that it has to come from them.
+4. If the user prefers to type it in the browser, leave only the `<!-- ... -->`
+   placeholder under the heading. Do not put any agent text there.
+
+```markdown
+closes: #ISSUE  (if applicable)
+
+## Human Summary
+
+<!-- The human author's own words, pasted verbatim. Agents must never write this. -->
+
+## AI Summary
+
+<details><summary>Click here</summary>
+
+Agent-written description of what the PR changes and why.
+
+</details>
+```
+
+The Gen-AI disclosure block from the repository template follows after a `---`.
+
 ## GitHub messages drafted by agents
 
 Anything an agent drafts that ends up posted to GitHub on the user's
