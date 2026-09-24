@@ -70,8 +70,9 @@ class TestInfluxDB3Sensor:
         with pytest.raises(AirflowFailException, match="fail_on_empty"):
             sensor.poke(context={})
 
+    @mock.patch.object(InfluxDB3Sensor, "defer", autospec=True)
     @mock.patch(HOOK_PATH, autospec=True)
-    def test_execute_deferrable_fail_on_empty_before_deferral(self, mock_hook_class):
+    def test_execute_deferrable_fail_on_empty_before_deferral(self, mock_hook_class, mock_defer):
         mock_hook_class.return_value.query.return_value = pd.DataFrame({"literal": []})
         sensor = InfluxDB3Sensor(
             task_id="wait",
@@ -84,6 +85,7 @@ class TestInfluxDB3Sensor:
             sensor.execute(context={})
 
         mock_hook_class.return_value.query.assert_called_once_with(SQL)
+        mock_defer.assert_not_called()
 
     @mock.patch(HOOK_PATH, autospec=True)
     def test_execute_times_out_when_condition_is_never_met(self, mock_hook_class):
