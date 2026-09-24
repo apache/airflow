@@ -74,6 +74,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
       renderInput={(props) => (
         <InputWithAddon
           {...props}
+          data-testid="filter-pill-input"
           endAddon={
             showAdvancedToggle ? (
               <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} variant="addon" />
