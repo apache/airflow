@@ -422,7 +422,8 @@ class TestTaskInstanceOperations:
     @pytest.mark.parametrize(
         "state", [state for state in TerminalTIState if state != TerminalTIState.SUCCESS]
     )
-    def test_task_instance_finish(self, state):
+    @pytest.mark.parametrize("retry_reason", [None, "auth error, do not retry"])
+    def test_task_instance_finish(self, state, retry_reason):
         # Simulate a successful response from the server that finishes (moved to terminal state) a task
         ti_id = uuid6.uuid7()
 
@@ -432,6 +433,7 @@ class TestTaskInstanceOperations:
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["state"] == state
                 assert actual_body["rendered_map_index"] == "test"
+                assert actual_body["retry_reason"] == retry_reason
                 return httpx.Response(
                     status_code=204,
                 )
@@ -439,7 +441,11 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.finish(
-            ti_id, state=state, when="2024-10-31T12:00:00Z", rendered_map_index="test"
+            ti_id,
+            state=state,
+            when="2024-10-31T12:00:00Z",
+            rendered_map_index="test",
+            retry_reason=retry_reason,
         )
 
     def test_task_instance_heartbeat(self):

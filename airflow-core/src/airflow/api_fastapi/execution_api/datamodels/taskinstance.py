@@ -85,6 +85,7 @@ class TITerminalStatePayload(StrictBaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):

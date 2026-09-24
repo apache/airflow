@@ -1760,6 +1760,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 state=msg.state,
                 when=msg.end_date or datetime.now(tz=timezone.utc),
                 rendered_map_index=self._rendered_map_index,
+                retry_reason=msg.retry_reason,
             )
         elif isinstance(msg, SucceedTask):
             self.client.task_instances.succeed(
