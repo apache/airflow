@@ -16,12 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import hashlib
 import json
+import os
+import subprocess
+import sys
+from collections.abc import Iterable
 from decimal import Decimal
 
 import httpx
+import pydantic
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -33,7 +39,9 @@ from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.settings import ToolOrOutput
 from pydantic_ai.tools import ToolDefinition
 
+from airflow.providers.common.ai.durable import fingerprint as fingerprint_module
 from airflow.providers.common.ai.durable.fingerprint import (
+    _canonical,
     _digest,
     fingerprint_model_request,
     fingerprint_tool_call,
@@ -284,3 +292,131 @@ class TestPydanticNativeValues:
         pre_normalization = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
         assert _digest(payload) == pre_normalization
+
+
+class TestSetMemberOrdering:
+    """Sets must hash in a fixed order rather than the interpreter's iteration order.
+
+    A ``set[str]`` iterates in an order derived from the process hash seed, and every
+    task attempt runs in a fresh process. Hashing that order would produce a digest
+    the next attempt never reproduces, so the step would re-run live on every retry
+    -- worse than declining to cache it, which at least costs nothing extra.
+    """
+
+    def test_set_hashes_as_its_ordered_members(self):
+        assert _canonical({"tags": {"beta", "alpha"}}) == {"tags": ["alpha", "beta"]}
+
+    def test_set_matches_the_equivalent_list(self):
+        assert _digest({"tags": {"alpha", "beta", "gamma"}}) == _digest({"tags": ["alpha", "beta", "gamma"]})
+
+    def test_frozenset_matches_set(self):
+        assert _digest({"tags": frozenset({"a", "b"})}) == _digest({"tags": {"b", "a"}})
+
+    def test_different_members_still_produce_different_digests(self):
+        assert _digest({"tags": {"a", "b"}}) != _digest({"tags": {"a", "c"}})
+
+    def test_set_nested_inside_a_list(self):
+        assert _canonical({"filters": [{"z", "y"}]}) == {"filters": [["y", "z"]]}
+
+    def test_set_inside_a_dataclass_field(self):
+        @dataclasses.dataclass
+        class Filter:
+            tags: set
+
+        assert _canonical(Filter(tags={"b", "a"})) == {"tags": ["a", "b"]}
+
+    def test_set_inside_a_basemodel_field(self):
+        class Filter(pydantic.BaseModel):
+            tags: set[str]
+
+        assert _canonical(Filter(tags={"b", "a"})) == {"tags": ["a", "b"]}
+
+    def test_digest_is_stable_across_process_hash_seeds(self):
+        """The real proof: two fresh interpreters must agree, as two attempts would.
+
+        In-process comparisons cannot catch a hash-seed dependency, since one process
+        has one seed. The subprocess loads the module by path so it does not pay for
+        importing Airflow.
+        """
+        snippet = (
+            "import importlib.util;"
+            f"spec = importlib.util.spec_from_file_location('fp', r'{fingerprint_module.__file__}');"
+            "mod = importlib.util.module_from_spec(spec);"
+            "spec.loader.exec_module(mod);"
+            "print(mod._digest({'tags': {'alpha', 'beta', 'gamma', 'delta'}}))"
+        )
+        digests = set()
+        for seed in ("0", "1", "2", "42"):
+            completed = subprocess.run(
+                [sys.executable, "-c", snippet],
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
+                check=True,
+            )
+            digests.add(completed.stdout.strip().splitlines()[-1])
+
+        assert len(digests) == 1, f"digest depends on the hash seed: {digests}"
+
+
+class TestLazilyValidatedIterable:
+    """A lazily validated ``Iterable`` must be refused, not consumed.
+
+    ``to_jsonable_python`` drains an iterator to render it. Tool arguments are
+    fingerprinted before the tool runs, so draining one would hand the tool an
+    exhausted iterator and cache that wrong result under the fingerprint of the
+    full input. Declining to fingerprint leaves the step uncached instead.
+    """
+
+    def test_validator_iterator_argument_is_not_fingerprinted(self):
+        values = pydantic.TypeAdapter(Iterable[int]).validate_python([1, 2, 3])
+
+        assert fingerprint_tool_call("total", {"values": values}, "id1") is None
+
+    def test_the_iterator_is_left_unread(self):
+        values = pydantic.TypeAdapter(Iterable[int]).validate_python([1, 2, 3])
+
+        fingerprint_tool_call("total", {"values": values}, "id1")
+
+        assert list(values) == [1, 2, 3]
+
+    def test_a_generator_is_refused_too(self):
+        assert fingerprint_tool_call("total", {"values": (n for n in (1, 2))}, "id1") is None
+
+    def test_an_ordinary_list_argument_still_fingerprints(self):
+        assert fingerprint_tool_call("total", {"values": [1, 2, 3]}, "id1") is not None
+
+
+class TestUnwalkablePayloadsDegradeRatherThanRaise:
+    """Whatever the canonicalizer cannot walk must become ``None``, never propagate.
+
+    A failed fingerprint costs a re-run; an exception escaping here would fail the
+    task outright, which durable execution must never do on its own account.
+    """
+
+    def test_circular_reference_returns_none(self):
+        """``_canonical`` recurses before ``json.dumps`` can apply its own cycle check."""
+        cycle: dict = {}
+        cycle["self"] = cycle
+
+        assert fingerprint_tool_call("t", {"v": cycle}, "id1") is None
+
+    def test_circular_reference_in_model_settings_returns_none(self):
+        cycle: dict = {}
+        cycle["self"] = cycle
+
+        fp = fingerprint_model_request(
+            "m",
+            make_messages(),
+            {"extra_body": cycle},
+            ModelRequestParameters(),
+        )
+
+        assert fp is None
+
+    def test_a_message_that_does_not_dump_to_a_mapping_returns_none(self):
+        """A python-mode dump passes an unrecognised object straight through."""
+        assert (
+            fingerprint_model_request("m", [object()], None, ModelRequestParameters())  # type: ignore[list-item]
+            is None
+        )

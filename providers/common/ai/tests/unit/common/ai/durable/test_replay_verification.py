@@ -25,6 +25,7 @@ when the agent changed between attempts (the positional-keying staleness bug).
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from unittest.mock import patch
 
 import pytest
@@ -33,6 +34,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCall
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX
 from airflow.providers.common.ai.durable.caching_model import CachingModel
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
@@ -136,3 +138,57 @@ class TestChangedAgentDoesNotReplayStaleSteps:
         # at step 0 -- the tool must run live, not replay.
         assert retry.live_tool_calls == 1
         assert retry.counter.replayed_tool == 0
+
+
+class TestLazilyValidatedIterableArgument:
+    """A lazily validated ``Iterable`` argument must reach the tool intact.
+
+    pydantic validates an ``Iterable[int]`` parameter into a ``ValidatorIterator``,
+    and the toolset fingerprints the arguments before the tool runs. Reading them
+    to build the fingerprint would leave the tool an exhausted iterator, and the
+    wrong answer would then be cached under the fingerprint of the full input.
+    """
+
+    @staticmethod
+    def _agent(storage, counter, seen):
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            if not any(isinstance(m, ModelResponse) for m in messages):
+                return ModelResponse(parts=[ToolCallPart(tool_name="total", args={"values": [1, 2, 3]})])
+            returned = next(p.content for m in messages for p in m.parts if p.part_kind == "tool-return")
+            return ModelResponse(parts=[TextPart(content=f"total={returned}")])
+
+        def total(values: Iterable[int]) -> int:
+            """Add up the given values."""
+            consumed = list(values)
+            seen.extend(consumed)
+            return sum(consumed)
+
+        return Agent(
+            model=CachingModel(FunctionModel(model_fn), storage=storage, counter=counter),
+            toolsets=[
+                CachingToolset(wrapped=FunctionToolset(tools=[total]), storage=storage, counter=counter)
+            ],
+        )
+
+    @pytest.mark.asyncio
+    async def test_tool_still_receives_every_value(self, storage):
+        counter = DurableStepCounter()
+        seen: list[int] = []
+
+        result = await self._agent(storage, counter, seen).run("add them up")
+
+        assert seen == [1, 2, 3]
+        assert result.output == "total=6"
+
+    @pytest.mark.asyncio
+    async def test_the_step_is_not_cached_rather_than_cached_wrong(self, storage):
+        """The call cannot be fingerprinted, so it must be left out of the cache."""
+        counter = DurableStepCounter()
+
+        await self._agent(storage, counter, []).run("add them up")
+
+        # Step 0 is the model call, step 1 the tool call.
+        found, _value, _fingerprint = storage.load_tool_result(f"{DURABLE_KEY_PREFIX}tool_step_1")
+        assert found is False
+        # It still ran, so it counts as a step executed fresh.
+        assert counter.cached_tool == 1
