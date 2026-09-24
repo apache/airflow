@@ -557,6 +557,14 @@ def _get_permissions_to_create(
         )
         perm_configs.append(
             {
+                "name": "AdminViewAccess",
+                "type": "scope-based",
+                "scope_names": ["GET"],
+                "resources": [KeycloakResource.ADMIN_VIEW.value],
+            }
+        )
+        perm_configs.append(
+            {
                 "name": "MenuAccess",
                 "type": "scope-based",
                 "scope_names": ["MENU"],
@@ -884,6 +892,9 @@ def _attach_team_permissions(
         ],
         _dry_run=_dry_run,
     )
+    # ``View`` only covers the views every team role may read. Views over records that are not tied
+    # to a team (e.g. audit log rows not tied to a Dag) live on ``AdminView``, which team roles do not
+    # get -- see ``_attach_superadmin_permissions``.
     for role_name in TEAM_ROLE_NAMES:
         _attach_policy_to_scope_permission(
             client,
@@ -987,6 +998,16 @@ def _attach_superadmin_permissions(
         policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
         scope_names=["GET"],
         resource_names=[KeycloakResource.VIEW.value],
+        decision_strategy="AFFIRMATIVE",
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="AdminViewAccess",
+        policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
+        scope_names=["GET"],
+        resource_names=[KeycloakResource.ADMIN_VIEW.value],
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
