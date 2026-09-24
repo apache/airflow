@@ -502,7 +502,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         self.log.debug("openlineage: getting connection to get database info")
         connection = self.get_connection(self.get_conn_id())
-        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+        database_info = self.get_openlineage_database_info(connection)
+        namespace = SQLParser.create_namespace(database_info)
 
         self.log.info("Separate OpenLineage events will be emitted for each Databricks query_id.")
         emit_openlineage_events_for_databricks_queries(
@@ -511,6 +512,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             query_ids=self.query_ids,
             query_for_extra_metadata=True,
             query_source_namespace=namespace,
+            default_database=database_info.database,
+            default_schema=self.get_openlineage_default_schema(),
         )
 
         if len(self.query_ids) == 1:

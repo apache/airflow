@@ -21,21 +21,13 @@ import datetime
 from unittest import mock
 
 import pytest
-from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
-from openlineage.client.facet_v2 import job_type_job, parent_run
+import time_machine
 
-from airflow.providers.common.compat.openlineage.facet import (
-    ErrorMessageRunFacet,
-    ExternalQueryRunFacet,
-    SQLJobFacet,
-)
+from airflow.providers.common.compat.openlineage.facet import SQLJobFacet
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
-from airflow.providers.openlineage.conf import namespace
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 from airflow.providers.snowflake.utils.openlineage import (
-    _create_snowflake_event_pair,
-    _get_parent_run_facet,
     _get_queries_details_from_snowflake,
     _process_data_from_api,
     _run_single_query_with_api_hook,
@@ -45,6 +37,15 @@ from airflow.providers.snowflake.utils.openlineage import (
     fix_snowflake_sqlalchemy_uri,
 )
 from airflow.utils.state import TaskInstanceState
+
+FROZEN_NOW = timezone.datetime(2025, 1, 1, 12, 0, 0)
+_EXPECTED_RANGE_START = (FROZEN_NOW - datetime.timedelta(minutes=5)).isoformat()
+_EXPECTED_RANGE_END = (FROZEN_NOW + datetime.timedelta(minutes=5)).isoformat()
+_EXPECTED_TIME_FILTER = (
+    f"end_time_range_start=>to_timestamp_tz('{_EXPECTED_RANGE_START}'), "
+    f"end_time_range_end=>to_timestamp_tz('{_EXPECTED_RANGE_END}'), "
+    "result_limit=>10000"
+)
 
 
 @pytest.mark.parametrize(
@@ -113,30 +114,6 @@ def test_fix_account_name(name, expected):
         fix_snowflake_sqlalchemy_uri(f"snowflake://{name}/database/schema")
         == f"snowflake://{expected}/database/schema"
     )
-
-
-def test_get_parent_run_facet():
-    logical_date = timezone.datetime(2025, 1, 1)
-    dr = mock.MagicMock(logical_date=logical_date, clear_number=0)
-    mock_ti = mock.MagicMock(
-        dag_id="dag_id",
-        task_id="task_id",
-        map_index=1,
-        try_number=1,
-        logical_date=logical_date,
-        state=TaskInstanceState.SUCCESS,
-        dag_run=dr,
-    )
-    mock_ti.get_template_context.return_value = {"dag_run": dr}
-
-    result = _get_parent_run_facet(mock_ti)
-
-    assert result.run.runId == "01941f29-7c00-7087-8906-40e512c257bd"
-    assert result.job.namespace == namespace()
-    assert result.job.name == "dag_id.task_id"
-    assert result.root.run.runId == "01941f29-7c00-743e-b109-28b18d0a19c5"
-    assert result.root.job.namespace == namespace()
-    assert result.root.job.name == "dag_id"
 
 
 def test_process_data_from_api():
@@ -255,6 +232,7 @@ def test_get_queries_details_from_snowflake_empty_query_ids():
     assert details == {}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_hook")
 def test_get_queries_details_from_snowflake_single_query(mock_run_single_query):
     hook = SnowflakeHook(snowflake_conn_id="test_conn")
@@ -275,13 +253,14 @@ def test_get_queries_details_from_snowflake_single_query(mock_run_single_query):
     details = _get_queries_details_from_snowflake(hook, query_ids)
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         "WHERE QUERY_ID = 'ABC';"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
     assert details == {"ABC": fake_result[0]}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_api_hook")
 def test_get_queries_details_from_snowflake_single_query_api_hook(mock_run_single_query_api):
     hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
@@ -303,7 +282,7 @@ def test_get_queries_details_from_snowflake_single_query_api_hook(mock_run_singl
 
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         "WHERE QUERY_ID = 'ABC';"
     )
     expected_details = {
@@ -319,6 +298,7 @@ def test_get_queries_details_from_snowflake_single_query_api_hook(mock_run_singl
     assert details == {"ABC": expected_details}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_hook")
 def test_get_queries_details_from_snowflake_multiple_queries(mock_run_single_query):
     hook = SnowflakeHook(snowflake_conn_id="test_conn")
@@ -350,13 +330,14 @@ def test_get_queries_details_from_snowflake_multiple_queries(mock_run_single_que
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
     assert details == {row["QUERY_ID"]: row for row in fake_result}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_api_hook")
 def test_get_queries_details_from_snowflake_multiple_queries_api_hook(mock_run_single_query_api):
     hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
@@ -388,7 +369,7 @@ def test_get_queries_details_from_snowflake_multiple_queries_api_hook(mock_run_s
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     expected_details = [
@@ -415,6 +396,7 @@ def test_get_queries_details_from_snowflake_multiple_queries_api_hook(mock_run_s
     assert details == {row["QUERY_ID"]: row for row in expected_details}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_hook")
 def test_get_queries_details_from_snowflake_no_data_found(mock_run_single_query):
     hook = SnowflakeHook(snowflake_conn_id="test_conn")
@@ -426,13 +408,14 @@ def test_get_queries_details_from_snowflake_no_data_found(mock_run_single_query)
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
     assert details == {}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_api_hook")
 def test_get_queries_details_from_snowflake_no_data_found_api_hook(mock_run_single_query_api):
     hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
@@ -444,13 +427,14 @@ def test_get_queries_details_from_snowflake_no_data_found_api_hook(mock_run_sing
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
     assert details == {}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_hook")
 def test_get_queries_details_from_snowflake_error(mock_run_single_query):
     hook = SnowflakeHook(snowflake_conn_id="test_conn")
@@ -462,13 +446,14 @@ def test_get_queries_details_from_snowflake_error(mock_run_single_query):
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
     assert details == {}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_api_hook")
 def test_get_queries_details_from_snowflake_error_api_hook(mock_run_single_query_api):
     hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
@@ -480,13 +465,14 @@ def test_get_queries_details_from_snowflake_error_api_hook(mock_run_single_query
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
     assert details == {}
 
 
+@time_machine.travel(FROZEN_NOW, tick=False)
 @mock.patch("airflow.providers.snowflake.utils.openlineage._process_data_from_api")
 @mock.patch("airflow.providers.snowflake.utils.openlineage._run_single_query_with_api_hook")
 def test_get_queries_details_from_snowflake_error_api_hook_process_data(
@@ -502,7 +488,7 @@ def test_get_queries_details_from_snowflake_error_api_hook_process_data(
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(snowflake.information_schema.query_history()) "
+        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
@@ -510,70 +496,19 @@ def test_get_queries_details_from_snowflake_error_api_hook_process_data(
     assert details == {}
 
 
-@pytest.mark.parametrize("is_successful", [True, False])
-@mock.patch("openlineage.client.uuid.generate_new_uuid")
-def test_create_snowflake_event_pair_success(mock_generate_uuid, is_successful):
-    fake_uuid = "01941f29-7c00-7087-8906-40e512c257bd"
-    mock_generate_uuid.return_value = fake_uuid
-
-    job_namespace = "test_namespace"
-    job_name = "test_job"
-    start_time = timezone.datetime(2021, 1, 1, 10, 0, 0)
-    end_time = timezone.datetime(2021, 1, 1, 10, 30, 0)
-    run_facets = {"run_key": "run_value"}
-    job_facets = {"job_key": "job_value"}
-
-    start_event, end_event = _create_snowflake_event_pair(
-        job_namespace,
-        job_name,
-        start_time,
-        end_time,
-        is_successful=is_successful,
-        run_facets=run_facets,
-        job_facets=job_facets,
-    )
-
-    assert start_event.eventType == RunState.START
-    assert start_event.eventTime == start_time.isoformat()
-    assert end_event.eventType == RunState.COMPLETE if is_successful else RunState.FAIL
-    assert end_event.eventTime == end_time.isoformat()
-
-    assert start_event.run.runId == fake_uuid
-    assert start_event.run.facets == run_facets
-
-    assert start_event.job.namespace == job_namespace
-    assert start_event.job.name == job_name
-    assert start_event.job.facets == job_facets
-
-    assert start_event.run is end_event.run
-    assert start_event.job == end_event.job
-
-
 @mock.patch("importlib.metadata.version", return_value="3.0.0")
-@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.providers.openlineage.api.emit_query_lineage")
+@time_machine.travel(FROZEN_NOW, tick=False)
 def test_emit_openlineage_events_for_snowflake_queries_with_extra_metadata(
-    mock_generate_uuid, mock_version, time_machine
+    mock_emit_query_lineage, mock_version
 ):
-    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
-    mock_generate_uuid.return_value = fake_uuid
-
-    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    time_machine.move_to(default_event_time, tick=False)
-
     query_ids = ["query1", "query2", "query3"]
     original_query_ids = copy.deepcopy(query_ids)
-    logical_date = timezone.datetime(2025, 1, 1)
-    mock_dagrun = mock.MagicMock(logical_date=logical_date, clear_number=0)
     mock_ti = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
-        map_index=1,
-        try_number=1,
-        logical_date=logical_date,
         state=TaskInstanceState.FAILED,  # This will be query default state if no metadata found
-        dag_run=mock_dagrun,
     )
-    mock_ti.get_template_context.return_value = {"dag_run": mock_dagrun}
 
     fake_metadata = {
         "query1": {
@@ -596,21 +531,12 @@ def test_emit_openlineage_events_for_snowflake_queries_with_extra_metadata(
 
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
+    default_database = "MY_DB"
+    default_schema = "MY_SCHEMA"
 
-    fake_adapter = mock.MagicMock()
-    fake_adapter.emit = mock.MagicMock()
-    fake_listener = mock.MagicMock()
-    fake_listener.adapter = fake_adapter
-
-    with (
-        mock.patch(
-            "airflow.providers.snowflake.utils.openlineage._get_queries_details_from_snowflake",
-            return_value=fake_metadata,
-        ),
-        mock.patch(
-            "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
-            return_value=fake_listener,
-        ),
+    with mock.patch(
+        "airflow.providers.snowflake.utils.openlineage._get_queries_details_from_snowflake",
+        return_value=fake_metadata,
     ):
         emit_openlineage_events_for_snowflake_queries(
             query_ids=query_ids,
@@ -618,651 +544,254 @@ def test_emit_openlineage_events_for_snowflake_queries_with_extra_metadata(
             task_instance=mock_ti,
             hook=mock.MagicMock(),
             query_for_extra_metadata=True,
+            default_database=default_database,
+            default_schema=default_schema,
             additional_run_facets=additional_run_facets,
             additional_job_facets=additional_job_facets,
         )
 
-        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        assert fake_adapter.emit.call_count == 6  # Expect two events per query.
+    assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
 
-        expected_common_job_facets = {
-            "jobType": job_type_job.JobTypeJobFacet(
-                jobType="QUERY",
-                processingType="BATCH",
-                integration="SNOWFLAKE",
-            ),
-            "custom_job": "value_job",
-        }
-        expected_common_run_facets = {
-            "parent": parent_run.ParentRunFacet(
-                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
-                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
-                root=parent_run.Root(
-                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
-                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
-                ),
-            ),
-            "custom_run": "value_run",
-        }
-
-        expected_calls = [
-            mock.call(  # Query1: START event
-                RunEvent(
-                    eventTime=fake_metadata["query1"]["START_TIME"].isoformat(),
-                    eventType=RunState.START,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets={
-                            "sql": SQLJobFacet(query="SELECT * FROM table1"),
-                            **expected_common_job_facets,
-                        },
-                    ),
-                )
-            ),
-            mock.call(  # Query1: COMPLETE event
-                RunEvent(
-                    eventTime=fake_metadata["query1"]["END_TIME"].isoformat(),
-                    eventType=RunState.COMPLETE,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets={
-                            "sql": SQLJobFacet(query="SELECT * FROM table1"),
-                            **expected_common_job_facets,
-                        },
-                    ),
-                )
-            ),
-            mock.call(  # Query2: START event
-                RunEvent(
-                    eventTime=fake_metadata["query2"]["START_TIME"].isoformat(),
-                    eventType=RunState.START,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query2", source="snowflake_ns"
-                            ),
-                            "error": ErrorMessageRunFacet(
-                                message="ERR001 : Error occurred", programmingLanguage="SQL"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.2",
-                        facets={
-                            "sql": SQLJobFacet(query="SELECT * FROM table2"),
-                            **expected_common_job_facets,
-                        },
-                    ),
-                )
-            ),
-            mock.call(  # Query2: FAIL event
-                RunEvent(
-                    eventTime=fake_metadata["query2"]["END_TIME"].isoformat(),
-                    eventType=RunState.FAIL,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query2", source="snowflake_ns"
-                            ),
-                            "error": ErrorMessageRunFacet(
-                                message="ERR001 : Error occurred", programmingLanguage="SQL"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.2",
-                        facets={
-                            "sql": SQLJobFacet(query="SELECT * FROM table2"),
-                            **expected_common_job_facets,
-                        },
-                    ),
-                )
-            ),
-            mock.call(  # Query3: START event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),  # no metadata for query3
-                    eventType=RunState.START,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query3", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.3",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-            mock.call(  # Query3: FAIL event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),  # no metadata for query3
-                    eventType=RunState.FAIL,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query3", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.3",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-        ]
-
-        assert fake_adapter.emit.call_args_list == expected_calls
+    expected_calls = [
+        mock.call(
+            query_id="query1",
+            query_source_namespace="snowflake_ns",
+            query_text=None,
+            default_database=default_database,
+            default_schema=default_schema,
+            start_time=fake_metadata["query1"]["START_TIME"],
+            end_time=fake_metadata["query1"]["END_TIME"],
+            is_successful=True,
+            error_message=None,
+            job_name="dag_id.task_id.query.1",
+            task_instance=mock_ti,
+            additional_run_facets=additional_run_facets,
+            additional_job_facets={
+                "custom_job": "value_job",
+                "sql": SQLJobFacet(query="SELECT * FROM table1"),
+            },
+        ),
+        mock.call(
+            query_id="query2",
+            query_source_namespace="snowflake_ns",
+            query_text=None,
+            default_database=default_database,
+            default_schema=default_schema,
+            start_time=fake_metadata["query2"]["START_TIME"],
+            end_time=fake_metadata["query2"]["END_TIME"],
+            is_successful=False,
+            error_message="ERR001 : Error occurred",
+            job_name="dag_id.task_id.query.2",
+            task_instance=mock_ti,
+            additional_run_facets=additional_run_facets,
+            additional_job_facets={
+                "custom_job": "value_job",
+                "sql": SQLJobFacet(query="SELECT * FROM table2"),
+            },
+        ),
+        mock.call(
+            query_id="query3",
+            query_source_namespace="snowflake_ns",
+            query_text=None,
+            default_database=default_database,
+            default_schema=default_schema,
+            start_time=FROZEN_NOW,
+            end_time=FROZEN_NOW,
+            is_successful=False,  # no metadata for query3, default state ("failed") is used
+            error_message=None,
+            job_name="dag_id.task_id.query.3",
+            task_instance=mock_ti,
+            additional_run_facets=additional_run_facets,
+            additional_job_facets=additional_job_facets,
+        ),
+    ]
+    assert mock_emit_query_lineage.call_args_list == expected_calls
 
 
 @mock.patch("importlib.metadata.version", return_value="3.0.0")
-@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.providers.openlineage.api.emit_query_lineage")
+@time_machine.travel(FROZEN_NOW, tick=False)
 def test_emit_openlineage_events_for_snowflake_queries_without_extra_metadata(
-    mock_generate_uuid, mock_version, time_machine
+    mock_emit_query_lineage, mock_version
 ):
-    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
-    mock_generate_uuid.return_value = fake_uuid
-
-    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    time_machine.move_to(default_event_time, tick=False)
-
     query_ids = ["query1"]
     original_query_ids = copy.deepcopy(query_ids)
-    logical_date = timezone.datetime(2025, 1, 1)
     mock_ti = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
-        map_index=1,
-        try_number=1,
-        logical_date=logical_date,
         state=TaskInstanceState.SUCCESS,  # This will be query default state if no metadata found
-        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
-    mock_ti.get_template_context.return_value = {
-        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
-    }
 
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
+    hook = mock.MagicMock()
 
-    fake_adapter = mock.MagicMock()
-    fake_adapter.emit = mock.MagicMock()
-    fake_listener = mock.MagicMock()
-    fake_listener.adapter = fake_adapter
+    emit_openlineage_events_for_snowflake_queries(
+        query_ids=query_ids,
+        query_source_namespace="snowflake_ns",
+        task_instance=mock_ti,
+        hook=hook,
+        # query_for_extra_metadata=False,  # False by default
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
-    with mock.patch(
-        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
-        return_value=fake_listener,
-    ):
-        emit_openlineage_events_for_snowflake_queries(
-            query_ids=query_ids,
-            query_source_namespace="snowflake_ns",
-            task_instance=mock_ti,
-            hook=mock.MagicMock(),
-            # query_for_extra_metadata=False,  # False by default
-            additional_run_facets=additional_run_facets,
-            additional_job_facets=additional_job_facets,
-        )
-
-        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
-
-        expected_common_job_facets = {
-            "jobType": job_type_job.JobTypeJobFacet(
-                jobType="QUERY",
-                processingType="BATCH",
-                integration="SNOWFLAKE",
-            ),
-            "custom_job": "value_job",
-        }
-        expected_common_run_facets = {
-            "parent": parent_run.ParentRunFacet(
-                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
-                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
-                root=parent_run.Root(
-                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
-                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
-                ),
-            ),
-            "custom_run": "value_run",
-        }
-
-        expected_calls = [
-            mock.call(  # Query1: START event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.START,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-            mock.call(  # Query1: COMPLETE event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.COMPLETE,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-        ]
-
-        assert fake_adapter.emit.call_args_list == expected_calls
+    assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+    mock_emit_query_lineage.assert_called_once_with(
+        query_id="query1",
+        query_source_namespace="snowflake_ns",
+        query_text=None,
+        default_database=None,
+        default_schema=None,
+        start_time=FROZEN_NOW,
+        end_time=FROZEN_NOW,
+        is_successful=True,  # no metadata, default state ("success") is used
+        error_message=None,
+        job_name="dag_id.task_id.query.1",
+        task_instance=mock_ti,
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
 
 @mock.patch("importlib.metadata.version", return_value="3.0.0")
-@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.providers.openlineage.api.emit_query_lineage")
+@time_machine.travel(FROZEN_NOW, tick=False)
 def test_emit_openlineage_events_for_snowflake_queries_without_query_ids(
-    mock_generate_uuid, mock_version, time_machine
+    mock_emit_query_lineage, mock_version
 ):
-    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
-    mock_generate_uuid.return_value = fake_uuid
-
-    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    time_machine.move_to(default_event_time, tick=False)
-
     hook = mock.MagicMock()
     hook.query_ids = ["query1"]
     original_query_ids = copy.deepcopy(hook.query_ids)
-    logical_date = timezone.datetime(2025, 1, 1)
     mock_ti = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
-        map_index=1,
-        try_number=1,
-        logical_date=logical_date,
         state=TaskInstanceState.RUNNING,  # Success will be query default state if no metadata found
-        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
-    mock_ti.get_template_context.return_value = {
-        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
-    }
 
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
 
-    fake_adapter = mock.MagicMock()
-    fake_adapter.emit = mock.MagicMock()
-    fake_listener = mock.MagicMock()
-    fake_listener.adapter = fake_adapter
+    emit_openlineage_events_for_snowflake_queries(
+        query_ids=[],
+        query_source_namespace="snowflake_ns",
+        task_instance=mock_ti,
+        hook=hook,
+        # query_for_extra_metadata=False,  # False by default
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
-    with mock.patch(
-        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
-        return_value=fake_listener,
-    ):
-        emit_openlineage_events_for_snowflake_queries(
-            query_ids=[],
-            query_source_namespace="snowflake_ns",
-            task_instance=mock_ti,
-            hook=hook,
-            # query_for_extra_metadata=False,  # False by default
-            additional_run_facets=additional_run_facets,
-            additional_job_facets=additional_job_facets,
-        )
-
-        assert hook.query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
-
-        expected_common_job_facets = {
-            "jobType": job_type_job.JobTypeJobFacet(
-                jobType="QUERY",
-                processingType="BATCH",
-                integration="SNOWFLAKE",
-            ),
-            "custom_job": "value_job",
-        }
-        expected_common_run_facets = {
-            "parent": parent_run.ParentRunFacet(
-                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
-                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
-                root=parent_run.Root(
-                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
-                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
-                ),
-            ),
-            "custom_run": "value_run",
-        }
-
-        expected_calls = [
-            mock.call(  # Query1: START event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.START,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-            mock.call(  # Query1: COMPLETE event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.COMPLETE,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-        ]
-
-        assert fake_adapter.emit.call_args_list == expected_calls
+    assert hook.query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+    mock_emit_query_lineage.assert_called_once_with(
+        query_id="query1",
+        query_source_namespace="snowflake_ns",
+        query_text=None,
+        default_database=None,
+        default_schema=None,
+        start_time=FROZEN_NOW,
+        end_time=FROZEN_NOW,
+        is_successful=True,  # no metadata, "running" default state is treated as success
+        error_message=None,
+        job_name="dag_id.task_id.query.1",
+        task_instance=mock_ti,
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
 
 @mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.create_namespace", return_value="snowflake_ns")
 @mock.patch("importlib.metadata.version", return_value="3.0.0")
-@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.providers.openlineage.api.emit_query_lineage")
+@time_machine.travel(FROZEN_NOW, tick=False)
 def test_emit_openlineage_events_for_snowflake_queries_without_query_ids_and_namespace(
-    mock_generate_uuid, mock_version, mock_parser, time_machine
+    mock_emit_query_lineage, mock_version, mock_parser
 ):
-    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
-    mock_generate_uuid.return_value = fake_uuid
-
-    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    time_machine.move_to(default_event_time, tick=False)
-
     hook = mock.MagicMock()
     hook.query_ids = ["query1"]
     original_query_ids = copy.deepcopy(hook.query_ids)
-    logical_date = timezone.datetime(2025, 1, 1)
     mock_ti = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
-        map_index=1,
-        try_number=1,
-        logical_date=logical_date,
         state="running",  # Success will be query default state if no metadata found
-        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
-    mock_ti.get_template_context.return_value = {
-        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
-    }
 
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
 
-    fake_adapter = mock.MagicMock()
-    fake_adapter.emit = mock.MagicMock()
-    fake_listener = mock.MagicMock()
-    fake_listener.adapter = fake_adapter
+    emit_openlineage_events_for_snowflake_queries(
+        query_ids=[],
+        query_source_namespace=None,
+        task_instance=mock_ti,
+        hook=hook,
+        # query_for_extra_metadata=False,  # False by default
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
-    with mock.patch(
-        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
-        return_value=fake_listener,
-    ):
-        emit_openlineage_events_for_snowflake_queries(
-            query_ids=[],
-            query_source_namespace=None,
-            task_instance=mock_ti,
-            hook=hook,
-            # query_for_extra_metadata=False,  # False by default
-            additional_run_facets=additional_run_facets,
-            additional_job_facets=additional_job_facets,
-        )
-
-        assert hook.query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
-
-        expected_common_job_facets = {
-            "jobType": job_type_job.JobTypeJobFacet(
-                jobType="QUERY",
-                processingType="BATCH",
-                integration="SNOWFLAKE",
-            ),
-            "custom_job": "value_job",
-        }
-        expected_common_run_facets = {
-            "parent": parent_run.ParentRunFacet(
-                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
-                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
-                root=parent_run.Root(
-                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
-                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
-                ),
-            ),
-            "custom_run": "value_run",
-        }
-
-        expected_calls = [
-            mock.call(  # Query1: START event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.START,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-            mock.call(  # Query1: COMPLETE event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.COMPLETE,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query1", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-        ]
-
-        assert fake_adapter.emit.call_args_list == expected_calls
+    assert hook.query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+    mock_emit_query_lineage.assert_called_once_with(
+        query_id="query1",
+        query_source_namespace="snowflake_ns",  # resolved from the hook via the patched SQLParser
+        query_text=None,
+        default_database=None,
+        default_schema=None,
+        start_time=FROZEN_NOW,
+        end_time=FROZEN_NOW,
+        is_successful=True,  # no metadata, "running" default state is treated as success
+        error_message=None,
+        job_name="dag_id.task_id.query.1",
+        task_instance=mock_ti,
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
 
 @mock.patch("importlib.metadata.version", return_value="3.0.0")
-@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.providers.openlineage.api.emit_query_lineage")
+@time_machine.travel(FROZEN_NOW, tick=False)
 def test_emit_openlineage_events_for_snowflake_queries_with_query_ids_and_hook_query_ids(
-    mock_generate_uuid, mock_version, time_machine
+    mock_emit_query_lineage, mock_version
 ):
-    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
-    mock_generate_uuid.return_value = fake_uuid
-
-    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    time_machine.move_to(default_event_time, tick=False)
-
     hook = mock.MagicMock()
     hook.query_ids = ["query1"]
     original_query_ids = copy.deepcopy(hook.query_ids)
-    logical_date = timezone.datetime(2025, 1, 1)
     mock_ti = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
-        map_index=1,
-        try_number=1,
-        logical_date=logical_date,
         state="running",  # Success will be query default state if no metadata found
-        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
-    mock_ti.get_template_context.return_value = {
-        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
-    }
 
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
 
-    fake_adapter = mock.MagicMock()
-    fake_adapter.emit = mock.MagicMock()
-    fake_listener = mock.MagicMock()
-    fake_listener.adapter = fake_adapter
+    emit_openlineage_events_for_snowflake_queries(
+        query_ids=["query2"],
+        query_source_namespace="snowflake_ns",
+        task_instance=mock_ti,
+        hook=hook,
+        # query_for_extra_metadata=False,  # False by default
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
-    with mock.patch(
-        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
-        return_value=fake_listener,
-    ):
-        emit_openlineage_events_for_snowflake_queries(
-            query_ids=["query2"],
-            query_source_namespace="snowflake_ns",
-            task_instance=mock_ti,
-            hook=hook,
-            # query_for_extra_metadata=False,  # False by default
-            additional_run_facets=additional_run_facets,
-            additional_job_facets=additional_job_facets,
-        )
-
-        assert hook.query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
-
-        expected_common_job_facets = {
-            "jobType": job_type_job.JobTypeJobFacet(
-                jobType="QUERY",
-                processingType="BATCH",
-                integration="SNOWFLAKE",
-            ),
-            "custom_job": "value_job",
-        }
-        expected_common_run_facets = {
-            "parent": parent_run.ParentRunFacet(
-                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
-                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
-                root=parent_run.Root(
-                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
-                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
-                ),
-            ),
-            "custom_run": "value_run",
-        }
-
-        expected_calls = [
-            mock.call(  # Query1: START event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.START,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query2", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-            mock.call(  # Query1: COMPLETE event (no metadata)
-                RunEvent(
-                    eventTime=default_event_time.isoformat(),
-                    eventType=RunState.COMPLETE,
-                    run=Run(
-                        runId=fake_uuid,
-                        facets={
-                            "externalQuery": ExternalQueryRunFacet(
-                                externalQueryId="query2", source="snowflake_ns"
-                            ),
-                            **expected_common_run_facets,
-                        },
-                    ),
-                    job=Job(
-                        namespace=namespace(),
-                        name="dag_id.task_id.query.1",
-                        facets=expected_common_job_facets,
-                    ),
-                )
-            ),
-        ]
-
-        assert fake_adapter.emit.call_args_list == expected_calls
+    # The explicitly passed `query_ids=["query2"]` takes precedence over `hook.query_ids`.
+    assert hook.query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+    mock_emit_query_lineage.assert_called_once_with(
+        query_id="query2",
+        query_source_namespace="snowflake_ns",
+        query_text=None,
+        default_database=None,
+        default_schema=None,
+        start_time=FROZEN_NOW,
+        end_time=FROZEN_NOW,
+        is_successful=True,  # no metadata, "running" default state is treated as success
+        error_message=None,
+        job_name="dag_id.task_id.query.1",
+        task_instance=mock_ti,
+        additional_run_facets=additional_run_facets,
+        additional_job_facets=additional_job_facets,
+    )
 
 
 @mock.patch("importlib.metadata.version", return_value="3.0.0")
@@ -1354,7 +883,7 @@ def test_emit_openlineage_events_with_old_openlineage_provider(mock_version):
         return_value=fake_listener,
     ):
         expected_err = (
-            "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
+            "OpenLineage provider version `1.99.0` is lower than required `2.16.0`, "
             "skipping function `emit_openlineage_events_for_snowflake_queries` execution"
         )
 
