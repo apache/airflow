@@ -59,7 +59,7 @@ async def aiterate(iterable: Any) -> AsyncIterator[Any]:
     its reads go through ``asend``. In-memory containers are iterated in place. Anything else may
     fetch on ``next()`` through a synchronous supervisor call, so each ``next()`` runs in a worker
     thread: from there a blocking send waits for in-flight ``asend`` calls instead of deadlocking
-    with them (see ``AsyncAwareExecutor.map``).
+    with them (see ``AsyncAwareExecutor.imap_unordered``).
     """
     if hasattr(iterable, "__aiter__"):
         async for item in iterable:

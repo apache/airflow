@@ -480,7 +480,7 @@ class IterableOperator(BaseOperator):
         with Checkpoints(context) as checkpoints:
             with event_loop() as loop:
                 with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
-                    for task, _result, raised in executor.map(
+                    for task, _result, raised in executor.imap_unordered(
                         partial(
                             self._run_task,
                             executor,
@@ -695,7 +695,7 @@ class IterableOperator(BaseOperator):
         async def tasks() -> AsyncIterator[IndexedTaskInstance]:
             # Consumed by the executor on the running event loop, so the input's XCom reads go
             # through asend and cannot deadlock with the sub-tasks' own SDK calls (see
-            # AsyncAwareExecutor.map).
+            # AsyncAwareExecutor.imap_unordered).
             index = 0
             async for value in self.expand_input.aiter_values(context=context):
                 yield self._create_task(

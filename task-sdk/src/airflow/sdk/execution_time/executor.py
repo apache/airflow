@@ -189,7 +189,7 @@ class AsyncAwareExecutor(Executor):
         future = self._thread_pool.submit(func, *args, **kwargs)
         return await wrap_future(future, loop=self._loop)
 
-    def map(  # type: ignore[override]
+    def imap_unordered(
         self,
         fn: Callable[..., Any],
         *iterables: AsyncIterable[Any],
@@ -198,7 +198,12 @@ class AsyncAwareExecutor(Executor):
         """
         Apply ``fn`` to async iterables, zipped, and stream results in completion order.
 
-        Unlike ``concurrent.futures.Executor.map`` the iterables are async: items are pulled and
+        Named after ``multiprocessing.Pool.imap_unordered`` because that is the contract: results
+        come back as calls finish, not in submission order. It deliberately does not override
+        ``concurrent.futures.Executor.map``, which promises submission order, so code holding a
+        plain ``Executor`` keeps that guarantee and this method has to be asked for by name.
+
+        The iterables are async, unlike ``Executor.map``'s: items are pulled and
         calls submitted from a coroutine on the running loop, never from the main thread between
         two ``run_until_complete`` calls. At such a moment a call can be parked mid-``asend``
         holding the supervisor channel's thread lock; a synchronous SDK call pulling the next item

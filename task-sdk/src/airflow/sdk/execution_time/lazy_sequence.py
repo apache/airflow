@@ -67,7 +67,7 @@ class AsyncLazyXComIterator(AsyncIterator[T]):
 
     An iterated task consumes a mapped task's results as its input on the event loop; reading
     them synchronously there would block the loop thread on the supervisor channel while the
-    sub-tasks' own ``asend`` calls are in flight (see ``AsyncAwareExecutor.map``).
+    sub-tasks' own ``asend`` calls are in flight (see ``AsyncAwareExecutor.imap_unordered``).
     """
 
     seq: LazyXComSequence[T]

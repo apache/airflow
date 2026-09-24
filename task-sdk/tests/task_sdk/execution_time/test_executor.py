@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+from concurrent.futures import Executor
 from unittest import mock
 
 import pytest
@@ -34,7 +35,7 @@ from tests_common.test_utils.mock_context import mock_context
 
 
 async def aiter(items):
-    """Expose a list as the async iterable ``AsyncAwareExecutor.map`` consumes."""
+    """Expose a list as the async iterable ``AsyncAwareExecutor.imap_unordered`` consumes."""
     for item in items:
         yield item
 
@@ -136,7 +137,11 @@ class TestAsyncAwareExecutor:
             with executor as ctx:
                 assert ctx is executor
 
-    def test_map_streams_completed_sync_results(self):
+    def test_does_not_override_executor_map(self):
+        """Completion-order streaming is imap_unordered; Executor.map keeps its submission-order contract."""
+        assert AsyncAwareExecutor.map is Executor.map
+
+    def test_imap_unordered_streams_completed_sync_results(self):
         """map() yields completed results as work finishes instead of waiting for all items."""
 
         def sleepy_value(delay: float) -> float:
@@ -146,7 +151,7 @@ class TestAsyncAwareExecutor:
         with event_loop() as loop:
             with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
                 started = time.monotonic()
-                result_iter = executor.map(sleepy_value, aiter([0.25, 0.01]))
+                result_iter = executor.imap_unordered(sleepy_value, aiter([0.25, 0.01]))
                 first = next(result_iter)
 
         assert first == 0.01
@@ -177,14 +182,16 @@ class TestAsyncAwareExecutor:
             with pytest.raises(RuntimeError, match="cannot schedule new futures after shutdown"):
                 executor.submit(lambda: 1)
 
-    def test_map_zips_async_iterables_and_stops_at_the_shortest(self):
+    def test_imap_unordered_zips_async_iterables_and_stops_at_the_shortest(self):
         with event_loop() as loop:
             with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
-                results = sorted(executor.map(lambda a, b: (a, b), aiter([1, 2, 3]), aiter([10, 20])))
+                results = sorted(
+                    executor.imap_unordered(lambda a, b: (a, b), aiter([1, 2, 3]), aiter([10, 20]))
+                )
 
         assert results == [(1, 10), (2, 20)]
 
-    def test_map_pulls_items_on_the_running_loop_and_lazily(self):
+    def test_imap_unordered_pulls_items_on_the_running_loop_and_lazily(self):
         """
         The next item is pulled from a coroutine while the loop runs, and only when a slot frees up.
 
@@ -207,7 +214,7 @@ class TestAsyncAwareExecutor:
 
         with event_loop() as loop:
             with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
-                result_iter = executor.map(work, source())
+                result_iter = executor.imap_unordered(work, source())
                 first = next(result_iter)
                 # Only max_workers items were pulled to start; the rest wait for free slots.
                 assert first in (0, 1)
@@ -218,7 +225,7 @@ class TestAsyncAwareExecutor:
         assert pulled == list(range(6))
         assert loop_running_at_pull == [True] * 6
 
-    def test_map_does_not_deadlock_when_pulling_needs_a_lock_held_by_a_parked_call(self):
+    def test_imap_unordered_does_not_deadlock_when_pulling_needs_a_lock_held_by_a_parked_call(self):
         """
         Regression test for the IterableOperator freeze.
 
@@ -250,7 +257,7 @@ class TestAsyncAwareExecutor:
         def run() -> None:
             with event_loop() as loop:
                 with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
-                    results.extend(executor.map(work, source()))
+                    results.extend(executor.imap_unordered(work, source()))
 
         thread = threading.Thread(target=run, daemon=True)
         thread.start()
@@ -259,7 +266,7 @@ class TestAsyncAwareExecutor:
         assert not thread.is_alive(), "map() deadlocked while pulling the next item"
         assert sorted(results) == [0, 1, 2, 3]
 
-    def test_map_timeout_raises_timeout_error(self):
+    def test_imap_unordered_timeout_raises_timeout_error(self):
         def slow_fn(delay: float) -> float:
             time.sleep(delay)
             return delay
@@ -267,9 +274,9 @@ class TestAsyncAwareExecutor:
         with event_loop() as loop:
             with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
                 with pytest.raises(TimeoutError):
-                    list(executor.map(slow_fn, aiter([0.2]), timeout=0.01))
+                    list(executor.imap_unordered(slow_fn, aiter([0.2]), timeout=0.01))
 
-    def test_map_streams_completed_async_results(self):
+    def test_imap_unordered_streams_completed_async_results(self):
         async def async_sleepy_value(delay: float) -> float:
             await asyncio.sleep(delay)
             return delay
@@ -277,7 +284,7 @@ class TestAsyncAwareExecutor:
         with event_loop() as loop:
             with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
                 started = time.monotonic()
-                result_iter = executor.map(async_sleepy_value, aiter([0.2, 0.01]))
+                result_iter = executor.imap_unordered(async_sleepy_value, aiter([0.2, 0.01]))
                 first = next(result_iter)
 
         assert first == 0.01

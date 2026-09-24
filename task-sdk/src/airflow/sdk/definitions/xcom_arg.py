@@ -210,7 +210,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         Async twin of :meth:`resolve`, for callers running on the task's event loop.
 
         XComs are pulled through ``ti.axcom_pull`` so the call never blocks the loop thread on the
-        supervisor channel (see ``AsyncAwareExecutor.map`` for why that matters).
+        supervisor channel (see ``AsyncAwareExecutor.imap_unordered`` for why that matters).
         """
         raise NotImplementedError()
 
