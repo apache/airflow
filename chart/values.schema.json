@@ -2862,26 +2862,34 @@
                     },
                     "examples": [
                         {
-                            "name": "data-volume-1",
-                            "storageClassName": "storage-class-1",
-                            "accessModes": [
-                                "ReadWriteOnce"
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "storage": "10Gi"
+                            "metadata": {
+                                "name": "data-volume-1"
+                            },
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": [
+                                    "ReadWriteOnce"
+                                ],
+                                "resources": {
+                                    "requests": {
+                                        "storage": "10Gi"
+                                    }
                                 }
                             }
                         },
                         {
-                            "name": "data-volume-2",
-                            "storageClassName": "storage-class-2",
-                            "accessModes": [
-                                "ReadWriteOnce"
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "storage": "20Gi"
+                            "metadata": {
+                                "name": "data-volume-2"
+                            },
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": [
+                                    "ReadWriteOnce"
+                                ],
+                                "resources": {
+                                    "requests": {
+                                        "storage": "20Gi"
+                                    }
                                 }
                             }
                         }
@@ -4072,26 +4080,34 @@
                             },
                             "examples": [
                                 {
-                                    "name": "data-volume-1",
-                                    "storageClassName": "storage-class-1",
-                                    "accessModes": [
-                                        "ReadWriteOnce"
-                                    ],
-                                    "resources": {
-                                        "requests": {
-                                            "storage": "10Gi"
+                                    "metadata": {
+                                        "name": "data-volume-1"
+                                    },
+                                    "spec": {
+                                        "storageClassName": "storage-class-1",
+                                        "accessModes": [
+                                            "ReadWriteOnce"
+                                        ],
+                                        "resources": {
+                                            "requests": {
+                                                "storage": "10Gi"
+                                            }
                                         }
                                     }
                                 },
                                 {
-                                    "name": "data-volume-2",
-                                    "storageClassName": "storage-class-2",
-                                    "accessModes": [
-                                        "ReadWriteOnce"
-                                    ],
-                                    "resources": {
-                                        "requests": {
-                                            "storage": "20Gi"
+                                    "metadata": {
+                                        "name": "data-volume-2"
+                                    },
+                                    "spec": {
+                                        "storageClassName": "storage-class-2",
+                                        "accessModes": [
+                                            "ReadWriteOnce"
+                                        ],
+                                        "resources": {
+                                            "requests": {
+                                                "storage": "20Gi"
+                                            }
                                         }
                                     }
                                 }
@@ -7871,12 +7887,10 @@
                     "type": "array",
                     "default": [],
                     "examples": [
-                        [
-                            {
-                                "name": "FORWARDED_ALLOW_IPS",
-                                "value": "*"
-                            }
-                        ]
+                        {
+                            "name": "FORWARDED_ALLOW_IPS",
+                            "value": "*"
+                        }
                     ],
                     "items": {
                         "type": "object",
@@ -11030,7 +11044,7 @@
                             "user": "...",
                             "pass": "...",
                             "host": "...",
-                            "port": "..."
+                            "port": 9200
                         }
                     ]
                 }
@@ -11093,7 +11107,7 @@
                             "user": "...",
                             "pass": "...",
                             "host": "...",
-                            "port": "..."
+                            "port": 9200
                         }
                     ]
                 }
