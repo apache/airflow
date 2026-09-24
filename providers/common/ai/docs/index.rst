@@ -119,6 +119,7 @@ waits for the result, use that vendor's provider.
 
     Example Dags <examples>
     Configuration <configurations-ref>
+    Stable and experimental features <stability>
     Python API <_api/airflow/providers/common/ai/index>
 
 .. toctree::

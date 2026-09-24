@@ -159,6 +159,11 @@ an attempt is a separate mechanism on the connection; see
 ClassifierRetryPolicy
 ---------------------
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 ``ClassifierRetryPolicy`` takes the retry decision away from the model. Its
 ``categories`` maps a category name to an
 :class:`~airflow.providers.common.ai.policies.retry.ErrorCategory`: what

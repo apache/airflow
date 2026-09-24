@@ -144,6 +144,11 @@ class SandboxToolset(AbstractToolset[Any]):
     """
     Give an agent shell and file access inside a disposable sandbox, off the Airflow worker.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Exposes four tools -- ``run_command``, ``read_file``, ``write_file`` and
     ``list_directory`` -- against a sandbox provisioned by the given
     :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`. The same four
