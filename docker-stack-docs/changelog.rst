@@ -40,6 +40,37 @@ Airflow 3.4.0
   * The ``tdsodbc`` package was added to the image so that the FreeTDS ODBC driver
     (``libtdsodbc.so``) is available for connecting to Sybase/TDS databases via ODBC.
 
+  * The ``libxmlsec1-openssl`` package was added to the image. ``libxmlsec1`` contains no crypto
+    engine of its own, so ``import xmlsec`` (used by ``python3-saml``) failed with
+    ``libxmlsec1-openssl.so.1: cannot open shared object file``.
+
+In Airflow 3.4.0 the base image changed again - from ``debian:bookworm-slim`` with a Python compiled in
+the image, to the `Docker Hardened Image <https://dhi.io>`_ for Python, which already carries a Python
+built by Docker. This removes the Python compilation, and the source download and signature verification
+that went with it, from the build entirely - the OS dependency layer of the production image went from
+roughly 210s to 105s in a local cache-disabled build.
+
+* The ``BASE_IMAGE`` arg now defaults to ``ghcr.io/apache/airflow/base/python:<version>-debian12-dev``,
+  which is Airflow's public mirror of the upstream ``dhi.io/python`` image. Pulling from ``dhi.io``
+  directly requires a ``docker login dhi.io``; pulling the mirror requires nothing. If you pass your own
+  ``BASE_IMAGE``, it now has to be an image that already provides Python - a bare ``debian:bookworm-slim``
+  no longer works.
+* The ``PYTHON_LTO`` arg was removed. It only controlled Link-Time Optimization while compiling Python,
+  and there is no compilation left. To build a FIPS-compliant image, point ``BASE_IMAGE`` at a FIPS
+  variant of the hardened image, for example ``dhi.io/python:3.13.15-debian12-fips-dev`` (those variants
+  require a paid Docker subscription).
+* Python is installed in ``/opt/python/`` by the base image. ``/usr/python`` is a symlink to it, and the
+  ``/usr/local/bin`` symlinks are unchanged, so paths that worked before keep working.
+* The hardened images ship the standard library with no ``.pyc`` files, so the build compiles it into the
+  image. This keeps the behaviour introduced in Airflow 3.1.4 (see below): the standard library is owned
+  by root while the image runs as ``airflow``, so a missing bytecode cache could never be filled and every
+  import would leak a negative ``dentry``.
+
+As with any base image change, some ``apt`` packages that used to be present as a side effect are not
+there any more. The hardened images are deliberately minimal - they ship no compiler, no ``curl``,
+``wget``, ``git`` or ``gzip``, and a stripped ``/etc`` - so a custom image that relied on something being
+present may need to install it explicitly. See :doc:`Building the image <build>`.
+
 Airflow 3.1.4
 ~~~~~~~~~~~~~
 

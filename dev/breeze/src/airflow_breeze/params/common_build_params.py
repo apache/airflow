@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DOCKER_DEFAULT_PLATFORM,
     get_airflow_version,
+    get_hardened_python_base_image,
 )
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -124,7 +125,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f"debian:{self.debian_version}-slim"
+        return get_hardened_python_base_image(self.python, self.debian_version)
 
     @property
     def airflow_image_repository(self):
