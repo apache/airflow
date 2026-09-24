@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 # [START retry_policy_definition]
-from airflow.sdk import DAG, ExceptionRetryPolicy, RetryAction, RetryRule, task
+from airflow.sdk import DAG, ChainRetryPolicy, ExceptionRetryPolicy, RetryAction, RetryRule, task
 
 API_RETRY_POLICY = ExceptionRetryPolicy(
     rules=[
@@ -79,3 +79,22 @@ STANDARD_RETRY_POLICY = ExceptionRetryPolicy(
     ],
 )
 # [END retry_policy_reusable]
+
+# [START retry_policy_chain]
+# Cheap, deterministic rules first, so a slower policy (a model-backed one from a provider,
+# in practice; a second rule set stands in for it here) only sees what they did not settle.
+# The last rung is the floor for when that policy has no answer.
+CHAINED_RETRY_POLICY = ChainRetryPolicy(
+    [
+        ExceptionRetryPolicy(
+            rules=[RetryRule(exception="google.auth.exceptions.RefreshError", action=RetryAction.FAIL)],
+        ),
+        STANDARD_RETRY_POLICY,
+        ExceptionRetryPolicy(
+            rules=[
+                RetryRule(exception=TimeoutError, retry_delay=timedelta(minutes=2), reason="timeout floor")
+            ],
+        ),
+    ]
+)
+# [END retry_policy_chain]

@@ -41,8 +41,9 @@
     "parsedAt": "解析时间："
   },
   "deadlineAlerts": {
-    "completionRule": "必须在 {{reference}} 后的 {{interval}} 内完成",
-    "count_one": "{{count}} 个截止期限",
+    "completionRule": "必须在{{reference}}后的 {{interval}} 内完成",
+    "completionRuleDynamic": "必须在从{{reference}}起算的可变时间间隔内完成",
+    "count_one": "1 个截止期限",
     "count_other": "{{count}} 个截止期限",
     "referenceType": {
       "AverageRuntimeDeadline": "平均运行时间",
@@ -58,12 +59,12 @@
     "label": "截止期限",
     "met": "已达成",
     "missed": "已错过",
-    "missedCount_one": "{{count}} 个已错过的截止期限",
+    "missedCount_one": "1 个已错过的截止期限",
     "missedCount_other": "{{count}} 个已错过的截止期限",
     "mixedCount": "{{missedCount}} 个已错过，{{upcomingCount}} 个即将到期",
     "stillRunning": "仍在运行",
     "upcoming": "即将到期",
-    "upcomingCount_one": "{{count}} 个即将到期的截止期限",
+    "upcomingCount_one": "1 个即将到期的截止期限",
     "upcomingCount_other": "{{count}} 个即将到期的截止期限"
   },
   "extraLinks": "额外链接",
@@ -91,19 +92,15 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "全屏",
-      "tooltip": "按下 {{hotkey}} 进入全屏"
-    },
     "info": "INFO",
     "noTryNumber": "没有重试次数",
     "search": {
       "matchCount": "{{current}} / {{total}}",
       "noMatches": "无匹配项",
-      "placeholder": "搜索日志…"
+      "placeholder": "搜索日志..."
     },
     "settings": "日志设置",
-    "viewInExternal": "在 {{name}} 中查看日志(重试 {{attempt}})",
+    "viewInExternal": "在 {{name}} 中查看日志（重试 {{attempt}}）",
     "warning": "WARNING"
   },
   "notFound": {
@@ -147,20 +144,14 @@
       "label": "Dag 执行次数"
     },
     "dependencies": {
-      "label": "依赖项",
-      "options": {
-        "allDagDependencies": "所有 Dag 依赖项",
-        "externalConditions": "外部条件",
-        "onlyTasks": "仅限任务"
-      },
-      "placeholder": "依赖项"
+      "allDagDependencies": "所有 Dag 依赖项"
     },
     "graphDirection": {
       "label": "图表方向"
     },
     "graphFilters": {
       "clearFilters": "清除筛选器",
-      "durationGte": "最短持续时间 (秒)",
+      "durationGte": "最短持续时间（秒）",
       "durationGteHint": "对于已映射任务，统计所有实例的总时长",
       "mapIndex": "最小映射索引",
       "mapIndexHint": "展开已映射任务，至少显示到此索引",
@@ -246,6 +237,8 @@
     "deleteWarning": "该任务将丢失此持久化数据。如果任务使用此键跟踪外部工作（例如外部作业 ID），将无法恢复该工作。",
     "edit": "编辑任务存储",
     "emptyStore": "任务存储保存可在多次重试之间持久化的值。工作节点可以通过 Task SDK 写入任务存储。",
+    "entry_one": "条目",
+    "entry_other": "条目",
     "expiresAt": {
       "column": "过期时间",
       "custom": "自定义",

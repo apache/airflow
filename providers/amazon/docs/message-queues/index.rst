@@ -29,6 +29,22 @@ Amazon Simple Queue Service (SQS) as the underlying message queue system.
 It allows you to send and receive messages using SQS queues in your Airflow workflows with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
 
-.. include:: /../src/airflow/providers/amazon/aws/queues/sqs.py
-    :start-after: [START sqs_message_queue_provider_description]
-    :end-before: [END sqs_message_queue_provider_description]
+* It uses ``sqs`` as scheme for identifying SQS queues.
+* For parameter definitions take a look at :class:`~airflow.providers.amazon.aws.triggers.sqs.SqsSensorTrigger`.
+
+.. code-block:: python
+
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+    from airflow.sdk import Asset, AssetWatcher
+
+    trigger = MessageQueueTrigger(
+        scheme="sqs",
+        # Additional AWS SqsSensorTrigger parameters as needed
+        sqs_queue="https://sqs.us-east-1.amazonaws.com/123456789012/my-queue",
+        aws_conn_id="aws_default",
+    )
+
+    asset = Asset("sqs_queue_asset", watchers=[AssetWatcher(name="sqs_watcher", trigger=trigger)])
+
+For a complete example, see:
+:mod:`tests.system.amazon.aws.example_dag_sqs_message_queue_trigger`

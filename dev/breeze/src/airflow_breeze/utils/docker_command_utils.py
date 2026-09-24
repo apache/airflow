@@ -39,6 +39,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
+    create_pycache_volume_if_needed,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.shared_options import get_verbose
@@ -113,12 +114,17 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
-    ("uv.lock", "/opt/airflow/uv.lock"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
     ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
+
+# ``uv.lock`` is deliberately absent above: it is mounted from ``mount-uv-lock.yml``, which
+# ShellParams skips for ``--force-lowest-dependencies`` so that the lowest-direct ``uv sync``
+# run in the container cannot write its re-resolved lock back over the host's.
+
+DOCKER_INFO_TIMEOUT = 30
 
 
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
@@ -145,6 +151,30 @@ def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
     )
 
 
+def _run_docker_info_or_exit(command: list[str]) -> RunCommandResult:
+    try:
+        return run_command(
+            command,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=DOCKER_INFO_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        console_print(
+            f"[error]Docker did not respond within {DOCKER_INFO_TIMEOUT} seconds.[/]\n"
+            "[warning]Please make sure Docker is running and responsive.[/]"
+        )
+        sys.exit(1)
+    except FileNotFoundError:
+        console_print(
+            "[error]Docker executable was not found.[/]\n"
+            "[warning]Please install Docker and ensure `docker` is available on PATH.[/]"
+        )
+        sys.exit(1)
+
+
 def check_docker_permission_denied() -> bool:
     """
     Checks if we have permission to write to docker socket. By default, on Linux you need to add your user
@@ -155,14 +185,7 @@ def check_docker_permission_denied() -> bool:
     :return: True if permission is denied
     """
     permission_denied = False
-    docker_permission_command = ["docker", "info"]
-    command_result = run_command(
-        docker_permission_command,
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    command_result = _run_docker_info_or_exit(["docker", "info"])
     if command_result.returncode != 0:
         permission_denied = True
         if command_result.stdout and "Got permission denied while trying to connect" in command_result.stdout:
@@ -183,13 +206,7 @@ def check_docker_is_running():
     Checks if docker is running. Suppressed Dockers stdout and stderr output.
 
     """
-    response = run_command(
-        ["docker", "info"],
-        no_output_dump_on_exception=True,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    response = _run_docker_info_or_exit(["docker", "info"])
     if response.returncode != 0:
         console_print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
@@ -697,7 +714,7 @@ def fix_ownership_using_docker(quiet: bool = True):
             "-e",
             f"VERBOSE={str(get_verbose()).lower()}",
             "-e",
-            f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+            f"DOCKER_IS_ROOTLESS={str(is_docker_rootless()).lower()}",
             "--rm",
             "-t",
             OWNERSHIP_CLEANUP_DOCKER_TAG,
@@ -1097,6 +1114,8 @@ def enter_shell(
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
+    if shell_params.include_pycache_volume:
+        create_pycache_volume_if_needed()
     shell_params.print_badge_info()
     cmd = ["docker", "compose"]
     if shell_params.quiet:

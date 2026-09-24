@@ -63,6 +63,7 @@ class SnowflakeCortexAgentOperator(BaseOperator):
         "schema",
         "agent_name",
         "messages",
+        "snowflake_conn_id",
     )
 
     template_fields_renderers = {

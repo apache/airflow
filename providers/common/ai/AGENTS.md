@@ -29,7 +29,7 @@ The hook is a thin bridge between Airflow connections and pydantic-ai's model/pr
 If pydantic-ai already supports the provider (check [models docs](https://ai.pydantic.dev/models/)):
 
 1. **Do nothing in this package.** Users set the `provider:model` string in their connection
-   (e.g. `azure:gpt-4o`, `bedrock:anthropic.claude-sonnet-4-20250514`) and the hook resolves it
+   (e.g. `azure:gpt-5`, `bedrock:anthropic.claude-sonnet-4-20250514`) and the hook resolves it
    via `infer_model()`.
 2. If the provider needs credentials beyond `api_key` and `base_url`, add a branch in
    `get_conn()` using pydantic-ai's own provider class (e.g. `AzureProvider`).

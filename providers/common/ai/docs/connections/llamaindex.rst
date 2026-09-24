@@ -17,8 +17,8 @@
 
 .. _howto/connection:llamaindex:
 
-LlamaIndex Connection
-======================
+LlamaIndex connection
+=====================
 
 The ``llamaindex`` connection type configures access to LLM and embedding
 providers for `LlamaIndex <https://docs.llamaindex.ai/>`__. It backs
@@ -39,7 +39,7 @@ Embedding Model (Extra field)
     (via ``conn-fields``) and stores its value in ``extra["embed_model"]``.
 
 LLM Model (Extra field)
-    Default LlamaIndex LLM model name (e.g. ``gpt-4o``). This field appears
+    Default LlamaIndex LLM model name (e.g. ``gpt-5``). This field appears
     as a dedicated input in the connection form (via ``conn-fields``) and
     stores its value in ``extra["llm_model"]``.
 
@@ -54,39 +54,17 @@ Host (optional)
 The ``schema``, ``port``, and ``login`` fields are hidden in the connection
 form; they are not used by this connection type.
 
-OpenAI models only, BYO for other vendors
-------------------------------------------
+OpenAI models only
+------------------
 
-``LlamaIndexHook.get_embedding_model()`` always returns an ``OpenAIEmbedding``
-instance, and ``get_llm()`` always returns an ``OpenAI`` LLM instance,
-regardless of the ``host`` you set. Setting ``host`` to point at a different
-server does not relax any validation -- each class validates the model name
-against its own built-in list: a chat/completion-model list
-(``ALL_AVAILABLE_MODELS``, e.g. ``gpt-4o``) for ``OpenAI``, and a separate,
-much smaller embedding-model list
-(``OpenAIEmbeddingModelType``, e.g. ``text-embedding-3-small``) for
-``OpenAIEmbedding``. The two lists mostly do not overlap -- current-generation
-names such as ``gpt-4o`` or ``text-embedding-3-small`` are only valid for one
-of the two classes -- though a handful of legacy names (``ada``, ``babbage``,
-``curie``, ``davinci``) happen to appear in both. The classes differ only in
-*when* their respective check runs:
-
-* ``OpenAIEmbedding`` validates the model name in its constructor, so
-  ``get_embedding_model()`` raises immediately for a name not in its list.
-* ``OpenAI`` (the LLM class) accepts any model name string at construction
-  time, but validates it lazily on first use, inside its ``metadata``
-  property. Any call that touches ``metadata`` -- including ``.chat()`` and
-  ``.complete()`` -- raises a ``ValueError`` for a name not in its list.
-  There is no constructor argument on either class that overrides this
-  check (no ``context_window=`` / ``is_chat_model=`` argument).
-
-In practice this means local or self-hosted models (Ollama, vLLM, and
-similar) are not usable through this connection type, even via ``host=``,
-unless the server is configured to answer to an official OpenAI model name.
-For other vendors and for local models, instantiate the LlamaIndex class
-directly in your ``@task`` and pass it to the operator's ``embed_model=`` /
-``llm=`` parameter -- this bypasses the hook and this connection type
-entirely (see :doc:`../hooks/llamaindex`).
+``get_llm()`` and ``get_embedding_model()`` return LlamaIndex's ``OpenAI`` and
+``OpenAIEmbedding`` classes whatever ``host`` points at, and both classes check the
+model name against LlamaIndex's own OpenAI model lists. Local or self-hosted servers
+(Ollama, vLLM and similar) are therefore not usable through this connection type
+unless they answer to an official OpenAI model name. For other vendors and for local
+models, build the LlamaIndex class in a ``@task`` and pass it to the operator's
+``embed_model=`` / ``llm=`` parameter; :doc:`../hooks/llamaindex` explains the check
+and shows the pattern.
 
 Model resolution order
 -----------------------
@@ -110,7 +88,7 @@ Examples
     {
         "conn_type": "llamaindex",
         "password": "sk-...",
-        "extra": "{\"embed_model\": \"text-embedding-3-small\", \"llm_model\": \"gpt-4o\"}"
+        "extra": "{\"embed_model\": \"text-embedding-3-small\", \"llm_model\": \"gpt-5\"}"
     }
 
 **LLM only (embeddings unset)**
@@ -120,5 +98,5 @@ Examples
     {
         "conn_type": "llamaindex",
         "password": "sk-...",
-        "extra": "{\"llm_model\": \"gpt-4o\"}"
+        "extra": "{\"llm_model\": \"gpt-5\"}"
     }

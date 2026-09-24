@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
+from decimal import Decimal
+from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -56,12 +57,13 @@ def _make_mock_run_result(output):
     mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     mock_result.output = output
     mock_result.usage = MagicMock(
-        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
+        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens", "cost"],
         requests=1,
         tool_calls=0,
         input_tokens=0,
         output_tokens=0,
         total_tokens=0,
+        cost=None,
     )
     mock_result.response = MagicMock(spec=["model_name"], model_name="test-model")
     mock_result.all_messages.return_value = []
@@ -83,8 +85,10 @@ class TestLLMFileAnalysisOperator:
             "prompt",
             "llm_conn_id",
             "model_id",
+            "fallback_conn_ids",
             "system_prompt",
             "agent_params",
+            "usage_limits",
             "file_path",
             "file_conn_id",
         }
@@ -124,7 +128,36 @@ class TestLLMFileAnalysisOperator:
             max_text_chars=100_000,
             sample_rows=10,
         )
-        mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "prepared prompt", usage_limits=None, cancellation_token=ANY
+        )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_build_request, mock_hook_cls):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt",
+            resolved_paths=["/tmp/app.log"],
+            total_size_bytes=10,
+        )
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("Analysis complete")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMFileAnalysisOperator(
+            task_id="test",
+            prompt="Summarize the file",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            usage_limits={"cost_limit": "0.5"},
+        )
+        op.execute(context={})
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -285,7 +318,11 @@ class TestLLMFileAnalysisOperatorApproval:
             output_type=Summary,
             require_approval=True,
         )
-        event = {"chosen_options": [op.APPROVE], "params_input": {}, "responded_by_user": "reviewer"}
+        event = {
+            "chosen_options": [op.APPROVE],
+            "params_input": {},
+            "responded_by_user": {"id": "u1", "name": "reviewer"},
+        }
 
         result = op.execute_complete({}, generated_output='{"findings":["error spike"]}', event=event)
 
@@ -306,7 +343,7 @@ class TestLLMFileAnalysisOperatorApproval:
         event = {
             "chosen_options": [op.APPROVE],
             "params_input": {"output": '{"findings":["reviewed output"]}'},
-            "responded_by_user": "reviewer",
+            "responded_by_user": {"id": "u1", "name": "reviewer"},
         }
 
         result = op.execute_complete({}, generated_output='{"findings":["error spike"]}', event=event)
@@ -345,4 +382,41 @@ class TestLLMFileAnalysisOperatorApproval:
         with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=_make_context())
 
-        assert exc_info.value.timeout == timeout
+        if AIRFLOW_V_3_3_PLUS:
+            assert exc_info.value.timeout == timeout
+        else:
+            assert mock_trigger_cls.call_args[1]["timeout_datetime"] is not None
+
+
+class TestLLMFileAnalysisOperatorPromptTypeGuard:
+    @pytest.mark.parametrize(
+        "require_approval",
+        [
+            pytest.param(
+                True,
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS, reason="require_approval=True needs Airflow 3.1+"
+                ),
+            ),
+            False,
+        ],
+    )
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_rejects_non_string_prompt_before_reading_files(
+        self, mock_build_request, require_approval
+    ):
+        op = LLMFileAnalysisOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            file_path="/tmp/app.log",
+            require_approval=require_approval,
+        )
+        op.prompt = ["x", object()]  # simulate a native-templating render to a Sequence
+
+        with pytest.raises(TypeError, match="requires a string prompt"):
+            op.execute(context=_make_context())
+
+        mock_build_request.assert_not_called()

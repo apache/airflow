@@ -44,3 +44,22 @@ def is_callback_execute(workload: workloads.All) -> TypeGuard[ExecuteCallback]:
 # This is the key used to identify execute_callback jobs.
 # Changing this value may break compatibility with existing data in the edge_job table.
 EXECUTE_CALLBACK_TAG = "ExecuteCallback"
+
+# The rest of the identity queue_workload() writes for a callback row. "ExecuteCallback" is a valid
+# Dag id, so a row is a callback only when all four fields match.
+CALLBACK_JOB_TRY_NUMBER = 0
+CALLBACK_JOB_MAP_INDEX = -1
+
+
+def build_callback_run_id(callback_id: str) -> str:
+    return f"{EXECUTE_CALLBACK_TAG}-{callback_id}"
+
+
+def is_callback_job(dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int) -> bool:
+    """Return whether a job row matches the identity ``queue_workload()`` writes for a callback."""
+    return (
+        dag_id == EXECUTE_CALLBACK_TAG
+        and run_id == build_callback_run_id(task_id)
+        and try_number == CALLBACK_JOB_TRY_NUMBER
+        and map_index == CALLBACK_JOB_MAP_INDEX
+    )
