@@ -781,6 +781,10 @@ def _iterate_task_outside(dag):
     _consume.iterate(value=dag.get_task("produce_body.produce").output)
 
 
+def _spread_task_outside(dag):
+    _consume.spread(across=2).iterate(value=dag.get_task("produce_body.produce").output)
+
+
 def _iterate_in_another_loop(dag):
     @task_group
     def other_body():
@@ -805,6 +809,7 @@ def _expand_in_another_loop(dag):
         pytest.param(_expand_in_another_loop, "other_body._consume", id="other-loop"),
         pytest.param(_iterate_task_outside, "_consume", id="iterated-task"),
         pytest.param(_iterate_in_another_loop, "other_body._consume", id="iterated-in-other-loop"),
+        pytest.param(_spread_task_outside, "_consume", id="spread-task"),
     ],
 )
 def test_validate_rejects_expansion_over_a_loop_task_from_outside_the_loop(build_consumer, consumer_id):
@@ -844,10 +849,13 @@ def test_expansion_sources_are_the_upstream_tasks_a_task_runs_once_per_item_of()
         plain = _consume(produced)
         mapped = _consume.expand(value=produced)
         iterated = _consume.iterate(value=produced)
+        spread = _consume.override(task_id="spread").spread(across=2).iterate(value=produced)
 
     assert list(plain.operator.iter_expansion_sources()) == []
     assert list(mapped.operator.iter_expansion_sources()) == [produced.operator]
     assert list(iterated.operator.iter_expansion_sources()) == [produced.operator]
+    assert list(spread.operator.iter_expansion_sources()) == [produced.operator]
+    assert list(spread.operator.iter_mapped_dependencies()) == []
 
 
 def test_validate_accepts_iteration_over_a_loop_task_in_the_same_loop():
