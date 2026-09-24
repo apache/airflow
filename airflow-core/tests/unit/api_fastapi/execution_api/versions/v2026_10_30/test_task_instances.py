@@ -177,7 +177,7 @@ def test_legacy_worker_completion_payload_preserves_attempt(
             assert reschedule.duration == 60
 
 
-def test_legacy_worker_clear_waits_for_executor(client, session, create_task_instance):
+def test_legacy_worker_heartbeat_rejects_restarting_task(client, session, create_task_instance):
     ti = create_task_instance(task_id="legacy_clear", state=State.RESTARTING)
     ti.hostname = "worker"
     ti.pid = 123

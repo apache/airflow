@@ -895,6 +895,7 @@ class TestWatchedSubprocess:
                 assert proc._process.wait(timeout=0) == -signal.SIGTERM
                 payload = json.loads(request.content)
                 assert payload["state"] == "server_terminated"
+                assert payload["hostname"] == sdk_client.get_hostname()
                 assert payload["pid"] == proc.pid
                 request_count["stopped"] = request_count.get("stopped", 0) + 1
             # Return a 204 for all other requests
@@ -960,7 +961,8 @@ class TestWatchedSubprocess:
             },
         ]
 
-    def test_restarting_start_reports_stop_after_reaping(self, mocker):
+    @pytest.mark.parametrize("ack_status", [204, 404])
+    def test_restarting_start_reports_stop_after_reaping(self, mocker, ack_status, captured_logs):
         ti_id = uuid7()
         start = mocker.spy(ActivitySubprocess, "start")
         requests = []
@@ -980,8 +982,15 @@ class TestWatchedSubprocess:
             assert request.url.path.endswith("/state")
             proc = start.spy_return
             assert proc._process.wait(timeout=0) == -signal.SIGKILL
-            assert json.loads(request.content)["state"] == SERVER_TERMINATED
-            return httpx.Response(204)
+            payload = json.loads(request.content)
+            assert payload["state"] == SERVER_TERMINATED
+            assert payload["hostname"] == sdk_client.get_hostname()
+            assert payload["pid"] == proc.pid
+            if ack_status == 404:
+                return httpx.Response(
+                    404, json={"detail": {"reason": "not_found", "message": "Task Instance not found"}}
+                )
+            return httpx.Response(ack_status)
 
         exit_code = supervise_task(
             dag_rel_path=os.devnull,
@@ -1002,6 +1011,13 @@ class TestWatchedSubprocess:
         assert requests == [f"/task-instances/{ti_id}/run", f"/task-instances/{ti_id}/state"]
         assert start.spy_return.wait() == -signal.SIGKILL
         assert len(requests) == 2
+        assert {
+            "logger": "task",
+            "level": "info",
+            "event": "Server rejected task start because the task was cleared. Task process stopped.",
+            "timestamp": mocker.ANY,
+            "loc": mocker.ANY,
+        } in captured_logs
 
     def test_start_raises_task_already_running_and_kills_subprocess(self):
         """Test that ActivitySubprocess.start() raises TaskAlreadyRunningError and kills the child
@@ -3419,11 +3435,18 @@ class TestHandleRequest:
         assert observed_at_kill == [(supervisor.SERVER_TERMINATED, None)]
         assert process.final_state == supervisor.SERVER_TERMINATED
         assert process._pending_terminal_state_msg is None
-        getattr(process.client.task_instances, api_method).assert_not_called()
-        process.client.task_instances.finish.assert_not_called()
+        if api_method != "finish":
+            getattr(process.client.task_instances, api_method).assert_not_called()
+        process.client.task_instances.finish.assert_called_once_with(
+            id=process.id,
+            state=SERVER_TERMINATED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            pid=process.pid,
+        )
 
     @pytest.mark.parametrize("exit_code", [0, -signal.SIGTERM])
-    def test_server_termination_cancels_pending_report(self, watched_subprocess, exit_code):
+    def test_server_termination_cancels_pending_report(self, watched_subprocess, exit_code, mocker):
         process, _ = watched_subprocess
         process._handle_request(TaskState(state=TaskInstanceState.FAILED), structlog.get_logger(), req_id=1)
         process._terminal_state = supervisor.SERVER_TERMINATED
@@ -3433,7 +3456,13 @@ class TestHandleRequest:
         process.update_task_state_if_needed()
 
         process.client.task_instances.heartbeat.assert_not_called()
-        process.client.task_instances.finish.assert_not_called()
+        process.client.task_instances.finish.assert_called_once_with(
+            id=process.id,
+            state=SERVER_TERMINATED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            pid=process.pid,
+        )
         assert process._pending_terminal_state_msg is None
         assert process.final_state == supervisor.SERVER_TERMINATED
 
@@ -3549,7 +3578,7 @@ class TestHandleRequest:
         process.client.task_instances.finish.assert_not_called()
         upload_logs.assert_called_once_with(process)
 
-    def test_server_termination_cancels_pending_retry(self, watched_subprocess):
+    def test_server_termination_cancels_pending_retry(self, watched_subprocess, mocker):
         process, _ = watched_subprocess
         process._handle_request(RetryTask(end_date=timezone.utcnow()), structlog.get_logger(), req_id=1)
         process._terminal_state = supervisor.SERVER_TERMINATED
@@ -3558,7 +3587,14 @@ class TestHandleRequest:
         process.update_task_state_if_needed()
 
         process.client.task_instances.retry.assert_not_called()
-        process.client.task_instances.finish.assert_not_called()
+        process.client.task_instances.finish.assert_called_once_with(
+            id=process.id,
+            state=SERVER_TERMINATED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            pid=process.pid,
+        )
+        assert process._pending_terminal_state_msg is None
         assert process.final_state == supervisor.SERVER_TERMINATED
 
     class _OverrideActivitySubprocess(ActivitySubprocess):
@@ -4036,6 +4072,37 @@ class TestHandleRequest:
 
         watched_subprocess.client.task_instances.finish.assert_not_called()
         watched_subprocess.client.task_instances.succeed.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("state", "status_code"),
+        [
+            (SERVER_TERMINATED, 403),
+            (SERVER_TERMINATED, 409),
+            (SERVER_TERMINATED, 500),
+            (SERVER_TERMINATED, None),
+            (TaskInstanceState.FAILED, 404),
+        ],
+    )
+    def test_terminal_report_failure_propagates(self, watched_subprocess, state, status_code):
+        proc, _ = watched_subprocess
+        proc._exit_code = -signal.SIGTERM
+        proc._terminal_state = state
+        error = (
+            ServerResponseError(
+                message="Acknowledgement rejected",
+                request=httpx.Request("PATCH", "http://test/task-instances/state"),
+                response=httpx.Response(status_code),
+            )
+            if status_code is not None
+            else httpx.ConnectError("connection refused")
+        )
+        proc.client.task_instances.finish.side_effect = error
+
+        with pytest.raises(type(error)) as exc:
+            proc.update_task_state_if_needed()
+
+        assert exc.value is error
+        proc.client.task_instances.finish.assert_called_once()
 
     def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
         """A TaskState message's retry_reason must reach the deferred finish() call."""

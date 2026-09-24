@@ -85,6 +85,7 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
     get_arg_bindings,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyRetiredTaskStateUpdates
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
@@ -392,9 +393,6 @@ def ti_update_state(
     Not all state transitions are valid, and transitioning to some states requires extra information to be
     passed along. (Check out the datamodels for details, the rendered docs might not reflect this accurately)
     """
-    # The version bundle imports the routes while registering its changes.
-    from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyRetiredTaskStateUpdates
-
     bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 

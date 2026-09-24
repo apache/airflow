@@ -1400,7 +1400,10 @@ class TestTIUpdateState:
         self, client, session, create_task_instance, matching_worker
     ):
         ti = create_task_instance(
-            task_id="stopped_restart", state=State.RESTARTING, start_date=DEFAULT_START_DATE
+            task_id="stopped_restart",
+            state=State.RESTARTING,
+            start_date=DEFAULT_START_DATE,
+            default_args={"retries": 2},
         )
         ti.hostname = "original"
         ti.pid = 123
@@ -1425,7 +1428,7 @@ class TestTIUpdateState:
             return
         assert current.id != old_id
         assert current.try_number == 4
-        assert current.max_tries >= 3
+        assert current.max_tries == 5
         assert current.state is None
         history = session.scalar(
             select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
@@ -1437,6 +1440,7 @@ class TestTIUpdateState:
         assert response.status_code == 204
         session.refresh(current)
         assert (current.id, current.try_number, current.state) == (new_id, 4, None)
+        assert current.max_tries == 5
 
     def setup_method(self):
         clear_db_assets()

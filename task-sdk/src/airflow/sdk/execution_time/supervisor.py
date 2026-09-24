@@ -1685,6 +1685,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 and e.detail.get("reason") == "invalid_state"
                 and e.detail.get("previous_state") == "restarting"
             ):
+                self.process_log.info(
+                    "Server rejected task start because the task was cleared. Task process stopped."
+                )
                 self._terminal_state = SERVER_TERMINATED
                 return
             raise
@@ -1740,13 +1743,20 @@ class ActivitySubprocess(WatchedSubprocess):
     def update_task_state_if_needed(self):
         if self._terminal_state == SERVER_TERMINATED:
             self._pending_terminal_state_msg = None
-            self.client.task_instances.finish(
-                id=self.id,
-                state=SERVER_TERMINATED,
-                when=datetime.now(tz=timezone.utc),
-                rendered_map_index=self._rendered_map_index,
-                pid=self.pid,
-            )
+            try:
+                self.client.task_instances.finish(
+                    id=self.id,
+                    state=SERVER_TERMINATED,
+                    when=datetime.now(tz=timezone.utc),
+                    rendered_map_index=self._rendered_map_index,
+                    pid=self.pid,
+                )
+            except ServerResponseError as error:
+                if error.response.status_code != HTTPStatus.NOT_FOUND:
+                    raise
+                log.info(
+                    "Task instance no longer exists; no termination acknowledgement needed", ti_id=self.id
+                )
             return
 
         if self._pending_terminal_state_msg is not None:
