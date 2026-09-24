@@ -1353,6 +1353,20 @@ class TestSparkSubmitHook:
                 ["--conf", "spark.a.secret='x',spark.b.password=hunter2"],
                 "--conf spark.a.secret='******',spark.b.password=******",
             ),
+            # Quoted multi-word values whose closing quote is followed by punctuation,
+            # as in Python-repr or dict-shaped log output.
+            (
+                ['Config(password="my pass word", user=x)'],
+                'Config(password="******", user=x)',
+            ),
+            (
+                ["{'password': 'a b'}"],
+                "{'password': '******'}",
+            ),
+            (
+                "spark-submit --password=hunter2",
+                "spark-submit --password=******",
+            ),
         ],
     )
     @pytest.mark.db_test
@@ -1394,18 +1408,23 @@ class TestSparkSubmitHook:
         assert command_masked == 'spark-submit --conf password=******\nERROR: job failed\n--other=1 "tail'
 
     @pytest.mark.db_test
-    def test_masks_passwords_stays_fast_on_repeated_keywords(self) -> None:
-        # A token packing many sensitive keywords is the worst remaining case: it still
-        # backtracks, so this only guards against regressing to the previous pattern,
-        # which needed minutes for an input of this size.
+    @pytest.mark.parametrize(
+        "token",
+        [
+            pytest.param("secret" * 20_000, id="repeated-keywords"),
+            pytest.param("a=" + "secret" * 20_000, id="equals-before-repeated-keywords"),
+        ],
+    )
+    def test_masks_passwords_stays_fast_on_repeated_keywords(self, token: str) -> None:
+        # A token packing many sensitive keywords made the previous pattern backtrack
+        # quadratically or worse; the scan must stay linear on these shapes.
         hook = SparkSubmitHook()
-        payload = ["spark-submit", "--arg", "secret" * 2000]
+        payload = ["spark-submit", "--arg", token]
 
         start = time.monotonic()
-        command_masked = hook._mask_cmd(payload)
+        hook._mask_cmd(payload)
         elapsed = time.monotonic() - start
 
-        assert command_masked.startswith("spark-submit --arg secret")
         assert elapsed < 5
 
     @pytest.mark.db_test

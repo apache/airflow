@@ -55,55 +55,79 @@ ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 
-# Quick check for whether a token might contain a sensitive key.
 _SENSITIVE_KEYWORD_RE = re.compile(r"secret|password", re.IGNORECASE)
-
-# Per-token pattern for key=value forms where the value is fully contained in
-# the token.  Intentionally *unanchored* so that it finds multiple sensitive
-# keys inside a single whitespace-delimited token (e.g.
-# ``Config(secret="x",password=y)``).  Running it only on tokens that pass
-# the cheap ``_SENSITIVE_KEYWORD_RE`` check keeps the overall scan O(n).
-_SENSITIVE_KV_RE = re.compile(
-    r"(\S*?(?:secret|password)\S*?=)"
-    r"""(?:'([^'\n]*)'|"([^"\n]*)"|\S*)""",
-    re.IGNORECASE,
-)
+_WHITESPACE_RE = re.compile(r"\s")
+_NON_WHITESPACE_RE = re.compile(r"\S")
+# Where a quoted value may stop at the latest: the quote followed by whitespace, or a newline.
+_QUOTED_VALUE_LIMIT_RE = {quote: re.compile(rf"\n|{quote}(?=\s)") for quote in ("'", '"')}
 
 
-def _mask_sensitive_kv(match: re.Match[str]) -> str:
-    key = match.group(1)
-    if match.group(2) is not None:
-        return f"{key}'******'"
-    if match.group(3) is not None:
-        return f'{key}"******"'
-    return f"{key}******"
+def _mask_sensitive_values(text: str) -> str:
+    r"""
+    Mask the value of every ``key=value`` / ``key value`` pair whose key contains ``secret`` or ``password``.
 
+    Produces the same output as the single regular expression used previously::
 
-def _find_open_quote_key(token: str) -> tuple[int, int, str] | None:
+        (\S*?(?:secret|password)\S*?(?:=|\s+)(['"]?))(?:(?!\2\s).)*(\2)  ->  \1******\3
+
+    but scans the input in linear time. That pattern backtracked quadratically or worse on long tokens,
+    and it runs over arbitrary spark-submit output, so a single long log line could stall the worker.
+
+    - The key starts where scanning resumed within the current token and ends at the first ``=``
+      after the keyword, or at the whitespace ending the token.
+    - A value opening with a quote extends to the last matching quote before either that quote
+      followed by whitespace or a newline; the value is then masked between the quotes.
+    - Any other value, including an unterminated quoted one, is masked up to the next whitespace.
     """
-    Find a sensitive ``key=<quote>`` in *token* where the quote never closes.
+    length = len(text)
+    masked: list[str] = []
+    copied = 0
+    pos = 0
+    while True:
+        token = _NON_WHITESPACE_RE.search(text, pos)
+        if token is None:
+            break
+        token_start = token.start()
+        token_end_match = _WHITESPACE_RE.search(text, token_start)
+        token_end = token_end_match.start() if token_end_match else length
+        keyword = _SENSITIVE_KEYWORD_RE.search(text, token_start, token_end)
+        if keyword is None:
+            pos = token_end
+            continue
+        equals = text.find("=", keyword.end(), token_end)
+        if equals != -1:
+            value_start = equals + 1
+        elif token_end < length:
+            next_token = _NON_WHITESPACE_RE.search(text, token_end)
+            value_start = next_token.start() if next_token else length
+        else:
+            # Last token and nothing separates the key from a value.
+            break
 
-    Returns ``(key_start, eq_index, quote_char)`` if found, else ``None``.
-    """
-    lower = token.lower()
-    for keyword in ("secret", "password"):
-        pos = 0
-        while True:
-            kw_pos = lower.find(keyword, pos)
-            if kw_pos == -1:
-                break
-            eq_pos = token.find("=", kw_pos + len(keyword))
-            if eq_pos != -1 and eq_pos + 1 < len(token):
-                ch = token[eq_pos + 1]
-                if ch in ("'", '"'):
-                    close_pos = token.find(ch, eq_pos + 2)
-                    if close_pos == -1:
-                        key_start = kw_pos
-                        while key_start > 0 and not token[key_start - 1].isspace():
-                            key_start -= 1
-                        return (key_start, eq_pos, ch)
-            pos = kw_pos + 1
-    return None
+        if value_start < length and text[value_start] in "'\"":
+            quote = text[value_start]
+            limit = _QUOTED_VALUE_LIMIT_RE[quote].search(text, value_start + 1)
+            if limit is None:
+                limit_end = length
+            elif limit.group() == quote:
+                limit_end = limit.end()
+            else:
+                limit_end = limit.start()
+            closing = text.rfind(quote, value_start + 1, limit_end)
+            if closing != -1:
+                masked.append(text[copied : value_start + 1])
+                masked.append("******")
+                copied = closing
+                pos = closing + 1
+                continue
+
+        value_end_match = _WHITESPACE_RE.search(text, value_start)
+        value_end = value_end_match.start() if value_end_match else length
+        masked.append(text[copied:value_start])
+        masked.append("******")
+        copied = pos = value_end
+    masked.append(text[copied:])
+    return "".join(masked)
 
 
 # The JVM's default uncaught-exception handler always prints this exact shape.
@@ -567,96 +591,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
-        #
-        # Tokenise on whitespace so each token is examined once.  For key=value
-        # tokens the unanchored _SENSITIVE_KV_RE handles multiple sensitive keys
-        # inside a single token (e.g. ``Config(secret="x",password=y)``).
-        # Space-separated key/value pairs and quoted values that span multiple
-        # tokens are handled by manual lookahead.  The overall scan is O(n).
         if isinstance(connection_cmd, str):
             connection_cmd = [connection_cmd]
-        cmd = " ".join(connection_cmd)
-        # re.split with a capturing group keeps the delimiters in the result list,
-        # so we can reassemble the string without altering whitespace.
-        parts = re.split(r"(\s+)", cmd)
-        i = 0
-        while i < len(parts):
-            part = parts[i]
-            if part and not part.isspace() and _SENSITIVE_KEYWORD_RE.search(part):
-                if "=" in part:
-                    # key=value in the same token.
-                    open_info = _find_open_quote_key(part)
-                    if open_info is not None:
-                        # The value's opening quote is not closed within this token,
-                        # so the quoted value spans multiple whitespace-delimited
-                        # tokens.  Consume them until the closing quote, but stop
-                        # at newlines so an unterminated quote doesn't swallow
-                        # subsequent log lines.
-                        key_start, eq_idx, quote = open_info
-                        before_key = part[:key_start]
-                        key_eq = part[key_start : eq_idx + 1]
-
-                        # Mask any earlier key=value pairs in the prefix.
-                        if before_key and _SENSITIVE_KEYWORD_RE.search(before_key):
-                            before_key = _SENSITIVE_KV_RE.sub(_mask_sensitive_kv, before_key)
-
-                        found_close = False
-                        j = i + 1
-                        while j < len(parts):
-                            if parts[j].isspace() and "\n" in parts[j]:
-                                break
-                            if not parts[j].isspace() and parts[j].endswith(quote):
-                                for k in range(i, j + 1):
-                                    parts[k] = ""
-                                parts[i] = f"{before_key}{key_eq}{quote}******{quote}"
-                                i = j
-                                found_close = True
-                                break
-                            j += 1
-
-                        if not found_close:
-                            # Unterminated quote — mask as a bare value.
-                            parts[i] = f"{before_key}{key_eq}******"
-                    else:
-                        # Value is fully contained — regex handles it.
-                        parts[i] = _SENSITIVE_KV_RE.sub(_mask_sensitive_kv, part)
-                else:
-                    # Space-separated: the key is this token, the value is the
-                    # next non-whitespace token (parts[i+2] since parts[i+1] is
-                    # the whitespace delimiter).
-                    if i + 2 < len(parts):
-                        val = parts[i + 2]
-                        if not val:
-                            # Empty value — mask the next non-whitespace token.
-                            if i + 4 < len(parts):
-                                parts[i + 4] = "******"
-                                i = i + 4
-                        elif val[0] in ("'", '"'):
-                            quote = val[0]
-                            if val.endswith(quote) and len(val) > 1:
-                                parts[i + 2] = f"{quote}******{quote}"
-                            else:
-                                # Multi-token quoted value — stop at newlines.
-                                found_close = False
-                                j = i + 3
-                                while j < len(parts):
-                                    if parts[j].isspace() and "\n" in parts[j]:
-                                        break
-                                    if not parts[j].isspace() and parts[j].endswith(quote):
-                                        for k in range(i + 2, j + 1):
-                                            parts[k] = ""
-                                        parts[i + 2] = f"{quote}******{quote}"
-                                        i = j
-                                        found_close = True
-                                        break
-                                    j += 1
-                                if not found_close:
-                                    parts[i + 2] = "******"
-                        else:
-                            parts[i + 2] = "******"
-                    # else: trailing key with no value — leave as is.
-            i += 1
-        return "".join(parts)
+        return _mask_sensitive_values(" ".join(connection_cmd))
 
     @property
     def _submit_log_tail(self) -> str:
