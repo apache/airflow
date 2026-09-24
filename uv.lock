@@ -944,7 +944,7 @@ wheels = [
 
 [[package]]
 name = "apache-airflow"
-version = "3.3.1"
+version = "3.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "apache-airflow-core" },
@@ -1881,7 +1881,7 @@ requires-dist = [
 
 [[package]]
 name = "apache-airflow-core"
-version = "3.3.1"
+version = "3.3.2"
 source = { editable = "airflow-core" }
 dependencies = [
     { name = "a2wsgi" },
@@ -4388,11 +4388,11 @@ requires-dist = [
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=0.11.0" },
     { name = "pydantic-ai-slim", specifier = ">=1.99.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'" },
-    { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'" },
-    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'" },
-    { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'" },
-    { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'" },
+    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=1.99.0" },
+    { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=1.99.0" },
+    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'", specifier = ">=1.99.0" },
+    { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=1.99.0" },
+    { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'", specifier = ">=1.99.0" },
     { name = "pypdf", marker = "extra == 'pdf'", specifier = ">=4.0.0" },
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
