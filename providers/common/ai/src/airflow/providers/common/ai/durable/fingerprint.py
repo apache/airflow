@@ -33,15 +33,15 @@ longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
-are excluded from the fingerprint.  Payloads are canonicalized before hashing
-(see ``_canonical``), so values that are not JSON types but do render the same
-way on every attempt -- a ``datetime`` or ``Decimal`` tool argument, a dataclass
-in ``tool_choice`` -- still produce a usable fingerprint.  Set members are
-ordered by their JSON encoding, because a set of strings iterates in an order
-that follows the interpreter's hash seed and every task attempt is a fresh
+are excluded from the fingerprint.  Payloads are put in a canonical form before
+hashing (see ``_canonical``), so values that are not JSON types but do render
+the same way on every attempt -- a ``datetime`` or ``Decimal`` tool argument, a
+dataclass in ``tool_choice`` -- still produce a usable fingerprint.  Set members
+are ordered by their JSON encoding, because a set of strings iterates in an
+order that follows the interpreter's hash seed and every task attempt is a fresh
 process.
 
-A request that cannot be canonicalized fingerprints as ``None``: that step is
+A request with no canonical form fingerprints as ``None``: that step is
 neither replayed nor cached, and re-runs live instead of replaying without
 verification.  A lazily validated ``Iterable`` argument lands there deliberately,
 since hashing it would consume the input the tool has not read yet, as does a
@@ -109,7 +109,7 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
     affects the fingerprint.
 
     Raises ``TypeError`` if a message did not dump to a mapping. A python-mode dump
-    passes an object it does not recognise straight through, and a fingerprint that
+    passes an object it does not recognize straight through, and a fingerprint that
     cannot strip the volatile fields would change on every attempt, so the caller
     degrades to an unverifiable ``None`` instead.
     """

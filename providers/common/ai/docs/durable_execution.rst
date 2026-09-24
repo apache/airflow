@@ -102,10 +102,10 @@ cache:
    never replays responses that belong to a different conversation.
 4. After successful completion, the cached steps are deleted.
 
-Fingerprints are computed from canonicalized values, so ordinary types that are
-not JSON -- a ``datetime`` or ``Decimal`` tool argument, a dataclass in
+Fingerprints are computed from each value's canonical form, so ordinary types that
+are not JSON -- a ``datetime`` or ``Decimal`` tool argument, a dataclass in
 ``tool_choice``, a ``set`` whose members are ordered before hashing -- fingerprint
-normally and still match on a later attempt. If a value cannot be canonicalized,
+normally and still match on a later attempt. If a value has no canonical form,
 that step is not cached, and on retry it runs live rather than replaying an
 unverified entry. A parameter annotated ``Iterable[...]`` is one such case:
 pydantic validates it lazily, and reading it in order to hash it would consume
