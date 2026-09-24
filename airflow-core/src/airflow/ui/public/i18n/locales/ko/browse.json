@@ -10,6 +10,22 @@
       "eventType": "이벤트 유형"
     }
   },
+  "dagBundles": {
+    "active": "활성",
+    "bundle_one": "Dag 번들",
+    "bundle_other": "Dag 번들",
+    "columns": {
+      "active": "활성 여부",
+      "importErrors": "Dag 가져오기 오류",
+      "lastRefreshed": "마지막 새로 고침",
+      "name": "이름",
+      "version": "버전"
+    },
+    "inactive": "비활성",
+    "neverRefreshed": "새로 고침된 적 없음",
+    "notRefreshedYet": "아직 새로 고침되지 않음",
+    "notVersioned": "버전 관리 미지원"
+  },
   "deadlines": {
     "columns": {
       "alertName": "알림 이름",

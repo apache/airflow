@@ -468,6 +468,8 @@ class TestAssetsOperations:
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
+            # The endpoint requires a request body, so the client must send one.
+            assert json.loads(request.content) == {}
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -680,6 +682,7 @@ class TestBackfillOperations:
 
     def test_pause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/pause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -689,6 +692,7 @@ class TestBackfillOperations:
 
     def test_unpause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/unpause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -698,6 +702,7 @@ class TestBackfillOperations:
 
     def test_cancel(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/cancel"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -1148,6 +1153,7 @@ class TestDagOperations:
         filename="filename",
         bundle_name="bundle_name",
         stack_trace="stack_trace",
+        file_token="file_token",
     )
 
     import_error_collection_response = ImportErrorCollectionResponse(

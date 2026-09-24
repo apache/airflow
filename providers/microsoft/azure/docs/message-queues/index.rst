@@ -32,9 +32,27 @@ Azure Service Bus as the underlying message queue system.
 It allows you to send and receive messages using Azure Service Bus queues in your Airflow workflows with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
 
-.. include:: /../src/airflow/providers/microsoft/azure/queues/asb.py
-    :start-after: [START azure_servicebus_message_queue_provider_description]
-    :end-before: [END azure_servicebus_message_queue_provider_description]
+* It uses ``azure+servicebus`` as the scheme for identifying the provider.
+* For parameter definitions, take a look at
+  :class:`~airflow.providers.microsoft.azure.triggers.message_bus.AzureServiceBusQueueTrigger`.
+
+.. code-block:: python
+
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+    from airflow.sdk import Asset, AssetWatcher
+
+    trigger = MessageQueueTrigger(
+        scheme="azure+servicebus",
+        # AzureServiceBusQueueTrigger parameters
+        queues=["my-queue"],
+        azure_service_bus_conn_id="azure_service_bus_default",
+        poll_interval=60,
+    )
+
+    asset = Asset(
+        "asb_queue_asset",
+        watchers=[AssetWatcher(name="asb_watcher", trigger=trigger)],
+    )
 
 Azure Service Bus Message Queue Trigger
 -----------------------------------------

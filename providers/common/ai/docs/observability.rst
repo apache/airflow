@@ -41,13 +41,35 @@ How it works
   configured under ``[traces]`` / the standard ``OTEL_EXPORTER_OTLP_*``
   environment variables. If core tracing is not enabled in the worker process,
   no GenAI spans are emitted.
-* **Correlation is automatic.** The worker opens a task span before the operator
-  runs, so the agent's spans nest under it and inherit the task's ``trace_id``
-  and ``airflow.*`` attributes (dag id, run id, task id, try number, map index).
+* **Correlation.** The worker opens a task span before the operator runs, so the
+  agent's spans nest under it and share its ``trace_id``.
+  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` (and
+  ``@task.agent``) additionally stamps the task-instance identity on every GenAI
+  span it emits: the five keys core tracing already puts on the task span
+  (``airflow.dag_id``, ``airflow.task_id``, ``airflow.dag_run.run_id``,
+  ``airflow.task_instance.try_number``, ``airflow.task_instance.map_index``) plus
+  ``airflow.task_instance.id`` as the per-attempt run join key. So a span is
+  filterable by dag, task, run, attempt, or map index directly, without walking
+  up to the parent span (OpenTelemetry children inherit trace context, not
+  attributes).
   An automatic retry reuses the task instance's persisted trace context, so all
   attempts share one trace and appear as repeated task-run spans on it,
   distinguished by ``try number``. Only a manual clear or rerun regenerates the
   context and starts a new trace.
+* **Run join key.** For an ``AgentOperator`` run, the task-instance id (unique
+  per attempt, since Airflow regenerates it on each retry) is passed to
+  pydantic-ai as the run's ``run_id``. It surfaces on the run's GenAI spans as
+  ``gen_ai.agent.call.id``, and the operator also exposes it, alongside the run's
+  token usage, on XCom under the ``run_id`` and ``usage`` keys. A downstream task
+  can then reference the run
+  (``ti.xcom_pull(task_ids="my_agent", key="run_id")``) and a trace backend can
+  join a task's output to its agent trace without parsing logs. With
+  ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial model
+  run, not the human-feedback regenerations.
+* **Scope.** The ``airflow.*`` identity attributes and the ``run_id`` / ``usage``
+  XComs come only from ``AgentOperator`` and ``@task.agent``. The other LLM
+  operators still emit GenAI spans correlated to the task span by nesting, but
+  without the identity attributes or the run join key.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
@@ -57,7 +79,7 @@ How it works
 
 .. note::
 
-    On pydantic-ai 2.x the agent-run span reports token usage under
+    The agent-run span reports token usage under
     ``gen_ai.aggregated_usage.*`` while the per-model-call span keeps
     ``gen_ai.usage.*``. This avoids double-counting in backends that sum a
     parent span and its children. Dashboards or alerts that read run-level token

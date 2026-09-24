@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 from enum import Enum
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecoratedOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 class TestLLMBranchDecoratedOperator:
@@ -55,7 +57,9 @@ class TestLLMBranchDecoratedOperator:
 
         assert result == "positive"
         assert op.prompt == "Route this review"
-        mock_agent.run_sync.assert_called_once_with("Route this review", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Route this review", usage_limits=None, cancellation_token=ANY
+        )
         mock_do_branch.assert_called_once()
 
     @pytest.mark.parametrize(
@@ -73,6 +77,7 @@ class TestLLMBranchDecoratedOperator:
         with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_sequence_prompt_with_require_approval_raises_before_run_sync(self, mock_hook_cls):
         """Sequence prompt + require_approval=True fails before the agent runs."""
@@ -118,7 +123,7 @@ class TestLLMBranchDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

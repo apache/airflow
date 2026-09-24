@@ -96,7 +96,13 @@ class SSHRemoteJobOperator(BaseOperator):
         reaper (for example ``systemd-tmpfiles``) for jobs that are killed or time out.
     """
 
-    template_fields: Sequence[str] = ("command", "environment", "remote_host", "remote_base_dir")
+    template_fields: Sequence[str] = (
+        "command",
+        "environment",
+        "remote_host",
+        "remote_base_dir",
+        "ssh_conn_id",
+    )
     template_ext: Sequence[str] = (
         ".sh",
         ".bash",
