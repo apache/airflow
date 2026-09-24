@@ -634,6 +634,103 @@ class TestSFTPHook:
         )
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
 
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    def test_build_worker_hook_inherits_parent_overrides(self, mock_get_connection):
+        """
+        Regression test for #73585.
+
+        SFTPHook._build_worker_hook() must copy the parent hook's *effective*
+        connection settings (constructor overrides merged with the connection)
+        onto the worker hook it builds for concurrent transfers, not just
+        ssh_conn_id / no_host_key_check.
+        """
+        mock_connection = MagicMock()
+        mock_connection.login = "conn_user"
+        mock_connection.password = "conn_pass"
+        mock_connection.host = "conn.example.com"
+        mock_connection.port = 2222
+        mock_connection.extra = None
+        mock_get_connection.return_value = mock_connection
+
+        parent_hook = SFTPHook(
+            ssh_conn_id="sftp_default",
+            remote_host="override.example.com",
+            port=2022,
+            username="override_user",
+            password="override_pass",
+            key_file="/tmp/override_key",
+            conn_timeout=42,
+            host_proxy_cmd="ncat --proxy proxy_host:1234 %h %p",
+        )
+        # Simulate values that only ever come from the connection's `extra`
+        # field (no constructor parameter exists for these on SSHHook).
+        parent_hook.no_host_key_check = False
+        parent_hook.allow_host_key_change = True
+        parent_hook.look_for_keys = False
+
+        worker_hook = parent_hook._build_worker_hook()
+
+        assert worker_hook is not parent_hook
+        assert worker_hook.remote_host == "override.example.com"
+        assert worker_hook.port == 2022
+        assert worker_hook.username == "override_user"
+        assert worker_hook.password == "override_pass"
+        assert worker_hook.key_file == "/tmp/override_key"
+        assert worker_hook.conn_timeout == 42
+        assert worker_hook.host_proxy_cmd == "ncat --proxy proxy_host:1234 %h %p"
+        assert worker_hook.no_host_key_check is False
+        assert worker_hook.allow_host_key_change is True
+        assert worker_hook.look_for_keys is False
+
+    def test_store_and_retrieve_directory_concurrently_use_parent_overrides(self):
+        """
+        Regression test for #73585.
+
+        store_directory_concurrently() and retrieve_directory_concurrently() must build
+        every worker hook via self._build_worker_hook(), so each worker inherits the
+        parent hook's effective remote_host/port/username instead of falling back to
+        the connection's own defaults.
+        """
+        workers = 2
+        built_hooks = []
+        original_build = SFTPHook._build_worker_hook
+
+        def spy_build(hook_self):
+            worker_hook = original_build(hook_self)
+            built_hooks.append(worker_hook)
+            return worker_hook
+
+        with (
+            patch.object(SFTPHook, "_build_worker_hook", autospec=True, side_effect=spy_build) as mock_build,
+            patch.object(SFTPHook, "get_conn", return_value=MagicMock()),
+        ):
+            stored_dir_name = "stored_dir_override"
+            self.hook.store_directory_concurrently(
+                remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+                local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR),
+                workers=workers,
+            )
+            assert mock_build.call_count == workers
+            for worker_hook in built_hooks:
+                assert worker_hook.remote_host == self.hook.remote_host
+                assert worker_hook.port == self.hook.port
+                assert worker_hook.username == self.hook.username
+
+            built_hooks.clear()
+            mock_build.reset_mock()
+
+            retrieved_dir_name = "retrieved_dir_override"
+            self.hook.retrieve_directory_concurrently(
+                remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+                local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, retrieved_dir_name),
+                workers=workers,
+            )
+            assert mock_build.call_count == workers
+            for worker_hook in built_hooks:
+                assert worker_hook.remote_host == self.hook.remote_host
+                assert worker_hook.port == self.hook.port
+                assert worker_hook.username == self.hook.username
+
     def test_validate_within_directory_rejects_escape(self):
         base = os.path.join(self.temp_dir, "download")
         with pytest.raises(ValueError, match="outside the destination directory"):

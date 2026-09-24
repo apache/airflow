@@ -207,6 +207,45 @@ class SFTPHook(SSHHook):
         """Get the number of open connections."""
         return self._conn_count
 
+    def _build_worker_hook(self) -> SFTPHook:
+        """
+        Build a new SFTPHook for a concurrent-transfer worker.
+
+        Mirrors this hook's effective connection settings -- i.e. the result of merging
+        this hook's constructor overrides (``remote_host``, ``port``, ``username``, etc.)
+        with the underlying Airflow connection -- so worker hooks used by
+        ``store_directory_concurrently`` and ``retrieve_directory_concurrently`` connect
+        the same way the parent hook does, instead of falling back to the connection's
+        raw defaults.
+        """
+        worker_hook = SFTPHook(
+            ssh_conn_id=self.ssh_conn_id,
+            remote_host=self.remote_host,
+            username=self.username,
+            password=self.password,
+            key_file=self.key_file,
+            port=self.port,
+            conn_timeout=self.conn_timeout,
+            cmd_timeout=self.cmd_timeout,
+            keepalive_interval=self.keepalive_interval,
+            banner_timeout=self.banner_timeout,
+            disabled_algorithms=self.disabled_algorithms,
+            ciphers=self.ciphers,
+            auth_timeout=self.auth_timeout,
+            host_proxy_cmd=self.host_proxy_cmd,
+            conn_retry_attempts=self.conn_retry_attempts,
+        )
+        # These have no constructor parameter and are only ever resolved from the
+        # connection's `extra` field or left at their class default, so copy the
+        # parent's already-resolved values across explicitly.
+        worker_hook.no_host_key_check = self.no_host_key_check
+        worker_hook.allow_host_key_change = self.allow_host_key_change
+        worker_hook.host_key = self.host_key
+        worker_hook.look_for_keys = self.look_for_keys
+        worker_hook.compress = self.compress
+        worker_hook.pkey = self.pkey
+        return worker_hook
+
     @handle_connection_management
     def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
         """
@@ -478,7 +517,7 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-        conns = [SFTPHook(ssh_conn_id=self.ssh_conn_id).get_conn() for _ in range(workers)]
+        conns = [self._build_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Retrieving files concurrently with %s threads", workers)
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
@@ -571,7 +610,7 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [new_remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-        conns = [SFTPHook(ssh_conn_id=self.ssh_conn_id).get_conn() for _ in range(workers)]
+        conns = [self._build_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Storing files concurrently with %s threads", workers)
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
