@@ -106,6 +106,9 @@ in the discussions on the devlist and Slack.
 
 Why we introduced the limit, what it means for you and how to reopen or restore a pull request \
 is explained in {doc_url}.
+
+---
+Drafted-by: Claude Code (Opus 5); reviewed by @potiuk before posting
 """
 
 
