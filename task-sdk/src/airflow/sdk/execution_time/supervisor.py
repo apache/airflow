@@ -2387,7 +2387,8 @@ class InProcessTestSupervisor(ActivitySubprocess):
     class _Client(Client):
         def request(self, *args, **kwargs):
             # Bypass the tenacity retries!
-            return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
+            kwargs["retry"] = False
+            return super().request(*args, **kwargs)
 
     def _check_subprocess_exit(
         self, raise_on_timeout: bool = False, expect_signal: None | int = None

@@ -464,6 +464,20 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.heartbeat(ti_id, 100)
 
+    def test_task_instance_heartbeat_is_not_retried(self):
+        """A failing heartbeat surfaces at once so the supervisor's own retry budget governs it."""
+        ti_id = uuid6.uuid7()
+        responses: list[httpx.Response] = [
+            httpx.Response(500, text="Internal Server Error"),
+            httpx.Response(204),
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.task_instances.heartbeat(ti_id, 100)
+
+        assert len(responses) == 1
+
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_task_instance_defer(self, queues_enabled: bool):
         # Simulate a successful response from the server that defers a task
