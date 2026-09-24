@@ -386,15 +386,6 @@ paths:
           - type: string
           - type: 'null'
           title: Source Task Id
-      - name: source_task_instance_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Source Task Instance Id
       - name: source_run_id
         in: query
         required: false
@@ -1998,12 +1989,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -2634,25 +2619,6 @@ paths:
           items:
             type: string
           title: Teams
-      - name: tags
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Tags
-      - name: tags_match_mode
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - enum:
-            - any
-            - all
-            type: string
-          - type: 'null'
-          title: Tags Match Mode
       - name: order_by
         in: query
         required: false
@@ -3092,12 +3058,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -3845,9 +3805,6 @@ paths:
         schema:
           anyOf:
           - $ref: '#/components/schemas/DagWarningType'
-          - type: string
-            maxLength: 50
-            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
           - type: 'null'
           title: Warning Type
       - name: limit
@@ -4623,47 +4580,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/bulk:
-    patch:
-      tags:
-      - DAG
-      summary: Bulk Dags
-      description: Bulk pause, resume, or drain Dags by id.
-      operationId: bulk_dags
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BulkBody_BulkDAGBody_'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BulkResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
   /api/v2/dags/{dag_id}/favorite:
     post:
       tags:
@@ -4822,24 +4738,6 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: limit
         in: query
         required: false
@@ -4890,15 +4788,6 @@ paths:
           - type: string
           - type: 'null'
           title: Task Id
-      - name: task_instance_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Task Instance Id
       - name: run_id
         in: query
         required: false
@@ -5160,12 +5049,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -5209,24 +5092,6 @@ paths:
           type: integer
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: try_number
         in: query
         required: false
@@ -5254,24 +5119,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -5362,13 +5215,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            filename, source_reference, bundle_name, stacktrace, import_error_id`'
+            filename, bundle_name, stacktrace, import_error_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, timestamp, filename,
-          source_reference, bundle_name, stacktrace, import_error_id`'
+          bundle_name, stacktrace, import_error_id`'
       - name: filename_pattern
         in: query
         required: false
@@ -5455,6 +5308,14 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: is_alive
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Alive
       - name: start_date_gte
         in: query
         required: false
@@ -5601,22 +5462,6 @@ paths:
           - type: string
           - type: 'null'
           title: Executor Class
-      - name: teams
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Teams
-      - name: is_alive
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Is Alive
       responses:
         '200':
           description: Successful Response
@@ -6424,26 +6269,9 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: limit
         in: query
         required: false
@@ -6479,24 +6307,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6537,6 +6347,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: all_map_indices
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: All Map Indices
       - name: map_index
         in: query
         required: false
@@ -6545,31 +6362,6 @@ paths:
           minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
-      - name: all_map_indices
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: All Map Indices
       responses:
         '204':
           description: Successful Response
@@ -6585,24 +6377,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6649,26 +6429,9 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -6688,24 +6451,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6751,26 +6502,9 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -6792,24 +6526,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6855,26 +6577,9 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -6899,24 +6604,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6963,26 +6656,9 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '204':
           description: Successful Response
@@ -6998,24 +6674,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7062,26 +6726,9 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: deserialize
         in: query
         required: false
@@ -7130,12 +6777,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7213,12 +6854,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7264,26 +6899,9 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '204':
           description: Successful Response
@@ -7311,12 +6929,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7373,24 +6985,6 @@ paths:
             minimum: -1
           - type: 'null'
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: limit
         in: query
         required: false
@@ -7608,18 +7202,17 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `key, dag_id,
-            run_id, task_id, map_index, region_id, region_index, timestamp, run_after`'
+            run_id, task_id, map_index, timestamp, run_after`'
           default:
           - dag_id
           - task_id
           - run_id
-          - region_id
-          - region_index
+          - map_index
           - key
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `key, dag_id, run_id,
-          task_id, map_index, region_id, region_index, timestamp, run_after`'
+          task_id, map_index, timestamp, run_after`'
       responses:
         '200':
           description: Successful Response
@@ -7763,24 +7356,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -7800,24 +7375,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7870,23 +7433,6 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -7971,24 +7517,6 @@ paths:
           type: integer
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8007,24 +7535,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8060,24 +7576,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: run_after_gte
         in: query
         required: false
@@ -8511,12 +8009,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
@@ -8564,24 +8056,6 @@ paths:
         schema:
           type: integer
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8601,24 +8075,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8661,24 +8123,6 @@ paths:
           type: integer
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8698,24 +8142,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8727,10 +8159,7 @@ paths:
       tags:
       - Task Instance
       summary: Get Task Instance Tries
-      description: 'Get list of task instances history.
-
-
-        Tries recorded before the task had regions are not included once it has them.'
+      description: Get list of task instances history.
       operationId: get_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -8761,24 +8190,6 @@ paths:
           type: integer
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8798,24 +8209,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8827,10 +8226,6 @@ paths:
       tags:
       - Task Instance
       summary: Get Mapped Task Instance Tries
-      description: 'Get list of task instances history for a mapped task instance.
-
-
-        Tries recorded before the task had regions are not included once it has them.'
       operationId: get_mapped_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -8860,24 +8255,6 @@ paths:
         schema:
           type: integer
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8897,24 +8274,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8956,24 +8321,6 @@ paths:
         schema:
           type: integer
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8993,24 +8340,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -9063,23 +8398,6 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -9178,24 +8496,6 @@ paths:
         schema:
           type: string
           title: Dag Run Id
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: cursor
         in: query
         required: false
@@ -9210,23 +8510,6 @@ paths:
         description: Cursor for keyset-based pagination. Pass an empty string for
           the first page, then use ``next_cursor`` from the response. When ``cursor``
           is provided, ``offset`` is ignored.
-      - name: loop_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Loop Id
-      - name: iteration
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: 0
-          - type: 'null'
-          title: Iteration
       - name: task_id
         in: query
         required: false
@@ -9946,24 +9229,6 @@ paths:
           type: integer
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -9983,24 +9248,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10047,24 +9300,6 @@ paths:
         schema:
           type: integer
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -10084,24 +9319,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10213,23 +9436,6 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -10308,23 +9514,6 @@ paths:
         schema:
           type: string
           title: Group Id
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -10362,12 +9551,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10421,23 +9604,6 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -10475,12 +9641,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10534,23 +9694,6 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -10588,12 +9731,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10666,16 +9803,7 @@ paths:
       tags:
       - Task
       summary: Get Task
-      description: 'Get simplified representation of a task.
-
-
-        Pass ``version_number`` (e.g. a task instance''s ``dag_version.version_number``)
-        to get the task
-
-        as defined in that Dag version. Without it the latest version is used. Returns
-        404 if that
-
-        version of the Dag does not exist.'
+      description: Get simplified representation of a task.
       operationId: get_task
       security:
       - OAuth2PasswordBearer: []
@@ -10692,14 +9820,6 @@ paths:
         required: true
         schema:
           title: Task Id
-      - name: version_number
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -11025,12 +10145,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '409':
           content:
             application/json:
@@ -11126,6 +10240,13 @@ paths:
           type: boolean
           default: false
           title: Full Content
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
       - name: token
         in: query
         required: false
@@ -11134,31 +10255,6 @@ paths:
           - type: string
           - type: 'null'
           title: Token
-      - name: map_index
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: -1
-          title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: accept
         in: header
         required: false
@@ -11197,24 +10293,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -11264,24 +10348,6 @@ paths:
           type: integer
           default: -1
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -11313,12 +10379,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -11458,100 +10518,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagVersions/diff:
-    get:
-      tags:
-      - DagVersion
-      - experimental
-      summary: 'Experimental: Compare what two stored versions of a Dag currently
-        hold.'
-      description: "\U0001F6A7 This is an experimental endpoint and may change or\
-        \ be removed without notice.\n\nReports observed state \u2014 what the two\
-        \ stored versions currently hold \u2014 not why a version was created. Version\
-        \ access returns the changed structure with identifying path components masked;\
-        \ the raw values behind those changes, and the paths that name them, are disclosed\
-        \ only to a caller who may also read the Dag's code."
-      operationId: get_dag_version_diff
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: base_version_number
-        in: query
-        required: true
-        schema:
-          type: integer
-          exclusiveMinimum: 0
-          description: Version to compare from.
-          title: Base Version Number
-        description: Version to compare from.
-      - name: target_version_number
-        in: query
-        required: true
-        schema:
-          type: integer
-          exclusiveMinimum: 0
-          description: Version to compare to.
-          title: Target Version Number
-        description: Version to compare to.
-      - name: max_changes
-        in: query
-        required: false
-        schema:
-          type: integer
-          maximum: 5000
-          exclusiveMinimum: 0
-          description: Largest number of records `changes` may hold. A repeat of a
-            path already recorded does not count towards it, and `truncated` says
-            whether the bound dropped anything.
-          default: 500
-          title: Max Changes
-        description: Largest number of records `changes` may hold. A repeat of a path
-          already recorded does not count towards it, and `truncated` says whether
-          the bound dropped anything.
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DagVersionDiffResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -11751,23 +10717,6 @@ paths:
         schema:
           type: integer
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       requestBody:
         required: true
         content:
@@ -11851,23 +10800,6 @@ paths:
         schema:
           type: integer
           title: Map Index
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -11887,24 +10819,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -11954,23 +10874,6 @@ paths:
           - type: integer
           - type: 'null'
           title: Try Number
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -11990,24 +10893,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -12037,24 +10928,6 @@ paths:
         schema:
           type: string
           title: Dag Run Id
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
       - name: limit
         in: query
         required: false
@@ -12167,14 +11040,6 @@ paths:
           items:
             type: string
           title: State
-      - name: teams
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Teams
       - name: response_received
         in: query
         required: false
@@ -12282,12 +11147,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -12562,12 +11421,6 @@ components:
         source_map_index:
           type: integer
           title: Source Map Index
-        source_task_instance_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Source Task Instance Id
         created_dagruns:
           items:
             $ref: '#/components/schemas/DagRunAssetReference'
@@ -12848,24 +11701,6 @@ components:
           - type: integer
           - type: 'null'
           title: Map Index
-        task_instance_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Task Instance Id
-        region_id:
-          type: string
-          format: uuid
-          title: Region Id
-        region_index:
-          type: integer
-          title: Region Index
-        try_number:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Try Number
       type: object
       required:
       - kind
@@ -13076,16 +11911,6 @@ components:
             run. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
             parameter, then the ``[core] rerun_with_latest_version`` config option,
             and finally ``True`` (the historical default for backfills).
-        drain_dag:
-          type: boolean
-          title: Drain Dag
-          description: 'Drain the Dag together with the backfill. Draining changes
-            the whole Dag: unfinished runs can start or resume except those held by
-            paused backfills. No scheduled runs are created, and the Dag pauses once
-            all unfinished runs finish. Paused backfills must be resumed for draining
-            to complete. Requires the same permission as pausing the Dag. Ignored
-            by the dry-run endpoint.'
-          default: false
       additionalProperties: false
       type: object
       required:
@@ -13214,21 +12039,6 @@ components:
 
         This structure helps users understand which key actions succeeded and which
         failed.'
-    BulkBody_BulkDAGBody_:
-      properties:
-        actions:
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/BulkCreateAction_BulkDAGBody_'
-            - $ref: '#/components/schemas/BulkUpdateAction_BulkDAGBody_'
-            - $ref: '#/components/schemas/BulkDeleteAction_BulkDAGBody_'
-          type: array
-          title: Actions
-      additionalProperties: false
-      type: object
-      required:
-      - actions
-      title: BulkBody[BulkDAGBody]
     BulkBody_BulkDAGRunBody_:
       properties:
         actions:
@@ -13304,28 +12114,6 @@ components:
       required:
       - actions
       title: BulkBody[VariableBody]
-    BulkCreateAction_BulkDAGBody_:
-      properties:
-        action:
-          type: string
-          const: create
-          title: Action
-          description: The action to be performed on the entities.
-        entities:
-          items:
-            $ref: '#/components/schemas/BulkDAGBody'
-          type: array
-          title: Entities
-          description: A list of entities to be created.
-        action_on_existence:
-          $ref: '#/components/schemas/BulkActionOnExistence'
-          default: fail
-      additionalProperties: false
-      type: object
-      required:
-      - action
-      - entities
-      title: BulkCreateAction[BulkDAGBody]
     BulkCreateAction_BulkDAGRunBody_:
       properties:
         action:
@@ -13436,26 +12224,6 @@ components:
       - action
       - entities
       title: BulkCreateAction[VariableBody]
-    BulkDAGBody:
-      properties:
-        is_paused:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Is Paused
-        scheduling_state:
-          anyOf:
-          - $ref: '#/components/schemas/DagSchedulingState'
-          - type: 'null'
-        dag_id:
-          type: string
-          title: Dag Id
-      additionalProperties: false
-      type: object
-      required:
-      - dag_id
-      title: BulkDAGBody
-      description: Request body for bulk update of Dags.
     BulkDAGRunBody:
       properties:
         dag_run_id:
@@ -13547,30 +12315,6 @@ components:
       type: object
       title: BulkDAGRunClearBody
       description: Request body for the bulk clear Dag Runs endpoint.
-    BulkDeleteAction_BulkDAGBody_:
-      properties:
-        action:
-          type: string
-          const: delete
-          title: Action
-          description: The action to be performed on the entities.
-        entities:
-          items:
-            anyOf:
-            - type: string
-            - $ref: '#/components/schemas/BulkDAGBody'
-          type: array
-          title: Entities
-          description: A list of entity id/key or entity objects to be deleted.
-        action_on_non_existence:
-          $ref: '#/components/schemas/BulkActionNotOnExistence'
-          default: fail
-      additionalProperties: false
-      type: object
-      required:
-      - action
-      - entities
-      title: BulkDeleteAction[BulkDAGBody]
     BulkDeleteAction_BulkDAGRunBody_:
       properties:
         action:
@@ -13730,17 +12474,6 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-        region_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-        region_index:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
         note:
           anyOf:
           - type: string
@@ -13787,38 +12520,6 @@ components:
       - task_id
       title: BulkTaskInstanceBody
       description: Request body for bulk update, and delete task instances.
-    BulkUpdateAction_BulkDAGBody_:
-      properties:
-        action:
-          type: string
-          const: update
-          title: Action
-          description: The action to be performed on the entities.
-        entities:
-          items:
-            $ref: '#/components/schemas/BulkDAGBody'
-          type: array
-          title: Entities
-          description: A list of entities to be updated.
-        update_mask:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Update Mask
-          description: A list of field names to update for each entity.Only these
-            fields will be applied from the request body to the database model.Any
-            extra fields provided will be ignored.
-        action_on_non_existence:
-          $ref: '#/components/schemas/BulkActionNotOnExistence'
-          default: fail
-      additionalProperties: false
-      type: object
-      required:
-      - action
-      - entities
-      title: BulkUpdateAction[BulkDAGBody]
     BulkUpdateAction_BulkDAGRunBody_:
       properties:
         action:
@@ -14120,30 +12821,6 @@ components:
           description: Clear every task in this task group. Mutually exclusive with
             `task_ids`. The group's tasks are resolved on the server from the dag
             structure, so all of them are targeted regardless of how many there are.
-        task_instance_ids:
-          anyOf:
-          - items:
-              type: string
-              format: uuid
-            type: array
-            minItems: 1
-          - type: 'null'
-          title: Task Instance Ids
-          description: Exact current executions in one DAG run. Mutually exclusive
-            with task_ids and task_group_id.
-        whole_expansion_ids:
-          items:
-            type: string
-            format: uuid
-          type: array
-          title: Whole Expansion Ids
-          description: Selected execution IDs whose entire mapped expansion should
-            be cleared.
-        include_later_loop_iterations:
-          type: boolean
-          title: Include Later Loop Iterations
-          description: Clear later iterations when the selection includes a loop gate.
-          default: true
         dag_run_id:
           anyOf:
           - type: string
@@ -14177,13 +12854,6 @@ components:
         prevent_running_task:
           type: boolean
           title: Prevent Running Task
-          default: false
-        keep_task_state:
-          type: boolean
-          title: Keep Task State
-          description: Keep the task state store entries of the cleared task instances
-            so the next attempt resumes from them. By default they are discarded,
-            so the task starts over.
           default: false
         note:
           anyOf:
@@ -14768,15 +13438,14 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
+        exceeds_max_active_runs:
+          type: boolean
+          title: Exceeds Max Active Runs
         team_name:
           anyOf:
           - type: string
           - type: 'null'
           title: Team Name
-        latest_dag_version:
-          anyOf:
-          - $ref: '#/components/schemas/DagVersionResponse'
-          - type: 'null'
         is_backfillable:
           type: boolean
           title: Is Backfillable
@@ -14795,6 +13464,12 @@ components:
 
             Deprecated: Use max_active_tasks instead.'
           deprecated: true
+          readOnly: true
+        latest_dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
+          description: Return the latest DagVersion.
           readOnly: true
       type: object
       required:
@@ -14839,10 +13514,11 @@ components:
       - timezone
       - last_parsed
       - default_args
-      - latest_dag_version
+      - exceeds_max_active_runs
       - is_backfillable
       - file_token
       - concurrency
+      - latest_dag_version
       title: DAGDetailsResponse
       description: Specific serializer for Dag Details responses.
     DAGPatchBody:
@@ -15457,11 +14133,6 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
-        language:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Language
       type: object
       required:
       - content
@@ -15524,12 +14195,7 @@ components:
           type: string
           title: Dag Id
         warning_type:
-          anyOf:
-          - $ref: '#/components/schemas/DagWarningType'
-          - type: string
-            maxLength: 50
-            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
-          title: Warning Type
+          $ref: '#/components/schemas/DagWarningType'
         message:
           type: string
           title: Message
@@ -16018,185 +14684,6 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
-    DagVersionDiffCategory:
-      type: string
-      enum:
-      - asset
-      - authorization
-      - callback
-      - deadline
-      - dependency
-      - metadata
-      - param
-      - provenance
-      - schedule
-      - task
-      - unknown
-      title: DagVersionDiffCategory
-      description: What part of a Dag a difference belongs to. Mirrors ``DiffCategory``.
-    DagVersionDiffChangeResponse:
-      properties:
-        path:
-          type: string
-          title: Path
-        operation:
-          $ref: '#/components/schemas/DagVersionDiffOperation'
-        category:
-          $ref: '#/components/schemas/DagVersionDiffCategory'
-        impact:
-          $ref: '#/components/schemas/DagVersionDiffImpact'
-        occurrence_count:
-          type: integer
-          title: Occurrence Count
-          description: How many underlying changes this record stands for. Always
-            1 when values are disclosed, since each change is then its own record;
-            a redacted record merges every change sharing its path and operation.
-        before_digest:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Before Digest
-          description: SHA-256 over the canonical JSON of `before_value`. Present
-            only when values are disclosed, and null when the change has no before
-            side.
-        after_digest:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: After Digest
-          description: SHA-256 over the canonical JSON of `after_value`. Present only
-            when values are disclosed, and null when the change has no after side.
-        before_value:
-          title: Before Value
-          description: "The value this path held in the base version. Present only\
-            \ when values are disclosed, and omitted entirely when the change has\
-            \ no before side \u2014 which is how an absent side is told apart from\
-            \ a stored null."
-        after_value:
-          title: After Value
-          description: "The value this path holds in the target version. Present only\
-            \ when values are disclosed, and omitted entirely when the change has\
-            \ no after side \u2014 which is how an absent side is told apart from\
-            \ a stored null."
-      type: object
-      required:
-      - path
-      - operation
-      - category
-      - impact
-      - occurrence_count
-      title: DagVersionDiffChangeResponse
-      description: One structural difference between two stored Dag versions.
-    DagVersionDiffImpact:
-      type: string
-      enum:
-      - authorization
-      - execution
-      - metadata
-      - provenance
-      - unknown
-      title: DagVersionDiffImpact
-      description: What a difference affects. Mirrors ``DiffImpact``.
-    DagVersionDiffMode:
-      type: string
-      enum:
-      - observed_state
-      - unavailable
-      title: DagVersionDiffMode
-      description: Whether a comparison could be made at all.
-    DagVersionDiffOperation:
-      type: string
-      enum:
-      - added
-      - removed
-      - changed
-      title: DagVersionDiffOperation
-      description: How a difference presents at its path.
-    DagVersionDiffResponse:
-      properties:
-        diff_schema_version:
-          type: integer
-          title: Diff Schema Version
-          description: Wire format of this payload. Incremented when its shape changes.
-        base_version_number:
-          type: integer
-          title: Base Version Number
-        target_version_number:
-          type: integer
-          title: Target Version Number
-        serializer_versions:
-          $ref: '#/components/schemas/DagVersionDiffSerializerVersions'
-        mode:
-          $ref: '#/components/schemas/DagVersionDiffMode'
-        unavailable_reason:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Unavailable Reason
-          description: Why no comparison could be made. Populated only when `mode`
-            is `unavailable`.
-        values_status:
-          $ref: '#/components/schemas/DagVersionDiffValuesStatus'
-        truncated:
-          type: boolean
-          title: Truncated
-          description: Whether a change at a path not already in `changes` was dropped
-            to stay within `max_changes`. Paths that are absent are absent, not unchanged.
-        total_changes:
-          type: integer
-          title: Total Changes
-          description: Underlying changes across every disclosed path, not the number
-            of records. Exact when `truncated` is false; a lower bound when it is
-            true, because the changes at dropped paths are not counted.
-        changes:
-          items:
-            $ref: '#/components/schemas/DagVersionDiffChangeResponse'
-          type: array
-          title: Changes
-      type: object
-      required:
-      - diff_schema_version
-      - base_version_number
-      - target_version_number
-      - serializer_versions
-      - mode
-      - values_status
-      - truncated
-      - total_changes
-      - changes
-      title: DagVersionDiffResponse
-      description: Observed-state difference between two stored Dag versions.
-    DagVersionDiffSerializerVersions:
-      properties:
-        base:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Base
-        target:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Target
-      type: object
-      required:
-      - base
-      - target
-      title: DagVersionDiffSerializerVersions
-      description: 'Which Dag serializer format each compared version was stored under.
-
-
-        Unrelated to ``diff_schema_version``, which versions this payload rather than
-        the
-
-        serialized Dags it describes.'
-    DagVersionDiffValuesStatus:
-      type: string
-      enum:
-      - available
-      - unavailable
-      title: DagVersionDiffValuesStatus
-      description: Whether values were disclosed. Mirrors ``ValuesStatus``.
     DagVersionResponse:
       properties:
         id:
@@ -16250,7 +14737,6 @@ components:
       - duplicate dag id
       - non-existent pool
       - runtime varying value
-      - task group cycle
       title: DagWarningType
       description: 'Enum for DAG warning types.
 
@@ -16333,12 +14819,6 @@ components:
           type: string
           format: date-time
           title: When
-        task_instance_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Task Instance Id
         dag_id:
           anyOf:
           - type: string
@@ -16820,11 +15300,6 @@ components:
         filename:
           type: string
           title: Filename
-        source_reference:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Source Reference
         bundle_name:
           anyOf:
           - type: string
@@ -16844,7 +15319,6 @@ components:
       - import_error_id
       - timestamp
       - filename
-      - source_reference
       - bundle_name
       - stack_trace
       - file_token
@@ -16968,20 +15442,6 @@ components:
       type: object
       title: LastAssetEventResponse
       description: Last asset event response serializer.
-    LoopIterationResponse:
-      properties:
-        loop_id:
-          type: string
-          title: Loop Id
-        iteration:
-          type: integer
-          title: Iteration
-      type: object
-      required:
-      - loop_id
-      - iteration
-      title: LoopIterationResponse
-      description: A task execution's position in an enclosing loop.
     MaterializeAssetBody:
       properties:
         dag_run_id:
@@ -17034,15 +15494,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Version
-        drain_dag:
-          type: boolean
-          title: Drain Dag
-          description: 'Drain the Dag together with this run. Draining changes the
-            whole Dag: unfinished runs can start or resume except those held by paused
-            backfills. No scheduled runs are created, and the Dag pauses once all
-            unfinished runs finish. Paused backfills must be resumed for draining
-            to complete. Requires the same permission as pausing the Dag.'
-          default: false
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -17068,17 +15519,6 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-        region_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-        region_index:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Region Index
         note:
           anyOf:
           - type: string
@@ -17106,31 +15546,46 @@ components:
       title: PatchTaskInstanceBody
       description: Request body for patching task instance state.
     PluginAppliesToResponse:
-      additionalProperties:
-        items:
-          type: string
-        type: array
+      properties:
+        dag_tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Dag Tags
+        dag_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Dag Ids
+        task_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Task Ids
+        operators:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Operators
+        operator_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Operator Names
+      additionalProperties: false
       type: object
       title: PluginAppliesToResponse
-      description: 'Serializer for the optional scoping criteria of a UI plugin.
-
-
-        An open map of dotted field path to the values that path may take -- not a
-        closed set of
-
-        criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed
-        entities of
-
-        ml-tagged Dags. An unqualified path is rooted at the entity the ``destination``
-        is about;
-
-        a path may instead name a related record (``dag``, ``dag_run``, ``task``,
-        ``task_instance``)
-
-        as its first segment. Matching is equality against the listed values, OR within
-        a path and
-
-        AND across paths, and is evaluated client-side.'
+      description: Serializer for the optional Dag/task scoping criteria of a UI plugin.
     PluginCollectionResponse:
       properties:
         plugins:
@@ -17761,10 +16216,6 @@ components:
       description: TaskInstanceHistory Collection serializer for responses.
     TaskInstanceHistoryResponse:
       properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
         task_id:
           type: string
           title: Task Id
@@ -17777,17 +16228,6 @@ components:
         map_index:
           type: integer
           title: Map Index
-        region_id:
-          type: string
-          format: uuid
-          title: Region Id
-        region_index:
-          type: integer
-          title: Region Index
-        loop_iteration:
-          anyOf:
-          - $ref: '#/components/schemas/LoopIterationResponse'
-          - type: 'null'
         start_date:
           anyOf:
           - type: string
@@ -17886,23 +16326,8 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
-        note:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Note
-        state_reason:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: State Reason
-          description: 'The reason the task instance reached its current state, as
-            recorded by a retry policy. May describe a previous attempt: it is cleared
-            only when the task next starts running, so a task waiting to be retried
-            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
-      - id
       - task_id
       - dag_id
       - dag_run_id
@@ -17949,20 +16374,6 @@ components:
         map_index:
           type: integer
           title: Map Index
-        region_id:
-          type: string
-          format: uuid
-          title: Region Id
-        region_index:
-          type: integer
-          title: Region Index
-        in_loop:
-          type: boolean
-          title: In Loop
-        loop_iteration:
-          anyOf:
-          - $ref: '#/components/schemas/LoopIterationResponse'
-          - type: 'null'
         logical_date:
           anyOf:
           - type: string
@@ -18098,15 +16509,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-        state_reason:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: State Reason
-          description: 'The reason the task instance reached its current state, as
-            recorded by a retry policy. May describe a previous attempt: it is cleared
-            only when the task next starts running, so a task waiting to be retried
-            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id
@@ -18114,7 +16516,6 @@ components:
       - dag_id
       - dag_run_id
       - map_index
-      - in_loop
       - logical_date
       - run_after
       - start_date
@@ -18731,15 +17132,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Version
-        drain_dag:
-          type: boolean
-          title: Drain Dag
-          description: 'Drain the Dag together with this run. Draining changes the
-            whole Dag: unfinished runs can start or resume except those held by paused
-            backfills. No scheduled runs are created, and the Dag pauses once all
-            unfinished runs finish. Paused backfills must be resumed for draining
-            to complete. Requires the same permission as pausing the Dag.'
-          default: false
       additionalProperties: false
       type: object
       required:
@@ -18847,17 +17239,6 @@ components:
           additionalProperties: true
           type: object
           title: Params Input
-        request_created_at:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Request Created At
-          description: The ``created_at`` of the request this response answers, exactly
-            as the GET endpoint returned it. When the task has since replaced its
-            request (it asked again after a resume, retry or clear), the response
-            is refused with 409 instead of answering a request the user did not see.
-            Leave it out to answer whatever request is waiting.
       type: object
       required:
       - chosen_options
@@ -19005,18 +17386,6 @@ components:
           type: integer
           title: Map Index
           default: -1
-        region_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-        region_index:
-          anyOf:
-          - type: integer
-            minimum: -1.0
-          - type: 'null'
-          title: Region Index
       additionalProperties: false
       type: object
       required:
@@ -19042,13 +17411,6 @@ components:
         map_index:
           type: integer
           title: Map Index
-        region_id:
-          type: string
-          format: uuid
-          title: Region Id
-        region_index:
-          type: integer
-          title: Region Index
         task_id:
           type: string
           title: Task Id
@@ -19105,13 +17467,6 @@ components:
         map_index:
           type: integer
           title: Map Index
-        region_id:
-          type: string
-          format: uuid
-          title: Region Id
-        region_index:
-          type: integer
-          title: Region Index
         task_id:
           type: string
           title: Task Id
@@ -19171,13 +17526,6 @@ components:
         map_index:
           type: integer
           title: Map Index
-        region_id:
-          type: string
-          format: uuid
-          title: Region Id
-        region_index:
-          type: integer
-          title: Region Index
         task_id:
           type: string
           title: Task Id
@@ -19230,18 +17578,6 @@ components:
           type: integer
           title: Map Index
           default: -1
-        region_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-        region_index:
-          anyOf:
-          - type: integer
-            minimum: -1.0
-          - type: 'null'
-          title: Region Index
       additionalProperties: false
       type: object
       required:
