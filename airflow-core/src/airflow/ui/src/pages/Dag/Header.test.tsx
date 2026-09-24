@@ -40,6 +40,7 @@ const mockDag = {
   bundle_name: "dags-folder",
   bundle_version: "1",
   default_args: {},
+  exceeds_max_active_runs: false,
   fileloc: "/files/dags/stale_dag.py",
   is_favorite: false,
   is_stale: true,
@@ -91,6 +92,28 @@ describe("Header", () => {
 
     expect(screen.getByText(i18n.t("common:dagDetails.activeRuns"))).toBeInTheDocument();
     expect(screen.getByText("2 of 2")).toBeInTheDocument();
+  });
+
+  it("does not show a warning icon when active runs are within the maximum", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 1, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByTestId("active-runs-exceeds-max-warning")).not.toBeInTheDocument();
+  });
+
+  it("shows a warning icon when active runs exceed the maximum", () => {
+    render(
+      <Wrapper>
+        <Header
+          dag={{ ...mockDag, active_runs_count: 3, exceeds_max_active_runs: true, max_active_runs: 1 }}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("active-runs-exceeds-max-warning")).toBeInTheDocument();
   });
 
   it("renders the draining badge instead of the next run timestamp for a draining Dag", () => {
