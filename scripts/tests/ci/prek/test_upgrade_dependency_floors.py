@@ -32,6 +32,7 @@ from upgrade_dependency_floors import (
     Edit,
     FloorConfig,
     LockAlreadyBrokenError,
+    Report,
     RequirementSite,
     ResolveResult,
     apply_bump,
@@ -44,9 +45,11 @@ from upgrade_dependency_floors import (
     is_curated,
     load_config,
     parse_duration,
+    render_report,
     resolve_check,
     revert_bump,
     rewrite_requirement,
+    run,
 )
 
 CONFIG = """
@@ -386,3 +389,110 @@ def test_resolve_check_reports_stderr_tail(mock_run, tmp_path):
     assert not result.ok
     assert result.error.splitlines()[-1] == "line 49"
     assert "line 0" not in result.error
+
+
+ROOT_CONFIG = CONFIG + '\n[tool.uv.workspace]\nmembers = ["providers/amazon"]\n'
+AMAZON = """
+[project]
+name = "apache-airflow-providers-amazon"
+dependencies = [
+    "boto3>=1.41.0",
+    "botocore>=1.41.0",
+    "google-cloud-storage>=2.0.0,<3",
+    "google-cloud-bigquery>=3.0.0",
+    "sagemaker-studio>=1.0.25",
+    "apache-airflow-providers-google>=1.0",
+]
+"""
+OLD = "2026-01-01T00:00:00Z"
+PYPI = {
+    "boto3": {"1.41.0": _files(OLD), "1.42.0": _files(OLD), "1.50.0": _files("2026-09-01T00:00:00Z")},
+    "botocore": {"1.41.0": _files(OLD), "1.42.0": _files(OLD)},
+    "google-cloud-bigquery": {"3.0.0": _files(OLD), "3.9.0": _files(OLD)},
+}
+WORKSPACE = frozenset({"apache-airflow-providers-google"})
+
+
+@pytest.fixture
+def tree(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(ROOT_CONFIG)
+    (tmp_path / "providers/amazon").mkdir(parents=True)
+    amazon = tmp_path / "providers/amazon/pyproject.toml"
+    amazon.write_text(AMAZON)
+    return tmp_path, amazon
+
+
+def _fetch(name):
+    if name not in PYPI:
+        raise OSError(f"{name} not on PyPI")
+    return PYPI[name]
+
+
+def _green():
+    return ResolveResult(ok=True)
+
+
+def test_run_raises_curated_floors(tree):
+    root, amazon = tree
+    report = run(root, [amazon], WORKSPACE, NOW, _fetch, _green)
+    assert {b.unit: str(b.target) for b in report.raised} == {
+        "boto3+botocore": "1.42.0",
+        "google-cloud-bigquery": "3.9.0",
+    }
+    text = amazon.read_text()
+    assert '"boto3>=1.42.0"' in text
+    assert '"botocore>=1.42.0"' in text
+    assert '"google-cloud-bigquery>=3.9.0"' in text
+    assert "held back by <3" in report.skipped["google-cloud-storage"]
+    # not curated, so never considered
+    assert "sagemaker-studio" not in report.skipped
+
+
+def test_run_ignores_workspace_members(tree):
+    root, amazon = tree
+    (root / "pyproject.toml").write_text(
+        ROOT_CONFIG.replace('"Google_Cloud-*"', '"Google_Cloud-*", "apache-airflow-*"')
+    )
+    report = run(root, [amazon], WORKSPACE, NOW, _fetch, _green)
+    assert all("apache-airflow" not in b.unit for b in report.raised)
+    assert '"apache-airflow-providers-google>=1.0"' in amazon.read_text()
+
+
+def test_run_skips_package_when_fetch_fails(tree):
+    root, amazon = tree
+    report = run(root, [amazon], frozenset(), NOW, lambda name: _fetch("missing"), _green)
+    assert report.raised == []
+    assert report.skipped["google-cloud-bigquery"].startswith("PyPI metadata unavailable")
+    assert amazon.read_text() == AMAZON
+
+
+def test_render_report():
+    bump = Bump(
+        unit="boto3+botocore",
+        packages=("boto3", "botocore"),
+        old_floors=("1.41.0",),
+        target=Version("1.42.0"),
+        edits=(Edit(path=Path("providers/amazon/pyproject.toml"), old="x", new="y"),),
+    )
+    bad = Bump(
+        unit="google-cloud-bigquery",
+        packages=("google-cloud-bigquery",),
+        old_floors=("3.0.0",),
+        target=Version("3.9.0"),
+        edits=(),
+    )
+    text = render_report(
+        Report(raised=[bump], skipped={"pandas": "DataFrame XComs"}, rolled_back=[(bad, "boom")])
+    )
+    assert "### Dependency floors" in text
+    assert "- `boto3`, `botocore`: 1.41.0 → 1.42.0" in text
+    assert "- `pandas`: DataFrame XComs" in text
+    assert "- `google-cloud-bigquery` → 3.9.0" in text
+    assert "boom" in text
+
+
+def test_exclusion_reason_shows_path_relative_to_repository(tmp_path):
+    config = load_config(_write(tmp_path, CONFIG))
+    site = _site("boto3>=1.41,<2", str(AIRFLOW_ROOT_PATH / "providers" / "amazon" / "pyproject.toml"))
+    reason = get_exclusion_reason("boto3", [site], config)
+    assert reason == "held back by <2 in providers/amazon/pyproject.toml"

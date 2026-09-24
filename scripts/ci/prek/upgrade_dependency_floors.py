@@ -34,16 +34,20 @@ dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
+import sys
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from check_dependency_lower_bounds import extract_requirements
+import requests
+from check_dependency_lower_bounds import extract_requirements, get_workspace_distribution_names
+from common_prek_utils import AIRFLOW_ROOT_PATH, console
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
@@ -132,13 +136,21 @@ def find_requirements(
     return dict(sites)
 
 
+def _get_display_path(path: Path) -> Path:
+    # Reasons end up in the upgrade PR description, so do not leak the local checkout location.
+    try:
+        return path.relative_to(AIRFLOW_ROOT_PATH)
+    except ValueError:
+        return path
+
+
 def get_exclusion_reason(name: str, sites: list[RequirementSite], config: FloorConfig) -> str | None:
     if reason := config.exclude.get(canonicalize_name(name)):
         return reason
     for site in sites:
         held = [str(s) for s in site.requirement.specifier if s.operator in HOLD_BACK_OPERATORS]
         if held:
-            return f"held back by {','.join(held)} in {site.path}"
+            return f"held back by {','.join(held)} in {_get_display_path(site.path)}"
     return None
 
 
@@ -326,3 +338,114 @@ def apply_with_rollback(
     for bump in remaining:
         apply_bump(bump)
     return remaining, rolled_back
+
+
+PYPI_TIMEOUT_SECONDS = 30
+REPORT_ENV = "DEPENDENCY_FLOORS_REPORT"
+
+
+@dataclass
+class Report:
+    raised: list[Bump]
+    skipped: dict[str, str]
+    rolled_back: list[tuple[Bump, str]]
+
+
+def fetch_releases(name: str) -> dict[str, list[dict]]:
+    response = requests.get(f"https://pypi.org/pypi/{name}/json", timeout=PYPI_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    return response.json()["releases"]
+
+
+def _get_units(names: list[str], config: FloorConfig) -> list[tuple[str, tuple[str, ...]]]:
+    """Group curated names into bump units; a group is a unit only when a member is present."""
+    units: list[tuple[str, tuple[str, ...]]] = []
+    grouped: set[str] = set()
+    for group in config.groups:
+        if any(member in names for member in group):
+            units.append(("+".join(group), group))
+            grouped.update(group)
+    units.extend((name, (name,)) for name in names if name not in grouped)
+    return units
+
+
+def run(
+    root: Path,
+    pyproject_paths: list[Path],
+    workspace_names: frozenset[str],
+    now: datetime,
+    fetch: Callable[[str], dict[str, list[dict]]],
+    check: Callable[[], ResolveResult],
+) -> Report:
+    config = load_config(root / "pyproject.toml")
+    sites = find_requirements(pyproject_paths, workspace_names)
+    curated = sorted(name for name in sites if is_curated(name, config))
+    skipped: dict[str, str] = {}
+    bumps: list[Bump] = []
+    for unit, members in _get_units(curated, config):
+        member_sites = [site for member in members for site in sites.get(member, [])]
+        reasons = (get_exclusion_reason(member, sites.get(member, []), config) for member in members)
+        if reason := next((r for r in reasons if r), None):
+            skipped[unit] = reason
+            continue
+        try:
+            releases = {member: fetch(member) for member in members}
+        except (OSError, requests.RequestException, KeyError, ValueError) as error:
+            skipped[unit] = f"PyPI metadata unavailable: {error}"
+            continue
+        target = find_group_target(releases, config.min_age, now)
+        if target is None:
+            skipped[unit] = f"no release older than {config.min_age.days} days"
+            continue
+        if bump := build_bump(unit, member_sites, target):
+            bumps.append(bump)
+    raised, rolled_back = apply_with_rollback(bumps, check)
+    return Report(raised=raised, skipped=skipped, rolled_back=rolled_back)
+
+
+def render_report(report: Report) -> str:
+    lines = ["### Dependency floors", ""]
+    lines.append("Raised:" if report.raised else "Raised: none")
+    for bump in report.raised:
+        names = ", ".join(f"`{p}`" for p in bump.packages)
+        lines.append(f"- {names}: {', '.join(bump.old_floors)} → {bump.target}")
+    if report.rolled_back:
+        lines += ["", "Rolled back (resolution failed):"]
+        for bump, error in report.rolled_back:
+            lines.append(f"- `{bump.unit}` → {bump.target}")
+            lines += ["  ```", *(f"  {line}" for line in error.splitlines()), "  ```"]
+    if report.skipped:
+        lines += ["", "Skipped:"]
+        lines += [f"- `{unit}`: {reason}" for unit, reason in sorted(report.skipped.items())]
+    return "\n".join(lines) + "\n"
+
+
+def get_workspace_pyprojects(root: Path) -> list[Path]:
+    data = tomllib.loads((root / "pyproject.toml").read_text())
+    members = data.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+    return [root / "pyproject.toml", *sorted(p for m in members for p in root.glob(f"{m}/pyproject.toml"))]
+
+
+def main() -> int:
+    root = AIRFLOW_ROOT_PATH
+    try:
+        report = run(
+            root,
+            get_workspace_pyprojects(root),
+            get_workspace_distribution_names(),
+            datetime.now(timezone.utc),
+            fetch_releases,
+            lambda: resolve_check(root),
+        )
+    except (ValueError, LockAlreadyBrokenError) as error:
+        console.print(f"[red]Dependency floors not updated: {error}[/]")
+        return 1
+    text = render_report(report)
+    console.print(text)
+    if report_path := os.environ.get(REPORT_ENV):
+        Path(report_path).write_text(text)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
