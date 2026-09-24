@@ -18,10 +18,13 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+from snowflake.connector.errors import ProgrammingError
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.standard.operators import BaseOperator
@@ -30,15 +33,54 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
 from airflow.providers.snowflake.utils.snowpark_containers import (
     NON_TERMINAL_STATUSES,
+    NOT_FOUND_STATUS,
+    OBJECT_NOT_EXIST_ERROR_CODE,
     TERMINAL_STATUSES,
     SnowparkContainerJobStatus,
 )
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Disable durable below 3.3, warning if it was explicitly set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+# ResumableJobMixin only exists on Airflow 3.3+ and this provider still targets >=2.11. Drop this
+# fallback once the provider's minimum Airflow version is >=3.3.
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
+
+        external_id_key: str = "snowpark_container_job_name"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def execute_resumable(self, context):
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
-class SnowparkContainerJobOperator(BaseOperator):
+class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
     """
     Execute a job on Snowpark Container Services.
 
@@ -81,6 +123,11 @@ class SnowparkContainerJobOperator(BaseOperator):
         ``wait_for_completion`` is True. With ``wait_for_completion=False`` the
         operator submits the job and returns immediately without deferring.
         (default value: False)
+    :param durable: When ``True``, the submitted job name is persisted to
+        task state before polling begins. A worker crash on retry reconnects to the existing
+        job instead of resubmitting the SQL. Set to ``False`` to always submit fresh on
+        retry. Requires Airflow 3.3+; ignored on earlier versions.
+        With ``wait_for_completion=False`` or ``deferrable=True`` durable has no effect. (default value: True)
     :param timeout: Maximum seconds to wait for the job to reach a terminal
         state. When it elapses the task fails. (default value: 86400)
     :param database: name of database (will overwrite database defined
@@ -94,6 +141,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         own SQL commands, not for the container's queries
     """
 
+    external_id_key = "snowpark_container_job_name"
     template_fields: Sequence[str] = (
         "compute_pool",
         "spec",
@@ -123,6 +171,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         poll_interval: int = 10,
         snowflake_conn_id: str = "snowflake_default",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        durable: bool | None = None,
         timeout: int = 24 * 60 * 60,
         database: str | None = None,
         schema: str | None = None,
@@ -130,9 +179,13 @@ class SnowparkContainerJobOperator(BaseOperator):
         warehouse: str | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
         if spec_text is not None and (spec is not None or spec_stage is not None):
             raise ValueError("Cannot specify both 'spec_text' and 'spec'/'spec_stage'")
+        # durable is a named parameter here (not left to **kwargs) so default_args={"durable": ...}
+        # reaches it on every supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
+        super().__init__(**kwargs)
         self.compute_pool = compute_pool
         self.container_name = container_name
         self.spec = spec
@@ -154,6 +207,9 @@ class SnowparkContainerJobOperator(BaseOperator):
         self.warehouse = warehouse
         # Set after the job is submitted, parsed from the job submission response.
         self.job_name: str | None = None
+        # On a fresh submit the mixin runs both poll_until_complete and get_job_result.
+        # poll_until_complete sets this so get_job_result does not finalize a second time.
+        self._poll_until_complete_ran = False
 
         if self.deferrable and not self.wait_for_completion:
             self.log.warning("deferrable has no effect when wait_for_completion is False.")
@@ -191,14 +247,41 @@ class SnowparkContainerJobOperator(BaseOperator):
         """Run a single statement that returns one row via fetch_one_handler."""
         return self._hook.run(sql, handler=fetch_one_handler, return_dictionaries=return_dictionaries)
 
-    def _submit_job(self) -> str:
+    def _describe_status(self, external_id: JsonValue) -> str:
+        """Describe the job's current status."""
+        response = self._run_one(f"DESCRIBE SERVICE {external_id}", return_dictionaries=True)
+        return response.get("status")
+
+    def submit_job(self, context: Context) -> str:
         """Submit the job and return the name."""
         response = self._run_one(self._build_sql())
-        job_name = response[0].split("'")[1]
-        return job_name
+        self.job_name = response[0].split("'")[1]
+        if not self.job_name:
+            raise RuntimeError("Job name was not returned")
+        return self.job_name
 
-    def _poll_for_status(self) -> str:
-        """Poll until the job reaches a terminal state."""
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        """Return NOT_FOUND when the service no longer exists, otherwise the current status."""
+        try:
+            return self._describe_status(external_id)
+        except ProgrammingError as e:
+            if e.errno == OBJECT_NOT_EXIST_ERROR_CODE:
+                return NOT_FOUND_STATUS
+            raise
+
+    def is_job_active(self, status: str) -> bool:
+        """Return True while the job is still running."""
+        return status in NON_TERMINAL_STATUSES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        """Return True when the job has completed successfully."""
+        return status == SnowparkContainerJobStatus.DONE
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        """Poll the job until it reaches a terminal state and handle the final status."""
+        # On reconnect the mixin skips submit_job, so set the job name from the external id here.
+        self.job_name = cast("str", external_id)
+
         status = None
         end_time = time.monotonic() + self.timeout
         while True:
@@ -207,13 +290,24 @@ class SnowparkContainerJobOperator(BaseOperator):
                 if self.drop_on_completion:
                     self._drop_service()
                 raise TimeoutError(f"Job {self.job_name} did not reach a terminal status before the timeout.")
-            response = self._run_one(f"DESCRIBE SERVICE {self.job_name}", return_dictionaries=True)
-            status = response.get("status")
+            status = self._describe_status(self.job_name)
             if status in TERMINAL_STATUSES:
-                return status
+                # get_job_result is skipped when the mixin reconnects to a still-running job, so
+                # finalize here.
+                self._handle_final_status(status=status)
+                self._poll_until_complete_ran = True
+                return
             if status not in NON_TERMINAL_STATUSES:
                 raise RuntimeError(f"Job {self.job_name} returned unexpected status: {status}")
             time.sleep(self.poll_interval)
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        """Finalize the completed job unless poll_until_complete already did."""
+        self.job_name = cast("str", external_id)
+        if self._poll_until_complete_ran:
+            return
+        # The mixin only reaches this path when the job is DONE, so the status is hardcoded.
+        self._handle_final_status(status=SnowparkContainerJobStatus.DONE)
 
     def _log_container_output(self, status: str | None) -> None:
         """Fetch and log container output for all replicas. Best-effort so it never blocks cleanup."""
@@ -259,12 +353,11 @@ class SnowparkContainerJobOperator(BaseOperator):
         if not self.spec_text and not (self.spec and self.spec_stage):
             raise ValueError("Must provide either 'spec_text' or both 'spec' and 'spec_stage'")
 
-        self.job_name = self._submit_job()
-        if not self.job_name:
-            raise RuntimeError("Job name was not returned")
         if not self.wait_for_completion:
-            return self.job_name
+            return self.submit_job(context)
+
         if self.deferrable:
+            job_name = self.submit_job(context)
             # timeout and execution_timeout give the trigger two separate deadlines. timeout caps
             # how long the job is polled, and execution_timeout, when set, enforces the task-level
             # limit. The trigger times out on whichever is reached first.
@@ -282,7 +375,7 @@ class SnowparkContainerJobOperator(BaseOperator):
                 defer_timeout = self.execution_timeout + poll_buffer
             self.defer(
                 trigger=SnowparkContainerJobTrigger(
-                    job_name=self.job_name,
+                    job_name=job_name,
                     snowflake_conn_id=self.snowflake_conn_id,
                     poll_interval=self.poll_interval,
                     end_time=now + self.timeout,
@@ -295,9 +388,8 @@ class SnowparkContainerJobOperator(BaseOperator):
                 timeout=defer_timeout,
                 method_name="execute_complete",
             )
-        status = self._poll_for_status()
-        self._handle_final_status(status)
-        return self.job_name
+        self.execute_resumable(context)
+        return cast("str", self.job_name)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str:
         """Resume after the trigger fires."""
