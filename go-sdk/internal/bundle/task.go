@@ -67,7 +67,7 @@ var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
 func NewTaskFunction(fn any) (Task, error) {
-	// The kind comes first: Value.Pointer and Value.Type both panic on a non-func.
+	// The kind comes first: Value.Pointer panics on an int, and Value.Type on an untyped nil.
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func {
 		return nil, fmt.Errorf("expected a func as input but was %s", v.Kind())
@@ -155,8 +155,9 @@ func (f *taskFunction) sendXcom(
 }
 
 func (f *taskFunction) validateFn(fnType reflect.Type) error {
-	// A ... tail is one []T parameter that a single task argument has to fill, which is what
-	// []T already says. Rejecting it keeps one spelling for that signature.
+	// binding.Analyze turns a ... tail into one []T parameter, so Execute would have to call
+	// the function with CallSlice rather than Call to fill it. That is only worth doing for a
+	// signature []T cannot already express, and ...T is not one: both take a single argument.
 	if fnType.IsVariadic() {
 		return fmt.Errorf(
 			"task function %s is variadic; declare the last parameter as []T instead of ...T",
