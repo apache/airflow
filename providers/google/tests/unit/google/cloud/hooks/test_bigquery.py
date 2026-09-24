@@ -956,7 +956,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
             table_resource=table_resource,
         )
         created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
-        assert created_table.tableReference.to_api_repr() == TABLE_REFERENCE_REPR
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_create_table_with_table_reference_object(self, mock_bq_client):
@@ -967,7 +967,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
             table_resource=TABLE_REFERENCE,
         )
         created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
-        assert created_table.tableReference.to_api_repr() == TABLE_REFERENCE_REPR
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_create_table_with_table_list_item(self, mock_bq_client):
@@ -979,7 +979,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
             table_resource=table_resource,
         )
         created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
-        assert created_table.tableReference.to_api_repr() == TABLE_REFERENCE_REPR
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_create_table_with_table_object_and_schema_fields(self, mock_bq_client):
@@ -996,7 +996,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
             schema_fields=schema_fields,
         )
         created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
-        assert created_table.tableReference.to_api_repr() == TABLE_REFERENCE_REPR
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
         assert created_table.to_api_repr()["schema"]["fields"] == schema_fields
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
