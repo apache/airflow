@@ -196,6 +196,54 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_abc"
 
+    def test_import_roots_are_isolated_between_parser_processes(
+        self, tmp_path: pathlib.Path, inprocess_client
+    ):
+        results = []
+
+        for process_id, dag_id in enumerate(("first_bundle", "second_bundle"), start=1):
+            repository_root = tmp_path / dag_id
+            bundle_path = repository_root / "dags"
+            package_path = repository_root / "shared_package"
+            bundle_path.mkdir(parents=True)
+            package_path.mkdir()
+            (package_path / "__init__.py").write_text("")
+            (package_path / "dag_config.py").write_text(f'DAG_ID = "{dag_id}"')
+            dag_file = bundle_path / "dag.py"
+            dag_file.write_text(
+                textwrap.dedent(
+                    """\
+                    from airflow.sdk import DAG
+                    from shared_package.dag_config import DAG_ID
+
+                    with DAG(DAG_ID):
+                        pass
+                    """
+                )
+            )
+            proc = DagFileProcessorProcess.start(
+                id=process_id,
+                path=dag_file,
+                bundle_path=bundle_path,
+                bundle_import_root=repository_root,
+                bundle_name=dag_id,
+                dag_file_rel_path=dag_file.name,
+                callbacks=[],
+                logger=MagicMock(spec=FilteringBoundLogger),
+                logger_filehandle=MagicMock(spec=BinaryIO),
+                client=inprocess_client,
+            )
+
+            while not proc.is_ready:
+                proc._service_subprocess(0.1)
+
+            result = proc.parsing_result
+            assert result is not None
+            assert result.import_errors == {}
+            results.append(result.serialized_dags[0].dag_id)
+
+        assert results == ["first_bundle", "second_bundle"]
+
     def test_top_level_variable_access_not_found(
         self,
         spy_agency: SpyAgency,
@@ -2131,8 +2179,8 @@ class TestExecuteEmailCallbacks:
         with pytest.raises(ValueError, match=expected_error):
             _execute_email_callbacks(dagbag, request, log)
 
-    def test_parse_file_passes_bundle_name_to_dagbag(self):
-        """Test that _parse_file() creates BundleDagBag with correct bundle_name parameter"""
+    def test_parse_file_passes_bundle_details_to_dagbag(self):
+        """Test that _parse_file() passes the bundle paths and name to BundleDagBag."""
         # Mock the BundleDagBag constructor to capture its arguments
         with patch("airflow.dag_processing.processor.BundleDagBag") as mock_dagbag_class:
             # Create a mock instance with proper attributes for Pydantic validation
@@ -2144,6 +2192,7 @@ class TestExecuteEmailCallbacks:
             request = DagFileParseRequest(
                 file="/test/dag.py",
                 bundle_path=pathlib.Path("/test"),
+                bundle_import_root=pathlib.Path("/repo"),
                 bundle_name="test_bundle",
                 callback_requests=[],
             )
@@ -2154,6 +2203,8 @@ class TestExecuteEmailCallbacks:
             mock_dagbag_class.assert_called_once()
             call_kwargs = mock_dagbag_class.call_args.kwargs
             assert call_kwargs["bundle_name"] == "test_bundle"
+            assert call_kwargs["bundle_path"] == pathlib.Path("/test")
+            assert call_kwargs["bundle_import_root"] == pathlib.Path("/repo")
 
     def test_execute_email_callbacks_uses_custom_email_backend(self):
         """The Dag-processor path honours a custom ``[email] email_backend``, like the worker path."""

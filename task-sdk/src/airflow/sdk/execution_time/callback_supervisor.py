@@ -231,10 +231,14 @@ class CallbackSubprocess(WatchedSubprocess):
                         version_data=bundle_info.version_data,
                     )
                     bundle.initialize()
-                    if (bundle_path := str(bundle.path)) not in sys.path:
-                        sys.path.append(bundle_path)
+                    bundle_path = str(bundle.path)
+                    bundle_import_root = str(bundle.import_root)
+                    if bundle_import_root not in sys.path:
+                        sys.path.append(bundle_import_root)
                         _log.debug(
-                            "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
+                            "Added bundle import root to sys.path",
+                            bundle_name=bundle_info.name,
+                            path=bundle_import_root,
                         )
                 except Exception:
                     _log.warning(
@@ -414,7 +418,8 @@ def supervise_callback(
     :param callback_kwargs: Keyword arguments to pass to the callback.
     :param dag_rel_path: Relative path to the DAG file.
     :param log_path: Path to write logs, if required.
-    :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
+    :param bundle_info: When provided, the bundle's import root is added to ``sys.path`` so callbacks
+        in Dag bundles are importable.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
     :param client: Optional preconfigured client for communication with the server (mostly for tests).

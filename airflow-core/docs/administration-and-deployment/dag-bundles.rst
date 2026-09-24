@@ -438,6 +438,16 @@ In addition to the abstract methods, you may choose to override the following me
 **initialize**
     This method is called before the bundle is first used in the Dag processor or worker. It allows you to perform expensive operations only when the bundle's content is accessed.
 
+**import_root**
+    This property controls the directory Airflow adds to ``sys.path`` when it loads code from the
+    bundle. It defaults to ``path``. Override it when ``path`` should restrict Dag discovery to a
+    subdirectory but imports must resolve from a broader directory in the same bundle version.
+    Airflow adds only ``import_root`` to ``sys.path``. When a bundle does not override this property,
+    the default preserves the existing behavior of adding ``path``. The import root is propagated to
+    Dag parsing, task execution, and callback execution. It must point into the same initialized
+    bundle checkout as ``path`` so every execution context resolves code from the selected bundle
+    version.
+
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).
 
@@ -449,6 +459,11 @@ Other Considerations
 - **Concurrency**: Workers may create many bundles simultaneously, and Airflow does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
   that is problematic for the underlying technology. For example, if you are cloning a git repo, the bundle class is responsible for locking to ensure only 1 bundle
   object is cloning at a time. There is a ``lock`` method in the base class that can be used for this purpose, if necessary.
+
+- **Import scope**: Everything importable below ``import_root`` is executable bundle code, even when
+  it is outside the directory scanned for Dag files. Avoid duplicate top-level package names across
+  bundles used together by one-off CLI commands, which may load more than one bundle in the same
+  process.
 
 - **Triggerer Limitation**: DAG bundles are not initialized in the triggerer component. In practice, this means that triggers cannot come from a DAG bundle.
   This is because the triggerer does not deal with changes in trigger code over time, as everything happens in the main process.

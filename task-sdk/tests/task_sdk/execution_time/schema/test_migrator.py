@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 from typing import Literal
 
 import pytest
@@ -48,6 +49,7 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.dag_processing.processor import DagFileParseRequest
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
@@ -470,3 +472,18 @@ class TestRealBundleArgBindingsDowngrade:
         assert isinstance(defaulted, LiteralArgBinding)
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
+
+
+class TestRealBundleDagFileParseRequestDowngrade:
+    def test_downgrade_strips_bundle_import_root_for_previous_version(self):
+        request = DagFileParseRequest(
+            file="/bundle/dags/example.py",
+            bundle_path=Path("/bundle/dags"),
+            bundle_import_root=Path("/bundle"),
+            bundle_name="test-bundle",
+            callback_requests=[],
+        )
+
+        out = get_schema_version_migrator().downgrade(request, "2026-06-16").model_dump()
+
+        assert "bundle_import_root" not in out

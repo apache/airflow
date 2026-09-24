@@ -571,7 +571,10 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
                     bundle_dagbag = BundleDagBag(
-                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
+                        bundle.path,
+                        bundle_path=bundle.path,
+                        bundle_import_root=bundle.import_root,
+                        bundle_name=bundle.name,
                     )
                     bundle_dagbag.collect_dags()
                     dags_list.extend(list(bundle_dagbag.dags.values()))
@@ -673,7 +676,10 @@ def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
                     bundle_dagbag = BundleDagBag(
-                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
+                        bundle.path,
+                        bundle_path=bundle.path,
+                        bundle_import_root=bundle.import_root,
+                        bundle_name=bundle.name,
                     )
                     for filename, errors in bundle_dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
@@ -726,7 +732,12 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        dagbag = BundleDagBag(
+            bundle.path,
+            bundle_path=bundle.path,
+            bundle_import_root=bundle.import_root,
+            bundle_name=bundle.name,
+        )
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -896,7 +907,12 @@ def dag_reserialize(args, *, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        dag_bag = BundleDagBag(
+            bundle.path,
+            bundle_path=bundle.path,
+            bundle_import_root=bundle.import_root,
+            bundle_name=bundle.name,
+        )
         version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
         sync_bag_to_db(
             dag_bag, bundle.name, bundle_version=version, version_data=version_data, session=session

@@ -345,11 +345,17 @@ class TestDag:
                 "unrelated": TEST_DAGS_FOLDER,
             }
         ):
-            instantiated: list[str] = []
+            instantiated: list[tuple[str, Path, Path]] = []
             real_init = BundleDagBag.__init__
 
             def _spy(self, *args, **kwargs):
-                instantiated.append(kwargs.get("bundle_name", ""))
+                instantiated.append(
+                    (
+                        kwargs["bundle_name"],
+                        kwargs["bundle_path"],
+                        kwargs["bundle_import_root"],
+                    )
+                )
                 real_init(self, *args, **kwargs)
 
             with mock.patch.object(BundleDagBag, "__init__", _spy):
@@ -357,8 +363,8 @@ class TestDag:
 
         assert dr.state == DagRunState.SUCCESS
         # Only the owning bundle should have been parsed.
-        assert "testing" in instantiated
-        assert "unrelated" not in instantiated
+        assert ("testing", TEST_DAGS_FOLDER, TEST_DAGS_FOLDER) in instantiated
+        assert not any(bundle_name == "unrelated" for bundle_name, _, _ in instantiated)
 
     def teardown_method(self) -> None:
         clear_db_runs()

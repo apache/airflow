@@ -929,6 +929,19 @@
           "title": "Bundle Path",
           "type": "string"
         },
+        "bundle_import_root": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Import Root"
+        },
         "bundle_name": {
           "title": "Bundle Name",
           "type": "string"

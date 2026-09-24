@@ -132,6 +132,7 @@ class DagFileInfo:
     rel_path: Path
     bundle_name: str
     bundle_path: Path | None = field(compare=False, default=None)
+    bundle_import_root: Path | None = field(compare=False, default=None)
     bundle_version: str | None = None
 
     @property
@@ -685,7 +686,10 @@ class DagFileProcessorManager(LoggingMixin):
             bundle = bundles[request.bundle_name]
             files.append(
                 DagFileInfo(
-                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
+                    rel_path=Path(request.relative_fileloc),
+                    bundle_name=bundle.name,
+                    bundle_path=bundle.path,
+                    bundle_import_root=bundle.import_root,
                 )
             )
             session.delete(request)
@@ -793,6 +797,7 @@ class DagFileProcessorManager(LoggingMixin):
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),
             bundle_path=bundle.path,
+            bundle_import_root=bundle.import_root,
             bundle_name=request.bundle_name,
             bundle_version=request.bundle_version,
         )
@@ -951,7 +956,12 @@ class DagFileProcessorManager(LoggingMixin):
                 self._bundle_version_data[bundle.name] = version_data_after_refresh
 
             found_files = {
-                DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
+                DagFileInfo(
+                    rel_path=p,
+                    bundle_name=bundle.name,
+                    bundle_path=bundle.path,
+                    bundle_import_root=bundle.import_root,
+                )
                 for p in self._find_files_in_bundle(bundle)
             }
 
@@ -1451,6 +1461,7 @@ class DagFileProcessorManager(LoggingMixin):
             id=id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
+            bundle_import_root=dag_file.bundle_import_root,
             bundle_name=dag_file.bundle_name,
             dag_file_rel_path=str(dag_file.rel_path),
             callbacks=callback_to_execute_for_file,

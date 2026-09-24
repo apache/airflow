@@ -1844,6 +1844,7 @@ class TestDagFileProcessorManager:
                 {
                     "file": "/opt/airflow/dags/test_dag.py",
                     "bundle_path": "/opt/airflow/dags",
+                    "bundle_import_root": "/opt/airflow",
                     "bundle_name": "testing",
                     "callback_requests": [],
                     "type": "DagFileParseRequest",
@@ -1865,6 +1866,7 @@ class TestDagFileProcessorManager:
                 {
                     "file": "/opt/airflow/dags/dag_callback_dag.py",
                     "bundle_path": "/opt/airflow/dags",
+                    "bundle_import_root": "/opt/airflow",
                     "bundle_name": "testing",
                     "callback_requests": [
                         {
@@ -1890,7 +1892,11 @@ class TestDagFileProcessorManager:
 
         processor, read_socket = self.mock_processor()
         processor._on_child_started(
-            callbacks, path, bundle_path=Path("/opt/airflow/dags"), bundle_name="testing"
+            callbacks,
+            path,
+            bundle_path=Path("/opt/airflow/dags"),
+            bundle_name="testing",
+            bundle_import_root=Path("/opt/airflow"),
         )
 
         read_socket.settimeout(0.1)
@@ -3386,17 +3392,20 @@ class TestDagFileProcessorManager:
         assert len(team2.dag_bundles) == 0
 
     @mock.patch.object(DagFileProcessorProcess, "start")
-    def test_create_process_passes_bundle_name_to_process_start(
+    def test_create_process_passes_bundle_details_to_process_start(
         self, mock_process_start, configure_testing_dag_bundle
     ):
-        """Test that DagFileProcessorManager._create_process() passes bundle_name to DagFileProcessorProcess.start()"""
+        """Test that the manager passes bundle paths and name to the processor."""
         with configure_testing_dag_bundle("/tmp"):
             manager = DagFileProcessorManager(max_runs=1)
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
         # Setup test data
         file_info = DagFileInfo(
-            bundle_name="testing", rel_path=Path("test_dag.py"), bundle_path=TEST_DAGS_FOLDER
+            bundle_name="testing",
+            rel_path=Path("test_dag.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+            bundle_import_root=Path("/repo"),
         )
 
         # Mock the process creation
@@ -3409,6 +3418,8 @@ class TestDagFileProcessorManager:
         mock_process_start.assert_called_once()
         call_kwargs = mock_process_start.call_args.kwargs
         assert call_kwargs["bundle_name"] == "testing"
+        assert call_kwargs["bundle_path"] == TEST_DAGS_FOLDER
+        assert call_kwargs["bundle_import_root"] == Path("/repo")
 
     @mock.patch("airflow.dag_processing.manager.stats.initialize")
     def test_stats_initialize_called_on_run(self, stats_init_mock, tmp_path, configure_testing_dag_bundle):

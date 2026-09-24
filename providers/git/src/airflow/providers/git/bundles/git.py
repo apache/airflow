@@ -47,6 +47,8 @@ class GitDagBundle(BaseDagBundle):
 
     :param tracking_ref: Branch, tag, or commit SHA for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
+    :param import_root: Repository-relative directory to add to ``sys.path``. Defaults to ``subdir``
+        when configured, or to the repository root otherwise. Use ``.`` to import from the repository root.
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
     :param submodules: Whether to initialize git submodules. In case of submodules, the .git folder is preserved.
@@ -70,6 +72,7 @@ class GitDagBundle(BaseDagBundle):
         *,
         tracking_ref: str,
         subdir: str | None = None,
+        import_root: str | None = None,
         git_conn_id: str | None = None,
         repo_url: str | None = None,
         submodules: bool = False,
@@ -80,6 +83,11 @@ class GitDagBundle(BaseDagBundle):
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
         self.subdir = subdir
+        self._import_root = Path(import_root) if import_root is not None else None
+        if self._import_root is not None and (
+            self._import_root.is_absolute() or ".." in self._import_root.parts
+        ):
+            raise ValueError("import_root must be a relative path inside the Git repository")
         self.bare_repo_path = self.base_dir / "bare"
         if self.version:
             self.repo_path = self.versions_dir / self.version
@@ -104,6 +112,7 @@ class GitDagBundle(BaseDagBundle):
             git_conn_id=self.git_conn_id,
             submodules=self.submodules,
             sparse_dirs=self.sparse_dirs,
+            import_root=self._import_root,
         )
 
         self._log.debug("bundle configured")
@@ -387,6 +396,7 @@ class GitDagBundle(BaseDagBundle):
             f"tracking_ref={self.tracking_ref!r}, "
             f"submodules={self.submodules!r}, "
             f"subdir={self.subdir!r}, "
+            f"import_root={self._import_root!r}, "
             f"version={self.version!r}"
             f")>"
         )
@@ -406,6 +416,12 @@ class GitDagBundle(BaseDagBundle):
         if self.subdir:
             return self.repo_path / self.subdir
         return self.repo_path
+
+    @property
+    def import_root(self) -> Path:
+        if self._import_root is None:
+            return self.path
+        return self.repo_path / self._import_root
 
     @staticmethod
     def _has_version(repo: Repo, version: str) -> bool:

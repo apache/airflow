@@ -552,21 +552,29 @@ class BundleDagBag(DagBag):
     """
     Bundle-aware DagBag that permanently modifies sys.path.
 
-    This class adds the bundle_path to sys.path permanently to allow DAG files
-    to import modules from their bundle directory. No cleanup is performed.
+    This class adds the bundle import root to sys.path permanently to allow Dag
+    files to import modules from their bundle. No cleanup is performed.
 
     WARNING: Only use for one-off usages like CLI commands. Using this in long-running
     processes will cause sys.path to accumulate entries.
 
     Same parameters as DagBag, but bundle_path is required and examples are not loaded.
+    ``bundle_import_root`` defaults to ``bundle_path`` for backwards compatibility.
     """
 
-    def __init__(self, *args, bundle_path: Path | None = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        bundle_path: Path | None = None,
+        bundle_import_root: Path | None = None,
+        **kwargs,
+    ):
         if not bundle_path:
             raise ValueError("bundle_path is required for BundleDagBag")
 
-        if str(bundle_path) not in sys.path:
-            sys.path.append(str(bundle_path))
+        import_root = bundle_import_root or bundle_path
+        if str(import_root) not in sys.path:
+            sys.path.append(str(import_root))
 
         kwargs["bundle_path"] = bundle_path
         super().__init__(*args, **kwargs)

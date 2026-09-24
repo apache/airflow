@@ -1349,6 +1349,7 @@ class DAG:
                 dagbag = BundleDagBag(
                     dag_folder=bundle.path,
                     bundle_path=bundle.path,
+                    bundle_import_root=bundle.import_root,
                     bundle_name=bundle.name,
                 )
                 sync_bag_to_db(dagbag, bundle.name, bundle.version)
