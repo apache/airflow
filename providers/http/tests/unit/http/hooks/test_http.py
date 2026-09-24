@@ -696,14 +696,18 @@ class TestHttpHook:
 @pytest.fixture
 def stable_dns_import():
     """
-    Re-import the ``dns`` submodules so ``sys.modules`` and the package attributes agree.
+    Point the ``dns`` package attributes at the submodules in ``sys.modules``, so the two agree.
 
-    In CI, Python 3.10's ``mock.patch`` resolves dotted targets attribute-first, so a stale attribute left
-    by another test's ``patch.dict(sys.modules, ...)`` gets patched while the hook re-imports a
-    fresh module — bypassing the mock and hitting real DNS.
+    Another test's ``patch.dict(sys.modules, ...)`` can leave ``dns.resolver`` (the package attribute)
+    and ``sys.modules["dns.resolver"]`` referring to different module objects.
+    ``mock.patch("dns.resolver.resolve")`` and the hook's ``import dns.resolver`` then resolve to
+    different objects - which one each picks depends on the Python version - so the mock is bypassed
+    and the test hits real DNS. Importing the submodules again does not help, because they are already
+    in ``sys.modules``; the package attributes must be reset.
     """
-    importlib.import_module("dns.resolver")
-    importlib.import_module("dns.asyncresolver")
+    dns = importlib.import_module("dns")
+    for name in ("exception", "resolver", "asyncresolver"):
+        setattr(dns, name, importlib.import_module(f"dns.{name}"))
 
 
 @pytest.mark.usefixtures("stable_dns_import")
