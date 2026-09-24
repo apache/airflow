@@ -2926,13 +2926,8 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
-    is_at_max_active_runs: Annotated[
-        bool,
-        Field(
-            description="Whether this Dag is currently at its max_active_runs limit, counting running and queued runs (backfill runs excluded).",
-            title="Is At Max Active Runs",
-        ),
-    ]
+    queued_runs_count: Annotated[int | None, Field(title="Queued Runs Count")] = 0
+    exceeds_max_active_runs: Annotated[bool, Field(title="Exceeds Max Active Runs")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")

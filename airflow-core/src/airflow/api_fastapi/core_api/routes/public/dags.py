@@ -274,6 +274,16 @@ def get_dag_details(
         or 0
     )
 
+    # Count queued Dag runs: these are waiting for an active run to finish before they can start.
+    queued_runs_count = (
+        session.scalar(
+            select(func.count())
+            .select_from(DagRun)
+            .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.QUEUED)
+        )
+        or 0
+    )
+
     # Computed fresh here rather than read from DagModel.exceeds_max_non_backfill: that column
     # is a scheduler-side cache written on parse and on a handful of scheduler events, but never
     # by a manual/API/operator trigger -- so for a schedule=None Dag it can stay stale (wrong in
@@ -284,9 +294,10 @@ def get_dag_details(
     ).get(dag_id, 0)
     is_at_max_active_runs = non_backfill_active_runs_count >= (dag_model.max_active_runs or 0)
 
-    # Add is_favorite, active_runs_count, and is_at_max_active_runs fields to the Dag model
+    # Add is_favorite, active_runs_count, queued_runs_count, and is_at_max_active_runs fields
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+    setattr(dag_model, "queued_runs_count", queued_runs_count)
     setattr(dag_model, "is_at_max_active_runs", is_at_max_active_runs)
 
     return DAGDetailsResponse.model_validate(dag_model)
