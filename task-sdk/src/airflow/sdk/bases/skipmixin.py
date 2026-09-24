@@ -83,8 +83,24 @@ class SkipMixin(LoggingMixin):
         # here: doing so bypasses NotPreviouslySkippedDep, the only place that flag is
         # honored, so it never gets the chance to hold the task back until its own past
         # depends are met. Leave it for that dependency check to decide instead.
+        #
+        # NotPreviouslySkippedDep only looks at a task's direct upstream relatives, so this
+        # deferral only works when the flagged task is a direct downstream relative of this
+        # task. `tasks` may also contain further descendants (e.g. ShortCircuitOperator's
+        # default ignore_downstream_trigger_rules=True flattens the whole subtree), and a
+        # flagged task reached through an intermediate hop has no way to observe this
+        # decision — the intermediate hop is skipped directly, without going through
+        # SkipMixin.skip() itself, so it never records anything in XCom. Keep those on the
+        # immediate-skip path so the whole subtree is still skipped, same as before this flag
+        # was honored at all.
+        direct_downstream_ids = ti.task.get_direct_relative_ids(upstream=False)
         immediate_skip_ids = [
-            d.task_id for d in task_list if not getattr(d, "wait_for_past_depends_before_skipping", False)
+            d.task_id
+            for d in task_list
+            if not (
+                d.task_id in direct_downstream_ids
+                and getattr(d, "wait_for_past_depends_before_skipping", False)
+            )
         ]
         self._set_state_to_skipped(immediate_skip_ids, ti.map_index)
 

@@ -111,6 +111,7 @@ class TestSkipMixin:
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         ti = Mock(map_index=2)
+        ti.task.get_direct_relative_ids.return_value = set()
         assert SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator)]) is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
@@ -118,6 +119,7 @@ class TestSkipMixin:
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         ti = Mock(map_index=-1)
+        ti.task.get_direct_relative_ids.return_value = {"task"}
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             SkipMixin().skip(
                 ti=ti,

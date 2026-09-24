@@ -56,7 +56,9 @@ class TestSkipMixin:
         mixin.task_id = "branch_task"
 
         task1 = MagicMock(spec=BaseOperator, task_id="task1", wait_for_past_depends_before_skipping=False)
-        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1)
+        mock_task = MagicMock(spec=BaseOperator)
+        mock_task.get_direct_relative_ids.return_value = {"task1"}
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1, task=mock_task)
 
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             mixin.skip(ti=ti, tasks=[task1])
@@ -78,13 +80,16 @@ class TestSkipMixin:
         mixin.task_id = "branch_task"
 
         task1 = MagicMock(spec=BaseOperator, task_id="task1")
-        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=2)
+        mock_task = MagicMock(spec=BaseOperator)
+        mock_task.get_direct_relative_ids.return_value = {"task1"}
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=2, task=mock_task)
 
         # Should not raise — mapped tasks are handled by NotPreviouslySkippedDep
         mixin.skip(ti=ti, tasks=[task1])
 
     def test_skip_excludes_wait_for_past_depends_task(self):
-        """skip() must not force-skip a task with wait_for_past_depends_before_skipping=True.
+        """skip() must not force-skip a DIRECT downstream task with
+        wait_for_past_depends_before_skipping=True.
 
         Regression test for https://github.com/apache/airflow/issues/55146: force-skipping
         such a task here bypasses NotPreviouslySkippedDep entirely, so the flag never gets a
@@ -95,7 +100,9 @@ class TestSkipMixin:
 
         task1 = MagicMock(spec=BaseOperator, task_id="task1", wait_for_past_depends_before_skipping=False)
         task2 = MagicMock(spec=BaseOperator, task_id="task2", wait_for_past_depends_before_skipping=True)
-        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1)
+        mock_task = MagicMock(spec=BaseOperator)
+        mock_task.get_direct_relative_ids.return_value = {"task1", "task2"}
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1, task=mock_task)
 
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             mixin.skip(ti=ti, tasks=[task1, task2])
@@ -109,13 +116,50 @@ class TestSkipMixin:
         # Only task1 is force-skipped immediately; task2 is deferred to the dependency check.
         assert exc_info.value.tasks == ["task1"]
 
+    def test_skip_indirect_wait_for_past_depends_task_is_force_skipped(self):
+        """skip() must still force-skip a wait_for_past_depends_before_skipping=True task that
+        is reached through an intermediate hop, not just a direct downstream relative.
+
+        Regression test for the review on https://github.com/apache/airflow/pull/73470:
+        NotPreviouslySkippedDep only consults a task's DIRECT upstream relatives, so deferring
+        the skip only works one hop away from the SkipMixin task. ``gate >> middle >> target``,
+        where only ``target`` sets the flag, is exactly ShortCircuitOperator's default
+        ignore_downstream_trigger_rules=True mode, which flattens the whole subtree into a
+        single ``skip()`` call. Deferring ``target`` there would leave it unskipped forever,
+        since ``middle`` never runs SkipMixin.skip() itself and so never records anything in
+        XCom for NotPreviouslySkippedDep to find. Preserve the pre-flag default instead: skip
+        the whole subtree immediately.
+        """
+        mixin = SkipMixin()
+        mixin.task_id = "gate"
+
+        middle = MagicMock(spec=BaseOperator, task_id="middle", wait_for_past_depends_before_skipping=False)
+        target = MagicMock(spec=BaseOperator, task_id="target", wait_for_past_depends_before_skipping=True)
+        mock_task = MagicMock(spec=BaseOperator)
+        # Only "middle" is a direct downstream relative of "gate"; "target" is one hop further.
+        mock_task.get_direct_relative_ids.return_value = {"middle"}
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1, task=mock_task)
+
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            mixin.skip(ti=ti, tasks=[middle, target])
+
+        ti.xcom_push.assert_called_once_with(
+            key=XCOM_SKIPMIXIN_KEY,
+            value={XCOM_SKIPMIXIN_SKIPPED: ["middle", "target"]},
+        )
+        # Both are force-skipped: "target" has the flag but isn't a direct downstream relative,
+        # so NotPreviouslySkippedDep could never reach it through "middle".
+        assert exc_info.value.tasks == ["middle", "target"]
+
     def test_skip_without_task_id_does_not_push_xcom(self):
         """skip() should not push XCom when the mixin has no task_id."""
         mixin = SkipMixin()
         # No task_id attribute set
 
         task1 = MagicMock(spec=BaseOperator, task_id="task1", wait_for_past_depends_before_skipping=False)
-        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1)
+        mock_task = MagicMock(spec=BaseOperator)
+        mock_task.get_direct_relative_ids.return_value = {"task1"}
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1, task=mock_task)
 
         with pytest.raises(DownstreamTasksSkipped):
             mixin.skip(ti=ti, tasks=[task1])
