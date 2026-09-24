@@ -68,7 +68,8 @@ from airflow.serialization.encoders import encode_trigger, ensure_serialized_ass
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.triggers.base import BaseEventTrigger
-from airflow.utils.types import DagRunType
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -1447,6 +1448,71 @@ class TestUpdateDagParsingResults:
             update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
             orm_dag = session.get(DagModel, "dag_max_runs_default")
             assert orm_dag.max_active_runs == 4
+
+    def test_exceeds_max_non_backfill_reflects_real_active_runs_for_non_schedulable_dag(
+        self, testing_dag_bundle, session, dag_maker
+    ):
+        """A schedule=None Dag's exceeds_max_non_backfill must reflect real active-run counts.
+
+        ``can_be_scheduled`` is False for schedule=None Dags, but that must not make the
+        parser hardcode num_active_runs to 0 -- the flag is read regardless of whether the
+        Dag can be automatically scheduled.
+        """
+        with dag_maker("dag_schedule_none_exceeds_max", schedule=None, max_active_runs=1) as dag:
+            ...
+
+        session.add(
+            DagRun(
+                dag_id=dag.dag_id,
+                run_id="running_run",
+                logical_date=tz.datetime(2024, 1, 1),
+                start_date=tz.utcnow(),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.add(
+            DagRun(
+                dag_id=dag.dag_id,
+                run_id="queued_run",
+                logical_date=tz.datetime(2024, 1, 2),
+                start_date=tz.utcnow(),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        update_dag_parsing_results_in_db("testing", None, [dag], dict(), 0.1, set(), session)
+
+        orm_dag = session.get(DagModel, "dag_schedule_none_exceeds_max")
+        assert orm_dag.exceeds_max_non_backfill is True
+
+    def test_exceeds_max_non_backfill_false_within_limit_for_non_schedulable_dag(
+        self, testing_dag_bundle, session, dag_maker
+    ):
+        with dag_maker("dag_schedule_none_within_max", schedule=None, max_active_runs=2) as dag:
+            ...
+
+        session.add(
+            DagRun(
+                dag_id=dag.dag_id,
+                run_id="running_run",
+                logical_date=tz.datetime(2024, 1, 1),
+                start_date=tz.utcnow(),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        update_dag_parsing_results_in_db("testing", None, [dag], dict(), 0.1, set(), session)
+
+        orm_dag = session.get(DagModel, "dag_schedule_none_within_max")
+        assert orm_dag.exceeds_max_non_backfill is False
 
     def test_max_consecutive_failed_dag_runs_explicit_value_is_used(
         self, testing_dag_bundle, session, dag_maker

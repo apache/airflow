@@ -176,9 +176,19 @@ class _RunInfo(NamedTuple):
 
         :param dags: dict of dags to query
         """
-        # Skip these queries entirely if no Dags can be scheduled to save time.
+        active_run_counts = DagRun.active_runs_of_dags(
+            dag_ids=[dag.dag_id],
+            exclude_backfill=True,
+            session=session,
+        )
+        num_active_runs = active_run_counts.get(dag.dag_id, 0)
+
+        # The latest-run lookup below is only used to calculate the *next* scheduled run, so it
+        # can be skipped for Dags that can never be scheduled in the first place. num_active_runs
+        # is still meaningful for such Dags (e.g. a schedule=None Dag triggered manually more
+        # often than its max_active_runs allows) and must always be computed.
         if not dag.timetable.can_be_scheduled:
-            return cls(None, 0)
+            return cls(None, num_active_runs)
 
         if dag.timetable.partitioned:
             log.debug("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
@@ -195,12 +205,7 @@ class _RunInfo(NamedTuple):
             )
         else:
             log.debug("no latest run found", dag_id=dag.dag_id)
-        active_run_counts = DagRun.active_runs_of_dags(
-            dag_ids=[dag.dag_id],
-            exclude_backfill=True,
-            session=session,
-        )
-        return cls(latest_run, active_run_counts.get(dag.dag_id, 0))
+        return cls(latest_run, num_active_runs)
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
