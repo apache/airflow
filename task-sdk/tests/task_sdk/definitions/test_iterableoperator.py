@@ -533,7 +533,7 @@ class TestIterableOperator:
             assert iterable_op.max_workers == 4
 
     def test_direct_instantiation_rejects_task_concurrency(self):
-        """A directly instantiated operator can never reach IterableOperator/MappedIterableOperator,
+        """A directly instantiated operator can never reach IterableOperator,
         so task_concurrency must be rejected instead of silently accepted as a dead value."""
         with pytest.raises(TypeError, match="unexpected argument: task_concurrency"):
             MockOperator(task_id="my_task", task_concurrency=4)

@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, TypeGuard, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard
 
 import attrs
 import methodtools
@@ -64,7 +64,6 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk.definitions.batchedoperator import BatchedOperator
     from airflow.sdk.definitions.iterableoperator import IterableOperator
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
@@ -199,7 +198,7 @@ class OperatorPartial:
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
-        # count consumed by IterableOperator/MappedIterableOperator via .iterate()/.iterate_kwargs()).
+        # count consumed by IterableOperator via .iterate()/.iterate_kwargs()).
         # A plain .expand() never reaches that code path, so reject it here rather than silently
         # accepting a dead value.
         if "task_concurrency" in self.kwargs:
@@ -231,35 +230,106 @@ class OperatorPartial:
         strict: bool,
         register_with_dag: bool = True,
     ) -> MappedOperator:
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk import BaseSensorOperator
+        from airflow.sdk.bases.skipmixin import SkipMixin
+
         self._expand_called = True
-        return self._batch(size=0)._expand(expand_input, strict=strict, register_with_dag=register_with_dag)
+        ensure_xcomarg_return_value(expand_input.value)
+
+        partial_kwargs = self.kwargs.copy()
+        task_id = partial_kwargs.pop("task_id")
+        dag = partial_kwargs.pop("dag")
+        task_group = partial_kwargs.pop("task_group")
+        start_date = partial_kwargs.pop("start_date", None)
+        end_date = partial_kwargs.pop("end_date", None)
+        start_from_trigger = (
+            partial_kwargs["start_from_trigger"]
+            if "start_from_trigger" in partial_kwargs
+            else getattr(self.operator_class, "start_from_trigger", False)
+        )
+        start_trigger_args = (
+            partial_kwargs["start_trigger_args"]
+            if "start_trigger_args" in partial_kwargs
+            else getattr(self.operator_class, "start_trigger_args", None)
+        )
+
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
+
+        return MappedOperator(
+            operator_class=self.operator_class,
+            expand_input=expand_input,
+            partial_kwargs=partial_kwargs,
+            task_id=task_id,
+            params=self.params,
+            operator_extra_links=self.operator_class.operator_extra_links,
+            template_ext=self.operator_class.template_ext,
+            template_fields=self.operator_class.template_fields,
+            template_fields_renderers=self.operator_class.template_fields_renderers,
+            ui_color=self.operator_class.ui_color,
+            ui_fgcolor=self.operator_class.ui_fgcolor,
+            is_empty=issubclass(self.operator_class, EmptyOperator),
+            is_sensor=issubclass(self.operator_class, BaseSensorOperator),
+            can_skip_downstream=issubclass(self.operator_class, SkipMixin),
+            is_stub=self.operator_class.is_stub,
+            task_module=self.operator_class.__module__,
+            task_type=self.operator_class.__name__,
+            operator_name=operator_name,
+            dag=dag,
+            task_group=task_group,
+            start_date=start_date,
+            end_date=end_date,
+            disallow_kwargs_override=strict,
+            # For classic operators, this points to expand_input because kwargs
+            # to BaseOperator.expand() contribute to operator arguments.
+            expand_input_attr="expand_input",
+            # TODO: Move these to task SDK's BaseOperator and remove getattr
+            start_trigger_args=start_trigger_args,
+            start_from_trigger=start_from_trigger,
+            register_with_dag=register_with_dag,
+        )
 
     def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
-        operator = self._batch(size=0).iterate(**mapped_kwargs)
-        return cast("IterableOperator", operator)
+        """
+        Iterate the operator over ``mapped_kwargs`` inside a single task instance.
+
+        The counterpart of :meth:`expand` for Iterable Tasks: the same inputs, but processed by one
+        :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` instead of one task
+        instance per item.
+        """
+        if not mapped_kwargs:
+            raise TypeError("no arguments to iterate against")
+
+        validate_mapping_kwargs(self.operator_class, "iterate", mapped_kwargs)
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
+        # Since the input is already checked at parse time, we can set strict
+        # to False to skip the checks on execution.
+        return self._iterate(DictOfListsExpandInput(mapped_kwargs), strict=False)
 
     def iterate_kwargs(
         self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
     ) -> IterableOperator:
-        operator = self._batch(size=0).iterate_kwargs(kwargs, strict=strict)
-        return cast("IterableOperator", operator)
+        """Iterate the operator over a list of dicts or an XComArg; see :meth:`iterate`."""
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
-    def batch(self, size: int | XComArg) -> BatchedOperator:
-        """
-        Return a BatchedOperator that maps over ``size`` task instances.
+        if isinstance(kwargs, Sequence):
+            for item in kwargs:
+                if not isinstance(item, (XComArg, Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        elif not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        return self._iterate(ListOfDictsExpandInput(kwargs), strict=strict)
 
-        ``size`` may be an ``XComArg`` (the return value of a plain, non-mapped task): the number
-        of task instances is then decided at run time, once that upstream has run.
-        """
-        from airflow.sdk.definitions.batchedoperator import validate_batch_size
+    def _iterate(self, expand_input: ExpandInput, *, strict: bool) -> IterableOperator:
+        from airflow.sdk.definitions.iterableoperator import IterableOperator
 
-        return self._batch(size=validate_batch_size(size))
-
-    def _batch(self, size: int | XComArg) -> BatchedOperator:
-        # ``size=0`` is the internal "no batching" sentinel every non-batched path funnels through.
-        from airflow.sdk.definitions.batchedoperator import BatchedOperator
-
-        return BatchedOperator(operator_partial=self, size=size)
+        # The MappedOperator only drives the iteration in memory: it is never registered with the
+        # DAG, the IterableOperator is the single real task. _expand marks the partial as consumed.
+        operator = self._expand(expand_input, strict=strict, register_with_dag=False)
+        return IterableOperator(operator=operator, expand_input=expand_input)
 
 
 @attrs.define(
@@ -352,11 +422,6 @@ class MappedOperator(AbstractOperator):
             for k, v in self.partial_kwargs.items():
                 if k in self.template_fields:
                     XComArg.apply_upstream_relationship(self, v)
-            # A runtime batch size (.batch(size=<XComArg>)) is an ordinary upstream edge, not a
-            # mapped dependency: the task must wait for the upstream to push its integer, but the
-            # upstream must not tag that push with a mapped length (see
-            # MappedIterableOperator.iter_mapped_dependencies).
-            XComArg.apply_upstream_relationship(self, self.partial_kwargs.get("batch_size"))
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod
@@ -725,10 +790,6 @@ class MappedOperator(AbstractOperator):
     def render_template_as_native_obj(self, value: bool | None) -> None:
         self.partial_kwargs["render_template_as_native_obj"] = value
 
-    @property
-    def batch_size(self) -> int | XComArg:
-        return self.partial_kwargs.get("batch_size", 0)
-
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
         return self.dag
@@ -795,9 +856,8 @@ class MappedOperator(AbstractOperator):
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        # Remove batch_size and task_concurrency as they are only used for batched/iterable
-        # mapping metadata, not for operator init
-        kwargs.pop("batch_size", None)
+        # task_concurrency is iterable-task metadata (the sub-task worker count), not an operator
+        # init argument.
         kwargs.pop("task_concurrency", None)
         kwargs["task_id"] = self.task_id
         op = self.operator_class(**kwargs, _airflow_from_mapped=True)

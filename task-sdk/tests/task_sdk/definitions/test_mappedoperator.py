@@ -28,9 +28,7 @@ import pytest
 from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
@@ -144,27 +142,6 @@ def test_mapped_task_preserves_custom_base_operator_default():
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
         BaseOperator.partial(task_id="a").expand(file=[1, 2, {"a": "b"}])
-
-
-@pytest.mark.parametrize(
-    "size",
-    [
-        pytest.param(0, id="unbatched-sentinel"),
-        pytest.param(3, id="batched"),
-    ],
-)
-def test_map_batch_size(size: int):
-    with DAG("test-dag", schedule=None):
-        mapped = (
-            MockOperator.partial(task_id="task_2")
-            ._batch(size=size)
-            ._iterate(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
-        )
-        if size > 1:
-            assert isinstance(mapped, MappedIterableOperator)
-            assert mapped.batch_size == size
-        else:
-            assert isinstance(mapped, IterableOperator)
 
 
 def test_map_xcom_arg():
