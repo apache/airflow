@@ -1628,6 +1628,38 @@ google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 # Remove once the rolling window advances past 2026-09-18.
 typesafe-sdk = "2026-09-19T00:00:00Z"
 
+[tool.airflow.dependency-floors]
+# Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
+# see dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
+# A floor is never raised to a release uploaded more recently than this.
+min-age = "180 days"
+packages = [
+    "boto3",
+    "botocore",
+    "google-cloud-*",
+    "google-api-python-client",
+    "azure-*",
+]
+# Members of a group always get the same floor.
+groups = [
+    ["boto3", "botocore"],
+]
+
+# Never bumped. Packages capped or excluded anywhere (<, <=, !=, ==, ~=) are skipped automatically;
+# list here the ones that must stay put for another reason, or whose cap should not be the only record.
+[tool.airflow.dependency-floors.exclude]
+sagemaker-studio = "Do not change without approval from AWS (providers/amazon/pyproject.toml)"
+pandas = "DataFrame XComs need pandas<3 (#70791)"
+pymysql = "Capped below 1.2 in PyPI constraints generation (#67491)"
+fastapi = "Repeated breakage on new releases (#59681, #59710, #59856, #61579, #68578)"
+deltalake = "Missing ARM wheels on new releases (#59977, #60098, #60376)"
+gunicorn = "API server startup deadlocks above 25.1 (#62524)"
+qdrant-client = "Capped (#62193)"
+airbyte-api = "1.x breaks provider tests (#69081)"
+mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
+anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
+azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
+
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"

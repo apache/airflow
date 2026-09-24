@@ -593,6 +593,77 @@ def remove_backport_labels(*, branch_name: str, command_env: dict[str, str]) -> 
         console_print(f"[success]Removed backport labels: {', '.join(labels)}.[/]")
 
 
+# All upgrade commands run locally with check=False to continue on errors.
+# The uv lock --upgrade step must run after the steps that change dependencies, so it can
+# incorporate them -- and before the steps that regenerate code from the resolved versions.
+UPGRADE_COMMANDS: list[tuple[str, str]] = [
+    ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
+    (
+        "update-chart-dependencies",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
+    ),
+    (
+        "upgrade-important-versions",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
+    ),
+    (
+        "upgrade-dependency-floors",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-dependency-floors",
+    ),
+    (
+        "update-uv-lock",
+        "uv lock --upgrade",
+    ),
+    (
+        # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
+        # generated files' header. These hooks only watch the API sources, which an upgrade run
+        # never touches, so nothing regenerates them here and CI's --all-files run goes red.
+        "regenerate-datamodels",
+        "prek --all-files --show-diff-on-failure --color always --verbose "
+        "generate-tasksdk-datamodels generate-airflowctl-datamodels",
+    ),
+]
+
+
+DEPENDENCY_FLOORS_REPORT_ENV = "DEPENDENCY_FLOORS_REPORT"
+UPGRADE_PR_BODY = "This PR upgrades important dependencies of the CI environment."
+
+
+def build_upgrade_pr_body(floors_report: str | None) -> str:
+    if not floors_report:
+        return UPGRADE_PR_BODY
+    return f"{UPGRADE_PR_BODY}\n\n{floors_report}"
+
+
+def get_step_enabled(
+    *,
+    autoupdate: bool,
+    update_chart_dependencies: bool,
+    upgrade_important_versions: bool,
+    upgrade_dependency_floors: bool,
+    update_uv_lock: bool,
+) -> dict[str, bool]:
+    return {
+        "autoupdate": autoupdate,
+        "update-chart-dependencies": update_chart_dependencies,
+        "upgrade-important-versions": upgrade_important_versions,
+        "upgrade-dependency-floors": upgrade_dependency_floors,
+        "update-uv-lock": update_uv_lock,
+        "regenerate-datamodels": update_uv_lock,
+    }
+
+
+def read_floors_report(report_path: Path) -> str | None:
+    """Return the report the floors step wrote, if any, and remove its temporary directory."""
+    report = report_path.read_text() if report_path.exists() else None
+    shutil.rmtree(report_path.parent, ignore_errors=True)
+    return report
+
+
+def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
+    return ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow", "--body", pr_body]
+
+
 @ci_group.command(
     name="upgrade",
     help="Perform important upgrade steps of the CI environment. And create a PR",
@@ -654,6 +725,12 @@ def remove_backport_labels(*, branch_name: str, command_env: dict[str, str]) -> 
     help="Run upgrade-important-versions to bump key dependency versions",
 )
 @click.option(
+    "--upgrade-dependency-floors/--no-upgrade-dependency-floors",
+    default=True,
+    show_default=True,
+    help="Raise the floors of the curated dependencies in [tool.airflow.dependency-floors]",
+)
+@click.option(
     "--update-uv-lock/--no-update-uv-lock",
     default=True,
     show_default=True,
@@ -680,6 +757,7 @@ def upgrade(
     autoupdate: bool,
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
+    upgrade_dependency_floors: bool,
     update_uv_lock: bool,
     k8s_schema_sync: bool,
     github_token: str | None,
@@ -854,47 +932,24 @@ def upgrade(
             f"{format_github_token_scope_guidance(description='airflow-ci-upgrade', scopes='public_repo')}[/]"
         )
 
-    # All upgrade commands run locally with check=False to continue on errors.
-    # The uv lock --upgrade step must run after the steps that change dependencies, so it can
-    # incorporate them -- and before the steps that regenerate code from the resolved versions.
-    upgrade_commands: list[tuple[str, str]] = [
-        ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
-        (
-            "update-chart-dependencies",
-            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
-        ),
-        (
-            "upgrade-important-versions",
-            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
-        ),
-        (
-            "update-uv-lock",
-            "uv lock --upgrade",
-        ),
-        (
-            # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
-            # generated files' header. These hooks only watch the API sources, which an upgrade run
-            # never touches, so nothing regenerates them here and CI's --all-files run goes red.
-            "regenerate-datamodels",
-            "prek --all-files --show-diff-on-failure --color always --verbose "
-            "generate-tasksdk-datamodels generate-airflowctl-datamodels",
-        ),
-    ]
+    floors_report_path = Path(tempfile.mkdtemp()) / "dependency-floors.md"
+    command_env[DEPENDENCY_FLOORS_REPORT_ENV] = str(floors_report_path)
 
-    step_enabled = {
-        "autoupdate": autoupdate,
-        "update-chart-dependencies": update_chart_dependencies,
-        "upgrade-important-versions": upgrade_important_versions,
-        "update-uv-lock": update_uv_lock,
-        "regenerate-datamodels": update_uv_lock,
-    }
+    step_enabled = get_step_enabled(
+        autoupdate=autoupdate,
+        update_chart_dependencies=update_chart_dependencies,
+        upgrade_important_versions=upgrade_important_versions,
+        upgrade_dependency_floors=upgrade_dependency_floors,
+        update_uv_lock=update_uv_lock,
+    )
 
     # Execute upgrade commands
-    for step_name, command in upgrade_commands:
+    for step_name, command in UPGRADE_COMMANDS:
         if step_enabled[step_name]:
             run_command(command.split(), check=False, env=command_env)
         else:
             console_print(f"[info]Skipping {step_name} (disabled).[/]")
+    floors_report = read_floors_report(floors_report_path)
 
     # Sync K8s schemas to airflow-site
     if k8s_schema_sync:
@@ -974,7 +1029,7 @@ def upgrade(
             console_print("[warning]Could not determine fork repository. Using branch name only.[/]")
 
         pr_title = f"[{target_branch}] Upgrade important CI environment"
-        pr_body = "This PR upgrades important dependencies of the CI environment."
+        pr_body = build_upgrade_pr_body(floors_report)
 
         # Check if there's already an open PR for this branch.
         # gh pr list / gh pr ready filter by the bare head-branch name, not the
@@ -1007,6 +1062,14 @@ def upgrade(
 
         if existing_pr and existing_pr != "null" and existing_pr != "":
             console_print(f"[success]Existing PR found and updated with force push: {existing_pr}[/]")
+            # The body carries this run's dependency-floors report, so it must follow the pushed diff.
+            run_command(
+                build_update_pr_body_command(branch_name, pr_body),
+                capture_output=True,
+                text=True,
+                check=False,
+                env=command_env,
+            )
             if draft:
                 # Convert back to draft so a human must undraft to trigger CI
                 run_command(
