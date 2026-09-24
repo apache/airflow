@@ -116,7 +116,8 @@ class AbstractDagImporter(ABC):
         path = Path(file_path) if isinstance(file_path, str) else file_path
         return path.suffix.lower() in self.supported_extensions()
 
-    def get_relative_path(self, file_path: str | Path, bundle_path: Path | None) -> str:
+    @staticmethod
+    def get_relative_path(file_path: str | Path, bundle_path: Path | None) -> str:
         """Get the relative file path from the bundle root."""
         if bundle_path is None:
             return str(file_path)
