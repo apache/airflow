@@ -22,6 +22,12 @@
 // Dag and supplies its arguments, the way calling a TaskFlow function does in
 // Python.
 
+import {
+  DAG_SCHEMA_FIELDS,
+  TASK_SCHEMA_FIELDS,
+  type GeneratedDagFields,
+  type GeneratedTaskFields,
+} from "../generated/dag-schema-fields.js";
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import type { TaskFunction } from "./task.js";
@@ -32,31 +38,74 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
-function validateEmptySpec(name: string, value: unknown): void {
-  if (!isPlainRecord(value) || Reflect.ownKeys(value).length > 0) {
-    throw new Error(`${name} must be an empty object`);
-  }
+/**
+ * A copy of `spec` that nothing can change afterwards.
+ *
+ * Nothing reads a spec until the Dag is packed, long after the author's module
+ * has run, so an edit of the object they passed would silently change what
+ * ships. A shallow freeze is not enough: `tags` is an array the author still
+ * holds a reference to.
+ */
+function freezeSpec<TSpec extends object>(spec: TSpec, describe: () => string): TSpec {
+  return deepFreeze(spec, describe, new WeakSet()) as TSpec;
 }
 
-/**
- * Dag-level options.
- *
- * No fields yet, so only `{}` is accepted: a field that would be silently
- * dropped, such as `new Dag("d", { schedule: "@daily" })`, is a compile error.
- *
- * Native Dag declaration will add optional fields here, generated from the
- * serialized-Dag JSON schema as `src/generated/supervisor.ts` is.
- */
-export type DagSpec = Record<string, never>;
+function deepFreeze(value: unknown, describe: () => string, seen: WeakSet<object>): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  // `startDate` and `endDate` are Dates, and a Date's setters change it in
+  // place, so the recorded spec takes a copy. Freezing would not help:
+  // Object.freeze does not stop setFullYear.
+  if (value instanceof Date) return new Date(value.getTime());
+  if (seen.has(value)) {
+    throw new Error(`${describe()} refers back to itself, so it cannot be recorded`);
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((element) => deepFreeze(element, describe, seen)));
+  }
+  if (!isPlainRecord(value)) {
+    // Passed through, this would be neither copied nor frozen, so the author
+    // could still change what ships.
+    throw new Error(
+      `${describe()} holds a ${kindOf(value)}, which cannot be recorded; a spec field takes a ` +
+        "string, number, boolean, Date, or an array of them",
+    );
+  }
+  const copy: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    copy[key] = deepFreeze(nested, describe, seen);
+  }
+  return Object.freeze(copy);
+}
+
+function kindOf(value: object): string {
+  const prototype = Object.getPrototypeOf(value) as { constructor?: { name?: string } } | null;
+  return prototype?.constructor?.name ?? "value";
+}
+
+const DAG_SPEC_KEYS: ReadonlySet<string> = new Set(Object.keys(DAG_SCHEMA_FIELDS));
+const TASK_SPEC_KEYS: ReadonlySet<string> = new Set(Object.keys(TASK_SCHEMA_FIELDS));
 
 /**
- * Task-level options.
+ * Dag-level options: the schedule, the tags, how many runs may be active, and
+ * the rest of what `DAG(...)` takes in Python.
  *
- * No fields yet, so only `{}` is accepted, as with {@link DagSpec}.
+ * Every field is optional, so `{}` stays valid and a field added later cannot
+ * break a call site. An unknown key is rejected, so a misspelled field is an
+ * error rather than a Dag that quietly ignores it.
  *
- * Future task fields (retries, ...) will land here.
+ * Setting a field records it. A Dag declared in TypeScript is not served to
+ * Airflow yet, so nothing reads it.
  */
-export type TaskSpec = Record<string, never>;
+export type DagSpec = GeneratedDagFields;
+
+/**
+ * Task-level options: the retries, the pool, the trigger rule, and the rest of
+ * what an operator takes in Python.
+ *
+ * Optional and record-only on the same terms as {@link DagSpec}.
+ */
+export type TaskSpec = GeneratedTaskFields;
 
 // Carries a reference's return type without carrying a value. Not exported, so
 // the property cannot be read or written from outside; it exists only so
@@ -200,14 +249,13 @@ export type TaskFactory<TParams extends readonly unknown[], TReturn = unknown> =
     : (...inputs: PositionalInputs<TParams>) => TaskRef<TReturn>;
 
 /**
- * Named options for `dag.task()`.
+ * The trailing argument of `dag.task()`: the task's own {@link TaskSpec}, plus
+ * the names of the handler's positional arguments.
  *
- * Keyword-only so future fields can be added without a new parameter. Unknown
- * keys are rejected, so a typo fails at import time rather than being ignored.
+ * Every field is optional, and an unknown key is rejected, so a misspelled
+ * field is an error rather than a task that quietly ignores it.
  */
-export interface TaskOptions {
-  /** Task-level options. Stored, but not used yet — see {@link TaskSpec}. */
-  readonly spec?: TaskSpec;
+export type TaskOptions = TaskSpec & {
   /**
    * Names for the handler's positional arguments, in declaration order.
    *
@@ -216,8 +264,8 @@ export interface TaskOptions {
    * order, so a name left out only costs the label: `arg0`, `arg1` and so on
    * stand in for it.
    */
-  readonly argNames?: readonly string[];
-}
+  readonly argBindings?: readonly string[];
+};
 
 /** Per-task record a Dag retains: the reference, the handler, and its spec. */
 export interface TaskRecord {
@@ -288,14 +336,10 @@ export class Dag {
   }
 
   constructor(dagId: string, spec: DagSpec = {}) {
-    validateEmptySpec(`spec for Dag "${dagId}"`, spec);
+    validateDagSpec(dagId, spec);
     brand(this, "Dag");
     this.dagId = dagId;
-    // Copied and frozen, as task specs are: nothing reads a spec until the
-    // bundle manifest is built, long after the user's module has run, so a
-    // later mutation of their object would silently change what is packed.
-    // Shallow, so a nested value in a future generated spec stays mutable.
-    this.spec = Object.freeze({ ...spec });
+    this.spec = freezeSpec(spec, () => `The spec for Dag "${dagId}"`);
   }
 
   /** Task IDs attached to this Dag, in attachment order. */
@@ -308,7 +352,8 @@ export class Dag {
    *
    * Every argument the handler declares becomes an input of the returned
    * {@link TaskFactory}; `getContext()` and `getClient()` reach the runtime
-   * from inside the call, so neither is an argument.
+   * from inside the call, so neither is an argument. The trailing options object
+   * carries this task's own {@link TaskSpec}.
    */
   task<TParams extends readonly unknown[] = [], TReturn = unknown>(
     taskId: string,
@@ -329,43 +374,49 @@ export class Dag {
           "declare every task while the module is loading",
       );
     }
-    this.#validateOptions(taskId, options);
-    const { spec = {} } = options;
-    validateEmptySpec(`spec for Dag "${this.dagId}" task "${taskId}"`, spec);
-    const argNames = this.#validateArgNames(taskId, options.argNames);
+    const spec = this.#taskSpecOf(taskId, options);
+    const argBindings = this.#validateArgBindings(taskId, options.argBindings);
     const task = createTaskRef(this.dagId, taskId);
     this.#tasks.set(taskId, {
       task,
       // The runtime dispatches every handler through one instantiation, as it
       // does a registered TaskHandler; a positional one is wrapped at wiring.
       fn: handler as unknown as TaskFunction,
-      spec: Object.freeze({ ...spec }),
+      spec: freezeSpec(spec, () => `The spec for Dag "${this.dagId}" task "${taskId}"`),
     });
     return ((...inputs: unknown[]) => {
-      this.#wire(taskId, inputs, argNames);
+      this.#wire(taskId, inputs, argBindings);
       return task;
     }) as TaskFactory<TParams, TReturn>;
   }
 
-  // TypeScript is bypassable — from plain JavaScript, or an `as TaskOptions`
-  // cast — so an unknown key is rejected rather than silently ignored.
-  #validateOptions(taskId: string, options: TaskOptions): void {
+  // TypeScript is bypassable — from plain JavaScript, or an `as TaskSpec` cast
+  // — so an unknown key is rejected rather than silently ignored. `argBindings`
+  // names the handler's arguments rather than configuring the task, so it is
+  // taken out here instead of reaching the spec.
+  #taskSpecOf(taskId: string, options: TaskOptions): TaskSpec {
     const value: unknown = options;
     if (!isPlainRecord(value)) {
-      throw new Error(`options for Dag "${this.dagId}" task "${taskId}" must be an object`);
+      throw new Error(`spec for Dag "${this.dagId}" task "${taskId}" must be an object`);
     }
-    for (const key of Object.keys(value)) {
-      if (key !== "spec" && key !== "argNames") {
-        throw new Error(`Unknown option "${key}" for Dag "${this.dagId}" task "${taskId}"`);
+    const spec: Record<string, unknown> = {};
+    for (const key of Reflect.ownKeys(value)) {
+      if (key === "argBindings") continue;
+      if (typeof key !== "string" || !TASK_SPEC_KEYS.has(key)) {
+        throw new Error(
+          `Unknown option "${String(key)}" in the spec for Dag "${this.dagId}" task "${taskId}"`,
+        );
       }
+      spec[key] = value[key];
     }
+    return spec as TaskSpec;
   }
 
   // TypeScript is bypassable, and these names become the keys the arguments are
   // recorded under, so an integer-like one would reorder what it labels.
-  #validateArgNames(taskId: string, names: unknown): readonly string[] | undefined {
+  #validateArgBindings(taskId: string, names: unknown): readonly string[] | undefined {
     if (names === undefined) return undefined;
-    const describe = `argNames for Dag "${this.dagId}" task "${taskId}"`;
+    const describe = `argBindings for Dag "${this.dagId}" task "${taskId}"`;
     if (!Array.isArray(names)) throw new Error(`${describe} must be an array of names`);
     const seen = new Set<string>();
     for (const name of names as unknown[]) {
@@ -381,7 +432,11 @@ export class Dag {
     return Object.freeze([...(names as string[])]);
   }
 
-  #wire(taskId: string, inputs: readonly unknown[], argNames: readonly string[] | undefined): void {
+  #wire(
+    taskId: string,
+    inputs: readonly unknown[],
+    argBindings: readonly string[] | undefined,
+  ): void {
     if (this.#finalized) {
       throw new Error(
         `Task "${taskId}" of Dag "${this.dagId}" was called after the Dag was read; ` +
@@ -397,7 +452,7 @@ export class Dag {
     const positional = !isNamedCall(inputs);
     const recorded = this.#checkInputs(
       taskId,
-      positional ? positionalInputs(inputs, argNames) : (inputs[0] as Record<string, unknown>),
+      positional ? positionalInputs(inputs, argBindings) : (inputs[0] as Record<string, unknown>),
     );
     this.#inputs.set(taskId, recorded);
     if (positional && inputs.length > 0) {
@@ -483,11 +538,11 @@ function isNamedCall(inputs: readonly unknown[]): boolean {
 
 function positionalInputs(
   inputs: readonly unknown[],
-  argNames: readonly string[] | undefined,
+  argBindings: readonly string[] | undefined,
 ): Record<string, unknown> {
   const byName: Record<string, unknown> = {};
   inputs.forEach((value, index) => {
-    byName[argNames?.[index] ?? `arg${index}`] = value;
+    byName[argBindings?.[index] ?? `arg${index}`] = value;
   });
   return byName;
 }
@@ -509,6 +564,18 @@ function createTaskRef(dagId: string, taskId: string): TaskRef {
   const task: TaskRef = { dagId, taskId };
   brand(task, "TaskRef");
   return Object.freeze(task);
+}
+
+function validateDagSpec(dagId: string, spec: DagSpec): void {
+  const value: unknown = spec;
+  if (!isPlainRecord(value)) {
+    throw new Error(`spec for Dag "${dagId}" must be an object`);
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string" || !DAG_SPEC_KEYS.has(key)) {
+      throw new Error(`Unknown option "${String(key)}" in the spec for Dag "${dagId}"`);
+    }
+  }
 }
 
 /**

@@ -243,9 +243,9 @@ task instance.
 Declaring a Dag in TypeScript
 -----------------------------
 
-A ``Dag`` is declared on this side rather than in Python: its tasks and the edges between them are
-written in TypeScript. The surface is still growing, so a Dag declared this way is not served to
-Airflow yet.
+A ``Dag`` is declared on this side rather than in Python: its schedule, its tasks, their options and
+the edges between them are all written in TypeScript. The surface is still growing, so a Dag declared
+this way is not served to Airflow yet.
 
 ``dag.task(taskId, handler)`` returns a *factory*. Calling it places the task in the Dag and supplies the
 handler's arguments, so the call graph is the task graph:
@@ -277,7 +277,8 @@ argument itself: one buried inside an array or an object is a literal, and draws
 Every task has to be called exactly once. An uncalled task fails when the Dag is read, so none can be
 left out of the graph by accident.
 
-``new Dag`` and ``dag.task`` also take a trailing ``spec`` object that is not used yet; do not set it.
+``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
+``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
 Writing tasks
 -------------
