@@ -78,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
+    from airflow.sdk.definitions.operatorspread import DecoratedOperatorSpread
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
 
@@ -805,13 +806,38 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` instead of one task
         instance per item.
         """
-        self._validate_expand_arguments("iterate", "iterating", map_kwargs)
-        return self._iterate(DictOfListsExpandInput(map_kwargs), strict=False)
+        # Since the input is already checked at parse time, we can set strict
+        # to False to skip the checks on execution.
+        return self._iterate(self._iterate_input(**map_kwargs), strict=False)
 
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         """Iterate the task over a list of dicts or an XComArg; see :meth:`iterate`."""
+        return self._iterate(self._iterate_kwargs_input(kwargs), strict=strict)
+
+    def spread(self, *, across: int | XComArg) -> DecoratedOperatorSpread:
+        """
+        Spread the iteration across ``across`` task instances instead of one.
+
+        Returns a :class:`~airflow.sdk.definitions.operatorspread.DecoratedOperatorSpread` whose
+        ``iterate()`` / ``iterate_kwargs()`` build a ``MappedIterableOperator``. ``across`` is the
+        number of task instances, dealt the items round-robin, not a chunk length; it is keyword-only
+        so that ``spread(17)`` cannot be misread. It may be an ``XComArg`` (the return value of a
+        plain, non-mapped task): the number of task instances is then decided at run time, once that
+        upstream has run.
+        """
+        from airflow.sdk.definitions.operatorspread import DecoratedOperatorSpread, validate_spread_across
+
+        return DecoratedOperatorSpread(operator_partial=self, across=validate_spread_across(across))
+
+    def _iterate_input(self, **map_kwargs: OperatorExpandArgument) -> DictOfListsExpandInput:
+        """Validate ``iterate()`` keyword arguments and wrap them; shared with ``DecoratedOperatorSpread``."""
+        self._validate_expand_arguments("iterate", "iterating", map_kwargs)
+        return DictOfListsExpandInput(map_kwargs)
+
+    def _iterate_kwargs_input(self, kwargs: OperatorExpandKwargsArgument) -> ListOfDictsExpandInput:
+        """Validate ``iterate_kwargs()`` input and wrap it; shared with ``DecoratedOperatorSpread``."""
         self._validate_expand_kwargs_argument("iterate_kwargs", "iterating", kwargs)
-        return self._iterate(ListOfDictsExpandInput(kwargs), strict=strict)
+        return ListOfDictsExpandInput(kwargs)
 
     def _iterate(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
         from airflow.sdk.definitions.iterableoperator import IterableOperator
@@ -902,6 +928,8 @@ class Task(Protocol, Generic[FParams, FReturn]):
     def iterate(self, **kwargs: OperatorExpandArgument) -> XComArg: ...
 
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg: ...
+
+    def spread(self, *, across: int | XComArg) -> DecoratedOperatorSpread: ...
 
     def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
