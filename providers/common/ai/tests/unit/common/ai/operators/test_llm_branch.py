@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -85,7 +85,9 @@ class TestLLMBranchOperator:
 
         assert result == "task_a"
         mock_do_branch.assert_called_once_with(ctx, "task_a")
-        mock_agent.run_sync.assert_called_once_with("Pick a branch", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Pick a branch", usage_limits=None, cancellation_token=ANY
+        )
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

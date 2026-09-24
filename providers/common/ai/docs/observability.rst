@@ -79,7 +79,7 @@ How it works
 
 .. note::
 
-    On pydantic-ai 2.x the agent-run span reports token usage under
+    The agent-run span reports token usage under
     ``gen_ai.aggregated_usage.*`` while the per-model-call span keeps
     ``gen_ai.usage.*``. This avoids double-counting in backends that sum a
     parent span and its children. Dashboards or alerts that read run-level token

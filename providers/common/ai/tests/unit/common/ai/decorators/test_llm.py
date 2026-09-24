@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import ImageUrl
@@ -45,7 +45,9 @@ class TestLLMDecoratedOperator:
 
         assert result == "This is a summary."
         assert op.prompt == "Summarize this text"
-        mock_agent.run_sync.assert_called_once_with("Summarize this text", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Summarize this text", usage_limits=None, cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
@@ -98,7 +100,7 @@ class TestLLMDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -137,4 +139,6 @@ class TestLLMDecoratedOperator:
         op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Summarize quantum computing"
-        mock_agent.run_sync.assert_called_once_with("Summarize quantum computing", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Summarize quantum computing", usage_limits=None, cancellation_token=ANY
+        )

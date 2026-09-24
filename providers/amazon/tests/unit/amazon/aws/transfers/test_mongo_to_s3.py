@@ -81,6 +81,8 @@ class TestMongoToS3Operator:
             "s3_key",
             "mongo_query",
             "mongo_collection",
+            "mongo_conn_id",
+            "aws_conn_id",
         )
 
     @pytest.mark.db_test

@@ -20,7 +20,7 @@
 Vendor-managed agents: ``BaseManagedAgentToolset``
 ==================================================
 
-Cloud vendors now run agents on your behalf — Snowflake Cortex Agents, Amazon
+Cloud vendors now run agents on your behalf: Snowflake Cortex Agents, Amazon
 Bedrock AgentCore runtimes, Azure AI Foundry hosted agents, Vertex AI Agent
 Engine. Their reasoning loops execute on the vendor's infrastructure, so they
 are not something ``AgentOperator`` runs; they are something an Airflow task
@@ -34,7 +34,7 @@ existing hook and no new connection types are needed.
 A subclass implements two members:
 
 ``agent_ref``
-    Normalized identity of the remote agent — ``platform`` and ``name`` — logged
+    Normalized identity of the remote agent (``platform`` and ``name``), logged
     on every call so a run can be audited for which agents it consulted.
 
 ``invoke_sync(prompt)``
@@ -45,7 +45,7 @@ Tool naming, argument validation, result serialisation, and logging are handled
 by the base class, so every provider's implementation presents the same surface
 to the calling model.
 
-``tool_name`` is the required identifier — it is what the model emits when it
+``tool_name`` is the required identifier: it is what the model emits when it
 calls the tool, and the Dag author chooses it. ``description`` is optional and
 falls back to the tool name rendered as prose, the same way ``HookToolset``
 derives one from a method name when there is no docstring.
@@ -54,7 +54,7 @@ derives one from a method name when there is no docstring.
 
     Writing a description is still worth the line. It is what tells the model to
     consult the agent rather than answer from its own knowledge, and it is the
-    only place to record a scope limit the name cannot carry — "cannot see
+    only place to record a scope limit the name cannot carry, such as "cannot see
     revenue figures". Because the argument schema is always a bare prompt, the
     name and the description are the whole of what the model knows about the
     agent.
@@ -95,7 +95,7 @@ Toolset or operator?
 Most managed-agent platforms do not offer a plain one-request-one-answer API. Some
 require polling a job; others require creating a session and tearing it down around
 each exchange. A toolset can do either, but only by blocking inside
-``invoke()`` — it cannot defer to the Triggerer, and it has no post-task hook to
+``invoke()``: it cannot defer to the Triggerer, and it has no post-task hook to
 clean up with if the worker dies mid-call.
 
 That draws a boundary worth respecting:
@@ -116,7 +116,7 @@ That draws a boundary worth respecting:
 ``ResumableJobMixin`` exists for exactly the second case: it persists the external
 job ID to the task state store before polling, so a worker crash reconnects to the
 running job instead of submitting a duplicate. A toolset cannot offer that, because
-the retry boundary is the task, not the tool call — on retry the agent loop restarts
+the retry boundary is the task, not the tool call: on retry the agent loop restarts
 and re-issues the call. Durable execution covers the *completed* call (see
 ``replayable`` below); it does not cover a call that was still in flight.
 
@@ -138,7 +138,7 @@ implementation goes wrong:
       - The calling model, bounded by its ``usage_limits``.
     * - ``ManagedAgentInvocationError``
       - Terminal: bad credentials, missing agent, revoked quota.
-      - Nobody — the task fails fast instead of burning retries.
+      - Nobody: the task fails fast instead of burning retries.
     * - *let it propagate*
       - Transient: 429, 5xx, connection reset, read timeout.
       - Airflow's task-level retry. A rephrase does nothing for a 503.
@@ -154,7 +154,7 @@ avoid paying for the same invocation twice.
 Deferral
 --------
 
-A toolset call runs in the worker and cannot defer to the Triggerer — it blocks
+A toolset call runs in the worker and cannot defer to the Triggerer: it blocks
 for the duration of the call. See `Toolset or operator?`_ above for when that is
 acceptable and when the provider's own deferrable operator is the right surface
 instead.
@@ -165,7 +165,7 @@ Failover between interchangeable agents
 :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
 composes several managed agents into one tool, trying them in order until one
 answers. It is itself a ``BaseManagedAgentToolset``, so the calling model sees a
-single tool and has no say in which provider serves the request — the policy
+single tool and has no say in which provider serves the request, so the policy
 stays deterministic Python rather than a prompt instruction a model may ignore.
 Groups nest.
 
@@ -183,11 +183,11 @@ Members must satisfy two preconditions the class cannot check.
 
 **Substitutability.** The same agent deployed twice, not two specialists with
 different data. Two containerised agents built from one image qualify; agents
-bound to one platform's own objects — a Cortex Agent over Snowflake semantic
-models — do not, because there is nothing equivalent to fail over *to*.
+bound to one platform's own objects (a Cortex Agent over Snowflake semantic
+models) do not, because there is nothing equivalent to fail over *to*.
 
 **Statelessness per invocation.** Server-side conversation state is the norm
-across managed-agent platforms, not the exception — optional on some (Cortex
+across managed-agent platforms, not the exception: optional on some (Cortex
 ``thread_id``), mandatory on others where a session is created and torn down
 around each exchange. Each member is invoked with a bare prompt and no thread
 reference, so a failover silently starts a fresh conversation on the standby:
@@ -204,7 +204,7 @@ The three error buckets do real work here:
   the task rather than returning something misleading.
 
 ``failover_on`` defaults to ``Exception`` because ``common.ai`` cannot enumerate
-the cloud SDKs' exception trees — ``requests``, ``botocore`` and the Azure SDK
+the cloud SDKs' exception trees: ``requests``, ``botocore`` and the Azure SDK
 share no common base. It can be narrowed when the members' exception types are
 known.
 
@@ -217,12 +217,12 @@ durable cache cannot know which member produced the answer it holds.
     two tasks, the second with ``trigger_rule=TriggerRule.ALL_FAILED``. That keeps
     which provider served the request visible in the grid at no code cost, and
     makes failover rate a task metric. This class is for the case a task boundary
-    cannot express — a managed agent consulted as a tool *inside* a longer agent
+    cannot express: a managed agent consulted as a tool *inside* a longer agent
     run, where failing the task would discard the calling agent's accumulated
     context and re-run every earlier tool call.
 
 Two counters make failover visible, because a failover is a *success-shaped*
-event — without them a primary that has been down for a week looks identical to a
+event: without them a primary that has been down for a week looks identical to a
 healthy one:
 
 .. list-table::
@@ -232,9 +232,9 @@ healthy one:
     * - Metric
       - Tags
     * - ``managed_agent.failover``
-      - ``from_platform``, ``to_platform`` — one per failover transition
+      - ``from_platform``, ``to_platform`` (one per failover transition)
     * - ``managed_agent.served``
-      - ``platform``, ``role`` (``primary`` / ``standby``) — one per answer
+      - ``platform`` and ``role`` (``primary`` / ``standby``), one per answer
 
 The standby-served fraction is a ratio over ``managed_agent.served`` alone, so
 "are we quietly running on the standby?" is a dashboard question rather than a log
@@ -250,7 +250,7 @@ need ``AgentOperator`` to collect per-toolset metadata.
 When to choose it
 -----------------
 
-**Choose it when** the reasoning itself belongs on the vendor's infrastructure —
+**Choose it when** the reasoning itself belongs on the vendor's infrastructure:
 the agent is already deployed there, grounded in data that never leaves, and
 Airflow's job is to submit one request and read one answer.
 :ref:`managed-agent-toolsets` covers the shape.
@@ -264,7 +264,7 @@ Read the first bullet before planning around this route.
   :class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
   declares ``agent_ref`` abstract and raises ``TypeError`` at construction unless
   a subclass implements ``invoke_sync`` or ``invoke``. No vendor subclass exists
-  in this repository — the Snowflake Cortex, Bedrock AgentCore, Azure AI Foundry
+  in this repository: the Snowflake Cortex, Bedrock AgentCore, Azure AI Foundry
   and Vertex AI Agent Engine names in its docstring describe the shape it expects,
   not implementations that ship. Using this route means writing that subclass.
 - It has no allow-list to offer. The whole toolset is one tool: a prompt goes in,
@@ -278,8 +278,8 @@ Read the first bullet before planning around this route.
   could skip a side effect. Read-only agents can opt in.
 - Its failover variant relies on two preconditions the code cannot check.
   :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
-  requires members that are genuinely interchangeable — the same agent deployed
-  twice, not two specialists over different data — and one-shot exchanges, because
+  requires members that are genuinely interchangeable (the same agent deployed
+  twice, not two specialists over different data) and one-shot exchanges, because
   each member is invoked with a bare prompt and no thread reference, so a failover
   silently starts a fresh conversation rather than resuming the old one.
 

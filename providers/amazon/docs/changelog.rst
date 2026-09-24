@@ -35,6 +35,22 @@ Changelog
   botocore configuration, which previously never reached it. Set these explicitly on the operator
   if the deferred half needs to differ from the synchronous half.
 
+.. warning::
+  ``FTPToS3Operator``, ``S3ToFTPOperator``, ``S3ToSFTPOperator``, and ``SFTPToS3Operator`` now match
+  the source ``*_filenames``, when it is a string other than ``"*"``, as a leading prefix of the
+  file name, as documented, instead of as a substring anywhere in the listed entry. Entries that
+  contained it only elsewhere are no longer selected, and a warning reports how many, naming up to
+  ten. Renaming now replaces only that leading prefix, instead of every occurrence.
+
+  For ``S3ToFTPOperator`` and ``S3ToSFTPOperator`` the prefix is not an S3 key prefix. Keys under
+  ``s3_key`` are matched on their last path segment and keep their directory at the destination,
+  and a prefix that contains ``/`` no longer matches. To select a subdirectory, narrow ``s3_key``
+  to it and append it to ``ftp_path`` or ``sftp_path`` to keep the same destination.
+
+  With a string ``ftp_filenames``, ``FTPToS3Operator`` now builds the destination key from the file
+  name alone, so on servers that qualify ``nlst`` entries with the listed directory the key no
+  longer embeds that directory.
+
 9.36.0
 ......
 

@@ -1516,12 +1516,12 @@ auth-backends:
 
 logging:
   - airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler
-  - airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler
+  - airflow.providers.google.cloud.log.cloud_logging_task_handler.CloudLoggingTaskHandler
 
 remote-logging:
   - classpath: airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO
     scheme: gs
-  - classpath: airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO
+  - classpath: airflow.providers.google.cloud.log.cloud_logging_task_handler.CloudLoggingRemoteLogIO
     scheme: stackdriver
 
 queues:

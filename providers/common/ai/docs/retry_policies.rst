@@ -85,7 +85,7 @@ Setup
    - **Connection Id**: ``pydanticai_default``
    - **Connection Type**: ``Pydantic AI``
    - **Password**: Your API key
-   - **Extra**: ``{"model": "anthropic:claude-haiku-4-5"}``
+   - **Extra**: ``{"model": "anthropic:claude-haiku-4-5-20251001"}``
 
 Usage
 -----
@@ -153,7 +153,7 @@ classifier decision or a plain rule match. ``LLMRetryPolicy``'s fallback
 decision is what ``fallback_rules`` returned, as it always was.
 
 This policy decides *between* attempts. Failing over to another vendor *within*
-an attempt is a separate mechanism on the connection — see
+an attempt is a separate mechanism on the connection; see
 :doc:`provider_fallback`, which also sets out how the two layers compose.
 
 ClassifierRetryPolicy
@@ -312,11 +312,8 @@ model returned: concentrated on one category is high, spread out is low. It is
 not the probability that the answer is correct. Pick the bar from the confidence
 values your own failures produce: run the policy with no bar first, read the
 logged ``confidence=`` values per category, and set the bar where the wrong
-answers start. For orientation, a calibration run of the two example taxonomies
-on ``jev-1.13.0`` over 31 realistic exception messages put every correct pick at
-0.89 or above and three of the four wrong picks between 0.47 and 0.69; the
-fourth wrong pick was a ``permanent`` at 0.90, which is why a bar reduces wrong
-actions and does not eliminate them. Pin the model version
+answers start. A bar reduces wrong actions and does not eliminate them: a wrong
+pick can arrive with high confidence. Pin the model version
 (``typesafe:jev-1.13.0``, not ``jev-latest``): a bar tuned against one release
 is not guaranteed to mean the same thing after the next. See
 :doc:`classifier_models` for what these models answer well and badly.
@@ -524,7 +521,7 @@ Both policies share every parameter below except ``categories``,
      - Airflow connection ID for the LLM provider.
    * - ``model_id``
      - None
-     - Override the model from the connection (e.g., ``"openai:gpt-4o-mini"``).
+     - Override the model from the connection (e.g., ``"openai:gpt-5-mini"``).
    * - ``instructions``
      - (built-in)
      - Custom system prompt for error classification. On ``LLMRetryPolicy`` it

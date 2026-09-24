@@ -23,6 +23,7 @@ from typing import Any
 from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 from airflow.api_fastapi.core_api.datamodels.task_instance_history import TaskInstanceHistoryResponse
 from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
 
@@ -32,6 +33,21 @@ class UpdateHITLDetailPayload(BaseModel):
 
     chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
+
+    @field_validator("params_input")
+    @classmethod
+    def _check_reserved_keys(cls, params_input: Mapping) -> Mapping:
+        # params_input is serialized into the resume event and deserialized again on the worker, so
+        # it needs the same guard XCom uses. Rejecting it here keeps the failure in front of the
+        # user who can still fix the input, rather than stranding the task when it resumes.
+        found = find_reserved_keys(params_input, root="params_input")
+        if found is not None:
+            path, keys = found
+            raise ValueError(
+                f"{path} contains reserved serialization keys: {', '.join(keys)}. "
+                "These keys are reserved for internal use."
+            )
+        return params_input
 
 
 class HITLDetailResponse(BaseModel):
