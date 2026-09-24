@@ -925,14 +925,17 @@ func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultStaysSilent() {
 	s.NotContains(logs, "the task handler does not declare")
 }
 
-func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
+func (s *BindingSuite) TestResolveStructEmptySpecWarns() {
+	// An argless call sends no spec at all, so this is the ordinary shape of a
+	// stub called as `my_task()`, not a sign of an Airflow that cannot send one.
 	fn := func(actx contexttest.Context, input simpleInput) error { return nil }
 	for name, args := range map[string][]Arg{"nil-spec": nil, "empty-spec": {}} {
 		s.Run(name, func() {
-			_, err := s.resolve(fn, args, &fakeXComClient{})
-			if s.Assert().Error(err) {
-				s.Contains(err.Error(), "no TaskFlow arg bindings arrived")
-			}
+			got, logs, err := s.resolveWithLogs(fn, args, &fakeXComClient{})
+			s.Require().NoError(err)
+			s.Equal("", got[0].Interface().(simpleInput).Name, "every field keeps its zero value")
+			s.Contains(logs, "the Dag's call did not pass")
+			s.Contains(logs, "passed=[]")
 		})
 	}
 }

@@ -280,29 +280,21 @@ func (p *Plan) resolveLoneStructParam(
 		}
 	}
 
-	// A spec that arrived empty is a different thing from one that disagrees with
-	// the struct: nothing reached this task at all, which an Airflow too old to
-	// send bindings also looks like, so there is nothing to bind rather than a
-	// mismatch to report.
-	if len(args) == 0 && len(plan.fields) > 0 {
-		return nil, fmt.Errorf(
-			"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
-				"%d bindable field(s); nothing can fill them on this execution path",
-			p.fnName, len(plan.fields),
-		)
-	}
-
 	// Neither direction of a name mismatch is fatal, because a struct binds by
 	// name: an unfilled field keeps its Go zero value and an unclaimed argument
 	// changes nothing the handler reads. Both are logged so the mismatch is still
 	// visible, since the spec carries one entry per stub parameter and either side
 	// of it means the Go signature and the stub signature disagree.
+	//
+	// A spec that arrived empty is the same thing with every field unfilled, and
+	// is what an argless call looks like: build_arg_bindings sends nothing at all
+	// when a stub is called with no arguments.
 	if len(unfilled) > 0 {
 		logger.Warn(
 			"Task handler declares argument(s) the Dag's call did not pass",
 			"function", p.fnName,
 			"declared_not_passed", unfilled,
-			"bound", quotedArgNames(args),
+			"passed", passedArgNames(args),
 		)
 	}
 
@@ -368,18 +360,15 @@ func declaredFieldNames(fields []structField) []string {
 	return names
 }
 
-func quotedArgNames(args []Arg) string {
+func passedArgNames(args []Arg) []string {
 	names := make([]string, 0, len(args))
 	for _, a := range args {
 		if a == nil {
 			continue
 		}
-		names = append(names, fmt.Sprintf("%q", a.ArgName()))
+		names = append(names, a.ArgName())
 	}
-	if len(names) == 0 {
-		return "nothing"
-	}
-	return strings.Join(names, ", ")
+	return names
 }
 
 func dropDefaultedArgs(args []Arg) []Arg {

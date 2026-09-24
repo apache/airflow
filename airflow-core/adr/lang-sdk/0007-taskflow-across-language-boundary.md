@@ -129,11 +129,14 @@ ahead of anything the task itself prints. `from_default` entries are not reporte
 ignoring a captured default is the normal case.
 
 A single call can be wrong in both directions at once, so each gets its own message rather than one
-line a reader has to untangle. Every SDK uses the same two, so one query finds them across
-languages:
+line a reader has to untangle. SDKs implementing this use the same two wordings, so one query finds
+the mismatch across languages:
 
 - `Dag's call passed argument(s) the task handler does not declare`
 - `Task handler declares argument(s) the Dag's call did not pass`
+
+An SDK may log more besides. The TypeScript SDK also warns when a handler reads a name nothing
+bound, which is a run-time event rather than a signature mismatch and carries its own wording.
 
 Where the declaration comes from differs by language and is not a difference in the rule. Go's sole
 struct and Java's `TaskInput` are field lists the runtime can read directly. The TypeScript SDK has

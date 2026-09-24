@@ -141,8 +141,9 @@ captured defaults may be dropped          |
   an unfilled field keeps its zero value and an unclaimed explicit argument is ignored, and both
   are logged. Flat bindings still fail either way, because a dropped or added positional argument
   shifts every later one. Incompatible schemas or Go types still fail before the task body runs.
-- A spec that arrives empty is not a mismatch but an absence, which an Airflow too old to send
-  bindings also looks like, so a struct with bindable fields and no bindings at all still fails.
+- A spec that arrives empty is the same mismatch with every field unfilled, and warns like any
+  other. `build_arg_bindings` sends nothing at all for a stub called with no arguments, so an
+  empty spec is an ordinary argless call rather than a signal that anything is wrong.
 - A known JSON Schema shape is checked against the Go target type before strict JSON decoding.
   Missing or unknown schema forms remain unconstrained and rely on the decoder.
 - Cross-language TaskFlow binding uses the coordinator path described in

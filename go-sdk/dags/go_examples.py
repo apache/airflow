@@ -185,8 +185,9 @@ def taskflow_binding_dag():
 
     A Go task declares either flat data parameters, which bind *positionally*
     (order matters, every one must be filled), or a single struct, whose fields
-    bind by *name* like keyword arguments. Either way every declared field must
-    be filled; a call argument no field claims is only a warning.
+    bind by *name* like keyword arguments. Name binding tolerates a signature
+    mismatch in either direction: taking more or fewer arguments than the call
+    passes is warned about rather than failing the task.
 
     * ``via_flat_args``: every scalar literal, an array literal, keyword args,
       an unpassed ``None`` default, and XComs fanned in from two upstream tasks.

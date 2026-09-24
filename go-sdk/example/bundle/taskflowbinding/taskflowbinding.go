@@ -190,7 +190,7 @@ func ViaStructDefaultArg(
 	return map[string]any{"region": input.Region}, nil
 }
 
-// ViaStructMoreArgsInput takes fewer arguments than the stub passes.
+// ViaStructMoreArgsInput declares fewer fields than its call passes arguments.
 type ViaStructMoreArgsInput struct {
 	Region string `arg:"region_code"`
 }
@@ -206,7 +206,7 @@ func ViaStructMoreArgs(actx airflow.Context, input ViaStructMoreArgsInput) (any,
 	return map[string]any{"region": input.Region}, nil
 }
 
-// ViaStructFewerArgsInput declares a field the stub has no parameter for.
+// ViaStructFewerArgsInput declares more fields than its call passes arguments.
 type ViaStructFewerArgsInput struct {
 	Region   string `arg:"region_code"`
 	NotInDag string `arg:"not_in_dag"`
