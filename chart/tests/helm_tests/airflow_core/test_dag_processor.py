@@ -652,6 +652,18 @@ class TestDagProcessor:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    def test_dag_processor_pod_hostaliases(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}],
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
+        assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
+
     def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
         docs = render_chart(
             values={
