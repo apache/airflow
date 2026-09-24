@@ -1486,6 +1486,37 @@ def test_execution_timeout(create_runtime_ti):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
+def test_execution_timeout_caps_iterated_task_with_sync_sub_tasks(create_runtime_ti, mock_supervisor_comms):
+    """The wrapped operator's execution_timeout is kept on the IterableOperator as the wall-clock cap on
+    the whole iteration. The runner enforces it on the main thread, so it fires even though the sync
+    sub-tasks run in worker threads where SIGALRM cannot reach them."""
+    from airflow.sdk.definitions._internal.expandinput import ListOfDictsExpandInput
+    from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+    class SleepyOperator(BaseOperator):
+        def execute(self, context):
+            time.sleep(1)
+
+    # Two items on a single worker: without the cap the iteration takes two sleeps. With it the
+    # timeout fires during the first item, and the second is never started. Python threads cannot
+    # be interrupted, so the error surfaces once the first item's sleep ends, after one sleep.
+    expand_input = ListOfDictsExpandInput([{}, {}])
+    with DAG("dag_iterate_execution_timeout") as dag:
+        mapped = SleepyOperator.partial(
+            task_id="sleepy", dag=dag, task_concurrency=1, execution_timeout=timedelta(milliseconds=200)
+        )._expand(expand_input, strict=True, register_with_dag=False)
+        with pytest.warns(UserWarning, match="caps the whole iteration"):
+            op = IterableOperator(operator=mapped, expand_input=expand_input, dag=dag)
+    assert op.execution_timeout == timedelta(milliseconds=200)
+
+    ti = create_runtime_ti(task=op, dag_id="dag_iterate_execution_timeout")
+
+    started = time.monotonic()
+    with pytest.raises(AirflowTaskTimeout):
+        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+    assert time.monotonic() - started < 1.8
+
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator

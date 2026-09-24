@@ -267,13 +267,19 @@ class IterableOperator(BaseOperator):
         ``aget_hook``, ``ti.axcom_pull``. ``Variable`` has no async equivalent yet.
 
     .. warning::
-        **``execution_timeout`` is only enforced for async sub-tasks.**
+        **``execution_timeout`` caps the whole iteration; per-sub-task enforcement is async-only.**
 
-        Async sub-tasks (instances of :class:`~airflow.sdk.bases.operator.BaseAsyncOperator`) respect
-        ``execution_timeout`` via ``asyncio.wait_for``. Sync sub-tasks run in worker threads and rely on
-        :class:`~airflow.sdk.execution_time.timeout.TimeoutPosix`, which requires ``signal.SIGALRM`` and
-        only works in the main thread. Because sync sub-tasks execute in a thread pool, ``SIGALRM`` cannot
-        be delivered to them, so their ``execution_timeout`` is silently ignored. Use
+        The IterableOperator keeps the wrapped operator's ``execution_timeout`` as a wall-clock limit
+        on the entire task instance. The runner enforces it on the main thread exactly as for any
+        other task, so an iteration that overruns fails with ``AirflowTaskTimeout`` and
+        :meth:`on_kill` is propagated to every sub-task still in flight. Since ``.iterate()`` runs
+        all items in one task instance, this is the per-instance limit of ``.expand()`` applied to
+        the whole iteration rather than to each item.
+
+        Per item, only async sub-tasks (instances of :class:`~airflow.sdk.bases.operator.BaseAsyncOperator`)
+        are additionally limited, via ``asyncio.wait_for``. Sync sub-tasks run in worker threads and rely
+        on :class:`~airflow.sdk.execution_time.timeout.TimeoutPosix`, which requires ``signal.SIGALRM`` and
+        only works in the main thread, so no per-item limit applies to them. Use
         :class:`~airflow.sdk.bases.operator.BaseAsyncOperator` if per-sub-task time limits are required.
     """
 
@@ -325,7 +331,9 @@ class IterableOperator(BaseOperator):
                 "queue": operator.queue,
                 "pool": operator.pool,
                 "pool_slots": operator.pool_slots,
-                "execution_timeout": None,
+                # Kept as the wall-clock cap on the whole iteration, enforced by the runner (see the
+                # class docstring); per-item enforcement stays with the sub-tasks.
+                "execution_timeout": operator.execution_timeout,
                 "trigger_rule": operator.trigger_rule,
                 "resources": operator.resources,
                 "run_as_user": operator.run_as_user,
@@ -368,7 +376,7 @@ class IterableOperator(BaseOperator):
             warnings.warn(
                 f"Operator {operator.task_id!r} has execution_timeout set, but sync operators run in "
                 "worker threads where TimeoutPosix (SIGALRM) cannot be delivered. "
-                "The execution_timeout will not be enforced for sync sub-tasks inside IterableOperator. "
+                "It caps the whole iteration but is not enforced per sync sub-task inside IterableOperator. "
                 "Use BaseAsyncOperator if per-sub-task time limits are required.",
                 UserWarning,
                 stacklevel=2,

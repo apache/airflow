@@ -1305,11 +1305,11 @@ class TestIterableOperator:
 
             assert iterable_op.multiple_outputs is False
 
-    def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self):
-        """IterableOperator.execution_timeout is None (not propagated to the outer TI);
-        the wrapped operator retains its own execution_timeout for per-task enforcement.
-        A UserWarning is emitted when the wrapped operator is sync, since TimeoutPosix won't fire
-        in worker threads."""
+    def test_iterable_execution_timeout_caps_whole_iteration_and_wrapped_operator_retains_it(self):
+        """IterableOperator keeps execution_timeout as the wall-clock cap on the whole iteration, which
+        the runner enforces on the outer TI; the wrapped operator retains its own execution_timeout for
+        per-sub-task enforcement. A UserWarning is emitted when the wrapped operator is sync, since
+        TimeoutPosix won't fire in worker threads."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
             execution_timeout = timedelta(seconds=7)
@@ -1321,7 +1321,7 @@ class TestIterableOperator:
                 iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
 
             assert iterable_op._operator.execution_timeout == execution_timeout
-            assert iterable_op.execution_timeout is None
+            assert iterable_op.execution_timeout == execution_timeout
 
     @pytest.mark.parametrize(
         "base_exception",
@@ -1464,7 +1464,7 @@ class TestIterableOperatorContextIsolation:
                 iterable_op.execute(context=context)
 
     def test_sync_subtask_with_execution_timeout_emits_warning(self):
-        """A sync operator with execution_timeout warns that the timeout won't be enforced."""
+        """A sync operator with execution_timeout warns that it is not enforced per sub-task."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
             mapped_op = create_mapped_operator(
@@ -1475,6 +1475,7 @@ class TestIterableOperatorContextIsolation:
 
         assert len(warning_list) == 1
         assert "sync" in str(warning_list[0].message).lower()
+        assert "caps the whole iteration" in str(warning_list[0].message)
 
 
 class TestCheckpoints:
