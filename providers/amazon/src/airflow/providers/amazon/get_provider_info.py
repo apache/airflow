@@ -1570,6 +1570,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "allow_idp_initiated_login": {
+                        "description": "Whether to accept SAML assertions that no login started from Airflow asked for, such as\nthe ones produced by clicking the Airflow tile in the AWS Identity Center access portal\n(IdP-initiated SSO).\n\nWhen this is disabled, a SAML response is only accepted if it answers an AuthnRequest that\nthe same browser started. That binding is what stops an assertion obtained elsewhere from\nbeing accepted in another user's browser, which would sign that user in as the assertion's\nsubject. Enable it only where the access portal flow is required and that trade-off is\naccepted.\n",
+                        "version_added": "9.37.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "False",
+                    },
                 },
             },
         },

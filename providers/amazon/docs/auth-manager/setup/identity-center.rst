@@ -123,3 +123,39 @@ or
 
     export AIRFLOW__API__BASE_URL='<base_url>'
     export AIRFLOW__AWS_AUTH_MANAGER__SAML_METADATA_URL='<saml_metadata_file_url>'
+
+.. _identity_center_idp_initiated_login:
+
+Logging in from the access portal (IdP-initiated SSO)
+=====================================================
+
+By default the AWS auth manager only accepts a SAML response that answers a login started from
+Airflow itself. When you open ``<base_url>/auth/login``, Airflow sends an AuthnRequest to Identity
+Center and remembers its id in a short-lived, signed, ``HttpOnly`` cookie; the response is accepted
+only if it echoes that id back in ``InResponseTo``.
+
+This binding matters because a SAML assertion is signed by the identity provider, which
+authenticates *the identity in the response* — it says nothing about *which browser asked for it*.
+Without the binding, an assertion issued for one login would be accepted by a browser that never
+started it, signing that browser in as the assertion's subject rather than as the person using it.
+
+The cost is that clicking the Airflow tile in the AWS IAM Identity Center access portal no longer
+works: that flow produces an assertion nobody asked for, and Airflow cannot tell it apart from a
+replayed one. If you need it, enable it explicitly:
+
+.. code-block:: ini
+
+    [aws_auth_manager]
+    allow_idp_initiated_login = True
+
+or
+
+.. code-block:: bash
+
+    export AIRFLOW__AWS_AUTH_MANAGER__ALLOW_IDP_INITIATED_LOGIN='True'
+
+With this enabled, Airflow still requires the assertion to be signed by the configured identity
+provider, and still refuses one that carries an ``InResponseTo`` value — an unsolicited assertion
+answers no request, so a response that names one is a solicited assertion being replayed. What it
+gives up is the guarantee that the browser receiving the response is the one that asked for it.
+Leave it disabled unless the access portal flow is required.
