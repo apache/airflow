@@ -52,6 +52,7 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Remove mention of CeleryKubernetesExecutor from KubernetesExecutor doc (#73624)``
 * ``Document that clear_on_success also removes the KubernetesPodOperator pod identity (#71749)``
 * ``Remove note about airflow 2.7.0 from docs (#72913)``
 
