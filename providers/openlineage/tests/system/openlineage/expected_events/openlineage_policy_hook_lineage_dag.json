@@ -70,7 +70,7 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook.query.1",
+            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook.hll_query.1",
             "facets": {
                 "sql": {
                     "query": "SELECT 1 AS test_col"
@@ -81,7 +81,7 @@
     {
         "eventType": "COMPLETE",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook.query.1",
+            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook.hll_query.1",
             "facets": {
                 "sql": {
                     "query": "SELECT 1 AS test_col"
@@ -105,21 +105,21 @@
         "$absent": "hook_lineage=False suppresses SQL child query events",
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.query.1"
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.hll_query.1"
         }
     },
     {
         "$absent": "hook_lineage=False suppresses SQL child query events",
         "eventType": "COMPLETE",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.query.1"
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.hll_query.1"
         }
     },
     {
         "$absent": "hook_lineage=False suppresses SQL child query events",
         "eventType": "FAIL",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.query.1"
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.hll_query.1"
         }
     },
     {
@@ -154,21 +154,21 @@
         "$absent": "extract_operator_metadata=False skips all extraction incl. SQL child events",
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.query.1"
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.hll_query.1"
         }
     },
     {
         "$absent": "extract_operator_metadata=False skips all extraction incl. SQL child events",
         "eventType": "COMPLETE",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.query.1"
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.hll_query.1"
         }
     },
     {
         "$absent": "extract_operator_metadata=False skips all extraction incl. SQL child events",
         "eventType": "FAIL",
         "job": {
-            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.query.1"
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.hll_query.1"
         }
     }
 ]
