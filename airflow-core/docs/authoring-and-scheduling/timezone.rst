@@ -52,7 +52,7 @@ By default the Web UI will show times in UTC. It is possible to change the timez
 
 .. image:: ../img/ui-timezone-chooser.png
 
-"Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting in the ``[core]`` section.
+"Local" is detected from the browser's timezone. The "Server" value comes from the :ref:`default_timezone <config:core__default_timezone>` setting in the :ref:`[core] <config:core>` section.
 
 The users' selected timezone is stored in LocalStorage so is a per-browser setting.
 
@@ -113,7 +113,7 @@ created in application code is the current time, and ``timezone.utcnow()`` autom
 Default time zone
 '''''''''''''''''
 
-The default time zone is the time zone defined by the ``default_timezone`` setting under ``[core]``. If
+The default time zone is the time zone defined by the :ref:`default_timezone <config:core__default_timezone>` setting under :ref:`[core] <config:core>`. If
 you just installed Airflow it will be set to ``utc``, which is recommended. You can also set it to
 ``system`` or an IANA time zone (e.g. ``Europe/Amsterdam``). Dags are also evaluated on Airflow workers,
 it is therefore important to make sure this setting is equal on all Airflow nodes.

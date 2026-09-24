@@ -87,7 +87,7 @@ from scripts running in the browser.
 ``Access-Control-Allow-Headers``, ``Access-Control-Allow-Methods``, and
 ``Access-Control-Allow-Origin`` headers can be added by setting values for
 ``access_control_allow_headers``, ``access_control_allow_methods``, and
-``access_control_allow_origins`` options in the ``[api]`` section of the
+:ref:`access_control_allow_origins <config:api__access_control_allow_origins>` options in the :ref:`[api] <config:api>` section of the
 ``airflow.cfg`` file.
 
 .. code-block:: ini
@@ -119,7 +119,7 @@ Page size limit
 ---------------
 
 To protect against requests that may lead to application instability, the stable API has a limit of items in response.
-The default is 100 items, but you can change it using ``maximum_page_limit``  option in ``[api]``
+The default is 100 items, but you can change it using :ref:`maximum_page_limit <config:api__maximum_page_limit>`  option in :ref:`[api] <config:api>`
 section in the ``airflow.cfg`` file.
 
 Request Payload Considerations

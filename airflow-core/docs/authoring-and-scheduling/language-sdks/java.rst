@@ -61,7 +61,7 @@ delivery process; only the compiled Java bundle is deployed from the Gradle proj
 Define the Python Dag
 ~~~~~~~~~~~~~~~~~~~~~
 
-For a local installation with the default ``[core] dags_folder``, create
+For a local installation with the default :ref:`[core] dags_folder <config:core__dags_folder>`, create
 ``${AIRFLOW_HOME}/dags/sales_pipeline.py``. More generally, create ``sales_pipeline.py`` in the source location
 used by the deployment's normal Dag delivery process, such as its configured Dags folder, Dag repository, or
 Dag bundle. This path is not relative to the Java Gradle project.
@@ -251,7 +251,7 @@ that process might sync it to ``${AIRFLOW_HOME}/dags/`` or package it in a Dag b
 inside or relative to ``sales-pipeline-java/``.
 
 Configure Airflow so the coordinator scans the parent JAR directory recursively and routes the ``java`` queue
-to it. Add the following ``[sdk]`` section to the file selected by ``AIRFLOW_CONFIG`` (by default,
+to it. Add the following :ref:`[sdk] <config:sdk>` section to the file selected by ``AIRFLOW_CONFIG`` (by default,
 ``${AIRFLOW_HOME}/airflow.cfg``), or set the equivalent ``AIRFLOW__SDK__*`` environment variables:
 
 .. code-block:: ini
@@ -888,7 +888,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
+  The :ref:`[sdk] <config:sdk>` configuration is read at startup, so changes to ``coordinators`` or
   ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
   scheduler (or ``airflow standalone``). A rebuilt bundle JAR, by contrast, is picked up on the next
   task launch without a restart, because a fresh JVM is spawned per task instance.

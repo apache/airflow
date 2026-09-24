@@ -132,7 +132,7 @@ Interleaving of logs
 
 Airflow's remote task logging handlers can broadly be separated into two categories: streaming handlers (such as ElasticSearch, AWS Cloudwatch, and GCP operations logging, formerly stackdriver) and blob storage handlers (e.g. S3, GCS, WASB).
 
-For blob storage handlers, depending on the state of the task, logs could be in a lot of different places and in multiple different files.  For this reason, we need to check all locations and interleave what we find.  To do this we need to be able to parse the timestamp for each line.  If you are using a custom formatter you may need to override the default parser by providing a callable name at Airflow setting ``[logging] interleave_timestamp_parser``.
+For blob storage handlers, depending on the state of the task, logs could be in a lot of different places and in multiple different files.  For this reason, we need to check all locations and interleave what we find.  To do this we need to be able to parse the timestamp for each line.  If you are using a custom formatter you may need to override the default parser by providing a callable name at Airflow setting :ref:`[logging] interleave_timestamp_parser <config:logging__interleave_timestamp_parser>`.
 
 For streaming handlers, no matter the task phase or location of execution, all log messages can be sent to the logging service with the same identifier so generally speaking there isn't a need to check multiple sources and interleave.
 
@@ -180,8 +180,8 @@ Most task handlers send logs upon completion of a task. In order to view logs in
 
 In triggerer, logs are served unless the service is started with option ``--skip-serve-logs``.
 
-The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section, and option ``trigger_log_server_port`` for triggerer.  Defaults are 8793 and 8794, respectively.
-Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[api]`` section. You must ensure that the key matches so that communication can take place without problems.
+The server is running on the port specified by :ref:`worker_log_server_port <config:logging__worker_log_server_port>` option in :ref:`[logging] <config:logging>` section, and option :ref:`trigger_log_server_port <config:logging__trigger_log_server_port>` for triggerer.  Defaults are 8793 and 8794, respectively.
+Communication between the webserver and the worker is signed with the key specified by :ref:`secret_key <config:api__secret_key>` option  in :ref:`[api] <config:api>` section. You must ensure that the key matches so that communication can take place without problems.
 
 We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.
 

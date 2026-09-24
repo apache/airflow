@@ -29,9 +29,9 @@ First you must install sentry requirement:
 
    pip install 'apache-airflow[sentry]'
 
-After that, you need to enable the integration by setting the ``sentry_on`` option in the ``[sentry]`` section to ``True``.
+After that, you need to enable the integration by setting the :ref:`sentry_on <config:sentry__sentry_on>` option in the :ref:`[sentry] <config:sentry>` section to ``True``.
 
-Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` in ``[sentry]`` section. Its template resembles the following: ``{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}``
+Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` in :ref:`[sentry] <config:sentry>` section. Its template resembles the following: ``{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}``
 
 .. code-block:: ini
 
@@ -56,7 +56,7 @@ The ``transport`` option can be used to change the transport used to send events
     [sentry]
     transport = path.to.my.sentry.Transport
 
-You can supply `additional configuration options <https://docs.sentry.io/platforms/python/configuration/options>`__ based on the Python platform via ``[sentry]`` section. Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``.
+You can supply `additional configuration options <https://docs.sentry.io/platforms/python/configuration/options>`__ based on the Python platform via :ref:`[sentry] <config:sentry>` section. Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``.
 
 Tags
 -----

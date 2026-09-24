@@ -63,7 +63,7 @@ Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list
 
 .. warning:: Reference credentials through a Connection — do not inline them
 
-    Bundle ``kwargs`` are stored in the ``[dag_processor] dag_bundle_config_list``
+    Bundle ``kwargs`` are stored in the :ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>`
     configuration, which Airflow exposes through the Config API when
     :ref:`config:api__expose_config` is enabled. Any user authorized to read the
     configuration can read these values verbatim, so they must not contain secrets.
@@ -323,7 +323,7 @@ The setting is resolved using the following precedence (highest to lowest):
 
 1. **Explicit request**: The ``run_on_latest_version`` parameter in the API request body (if provided)
 2. **DAG-level**: The DAG's ``rerun_with_latest_version`` parameter (if ``True`` or ``False``)
-3. **Global config**: The ``[core] rerun_with_latest_version`` option (if set)
+3. **Global config**: The :ref:`[core] rerun_with_latest_version <config:core__rerun_with_latest_version>` option (if set)
 4. **Per-call-site fallback**: ``False`` for clear/rerun, ``True`` for backfills (preserving
    the historical default for each path)
 
@@ -334,7 +334,7 @@ latest version and bundle version regardless of the resolved setting.
 Global Configuration
 ~~~~~~~~~~~~~~~~~~~~
 
-Set organization-wide defaults using the ``[core] rerun_with_latest_version`` option:
+Set organization-wide defaults using the :ref:`[core] rerun_with_latest_version <config:core__rerun_with_latest_version>` option:
 
 .. code-block:: ini
 
@@ -389,7 +389,7 @@ They serve different purposes:
 ``disable_bundle_versioning``
     Turns off version tracking entirely. When set to ``True``, no ``bundle_version`` is
     recorded on DAG runs. Available as a DAG parameter and as a global config option
-    (``[dag_processor] disable_bundle_versioning``).
+    (:ref:`[dag_processor] disable_bundle_versioning <config:dag_processor__disable_bundle_versioning>`).
 
 ``rerun_with_latest_version``
     Controls the default *rerun behavior* while keeping version tracking active. When a user

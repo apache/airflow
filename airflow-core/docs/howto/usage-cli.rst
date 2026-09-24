@@ -134,7 +134,7 @@ The following file formats are supported:
  * ``x11``
 
 By default, Airflow looks for DAGs in the directory specified by the ``dags_folder`` option in the
-``[core]`` section of the ``airflow.cfg`` file.
+:ref:`[core] <config:core>` section of the ``airflow.cfg`` file.
 
 .. note::
 

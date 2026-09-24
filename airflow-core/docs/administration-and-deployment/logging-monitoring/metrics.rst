@@ -261,7 +261,7 @@ Rename Metrics
 --------------
 
 If you want to redirect metrics to a different name, you can configure the ``stat_name_handler`` option
-in ``[metrics]`` section.  It should point to a function that validates the stat name, applies changes
+in :ref:`[metrics] <config:metrics>` section.  It should point to a function that validates the stat name, applies changes
 to the stat name if necessary, and returns the transformed stat name. The function may look as follows:
 
 .. code-block:: python
@@ -331,8 +331,8 @@ On earlier versions, use the ``Stats`` class instead:
 
 .. note::
 
-    If your custom metrics do not appear, check ``[metrics] metrics_allow_list`` and
-    ``[metrics] metrics_block_list`` (see `Allow/Block Lists`_). When
+    If your custom metrics do not appear, check :ref:`[metrics] metrics_allow_list <config:metrics__metrics_allow_list>` and
+    :ref:`[metrics] metrics_block_list <config:metrics__metrics_block_list>` (see `Allow/Block Lists`_). When
     ``metrics_allow_list`` is set, only metrics matching it are emitted, so a custom
     metric that is not listed is silently dropped.
 

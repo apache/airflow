@@ -183,7 +183,7 @@ Dag processor Configuration options
 
 The following config settings can be used to control aspects of the Dag processor.
 However, you can also look at other non-performance-related Dag processor configuration parameters available at
-:doc:`../configurations-ref` in the ``[dag_processor]`` section.
+:doc:`../configurations-ref` in the :ref:`[dag_processor] <config:dag_processor>` section.
 
 - :ref:`config:dag_processor__file_parsing_sort_mode`
   The Dag processor will list and sort the Dag files to decide the parsing order.

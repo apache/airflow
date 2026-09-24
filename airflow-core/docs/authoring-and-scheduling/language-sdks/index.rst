@@ -69,7 +69,7 @@ The execution model has three moving parts.
    to a *coordinator*.
 
 **Coordinators**
-   A coordinator is a Python object registered in the ``[sdk] coordinators`` configuration. This is considered
+   A coordinator is a Python object registered in the :ref:`[sdk] coordinators <config:sdk__coordinators>` configuration. This is considered
    a part of an Airflow worker. When the worker picks up a stub task, it looks up the coordinator mapped to
    that task's specified ``queue``, and uses the coordinator to execute the task. The coordinator is
    responsible for managing the target language's runtime, forwarding messages from, and relaying results back
@@ -139,7 +139,7 @@ documentation on how to do this correctly.
 Coordinator configuration
 -------------------------
 
-Coordinators are registered in ``airflow.cfg`` (or via environment variables) under ``[sdk]``.
+Coordinators are registered in ``airflow.cfg`` (or via environment variables) under :ref:`[sdk] <config:sdk>`.
 
 ``coordinators``
     A JSON object mapping a logical coordinator name to its class and keyword arguments:

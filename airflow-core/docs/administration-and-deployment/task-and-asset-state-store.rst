@@ -22,16 +22,16 @@ Task and Asset State Store Configuration
 
 .. versionadded:: 3.3
 
-The task and asset state store is the persistence layer for :doc:`task state store </core-concepts/task-state-store>` and :doc:`asset state store </core-concepts/asset-state-store>`. By default, both are stored in the Airflow metadata database. This page describes the available configuration options, garbage-collection semantics, and how to provide a custom backend. Configuration (``[state_store]``), the CLI (``airflow state-store``), and the backend base class (:class:`~airflow.sdk.state.BaseStoreBackend`) all use the ``state_store`` name for this feature.
+The task and asset state store is the persistence layer for :doc:`task state store </core-concepts/task-state-store>` and :doc:`asset state store </core-concepts/asset-state-store>`. By default, both are stored in the Airflow metadata database. This page describes the available configuration options, garbage-collection semantics, and how to provide a custom backend. Configuration (:ref:`[state_store] <config:state_store>`), the CLI (``airflow state-store``), and the backend base class (:class:`~airflow.sdk.state.BaseStoreBackend`) all use the ``state_store`` name for this feature.
 
 Configuration reference
 -----------------------
 
-All options live under the ``[state_store]`` section of ``airflow.cfg``.
+All options live under the :ref:`[state_store] <config:state_store>` section of ``airflow.cfg``.
 
 .. note::
 
-   The config section is ``[state_store]``, **not** ``[task_state_store]``.
+   The config section is :ref:`[state_store] <config:state_store>`, **not** ``[task_state_store]``.
 
 ``backend``
 ~~~~~~~~~~~
@@ -86,7 +86,7 @@ Number of rows deleted per batch during garbage collection cleanup. Set to ``0``
 Worker-side backend (``[workers] state_store_backend``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A separate, optional config key under ``[workers]`` lets you route task state store and asset state store values through a worker-side backend before they reach the API server.
+A separate, optional config key under :ref:`[workers] <config:workers>` lets you route task state store and asset state store values through a worker-side backend before they reach the API server.
 
 .. code-block:: ini
 
@@ -160,7 +160,7 @@ If the storage client is synchronous, implement the async methods by offloading 
 
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
 
-Configure the class via ``[state_store] backend``:
+Configure the class via :ref:`[state_store] backend <config:state_store__backend>`:
 
 .. code-block:: ini
 
@@ -171,7 +171,7 @@ Configure the class via ``[state_store] backend``:
 Custom worker-side backends
 ----------------------------
 
-Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_store_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
+Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via :ref:`[workers] state_store_backend <config:workers__state_store_backend>` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
 
 Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBackend`:
 

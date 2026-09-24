@@ -52,7 +52,7 @@ Database URI
 ------------
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
-You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
+You can do this in option :ref:`sql_alchemy_conn <config:database__sql_alchemy_conn>` in section :ref:`[database] <config:database>`. It is also common to configure
 this option with ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
@@ -229,7 +229,7 @@ Async SQLAlchemy engine and the async driver
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In addition to the synchronous engine, Airflow maintains an async SQLAlchemy engine for the metadata database (used e.g. by async API endpoints).
-When ``[database] sql_alchemy_conn_async`` is not set, its URL is derived from ``sql_alchemy_conn`` using ``psycopg`` (psycopg3) as the async driver:
+When :ref:`[database] sql_alchemy_conn_async <config:database__sql_alchemy_conn_async>` is not set, its URL is derived from ``sql_alchemy_conn`` using ``psycopg`` (psycopg3) as the async driver:
 
 .. code-block:: text
 
@@ -306,7 +306,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    services will close idle connections after some time of inactivity (typically 300 seconds),
    which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
    The ``keepalive`` settings can be changed via ``sql_alchemy_connect_args`` configuration parameter
-   :doc:`../configurations-ref` in ``[database]`` section. You can configure the args for example in your
+   :doc:`../configurations-ref` in :ref:`[database] <config:database>` section. You can configure the args for example in your
    local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary
    that stores the configuration parameters. You can read about
    `Postgres Keepalives <https://www.postgresql.org/docs/current/libpq-connect.html>`_.
@@ -412,7 +412,7 @@ Note that the migration script is provided without support and warranty.
 Other configuration options
 ---------------------------
 
-There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:database>` for ``sqlalchemy_*`` option in ``[database]`` section.
+There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:database>` for ``sqlalchemy_*`` option in :ref:`[database] <config:database>` section.
 
 For instance, you can specify a database schema where Airflow will create its required tables. If you want Airflow to install its tables in the ``airflow`` schema of a PostgreSQL database, specify these environment variables:
 

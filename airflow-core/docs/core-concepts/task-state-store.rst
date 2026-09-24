@@ -94,8 +94,8 @@ Writes or overwrites a value for the specified key. Note, ``value`` can be any J
 The optional ``retention`` argument controls when the key expires:
 
 * ``timedelta(...)``: expire after the given duration from the time of the write (e.g. ``timedelta(hours=6)``). The expiry timestamp is computed on the worker before the value is sent to the API server.
-* ``NEVER_EXPIRE``: the key never expires and is skipped during garbage collection, regardless of the global ``[state_store] default_retention_days`` setting.
-* ``None`` (default): fall back to the global ``[state_store] default_retention_days`` config.
+* ``NEVER_EXPIRE``: the key never expires and is skipped during garbage collection, regardless of the global :ref:`[state_store] default_retention_days <config:state_store__default_retention_days>` setting.
+* ``None`` (default): fall back to the global :ref:`[state_store] default_retention_days <config:state_store__default_retention_days>` config.
 
 .. important::
 

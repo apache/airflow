@@ -63,7 +63,7 @@ Environment Variables
   Replace the ``{SECTION}`` placeholder with any section
   and the ``{KEY}`` placeholder with any key in that specified section.
 
-  For example, if you want to set the ``dags_folder`` options in ``[core]`` section,
+  For example, if you want to set the :ref:`dags_folder <config:core__dags_folder>` options in :ref:`[core] <config:core>` section,
   then you should set the ``AIRFLOW__CORE__DAGS_FOLDER`` environment variable.
 
   For more information, see: :doc:`/howto/set-config`.
@@ -75,13 +75,13 @@ Environment Variables
 
   This is only supported by the following config options:
 
-* ``sql_alchemy_conn`` in ``[database]`` section
-* ``fernet_key`` in ``[core]`` section
+* :ref:`sql_alchemy_conn <config:database__sql_alchemy_conn>` in :ref:`[database] <config:database>` section
+* :ref:`fernet_key <config:core__fernet_key>` in :ref:`[core] <config:core>` section
 * ``broker_url`` in ``[celery]`` section
 * ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
-* ``smtp_password`` in ``[smtp]`` section
-* ``secret_key`` in ``[api]`` section
+* ``smtp_password`` in :ref:`[smtp] <config:smtp>` section
+* :ref:`secret_key <config:api__secret_key>` in :ref:`[api] <config:api>` section
 
 .. envvar:: AIRFLOW__{SECTION}__{KEY}_SECRET
 

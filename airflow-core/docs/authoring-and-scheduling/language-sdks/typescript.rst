@@ -209,7 +209,7 @@ check.
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Register the coordinator and route the queue to it under ``[sdk]`` in ``airflow.cfg`` (or the equivalent
+Register the coordinator and route the queue to it under :ref:`[sdk] <config:sdk>` in ``airflow.cfg`` (or the equivalent
 ``AIRFLOW__SDK__*`` environment variables):
 
 .. code-block:: ini
@@ -232,7 +232,7 @@ task instance.
 
 .. note::
 
-  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``*.min.mjs``
+  The coordinator runs inside the Airflow worker, so the :ref:`[sdk] <config:sdk>` config (and the packed ``*.min.mjs``
   bundles in ``bundles_root``) only need to be present wherever tasks actually execute. With
   ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
   inside the scheduler process, so they must be present where the scheduler can read them. The API server
