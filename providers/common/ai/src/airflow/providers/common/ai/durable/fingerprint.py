@@ -218,9 +218,10 @@ def fingerprint_model_request(
                 "params": params,
             }
         )
-    except (TypeError, ValueError, RecursionError):
+    except (TypeError, ValueError, RecursionError) as exc:
         # TypeError from json.dumps and from _canonical refusing an iterator;
-        # ValueError covers PydanticSerializationError.
+        # ValueError covers PydanticSerializationError, whose message names the
+        # offending type and is the only pointer to the setting at fault.
         # RecursionError because _canonical walks the payload before json.dumps can
         # apply its own circular-reference check, so a self-referencing value hits
         # the recursion limit here instead of raising ValueError there.
@@ -229,6 +230,7 @@ def fingerprint_model_request(
             "execute live on retry. If the cause is in model settings or message history, every "
             "later model step of this run is affected too",
             step=step,
+            error=str(exc),
         )
         return None
 
@@ -255,10 +257,11 @@ def fingerprint_tool_call(
     """
     try:
         return _digest({"name": name, "args": tool_args, "tool_call_id": tool_call_id})
-    except (TypeError, ValueError, RecursionError):
+    except (TypeError, ValueError, RecursionError) as exc:
         log.warning(
             "Durable: could not fingerprint tool call; this step will not be cached and will "
             "execute live on retry",
+            error=str(exc),
             tool=name,
             step=step,
         )
