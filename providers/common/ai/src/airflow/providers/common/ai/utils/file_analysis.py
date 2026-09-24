@@ -26,7 +26,7 @@ import logging
 from bisect import insort
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 # bz2/lzma are optional CPython extensions and may be missing from some interpreter builds
 try:
@@ -347,7 +347,7 @@ def _prepare_file(
                 f"File {path} has format {file_format!r}; set multi_modal=True to analyze images or PDFs."
             )
         prepared.attachment = BinaryContent(
-            data=_read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes),
+            data=read_bytes(path, compression=compression, max_bytes=max_content_bytes),
             media_type=_MEDIA_TYPES[file_format],
             identifier=str(path),
         )
@@ -376,6 +376,13 @@ def _prepare_file(
         else "",
     )
     return prepared
+
+
+def detect_compression(path: ObjectStoragePath) -> str | None:
+    """Return the codec a path's last suffix names, if this Python build can decompress it."""
+    suffixes = path.suffixes
+    codec = _COMPRESSION_SUFFIXES.get(suffixes[-1].removeprefix(".").lower()) if suffixes else None
+    return codec if codec in _DECOMPRESSORS else None
 
 
 def detect_file_format(path: ObjectStoragePath) -> tuple[str, str | None]:
@@ -431,7 +438,7 @@ def _render_text_content(
 def _render_text_like(
     path: ObjectStoragePath, *, compression: str | None, max_content_bytes: int
 ) -> _RenderResult:
-    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    raw_bytes = read_bytes(path, compression=compression, max_bytes=max_content_bytes)
     text = _decode_text(raw_bytes)
     return _RenderResult(text=_truncate_text(text), estimated_rows=None, content_size_bytes=len(raw_bytes))
 
@@ -439,7 +446,7 @@ def _render_text_like(
 def _render_json(
     path: ObjectStoragePath, *, compression: str | None, max_content_bytes: int
 ) -> _RenderResult:
-    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    raw_bytes = read_bytes(path, compression=compression, max_bytes=max_content_bytes)
     decoded = _decode_text(raw_bytes)
     document = json.loads(decoded)
     if isinstance(document, list):
@@ -457,7 +464,7 @@ def _render_json(
 def _render_csv(
     path: ObjectStoragePath, *, compression: str | None, sample_rows: int, max_content_bytes: int
 ) -> _RenderResult:
-    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    raw_bytes = read_bytes(path, compression=compression, max_bytes=max_content_bytes)
     decoded = _decode_text(raw_bytes)
     reader = list(csv.reader(io.StringIO(decoded)))
     if not reader:
@@ -473,6 +480,18 @@ def _render_csv(
         estimated_rows=len(rows),
         content_size_bytes=len(raw_bytes),
     )
+
+
+def sample_columnar_file(
+    path: ObjectStoragePath, *, file_format: Literal["parquet", "avro"], sample_rows: int, max_bytes: int
+) -> str:
+    """
+    Describe a Parquet or Avro file for a model: its schema and its first ``sample_rows`` rows.
+
+    :raises LLMFileAnalysisLimitExceededError: if the file is larger than ``max_bytes``.
+    """
+    render = _render_parquet if file_format == "parquet" else _render_avro
+    return render(path, sample_rows=sample_rows, max_content_bytes=max_bytes).text
 
 
 def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int) -> _RenderResult:
@@ -498,17 +517,14 @@ def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_by
 
         schema = ", ".join(f"{field.name}: {field.type}" for field in parquet_file.schema_arrow)
         sampled_rows: list[dict[str, Any]] = []
-        if sample_rows > 0 and num_rows > 0 and parquet_file.num_row_groups > 0:
-            remaining_rows = sample_rows
-            for row_group_index in range(parquet_file.num_row_groups):
-                if remaining_rows <= 0:
+        if sample_rows > 0 and num_rows > 0:
+            # Decode only the first rows: a whole row group can decompress to many times the
+            # file's size, which the size limit above does not bound.
+            for batch in parquet_file.iter_batches(batch_size=sample_rows):
+                sampled_rows.extend(batch.to_pylist())
+                if len(sampled_rows) >= sample_rows:
                     break
-                row_group = parquet_file.read_row_group(row_group_index)
-                if row_group.num_rows == 0:
-                    continue
-                group_rows = row_group.slice(0, remaining_rows).to_pylist()
-                sampled_rows.extend(group_rows)
-                remaining_rows -= len(group_rows)
+            sampled_rows = sampled_rows[:sample_rows]
     payload = [f"Schema: {schema}", "Sample rows:", dumps_masked(sampled_rows, indent=2)]
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),
@@ -559,7 +575,12 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
     )
 
 
-def _read_raw_bytes(path: ObjectStoragePath, *, compression: str | None, max_bytes: int) -> bytes:
+def read_bytes(path: ObjectStoragePath, *, compression: str | None, max_bytes: int) -> bytes:
+    """
+    Read ``path``, decompressing it with ``compression``, and refuse more than ``max_bytes``.
+
+    :raises LLMFileAnalysisLimitExceededError: if the content is larger than ``max_bytes``.
+    """
     with path.open("rb") as handle:
         if compression is None:
             return _read_limited_bytes(handle, path=path, max_bytes=max_bytes)

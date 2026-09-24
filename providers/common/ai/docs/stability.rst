@@ -172,3 +172,6 @@ Everything this provider ships that is not in the table above is experimental.
      - Written against Strands 1.56 and ADK 2.9.1. CI does not run the tests of the two
        adapters, because both frameworks exclude dependency versions that Airflow's
        development environment uses.
+   * - :class:`~airflow.providers.common.ai.toolsets.object_storage.ObjectStorageToolset`
+       (:doc:`toolsets/object_storage`)
+     - New; its tools and read limits may change after first use.
