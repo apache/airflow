@@ -702,9 +702,10 @@ class CloudSqlProxyRunner(LoggingMixin):
         extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
         key_path = get_field(extras, "key_path")
         keyfile_dict = get_field(extras, "keyfile_dict")
-        credential_file_flag = (
-            "--credentials-file" if self.sql_proxy_major_version == 2 else "-credential_file"
-        )
+        if self.sql_proxy_major_version == 2:
+            credential_file_flag = "--credentials-file"
+        else:
+            credential_file_flag = "-credential_file"
         if key_path:
             credential_params = [credential_file_flag, key_path]
         elif keyfile_dict:
