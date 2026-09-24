@@ -686,14 +686,14 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
     :param role_arn: The ARN of the IAM role with permissions to create the knowledge base. (templated)
     :param storage_config: Configuration details of the vector database used for the knowledge base.
         Omit when creating a managed knowledge base. (templated)
-    :param knowledge_base_configuration: Configuration details for the knowledge base. Use this to create
-        managed knowledge bases or to provide a custom self-managed configuration. (templated)
     :param wait_for_indexing: Vector indexing can take some time and there is no apparent way to check the state
         before trying to create the Knowledge Base.  If this is True, and creation fails due to the index not
         being available, the operator will wait and retry.  (default: True) (templated)
     :param indexing_error_retry_delay: Seconds between retries if an index error is encountered. (default 5) (templated)
     :param indexing_error_max_attempts: Maximum number of times to retry when encountering an index error. (default 20) (templated)
     :param create_knowledge_base_kwargs: Any additional optional parameters to pass to the API call. (templated)
+    :param knowledge_base_configuration: Configuration details for the knowledge base. Use this to create
+        managed knowledge bases or to provide a custom self-managed configuration. (templated)
 
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
@@ -732,7 +732,6 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         embedding_model_arn: str | None = None,
         role_arn: str | None = None,
         storage_config: dict[str, Any] | None = None,
-        knowledge_base_configuration: dict[str, Any] | None = None,
         create_knowledge_base_kwargs: dict[str, Any] | None = None,
         wait_for_indexing: bool = True,
         indexing_error_retry_delay: int = 5,  # seconds
@@ -741,6 +740,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        knowledge_base_configuration: dict[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
