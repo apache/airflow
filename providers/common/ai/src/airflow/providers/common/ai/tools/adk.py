@@ -36,6 +36,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.tools import AirflowTool, collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
+from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
 if TYPE_CHECKING:
     from google.adk.agents.readonly_context import ReadonlyContext
@@ -102,7 +103,7 @@ class _AirflowAdkTool(BaseTool):
 
     async def run_async(self, *, args: dict[str, Any], tool_context: ToolContext) -> dict[str, Any]:
         # ADK does not identify the model turn, so calls that run at the same time count once.
-        with tool_call_scope(run=tool_context.invocation_id):
+        with calling_framework("adk"), tool_call_scope(run=tool_context.invocation_id):
             result = await self._tool.call(args)
         return {"error": result.content} if result.is_error else {"result": result.content}
 

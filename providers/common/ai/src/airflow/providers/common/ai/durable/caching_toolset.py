@@ -26,9 +26,11 @@ from pydantic_ai.toolsets.wrapper import WrapperToolset
 
 from airflow.providers.common.ai.durable.base import build_tool_step_key
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
+from airflow.providers.common.ai.utils.tool_metrics import record_tool_call
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
 if TYPE_CHECKING:
-    from pydantic_ai.toolsets.abstract import ToolsetTool
+    from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger
@@ -83,6 +85,12 @@ class CachingToolset(WrapperToolset[Any]):
                 log.debug("Durable: replayed cached tool result", step=step, tool=name)
                 if self.replay_usage is not None:
                     self.replay_usage.record_tool_replay(step)
+                leaf = _innermost(self.wrapped)
+                if not isinstance(leaf, AirflowToolset):
+                    # Inside a combined or dynamic toolset, the tool knows which one it came from.
+                    leaf = _innermost(tool.toolset)
+                if isinstance(leaf, AirflowToolset):
+                    record_tool_call(type(leaf).__name__, "replayed")
                 return cached
             log.warning(
                 "Durable: cached tool result does not match the current tool call; "
@@ -113,3 +121,10 @@ class CachingToolset(WrapperToolset[Any]):
                 tool=name,
             )
         return result
+
+
+def _innermost(toolset: AbstractToolset[Any]) -> AbstractToolset[Any]:
+    """Return the toolset under any wrappers, such as the masking wrapper AgentOperator adds."""
+    while isinstance(toolset, WrapperToolset):
+        toolset = toolset.wrapped
+    return toolset

@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from typing import Any, get_type_hints
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -32,6 +33,9 @@ from pydantic_core import SchemaValidator, core_schema
 
 from airflow.providers.common.ai.tools import ToolCallError
 from airflow.providers.common.ai.toolsets.langchain_bridge import airflow_toolset_to_langchain_tools
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
 _PASSTHROUGH = SchemaValidator(core_schema.any_schema())
 # Coerces the ``n`` field to int so we can assert the args_validator runs.
@@ -301,3 +305,13 @@ class TestErrorStatusAndMasking:
         echo = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["echo"]
 
         assert asyncio.run(echo.ainvoke({"text": registered_secret})) == "echo: ***"
+
+    def test_calls_are_counted_as_langchain(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        list_tables = {t.name: t for t in airflow_toolset_to_langchain_tools(ts)}["list_tables"]
+
+        with patch("airflow.providers.common.ai.utils.tool_metrics.Stats", MagicMock(spec=["incr"])) as stats:
+            list_tables.invoke({})
+
+        assert stats.incr.call_args.kwargs["tags"]["framework"] == "langchain"

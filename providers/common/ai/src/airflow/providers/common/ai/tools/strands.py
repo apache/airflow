@@ -38,6 +38,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
+from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -136,7 +137,8 @@ def _to_strands_tool(tool: AirflowTool, current_run: Callable[[], object]) -> Py
 
     async def call_airflow_tool(tool_use: ToolUse, **invocation_state: Any) -> StrandsToolResult:
         # Strands gives every model turn of the event loop its own cycle ID.
-        with tool_call_scope(run=current_run(), turn=invocation_state.get("event_loop_cycle_id")):
+        turn = invocation_state.get("event_loop_cycle_id")
+        with calling_framework("strands"), tool_call_scope(run=current_run(), turn=turn):
             result = await tool.call(tool_use["input"])
         return {
             "toolUseId": tool_use["toolUseId"],

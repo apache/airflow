@@ -75,8 +75,9 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands and ADK integrations, and the framework-neutral tool interface under them, are
-experimental: they can change or be removed in a minor release of this provider.
+The Strands and ADK integrations, the framework-neutral tool interface under them, and
+the tracing helper are experimental: they can change or be removed in a minor release of
+this provider.
 
 Tested versions
 ---------------

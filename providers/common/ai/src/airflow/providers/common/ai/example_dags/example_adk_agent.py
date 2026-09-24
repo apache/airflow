@@ -63,6 +63,7 @@ def example_adk_agent():
         from google.genai import types
 
         from airflow.providers.common.ai.tools.adk import AirflowTools
+        from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
         from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
         llm = BaseHook.get_connection(LLM_CONN_ID)
@@ -91,7 +92,9 @@ def example_adk_agent():
                     answer = "".join(part.text or "" for part in event.content.parts)
             return answer
 
-        return asyncio.run(ask())
+        # Spans carry the task's identity and no prompt text; see the tracing section of the guide.
+        with agent_framework_tracing():
+            return asyncio.run(ask())
 
     run_adk_agent()
 

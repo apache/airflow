@@ -20,6 +20,7 @@ import asyncio
 import copy
 import json
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -195,3 +196,12 @@ class TestAgentRun:
 
         assert registered_secret not in answer
         assert "key=***" in answer
+
+    def test_the_toolsets_calls_are_counted_as_strands(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+
+        with patch("airflow.providers.common.ai.utils.tool_metrics.Stats", MagicMock(spec=["incr"])) as stats:
+            _run_agent(AirflowTools(ts), "list_tables", {})
+
+        assert stats.incr.call_args.kwargs["tags"]["framework"] == "strands"

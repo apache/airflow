@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
 from airflow.providers.common.ai.utils.masking import mask_secrets
+from airflow.providers.common.ai.utils.tool_metrics import calling_framework, current_framework
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -121,7 +122,9 @@ class AirflowTool:
         start = time.monotonic()
         failure: str | None = None
         try:
-            result = await self.function(arguments)
+            # A call that reaches here without a framework adapter is counted as "none".
+            with calling_framework(current_framework() or "none"):
+                result = await self.function(arguments)
         except Exception as e:
             log.warning("Tool %s failed after %.2fs", self.name, time.monotonic() - start, exc_info=True)
             failure = (
