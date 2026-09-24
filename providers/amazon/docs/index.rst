@@ -89,7 +89,7 @@ apache-airflow-providers-amazon package
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 9.36.0
+Release: 9.37.0
 
 Provider package
 ----------------
@@ -203,5 +203,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 9.36.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 9.36.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 9.37.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.37.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.37.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.37.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 9.37.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.37.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.37.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.37.0-py3-none-any.whl.sha512>`__)
