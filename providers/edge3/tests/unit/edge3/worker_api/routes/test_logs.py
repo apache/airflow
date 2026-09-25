@@ -86,6 +86,36 @@ class TestLogsApiRoutes:
             )
         }
 
+    @conf_vars({("api_auth", "jwt_secret"): "edge-log-test-secret"})
+    def test_push_logs_missing_ti_returns_404(self):
+        app = FastAPI()
+        app.include_router(logs_router, prefix="/edge_worker/v1")
+        method = f"logs/push/{DAG_ID}/nonexistent_task/{RUN_ID}/1/-1"
+        token = JWTGenerator(
+            secret_key=conf.get("api_auth", "jwt_secret"), valid_for=60, audience="api"
+        ).generate(extras={"method": method})
+        jwt_validator.cache_clear()
+        try:
+            with TestClient(app, raise_server_exceptions=False) as client:
+                response = client.post(
+                    f"/edge_worker/v1/{method}",
+                    headers={"Authorization": token},
+                    json={
+                        "log_chunk_data": "This is Lorem Ipsum log data",
+                        "log_chunk_time": timezone.utcnow().isoformat(),
+                    },
+                )
+        finally:
+            jwt_validator.cache_clear()
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": (
+                f"TaskInstance not found for dag_id={DAG_ID}, task_id=nonexistent_task, "
+                f"run_id={RUN_ID}, map_index=-1"
+            )
+        }
+
     def test_push_logs(self, session: Session):
         log_data = PushLogsBody(
             log_chunk_data="This is Lorem Ipsum log data", log_chunk_time=timezone.utcnow()

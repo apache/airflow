@@ -88,6 +88,7 @@ def logfile_path(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
         ]
     ),
 )
