@@ -162,9 +162,10 @@ class TestQdrantSearchOperator:
         """Fields that users commonly template from upstream tasks / DAG params are declared.
 
         ``query`` in particular must be templatable so a RAG DAG can XCom-pull an
-        embedding from an upstream task into the search step.
+        embedding from an upstream task into the search step, and ``conn_id`` is
+        templated like every other provider operator's connection id.
         """
-        expected = {"collection_name", "query", "query_filter", "limit"}
+        expected = {"collection_name", "query", "query_filter", "limit", "conn_id"}
         assert expected.issubset(set(QdrantSearchOperator.template_fields))
 
     def test_default_conn_id_matches_hook(self):
