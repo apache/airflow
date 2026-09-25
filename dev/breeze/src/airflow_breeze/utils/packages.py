@@ -90,7 +90,6 @@ class ProviderPackageDetails(NamedTuple):
     provider_description: str
     dependencies: list[str]
     versions: list[str]
-    min_python_version: str | None
     excluded_python_versions: list[str]
     plugins: list[PluginInfo]
     removed: bool
@@ -588,7 +587,6 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         provider_description=provider_info["description"],
         dependencies=dependencies,
         versions=provider_info["versions"],
-        min_python_version=provider_info.get("min-python-version"),
         excluded_python_versions=provider_info.get("excluded-python-versions", []),
         plugins=plugins,
         removed=provider_info["state"] == "removed",
@@ -617,10 +615,8 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
+    python_requires = "~=3.10"
     provider_details = get_provider_details(provider_id=provider_id)
-    python_requires = (
-        f">={provider_details.min_python_version}" if provider_details.min_python_version else "~=3.10"
-    )
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}.*"
     return python_requires
@@ -734,7 +730,7 @@ def get_provider_jinja_context(
     ]
     cross_providers_dependencies = get_cross_provider_dependencies_for_extras(provider_id)
 
-    requires_python_version = f">={provider_details.min_python_version or DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
     for excluded_python_version in provider_details.excluded_python_versions:
         requires_python_version += f",!={excluded_python_version}.*"

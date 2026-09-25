@@ -220,9 +220,6 @@ if __name__ == "__main__":
         unique_sorted_dependencies[key]["excluded-python-versions"] = excluded_versions or []
         excluded_platforms = ALL_PROVIDERS[key].get("excluded-platforms")
         unique_sorted_dependencies[key]["excluded-platforms"] = excluded_platforms or []
-        unique_sorted_dependencies[key]["min-python-version"] = ALL_PROVIDERS[key].get(
-            "min-python-version", ""
-        )
         unique_sorted_dependencies[key]["state"] = STATES[key]
     if errors:
         console.print()

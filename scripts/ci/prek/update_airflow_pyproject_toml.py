@@ -236,20 +236,19 @@ def get_exclusion_marker(provider_dependencies: dict[str, Any]) -> str:
     """
     Return an environment marker string for a provider's supported environments.
 
-    Combines ``min-python-version``, ``excluded-python-versions``, and
-    ``excluded-platforms`` from the provider metadata into a single PEP 508 marker.
+    Combines ``excluded-python-versions`` and ``excluded-platforms`` from the
+    provider metadata into a single PEP 508 marker.
 
     If none is set, it returns an empty str.
     """
     if not provider_dependencies:
         return ""
     conditions = []
-    if min_python_version := provider_dependencies.get("min-python-version"):
-        conditions.append(f'python_full_version >=\\"{min_python_version}\\"')
-    conditions.extend(
-        f'python_version !=\\"{version}\\"'
-        for version in provider_dependencies.get("excluded-python-versions", [])
-    )
+    for version in provider_dependencies.get("excluded-python-versions", []):
+        if version.count(".") == 2:
+            conditions.append(f'python_full_version !=\\"{version}.*\\"')
+        else:
+            conditions.append(f'python_version !=\\"{version}\\"')
     for platform in provider_dependencies.get("excluded-platforms", []):
         conditions.extend(
             f'platform_machine !=\\"{machine}\\"' for machine in EXCLUDED_PLATFORM_MACHINES.get(platform, [])

@@ -20,8 +20,8 @@ import pytest
 from check_excluded_provider_markers import _check_dependency, _get_excluded_providers
 
 
-def _excluded(python=None, machines=None, floor=""):
-    return {"python": list(python or []), "machines": list(machines or []), "floor": floor}
+def _excluded(python=None, machines=None):
+    return {"python": list(python or []), "machines": list(machines or [])}
 
 
 class TestCheckDependency:
@@ -117,32 +117,60 @@ class TestCheckDependencyPlatform:
         assert _check_dependency(dep, excluded) == []
 
 
-class TestCheckDependencyPythonFloor:
-    EXCLUDED = {
-        "apache-airflow-providers-example": _excluded(floor="3.10.1"),
-    }
+@pytest.mark.parametrize(
+    ("version", "marker", "error"),
+    [
+        ("3.10.0", "", 'missing python_full_version !="3.10.0.*"'),
+        ("3.10.0", 'python_full_version != "3.10.1.*"', 'missing python_full_version !="3.10.0.*"'),
+        ("3.10.0", 'python_full_version != "3.10.0"', 'missing python_full_version !="3.10.0.*"'),
+        ("3.10.0", 'python_version != "3.10"', "excludes supported Python 3.10.1"),
+        (
+            "3.10.1",
+            'python_full_version != "3.10.0.*" and python_full_version != "3.10.1.*"',
+            "excludes supported Python 3.10.0",
+        ),
+        ("3.10.0", 'python_full_version != "3.10.0.*"', None),
+        ("3.10.1", 'python_full_version != "3.10.1.*"', None),
+        ("3.11.0", 'python_full_version != "3.11.0.*"', None),
+    ],
+)
+def test_patch_exclusion_marker(version, marker, error):
+    dependency = "apache-airflow-providers-example>=1.0.0"
+    if marker:
+        dependency += f"; {marker}"
+    excluded = {"apache-airflow-providers-example": {"python": [version], "machines": []}}
 
-    @pytest.mark.parametrize("floor", ["3.10.0", "3.10.1"])
-    def test_no_error_when_floor_marker_present(self, floor):
-        dependency = f'apache-airflow-providers-example>=1.0.0; python_full_version >= "{floor}"'
-        assert (
-            _check_dependency(dependency, {"apache-airflow-providers-example": _excluded(floor=floor)}) == []
-        )
+    errors = _check_dependency(dependency, excluded)
 
-    @pytest.mark.parametrize(
-        "dependency",
-        [
-            "apache-airflow-providers-example>=1.0.0",
-            'apache-airflow-providers-example>=1.0.0; python_full_version >= "3.10.0"',
-            'apache-airflow-providers-example>=1.0.0; python_full_version >= "3.10.2"',
-        ],
+    if error:
+        assert any(error in message and "apache-airflow-providers-example" in message for message in errors)
+    else:
+        assert errors == []
+
+
+def test_patch_minor_and_platform_exclusions_together():
+    dependency = (
+        "apache-airflow-providers-example>=1.0.0; "
+        'python_full_version != "3.10.0.*" and python_version != "3.14" '
+        'and platform_machine != "arm64"'
     )
-    def test_error_when_floor_marker_missing_or_not_equivalent(self, dependency):
-        errors = _check_dependency(dependency, self.EXCLUDED)
-        assert errors == [
-            'Dependency on "apache-airflow-providers-example" is missing '
-            'python_full_version >="3.10.1" marker: ' + dependency
-        ]
+    excluded = {"apache-airflow-providers-example": {"python": ["3.10.0", "3.14"], "machines": ["arm64"]}}
+
+    assert _check_dependency(dependency, excluded) == []
+
+
+@pytest.mark.parametrize(
+    ("versions", "marker"),
+    [
+        (["3.10.0", "3.10.1"], 'python_full_version != "3.10.0.*" and python_full_version != "3.10.1.*"'),
+        (["3.10.0", "3.10"], 'python_full_version != "3.10.0.*" and python_version != "3.10"'),
+    ],
+)
+def test_adjacent_excluded_patches_do_not_count_as_supported(versions, marker):
+    dependency = f"apache-airflow-providers-example>=1.0.0; {marker}"
+    excluded = {"apache-airflow-providers-example": {"python": versions, "machines": []}}
+
+    assert _check_dependency(dependency, excluded) == []
 
 
 @pytest.fixture(scope="module")

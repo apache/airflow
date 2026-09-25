@@ -1179,16 +1179,6 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
-      - id: check-provider-yaml-exception-rationales
-        name: Check provider.yaml compatibility exceptions have rationale comments
-        language: python
-        entry: ./scripts/ci/prek/check_provider_yaml_exception_rationales.py
-        files: >
-          (?x)
-          ^providers/.*/provider\.yaml$|
-          ^scripts/ci/prek/check_provider_yaml_exception_rationales\.py$
-        pass_filenames: false
-        require_serial: true
       - id: check-provider-config-fallback-defaults
         name: Check provider_config_fallback_defaults.cfg is in sync with provider.yaml files
         language: python
