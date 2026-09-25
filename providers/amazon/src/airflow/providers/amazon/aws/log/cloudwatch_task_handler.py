@@ -157,13 +157,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         )
 
     def _build_handler(self, stream_name: str | None = None) -> watchtower.CloudWatchLogHandler:
+        create_log_group = stream_name is None
         if stream_name is None:
             stream_name = self.log_stream_name
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=stream_name,
-            create_log_group=stream_name is None,
+            create_log_group=create_log_group,
             use_queues=True,
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
