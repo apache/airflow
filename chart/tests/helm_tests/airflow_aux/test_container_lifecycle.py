@@ -226,3 +226,22 @@ class TestContainerLifecycleHooks:
         assert jmespath.search("spec.template.spec.containers[1].lifecycle", docs[0]) == {
             hook_type: LIFECYCLE_PARSED
         }
+
+    @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
+    def test_log_groomer_sidecar_container_setting_dag_processor(self, hook_type):
+        docs = render_chart(
+            name=RELEASE_NAME,
+            values={
+                "dagProcessor": {
+                    "logGroomerSidecar": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}
+                },
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+            ],
+        )
+
+        assert (
+            jmespath.search(f"spec.template.spec.containers[1].lifecycle.{hook_type}", docs[0])
+            == LIFECYCLE_PARSED
+        )

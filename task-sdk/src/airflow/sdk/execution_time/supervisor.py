@@ -1732,7 +1732,7 @@ class ActivitySubprocess(WatchedSubprocess):
             return
 
         if self._pending_terminal_state_msg is not None:
-            if isinstance(self._pending_terminal_state_msg, TaskState):
+            if isinstance(self._pending_terminal_state_msg, (TaskState, RetryTask)):
                 self._send_terminal_state_msg(self._pending_terminal_state_msg)
             else:
                 self._replay_pending_terminal_state_msg()
@@ -1955,7 +1955,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
         Not valid before the process has finished.
         """
-        if self._terminal_state == SERVER_TERMINATED:
+        if self._terminal_state in (SERVER_TERMINATED, TaskInstanceState.UP_FOR_RETRY):
             return self._terminal_state
         if self._exit_code == 0:
             return self._terminal_state or TaskInstanceState.SUCCESS
@@ -1977,7 +1977,9 @@ class ActivitySubprocess(WatchedSubprocess):
             log.debug("Received message from task runner", msg=msg)
         super()._handle_request(msg, log, req_id)
 
-    def _handle_task_state(self, msg: TaskState, log: FilteringBoundLogger, req_id: int) -> RequestResult:
+    def _handle_task_state(
+        self, msg: TaskState | RetryTask, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
         if self._terminal_state != SERVER_TERMINATED:
             self._terminal_state = msg.state
             self._pending_terminal_state_msg = msg
@@ -1986,7 +1988,7 @@ class ActivitySubprocess(WatchedSubprocess):
         return None, {}
 
     def _handle_finished_task(
-        self, msg: SucceedTask | RetryTask, log: FilteringBoundLogger, req_id: int
+        self, msg: SucceedTask, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
         self._task_end_time_monotonic = time.monotonic()
         self._rendered_map_index = msg.rendered_map_index
@@ -2295,7 +2297,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(GetTaskStateStore, _handle_get_task_state_store),
                 register_request_method(RescheduleTask, _handle_reschedule_task),
                 register_request_method(ResendLoggingFD, _handle_resend_logging_fd),
-                register_request_method(RetryTask, _handle_finished_task),
+                register_request_method(RetryTask, _handle_task_state),
                 register_request_method(SetAssetStateStoreByName, _handle_set_asset_state_store_by_name),
                 register_request_method(SetAssetStateStoreByUri, _handle_set_asset_state_store_by_uri),
                 register_request_method(SetRenderedFields, _handle_set_rendered_fields),
@@ -2492,12 +2494,12 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
                 state, msg, error = run(ti, context, log)
                 context["exception"] = error
-                finalize(ti, state, context, log, error)
-
-                # In the normal subprocess model, the task runner calls this before exiting.
-                # Since we're running in-process, we manually notify the API server that
-                # the task has finished—unless the terminal state was already sent explicitly.
-                supervisor.update_task_state_if_needed()
+                try:
+                    finalize(ti, state, context, log, error)
+                finally:
+                    # In the normal subprocess model, the supervisor reports pending outcomes after
+                    # the child exits; in-process execution must do this even if finalization raises.
+                    supervisor.update_task_state_if_needed()
 
         return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
 

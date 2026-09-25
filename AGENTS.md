@@ -191,8 +191,6 @@ Before working on an issue, check for existing PRs. Push only to the user's fork
 never upstream or `main`. Never list an agent as a commit co-author. Retain the
 required Gen-AI disclosure and GitHub-message attribution; do not tag individuals
 outside the exceptions in the message guidance. Drafting does not authorize posting.
-Agent-drafted PR descriptions start with a `## Human Summary` that the user types and
-you paste verbatim — never write, suggest, or paraphrase it yourself.
 
 ## apache-magpie framework
 
@@ -209,6 +207,10 @@ own agent harness. In Claude Code:
 
 `magpie@apache-magpie` installs every family at once; other families
 (`magpie-security`, `magpie-release-management`, …) install individually.
+`magpie-release-management` is in the project floor (`.apache-magpie.lock`):
+its `verify-rc` skill verifies a release candidate and, per
+[`.apache-magpie-overrides/release-verify-rc.md`](.apache-magpie-overrides/release-verify-rc.md),
+can test your own changes against a providers wave.
 The contributor-facing summary lives in the [Agent-assisted contribution
 section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 
