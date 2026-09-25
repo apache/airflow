@@ -32,8 +32,8 @@ export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
  *  no handlers keeps an empty `tasks` list so `airflow-ts-pack` can warn instead of dropping it.
  *
  *  `dag_source_paths` names the source file each *native* Dag was declared in — captured at
- *  construction time from `airflow-ts-pack`'s module-source tag. Mixed-language Dags (those named
- *  only by task handlers) live in Python and are absent here. */
+ *  construction time from `airflow-ts-pack`'s module-source tag. Mixed-lang Dags (owned by
+ *  Python) are absent here. */
 export interface BundleManifest {
   supervisor_schema_version: string;
   task_handlers: Record<string, { tasks: string[] }>;
@@ -57,8 +57,8 @@ export function buildBundleManifest(bundle: Bundle): BundleManifest {
       writable: true,
     });
   }
-  // Second pass: only native Dags carry a source path. Task-handler-only Dags
-  // are absent, since their sources live in Python.
+  // Second pass: only native Dags carry a source path. Mixed-lang Dags
+  // (owned by Python) are absent.
   for (const [dagId, dag] of bundleDags(bundle)) {
     const source = getDagDefinedIn(dag);
     if (source === undefined) continue;

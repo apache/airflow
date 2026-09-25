@@ -29,8 +29,7 @@ import {
   EMBEDDED_LAYOUT_PREFIX,
   EMBEDDED_METADATA_PREFIX,
   EMBEDDED_SOURCE_CLOSE,
-  EMBEDDED_SOURCE_OPEN_PREFIX,
-  EMBEDDED_SOURCE_OPEN_SUFFIX,
+  EMBEDDED_SOURCE_MARKER,
   encodeBundle,
 } from "../../src/cli/bundle-encoder.js";
 import { parsePackArgs, runPack } from "../../src/cli/pack.js";
@@ -89,7 +88,7 @@ function parseHeader(line: string): TestBundleHeader {
 }
 
 function openMarkerFor(path: string): string {
-  return `${EMBEDDED_SOURCE_OPEN_PREFIX}${path}${EMBEDDED_SOURCE_OPEN_SUFFIX}`;
+  return `${EMBEDDED_SOURCE_MARKER}${path}\n`;
 }
 
 describe("parsePackArgs", () => {
@@ -97,15 +96,13 @@ describe("parsePackArgs", () => {
     expect(parsePackArgs(["src/main.ts"])).toEqual({
       entry: "src/main.ts",
       outfile: path.join("dist", "bundle.min.mjs"),
-      source: "main.ts",
     });
   });
 
-  it("parses --outdir and --source overrides", () => {
-    expect(parsePackArgs(["src/main.ts", "--outdir", "build", "--source", "pipeline.ts"])).toEqual({
+  it("parses --outdir override", () => {
+    expect(parsePackArgs(["src/main.ts", "--outdir", "build"])).toEqual({
       entry: "src/main.ts",
       outfile: path.join("build", "bundle.min.mjs"),
-      source: "pipeline.ts",
     });
   });
 
@@ -113,7 +110,6 @@ describe("parsePackArgs", () => {
     expect(parsePackArgs(["src/main.ts", "--outfile", "out/sales.min.mjs"])).toEqual({
       entry: "src/main.ts",
       outfile: "out/sales.min.mjs",
-      source: "main.ts",
     });
   });
 
@@ -147,8 +143,7 @@ describe("encodeBundle", () => {
         dag_source_paths: { my_dag: "src/my_dag.ts" },
       },
       sdkVersion: "0.1.0",
-      entrypointName: 'we"ird.ts',
-      entrypointSources: { "src/my_dag.ts": source },
+      sourceFiles: { "src/my_dag.ts": source },
       executable,
     });
 
@@ -174,7 +169,7 @@ describe("encodeBundle", () => {
 
     const metadata = bundle.subarray(metadataStart, metadataEnd).toString("utf-8");
     expect(metadata).toBe(
-      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"entrypoint":"we\\"ird.ts","dag_source_paths":{"my_dag":"src/my_dag.ts"},"task_handlers":{"my_dag":{"tasks":["a","b\\"c"]}}}',
+      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"dag_source_paths":{"my_dag":"src/my_dag.ts"},"task_handlers":{"my_dag":{"tasks":["a","b\\"c"]}}}',
     );
 
     expect(header).not.toHaveProperty("version");
@@ -195,8 +190,7 @@ describe("encodeBundle", () => {
         },
       },
       sdkVersion: "0.1.0",
-      entrypointName: "main.ts",
-      entrypointSources: {
+      sourceFiles: {
         "src/main.ts": "// orders\nconst orders = 1;\n",
         "src/dags/reports.ts": "// reports\nconst reports = 2;\n",
       },
@@ -234,8 +228,7 @@ describe("encodeBundle", () => {
         dag_source_paths: {},
       },
       sdkVersion: "0.1.0",
-      entrypointName: "main.ts",
-      entrypointSources: {},
+      sourceFiles: {},
       executable: Buffer.from("export {};\n"),
     });
     const header = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("ascii"));
@@ -260,8 +253,7 @@ describe("encodeBundle", () => {
         dag_source_paths: { d: "entry.ts" },
       },
       sdkVersion: "0.1.0",
-      entrypointName: "entry.ts",
-      entrypointSources: { "entry.ts": source },
+      sourceFiles: { "entry.ts": source },
       executable: Buffer.from("export {};\n"),
     });
     const header = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("ascii"));
@@ -276,7 +268,7 @@ describe("encodeBundle", () => {
     expect(payload.replaceAll(/\*\\([\\/])/g, "*$1")).toBe(source);
   });
 
-  it("rejects source regions over the combined size limit", () => {
+  it("rejects a single source region over the per-file size limit", () => {
     expect(() =>
       encodeBundle({
         bundleManifest: {
@@ -285,11 +277,10 @@ describe("encodeBundle", () => {
           dag_source_paths: { d: "entry.ts" },
         },
         sdkVersion: "0.1.0",
-        entrypointName: "entry.ts",
-        entrypointSources: { "entry.ts": "x".repeat(4 * 1024 * 1024 + 1) },
+        sourceFiles: { "entry.ts": "x".repeat(1024 * 1024 + 1) },
         executable: Buffer.from("export {};\n"),
       }),
-    ).toThrow("over the 4194304 byte limit");
+    ).toThrow("over the 1048576 byte limit");
   });
 
   it("matches the golden bundle", () => {
@@ -300,8 +291,7 @@ describe("encodeBundle", () => {
         dag_source_paths: { test_dag: "entry.ts" },
       },
       sdkVersion: "0.1.0",
-      entrypointName: "entry.ts",
-      entrypointSources: { "entry.ts": GOLDEN_SOURCE },
+      sourceFiles: { "entry.ts": GOLDEN_SOURCE },
       executable: GOLDEN_CODE,
     });
 
@@ -334,8 +324,7 @@ describe("encodeBundle", () => {
         dag_source_paths: {},
       },
       sdkVersion: "0.1.0",
-      entrypointName: "entry.ts",
-      entrypointSources: {},
+      sourceFiles: {},
       executable: Buffer.from("export {};\n"),
     });
     const metadataLine = bundle.toString("utf-8").split("\n")[1]!;
@@ -397,7 +386,6 @@ describe("runPack", () => {
         version: SDK_VERSION,
         supervisor_schema_version: SUPERVISOR_API_VERSION,
       },
-      entrypoint: "entry.ts",
       // The one native Dag declared in the entry file gets its source path
       // recorded. Task-handler-only Dags (`fixture_dag`) live in Python and are
       // absent here.

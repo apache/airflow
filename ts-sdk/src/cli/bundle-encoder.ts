@@ -44,44 +44,27 @@ import type { BundleManifest } from "../coordinator/manifest.js";
 
 const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024;
-const EMBEDDED_SOURCES_MAX_BYTES = 4 * 1024 * 1024;
+const EMBEDDED_SOURCE_MAX_BYTES = 1024 * 1024;
 const OFFSET_HEX_WIDTH = 16;
 
 export const EMBEDDED_METADATA_PREFIX = "//# airflowMetadata=";
 export const EMBEDDED_LAYOUT_PREFIX = "//# airflowBundle=";
-/**
- * Each source is wrapped in a block comment. The path follows the marker so
- * a reader can tell one region from another without cross-referencing the
- * header — the header's byte ranges are the source of truth, but a human
- * scanning the bundle can still find their file by name.
- */
-export const EMBEDDED_SOURCE_OPEN_PREFIX = "/*# airflowSource:";
-export const EMBEDDED_SOURCE_OPEN_SUFFIX = "\n";
+/** Opens each source block, followed by the region's path and a newline. */
+export const EMBEDDED_SOURCE_MARKER = "/*# airflowSource:";
 export const EMBEDDED_SOURCE_CLOSE = "\n#*/\n";
 
 export interface BundleEncoderInput {
   bundleManifest: BundleManifest;
   sdkVersion: string;
-  /** The entrypoint the packer was invoked on; recorded in metadata so a reader can
-   *  point at the primary source file when there is no per-Dag source path to use. */
-  entrypointName: string;
-  /**
-   * Every author-owned source file that declares at least one Dag, keyed by
-   * the path used in `BundleManifest.dag_source_paths`. Files that only
-   * import from these (utilities, types) are not embedded — the Code tab
-   * reads what defines each Dag, not what it depends on.
-   *
-   * A bundle whose Dags are all task handlers (Python owns them) may have
-   * an empty map here.
-   */
-  entrypointSources: Record<string, string>;
+  /** Author-owned source file per native Dag, keyed by its path in
+   *  `BundleManifest.dag_source_paths`. Empty for a mixed-lang bundle. */
+  sourceFiles: Record<string, string>;
   executable: Uint8Array;
 }
 
 interface BundleMetadata {
   airflow_bundle_metadata_version: string;
   sdk: { language: string; version: string; supervisor_schema_version: string };
-  entrypoint: string;
   dag_source_paths: BundleManifest["dag_source_paths"];
   task_handlers: BundleManifest["task_handlers"];
 }
@@ -117,7 +100,7 @@ interface EncodedSources {
 
 export function encodeBundle(input: BundleEncoderInput): Buffer {
   const metadata = encodeMetadata(input);
-  const sources = encodeSources(input.entrypointSources);
+  const sources = encodeSources(input.sourceFiles);
   const executable = encodeExecutable(input.executable);
   const header = encodeHeader({ metadata, sources, executable });
 
@@ -195,10 +178,18 @@ function encodeSources(sources: Record<string, string>): EncodedSources {
   let offset = 0;
 
   for (const [path, content] of Object.entries(sources)) {
-    const openMarker = `${EMBEDDED_SOURCE_OPEN_PREFIX}${path}${EMBEDDED_SOURCE_OPEN_SUFFIX}`;
-    const openBytes = Buffer.from(openMarker, "utf-8");
+    const openBytes = Buffer.from(`${EMBEDDED_SOURCE_MARKER}${path}\n`, "utf-8");
     const payloadBytes = Buffer.from(escapeBlockComment(content), "utf-8");
     const closeBytes = Buffer.from(EMBEDDED_SOURCE_CLOSE, "ascii");
+    // Per-file cap: one large source cannot drown the others, and the total
+    // is only bounded by however many files a bundle declares.
+    if (payloadBytes.length > EMBEDDED_SOURCE_MAX_BYTES) {
+      throw new Error(
+        `Embedded source ${JSON.stringify(path)} is ${payloadBytes.length} bytes, ` +
+          `over the ${EMBEDDED_SOURCE_MAX_BYTES} byte limit; move code out of that file into ` +
+          `imported modules`,
+      );
+    }
 
     chunks.push(openBytes, payloadBytes, closeBytes);
     const payloadStart = offset + openBytes.length;
@@ -212,15 +203,7 @@ function encodeSources(sources: Record<string, string>): EncodedSources {
     offset = payloadEnd + closeBytes.length;
   }
 
-  const buffer = Buffer.concat(chunks);
-  if (buffer.length > EMBEDDED_SOURCES_MAX_BYTES) {
-    throw new Error(
-      `Embedded source regions are ${buffer.length} bytes, ` +
-        `over the ${EMBEDDED_SOURCES_MAX_BYTES} byte limit; move code out of the Dag-defining ` +
-        `files into imported modules`,
-    );
-  }
-  return { buffer, regions };
+  return { buffer: Buffer.concat(chunks), regions };
 }
 
 function escapeBlockComment(source: string): string {
@@ -230,8 +213,8 @@ function escapeBlockComment(source: string): string {
 function encodeMetadata(input: BundleEncoderInput): Buffer {
   const payload = Buffer.from(
     JSON.stringify(buildBundleMetadata(input))
-      .replaceAll(" ", "\\u2028")
-      .replaceAll(" ", "\\u2029"),
+      .replaceAll("\u2028", "\\u2028")
+      .replaceAll("\u2029", "\\u2029"),
     "utf-8",
   );
   const metadata = Buffer.concat([
@@ -263,7 +246,6 @@ function buildBundleMetadata(input: BundleEncoderInput): BundleMetadata {
       version: input.sdkVersion,
       supervisor_schema_version: input.bundleManifest.supervisor_schema_version,
     },
-    entrypoint: input.entrypointName,
     dag_source_paths: input.bundleManifest.dag_source_paths,
     task_handlers: input.bundleManifest.task_handlers,
   };
