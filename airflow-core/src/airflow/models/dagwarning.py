@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
+from pydantic import StringConstraints, TypeAdapter
 from sqlalchemy import ForeignKeyConstraint, Index, String, Text, delete, select, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,13 +33,9 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
-    from pydantic import GetJsonSchemaHandler
-    from pydantic.json_schema import JsonSchemaValue
-    from pydantic_core import CoreSchema
     from sqlalchemy.orm import Session
 
 WARNING_TYPE_MAX_LENGTH = 50
-IMPORTER_WARNING_TYPE_PATTERN = r"^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$"
 
 
 class DagWarning(Base):
@@ -72,7 +68,7 @@ class DagWarning(Base):
     def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
-        self.warning_type = DagWarningType(warning_type).value
+        self.warning_type = get_warning_type_value(warning_type)
         self.message = message
 
     def __eq__(self, other) -> bool:
@@ -104,7 +100,8 @@ class DagWarningType(str, Enum):
     """
     Enum for DAG warning types.
 
-    Members are the types Airflow emits; importers may add namespaced types such as ``yaml:deprecated_field``.
+    This is the set of allowable values for the ``warning_type`` field
+    in the DagWarning model.
     """
 
     ASSET_CONFLICT = "asset conflict"
@@ -112,32 +109,24 @@ class DagWarningType(str, Enum):
     NONEXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
 
-    @classmethod
-    def _missing_(cls, value: object) -> DagWarningType | None:
-        if (
-            not isinstance(value, str)
-            or len(value) > WARNING_TYPE_MAX_LENGTH
-            or not re.match(IMPORTER_WARNING_TYPE_PATTERN, value)
-        ):
-            return None
-        # Not registered in _value2member_map_: values come from API queries too, and caching
-        # them would let arbitrary input grow the enum for the life of the process.
-        pseudo_member = str.__new__(cls, value)
-        pseudo_member._name_ = value
-        pseudo_member._value_ = value
-        return pseudo_member
 
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        return {
-            "anyOf": [
-                handler(core_schema),
-                {
-                    "type": "string",
-                    "pattern": IMPORTER_WARNING_TYPE_PATTERN,
-                    "maxLength": WARNING_TYPE_MAX_LENGTH,
-                },
-            ]
-        }
+ImporterWarningType = Annotated[
+    str,
+    StringConstraints(pattern=r"^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$", max_length=WARNING_TYPE_MAX_LENGTH),
+]
+"""Warning type reported by a Dag importer, prefixed with its namespace (e.g. ``yaml:deprecated_field``)."""
+
+DagWarningTypeValue = DagWarningType | ImporterWarningType
+"""Any valid ``warning_type``: a built-in :class:`DagWarningType` or an :data:`ImporterWarningType`."""
+
+_warning_type_adapter: TypeAdapter[DagWarningType | str] = TypeAdapter(DagWarningTypeValue)
+
+
+def get_warning_type_value(warning_type: str) -> str:
+    """
+    Return the value to store for ``warning_type``.
+
+    :raises ValueError: if it is neither a :class:`DagWarningType` nor an :data:`ImporterWarningType`.
+    """
+    validated = _warning_type_adapter.validate_python(warning_type)
+    return validated.value if isinstance(validated, DagWarningType) else validated

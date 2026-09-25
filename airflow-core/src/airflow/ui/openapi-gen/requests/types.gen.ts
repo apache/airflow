@@ -1142,7 +1142,7 @@ export type DAGWarningCollectionResponse = {
  */
 export type DAGWarningResponse = {
     dag_id: string;
-    warning_type: DagWarningType;
+    warning_type: DagWarningType | string;
     message: string;
     timestamp: string;
     dag_display_name: string;
@@ -1378,7 +1378,13 @@ export type DagVersionResponse = {
     bundle_url: string | null;
 };
 
-export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value' | string;
+/**
+ * Enum for DAG warning types.
+ *
+ * This is the set of allowable values for the ``warning_type`` field
+ * in the DagWarning model.
+ */
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
 
 /**
  * How much of a component's work has a live instance covering it.
@@ -3661,7 +3667,7 @@ export type ListDagWarningsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      */
     orderBy?: Array<(string)>;
-    warningType?: DagWarningType | null;
+    warningType?: DagWarningType | string | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;

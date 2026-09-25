@@ -4435,7 +4435,17 @@ export const $DAGWarningResponse = {
             title: 'Dag Id'
         },
         warning_type: {
-            '$ref': '#/components/schemas/DagWarningType'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagWarningType'
+                },
+                {
+                    type: 'string',
+                    maxLength: 50,
+                    pattern: '^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$'
+                }
+            ],
+            title: 'Warning Type'
         },
         message: {
             type: 'string',
@@ -5146,21 +5156,13 @@ export const $DagVersionResponse = {
 } as const;
 
 export const $DagWarningType = {
-    anyOf: [
-        {
-            type: 'string',
-            enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
-            title: 'DagWarningType',
-            description: `Enum for DAG warning types.
+    type: 'string',
+    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
+    title: 'DagWarningType',
+    description: `Enum for DAG warning types.
 
-Members are the types Airflow emits; importers may add namespaced types such as \`\`yaml:deprecated_field\`\`.`
-        },
-        {
-            type: 'string',
-            maxLength: 50,
-            pattern: '^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$'
-        }
-    ]
+This is the set of allowable values for the \`\`warning_type\`\` field
+in the DagWarning model.`
 } as const;
 
 export const $DetailedHealthStatus = {
