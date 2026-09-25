@@ -93,7 +93,7 @@ describe("DagRunStateCounts", () => {
 
   it("suffixes counts that reached the cap with '+'", () => {
     renderCounts({ failed: 5, queued: 0, running: 1, success: 1000 }, { stateCountLimit: 1000 });
-    expect(screen.getByTestId("run-state-count-success-my_dag")).toHaveTextContent("1000+");
+    expect(screen.getByTestId("run-state-count-success-my_dag")).toHaveTextContent("1,000+");
     expect(screen.getByTestId("run-state-count-failed-my_dag")).toHaveTextContent("5");
     expect(screen.getByTestId("run-state-count-running-my_dag")).toHaveTextContent("1");
   });

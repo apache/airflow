@@ -26,11 +26,14 @@ import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
+import { useFormatNumber } from "src/utils";
+
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { i18n, t: translate } = useTranslation("admin");
+  const formatNumber = useFormatNumber();
   const { data, error, isLoading } = usePluginServiceImportErrors();
 
   const isRTL = i18n.dir() === "rtl";
@@ -62,7 +65,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
           title={translate("plugins.importError", { count: importErrorsCount })}
         >
           <LuPlug size={8} />
-          {importErrorsCount}
+          {formatNumber(importErrorsCount)}
         </StateBadge>
       ) : (
         <StatsCard

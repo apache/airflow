@@ -37,6 +37,7 @@ import { TeamName } from "src/components/TeamName";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { useFormatNumber } from "src/utils";
 
 import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
@@ -61,6 +62,7 @@ export const Header = ({
   readonly latestRunInfo?: LatestRunInfo;
 }) => {
   const { t: translate } = useTranslation(["common", "dag"]);
+  const formatNumber = useFormatNumber();
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
   const showTeam = useShowTeam(dag?.team_name);
@@ -117,7 +119,9 @@ export const Header = ({
       value:
         dag?.max_active_runs === undefined
           ? undefined
-          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
+          : dag.max_active_runs === null
+            ? formatNumber(dag.active_runs_count ?? 0)
+            : `${formatNumber(dag.active_runs_count ?? 0)} of ${formatNumber(dag.max_active_runs)}`,
     },
     {
       label: translate("dagDetails.owner"),

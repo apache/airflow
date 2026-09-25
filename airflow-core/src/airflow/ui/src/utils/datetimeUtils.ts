@@ -21,6 +21,8 @@ import dayjsDuration from "dayjs/plugin/duration";
 import tz from "dayjs/plugin/timezone";
 import i18n from "i18next";
 
+import { createIntlCache, DEFAULT_LOCALE } from "./intlCache";
+
 dayjs.extend(dayjsDuration);
 dayjs.extend(tz);
 
@@ -28,7 +30,6 @@ export const DATE_FORMAT = "YYYY-MM-DD";
 export const DEFAULT_DATETIME_FORMAT = `${DATE_FORMAT} HH:mm:ss`;
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
-const DEFAULT_LOCALE = "en";
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 86_400;
@@ -41,34 +42,6 @@ type DurationPart = { fractionDigits?: number; unit: DurationUnit; value: number
 
 /** `narrow` ("1h 2m") suits dense tables and charts; `long` ("1 hour, 2 minutes") suits prose. */
 type DurationStyle = "long" | "narrow";
-
-// Intl constructors are costly and durations render in every table row and chart tick callback, so
-// instances are reused. A stored language Intl rejects must not blank out every duration in the UI,
-// hence the fallback to DEFAULT_LOCALE rather than letting the RangeError escape.
-const createIntlCache = <T>() => {
-  const cache = new Map<string, T>();
-
-  return (variant: string, locale: string, construct: (forLocale: string) => T): T => {
-    const key = `${locale}|${variant}`;
-    const cached = cache.get(key);
-
-    if (cached !== undefined) {
-      return cached;
-    }
-
-    let formatter: T;
-
-    try {
-      formatter = construct(locale);
-    } catch {
-      formatter = construct(DEFAULT_LOCALE);
-    }
-
-    cache.set(key, formatter);
-
-    return formatter;
-  };
-};
 
 const unitFormatter = createIntlCache<Intl.NumberFormat>();
 const listFormatter = createIntlCache<Intl.ListFormat>();

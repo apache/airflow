@@ -28,17 +28,18 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils";
+import { useDurationFormat, useFormatNumber } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { t: translate } = useTranslation();
   const { formatElapsed } = useDurationFormat();
+  const formatNumber = useFormatNumber();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
     entries.push({
       label: translate("total", { state: translate(`states.${state.toLowerCase()}`) }),
-      value: count,
+      value: formatNumber(count),
     });
   });
   const stats = [

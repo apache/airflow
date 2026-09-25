@@ -23,6 +23,8 @@ import { FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
+import { useFormatNumber } from "src/utils";
+
 export type TaskNameProps = {
   readonly childCount?: number;
   readonly isGroup?: boolean;
@@ -49,6 +51,8 @@ export const TaskName = ({
   setupTeardownType,
   ...rest
 }: TaskNameProps) => {
+  const formatNumber = useFormatNumber();
+
   if (isGroup) {
     return (
       <Box
@@ -75,7 +79,7 @@ export const TaskName = ({
       {...rest}
     >
       {label}
-      {isMapped ? ` [${childCount ?? " "}]` : undefined}
+      {isMapped ? ` [${childCount === undefined ? " " : formatNumber(childCount)}]` : undefined}
       {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
       {setupTeardownType === "teardown" && (
         <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />

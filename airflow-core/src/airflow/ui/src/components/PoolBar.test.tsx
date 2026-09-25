@@ -63,4 +63,18 @@ describe("PoolBar", () => {
     expect(container.querySelector('a[href*="task_state=deferred"]')).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
+
+  it("groups thousands in slot counts", () => {
+    render(
+      <PoolBar
+        pool={createPool({ deferred_slots: 2345, open_slots: 8766, running_slots: 1234, slots: 10_000 })}
+        totalSlots={10_000}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText("1,234")).toBeInTheDocument();
+    expect(screen.getByText("8,766")).toBeInTheDocument();
+    expect(screen.getByText(/common:states\.deferred/u)).toHaveTextContent("2,345");
+  });
 });

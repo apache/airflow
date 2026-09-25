@@ -30,6 +30,8 @@ import { RouterLink } from "src/system-components";
 
 import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
 
+import { useFormatNumber } from "src/utils";
+
 import Time from "../Time";
 
 export const AssetNode = ({
@@ -39,6 +41,7 @@ export const AssetNode = ({
   readonly asset: AssetExpressionAlias | AssetExpressionAsset;
   readonly event?: NextRunAssetEventResponse;
 }) => {
+  const formatNumber = useFormatNumber();
   const isFullyReceived = Boolean(event?.last_update);
   const isPartial =
     !isFullyReceived &&
@@ -90,7 +93,7 @@ export const AssetNode = ({
         </Text>
       ) : isPartial ? (
         <Text color="warning.fg" fontSize="sm">
-          {event?.received_count} / {event?.required_count}
+          {formatNumber(event?.received_count ?? 0)} / {formatNumber(event?.required_count ?? 0)}
         </Text>
       ) : undefined}
     </Box>
