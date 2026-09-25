@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+15.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Invalidate cached Microsoft Graph request adapter on 403 Forbidden (#73601)``
+* ``Contain remote log upload paths within base_log_folder (#72162)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Remove newsfragments for changes already shipped in released versions (#73300)``
+   * ``Fix grammar typos (#73145)``
+
 15.1.0
 ......
 

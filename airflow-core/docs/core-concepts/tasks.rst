@@ -296,8 +296,8 @@ A policy that raises an ordinary exception, or returns something other than a
 ``RetryDecision``, is logged and treated as DEFAULT, so one broken policy does not take the
 rules after it down with it. The winning decision's reason names the policy that decided and
 then what the earlier ones said (``HTTPStatusRetryPolicy: HTTP 503 (after ExceptionRetryPolicy:
-no decision)``). On a RETRY that string is the task's ``retry_reason``; on FAIL, or when no
-policy decided, it appears in the task log as the ``Retry policy decision`` line.
+no decision)``). That string is the task's ``retry_reason`` on a FAIL as well as a RETRY; when
+no policy decided, it appears only in the task log as the ``Retry policy decision`` line.
 
 Custom retry policies
 ~~~~~~~~~~~~~~~~~~~~~

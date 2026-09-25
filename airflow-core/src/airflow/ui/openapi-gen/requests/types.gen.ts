@@ -1639,7 +1639,7 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
-    team_name?: string | null;
+    team_names?: Array<(string)>;
     bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
@@ -2239,7 +2239,7 @@ export type TriggererInfoResponse = {
 export type TriggererInstanceInfoResponse = {
     hostname: string | null;
     latest_triggerer_heartbeat: string | null;
-    team_name: string | null;
+    team_names: Array<(string)>;
 };
 
 /**

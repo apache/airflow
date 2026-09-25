@@ -422,7 +422,8 @@ class TestTaskInstanceOperations:
     @pytest.mark.parametrize(
         "state", [state for state in TerminalTIState if state != TerminalTIState.SUCCESS]
     )
-    def test_task_instance_finish(self, state):
+    @pytest.mark.parametrize("retry_reason", [None, "auth error, do not retry"])
+    def test_task_instance_finish(self, state, retry_reason):
         # Simulate a successful response from the server that finishes (moved to terminal state) a task
         ti_id = uuid6.uuid7()
 
@@ -432,6 +433,7 @@ class TestTaskInstanceOperations:
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["state"] == state
                 assert actual_body["rendered_map_index"] == "test"
+                assert actual_body["retry_reason"] == retry_reason
                 return httpx.Response(
                     status_code=204,
                 )
@@ -439,7 +441,11 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.finish(
-            ti_id, state=state, when="2024-10-31T12:00:00Z", rendered_map_index="test"
+            ti_id,
+            state=state,
+            when="2024-10-31T12:00:00Z",
+            rendered_map_index="test",
+            retry_reason=retry_reason,
         )
 
     def test_task_instance_heartbeat(self):
@@ -457,6 +463,20 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.heartbeat(ti_id, 100)
+
+    def test_task_instance_heartbeat_is_not_retried(self):
+        """A failing heartbeat surfaces at once so the supervisor's own retry budget governs it."""
+        ti_id = uuid6.uuid7()
+        responses: list[httpx.Response] = [
+            httpx.Response(500, text="Internal Server Error"),
+            httpx.Response(204),
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.task_instances.heartbeat(ti_id, 100)
+
+        assert len(responses) == 1
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_task_instance_defer(self, queues_enabled: bool):
@@ -1179,6 +1199,31 @@ class TestConnectionOperations:
 
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
+
+    def test_connection_get_url_encodes_conn_id(self):
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "conn_id": "dev/my_conn",
+                    "conn_type": "http",
+                    "host": None,
+                    "schema": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "extra": None,
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="dev/my_conn")
+
+        assert isinstance(result, ConnectionResponse)
+        assert requests_seen[0].url.raw_path == b"/connections/dev%2Fmy_conn"
 
     @pytest.mark.parametrize("status_code", [401, 403])
     def test_connection_get_authz_returns_permission_denied(self, status_code):

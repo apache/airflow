@@ -95,7 +95,7 @@ def _legacy_status(jobs: list[Job]) -> HealthStatus:
 def _triggerer_instance_health(job: Job) -> dict[str, Any]:
     return {
         **_job_instance_health(job, "latest_triggerer_heartbeat"),
-        "team_name": job.team_name,
+        "team_names": job.team_names,
     }
 
 
@@ -168,7 +168,13 @@ def _triggerer_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
     if not expected:
         return _liveness_status(jobs)
 
-    return _coverage_status(expected, {job.team_name for job in jobs if job.is_alive()})
+    covered: set[str | None] = set()
+    for job in jobs:
+        if job.is_alive():
+            # An unscoped triggerer has no ``team_names``, it covers the team-less
+            # scope, represented by ``None`` in both ``expected`` and ``covered``.
+            covered |= set(job.team_names) or {None}
+    return _coverage_status(expected, covered)
 
 
 def get_airflow_health() -> dict[str, Any]:

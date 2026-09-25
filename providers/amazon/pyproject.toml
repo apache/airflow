@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.36.0"
+version = "9.37.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -63,9 +63,9 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.18.0",
     "apache-airflow-providers-common-sql>=1.32.0",
     "apache-airflow-providers-http",
-    # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
-    # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
-    # in the `devel-dependencies` section to be the same minimum version.
+    # The boto3/botocore floors are raised automatically by `breeze ci upgrade` to limit `pip` backtracking
+    # (see [tool.airflow.dependency-floors] in the root pyproject.toml). The mypy-boto3-* stubs in
+    # `devel-dependencies` below are not covered by that automation and are raised by hand.
     "boto3>=1.41.0",
     "botocore>=1.41.0",
     "inflection>=0.5.1",
@@ -220,8 +220,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.36.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.36.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.37.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.37.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

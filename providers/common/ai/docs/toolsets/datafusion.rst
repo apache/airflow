@@ -103,9 +103,11 @@ Iceberg is looked up by ``db_name`` instead, and ``DataSourceConfig`` raises
   this toolset "does not prevent the agent from reading any registered data
   source". The registration list is therefore the whole boundary: register
   exactly what the agent may read.
-- It bounds the payload, not the scan. DataFusion has already materialized the
-  full result before ``max_rows`` and ``max_result_bytes`` apply, so those limits
-  protect the model's context, not the cost of the query.
+- It bounds what the engine materializes, not what it scans. The ``query`` tool
+  runs the statement with a ``LIMIT`` of ``max_rows + 1``, so DataFusion never
+  builds a larger result than that, but a plan that has to read every row before
+  it can return one -- an aggregation, a sort, a late-matching filter -- still
+  pays for the whole scan.
 - It cannot tell failure kinds apart precisely. The DataFusion Python bindings
   expose no native exception types, so the retry decision is made by matching the
   error message against regular expressions, which a wording change upstream can

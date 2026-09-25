@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import json
 from subprocess import CompletedProcess
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from click.testing import CliRunner
 
-from airflow_breeze.commands.workflow_commands import workflow_run_publish
+from airflow_breeze.commands.workflow_commands import (
+    workflow_run_publish,
+    workflow_run_sync_staging_to_main,
+)
 
 
 def _make_gh_response(ref: str | None) -> CompletedProcess:
@@ -99,3 +102,30 @@ class TestPublishDocsTagValidation:
         assert result.exit_code == 0
         mock_run_gh_command.assert_not_called()
         mock_trigger.assert_called()
+
+
+class TestSyncStagingToMain:
+    @pytest.mark.parametrize(
+        ("answer", "expected_exit_code", "expected_triggered"),
+        [
+            pytest.param("y", 0, True, id="confirmed"),
+            pytest.param("n", 0, False, id="skipped"),
+            pytest.param("q", 1, False, id="quit"),
+        ],
+    )
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor")
+    def test_reset_staging_is_triggered_only_when_confirmed(
+        self, mock_trigger, answer, expected_exit_code, expected_triggered
+    ):
+        result = CliRunner().invoke(
+            workflow_run_sync_staging_to_main, ["--answer", answer], catch_exceptions=False
+        )
+
+        assert result.exit_code == expected_exit_code
+        if expected_triggered:
+            assert mock_trigger.call_args_list == [
+                call(workflow_name="reset-staging.yml", repo="apache/airflow-site", branch="main"),
+                call(workflow_name="reset-staging.yml", repo="apache/airflow-site-archive", branch="main"),
+            ]
+        else:
+            mock_trigger.assert_not_called()

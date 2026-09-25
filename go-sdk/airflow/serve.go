@@ -78,6 +78,12 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 	// The flags go on their own FlagSet. On pflag.CommandLine, every program that imports this
 	// package would get them, and one that defines its own --format there would panic.
 	flags := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	// --help is output the caller asked for, so it goes to stdout. Anything else pflag prints,
+	// such as a deprecation warning for a flag the bundle defines, stays on stderr where it
+	// cannot land in the middle of the --airflow-metadata manifest.
+	flags.Usage = func() {
+		fmt.Fprintf(stdout, "Usage of %s:\n%s", flags.Name(), flags.FlagUsages())
+	}
 	printMetadata := flags.Bool(
 		"airflow-metadata",
 		false,
