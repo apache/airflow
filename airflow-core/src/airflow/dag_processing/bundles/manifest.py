@@ -24,7 +24,7 @@ import stat
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, NoReturn
 
 from airflow.exceptions import AirflowException
 
@@ -98,10 +98,26 @@ class BundleVersionManifest:
     source_snapshot: BundleSourceSnapshot
 
 
-def _raise_source_walk_error(error: OSError) -> None:
-    raise BundleManifestSourceChangedError(
-        f"Bundle source changed or became unreadable while collecting manifest metadata: {error.filename}"
-    ) from error
+def _raise_source_access_error(error: OSError, *, subject: str, phase: str) -> NoReturn:
+    """
+    Re-raise an OSError from the bundle source as the matching manifest error.
+
+    A missing entry means the source really did change under us, which a publisher
+    treats as "nothing stable to publish yet, try the next pass". Any other OSError --
+    a permission problem, a stale network handle -- is a standing fault, so it must not
+    be reported as a benign concurrent edit and then quietly retried forever.
+    """
+    if isinstance(error, FileNotFoundError):
+        raise BundleManifestSourceChangedError(
+            f"Bundle source {subject} disappeared while {phase}"
+        ) from error
+    raise BundleManifestError(f"Bundle source {subject} became unreadable while {phase}") from error
+
+
+def _raise_source_walk_error(error: OSError) -> NoReturn:
+    _raise_source_access_error(
+        error, subject=f"directory {error.filename}", phase="collecting manifest metadata"
+    )
 
 
 def _iter_manifest_file_paths(root: Path) -> Iterator[tuple[Path, os.stat_result]]:
@@ -117,10 +133,10 @@ def _iter_manifest_file_paths(root: Path) -> Iterator[tuple[Path, os.stat_result
             path = Path(dirpath) / dirname
             try:
                 file_stat = path.lstat()
-            except FileNotFoundError as e:
-                raise BundleManifestSourceChangedError(
-                    f"Bundle source directory disappeared while collecting manifest metadata: {path}"
-                ) from e
+            except OSError as e:
+                _raise_source_access_error(
+                    e, subject=f"directory {path}", phase="collecting manifest metadata"
+                )
             if stat.S_ISLNK(file_stat.st_mode):
                 raise BundleManifestError(f"Bundle source contains symlinked directory: {path}")
             if not stat.S_ISDIR(file_stat.st_mode):
@@ -134,10 +150,8 @@ def _iter_manifest_file_paths(root: Path) -> Iterator[tuple[Path, os.stat_result
             path = Path(dirpath) / filename
             try:
                 file_stat = path.lstat()
-            except FileNotFoundError as e:
-                raise BundleManifestSourceChangedError(
-                    f"Bundle source file disappeared while collecting manifest metadata: {path}"
-                ) from e
+            except OSError as e:
+                _raise_source_access_error(e, subject=f"file {path}", phase="collecting manifest metadata")
             if stat.S_ISLNK(file_stat.st_mode):
                 raise BundleManifestError(f"Bundle source contains symlinked file: {path}")
             if not stat.S_ISREG(file_stat.st_mode):
@@ -274,10 +288,10 @@ def collect_bundle_source_snapshot(root: Path) -> BundleSourceSnapshot:
 def _ensure_source_file_unchanged(source_file: BundleSourceFile) -> None:
     try:
         current_stat = source_file.path.lstat()
-    except FileNotFoundError as e:
-        raise BundleManifestSourceChangedError(
-            f"Bundle source file disappeared while verifying manifest metadata: {source_file.relative_path}"
-        ) from e
+    except OSError as e:
+        _raise_source_access_error(
+            e, subject=f"file {source_file.relative_path}", phase="verifying manifest metadata"
+        )
 
     current_metadata = (
         current_stat.st_size,
@@ -356,10 +370,10 @@ def build_bundle_version_manifest(
         if precomputed_file_sha256 is None:
             try:
                 file_digest, _ = compute_file_sha256(source_file.path)
-            except FileNotFoundError as e:
-                raise BundleManifestSourceChangedError(
-                    f"Bundle source file disappeared while building manifest: {source_file.relative_path}"
-                ) from e
+            except OSError as e:
+                _raise_source_access_error(
+                    e, subject=f"file {source_file.relative_path}", phase="building manifest"
+                )
         else:
             file_digest = precomputed_file_sha256[source_file.relative_path]
             if not is_sha256_hex(file_digest):

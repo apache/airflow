@@ -196,17 +196,112 @@ def test_ignored_bundle_file_names(file_name, expected):
     assert is_ignored_bundle_file_name(file_name) is expected
 
 
-def test_manifest_rejects_source_walk_error(tmp_path, monkeypatch):
+# A vanished entry is a benign concurrent edit a publisher retries past; anything else
+# is a standing fault that must not be reported as one.
+SOURCE_ACCESS_ERROR_KINDS = [
+    pytest.param(
+        FileNotFoundError(2, "No such file or directory"),
+        BundleManifestSourceChangedError,
+        "disappeared while",
+        id="missing",
+    ),
+    pytest.param(
+        PermissionError(13, "Permission denied"),
+        BundleManifestError,
+        "became unreadable while",
+        id="unreadable",
+    ),
+    pytest.param(
+        OSError(116, "Stale file handle"),
+        BundleManifestError,
+        "became unreadable while",
+        id="stale-handle",
+    ),
+]
+
+
+@pytest.mark.parametrize(("error", "expected_type", "expected_message"), SOURCE_ACCESS_ERROR_KINDS)
+def test_manifest_maps_source_walk_errors_by_kind(
+    tmp_path, monkeypatch, error, expected_type, expected_message
+):
     source = tmp_path / "source"
     source.mkdir()
+    error.filename = str(source / "unreadable")
 
     def fail_walk(*args, onerror, **kwargs):
-        onerror(PermissionError(13, "Permission denied", str(source / "unreadable")))
+        onerror(error)
 
     monkeypatch.setattr(manifest_module.os, "walk", fail_walk)
 
-    with pytest.raises(BundleManifestSourceChangedError, match="changed or became unreadable"):
+    with pytest.raises(BundleManifestError, match=expected_message) as excinfo:
         _build_manifest(bundle_name="manifest-local", root=source, backend_type="local")
+
+    assert type(excinfo.value) is expected_type
+    assert "collecting manifest metadata" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("entry_name", ["nested", "example.py"])
+@pytest.mark.parametrize(("error", "expected_type", "expected_message"), SOURCE_ACCESS_ERROR_KINDS)
+def test_manifest_maps_source_entry_stat_errors_by_kind(
+    tmp_path, monkeypatch, entry_name, error, expected_type, expected_message
+):
+    source = tmp_path / "source"
+    _write_file(source, "nested/example.py", "print('dag')")
+    real_lstat = Path.lstat
+
+    def failing_lstat(self, *args, **kwargs):
+        if self.name == entry_name:
+            raise error
+        return real_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", failing_lstat)
+
+    with pytest.raises(BundleManifestError, match=expected_message) as excinfo:
+        _build_manifest(bundle_name="manifest-local", root=source, backend_type="local")
+
+    assert type(excinfo.value) is expected_type
+    assert "collecting manifest metadata" in str(excinfo.value)
+
+
+def test_manifest_reports_an_unreadable_source_file_during_hashing(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    _write_file(source, "dags/example.py", "print('dag')")
+
+    def unreadable(_):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(manifest_module, "compute_file_sha256", unreadable)
+
+    with pytest.raises(BundleManifestError, match="became unreadable while building manifest") as excinfo:
+        _build_manifest(bundle_name="manifest-local", root=source, backend_type="local")
+
+    assert type(excinfo.value) is BundleManifestError
+
+
+def test_manifest_reports_an_unreadable_source_file_during_verification(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    _write_file(source, "example.py", "content")
+    source_snapshot = collect_bundle_source_snapshot(source)
+    digest = hashlib.sha256(b"content").hexdigest()
+
+    def unreadable(self, *args, **kwargs):
+        raise PermissionError(13, "Permission denied")
+
+    # Precomputed hashes skip the read, so verification is the first access to the file.
+    monkeypatch.setattr(Path, "lstat", unreadable)
+
+    with pytest.raises(
+        BundleManifestError, match="became unreadable while verifying manifest metadata"
+    ) as excinfo:
+        build_bundle_version_manifest(
+            bundle_name="manifest-local",
+            root=source,
+            backend_type="local",
+            source_snapshot=source_snapshot,
+            precomputed_file_sha256={"example.py": digest},
+        )
+
+    assert type(excinfo.value) is BundleManifestError
 
 
 def test_manifest_ignores_cache_and_vcs_files(tmp_path):
