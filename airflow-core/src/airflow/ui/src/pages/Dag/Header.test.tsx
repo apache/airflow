@@ -113,7 +113,11 @@ describe("Header", () => {
     );
 
     expect(screen.getByTestId("active-runs-exceeds-max-info")).toBeInTheDocument();
-    expect(screen.getByText("1 of 1 (2 queued)")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        i18n.t("common:dagDetails.activeRunsWithQueued", { activeRuns: 1, maxActiveRuns: 1, queuedRuns: 2 }),
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders the draining badge instead of the next run timestamp for a draining Dag", () => {
