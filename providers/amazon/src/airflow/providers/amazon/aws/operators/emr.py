@@ -1402,7 +1402,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                 )
             self.cancel_on_kill = False
         else:
-            self.cancel_on_kill = True if cancel_on_kill is NOTSET else cancel_on_kill
+            self.cancel_on_kill = True if cancel_on_kill is NOTSET else cast("bool", cancel_on_kill)
         self.durable = durable
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
