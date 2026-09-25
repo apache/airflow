@@ -235,6 +235,7 @@ class TestGlueJobOperator:
         _, serialized = defer.value.trigger.serialize()
         assert serialized["stop_job_run_on_kill"] is True
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="durable is a no-op before Airflow 3.3")
     def test_durable_with_stop_job_run_on_kill_raises_in_deferrable(self):
         with pytest.raises(ValueError, match="incompatible with durable=True in deferrable mode"):
             GlueJobOperator(
