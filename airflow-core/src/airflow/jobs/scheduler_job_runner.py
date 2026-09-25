@@ -2802,7 +2802,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Returns ``None`` when the condition is not satisfied by the queued asset
         events, in which case no run should be created yet.
         """
-        records = self._lock_queued_asset_records(dag_id=dag.dag_id, session=session)
+        records = self._lock_queued_asset_records(dag_id=dag.dag_id, load_assets=True, session=session)
         if not records:
             return None
         statuses = {SerializedAssetUniqueKey.from_asset(record.asset): True for record in records}
@@ -2823,13 +2823,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
         return records, asset_events
 
-    def _lock_queued_asset_records(self, *, dag_id: str, session: Session) -> Sequence[AssetDagRunQueue]:
+    def _lock_queued_asset_records(
+        self, *, dag_id: str, load_assets: bool, session: Session
+    ) -> Sequence[AssetDagRunQueue]:
         """Lock and return the Dag's queued asset (ADRQ) rows, skipping rows another scheduler holds."""
+        query = select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_id)
+        if load_assets:
+            query = query.options(joinedload(AssetDagRunQueue.asset))
         return session.scalars(
             with_row_locks(
-                select(AssetDagRunQueue)
-                .where(AssetDagRunQueue.target_dag_id == dag_id)
-                .options(joinedload(AssetDagRunQueue.asset)),
+                query,
                 of=AssetDagRunQueue,
                 skip_locked=True,
                 key_share=False,
@@ -2920,7 +2923,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            queued_adrqs = self._lock_queued_asset_records(dag_id=dag.dag_id, session=session)
+            queued_adrqs = self._lock_queued_asset_records(
+                dag_id=dag.dag_id, load_assets=False, session=session
+            )
             # If another scheduler already locked these ADRQ rows, SKIP LOCKED makes this scheduler skip them.
             if not queued_adrqs:
                 self.log.debug(
