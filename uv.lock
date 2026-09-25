@@ -94,6 +94,7 @@ apache-airflow-providers-salesforce = false
 apache-airflow-providers-ssh = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-google = false
+apache-airflow-shared-search = false
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 apache-airflow-providers-apache-beam = false
 apache-airflow-providers-microsoft-psrp = false
@@ -306,6 +307,7 @@ members = [
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-providers-discovery",
+    "apache-airflow-shared-search",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
@@ -1555,6 +1557,7 @@ ci-image = [
     { name = "apache-airflow-shared-observability" },
     { name = "apache-airflow-shared-plugins-manager" },
     { name = "apache-airflow-shared-providers-discovery" },
+    { name = "apache-airflow-shared-search" },
     { name = "apache-airflow-shared-secrets-backend" },
     { name = "apache-airflow-shared-secrets-masker" },
     { name = "apache-airflow-shared-serialization" },
@@ -1584,6 +1587,7 @@ dev = [
     { name = "apache-airflow-shared-observability" },
     { name = "apache-airflow-shared-plugins-manager" },
     { name = "apache-airflow-shared-providers-discovery" },
+    { name = "apache-airflow-shared-search" },
     { name = "apache-airflow-shared-secrets-backend" },
     { name = "apache-airflow-shared-secrets-masker" },
     { name = "apache-airflow-shared-serialization" },
@@ -1868,6 +1872,7 @@ ci-image = [
     { name = "apache-airflow-shared-observability", editable = "shared/observability" },
     { name = "apache-airflow-shared-plugins-manager", editable = "shared/plugins_manager" },
     { name = "apache-airflow-shared-providers-discovery", editable = "shared/providers_discovery" },
+    { name = "apache-airflow-shared-search", editable = "shared/search" },
     { name = "apache-airflow-shared-secrets-backend", editable = "shared/secrets_backend" },
     { name = "apache-airflow-shared-secrets-masker", editable = "shared/secrets_masker" },
     { name = "apache-airflow-shared-serialization", editable = "shared/serialization" },
@@ -1897,6 +1902,7 @@ dev = [
     { name = "apache-airflow-shared-observability", editable = "shared/observability" },
     { name = "apache-airflow-shared-plugins-manager", editable = "shared/plugins_manager" },
     { name = "apache-airflow-shared-providers-discovery", editable = "shared/providers_discovery" },
+    { name = "apache-airflow-shared-search", editable = "shared/search" },
     { name = "apache-airflow-shared-secrets-backend", editable = "shared/secrets_backend" },
     { name = "apache-airflow-shared-secrets-masker", editable = "shared/secrets_masker" },
     { name = "apache-airflow-shared-serialization", editable = "shared/serialization" },
@@ -5427,6 +5433,7 @@ dependencies = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "elasticsearch" },
+    { name = "pendulum" },
 ]
 
 [package.optional-dependencies]
@@ -5452,6 +5459,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "elasticsearch", specifier = ">=8.10,<10" },
+    { name = "pendulum", specifier = ">=3.1.0" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
 ]
 provides-extras = ["polars"]
@@ -7225,6 +7233,7 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "opensearch-py" },
+    { name = "pendulum" },
 ]
 
 [package.dev-dependencies]
@@ -7243,6 +7252,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "opensearch-py", specifier = ">=2.2.0" },
+    { name = "pendulum", specifier = ">=3.1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -9169,6 +9179,29 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-shared-module-loading", editable = "shared/module_loading" },
 ]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-shared-search"
+version = "0.0"
+source = { editable = "shared/search" }
+dependencies = [
+    { name = "pendulum" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow-devel-common" },
+]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pendulum", specifier = ">=3.1.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]

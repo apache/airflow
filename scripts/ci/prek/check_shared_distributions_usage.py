@@ -160,7 +160,10 @@ def check_force_include(pyproject: Path, shared_distributions: list[str], shared
         dist_name = dist.replace("apache-airflow-shared-", "")
         # Normalize package name to directory convention (hyphens -> underscores)
         normalized_dist_name = normalize_package_name_to_directory(dist_name)
-        shared_src = f"../shared/{normalized_dist_name}/src/airflow_shared/{normalized_dist_name}"
+        shared_src = os.path.relpath(
+            SHARED_DIR / normalized_dist_name / "src" / "airflow_shared" / normalized_dist_name,
+            pyproject.parent,
+        )
         found = False
         for src, _ in force_include.items():
             if src == shared_src:
