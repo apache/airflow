@@ -500,7 +500,9 @@ def _do_delete(
                         archived,
                         source_table_name,
                         source_table_name,
-                        "" if skip_archive else f" {target_table_name} already holds an archived copy of them.",
+                        ""
+                        if skip_archive
+                        else f" {target_table_name} already holds an archived copy of them.",
                     )
 
         except BaseException:
