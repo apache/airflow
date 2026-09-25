@@ -61,7 +61,7 @@ class AttributeList:
     def __getitem__(self, k):
         """Retrieve an item or a slice from the list. If the item is a dictionary, it is wrapped in an AttributeDict."""
         val = self._l_[k]
-        if isinstance(val, slice):
+        if isinstance(k, slice):
             return AttributeList(val)
         return _wrap(val)
 
@@ -104,9 +104,7 @@ class Hit(AttributeDict):
     """
 
     def __init__(self, document):
-        data = {}
-        if "_source" in document:
-            data = document["_source"]
+        data = dict(document.get("_source", {}))
         if "fields" in document:
             data.update(document["fields"])
 
