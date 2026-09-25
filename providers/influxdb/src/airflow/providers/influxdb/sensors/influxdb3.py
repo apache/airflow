@@ -35,6 +35,10 @@ class InfluxDB3Sensor(BaseSensorOperator):
     """
     Wait until an InfluxDB 3.x SQL query returns a truthy first cell.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:InfluxDB3Sensor`
+
     :param sql: The SQL query to poll.
     :param influxdb3_conn_id: Reference to :ref:`InfluxDB 3 connection id <howto/connection:influxdb3>`.
         Defaults to ``influxdb3_default``.
