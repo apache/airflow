@@ -519,6 +519,7 @@ def test_invalid_type_for_args(attr: str, value: Any):
         pytest.param(["a normal tag"], True, id="one tag"),
         pytest.param(["a normal tag", "another normal tag"], True, id="two tags"),
         pytest.param(["a" * 100], True, id="a tag that's of just length 100"),
+        pytest.param(["a" * 100, "b" * 100], True, id="combined tag length greater than 100"),
         pytest.param(["a normal tag", "a" * 101], False, id="two tags and one of them is of length > 100"),
     ],
 )
@@ -526,8 +527,10 @@ def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
         DAG("test-dag", schedule=None, tags=tags)
     else:
-        with pytest.raises(ValueError, match="tag cannot be longer than 100 characters"):
+        with pytest.raises(ValueError, match=r"101 characters.*100-character limit") as exc_info:
             DAG("test-dag", schedule=None, tags=tags)
+        message = str(exc_info.value)
+        assert f"{'a' * 30}..." in message
 
 
 @pytest.mark.parametrize(

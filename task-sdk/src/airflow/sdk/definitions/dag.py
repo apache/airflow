@@ -631,8 +631,13 @@ class DAG:
 
     @tags.validator
     def _validate_tags(self, _, tags: Collection[str]):
-        if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
-            raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+        for tag in tags:
+            if len(tag) > TAG_MAX_LEN:
+                preview = f"{tag[:30]}..."
+                raise ValueError(
+                    f"Dag tag {preview!r} is {len(tag)} characters, "
+                    f"exceeding the {TAG_MAX_LEN}-character limit"
+                )
 
     @allowed_run_types.validator
     def _validate_allowed_run_types(self, _, allowed_run_types):
