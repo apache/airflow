@@ -242,9 +242,8 @@ def event_loop() -> Generator[AbstractEventLoop]:
     else:
         raise RuntimeError("event_loop() cannot be used from a running event loop")
 
-    runner_class = getattr(asyncio, "Runner", None)
-    if runner_class is not None:
-        with runner_class() as runner:
+    if Runner := getattr(asyncio, "Runner", None):
+        with Runner() as runner:
             yield runner.get_loop()
         return
 
