@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# ruff: noqa: S101
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -26,13 +25,12 @@ import pytest
 import time_machine
 from celery import Celery, states
 
+from airflow.dag_processing.executor_recovery import ParsingRecoveryCoordinator, PublicationOutcome
+from airflow.dag_processing.parsing_state import ReceiptCapacityError, ReceiptStore
 from airflow.executors.workloads import BundleInfo, WorkloadType
 from airflow.executors.workloads.parsing import DagDefinitionAttempt, DagDefinitionResult, ParseDagDefinitions
 from airflow.providers.celery.executors import celery_executor_utils
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-
-from dev.dag_parsing_poc.coordinator import ParsingRecoveryCoordinator, PublicationOutcome
-from dev.dag_parsing_poc.store import ReceiptCapacityError, ReceiptStore
 
 NOW = datetime(2026, 9, 25, tzinfo=timezone.utc)
 ROUTE = "recovery-only"

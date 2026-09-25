@@ -43,8 +43,16 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.parsing import (
+    TOKEN_AUDIENCE,
+    TOKEN_ISSUER,
+    TOKEN_KEY_ID,
+    TOKEN_SCOPE,
+    create_app,
+)
 from airflow.configuration import conf
 from airflow.dag_processing.executor_worker import ParsingAPIClient, compute_source_revision, parse_definition
+from airflow.dag_processing.parsing_state import ReceiptStore
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import BundleInfo, WorkloadType
 from airflow.executors.workloads.parsing import (
@@ -53,15 +61,6 @@ from airflow.executors.workloads.parsing import (
     ParseDagDefinitionsState,
 )
 from airflow.sdk.importers.zip_importer import ZipMemberDagDefinition
-
-from dev.dag_parsing_poc.api import (
-    TOKEN_AUDIENCE,
-    TOKEN_ISSUER,
-    TOKEN_KEY_ID,
-    TOKEN_SCOPE,
-    create_app,
-)
-from dev.dag_parsing_poc.store import ReceiptStore
 
 if TYPE_CHECKING:
     from multiprocessing.process import BaseProcess

@@ -418,6 +418,7 @@ def supervise_dag_parse(workload: ParseDagDefinitions, *, server: str) -> int:
     execution_id = str(uuid4())
     log_dir = Path(os.environ.get("AIRFLOW_DAG_PARSING_POC_LOG_DIR", "./dag-parsing-poc-logs"))
     with ParsingAPIClient(base_url=server.rstrip("/") + "/", token=workload.token, timeout=5) as client:
+        pending = []
         for definition in workload.definitions:
             path = f"poc/parsing/workloads/{workload.workload_id}/attempts/{definition.attempt_id}"
             claim = _post_with_retry(
@@ -431,6 +432,10 @@ def supervise_dag_parse(workload: ParseDagDefinitions, *, server: str) -> int:
                 continue
             if claim["status"] not in {"claimed", "already_claimed"}:
                 raise ParsingWorkerError("API returned an unknown claim state")
+            pending.append(definition)
+        # The start deadline covers batch admission, not the start of every serial import.
+        for definition in pending:
+            path = f"poc/parsing/workloads/{workload.workload_id}/attempts/{definition.attempt_id}"
             if timezone.utcnow() >= workload.stop_deadline:
                 raise ParsingWorkerError("Batch stop deadline expired before bundle access")
             try:

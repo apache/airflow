@@ -812,6 +812,11 @@ ARG_SSL_CIPHERS = Arg(
     help="(Optional) OpenSSL cipher list to use when SSL is enabled.",
 )
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
+ARG_EXECUTOR_PARSING = Arg(
+    ("--executor-parsing",),
+    help="Run the experimental LocalExecutor parsing route (local bundles and SQLite development databases)",
+    action="store_true",
+)
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -2291,6 +2296,7 @@ core_commands: list[CLICommand] = [
             ARG_DAEMON,
             ARG_BUNDLE_NAME,
             ARG_NUM_RUNS,
+            ARG_EXECUTOR_PARSING,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,

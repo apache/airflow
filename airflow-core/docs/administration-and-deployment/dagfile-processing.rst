@@ -45,6 +45,59 @@ The ``DagFileProcessorManager`` coordinates this work but never runs user code i
 4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
 
 
+Experimental executor parsing
+-----------------------------
+
+The executor parsing prototype can be run through the normal Dag processor command:
+
+.. code-block:: bash
+
+    airflow dag-processor --executor-parsing --num-runs 1
+
+This opt-in mode uses a dedicated ``LocalExecutor``, an authenticated loopback parsing
+API, and a periodic ``ParseOrchestrator``. The command starts and stops these components
+automatically. It discovers Python files and ZIP members in configured ``LocalDagBundle``
+bundles, imports them through the SDK, and writes serialized Dags, source code and import
+errors to the Airflow metadata database. ``--bundle-name`` restricts the bundles to parse.
+Without ``--num-runs``, it continues parsing periodically.
+
+Use a disposable, migrated SQLite development database and existing local bundle directories.
+The prototype creates auxiliary receipt and scheduling tables in that database; these do
+not yet have production migrations. Do not run the regular Dag processor for the same
+bundles at the same time. This local route shares the host's trust and credentials.
+
+``[dag_processor] parsing_processes`` sets the route capacity independently of task
+parallelism. ``min_file_process_interval`` controls repeat parsing and
+``dag_file_processor_timeout`` limits each definition. A workload contains up to ten
+definitions. Logs use ``[logging] dag_processor_child_process_log_directory``.
+Bundles take turns when sharing the route's capacity.
+``--num-runs 1`` waits for one accepted outcome per discovered definition in this invocation
+and for the runner to release its reservations; an import error is an accepted outcome.
+
+The route preserves unresolved reservations after a crash or uncertain termination.
+A restart refuses to redispatch submitted work that has not been reconciled. It requires
+confirmed termination and recovery; neither a missing worker nor an elapsed deadline
+releases capacity. Automatic recovery across runner restarts is not implemented.
+Unclaimed reservations that never entered submission are retired at startup, so
+fresh discovery determines what the new invocation dispatches.
+This mode also does not yet implement callbacks, priority requests, stale-Dag deactivation,
+remote bundles, or scheduler hosting.
+
+Contributors can verify the complete command with normal Breeze tests:
+
+.. code-block:: bash
+
+    breeze run pytest airflow-core/tests/integration/dag_processing/test_executor_parsing.py -v
+    breeze run pytest airflow-core/tests/unit/dag_processing/test_executor_manager.py \
+      airflow-core/tests/unit/dag_processing/test_orchestrator.py \
+      airflow-core/tests/unit/dag_processing/test_parsing_metadata.py -v
+
+The integration test creates and migrates its own temporary SQLite database and local
+bundles, runs the command twice, and checks parsing, publication, logs and source changes.
+No separate API process, signing keys, queue setup or development driver is needed.
+To try the command interactively, use ``breeze shell``, configure a disposable SQLite
+database and local bundles, run ``airflow db migrate``, then run the command above.
+
 Fine-tuning your Dag processor performance
 ------------------------------------------
 

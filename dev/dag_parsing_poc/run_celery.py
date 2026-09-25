@@ -35,12 +35,12 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.parsing import TOKEN_AUDIENCE, TOKEN_ISSUER, TOKEN_KEY_ID
+from airflow.dag_processing.parsing_state import ReceiptStore
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.parsing import ParseDagDefinitionsState
 
-from dev.dag_parsing_poc.api import TOKEN_AUDIENCE, TOKEN_ISSUER, TOKEN_KEY_ID
 from dev.dag_parsing_poc.run import create_archive, create_workloads, serve_api, wait_for_api, write_fixtures
-from dev.dag_parsing_poc.store import ReceiptStore
 
 
 def wait_until(predicate, *, description: str, timeout: float = 60) -> None:

@@ -232,32 +232,38 @@ class ReceiptStore:
 
     def reserve_workload(self, workload: ParseDagDefinitions, *, route: str, capacity: int) -> dict:
         """Atomically register and charge one batch against the trusted route capacity."""
+        with self._open_transaction() as connection:
+            return self._reserve_workload(connection, workload, route=route, capacity=capacity)
+
+    def _reserve_workload(
+        self, connection: sqlite3.Connection, workload: ParseDagDefinitions, *, route: str, capacity: int
+    ) -> dict:
+        """Allow scheduling state and admission to share the receipt transaction."""
         if not isinstance(route, str) or not route.strip() or workload.queue != route:
             raise ReceiptConflictError("Parsing route must match the workload's explicit queue")
         if type(capacity) is not int or capacity <= 0:
             raise ValueError("Parsing capacity must be a positive integer")
         workload_id = str(workload.workload_id)
-        with self._open_transaction() as connection:
-            self._restore_admissions(connection, route)
-            existing = connection.execute(
-                "SELECT route, state FROM admissions WHERE workload_id = ?", (workload_id,)
-            ).fetchone()
-            if existing:
-                if existing["route"] != route or existing["state"] == "released":
-                    raise ReceiptConflictError("Workload admission cannot change route or reuse a release")
-                self._register_workload(connection, workload)
-            else:
-                active = connection.execute(
-                    "SELECT COUNT(*) FROM admissions WHERE route = ? AND state IN ('reserved', 'submitted')",
-                    (route,),
-                ).fetchone()[0]
-                if active >= capacity:
-                    raise ReceiptCapacityError("Parsing route has no unreserved capacity")
-                self._register_workload(connection, workload)
-                self._insert_admission(connection, workload_id, route, "reserved")
-            return next(
-                row for row in self._get_admissions(connection, route) if row["workload_id"] == workload_id
-            )
+        self._restore_admissions(connection, route)
+        existing = connection.execute(
+            "SELECT route, state FROM admissions WHERE workload_id = ?", (workload_id,)
+        ).fetchone()
+        if existing:
+            if existing["route"] != route or existing["state"] == "released":
+                raise ReceiptConflictError("Workload admission cannot change route or reuse a release")
+            self._register_workload(connection, workload)
+        else:
+            active = connection.execute(
+                "SELECT COUNT(*) FROM admissions WHERE route = ? AND state IN ('reserved', 'submitted')",
+                (route,),
+            ).fetchone()[0]
+            if active >= capacity:
+                raise ReceiptCapacityError("Parsing route has no unreserved capacity")
+            self._register_workload(connection, workload)
+            self._insert_admission(connection, workload_id, route, "reserved")
+        return next(
+            row for row in self._get_admissions(connection, route) if row["workload_id"] == workload_id
+        )
 
     def mark_submitted(self, workload_id: UUID | str) -> dict:
         """Persist possible submission before provider I/O; a restart must not redispatch it."""
@@ -286,6 +292,12 @@ class ReceiptStore:
 
     def retire_expired_reservation(self, workload_id: UUID | str) -> bool:
         """Fence expired, unclaimed work that has never entered the submission path."""
+        return self.retire_unsubmitted_reservation(workload_id, only_if_expired=True)
+
+    def retire_unsubmitted_reservation(
+        self, workload_id: UUID | str, *, only_if_expired: bool = False
+    ) -> bool:
+        """Fence unclaimed work before submission, optionally requiring an expired start deadline."""
         workload_id = str(workload_id)
         with self._open_transaction() as connection:
             admission = connection.execute(
@@ -296,7 +308,7 @@ class ReceiptStore:
             if admission["state"] != "reserved":
                 return False
             manifest = self._get_manifest(connection, workload_id)
-            if datetime.now(timezone.utc) < datetime.fromisoformat(
+            if only_if_expired and datetime.now(timezone.utc) < datetime.fromisoformat(
                 manifest["start_deadline"].replace("Z", "+00:00")
             ):
                 return False
@@ -323,7 +335,8 @@ class ReceiptStore:
         start_deadline: datetime,
         stop_deadline: datetime,
     ) -> dict:
-        """Fence unfinished attempts after trusted termination and transfer their capacity.
+        """
+        Fence unfinished attempts after trusted termination and transfer their capacity.
 
         This PoC bounds fresh queue wait and execution window by the original execution window.
         Repeated recovery returns the persisted decision without extending either deadline.
@@ -501,7 +514,7 @@ class ReceiptStore:
     def _persist_result(
         self, connection: sqlite3.Connection, workload_id: str, result: DagDefinitionResult
     ) -> None:
-        """Optional metadata sink, called only on first acceptance within the receipt transaction."""
+        """Persist metadata on first acceptance within the receipt transaction."""
 
     def get_results(self, workload_id: UUID | str) -> list[dict]:
         """Read accepted result envelopes for the local experiment driver."""

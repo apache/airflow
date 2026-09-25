@@ -33,7 +33,9 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.parsing import create_app
 from airflow.dag_processing import executor_worker
+from airflow.dag_processing.parsing_state import ReceiptConflictError, ReceiptStore
 from airflow.executors.workloads.base import BundleInfo, WorkloadType
 from airflow.executors.workloads.parsing import (
     DagDefinitionAttempt,
@@ -43,9 +45,6 @@ from airflow.executors.workloads.parsing import (
 )
 from airflow.providers.celery.executors import celery_executor_utils
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-
-from dev.dag_parsing_poc.api import create_app
-from dev.dag_parsing_poc.store import ReceiptConflictError, ReceiptStore
 
 NOW = datetime(2026, 9, 25, tzinfo=timezone.utc)
 

@@ -27,15 +27,16 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.dag_processing.executor_manager import ExecutorDagProcessor
     from airflow.dag_processing.manager import DagFileProcessorManager
 
 
 class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     """
-    DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
+    Run the selected Dag processor and provide its job heartbeat.
 
     :param job: Job instance to use
-    :param processor: DagFileProcessorManager instance to use
+    :param processor: Regular manager or opt-in executor parsing host
     """
 
     job_type = "DagProcessorJob"
@@ -43,7 +44,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     def __init__(
         self,
         job: Job,
-        processor: DagFileProcessorManager,
+        processor: DagFileProcessorManager | ExecutorDagProcessor,
         *args,
         **kwargs,
     ):

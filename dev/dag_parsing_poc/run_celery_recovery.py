@@ -38,14 +38,14 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.parsing import TOKEN_AUDIENCE, TOKEN_ISSUER, TOKEN_KEY_ID, TOKEN_SCOPE
 from airflow.dag_processing.executor_worker import compute_source_revision
+from airflow.dag_processing.parsing_state import ReceiptStore
 from airflow.executors.workloads import BundleInfo, WorkloadType
 from airflow.executors.workloads.parsing import DagDefinitionAttempt, DagDefinitionResult, ParseDagDefinitions
 
-from dev.dag_parsing_poc.api import TOKEN_AUDIENCE, TOKEN_ISSUER, TOKEN_KEY_ID, TOKEN_SCOPE
 from dev.dag_parsing_poc.run import serve_api, wait_for_api
 from dev.dag_parsing_poc.run_celery import read_json, read_task_events, wait_until
-from dev.dag_parsing_poc.store import ReceiptStore
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -290,7 +290,8 @@ def run_experiment(args, output: Path, store: ReceiptStore, generator: JWTGenera
     validate_worker_ready(original_worker, run_id=run_id, queue=args.queue)
     workload = create_workload(files[:2], generator, queue=args.queue, stop_seconds=args.deadline_seconds)
     if args.recover:
-        from dev.dag_parsing_poc.coordinator import PublicationOutcome
+        from airflow.dag_processing.executor_recovery import PublicationOutcome
+
         from dev.dag_parsing_poc.recovery_checkpoint import create_coordinator
 
         coordinator = create_coordinator(store, args.queue, generator)

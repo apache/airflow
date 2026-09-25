@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# ruff: noqa: S101
 
 from __future__ import annotations
 
@@ -30,16 +29,15 @@ from uuid import uuid4
 import pytest
 import time_machine
 
-from airflow.executors.workloads.base import BundleInfo
-from airflow.executors.workloads.parsing import DagDefinitionAttempt, DagDefinitionResult, ParseDagDefinitions
-
-from dev.dag_parsing_poc.store import (
+from airflow.dag_processing.parsing_state import (
     ReceiptCapacityError,
     ReceiptConflictError,
     ReceiptExpiredError,
     ReceiptNotFoundError,
     ReceiptStore,
 )
+from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads.parsing import DagDefinitionAttempt, DagDefinitionResult, ParseDagDefinitions
 
 NOW = datetime(2026, 9, 25, tzinfo=timezone.utc)
 ROUTE = "parsing-only"
@@ -274,6 +272,18 @@ def test_admission_query_work_does_not_grow_with_completed_history(store, monkey
     assert steps < baseline * 2
 
 
+def test_restart_can_retire_unsubmitted_reservation_before_deadline(store):
+    workload = _build_workload()
+    store.reserve_workload(workload, route=ROUTE, capacity=1)
+    assert store.retire_unsubmitted_reservation(workload.workload_id)
+    assert store.get_admissions(ROUTE) == []
+    for definition in workload.definitions:
+        with pytest.raises(ReceiptConflictError, match="retired"):
+            store.claim(workload.workload_id, definition.attempt_id, uuid4())
+    with pytest.raises(ReceiptConflictError):
+        store.mark_submitted(workload.workload_id)
+
+
 @pytest.mark.parametrize("elapsed", [30, 61])
 def test_expired_unsent_retirement_releases_and_fences_atomically(store, clock, elapsed):
     workload = _build_workload()
@@ -296,7 +306,8 @@ def test_expired_unsent_retirement_releases_and_fences_atomically(store, clock, 
 
 
 @pytest.mark.parametrize("state", ["submitted", "claimed"])
-def test_expiry_cannot_release_possibly_executing_work(store, clock, state):
+@pytest.mark.parametrize("only_if_expired", [False, True])
+def test_expiry_cannot_release_possibly_executing_work(store, clock, state, only_if_expired):
     workload = _build_workload()
     store.reserve_workload(workload, route=ROUTE, capacity=1)
     if state == "submitted":
@@ -306,10 +317,10 @@ def test_expiry_cannot_release_possibly_executing_work(store, clock, state):
     before = _read_database(store)
     clock.move_to(NOW + timedelta(seconds=120))
     if state == "submitted":
-        assert not store.retire_expired_reservation(workload.workload_id)
+        assert not store.retire_unsubmitted_reservation(workload.workload_id, only_if_expired=only_if_expired)
     else:
         with pytest.raises(ReceiptConflictError, match="confirmed termination"):
-            store.retire_expired_reservation(workload.workload_id)
+            store.retire_unsubmitted_reservation(workload.workload_id, only_if_expired=only_if_expired)
     assert _read_database(store) == before
 
 

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from unittest import mock
@@ -27,6 +28,9 @@ import pytest
 from celery.backends.redis import RedisBackend
 from redis import Redis
 
+from airflow.executors.workloads import BundleInfo
+from airflow.executors.workloads.parsing import DagDefinitionAttempt, ParseDagDefinitions
+
 from dev.dag_parsing_poc.recovery_checkpoint import check_retired_execution, validate_termination
 from dev.dag_parsing_poc.run_celery_recovery import (
     delete_running_backend_record,
@@ -34,7 +38,6 @@ from dev.dag_parsing_poc.run_celery_recovery import (
     read_import_events,
     validate_replacement,
 )
-from dev.dag_parsing_poc.tests.test_coordinator import _create_workload
 
 
 @pytest.mark.parametrize("response_status", [409, 200])
@@ -56,7 +59,21 @@ def test_retirement_probe_contacts_local_api_despite_environment_proxy(monkeypat
     server = HTTPServer(("127.0.0.1", 0), Handler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    workload = _create_workload()
+    deadline = datetime(2026, 9, 25, tzinfo=timezone.utc)
+    workload = ParseDagDefinitions(
+        workload_id=uuid4(),
+        bundle_info=BundleInfo(name="poc", version="v1"),
+        definitions=tuple(
+            DagDefinitionAttempt(
+                attempt_id=uuid4(), relative_path=f"{index}.py", source_revision="v1", timeout_seconds=5
+            )
+            for index in range(2)
+        ),
+        start_deadline=deadline,
+        stop_deadline=deadline + timedelta(seconds=60),
+        queue="recovery-only",
+        token="fixture",
+    )
     execution_id = str(uuid4())
     url = f"http://127.0.0.1:{server.server_port}"
     try:

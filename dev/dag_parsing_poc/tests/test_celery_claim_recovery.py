@@ -137,7 +137,7 @@ def test_unknown_claim_keeps_capacity_and_does_not_invalidate_original(
 @mock.patch("airflow.dag_processing.executor_worker.get_bundle_root", autospec=True)
 @mock.patch("airflow.dag_processing.executor_worker.parse_definition", autospec=True)
 @pytest.mark.parametrize("definition_index", [0, 1])
-def test_lost_claim_acknowledgment_keeps_partial_batch_nonterminal(
+def test_lost_claim_acknowledgment_blocks_imports_and_keeps_batch_nonterminal(
     parse, get_root, create_app, recovery, monkeypatch, definition_index
 ):
     workload = recovery.workload
@@ -167,12 +167,12 @@ def test_lost_claim_acknowledgment_keeps_partial_batch_nonterminal(
 
     assert len(requests) == 2
     assert requests[0].content == requests[1].content
-    assert parse.call_count == definition_index
-    assert get_root.call_count == definition_index
+    parse.assert_not_called()
+    get_root.assert_not_called()
     assert [attempt["status"] for attempt in recovery.store.get_attempts(workload.workload_id)] == (
-        ["accepted"] * definition_index + ["claimed"] + ["pending"] * (1 - definition_index)
+        ["claimed"] * (definition_index + 1) + ["pending"] * (1 - definition_index)
     )
-    assert len(recovery.store.get_results(workload.workload_id)) == definition_index
+    assert recovery.store.get_results(workload.workload_id) == []
     _assert_nonterminal_delivery(recovery, executor, delivery)
 
 

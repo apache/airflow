@@ -14,9 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10"
-# ///
 """SQLite-only metadata ingestion experiment; not a production Execution API."""
 
 from __future__ import annotations
@@ -33,13 +30,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+from airflow.dag_processing.orchestrator import OrchestrationStore
+from airflow.dag_processing.parsing_state import ReceiptConflictError, ReceiptInvalidResultError, ReceiptStore
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.sqlalchemy import prohibit_commit
-
-from dev.dag_parsing_poc.store import ReceiptConflictError, ReceiptInvalidResultError, ReceiptStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -156,7 +153,11 @@ class MetadataReceiptStore(ReceiptStore):
         for payload in result.serialized_dags:
             data = copy.deepcopy(payload)
             dag_data = data.get("dag", {})
-            if dag_data.get("relative_fileloc") != result.relative_path or not dag_data.get("dag_id"):
+            if (
+                not isinstance(dag_data, dict)
+                or dag_data.get("relative_fileloc") != result.relative_path
+                or not dag_data.get("dag_id")
+            ):
                 raise ReceiptInvalidResultError("Serialized Dag does not identify the registered definition")
             dag_data["fileloc"] = result.relative_path
             dags.append(LazyDeserializedDAG(data=data))
@@ -175,7 +176,13 @@ class MetadataReceiptStore(ReceiptStore):
                 "\n".join(result.diagnostics) or result.outcome
             )
         try:
-            warnings = {DagWarning(**warning) for warning in result.warnings}
+            warnings = set()
+            for warning in result.warnings:
+                if not isinstance(warning, dict) or any(
+                    not isinstance(value, str) for value in warning.values()
+                ):
+                    raise TypeError("Serialized Dag warning must contain string fields")
+                warnings.add(DagWarning(**cast("dict[str, str]", warning)))
         except (TypeError, ValueError) as error:
             raise ReceiptInvalidResultError("Invalid serialized Dag warning") from error
         if any(warning.dag_id not in {dag.dag_id for dag in dags} for warning in warnings):
@@ -193,3 +200,7 @@ class MetadataReceiptStore(ReceiptStore):
             atomic=True,
             source_codes={dag.dag_id: result.source_code for dag in dags if result.source_code is not None},
         )
+
+
+class MetadataOrchestrationStore(OrchestrationStore, MetadataReceiptStore):
+    """Commit source scheduling, receipts and Airflow metadata in one SQLite transaction."""

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Explicitly launched development API; not mounted in the Airflow API server."""
+"""Opt-in parsing API for the executor prototype, separate from the versioned task API."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import jwt
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -33,15 +34,14 @@ from pydantic import BaseModel, ConfigDict
 from starlette.responses import JSONResponse
 
 from airflow.api_fastapi.auth.tokens import JWKS, JWTValidator, key_to_jwk_dict
-from airflow.executors.workloads.parsing import MAX_PARSING_REQUEST_BYTES, DagDefinitionResult
-
-from dev.dag_parsing_poc.store import (
+from airflow.dag_processing.parsing_state import (
     ReceiptConflictError,
     ReceiptExpiredError,
     ReceiptInvalidResultError,
     ReceiptNotFoundError,
     ReceiptStore,
 )
+from airflow.executors.workloads.parsing import MAX_PARSING_REQUEST_BYTES, DagDefinitionResult
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
@@ -93,11 +93,15 @@ class _RequestBodyLimit:
 
 
 class ClaimRequest(BaseModel):
+    """Bind an attempt to one worker execution."""
+
     model_config = ConfigDict(extra="forbid")
     execution_id: UUID
 
 
 class ResultRequest(ClaimRequest):
+    """Publish a serialized result for a claimed attempt."""
+
     result: DagDefinitionResult
 
 
@@ -107,9 +111,12 @@ def create_app(
     *,
     max_request_bytes: int = MAX_REQUEST_BYTES,
     persist_metadata: bool = False,
+    orchestrated: bool = False,
 ) -> FastAPI:
     """Construct the receipt API using only a public verification key and registered manifests."""
     public_key = load_pem_public_key(Path(public_key_path).read_bytes())
+    if not isinstance(public_key, Ed25519PublicKey):
+        raise ValueError("Prototype parsing requires an Ed25519 public key")
     jwks = JWKS(
         url="",
         jwks=jwt.PyJWKSet.from_dict({"keys": [key_to_jwk_dict(public_key, kid=TOKEN_KEY_ID)]}),
@@ -124,9 +131,13 @@ def create_app(
     )
     store: ReceiptStore
     if persist_metadata:
-        from dev.dag_parsing_poc.metadata import MetadataReceiptStore
+        from airflow.dag_processing.parsing_metadata import MetadataOrchestrationStore, MetadataReceiptStore
 
-        store = MetadataReceiptStore(store_path)
+        store = MetadataOrchestrationStore(store_path) if orchestrated else MetadataReceiptStore(store_path)
+    elif orchestrated:
+        from airflow.dag_processing.orchestrator import OrchestrationStore
+
+        store = OrchestrationStore(store_path)
     else:
         store = ReceiptStore(store_path)
     bearer = HTTPBearer(auto_error=False)

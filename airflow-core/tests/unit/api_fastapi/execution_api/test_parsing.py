@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# ruff: noqa: S101
 
 from __future__ import annotations
 
@@ -33,11 +32,14 @@ import httpx
 import pytest
 import time_machine
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.rsa import generate_private_key
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.parsing import create_app
 from airflow.dag_processing import executor_worker
+from airflow.dag_processing.parsing_state import ReceiptConflictError, ReceiptStore
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.parsing import (
     MAX_PARSING_REQUEST_BYTES,
@@ -46,10 +48,18 @@ from airflow.executors.workloads.parsing import (
     ParseDagDefinitions,
 )
 
-from dev.dag_parsing_poc.api import create_app
-from dev.dag_parsing_poc.store import ReceiptConflictError, ReceiptStore
-
 NOW = datetime(2026, 9, 25, tzinfo=timezone.utc)
+
+
+def test_rejects_wrong_public_key_type(tmp_path):
+    public_path = tmp_path / "public.pem"
+    public_path.write_bytes(
+        generate_private_key(public_exponent=65537, key_size=2048)
+        .public_key()
+        .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+    )
+    with pytest.raises(ValueError, match="Ed25519 public key"):
+        create_app(tmp_path / "receipts.sqlite", public_path)
 
 
 @pytest.fixture(autouse=True)
@@ -187,6 +197,40 @@ def _get_route(workload, definition_index=0):
         f"/execution/poc/parsing/workloads/{workload.workload_id}"
         f"/attempts/{workload.definitions[definition_index].attempt_id}"
     )
+
+
+@mock.patch("airflow.dag_processing.executor_worker.get_bundle_root", autospec=True)
+@mock.patch("airflow.dag_processing.executor_worker.parse_definition", autospec=True)
+def test_worker_claims_batch_before_slow_first_import(
+    parse, root, workload, issue_token, store, clock, tmp_path, install_worker_http_bridge
+):
+    root.return_value = tmp_path
+
+    def import_definition(workload, definition, **kwargs):
+        clock.shift(timedelta(seconds=16))
+        return DagDefinitionResult(
+            attempt_id=definition.attempt_id,
+            relative_path=definition.relative_path,
+            source_revision=definition.source_revision,
+            outcome="success",
+            duration_seconds=16,
+        )
+
+    workload.start_deadline = NOW + timedelta(seconds=10)
+    # Registration is immutable, so use a new manifest for the shorter start window.
+    workload.workload_id = uuid4()
+    store.register_workload(workload)
+    parse.side_effect = import_definition
+    exchanges = install_worker_http_bridge()
+    authenticated = workload.model_copy(update={"token": issue_token()})
+    assert executor_worker.supervise_dag_parse(authenticated, server="http://receipt-api/execution/") == 0
+    assert len(store.get_results(workload.workload_id)) == 2
+    assert [item["request"].url.path.rsplit("/", 1)[-1] for item in exchanges] == [
+        "claim",
+        "claim",
+        "result",
+        "result",
+    ]
 
 
 def test_claim_and_result_are_durable_and_idempotent(client, workload, result, store):
@@ -368,7 +412,7 @@ def test_registration_cannot_extend_deadlines_or_change_source(store, workload):
         store.register_workload(changed)
 
 
-@mock.patch("dev.dag_parsing_poc.store.sqlite3.connect", autospec=True)
+@mock.patch("airflow.dag_processing.parsing_state.sqlite3.connect", autospec=True)
 def test_waiting_claim_reads_winner_only_after_acquiring_transaction(mock_connect, store, workload):
     contender_started = Event()
     transaction_acquired = Event()

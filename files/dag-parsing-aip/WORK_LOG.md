@@ -26,7 +26,8 @@ Checkpoint: September 25, 2026. Branch: `codex/dag-parsing-executor-poc`.
 Base: `61d99c0374e77cefdc8f4bad495cb5d6c0bfc43b`.
 
 The initial implementation checkpoint is commit `9706237a63`. The
-[SDK importer follow-up](#sdk-importer-follow-up) records the subsequent integration.
+[SDK importer follow-up](#sdk-importer-follow-up) is committed as `1231ebe3d3`.
+The [standalone orchestration follow-up](#standalone-orchestration-follow-up) builds on it.
 
 This work tests whether parsing can reuse executor placement and lifecycle management
 without sharing task capacity. LocalExecutor and an isolated Celery worker now run
@@ -55,7 +56,7 @@ The original checkpoints have these outcomes:
 | P3: measurements and AIP feedback | No throughput or performance conclusion. Comparable load tests and agreed acceptance thresholds remain open. |
 
 No task executor default, normal callback route, or scheduler parsing loop was changed.
-The development drivers explicitly enable parsing on dedicated executor instances.
+The opt-in Dag processor command and development drivers enable dedicated parsing executors.
 
 ## Implementation map
 
@@ -66,9 +67,10 @@ Paths below are relative to the repository root.
 | Workload schema and identity | [parsing.py](../../airflow-core/src/airflow/executors/workloads/parsing.py), workload registry, key/state types |
 | Executor dispatch | [BaseExecutor](../../airflow-core/src/airflow/executors/base_executor.py), [LocalExecutor](../../airflow-core/src/airflow/executors/local_executor.py), Celery executor and task entry point |
 | Importing and publication | [executor_worker.py](../../airflow-core/src/airflow/dag_processing/executor_worker.py) |
-| Development authentication and receipts | [api.py](../../dev/dag_parsing_poc/api.py), [store.py](../../dev/dag_parsing_poc/store.py) |
-| Durable single-owner recovery | [coordinator.py](../../dev/dag_parsing_poc/coordinator.py), [recovery_checkpoint.py](../../dev/dag_parsing_poc/recovery_checkpoint.py) |
-| Metadata acceptance | [metadata.py](../../dev/dag_parsing_poc/metadata.py), [collection.py](../../airflow-core/src/airflow/dag_processing/collection.py), DagCode and SerializedDagModel |
+| Prototype authentication and receipts | [parsing.py](../../airflow-core/src/airflow/api_fastapi/execution_api/parsing.py), [parsing_state.py](../../airflow-core/src/airflow/dag_processing/parsing_state.py) |
+| Opt-in command and orchestration | [executor_manager.py](../../airflow-core/src/airflow/dag_processing/executor_manager.py), [orchestrator.py](../../airflow-core/src/airflow/dag_processing/orchestrator.py), [executor_runner.py](../../airflow-core/src/airflow/dag_processing/executor_runner.py) |
+| Durable single-owner recovery | [executor_recovery.py](../../airflow-core/src/airflow/dag_processing/executor_recovery.py), [recovery_checkpoint.py](../../dev/dag_parsing_poc/recovery_checkpoint.py) |
+| Metadata acceptance | [parsing_metadata.py](../../airflow-core/src/airflow/dag_processing/parsing_metadata.py), [collection.py](../../airflow-core/src/airflow/dag_processing/collection.py), DagCode and SerializedDagModel |
 | Experiments | [Local driver](../../dev/dag_parsing_poc/run.py), [Celery driver](../../dev/dag_parsing_poc/run_celery.py), [recovery driver](../../dev/dag_parsing_poc/run_celery_recovery.py), [metadata driver](../../dev/dag_parsing_poc/run_metadata.py), [isolated worker](../../dev/dag_parsing_poc/celery_worker.py) |
 | Regression coverage | [PoC tests](../../dev/dag_parsing_poc/tests), core worker/executor/model tests, Celery parsing workload tests |
 
@@ -396,6 +398,215 @@ reads, and an independent SDK serialization runtime remain outside this checkpoi
 These experiments establish correctness for the tested Python and archive-member
 paths, not comparative performance or completion of M0.
 
+## Standalone orchestration follow-up
+
+The earlier drivers submitted fixed batches. This checkpoint adds a periodic
+`ParseOrchestrator` that selects due definitions and reserves their batches without
+calling discovery, signing tokens, importing source, or polling an executor inside
+`step()`. Its reusable implementation now lives in `airflow-core`, as described below.
+
+| File | Responsibility |
+| --- | --- |
+| [orchestrator.py](../../airflow-core/src/airflow/dag_processing/orchestrator.py) | Source inventory, generations, due times, bounded selection, and transactional admission |
+| [executor_runner.py](../../airflow-core/src/airflow/dag_processing/executor_runner.py) | Separate LocalExecutor dispatch, polling, and reconciliation of executions owned by that runner |
+| [run_orchestration.py](../../dev/dag_parsing_poc/run_orchestration.py) | Trusted SDK discovery, independent host/runner/API processes, restart and repeated-cycle checkpoint |
+| [test_orchestrator.py](../../airflow-core/tests/unit/dag_processing/test_orchestrator.py) | Scheduling, fencing, replay, admission, recovery, discovery, and runner tests |
+
+Scheduling uses the existing receipt/admission database. A small extraction in
+`ReceiptStore.reserve_workload()` lets scheduling pointers and reservation records
+commit together. A step reconciles at most its supplied definition limit and admits
+at most one bounded batch. Due selection and result-to-source lookups are indexed.
+Full discovery and snapshot application run outside the step; SQLite lock waits
+still prevent claiming a wall-clock scheduler budget.
+
+Each source has a generation, incremented on content, archive, bundle-version, or
+presence changes. Claims and first publication require the current generation and
+attempt. Changing A to B and back to A does not restore an old attempt's authority.
+Accepted replays remain readable and do not increment counters or postpone parsing.
+New and changed definitions become due immediately. Success and import errors use
+the normal parse interval; timeouts and worker errors use the retry interval.
+
+Recovery retains the existing atomic retirement transaction. For orchestrated work,
+that transaction retires unfinished attempts without eagerly constructing replacement
+workloads. The next scheduling step applies backoff and the latest inventory before
+reserving new identities. Accepted siblings keep their normal due times. Source
+removal stops admission and invalidates outstanding authority; it does not deactivate
+production metadata Dags.
+
+The dedicated LocalExecutor runner publishes each reservation once. Automatic local
+release requires both its own execution's return and accepted outcomes showing normal
+importer exit (`success` or `import_error`). The shared supervisor's `kill()` can return
+without observing termination, so a timeout, worker error, or missing result retains
+capacity until external termination evidence permits recovery. Result acceptance or
+elapsed deadlines alone do not release it. This assumes a single trusted local runner,
+not hostile-process isolation.
+Celery events and work inherited from a dead runner do not qualify as this local
+termination evidence. Unknown submissions retain their charges and need external
+termination reconciliation. Graceful runner shutdown drains work and reconciles
+confirmed normal exits. Automatic timeout/worker-loss termination proof remains open.
+
+### Live checkpoint
+
+Run inside Breeze, with the cached-image options documented earlier if needed:
+
+```bash
+breeze run python -m dev.dag_parsing_poc.run_orchestration
+```
+
+The successful run is retained at
+`files/dag-parsing-aip/poc-runs/orchestration-50942b37ded5/`, with its invocation log
+at `files/dag-parsing-aip/orchestrator-live-final.log`.
+
+- Killed and recreated the orchestrator after reservation, then again while a worker
+  held a claim. The executor runner and receipt API stayed alive; the same outstanding
+  workload completed without duplicate imports.
+- The first cycle accepted two successes and one import error. Changing `a.py` then
+  produced its new serialized Dag before the normal interval; counts were `2, 1, 1`.
+- Later periodic cycles produced counts `3, 2, 2`. Independent import markers matched
+  accepted counts exactly. All reservations were released and processes shut down.
+- The ordinary task executor retained two free slots and its configured route.
+  Concurrent task execution was not part of this experiment.
+
+The first live run reached the expected parsing counts but stalled during harness
+shutdown: a terminated host could leave a shared multiprocessing Event locked.
+The harness now allocates a fresh Event for every replacement host. Only the stalled
+test container was stopped; the corrected run completed normally.
+
+### Validation
+
+- The combined PoC, SDK importer, worker, workload, and Celery workload regression
+  suite passed **498 tests** before the final conservative local-release adjustment.
+  Its output is `files/dag-parsing-aip/orchestrator-regression.log`.
+- After that adjustment, **54 focused tests passed**, with **100% statement and branch
+  coverage** for `orchestrator.py` and `local_runner.py`. The focused suite and a live
+  repetition share `files/dag-parsing-aip/orchestrator-final-validation.log`. These
+  counts overlap; they are not additive.
+- Static-check output is retained in `files/dag-parsing-aip/orchestrator-hooks-final.log`.
+
+This checkpoint does not host the loop in `SchedulerJobRunner` or replace
+`DagFileProcessorManager`. It does not add HA ownership, runner adoption, remote
+discovery, callbacks, priority requests, production metadata ingestion, or a latency
+guarantee. The command integration below now combines orchestration and metadata ingestion
+in one transaction. Discovery currently uses the fixed SDK Python and
+ZIP importers against a trusted local bundle; discovery failure retains the prior
+inventory and stops that development host for inspection.
+
+## Core integration and opt-in command
+
+Reusable receipt storage, API handling, metadata ingestion, recovery, discovery,
+orchestration and the LocalExecutor runner now live in the corresponding Airflow
+source packages. Their tests live under `airflow-core/tests/unit/`. Only container
+experiments, evidence collection and their driver-specific tests remain in `dev/`.
+The older reproduction commands above are historical records; the command and tests
+below are the current entry points for local verification.
+
+`airflow dag-processor --executor-parsing --num-runs 1` selects `ExecutorDagProcessor`
+through the existing CLI and `DagProcessorJobRunner`. It supplies normal job
+heartbeats, configured local bundles, a dedicated LocalExecutor, a loopback API,
+and transient signing keys. Users do not need to start the prototype API or pass
+worker environment variables themselves. The default Dag processor path is unchanged.
+
+The command supports a file-backed SQLite development database initialized with
+`airflow db migrate`. It adds the existing prototype's auxiliary tables to that
+database without production migrations. API receipts, serialized metadata, source
+code, diagnostics and scheduling counters share one physical transaction through
+`MetadataOrchestrationStore`. Replay does not increment scheduling counters again.
+
+Parsing capacity comes from `[dag_processor] parsing_processes`; task executor
+selection and parallelism are unchanged. The command uses batches of up to ten
+definitions, the configured per-definition timeout, and the normal parse interval.
+Finite runs count accepted outcomes during the current invocation, including import
+errors, and wait for reservations to be released before exiting. A source refresh
+waits for its bundle's active batch to finish.
+
+A host lock prevents two opt-in processors from owning the same database. Shutdown
+joins the runner while its API remains available. A pipe signals shutdown, avoiding
+the shared-Event failure observed in the earlier kill/restart experiment. Startup
+retains unresolved submitted admissions and refuses to redispatch them; reserved
+work outside the selected bundles is also refused. These checks do not provide HA
+adoption or coordinate with the regular Dag processor.
+
+Run the self-contained command test with:
+
+```bash
+breeze run pytest airflow-core/tests/integration/dag_processing/test_executor_parsing.py -v
+```
+
+It creates and migrates an isolated SQLite database, parses a Python definition, an
+archive member and an import error, changes the Python source, and runs the command
+again. It verifies metadata, source text, exact import counts, reservation release,
+logs, and unchanged configured task parallelism/executor. Contributors can also run
+the unit tests under `airflow-core/tests/unit/dag_processing/` and the parsing API
+tests under `airflow-core/tests/unit/api_fastapi/execution_api/`.
+
+The user-facing scope and ordinary Breeze commands are documented in
+[Dag file processing](../../airflow-core/docs/administration-and-deployment/dagfile-processing.rst).
+The core command remains a local, trusted-host experiment. Remote production
+bundles, callbacks, priority work, stale-Dag deactivation, scheduler hosting,
+production schema migrations and automatic runner recovery are still outstanding.
+
+### Core integration validation
+
+- The final command integration test passed: two real command invocations, SDK imports,
+  authenticated publication and metadata persistence. Output:
+  `files/dag-parsing-aip/core-cli-integration-verified.log`.
+- The expanded regression run passed 546 tests and skipped one. It exposed an existing
+  test isolation issue: CLI tests left their SIGINT handler installed, so a later
+  LocalExecutor test received `SystemExit` instead of `KeyboardInterrupt`. The CLI
+  tests now restore their signal handlers.
+- After that fix and the delayed-release test refinement, the final focused run passed
+  **118 tests**, with one existing skip. It includes the formerly failing LocalExecutor
+  test. Discovery, the command host, the orchestrator and the runner each have **100%
+  statement and branch coverage**. Output:
+  `files/dag-parsing-aip/core-parsing-final-focused.log`. These test counts overlap.
+- Full core mypy and repository static checks passed. The SDK import allowlist was
+  updated through its generator for the three deliberate discovery imports.
+  Output: `files/dag-parsing-aip/core-relocation-hooks-verified.log` and
+  `files/dag-parsing-aip/core-parsing-final-hooks.log`.
+
+The cached Breeze image reports an unknown pytest configuration warning. Using
+filesystem paths for coverage avoids its module-import instrumentation failure during
+early conftest loading. Neither workaround is needed by the documented plain test command.
+
+### Core integration review fixes
+
+A follow-up review found and corrected five issues:
+
+1. A slow first import could exhaust the start deadline before later definitions in
+   the batch were claimed. The worker now claims the batch before importing it.
+   Per-definition timeouts, the stop deadline and bounded acknowledgment recovery
+   remain enforced.
+2. A finite invocation could repeatedly import a finished definition while another
+   batch was still running. Admission now filters eligible source paths before
+   applying its batch limit.
+3. Startup could submit an old, unsent manifest before fresh discovery. Under the
+   host lock, it now atomically retires unclaimed, never-submitted reservations before
+   starting the runner. Claimed or submitted work still requires termination evidence.
+4. A busy first bundle could repeatedly take a released slot ahead of later bundles.
+   Successful admission now moves that bundle to the back of the scheduling order.
+5. Lock filenames discarded the database extension, making separate databases with
+   the same stem conflict. Each database now retains its full filename in its lock.
+
+Regression tests reproduced the first four issues before their fixes. Lock tests
+also exercise two processors against different databases with the same stem.
+The command integration test now creates an unsent reservation between invocations
+and changes its source before restart, checking retirement and exact import counts.
+
+The affected API/worker/state/scheduling run passed 261 tests. The real command
+integration passed, including stale reservation retirement on restart
+(`review-cli-integration.log`). The expanded coverage run passed 634 tests and
+skipped one; its remaining failure expected imports to interleave with claims.
+That recovery test now requires no imports while a batch claim is unresolved and
+still verifies that Celery leaves the workload nonterminal and capacity reserved.
+Discovery, the command host, the orchestrator and the runner retained 100% statement
+and branch coverage (`review-regression-verified.log`).
+
+The final expanded rerun passed **635 tests**, with one existing skip
+(`review-regression-final.log`). Repository checks, including core and development
+mypy, passed (`review-static-final.log`). These counts overlap the focused run.
+The cached image still reports its existing unknown pytest configuration warning.
+The [review report](review-core-integration.md) records the fixes and scope limits.
+
 ## Remaining work
 
 1. Agree AIP-85 importer/discovery boundaries and AIP-92 production API/token contracts.
@@ -407,7 +618,8 @@ paths, not comparative performance or completion of M0.
    acceptance across supported databases. Address nontransactional listener effects.
 4. Resolve distributed ownership/adoption and bounded recovery of uncertain capacity
    before claiming HA or scheduler-safe orchestration.
-5. Add periodic discovery, source deletion/deactivation, parse-time API reads, and
+5. Extend standalone periodic discovery to remote bundles, production source
+   deletion/deactivation, parse-time API reads, and
    remote log retrieval. Callback and priority-routing changes are not implemented here.
 6. Measure comparable throughput, freshness, resource usage, request rates, and recovery
    under load; agree acceptance thresholds before deciding on default rollout or pool

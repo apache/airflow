@@ -34,7 +34,7 @@ from uuid import uuid4
 def serve_metadata_api(store_path: str, public_key_path: str, listener: socket.socket) -> None:
     import uvicorn
 
-    from dev.dag_parsing_poc.api import create_app
+    from airflow.api_fastapi.execution_api.parsing import create_app
 
     server = uvicorn.Server(
         uvicorn.Config(create_app(store_path, public_key_path, persist_metadata=True), log_level="warning")
@@ -102,6 +102,8 @@ def run_checkpoint(args, output: Path) -> dict:
 
     from airflow import settings
     from airflow.api_fastapi.auth.tokens import JWTGenerator
+    from airflow.dag_processing.executor_recovery import ParsingRecoveryCoordinator
+    from airflow.dag_processing.parsing_metadata import MetadataReceiptStore
     from airflow.executors.workloads import WorkloadType
     from airflow.models import import_all_models
     from airflow.models.base import Base
@@ -112,8 +114,6 @@ def run_checkpoint(args, output: Path) -> dict:
     from airflow.utils.db import add_default_pool_if_not_exists, synchronize_log_template
     from airflow.utils.session import create_session
 
-    from dev.dag_parsing_poc.coordinator import ParsingRecoveryCoordinator
-    from dev.dag_parsing_poc.metadata import MetadataReceiptStore
     from dev.dag_parsing_poc.run import create_archive, create_workloads, wait_for_api
     from dev.dag_parsing_poc.run_celery import finish_workloads, read_json, read_task_events, wait_until
     from dev.dag_parsing_poc.run_celery_recovery import validate_worker_ready

@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# ruff: noqa: S101
 from __future__ import annotations
 
 import hashlib
@@ -33,6 +32,9 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.parsing import create_app
+from airflow.dag_processing.orchestrator import DiscoveredDefinition, OrchestrationStore, ParseOrchestrator
+from airflow.dag_processing.parsing_metadata import MetadataOrchestrationStore, MetadataReceiptStore
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.parsing import DagDefinitionAttempt, DagDefinitionResult, ParseDagDefinitions
 from airflow.models import import_all_models
@@ -47,8 +49,6 @@ from airflow.sdk import DAG, task
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db import add_default_pool_if_not_exists, synchronize_log_template
 
-from dev.dag_parsing_poc.api import create_app
-from dev.dag_parsing_poc.metadata import MetadataReceiptStore
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -62,8 +62,8 @@ def clock():
 
 
 @pytest.fixture
-def store(tmp_path):
-    store = MetadataReceiptStore(tmp_path / "metadata.sqlite")
+def store(tmp_path, request):
+    store = getattr(request, "param", MetadataReceiptStore)(tmp_path / "metadata.sqlite")
     import_all_models()
     Base.metadata.create_all(store.engine)
     with Session(store.engine) as session:
@@ -137,7 +137,10 @@ def client(tmp_path, store):
         valid_for=600,
     )
     with TestClient(
-        create_app(store.path, public, persist_metadata=True), raise_server_exceptions=False
+        create_app(
+            store.path, public, persist_metadata=True, orchestrated=isinstance(store, OrchestrationStore)
+        ),
+        raise_server_exceptions=False,
     ) as client:
 
         def publish(workload, result, *, execution_id=None):
@@ -161,6 +164,54 @@ def client(tmp_path, store):
             ), execution_id
 
         yield publish
+
+
+@pytest.mark.parametrize("store", [MetadataOrchestrationStore], indirect=True)
+@pytest.mark.parametrize("fail_scheduling_write", [True, False])
+def test_orchestrated_publication_commits_metadata_receipt_and_schedule(
+    store, client, build_result, fail_scheduling_write
+):
+    template, result = build_result()
+    orchestrator = ParseOrchestrator(store, route="poc-parsing", bundle="poc")
+    orchestrator.update_inventory(
+        template.bundle_info,
+        [
+            DiscoveredDefinition(
+                relative_path=result.relative_path,
+                source_revision=result.source_revision,
+            )
+        ],
+    )
+    admitted = orchestrator.step()
+    workload = ParseDagDefinitions.model_validate(
+        store.get_manifest(admitted.workload_id) | {"token": "not-issued"}
+    )
+    result.attempt_id = workload.definitions[0].attempt_id
+    if fail_scheduling_write:
+        with store._open_transaction() as connection:
+            connection.execute(
+                "CREATE TRIGGER reject_schedule AFTER UPDATE OF accepted_count ON parse_sources "
+                "BEGIN SELECT RAISE(ABORT, 'schedule failed'); END"
+            )
+        response, execution = client(workload, result)
+        assert response.status_code == 500
+        assert store.get_results(workload.workload_id) == []
+        assert store.get_sources("poc-parsing", "poc")[0]["accepted_count"] == 0
+        with Session(store.engine) as session:
+            for model in (DagModel, SerializedDagModel, DagCode):
+                assert session.scalar(select(func.count()).select_from(model)) == 0
+        with store._open_transaction() as connection:
+            connection.execute("DROP TRIGGER reject_schedule")
+    else:
+        execution = uuid4()
+    response, _ = client(workload, result, execution_id=execution)
+    assert response.status_code == 200, response.text
+    replay, _ = client(workload, result, execution_id=execution)
+    assert replay.json() == response.json()
+    assert store.get_sources("poc-parsing", "poc")[0]["accepted_count"] == 1
+    with Session(store.engine) as session:
+        assert session.scalar(select(SerializedDagModel.dag_id)) == "remote_metadata"
+        assert session.scalar(select(DagCode.source_code)) == result.source_code
 
 
 @mock.patch.object(
@@ -256,7 +307,20 @@ def test_new_registration_fences_stale_result_but_preserves_accepted_replay(
         assert session.scalar(select(DagCode)).source_code == new_result.source_code
 
 
-@pytest.mark.parametrize("invalid", ["source", "path", "duplicate_id", "warning", "error_path", "bundle"])
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "source",
+        "path",
+        "dag_data",
+        "duplicate_id",
+        "warning",
+        "warning_data",
+        "warning_value",
+        "error_path",
+        "bundle",
+    ],
+)
 def test_rejects_invalid_metadata_without_accepting_receipt(client, store, build_result, invalid):
     workload, result = build_result()
     store.register_workload(workload)
@@ -264,10 +328,18 @@ def test_rejects_invalid_metadata_without_accepting_receipt(client, store, build
         result.source_code = "unregistered source"
     elif invalid == "path":
         result.serialized_dags[0]["dag"]["relative_fileloc"] = "another.py"
+    elif invalid == "dag_data":
+        result.serialized_dags[0]["dag"] = None
     elif invalid == "duplicate_id":
         result.serialized_dags *= 2
     elif invalid == "warning":
         result.warnings = [{"dag_id": "another", "warning_type": "non-existent pool", "message": "bad"}]
+    elif invalid == "warning_data":
+        result.warnings = ["invalid"]
+    elif invalid == "warning_value":
+        result.warnings = [
+            {"dag_id": "remote_metadata", "warning_type": "non-existent pool", "message": None}
+        ]
     elif invalid == "error_path":
         result.import_errors = {"another.py": "error"}
     else:

@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# ruff: noqa: S101
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
@@ -30,11 +29,10 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.parsing import create_app
+from airflow.dag_processing.parsing_state import ReceiptStore
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.parsing import DagDefinitionAttempt, DagDefinitionResult, ParseDagDefinitions
-
-from dev.dag_parsing_poc.api import create_app
-from dev.dag_parsing_poc.store import ReceiptStore
 
 NOW = datetime(2026, 9, 25, tzinfo=timezone.utc)
 

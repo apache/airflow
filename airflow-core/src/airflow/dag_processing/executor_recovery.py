@@ -14,9 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10"
-# ///
 """Single-owner recovery experiment; not an HA scheduler or production parsing service."""
 
 from __future__ import annotations
@@ -24,19 +21,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
+from airflow.dag_processing.parsing_state import ReceiptExpiredError
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.parsing import ParseDagDefinitions
-
-from dev.dag_parsing_poc.store import ReceiptExpiredError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from datetime import datetime
     from uuid import UUID
 
+    from airflow.dag_processing.parsing_state import ReceiptStore
     from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-
-    from dev.dag_parsing_poc.store import ReceiptStore
 
 
 @dataclass(frozen=True)
