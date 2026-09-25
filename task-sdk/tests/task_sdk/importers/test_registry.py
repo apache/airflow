@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import json
 import logging
+import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -43,6 +45,10 @@ from airflow.sdk.importers import (
 )
 
 from tests_common.test_utils.config import conf_vars
+
+
+def _bundle(path: Path) -> SimpleNamespace:
+    return SimpleNamespace(name="test", path=path)
 
 
 class GlobalDagImporter(PythonDagImporter):
@@ -219,6 +225,62 @@ class TestDagImporterRegistry:
             for record in caplog.records
         )
 
+    def test_list_dag_definitions_with_configured_extensions(self, tmp_path):
+        """Discovery only yields files matching the explicitly configured extensions."""
+        dag_file = tmp_path / "valid_dag.custom"
+        dag_file.write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "ignored.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "notes.txt").write_text("not a dag")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register(PythonDagImporter(), extensions=[".custom"])
+
+        assert [str(d.path) for _, d in registry.list_dag_definitions(_bundle(tmp_path))] == [str(dag_file)]
+
+    def test_list_dag_definitions_routes_to_overriding_importer(self, tmp_path):
+        """A discovered file is routed to the importer that overrode its extension."""
+        py_file = tmp_path / "dag.py"
+        py_file.write_text("from airflow.sdk import DAG\n")
+
+        registry = DagImporterRegistry(register_defaults=True)
+        overriding_importer = GlobalDagImporter()
+        registry.register(overriding_importer, extensions=[".py"])
+
+        assert list(registry.list_dag_definitions(_bundle(tmp_path))) == [
+            (overriding_importer, FilesystemDagDefinition(path=py_file))
+        ]
+
+    def test_list_dag_definitions_partial_override_is_listed_once(self, tmp_path):
+        """An importer overriding only some of another importer's extensions takes just those files."""
+        py_file = tmp_path / "dag.py"
+        pyc_file = tmp_path / "compiled.pyc"
+        py_file.write_text("from airflow.sdk import DAG\n")
+        pyc_file.write_bytes(b"compiled")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        python_importer = PythonDagImporter()
+        registry.register(python_importer, extensions=[".py", ".pyc"])
+        pyc_importer = GlobalDagImporter()
+        registry.register(pyc_importer, extensions=[".pyc"])
+
+        assert sorted(
+            (type(importer).__name__, d.path.name)
+            for importer, d in registry.list_dag_definitions(_bundle(tmp_path), safe_mode=False)
+        ) == [("GlobalDagImporter", "compiled.pyc"), ("PythonDagImporter", "dag.py")]
+
+    def test_list_dag_definitions_yields_members_of_a_composite_importer(self, tmp_path):
+        """A member discovered by ZipImporter is yielded even though it imports via PythonDagImporter."""
+        archive = tmp_path / "archive.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("member_dag.py", "from airflow.sdk import DAG\n")
+
+        registry = DagImporterRegistry(register_defaults=True)
+
+        [(importer, definition)] = registry.list_dag_definitions(_bundle(tmp_path))
+
+        assert repr(definition) == str(archive / "member_dag.py")
+        assert isinstance(importer, ZipImporter)
+
     def test_lazy_importer_instantiation(self):
         """Importer classes are not imported or instantiated until get_importer is called."""
         LazyTestImporter.instances = 0
@@ -283,6 +345,37 @@ class TestDagImporterRegistry:
             bundle_reg = DagImporterRegistry.from_config("test_bundle")
             assert isinstance(bundle_reg.get_importer("dag.py"), GlobalDagImporter)
             assert isinstance(bundle_reg.get_importer("dag.custom"), BundleDagImporter)
+
+    @conf_vars(
+        {
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                [
+                    {
+                        "name": "test_bundle",
+                        "importers": [
+                            {"classpath": "airflow.sdk.importers.ZipImporter", "extensions": [".zip"]}
+                        ],
+                    }
+                ]
+            )
+        }
+    )
+    def test_from_config_bundle_override_of_zip_lists_members_once(self, tmp_path):
+        with zipfile.ZipFile(tmp_path / "dags.zip", "w") as zf:
+            zf.writestr("member.py", "from airflow.sdk import DAG\n")
+        registry = DagImporterRegistry.from_config("test_bundle")
+
+        [(importer, definition)] = registry.list_dag_definitions(_bundle(tmp_path))
+
+        assert repr(definition) == str(tmp_path / "dags.zip" / "member.py")
+        assert importer is registry.get_importer("dags.zip")
+
+    @conf_vars({("dag_processor", "dag_importer_configs"): json.dumps([f"{__name__}.GlobalDagImporter"])})
+    def test_from_config_accepts_a_bare_classpath_string(self):
+        """An importer that needs no extensions or kwargs can be configured as a plain string."""
+        registry = DagImporterRegistry.from_config()
+
+        assert isinstance(registry.get_importer("dag.py"), GlobalDagImporter)
 
     @pytest.mark.parametrize(
         ("global_cfg", "bundle_cfg", "match"),
@@ -461,3 +554,34 @@ class TestDagImporterRegistry:
 
         definitions = list(find_file_dag_definitions(tmp_path, [".py", ".pyc"]))
         assert {d.path.name for d in definitions} == {"workflow.PY"}
+
+    @pytest.mark.parametrize(
+        ("filename", "expected"),
+        [("workflow.py", ["workflow.py"]), ("notes.txt", [])],
+    )
+    def test_find_file_dag_definitions_bundle_pointing_at_a_single_file(self, tmp_path, filename, expected):
+        single_file = tmp_path / filename
+        single_file.write_text("from airflow.sdk import DAG\n")
+
+        definitions = list(find_file_dag_definitions(single_file, [".py"]))
+        assert [d.path.name for d in definitions] == expected
+
+    @pytest.mark.parametrize(("safe_mode", "expected"), [(True, []), (False, ["no_markers.py"])])
+    def test_list_dag_definitions_forwards_safe_mode(self, tmp_path, safe_mode, expected):
+        (tmp_path / "no_markers.py").write_text("print('hello')\n")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register(PythonDagImporter())
+
+        definitions = registry.list_dag_definitions(_bundle(tmp_path), safe_mode=safe_mode)
+        assert [d.path.name for _, d in definitions] == expected
+
+    def test_list_dag_definitions_passes_discovery_errors_through(self, tmp_path):
+        (tmp_path / "corrupt.zip").write_bytes(b"not a zip")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register(ZipImporter())
+
+        items = [item for _, item in registry.list_dag_definitions(_bundle(tmp_path))]
+        assert [type(item) for item in items] == [DagImportError]
+        assert items[0].error_type == "zip_read_error"

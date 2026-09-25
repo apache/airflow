@@ -147,18 +147,18 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         safe_mode: bool = True,
     ) -> Iterator[FileDagDefinition | DagImportError]:
         """
-        List Python DAG files in a bundle matching supported extensions.
+        List Python DAG files under the bundle path matching supported extensions.
 
         A lightweight content sniff (``might_contain_dag``) is applied here so files that
         clearly hold no DAG never become definitions -- keeping the discovered set (and the
         eventual parse-process count) close to the number of real DAG files. Zip members are
         discovered by :class:`..zip_importer.ZipImporter`, not here.
         """
-        if not bundle.path.is_dir():
-            return
         for definition in find_file_dag_definitions(bundle.path, self.supported_extensions):
             if self.might_contain_dag(definition, safe_mode):
                 yield definition
+            else:
+                log.debug("Skipping %r: no Airflow DAG markers found", definition)
 
     def import_definition(
         self,
