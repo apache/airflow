@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from argparse import BooleanOptionalAction
 from pathlib import Path
 from textwrap import dedent
@@ -28,6 +29,7 @@ import pytest
 
 from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
 from airflowctl.api.operations import DagRunOperations, ServerResponseError
+from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
     ActionCommand,
@@ -39,6 +41,7 @@ from airflowctl.ctl.cli_config import (
     merge_commands,
     safe_call_command,
 )
+from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -957,3 +960,27 @@ class TestCliConfigMethods:
         call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
 
         assert call_kwargs["state"] is None
+
+    @pytest.mark.parametrize(
+        ("output", "parse", "expected"),
+        [
+            pytest.param("json", json.loads, [{"tags": "etl"}, {"tags": "nightly"}], id="json"),
+            pytest.param("yaml", safe_load, [{"tags": "etl"}, {"tags": "nightly"}], id="yaml"),
+            pytest.param("table", str.split, ["tags", "=======", "etl", "nightly"], id="table"),
+            pytest.param("plain", str.split, ["tags", "etl", "nightly"], id="plain"),
+        ],
+    )
+    def test_collection_of_plain_values_prints_one_row_per_value(
+        self, api_client_maker, capsys, output, parse, expected
+    ):
+        """``dags get-tags`` receives plain strings, and the printer only renders records."""
+        api_client = api_client_maker(
+            path="/api/v2/dagTags",
+            response_json={"tags": ["etl", "nightly"], "total_entries": 2},
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(["dags", "get-tags", "--output", output])
+
+        args.func(args, api_client=api_client)
+
+        assert parse(capsys.readouterr().out) == expected

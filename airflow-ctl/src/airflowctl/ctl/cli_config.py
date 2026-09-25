@@ -40,7 +40,7 @@ import rich
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
-from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
 from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
@@ -903,7 +903,7 @@ class CommandFactory:
                     return {"operation": api_operation_name, "entity": obj}
                 return obj
 
-            def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
+            def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
                 """Check if the object is a nested dictionary and collect list of dictionaries."""
 
                 def is_dict_nested(obj: dict) -> bool:
@@ -926,13 +926,17 @@ class CommandFactory:
                 # If dict_obj only have single key return value instead of list
                 # This can happen since we are excluding some keys from user such as total_entries from list operations
                 if len(dict_obj) == 1:
-                    return dict_obj[next(iter(dict_obj.keys()))]
+                    key, value = next(iter(dict_obj.items()))
+                    # Printed rows must be records, so plain values such as Dag tags get one row each.
+                    if top_level and isinstance(value, list) and not is_data_sequence(value):
+                        return [{key: item} for item in value]
+                    return value
                 # If not nested, return the object as a list which the result should be already a dict
                 return [dict_obj]
 
             AirflowConsole().print_as(
                 data=check_operation_and_collect_list_of_dict(
-                    convert_to_dict(method_output, api_operation["name"])
+                    dict_obj=convert_to_dict(method_output, api_operation["name"]), top_level=True
                 ),
                 output=args.output,
             )
