@@ -20,7 +20,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==4.0.2"]
+requires = ["flit_core==4.1.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -66,8 +66,8 @@ dependencies = [
     # The boto3/botocore floors are raised automatically by `breeze ci upgrade` to limit `pip` backtracking
     # (see [tool.airflow.dependency-floors] in the root pyproject.toml). The mypy-boto3-* stubs in
     # `devel-dependencies` below are not covered by that automation and are raised by hand.
-    "boto3>=1.41.0",
-    "botocore>=1.41.0",
+    "boto3>=1.42.78",
+    "botocore>=1.42.78",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users
     "watchtower>=3.3.1,<4",
