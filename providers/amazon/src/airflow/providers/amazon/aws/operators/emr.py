@@ -1298,18 +1298,20 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         Tez UI or Spark stdout logs. Defaults to False.
     :param cancel_on_kill: If True, the EMR Serverless job will be cancelled when the task is killed
         while in deferrable mode. This ensures that orphan jobs are not left running in EMR Serverless
-        when an Airflow task is cancelled. Defaults to True. Incompatible with ``durable=True`` (see
-        ``durable``); setting both to True raises ``ValueError``.
+        when an Airflow task is cancelled. Defaults to True. In deferrable mode it is incompatible with
+        ``durable=True`` (see ``durable``); setting both to True with ``deferrable=True`` raises
+        ``ValueError``.
     :param durable: If True, the submitted job run id is persisted to task state (Airflow 3.3+) so a
         retry or a manual clear/rerun reconnects to the still-running (or already-succeeded) Spark job
-        instead of submitting a duplicate, mirroring ``GlueJobOperator``. This is mutually exclusive
-        with ``cancel_on_kill``: a durable task reconnects to its job on clear rather than cancelling
-        it, so ``durable=True`` forces ``cancel_on_kill`` off (and passing both as True raises). To get
-        "cancel the old run and submit a fresh one" on clear instead, use ``durable=False`` with
-        ``cancel_on_kill=True`` (the default). Because task state is retained across a clear (unless
-        ``[state_store] clear_on_success`` is enabled), clearing a task whose run already succeeded
-        reconnects to that completed run and returns without re-running it. Defaults to False. Has no
-        effect on Airflow < 3.3, where task state is unavailable.
+        instead of submitting a duplicate, mirroring ``GlueJobOperator``. In deferrable mode this is
+        mutually exclusive with ``cancel_on_kill``: a deferrable durable task reconnects to its job on
+        clear rather than cancelling it, so ``durable=True`` forces ``cancel_on_kill`` off (and passing
+        both as True with ``deferrable=True`` raises). To get "cancel the old run and submit a fresh
+        one" on clear instead, use ``durable=False`` with ``cancel_on_kill=True`` (the default).
+        Because task state is retained across a clear (unless ``[state_store] clear_on_success`` is
+        enabled), clearing a task whose run already succeeded reconnects to that completed run and
+        returns without re-running it. Defaults to False. Has no effect on Airflow < 3.3, where task
+        state is unavailable.
     :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
         into the EMR Serverless ``spark-defaults`` configuration so the Spark job emits a
         ``parentRunFacet`` linking back to the Airflow task. Defaults to the
@@ -1384,16 +1386,19 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         self.job_id: str | None = None
         self.deferrable = deferrable
         self.enable_application_ui_links = enable_application_ui_links
-        # durable reconnects to the still-running job on clear, while cancel_on_kill kills it: the two
-        # are mutually exclusive on a clear. Because the worker re-executes before the trigger's
-        # on_kill runs, a durable retry would reconnect to a run that on_kill is about to cancel and
-        # then fail, so reject the contradiction and keep cancel_on_kill off when durable is enabled.
-        if durable:
+        # In deferrable mode durable reconnects to the still-running job on clear, while cancel_on_kill
+        # (which only applies to the deferrable trigger) kills it: the two are mutually exclusive there.
+        # Because the worker re-executes before the trigger's on_kill runs, a durable retry would
+        # reconnect to a run that on_kill is about to cancel and then fail, so reject the contradiction
+        # and keep cancel_on_kill off when durable is enabled. Synchronous runs have no such race and
+        # cancel_on_kill does not apply to them, so the value is left untouched there.
+        if durable and deferrable:
             if cancel_on_kill is True:
                 raise ValueError(
-                    "cancel_on_kill=True is incompatible with durable=True: a durable task reconnects "
-                    "to its still-running job when cleared, so it cannot also cancel it. Leave "
-                    "cancel_on_kill unset (or set it to False) when durable=True."
+                    "cancel_on_kill=True is incompatible with durable=True in deferrable mode: a "
+                    "deferrable durable task reconnects to its still-running job when cleared, so it "
+                    "cannot also cancel it. Leave cancel_on_kill unset (or set it to False) when "
+                    "durable=True and deferrable=True."
                 )
             self.cancel_on_kill = False
         else:

@@ -1918,20 +1918,34 @@ class TestEmrServerlessStartJobOperatorDurable:
         operator.defer.assert_called_once()
         assert operator.defer.call_args.kwargs["trigger"].job_id == "existing-run"
 
-    def test_durable_with_cancel_on_kill_true_raises(self):
-        with pytest.raises(ValueError, match="incompatible with durable=True"):
+    def test_durable_with_cancel_on_kill_true_raises_in_deferrable(self):
+        with pytest.raises(ValueError, match="incompatible with durable=True in deferrable mode"):
             EmrServerlessStartJobOperator(
                 task_id="test_task",
                 application_id=application_id,
                 execution_role_arn=execution_role_arn,
                 job_driver=spark_job_driver,
+                deferrable=True,
                 durable=True,
                 cancel_on_kill=True,
             )
 
-    def test_durable_forces_cancel_on_kill_off(self):
-        operator = self._operator()  # durable=True, cancel_on_kill unset
+    def test_durable_forces_cancel_on_kill_off_in_deferrable(self):
+        operator = self._operator(deferrable=True)  # durable=True, cancel_on_kill unset
         assert operator.cancel_on_kill is False
+
+    def test_sync_durable_with_cancel_on_kill_allowed(self):
+        """cancel_on_kill only applies to the deferrable trigger, so the combination is fine in sync."""
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=spark_job_driver,
+            deferrable=False,
+            durable=True,
+            cancel_on_kill=True,
+        )
+        assert operator.cancel_on_kill is True
 
     def test_cancel_on_kill_defaults_true_without_durable(self):
         operator = EmrServerlessStartJobOperator(
