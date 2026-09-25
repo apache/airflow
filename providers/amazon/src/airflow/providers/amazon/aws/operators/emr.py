@@ -1490,18 +1490,30 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
 
         return self.job_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
         validated_event = validate_execute_complete_event(event)
+
+        # On resume execute() has not run, so self.job_id is unset; read the run details the trigger
+        # sends in the event (present on both success and failure) and fall back to self as a guard.
+        job_details = validated_event.get("job_details") or {}
+        job_id = job_details.get("job_id") or self.job_id
+        application_id = job_details.get("application_id") or self.application_id
 
         if validated_event["status"] == "success":
             self.log.info("Serverless job completed")
-            return validated_event["job_details"]["job_id"]
-        self.log.info("Cancelling EMR Serverless job %s", self.job_id)
-        self.hook.conn.cancel_job_run(
-            applicationId=validated_event["job_details"]["application_id"],
-            jobRunId=validated_event["job_details"]["job_id"],
+            return job_id
+        if job_id:
+            # The waiter fails on both a job failure and a poll timeout; on timeout the run may still
+            # be active, so try to cancel it to avoid an orphan. Guard it so a cancel error (e.g. an
+            # already-terminal run) does not mask the real failure reason surfaced below.
+            self.log.info("Cancelling EMR Serverless job %s after failure or timeout", job_id)
+            try:
+                self.hook.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+            except Exception:
+                self.log.exception("Failed to cancel EMR Serverless job %s", job_id)
+        raise AirflowException(
+            f"EMR Serverless job failed or timed out in deferrable mode: {validated_event.get('message', '')}"
         )
-        raise AirflowException("EMR Serverless job failed or timed out in deferrable mode")
 
     def on_kill(self) -> None:
         """

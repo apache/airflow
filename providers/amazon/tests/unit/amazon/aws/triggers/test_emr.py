@@ -438,6 +438,37 @@ class TestEmrServerlessStartJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
+    async def test_run_failure_event_includes_job_details(self, mock_async_wait):
+        """A failure/timeout event must carry job_details so execute_complete can act on the run."""
+        mock_async_wait.side_effect = Exception("Serverless Job failed")
+
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.get_waiter.return_value = mock.MagicMock()
+        mock_client = mock.MagicMock()
+        mock_async_cm = mock.MagicMock()
+        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        payload = events[0].payload
+        assert payload["status"] == "failure"
+        assert payload["job_details"] == {"application_id": "test_app", "job_id": "test_job"}
+        assert "Serverless Job failed" in payload["message"]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger.safe_to_cancel")
     async def test_emr_serverless_trigger_cancellation(self, mock_safe_to_cancel, mock_async_wait):
         """
