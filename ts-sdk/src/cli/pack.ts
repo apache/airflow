@@ -301,8 +301,9 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       // that two modules both declare, so the name the SDK reads is pinned to
       // the one the author wrote.
       keepNames: true,
-      // The tag plugin attributes each `new Dag(...)` to its source file, so
-      // one Dag-defining file per source region reaches the encoder.
+      // Tags each author-owned file with its own path before its `new Dag(...)`
+      // constructor runs, so the encoder gets one Dag-defining file per source
+      // region.
       plugins: [moduleSourceTagPlugin(cwd)],
       // The manifest is read by running the staged bundle, so the metadata describes what ships.
       outfile: stagingPath,
