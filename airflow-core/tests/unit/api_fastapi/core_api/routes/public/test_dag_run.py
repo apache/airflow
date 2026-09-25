@@ -3877,6 +3877,36 @@ class TestTriggerDagRun:
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
+    def test_trigger_logs_when_dag_at_max_active_runs(self, dag_maker, test_client, session, caplog):
+        """Manually triggering a run via the REST API logs if it's blocked by max_active_runs."""
+        dag_id = "test_trigger_logs_when_dag_at_max_active_runs"
+        with dag_maker(dag_id=dag_id, schedule=None, max_active_runs=1, session=session):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns", json={"dag_run_id": "running_run", "logical_date": None}
+        )
+        assert response.status_code == 200
+        running_run = session.scalars(select(DagRun).where(DagRun.run_id == "running_run")).one()
+        running_run.state = DagRunState.RUNNING
+        session.commit()
+
+        with caplog.at_level("INFO", logger="airflow.models.dagrun"):
+            response = test_client.post(
+                f"/dags/{dag_id}/dagRuns", json={"dag_run_id": "queued_run", "logical_date": None}
+            )
+        assert response.status_code == 200
+
+        assert {
+            "event": "created DagRun will not be scheduled yet, dag is at max_active_runs",
+            "dag_id": dag_id,
+            "run_id": "queued_run",
+            "active_runs": 1,
+            "max_active_runs": 1,
+            "log_level": "info",
+        } in caplog
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_trigger_dag_run_with_bundle_version(self, test_client, session, dag_maker):
         """Test triggering a DAG run with a specific bundle version."""
