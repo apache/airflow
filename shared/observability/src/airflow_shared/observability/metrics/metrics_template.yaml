@@ -131,7 +131,7 @@ metrics:
 
   - name: "dag_processing.processor_timeouts"
     description: "Number of file processors that have been killed due to taking too long.
-    Metric with file_path tagging."
+    Metric with file_path and bundle_name tagging, and team_name tagging in multi-team mode."
     type: "counter"
     legacy_name: "-"
     name_variables: []
