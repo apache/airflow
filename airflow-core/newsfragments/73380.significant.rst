@@ -1,0 +1,22 @@
+``[core] execute_tasks_new_python_interpreter`` now applies to Airflow 3 task and callback processes
+
+On Airflow 3 the option had no effect on task execution (only the Edge worker read it). When set to
+``True``, the task supervisor now starts a fresh interpreter for each task or task callback process,
+which prevents the child from inheriting a lock held by a supervisor thread (a permanent hang at the
+process's first TLS call). Deployments that kept the option ``True`` from Airflow 2 get this behaviour,
+and its per-process interpreter start-up cost, on upgrade without further action; set it to ``False``
+to retain the platform default. The task process reads the global value, so a team-scoped Edge setting
+alone does not turn it on. Edge workers with the option ``True`` already start a fresh interpreter for
+the supervisor and will now start a second one for the task. The Dag processor and triggerer are not
+affected by this option and retain their platform-dependent behavior.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -603,10 +603,11 @@ own ``file_actions`` (``POSIX_SPAWN_DUP2``): 0 (requests/stdin), 1 (stdout),
 2 (stderr), 3 (structured logs) -- no separate ``set_inheritable`` call is
 needed, since the remapping runs as part of the spawn itself.
 
-Task execution (``ActivitySubprocess``), the DAG processor
-(``DagFileProcessorProcess``) and the triggerer (``TriggerRunnerSupervisor``)
-all opt in -- each runs a different child entry point, named by ``module:qualname``
-in the ``_AIRFLOW_CHILD_TARGET`` env var and rehydrated by :func:`_child_exec_main`.
+Task execution (``ActivitySubprocess``), task callbacks (``CallbackSubprocess``),
+the DAG processor (``DagFileProcessorProcess``) and the triggerer
+(``TriggerRunnerSupervisor``) all opt in -- each runs a different child entry point,
+named by ``module:qualname`` in the ``_AIRFLOW_CHILD_TARGET`` env var and rehydrated
+by :func:`_child_exec_main`.
 
 See: https://github.com/python/cpython/issues/105912
      https://github.com/apache/airflow/discussions/24463
@@ -627,8 +628,8 @@ def _task_process_uses_exec() -> bool:
     ``[core] execute_tasks_new_python_interpreter``. exec replaces the child's address
     space, so it cannot inherit a lock a supervisor thread held at fork time (e.g.
     OpenSSL's, which otherwise hangs the task at its first TLS call; #71707). Only the
-    task process reads the option -- it has always described task execution -- so the Dag
-    processor (one child per file per parse loop) and the triggerer keep the platform gate.
+    task and callback processes read the option -- it has always described task execution --
+    so the Dag processor (one child per file per parse loop) and the triggerer keep the platform gate.
     """
     return _should_use_exec() or conf.getboolean(
         "core", "execute_tasks_new_python_interpreter", fallback=False
@@ -870,7 +871,7 @@ class WatchedSubprocess:
             ``fork()`` followed by ``execv()``, ``posix_spawn`` never runs
             ``os.register_at_fork()``/``pthread_atfork()`` handlers at all.
             ``target`` is rehydrated in the spawned child from its ``module:qualname``,
-            so any importable entry point (task execution, DAG processor, triggerer)
+            so any importable entry point (task execution, task callback, DAG processor, triggerer)
             is supported.
         :param new_process_group: If True, place the child in its own process
             group (PGID == its PID, like
