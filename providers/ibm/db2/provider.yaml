@@ -21,7 +21,7 @@ name: IBM Db2
 description: |
   `IBM Db2 <https://www.ibm.com/products/db2>`__
 
-state: not-ready
+state: ready
 lifecycle: incubation
 source-date-epoch: 1743033600
 # IBM ships no Db2 client for Linux ARM64, so `ibm-db` publishes no aarch64 wheel and its
