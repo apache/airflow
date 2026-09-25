@@ -20,8 +20,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.glue import (
@@ -33,7 +34,16 @@ from airflow.providers.amazon.aws.hooks.glue import (
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
@@ -50,6 +60,8 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         if not specified.
     :param verify: Whether or not to verify SSL certificates.
     :param botocore_config: Configuration dictionary (key-values) for botocore client.
+    :param stop_job_run_on_kill: If True, stop the Glue job run when the deferred task is killed
+        (for example, cleared while running). Defaults to False.
     """
 
     aws_hook_class = GlueJobHook
@@ -65,9 +77,15 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        stop_job_run_on_kill: bool = False,
     ):
         super().__init__(
-            serialized_fields={"job_name": job_name, "run_id": run_id, "verbose": verbose},
+            serialized_fields={
+                "job_name": job_name,
+                "run_id": run_id,
+                "verbose": verbose,
+                "stop_job_run_on_kill": stop_job_run_on_kill,
+            },
             waiter_name="job_complete",
             waiter_args={"JobName": job_name, "RunId": run_id},
             failure_message="AWS Glue job failed.",
@@ -85,8 +103,114 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         self.job_name = job_name
         self.run_id = run_id
         self.verbose = verbose
+        self.stop_job_run_on_kill = stop_job_run_on_kill
+
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, *, session: Session) -> TaskInstance:
+            """Get the task instance for the current trigger (Airflow 2.x compatibility)."""
+            from sqlalchemy import select
+
+            ti = self.task_instance
+            if ti is None:
+                raise RuntimeError("task_instance is not set on the trigger")
+            query = select(TaskInstance).where(
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id == ti.task_id,
+                TaskInstance.run_id == ti.run_id,
+                TaskInstance.map_index == ti.map_index,
+            )
+            task_instance = session.scalars(query).one_or_none()
+            if task_instance is None:
+                raise ValueError(
+                    f"TaskInstance with dag_id: {ti.dag_id}, "
+                    f"task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and "
+                    f"map_index: {ti.map_index} is not found"
+                )
+            return task_instance
+
+    async def get_task_state(self):
+        """Get the current state of the task instance (Airflow 3.x)."""
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+            map_index=self.task_instance.map_index,
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise ValueError(
+                f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
+                f"task_id: {self.task_instance.task_id}, "
+                f"run_id: {self.task_instance.run_id} and "
+                f"map_index: {self.task_instance.map_index} is not found"
+            )
+        return task_state
+
+    async def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to stop the Glue job run.
+
+        Returns True if the task is NOT DEFERRED (a user-initiated clear/kill). Returns False if the
+        task is still DEFERRED, which means the triggerer is merely restarting and the job must keep
+        running.
+        """
+        if AIRFLOW_V_3_0_PLUS:
+            task_state = await self.get_task_state()
+        else:
+            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_state = task_instance.state
+        return task_state != TaskInstanceState.DEFERRED
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+        """
+        Watch the Glue job run to completion.
+
+        If the task is killed while waiting, stop the Glue job run when ``stop_job_run_on_kill`` is
+        enabled and it is safe to do so.
+        """
+        try:
+            async for event in self._watch():
+                yield event
+        except asyncio.CancelledError as e:
+            # TODO: Remove this handler once the minimum supported Airflow version is 3.3+.
+            # On Airflow 3.3+ the triggerer passes a sentinel via task.cancel(msg) for
+            # user-initiated kills and calls on_kill() separately -- skip here to avoid stopping
+            # the job twice. On older Airflow there is no sentinel, so we handle it here.
+            if not (e.args and e.args[0] == "__airflow_user_action__"):
+                if self.run_id and self.stop_job_run_on_kill and await self.safe_to_cancel():
+                    self.log.info(
+                        "Task was cancelled. Stopping AWS Glue job %s run %s.", self.job_name, self.run_id
+                    )
+                    self.hook().conn.batch_stop_job_run(JobName=self.job_name, JobRunIds=[self.run_id])
+                else:
+                    self.log.info(
+                        "Trigger may have shut down or stop_job_run_on_kill is disabled. "
+                        "Skipping stop of AWS Glue job %s run %s.",
+                        self.job_name,
+                        self.run_id,
+                    )
+            raise
+
+    async def on_kill(self) -> None:
+        """
+        Stop the Glue job run when the trigger is cancelled by a user action.
+
+        Available on Airflow 3.3+ via ``BaseTrigger.on_kill()``. On older Airflow the
+        ``CancelledError`` handler in ``run()`` provides the same behaviour.
+        """
+        if self.run_id and self.stop_job_run_on_kill:
+            self.log.info("Stopping AWS Glue job %s run %s.", self.job_name, self.run_id)
+            await sync_to_async(self.hook().conn.batch_stop_job_run)(
+                JobName=self.job_name, JobRunIds=[self.run_id]
+            )
+
+    async def _watch(self) -> AsyncIterator[TriggerEvent]:
         if not self.verbose:
             async for event in super().run():
                 yield event
