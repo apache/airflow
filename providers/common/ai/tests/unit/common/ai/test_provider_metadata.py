@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+import re
 from importlib.metadata import version
 from pathlib import Path
 
@@ -332,26 +333,66 @@ class TestPydanticAIExternalServicesDrift:
         )
 
 
+# Module basename -> (display name, `:doc:` target) expected in `supported_services.rst`'s
+# hand-written Toolsets table. Kept here (not in `src/`) because it is test data, not
+# runtime behaviour, the same way `LABELS` above is.
+TOOLSET_TABLE_ENTRIES: dict[str, tuple[str, str]] = {
+    "hook": ("HookToolset", "toolsets/hook"),
+    "sql": ("SQLToolset", "toolsets/sql"),
+    "datafusion": ("DataFusionToolset", "toolsets/datafusion"),
+    "logging": ("LoggingToolset", "toolsets/logging"),
+    "mcp": ("MCPToolset", "toolsets/mcp"),
+    "sandbox": ("SandboxToolset", "sandbox/index"),
+    "skills": ("AgentSkillsToolset", "toolsets/skills"),
+    "langchain_bridge": ("LangChain Bridge", "toolsets/langchain"),
+    "managed_agent": ("Managed Agent Toolsets", "toolsets/managed_agent"),
+}
+
+
 class TestToolsetExternalServices:
-    def test_every_toolset_module_has_external_services(self):
+    def test_every_toolset_module_has_a_table_entry(self):
+        """
+        `TOOLSET_TABLE_ENTRIES` is test data, not runtime behaviour (see `LABELS` above): every
+        module in `provider.yaml`'s `toolsets[].python-modules` must have an entry here, or the
+        hand-written table in `supported_services.rst` silently omits a toolset.
+        """
         toolset_block = _extract_toolset_block()
-        modules = set(toolset_block["python-modules"])
-        services_by_module = {
-            entry["module"]: entry["services"] for entry in toolset_block["external-services"]
-        }
-
-        assert set(services_by_module) == modules, (
-            f"toolsets.external-services modules {sorted(services_by_module)} != "
-            f"python-modules {sorted(modules)}"
-        )
-        for module, services in services_by_module.items():
-            assert services, f"toolset module {module!r} has an empty services list"
-
-    def test_every_toolset_module_has_a_docs_anchor(self):
-        toolsets_rst = (PROVIDER_YAML_PATH.parent / "docs" / "toolsets.rst").read_text()
-        toolset_block = _extract_toolset_block()
-
         for module in toolset_block["python-modules"]:
             basename = module.rsplit(".", 1)[-1]
-            anchor = f".. _howto/toolset:{basename}:"
-            assert anchor in toolsets_rst, f"missing docs anchor {anchor!r} for module {module!r}"
+            assert basename in TOOLSET_TABLE_ENTRIES, (
+                f"No table entry for toolset module {module!r}. Add an entry for {basename!r} "
+                f"to TOOLSET_TABLE_ENTRIES."
+            )
+
+    def test_no_table_entry_is_stale(self):
+        """The opposite direction: catches a removed toolset module whose row nobody deleted."""
+        toolset_block = _extract_toolset_block()
+        basenames = {module.rsplit(".", 1)[-1] for module in toolset_block["python-modules"]}
+        stale = set(TOOLSET_TABLE_ENTRIES) - basenames
+        assert not stale, (
+            f"TOOLSET_TABLE_ENTRIES has entry(ies) for removed toolset module(s): {sorted(stale)}"
+        )
+
+    def test_toolset_table_entries_match_supported_services_rst(self):
+        """
+        Guard `supported_services.rst`'s hand-written Toolsets table against drifting from
+        `TOOLSET_TABLE_ENTRIES`, in both directions: every entry's `:doc:` target must appear in
+        the Toolsets section, and no *other* `:doc:` target may appear there either.
+        """
+        rst_text = (PROVIDER_YAML_PATH.parent / "docs" / "supported_services.rst").read_text()
+        start = rst_text.index("Toolsets\n--------")
+        end = rst_text.index("Notes\n-----", start)
+        toolsets_section = rst_text[start:end]
+
+        rendered_targets = set(re.findall(r":doc:`[^<]*<([^>]+)>`", toolsets_section))
+        expected_targets = {doc_target for _, doc_target in TOOLSET_TABLE_ENTRIES.values()}
+
+        assert rendered_targets == expected_targets, (
+            f"supported_services.rst's Toolsets section links to {sorted(rendered_targets)}, "
+            f"expected {sorted(expected_targets)}"
+        )
+
+    def test_toolset_table_entry_targets_exist(self):
+        for basename, (_, doc_target) in TOOLSET_TABLE_ENTRIES.items():
+            target_path = PROVIDER_YAML_PATH.parent / "docs" / f"{doc_target}.rst"
+            assert target_path.exists(), f"{doc_target}.rst (for module {basename!r}) does not exist"

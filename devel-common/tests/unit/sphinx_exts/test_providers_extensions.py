@@ -22,7 +22,6 @@ import pytest
 
 from sphinx_exts.providers_extensions import (
     _render_connection_services_content,
-    _render_toolset_services_content,
 )
 
 FAKE_PACKAGE_DATA = [
@@ -34,25 +33,6 @@ FAKE_PACKAGE_DATA = [
                 "hook-name": "Example",
                 "connection-type": "example",
                 "external-services": ["OpenAI", "Anthropic"],
-            }
-        ],
-        "toolsets": [
-            {
-                "integration-name": "Example",
-                "python-modules": [
-                    "airflow.providers.example.toolsets.hook",
-                    "airflow.providers.example.toolsets.mcp",
-                ],
-                "external-services": [
-                    {
-                        "module": "airflow.providers.example.toolsets.hook",
-                        "services": ["Any Airflow connection, through its provider hook"],
-                    },
-                    {
-                        "module": "airflow.providers.example.toolsets.mcp",
-                        "services": ["Any MCP server (user-supplied endpoint)"],
-                    },
-                ],
             }
         ],
     }
@@ -75,41 +55,3 @@ def test_render_connection_services_content_unknown_package_raises(mock_load_pac
 
     with pytest.raises(ValueError, match="No provider.yaml found"):
         _render_connection_services_content("apache-airflow-providers-does-not-exist")
-
-
-@mock.patch("sphinx_exts.providers_extensions.load_package_data", autospec=True)
-def test_render_toolset_services_content_renders_one_row_per_module(mock_load_package_data):
-    mock_load_package_data.return_value = FAKE_PACKAGE_DATA
-
-    rendered = _render_toolset_services_content("apache-airflow-providers-example")
-
-    assert ":ref:`HookToolset <howto/toolset:hook>`" in rendered
-    assert "Any Airflow connection, through its provider hook" in rendered
-    assert ":ref:`MCPToolset <howto/toolset:mcp>`" in rendered
-    assert "Any MCP server (user-supplied endpoint)" in rendered
-
-
-FAKE_PACKAGE_DATA_UNKNOWN_TOOLSET_MODULE = [
-    {
-        "package-name": "apache-airflow-providers-example",
-        "toolsets": [
-            {
-                "integration-name": "Example",
-                "python-modules": [
-                    "airflow.providers.example.toolsets.unknown_toolset",
-                ],
-                "external-services": [],
-            }
-        ],
-    }
-]
-
-
-@mock.patch("sphinx_exts.providers_extensions.load_package_data", autospec=True)
-def test_render_toolset_services_content_unknown_module_raises(mock_load_package_data):
-    mock_load_package_data.return_value = FAKE_PACKAGE_DATA_UNKNOWN_TOOLSET_MODULE
-
-    with pytest.raises(ValueError, match="apache-airflow-providers-example") as exc_info:
-        _render_toolset_services_content("apache-airflow-providers-example")
-
-    assert "airflow.providers.example.toolsets.unknown_toolset" in str(exc_info.value)

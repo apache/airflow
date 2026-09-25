@@ -23,6 +23,9 @@ talk to, and the systems its toolsets talk to. For per-model detail beyond the v
 (exact model ids, pricing, capabilities), see `pydantic-ai's model list
 <https://ai.pydantic.dev/models/>`__.
 
+This page is the complete list of what this provider reaches; for a curated, install- and
+credential-oriented walkthrough of each model vendor, see :doc:`model_providers`.
+
 Connections
 -----------
 
@@ -31,7 +34,30 @@ Connections
 Toolsets
 --------
 
-.. provider-toolset-services:: apache-airflow-providers-common-ai
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Toolset
+     - External services
+   * - :doc:`HookToolset <toolsets/hook>`
+     - Any Airflow connection, through its provider hook
+   * - :doc:`SQLToolset <toolsets/sql>`
+     - Any common.sql database connection (with table allowlists and AST validation)
+   * - :doc:`DataFusionToolset <toolsets/datafusion>`
+     - Object storage (S3, local filesystem, Apache Iceberg) via Apache DataFusion
+   * - :doc:`LoggingToolset <toolsets/logging>`
+     - Airflow task logs
+   * - :doc:`MCPToolset <toolsets/mcp>`
+     - Any MCP server (user-supplied endpoint)
+   * - :doc:`SandboxToolset <sandbox/index>`
+     - Docker Sandboxes (the shipped sbx backend; other backends can be added via SandboxBackend)
+   * - :doc:`AgentSkillsToolset <toolsets/skills>`
+     - Agent skills from local paths and remote Git repositories
+   * - :doc:`LangChain Bridge <toolsets/langchain>`
+     - LangChain tools
+   * - :doc:`Managed Agent Toolsets <toolsets/managed_agent>`
+     - Snowflake Cortex Agents; Amazon Bedrock AgentCore; Azure AI Foundry; Vertex AI Agent Engine
 
 Notes
 -----
@@ -45,7 +71,7 @@ Notes
   (:doc:`connections/pydantic_ai_azure`, :doc:`connections/pydantic_ai_vertex`,
   :doc:`connections/pydantic_ai_bedrock`) for their non-standard auth.
 * Most model providers need an extra installed alongside ``apache-airflow-providers-common-ai``
-  — see the "Choosing extras" section of :doc:`index`.
+  — see the "Choosing extras" section of :doc:`installation`.
 * "Pydantic AI Gateway" in the ``pydanticai`` row is a routing layer, not an upstream vendor
   in its own right: set the connection's Model field to ``gateway/<vendor>:<model>`` (for
   example ``gateway/anthropic:claude-sonnet-5``) to send the request through it instead of
