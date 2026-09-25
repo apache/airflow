@@ -402,9 +402,12 @@ read or edit in place. The ``/*! */`` license banners of bundled dependencies ar
 a function name, so minified names are safe: a Dag and a task are named by the string ids their registration
 states, and a handler is dispatched by reference.
 
-Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim in a
-``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something readable to
-display for the Dag. Only the entry module is embedded, not the modules it imports.
+Because the shipped code is not the code anyone wrote, the packer also embeds each Dag-defining source
+file verbatim in its own ``/*# airflowSource:<path> ... #*/`` block comment, verified by its own digest,
+so Airflow has something readable to display for each Dag. Each native Dag's file is embedded — the file
+its ``new Dag(...)`` constructor ran in — so a bundle that declares its Dags across several files gets one
+source region per file, mapped to their ``dag_id`` by the ``dag_source_paths`` field in the manifest. Files
+that only supply utilities or types are not embedded.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.

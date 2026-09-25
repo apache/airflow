@@ -219,6 +219,13 @@ export function finalizeBundleDags(bundle: Bundle): void {
   }
 }
 
+/** Internal: the Dags declared in TypeScript that this bundle owns, keyed by
+ *  dag_id, in registration order. Excludes Dags named only by task handlers,
+ *  since those Dags live in Python and have no TypeScript source. */
+export function bundleDags(bundle: Bundle): ReadonlyMap<string, Dag> {
+  return dagsOf(bundle);
+}
+
 /** Internal: the task IDs this bundle can dispatch, per Dag: the Dags declared
  *  in TypeScript first, then the Dags its task handlers name, each in
  *  registration order. A Dag declared in TypeScript with no tasks is included. */

@@ -18,7 +18,8 @@
  */
 
 import { SUPERVISOR_API_VERSION } from "./protocol.js";
-import { bundleDagTaskIds, finalizeBundleDags, type Bundle } from "../sdk/bundle.js";
+import { bundleDags, bundleDagTaskIds, finalizeBundleDags, type Bundle } from "../sdk/bundle.js";
+import { getDagDefinedIn } from "../sdk/dag.js";
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
@@ -28,14 +29,20 @@ export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
 /** Bundle manifest fields only the built bundle itself knows: the schema version it was compiled
  *  against, and the task handlers it registered grouped by Dag. Named `task_handlers` because a
  *  TypeScript bundle provides handlers for Dags declared elsewhere, not Dag definitions. A Dag with
- *  no handlers keeps an empty `tasks` list so `airflow-ts-pack` can warn instead of dropping it. */
+ *  no handlers keeps an empty `tasks` list so `airflow-ts-pack` can warn instead of dropping it.
+ *
+ *  `dag_source_paths` names the source file each *native* Dag was declared in — captured at
+ *  construction time from `airflow-ts-pack`'s module-source tag. Mixed-language Dags (those named
+ *  only by task handlers) live in Python and are absent here. */
 export interface BundleManifest {
   supervisor_schema_version: string;
   task_handlers: Record<string, { tasks: string[] }>;
+  dag_source_paths: Record<string, string>;
 }
 
 export function buildBundleManifest(bundle: Bundle): BundleManifest {
   const taskHandlers: BundleManifest["task_handlers"] = {};
+  const dagSourcePaths: BundleManifest["dag_source_paths"] = {};
   // The manifest is the bundle reporting what it provides, so this is where its
   // Dags are finalized: a Dag missing an edge is reported here rather than packed.
   finalizeBundleDags(bundle);
@@ -50,8 +57,21 @@ export function buildBundleManifest(bundle: Bundle): BundleManifest {
       writable: true,
     });
   }
+  // Second pass: only native Dags carry a source path. Task-handler-only Dags
+  // are absent, since their sources live in Python.
+  for (const [dagId, dag] of bundleDags(bundle)) {
+    const source = getDagDefinedIn(dag);
+    if (source === undefined) continue;
+    Object.defineProperty(dagSourcePaths, dagId, {
+      configurable: true,
+      enumerable: true,
+      value: source,
+      writable: true,
+    });
+  }
   return {
     supervisor_schema_version: SUPERVISOR_API_VERSION,
     task_handlers: taskHandlers,
+    dag_source_paths: dagSourcePaths,
   };
 }
