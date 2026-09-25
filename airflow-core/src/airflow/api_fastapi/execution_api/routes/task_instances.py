@@ -415,9 +415,10 @@ def ti_update_state(
             raise HTTPException(status_code=409, detail={"reason": "running_elsewhere"})
         if ti.state == TaskInstanceState.RESTARTING:
             dag = dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-            if dag is None:
-                raise HTTPException(status_code=404, detail={"reason": "dag_not_found"})
-            ti.task = dag.get_task(ti.task_id)
+            ti.task = None
+            if dag is not None:
+                with contextlib.suppress(TaskNotFound):
+                    ti.task = dag.get_task(ti.task_id)
             ti.end_date = ti_patch_payload.end_date
             ti.set_duration()
             ti.complete_restart(session=session)

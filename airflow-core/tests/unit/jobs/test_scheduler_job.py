@@ -57,7 +57,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -98,6 +98,7 @@ from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import (
@@ -580,22 +581,41 @@ class TestSchedulerJob:
         )
 
     @pytest.mark.parametrize("executor_state", [State.SUCCESS, State.FAILED])
+    @pytest.mark.parametrize(
+        ("missing_definition", "max_tries", "expected_max_tries", "retry_eligible"),
+        [
+            pytest.param(None, 3, 6, True, id="available-exhausted"),
+            pytest.param(None, 8, 6, True, id="available-remaining"),
+            pytest.param("dag", 3, 4, False, id="missing-dag-exhausted"),
+            pytest.param("dag", 8, 8, True, id="missing-dag-remaining"),
+            pytest.param("task", 3, 4, False, id="missing-task-exhausted"),
+            pytest.param("task", 8, 8, True, id="missing-task-remaining"),
+        ],
+    )
+    @pytest.mark.parametrize("bookkeeping", ["current", "other_scheduler", "still_running"])
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
     def test_process_executor_events_restarting_cleared_task(
-        self, mock_task_callback, dag_maker, executor_state
+        self,
+        mock_task_callback,
+        dag_maker,
+        mocker,
+        caplog,
+        executor_state,
+        missing_definition,
+        bookkeeping,
+        max_tries,
+        expected_max_tries,
+        retry_eligible,
     ):
         """
-        Test processing of RESTARTING task instances by scheduler's _process_executor_events.
+        A terminal executor event confirms that the cleared workload has stopped, regardless of its exit status.
 
-        Simulates the complete flow when a running task is cleared:
-        1. Task is RUNNING and has exhausted retries (try_number > max_tries)
-        2. User clears the task → state becomes RESTARTING
-        3. Executor successfully terminates the task → reports SUCCESS
-        4. Scheduler processes the event and sets task to None (scheduled)
-        5. max_tries is adjusted to allow retry beyond normal limits
+        The clear must then archive the retiring attempt and allocate its replacement, even if retries were
+        exhausted, the task definition disappeared, or scheduler bookkeeping still considers the workload active.
+        The replacement gets a fresh retry budget when the task is available, or preserves the existing budget
+        with enough room for the cleared run otherwise. Repeated events must not allocate another attempt.
 
-        This test prevents regression of issue #55045 where RESTARTING tasks
-        would get stuck due to scheduler not processing executor events.
+        This guards against #55045, where cleared tasks remained RESTARTING after executor termination.
         """
         dag_id = "test_restarting_max_tries"
         task_id = "test_task"
@@ -611,10 +631,9 @@ class TestSchedulerJob:
             )
         ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
 
-        # Set up exhausted task scenario: try_number > max_tries
         ti1.state = TaskInstanceState.RUNNING
         ti1.try_number = 4  # Already tried 4 times
-        ti1.max_tries = 3  # Originally only allowed 3 tries
+        ti1.max_tries = max_tries
         ti1 = session.merge(ti1)
         session.commit()
 
@@ -636,27 +655,82 @@ class TestSchedulerJob:
         scheduler_job = Job()
         job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
+        if bookkeeping == "other_scheduler":
+            ti1.queued_by_job_id = -1
+            session.commit()
+        elif bookkeeping == "still_running":
+            executor.running.add(retiring_key)
+        if missing_definition == "dag":
+            mocker.patch.object(
+                job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None
+            )
+        elif missing_definition == "task":
+            mocker.patch.object(
+                SerializedDAG, "get_task", autospec=True, side_effect=TaskNotFound("Task was removed")
+            )
+
         # Simulate executor reporting task completion (this triggers the bug scenario)
         executor.event_buffer[retiring_key] = executor_state, None
 
         # Process the executor event
-        job_runner._process_executor_events(executor=executor, session=session)
+        with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
+            job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
 
+        completion_logs = [
+            message for message in caplog.messages if message.startswith("TaskInstance Finished:")
+        ]
+        assert len(completion_logs) == 1
+        assert f"ti_id={retiring_id}," in completion_logs[0]
+        assert "state=restarting," in completion_logs[0]
+        assert f"executor_state={executor_state}, try_number=4, max_tries={max_tries}," in completion_logs[0]
         assert ti1.state is None, "Task should be set to None (scheduled) state after RESTARTING processing"
         assert ti1.id != retiring_id
         assert ti1.try_number == 5
         mock_task_callback.assert_not_called()
 
         # Verify max_tries was adjusted to allow retry
-        expected_max_tries = 4 + 2
         assert ti1.max_tries == expected_max_tries, (
             f"max_tries should be adjusted to {expected_max_tries}, got {ti1.max_tries}"
         )
+        assert ti1.is_eligible_to_retry() is retry_eligible
 
-        # Verify task is now eligible for retry despite being previously exhausted
-        assert ti1.is_eligible_to_retry() is True, (
-            "Task should be eligible for retry after max_tries adjustment"
+        history = session.scalars(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.dag_id == dag_id)
+        ).one()
+        assert (history.task_instance_id, history.try_number, history.state) == (retiring_id, 4, State.FAILED)
+        assert history.end_date is not None
+        replacement_id = ti1.id
+        executor.event_buffer[retiring_key] = executor_state, None
+        job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db(session=session)
+        assert (ti1.id, ti1.try_number, ti1.state) == (replacement_id, 5, None)
+
+    @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING])
+    def test_restarting_waits_for_terminal_executor_event(self, dag_maker, session, event_state):
+        with dag_maker(dag_id="restart_waits_for_termination"):
+            EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
+        ti.state, ti.try_number = State.RESTARTING, 3
+        old_id = ti.id
+        session.commit()
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[ti.key] = event_state, "worker"
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+
+        runner._process_executor_events(executor=executor, session=session)
+
+        session.flush()
+        session.refresh(ti)
+        assert (ti.id, ti.try_number, ti.state) == (old_id, 3, State.RESTARTING)
+        assert ti.external_executor_id == "worker"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstanceHistory)
+                .where(TaskInstanceHistory.dag_id == ti.dag_id)
+            )
+            == 0
         )
 
     @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING, State.SUCCESS, State.FAILED])
@@ -9865,6 +9939,59 @@ class TestSchedulerJob:
         assert isinstance(email, EmailRequest)
         assert email.email_type == "retry"
         assert (email.ti.id, email.ti.try_number) == (old_id, old_key.try_number)
+
+    @pytest.mark.parametrize("missing_definition", ["dag", "task"])
+    @pytest.mark.parametrize(("max_tries", "expected_max_tries"), [(0, 3), (7, 7)])
+    @pytest.mark.parametrize("callback_version_available", [True, False])
+    def test_heartbeat_timeout_completes_clear_without_definition(
+        self,
+        dag_maker,
+        session,
+        mocker,
+        missing_definition,
+        max_tries,
+        expected_max_tries,
+        callback_version_available,
+    ):
+        with dag_maker(dag_id="heartbeat_clear_missing_definition", session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = State.RESTARTING
+        ti.try_number = 3
+        ti.max_tries = max_tries
+        ti.external_executor_id = "retiring"
+        old_id, old_key = ti.id, ti.key
+        session.commit()
+        executor = MockExecutor(do_update=False)
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.running.add(old_key)
+        if missing_definition == "dag":
+            mocker.patch.object(runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None)
+        else:
+            mocker.patch.object(
+                SerializedDAG, "get_task", autospec=True, side_effect=TaskNotFound("Task was removed")
+            )
+        mocker.patch(
+            "airflow.jobs.scheduler_job_runner._ensure_ti_has_dag_version_id",
+            autospec=True,
+            return_value=callback_version_available,
+        )
+
+        runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        session.flush()
+        session.refresh(ti)
+        assert ti.id != old_id
+        assert (ti.try_number, ti.state, ti.max_tries) == (4, None, expected_max_tries)
+        assert ti.external_executor_id is None
+        assert old_key not in executor.running
+        assert executor.event_buffer == {old_key: (State.FAILED, None)}
+
+        history = session.scalars(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.dag_id == ti.dag_id)
+        ).one()
+        assert (history.task_instance_id, history.try_number, history.state) == (old_id, 3, State.FAILED)
 
     def test_heartbeat_timeout_honors_fail_fast(self, dag_maker, session):
         """

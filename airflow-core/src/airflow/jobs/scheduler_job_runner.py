@@ -27,7 +27,7 @@ import sys
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
@@ -66,7 +66,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import DagNotFound, TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -1597,6 +1597,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
+            if ti.state == TaskInstanceState.RESTARTING:
+                # A finished workload releases the clear regardless of its exit status or scheduler ownership.
+                dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                ti.task = None
+                if dag is not None:
+                    with suppress(TaskNotFound):
+                        ti.task = dag.get_task(ti.task_id)
+                ti.complete_restart(session=session)
+                continue
+
             # There are multiple scenarios why the same TI with the same try_number looks queued or
             # waiting after the executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
@@ -1615,7 +1625,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstanceState.SCHEDULED,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
-                TaskInstanceState.RESTARTING,
             )
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
@@ -1665,9 +1674,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(state)
                     continue
                 ti.task = task
-                if ti.state == TaskInstanceState.RESTARTING:
-                    ti.complete_restart(session=session)
-                    continue
                 if task.has_on_retry_callback or task.has_on_failure_callback:
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
@@ -3867,49 +3873,51 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
-            # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-            if not _ensure_ti_has_dag_version_id(ti, session, self.log):
+            # Missing callback metadata must not prevent a cleared attempt from being released.
+            has_callback_version = _ensure_ti_has_dag_version_id(ti, session, self.log)
+            if not has_callback_version and ti.state != TaskInstanceState.RESTARTING:
                 continue
-            context_from_server = TIRunContext(
-                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                max_tries=ti.max_tries,
-                variables=[],
-                connections=[],
-                xcom_keys_to_clear=[],
-            )
-            request = TaskCallbackRequest(
-                filepath=ti.dag_model.relative_fileloc or "",
-                bundle_name=bundle_name,
-                bundle_version=bundle_version,
-                version_data=version_data,
-                ti=ti,
-                msg=msg,
-                task_callback_type=task_callback_type,
-                context_from_server=context_from_server,
-            )
-            self.executor.send_callback(request)
-
-            # This purge path leaves the executor's own "task finished but TI still looked queued"
-            # handling in process_executor_events unreachable for this TI once handle_failure() below
-            # moves it out of RUNNING, so the email notification has to be sent from here directly.
-            if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
-                self.executor.send_callback(
-                    EmailRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=bundle_name,
-                        bundle_version=bundle_version,
-                        version_data=version_data,
-                        ti=ti,
-                        msg=msg,
-                        email_type=(
-                            "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
-                        ),
-                        context_from_server=context_from_server,
-                    )
+            if has_callback_version:
+                context_from_server = TIRunContext(
+                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                    max_tries=ti.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
                 )
+                request = TaskCallbackRequest(
+                    filepath=ti.dag_model.relative_fileloc or "",
+                    bundle_name=bundle_name,
+                    bundle_version=bundle_version,
+                    version_data=version_data,
+                    ti=ti,
+                    msg=msg,
+                    task_callback_type=task_callback_type,
+                    context_from_server=context_from_server,
+                )
+                self.executor.send_callback(request)
+
+                # This purge path leaves the executor's own "task finished but TI still looked queued"
+                # handling in process_executor_events unreachable for this TI once handle_failure() below
+                # moves it out of RUNNING, so the email notification has to be sent from here directly.
+                if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
+                    self.executor.send_callback(
+                        EmailRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=bundle_name,
+                            bundle_version=bundle_version,
+                            version_data=version_data,
+                            ti=ti,
+                            msg=msg,
+                            email_type=(
+                                "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
+                            ),
+                            context_from_server=context_from_server,
+                        )
+                    )
 
             failed_key = ti.key
-            if ti.state == TaskInstanceState.RESTARTING and task is not None:
+            if ti.state == TaskInstanceState.RESTARTING:
                 ti.notify_failure(error=msg)
                 ti.complete_restart(session=session)
             else:

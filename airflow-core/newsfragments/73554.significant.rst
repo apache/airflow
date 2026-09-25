@@ -1,6 +1,6 @@
 TaskInstance try numbers now increase before the next try starts
 
-..note::
+.. note::
   If you have any external systems that look at task logs or TI state for an
   up-for-retry TI, you will need to be aware of this change and update your
   code.

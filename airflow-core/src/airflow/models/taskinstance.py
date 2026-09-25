@@ -1084,9 +1084,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """Release a cleared attempt after termination; the caller must hold its row lock."""
         if self.state != TaskInstanceState.RESTARTING:
             raise ValueError("Only a restarting task instance can complete a restart")
-        if self.task is None:
-            raise ValueError("The task must be loaded before completing a restart")
-        self.max_tries = self.try_number + self.task.retries
+        if self.task is not None:
+            self.max_tries = self.try_number + self.task.retries
+        else:
+            self.max_tries = max(self.max_tries, self.try_number)
         self.prepare_db_for_next_try(session)
         self.state = None
         self.external_executor_id = None
