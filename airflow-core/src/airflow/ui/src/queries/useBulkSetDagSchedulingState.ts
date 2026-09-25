@@ -35,7 +35,7 @@ type Props = {
   readonly onSuccessConfirm: VoidFunction;
 };
 
-export const useBulkPauseDrainDags = ({ deselectKeys, onSuccessConfirm }: Props) => {
+export const useBulkSetDagSchedulingState = ({ deselectKeys, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation(["common", "dags"]);
 

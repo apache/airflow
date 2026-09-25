@@ -25,7 +25,7 @@ import { ActionErrors } from "src/components/ActionErrors";
 import { ConfirmationModal } from "src/components/ConfirmationModal";
 import { PauseOrDrainChoiceModal } from "src/components/PauseOrDrainChoiceModal";
 
-import { useBulkPauseDrainDags } from "src/queries/useBulkPauseDrainDags";
+import { useBulkSetDagSchedulingState } from "src/queries/useBulkSetDagSchedulingState";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -35,7 +35,7 @@ type Props = {
 const BulkPauseDrainDagsButton = ({ deselectKeys, selectedDags }: Props) => {
   const { t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
-  const { bulkAction, data, error, isPending, reset } = useBulkPauseDrainDags({
+  const { bulkAction, data, error, isPending, reset } = useBulkSetDagSchedulingState({
     deselectKeys,
     onSuccessConfirm: onClose,
   });
@@ -69,7 +69,13 @@ const BulkPauseDrainDagsButton = ({ deselectKeys, selectedDags }: Props) => {
 
   return (
     <>
-      <Button data-testid="bulk-pause-drain-dags" loading={isPending} onClick={handleOpen} variant="outline">
+      <Button
+        data-testid="bulk-pause-drain-dags"
+        disabled={selectedDags.every((dag) => dag.is_paused)}
+        loading={isPending}
+        onClick={handleOpen}
+        variant="outline"
+      >
         {translate("dags:schedulingActions.pauseSelected")}
       </Button>
       {allIdle ? (

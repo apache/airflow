@@ -62,6 +62,7 @@ import { useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import BulkPauseDrainDagsButton from "./BulkPauseDrainDagsButton";
+import BulkUnpauseDagsButton from "./BulkUnpauseDagsButton";
 import { DagCard } from "./DagCard";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
@@ -456,6 +457,7 @@ export const DagsList = () => {
               </ActionBar.SelectionTrigger>
               <ActionBar.Separator />
               <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+              <BulkUnpauseDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
               <ActionBar.CloseTrigger onClick={clearSelections} />
             </ActionBar.Content>
           </ActionBar.Root>

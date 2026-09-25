@@ -22,6 +22,8 @@ import { delay, http, HttpResponse } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import type { DagSchedulingState } from "openapi/requests/types.gen";
+
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { handlers } from "src/mocks/handlers";
 import { failedDag, pausedDag, successDag } from "src/mocks/handlers/dags";
@@ -107,7 +109,9 @@ type BulkRequestBody = {
   actions: Array<{ entities: Array<{ dag_id: string; scheduling_state: string }> }>;
 };
 
-const renderDagsAndSelectAll = async (dags: Array<typeof successDag>) => {
+const renderDagsAndSelectAll = async (
+  dags: Array<{ scheduling_state?: DagSchedulingState } & typeof successDag>,
+) => {
   const captured: { body?: BulkRequestBody } = {};
 
   server.use(
@@ -191,6 +195,52 @@ describe("Bulk pause/drain Dags", () => {
         tutorial_taskflow_api_failed: expectedState,
         tutorial_taskflow_api_success: expectedState,
       });
+    },
+  );
+
+  it("unpauses every selected Dag, including cancelling a drain, in one bulk request", async () => {
+    const captured = await renderDagsAndSelectAll([
+      successDag,
+      { ...failedDag, scheduling_state: "draining" },
+      pausedDag,
+    ]);
+
+    fireEvent.click(await screen.findByTestId("bulk-unpause-dags"));
+    fireEvent.click(await screen.findByTestId("confirmation-confirm-button"));
+
+    expect(await getRequestedSchedulingStates(captured)).toEqual({
+      paused_dag: "active",
+      tutorial_taskflow_api_failed: "active",
+      tutorial_taskflow_api_success: "active",
+    });
+  });
+
+  it.each([
+    {
+      dags: [pausedDag],
+      pauseDisabled: true,
+      scenario: "every selected Dag is paused",
+      unpauseDisabled: false,
+    },
+    {
+      dags: [successDag, failedDag],
+      pauseDisabled: false,
+      scenario: "every selected Dag is active",
+      unpauseDisabled: true,
+    },
+    {
+      dags: [{ ...failedDag, scheduling_state: "draining" as const }],
+      pauseDisabled: false,
+      scenario: "a selected Dag is draining",
+      unpauseDisabled: false,
+    },
+  ])(
+    "disables the bulk actions that would change nothing when $scenario",
+    async ({ dags, pauseDisabled, unpauseDisabled }) => {
+      await renderDagsAndSelectAll(dags);
+
+      expect(await screen.findByTestId("bulk-pause-drain-dags")).toHaveProperty("disabled", pauseDisabled);
+      expect(screen.getByTestId("bulk-unpause-dags")).toHaveProperty("disabled", unpauseDisabled);
     },
   );
 });

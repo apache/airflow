@@ -1237,6 +1237,33 @@ class TestBulkDags(TestDagEndpoint):
         assert dag.is_paused is False
         assert dag.is_draining is True
 
+    def test_bulk_update_unpauses_paused_and_draining_dags(self, test_client, session):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG2_ID).values(is_draining=True))
+        session.commit()
+
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.ACTIVE},
+                            {"dag_id": DAG2_ID, "scheduling_state": DagSchedulingState.ACTIVE},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert sorted(response.json()["update"]["success"]) == [DAG1_ID, DAG2_ID]
+        session.expire_all()
+        for dag_id in (DAG1_ID, DAG2_ID):
+            dag = session.get(DagModel, dag_id)
+            assert dag.is_paused is False
+            assert dag.is_draining is False
+
     def test_bulk_update_accepts_legacy_is_paused(self, test_client, session):
         response = test_client.patch(
             "/dags/bulk",
