@@ -100,18 +100,19 @@ class TestWorkerApiRoutes:
         token = JWTGenerator(
             secret_key=conf.get("api_auth", "jwt_secret"), valid_for=60, audience="api"
         ).generate(extras={"method": "worker/version_test"})
+        sysinfo = dict(self.MOCK_SYSINFO)
         body = {
             "state": EdgeWorkerState.STARTING,
             "jobs_active": 0,
             "queues": ["default"],
-            "sysinfo": dict(self.MOCK_SYSINFO),
+            "sysinfo": sysinfo,
         }
         jwt_validator.cache_clear()
         try:
             with TestClient(app, raise_server_exceptions=False, headers={"Authorization": token}) as client:
                 if method == "PATCH":
                     assert client.post(path, json=body).status_code == 200
-                body["sysinfo"][field] = "invalid-version" if invalid_source == "worker" else "0.0.0"
+                sysinfo[field] = "invalid-version" if invalid_source == "worker" else "0.0.0"
                 minimum = "0.0.0" if invalid_source == "worker" else "invalid-version"
                 with conf_vars({("edge", minimum_key): minimum}):
                     response = client.request(method=method, url=path, json=body)
