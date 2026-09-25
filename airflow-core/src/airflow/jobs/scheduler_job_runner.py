@@ -3844,10 +3844,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task = None
             ti.task = task
 
-            # Single source of truth for the retry decision, matching
-            # TaskInstance.fetch_handle_failure_context exactly, so the callback type sent here can
-            # never disagree with the state handle_failure() actually persists below (this previously
-            # diverged for RESTARTING task instances with max_tries=0).
+            session.add(
+                Log(
+                    event="heartbeat timeout",
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task did not emit heartbeat within time limit ({self._task_instance_heartbeat_timeout_secs} "
+                        "seconds) and will be terminated. "
+                        "See https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout"
+                    ),
+                )
+            )
+            self.log.error(
+                "Detected a task instance without a heartbeat: %s "
+                "(See https://airflow.apache.org/docs/apache-airflow/"
+                "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
+                ti,
+            )
             task_callback_type = (
                 TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
             )
@@ -3873,24 +3887,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task_callback_type=task_callback_type,
                 context_from_server=context_from_server,
             )
-            session.add(
-                Log(
-                    event="heartbeat timeout",
-                    task_instance=ti.key,
-                    extra=(
-                        f"Task did not emit heartbeat within time limit ({self._task_instance_heartbeat_timeout_secs} "
-                        "seconds) and will be terminated. "
-                        "See https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout"
-                    ),
-                )
-            )
-            self.log.error(
-                "Detected a task instance without a heartbeat: %s "
-                "(See https://airflow.apache.org/docs/apache-airflow/"
-                "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
-                request,
-            )
             self.executor.send_callback(request)
 
             # This purge path leaves the executor's own "task finished but TI still looked queued"
@@ -3913,7 +3909,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
             failed_key = ti.key
-            ti.handle_failure(error=msg, session=session)
+            if ti.state == TaskInstanceState.RESTARTING and task is not None:
+                ti.notify_failure(error=msg)
+                ti.complete_restart(session=session)
+            else:
+                ti.handle_failure(error=msg, session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )

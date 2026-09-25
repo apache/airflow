@@ -3353,7 +3353,7 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     @task
     def generate_mapping_args():
         context = get_current_context()
-        if context["ti"].try_number == 0:
+        if context["ti"].try_number == 1:
             args = [i for i in range(2)]
         else:
             args = [i for i in range(rerun_length)]
@@ -3378,9 +3378,6 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     clear_task_instances(dr.get_task_instances(), session=session)
 
     # Second Run
-    ti = dr.get_task_instance(task_id="generate_mapping_args", session=session)
-    ti.try_number += 1
-    session.merge(ti)
     dag_maker.run_ti("generate_mapping_args", dr)
 
     # Check if the new mapped task instances are correctly scheduled
@@ -3405,7 +3402,7 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
     @task
     def producer():
         context = get_current_context()
-        if context["ti"].try_number == 0:
+        if context["ti"].try_number == 1:
             return [i for i in range(3)]
         return [i for i in range(2)]
 
@@ -3441,9 +3438,6 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
 
     # Clear and rerun with one fewer mapped task instance.
     clear_task_instances(dr.get_task_instances(session=session), session=session)
-    ti = dr.get_task_instance(task_id="producer", session=session)
-    ti.try_number += 1
-    session.merge(ti)
 
     dag_maker.run_ti("producer", dr)
     decision = dr.task_instance_scheduling_decisions(session=session)

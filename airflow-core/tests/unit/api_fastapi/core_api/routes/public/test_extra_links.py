@@ -404,13 +404,15 @@ class TestGetExtraLinks:
         assert json.loads(link_value) == payload
 
     @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
-    def test_should_use_try_number_when_specified(self, test_client, session):
-        from uuid import uuid4
-
+    @pytest.mark.parametrize(
+        ("requested_try", "expected_try"),
+        [(1, 1), (2, 2), (None, 2)],
+        ids=["historical", "current", "default"],
+    )
+    def test_should_use_selected_try_number(self, test_client, session, requested_try, expected_try):
         from sqlalchemy.sql import select
 
         from airflow.models.taskinstance import TaskInstance
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
         ti = session.scalar(
             select(TaskInstance).where(
@@ -421,24 +423,20 @@ class TestGetExtraLinks:
             )
         )
         assert ti is not None
-        original_try_number = ti.try_number
-
-        # Create a TIH record for a past try (try_number must differ from live TI).
-        # Use a new UUID as the PK to avoid a primary-key conflict with the live TI.
-        tih = TaskInstanceHistory(ti)
-        tih.task_instance_id = uuid4()
-        tih.try_number = original_try_number + 1
-        session.add(tih)
+        ti.try_number = 1
+        ti.state = "success"
+        ti.prepare_db_for_next_try(session=session)
+        ti.state = None
         session.commit()
+        current_id = ti.id
 
         response = test_client.get(
             f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
-            params={"try_number": original_try_number + 1},
+            params={} if requested_try is None else {"try_number": requested_try},
         )
         assert response.status_code == 200
-        assert (
-            response.json()["extra_links"]["Try Number"]
-            == f"https://example.com/logs?try_number={original_try_number + 1}"
+        assert response.json()["extra_links"]["Try Number"] == (
+            f"https://example.com/logs?try_number={expected_try}"
         )
 
         # Verify the live TI try_number was NOT modified
@@ -452,7 +450,8 @@ class TestGetExtraLinks:
             )
         )
         assert ti is not None
-        assert ti.try_number == original_try_number
+        assert ti.try_number == 2
+        assert ti.id == current_id
 
     @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
     def test_should_respond_404_for_nonexistent_try_number(self, test_client):

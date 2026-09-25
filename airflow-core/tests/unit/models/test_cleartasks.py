@@ -194,13 +194,6 @@ class TestClearTasks:
         ti1 = dag_maker.run_ti("1", dr)
 
         with create_session() as session:
-            # do the incrementing of try_number ordinarily handled by scheduler
-            ti0.try_number += 1
-            ti1.try_number += 1
-            ti0 = session.merge(ti0)
-            ti1 = session.merge(ti1)
-            session.commit()
-
             # we use order_by(task_id) here because for the test DAG structure of ours
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS

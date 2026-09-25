@@ -1948,25 +1948,30 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Actual callbacks are handled by the DAG processor, not the scheduler
         task = getattr(ti, "task", None)
 
+        allocate_next_try = False
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state != TaskInstanceState.UP_FOR_RETRY:
-                ti.prepare_db_for_next_try(session)
-
+            allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY
 
+        ti.notify_failure(error)
+        if allocate_next_try:
+            ti.prepare_db_for_next_try(session)
+
+        return ti
+
+    def notify_failure(self, error: str | None) -> None:
+        """Notify listeners before replacing this try's UUID and try number."""
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING, task_instance=self, error=error
             )
         except Exception:
             log.exception("error calling listener")
-
-        return ti
 
     @staticmethod
     @provide_session

@@ -161,6 +161,7 @@ class TestTaskInstanceEndpoint:
                 ti = TaskInstance(task=tasks[i], **kwargs, dag_version_id=dag_version.id)
                 session.add(ti)
                 ti.dag_run = dr
+                ti.try_number = 1
                 ti.note = "placeholder-note"
 
                 for key, value in self.ti_extras.items():
@@ -176,7 +177,7 @@ class TestTaskInstanceEndpoint:
                 session.flush()
             dag.clear(session=session)
             for ti in tis:
-                ti.try_number = 2
+                assert ti.try_number == 2, "pre-condition: dag-clear moved tries along"
                 ti.queue = "default_queue"
                 session.merge(ti)
                 session.flush()
@@ -235,7 +236,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "state": "running",
             "task_id": "print_the_context",
             "task_display_name": "print_the_context",
-            "try_number": 0,
+            "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
@@ -403,7 +404,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "state": "deferred",
             "task_id": "print_the_context",
             "task_display_name": "print_the_context",
-            "try_number": 0,
+            "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "run_after": "2020-01-01T00:00:00Z",
@@ -470,7 +471,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "state": "removed",
             "task_id": "print_the_context",
             "task_display_name": "print_the_context",
-            "try_number": 0,
+            "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
@@ -527,7 +528,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "state": "running",
             "task_id": "print_the_context",
             "task_display_name": "print_the_context",
-            "try_number": 0,
+            "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
@@ -556,7 +557,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=index, dag_version_id=old_ti.dag_version_id
             )
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.delete(old_ti)
@@ -576,7 +577,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         ti = TaskInstance(
             task=old_ti.task, run_id=old_ti.run_id, map_index=2, dag_version_id=old_ti.dag_version_id
         )
-        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
             setattr(ti, attr, getattr(old_ti, attr))
         session.add(ti)
         session.delete(old_ti)
@@ -599,7 +600,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
@@ -648,7 +649,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "task_id": "print_the_context",
                 "task_display_name": "print_the_context",
-                "try_number": 0,
+                "try_number": 1,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
@@ -1535,8 +1536,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
-                    {"try_number": 0},
-                    {"try_number": 0},
+                    {"try_number": 0, "state": None},
+                    {"try_number": 0, "state": None},
                     {"try_number": 1},
                     {"try_number": 1},
                     {"try_number": 1},
@@ -2865,7 +2866,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             ti.try_number = 1
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
@@ -2944,13 +2945,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         ti.try_number = 1
         session.merge(ti)
         session.flush()
-        # Record the TaskInstanceHistory
-        TaskInstanceHistory.record_ti(ti, session=session)
+        ti.prepare_db_for_next_try(session=session)
+        ti.state = None
         session.flush()
-        # Change TaskInstance try_number to 2, ensuring api checks TIHistory
-        ti = session.scalars(select(TaskInstance)).one_or_none()
-        ti.try_number = 2
-        session.merge(ti)
         # Set duration and end_date in TaskInstanceHistory for easy testing
         tih = session.scalars(select(TaskInstanceHistory).limit(1)).one()
         tih.duration = 10000
@@ -3858,7 +3855,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
-                "try_number": 0,
+                "try_number": 1,
                 "unixname": getuser(),
             },
         ]
@@ -4828,7 +4825,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "start_date": "2020-01-02T00:00:00Z",
                     "state": "running",
                     "task_display_name": self.TASK_ID,
-                    "try_number": 0,
+                    "try_number": 1,
                     "unixname": getuser(),
                     "rendered_fields": {},
                     "rendered_map_index": None,
@@ -5106,7 +5103,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "start_date": "2020-01-02T00:00:00Z",
                             "state": "running",
                             "task_display_name": "print_the_context",
-                            "try_number": 0,
+                            "try_number": 1,
                             "unixname": getuser(),
                             "rendered_fields": {},
                             "rendered_map_index": None,
@@ -5245,7 +5242,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "state": "running",
                     "task_id": self.TASK_ID,
                     "task_display_name": self.TASK_ID,
-                    "try_number": 0,
+                    "try_number": 1,
                     "unixname": getuser(),
                     "dag_run_id": self.RUN_ID,
                     "rendered_fields": {},
@@ -5310,7 +5307,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "state": "running",
                     "task_id": self.TASK_ID,
                     "task_display_name": self.TASK_ID,
-                    "try_number": 0,
+                    "try_number": 1,
                     "unixname": getuser(),
                     "dag_run_id": self.RUN_ID,
                     "rendered_fields": {},
@@ -5354,7 +5351,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
@@ -5407,7 +5404,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "state": "running",
                         "task_id": self.TASK_ID,
                         "task_display_name": self.TASK_ID,
-                        "try_number": 0,
+                        "try_number": 1,
                         "unixname": getuser(),
                         "dag_run_id": self.RUN_ID,
                         "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
@@ -5439,7 +5436,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
@@ -5492,7 +5489,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "task_id": self.TASK_ID,
                 "task_display_name": self.TASK_ID,
-                "try_number": 0,
+                "try_number": 1,
                 "unixname": getuser(),
                 "dag_run_id": self.RUN_ID,
                 "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
@@ -5689,7 +5686,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "start_date": "2020-01-02T00:00:00Z",
                     "state": "running",
                     "task_display_name": self.TASK_ID,
-                    "try_number": 0,
+                    "try_number": 1,
                     "unixname": getuser(),
                     "rendered_fields": {},
                     "rendered_map_index": None,
@@ -5979,7 +5976,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "start_date": "2020-01-02T00:00:00Z",
                             "state": "running",
                             "task_display_name": "print_the_context",
-                            "try_number": 0,
+                            "try_number": 1,
                             "unixname": getuser(),
                             "rendered_fields": {},
                             "rendered_map_index": None,
