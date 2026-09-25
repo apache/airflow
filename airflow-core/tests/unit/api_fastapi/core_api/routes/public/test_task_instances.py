@@ -256,10 +256,20 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["state_reason"] == "auth error, do not retry"
 
-    @pytest.mark.enable_redact
-    def test_should_redact_secrets_in_state_reason(self, test_client, session):
-        """A policy may compose the reason from an unredacted exception, so mask on the way out."""
+    @pytest.fixture
+    def masked_secret(self):
+        """The masker is a cached process global, so drop the pattern again for the next test."""
+        from airflow._shared.secrets_masker import _secrets_masker
+
+        masker = _secrets_masker()
+        patterns, replacer = set(masker.patterns), masker.replacer
         mask_secret("hunter2")
+        yield
+        masker.patterns, masker.replacer = patterns, replacer
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason(self, test_client, session, masked_secret):
+        """A policy may compose the reason from an unredacted exception, so mask on the way out."""
         self.create_task_instances(
             session, task_instances=[{"retry_reason": "auth: the token hunter2 expired"}]
         )
@@ -267,7 +277,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
         )
         assert response.status_code == 200
-        assert "hunter2" not in response.json()["state_reason"]
+        assert response.json()["state_reason"] == "auth: the token *** expired"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
@@ -2855,9 +2865,18 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["state_reason"] == "auth error, do not retry"
 
-    @pytest.mark.enable_redact
-    def test_should_redact_secrets_in_state_reason_from_history(self, test_client, session):
+    @pytest.fixture
+    def masked_secret(self):
+        from airflow._shared.secrets_masker import _secrets_masker
+
+        masker = _secrets_masker()
+        patterns, replacer = set(masker.patterns), masker.replacer
         mask_secret("hunter2")
+        yield
+        masker.patterns, masker.replacer = patterns, replacer
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason_from_history(self, test_client, session, masked_secret):
         self.create_task_instances(
             session,
             task_instances=[{"state": State.SUCCESS, "retry_reason": "auth: the token hunter2 expired"}],
@@ -2867,7 +2886,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
         )
         assert response.status_code == 200
-        assert "hunter2" not in response.json()["state_reason"]
+        assert response.json()["state_reason"] == "auth: the token *** expired"
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_should_respond_200_with_different_try_numbers(self, test_client, try_number, session):

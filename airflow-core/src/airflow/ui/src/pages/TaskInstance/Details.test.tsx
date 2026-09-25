@@ -28,8 +28,7 @@ import { Wrapper } from "src/utils/Wrapper";
 import commonLocale from "../../../public/i18n/locales/en/common.json";
 import { Details } from "./Details";
 
-// Sibling panels each fetch their own data and are unrelated to the state-reason
-// banner and row under test.
+// Sibling panels each fetch their own data and are unrelated to the row under test.
 vi.mock("./BlockingDeps", () => ({ BlockingDeps: () => undefined }));
 vi.mock("./ExtraLinks", () => ({ ExtraLinks: () => undefined }));
 vi.mock("./TriggererInfo", () => ({ TriggererInfo: () => undefined }));
@@ -94,9 +93,8 @@ const renderDetails = (
   return render(<Details />, { wrapper: Wrapper });
 };
 
-describe("Details state reason", () => {
-  // Without the bundle, i18n.t() echoes the key back and every title assertion compares a key
-  // against itself, so interpolated counts are never checked.
+describe("Details state reason row", () => {
+  // Without the bundle i18n.t() echoes the key, so the label assertions below would pass blindly.
   beforeEach(() => {
     i18n.addResourceBundle("en", "common", commonLocale, true, true);
   });
@@ -104,54 +102,15 @@ describe("Details state reason", () => {
   it("does not render the banner when there is no reason", () => {
     renderDetails(buildTaskInstance({ state_reason: null }));
 
-    expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
     expect(screen.queryByText(i18n.t("common:taskInstance.stateReason"))).not.toBeInTheDocument();
   });
 
-  it.each([
-    { maxTries: 2, state: "failed", titleKey: "failed", totalTries: 3, tryNumber: 3 },
-    // try_number != max_tries + 1 is the norm mid-retry, and the differing numbers are what make
-    // a swapped or off-by-one interpolation visible.
-    { maxTries: 3, state: "up_for_retry", titleKey: "upForRetry", totalTries: 4, tryNumber: 2 },
-  ] as const)(
-    "titles the banner for a $state task",
-    ({ maxTries, state, titleKey, totalTries, tryNumber }) => {
-      renderDetails(
-        buildTaskInstance({
-          max_tries: maxTries,
-          state,
-          state_reason: "auth error",
-          try_number: tryNumber,
-        }),
-      );
-
-      expect(screen.getByTestId("state-reason-alert")).toHaveTextContent(
-        i18n.t(`common:taskInstance.stateReasonSummary.${titleKey}`, { totalTries, tryNumber }),
-      );
-    },
-  );
-
-  // Chakra encodes `status` in a generated class rather than a DOM attribute, so the error/warning
-  // distinction can only be pinned as "the two states do not render identically".
-  it("styles a failed banner differently from an up_for_retry one", () => {
-    const { unmount } = renderDetails(buildTaskInstance({ state: "failed", state_reason: "auth error" }));
-    const failedClass = screen.getByTestId("state-reason-alert").className;
-
-    unmount();
-    renderDetails(buildTaskInstance({ state: "up_for_retry", state_reason: "auth error" }));
-
-    expect(screen.getByTestId("state-reason-alert").className).not.toBe(failedClass);
-  });
-
-  // The reason is only cleared once the task next reaches RUNNING, so a cleared task keeps a
-  // reason describing the previous attempt. Gating on state is what stops it being shown, and it
-  // has to cover the row as well as the banner or the stale text just moves down the page.
+  // Cleared only once the task next reaches RUNNING, so these states still carry a stale reason.
   it.each(["queued", "running", "success", null] as const)(
     "renders neither the banner nor the row for a %s task that still carries a reason",
     (state) => {
       renderDetails(buildTaskInstance({ state, state_reason: "auth error, do not retry" }));
 
-      expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
       expect(screen.queryByText(i18n.t("common:taskInstance.stateReason"))).not.toBeInTheDocument();
       expect(screen.queryByText("auth error, do not retry")).not.toBeInTheDocument();
     },
@@ -163,27 +122,16 @@ describe("Details state reason", () => {
       state_reason: "try 1: auth error",
     });
 
-    expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
     expect(screen.getByText("try 1: auth error")).toBeInTheDocument();
   });
 
-  it("titles the banner with the try counts so it is distinct from the per-try row", () => {
-    renderDetails(
-      buildTaskInstance({ max_tries: 2, state: "failed", state_reason: "rate limit", try_number: 3 }),
-    );
-
-    expect(screen.getByTestId("state-reason-alert")).toHaveTextContent(
-      i18n.t("common:taskInstance.stateReasonSummary.failed", { totalTries: 3, tryNumber: 3 }),
-    );
-  });
-
-  it("shows the selected try's reason in the table while the banner keeps the latest try's", () => {
+  it("shows the selected try's reason in the table", () => {
     renderDetails(buildTaskInstance({ state_reason: "latest try: rate limit" }), {
       state_reason: "older try: auth error",
     });
 
-    expect(screen.getByTestId("state-reason-alert")).toHaveTextContent("latest try: rate limit");
     expect(screen.getByText("older try: auth error")).toBeInTheDocument();
+    expect(screen.queryByText("latest try: rate limit")).not.toBeInTheDocument();
     expect(screen.getByText(i18n.t("common:taskInstance.stateReason"))).toBeInTheDocument();
   });
 });

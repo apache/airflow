@@ -27,7 +27,7 @@ import {
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
 
-import { Alert, ClipboardRoot, ClipboardIconButton } from "src/system-components";
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
 
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
@@ -43,21 +43,7 @@ import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
-
-type StateReasonSummary = { reason: string; status: "error" | "warning"; title: string };
-
-// The reason is only cleared once the task next reaches RUNNING, so a cleared task still carries
-// the previous attempt's reason. Both the banner and the per-try row look the state up here, so a
-// state added to one surface cannot be forgotten on the other: it has to bring a title with it.
-const STATE_REASON_DISPLAY = {
-  failed: { status: "error", titleKey: "failed" },
-  up_for_retry: { status: "warning", titleKey: "upForRetry" },
-} as const satisfies Record<string, { status: "error" | "warning"; titleKey: string }>;
-
-const stateReasonDisplay = (state: string | null | undefined) =>
-  state === null || state === undefined
-    ? undefined
-    : (STATE_REASON_DISPLAY as Record<string, { status: "error" | "warning"; titleKey: string }>)[state];
+import { stateReasonDisplay } from "./stateReason";
 
 export const Details = () => {
   const { t: translate } = useTranslation();
@@ -130,24 +116,6 @@ export const Details = () => {
     return translate("common:none", { defaultValue: "None" });
   };
 
-  const stateReasonSummary = ((): StateReasonSummary | undefined => {
-    const reason = taskInstance?.state_reason;
-    const display = stateReasonDisplay(taskInstance?.state);
-
-    if (reason === null || reason === undefined || taskInstance === undefined || display === undefined) {
-      return undefined;
-    }
-
-    return {
-      reason,
-      status: display.status,
-      title: translate(`taskInstance.stateReasonSummary.${display.titleKey}`, {
-        totalTries: taskInstance.max_tries + 1,
-        tryNumber: taskInstance.try_number,
-      }),
-    };
-  })();
-
   // Keyed off the selected try's own state, so an earlier failed try keeps its reason while the
   // current one is running again.
   const tryStateReason =
@@ -173,16 +141,6 @@ export const Details = () => {
 
   return (
     <Box p={2}>
-      {stateReasonSummary === undefined ? undefined : (
-        <Alert
-          data-testid="state-reason-alert"
-          mb={2}
-          status={stateReasonSummary.status}
-          title={stateReasonSummary.title}
-        >
-          {stateReasonSummary.reason}
-        </Alert>
-      )}
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
         <div />
       ) : (

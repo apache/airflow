@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, cast
 
 from pydantic import (
     AliasPath,
@@ -64,14 +64,20 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
-    state_reason: str | None = Field(default=None, validation_alias="retry_reason")
+    state_reason: str | None = Field(
+        default=None,
+        validation_alias="retry_reason",
+        description=(
+            "The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended."
+        ),
+    )
 
     @field_validator("state_reason", mode="after")
     @classmethod
     def redact_state_reason(cls, v: str | None) -> str | None:
         if v is None:
             return None
-        return str(redact(v))
+        return cast("str", redact(v))
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):

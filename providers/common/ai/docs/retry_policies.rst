@@ -133,9 +133,10 @@ When a task fails, either policy:
    ``retry_reason``, on a FAIL as well as a RETRY: ``<category>: <reasoning>``
    from ``LLMRetryPolicy``, or one line such as
    ``category=network confidence=0.91 threshold=0.60 action=retry delay=10s``
-   from ``ClassifierRetryPolicy``. The REST API exposes it as ``state_reason``
-   on a task instance and on each try, and the Task Instance page shows it
-   under **Reason for state**.
+   from ``ClassifierRetryPolicy``. From Airflow 3.4 the REST API exposes it as
+   ``state_reason`` on a task instance and on each try, and the Task Instance
+   page shows it under **Reason for state** while the task is failed or up for
+   retry.
 
 This classification call is a separate model request, made by the policy
 itself rather than by an operator -- it is not subject to an operator's

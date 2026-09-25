@@ -2359,7 +2359,13 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")]
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None
-    state_reason: Annotated[str | None, Field(title="State Reason")] = None
+    state_reason: Annotated[
+        str | None,
+        Field(
+            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            title="State Reason",
+        ),
+    ] = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -2402,7 +2408,13 @@ class TaskInstanceResponse(BaseModel):
     triggerer_job: JobResponse | None
     dag_version: DagVersionResponse | None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
-    state_reason: Annotated[str | None, Field(title="State Reason")] = None
+    state_reason: Annotated[
+        str | None,
+        Field(
+            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            title="State Reason",
+        ),
+    ] = None
 
 
 class TaskResponse(BaseModel):
