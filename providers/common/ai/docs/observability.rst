@@ -60,12 +60,18 @@ How it works
   per attempt, since Airflow regenerates it on each retry) is passed to
   pydantic-ai as the run's ``run_id``. It surfaces on the run's GenAI spans as
   ``gen_ai.agent.call.id``, and the operator also exposes it, alongside the run's
-  token usage, on XCom under the ``run_id`` and ``usage`` keys. A downstream task
-  can then reference the run
-  (``ti.xcom_pull(task_ids="my_agent", key="run_id")``) and a trace backend can
-  join a task's output to its agent trace without parsing logs. With
-  ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial model
-  run, not the human-feedback regenerations.
+  token usage, on XCom under the ``run_id`` and ``usage`` keys. ``usage`` is
+  this attempt's own usage -- not the cross-attempt cumulative total described
+  under ``usage_limits`` in :ref:`howto/operator:agent` -- and it is pushed on
+  a failed attempt too, so a downstream ``all_done`` task or failure callback
+  can read what the last attempt spent. With ``durable=True``, steps an
+  attempt replays from the cache are not part of it. XCom is cleared at the start of every
+  attempt, so only the most recent attempt's value survives, not each
+  historical attempt's. A downstream task can then reference the
+  run (``ti.xcom_pull(task_ids="my_agent", key="run_id")``) and a trace
+  backend can join a task's output to its agent trace without parsing logs.
+  With ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial
+  model run, not the human-feedback regenerations.
 * **Scope.** The ``airflow.*`` identity attributes and the ``run_id`` / ``usage``
   XComs come only from ``AgentOperator`` and ``@task.agent``. The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but

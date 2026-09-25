@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
+    from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 
 log = structlog.get_logger(logger_name="task")
@@ -52,10 +53,15 @@ class CachingToolset(WrapperToolset[Any]):
     The step index is grabbed before the first ``await``, so parallel tool
     calls via ``asyncio.gather`` get deterministic indices (tasks start
     executing their synchronous preamble in creation order).
+
+    With a ``replay_usage`` ledger, a replayed call does not count toward the
+    run's ``tool_calls`` (see
+    :class:`~airflow.providers.common.ai.durable.replay_usage.ReplayUsageLedger`).
     """
 
     storage: DurableStorageProtocol = field(repr=False)
     counter: DurableStepCounter = field(repr=False)
+    replay_usage: ReplayUsageLedger | None = field(default=None, repr=False)
 
     async def call_tool(
         self,
@@ -75,6 +81,8 @@ class CachingToolset(WrapperToolset[Any]):
             if cached_fingerprint == fingerprint:
                 self.counter.replayed_tool += 1
                 log.debug("Durable: replayed cached tool result", step=step, tool=name)
+                if self.replay_usage is not None:
+                    self.replay_usage.record_tool_replay(step)
                 return cached
             log.warning(
                 "Durable: cached tool result does not match the current tool call; "
@@ -88,6 +96,8 @@ class CachingToolset(WrapperToolset[Any]):
                 ),
             )
 
+        if self.replay_usage is not None:
+            self.replay_usage.record_live_tool_call(step)
         result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
         self.storage.save_tool_result(key, result, fingerprint=fingerprint)
         self.counter.cached_tool += 1

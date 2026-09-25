@@ -113,8 +113,10 @@ Common knobs on ``UsageLimits``:
   without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
   (or the dict form ``{"input_tokens_limit": 4_000}``) silently inherits that
   50-request cap. Set ``request_limit=None`` explicitly when you only want a
-  token cap.
-- ``input_tokens_limit`` / ``output_tokens_limit``: per-run token caps.
+  token cap. On ``AgentOperator`` and Airflow >= 3.3, this (including the
+  ``50`` default) counts requests per task instance, not per run -- see below.
+- ``input_tokens_limit`` / ``output_tokens_limit``: per-run token caps (per task
+  instance on ``AgentOperator`` and Airflow >= 3.3 -- see below).
 - ``total_tokens_limit``: combined input + output cap.
 - ``tool_calls_limit``: max tool invocations (``AgentOperator`` only).
 - ``cost_limit``: a ``Decimal`` cap on the run's estimated USD cost. This is **not** a
@@ -140,11 +142,24 @@ Common knobs on ``UsageLimits``:
 
 When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
 propagates to Airflow as a task failure, so Airflow's standard retry policy
-applies on top. Every limit here bounds a single agent *run*, not a task: each
-Airflow task retry re-renders ``usage_limits`` and starts a fresh count, and for
-``AgentOperator`` so does each HITL regeneration. A ``cost_limit`` of
-``Decimal("0.50")`` caps one run, so it is not a bound on what the task spends in
-total.
+applies on top.
+
+For the ``LLM*`` operator family, every limit here bounds a single agent
+*run*, not a task: each Airflow task retry re-renders ``usage_limits`` and
+starts a fresh count. A ``cost_limit`` of ``Decimal("0.50")`` caps one run,
+so it is not a bound on what the task spends in total.
+
+For ``AgentOperator`` on Airflow >= 3.3, it is the other way around: setting
+``usage_limits`` makes every limit bound the whole task instance -- the
+initial run, every retry, and every HITL regeneration all add to one running
+total, so a ``cost_limit`` of ``Decimal("0.50")`` bounds what the task spends
+across every attempt combined (best-effort, like the rest of ``cost_limit``
+above -- a SIGKILL loses the spend of the attempt it kills, and this is not
+a hard guarantee). See :ref:`howto/operator:agent` for how that budget is
+persisted and how to reset it, and for what a HITL regeneration shares. On
+Airflow < 3.3, and whenever ``usage_limits`` is ``None``, ``AgentOperator``
+behaves like the ``LLM*`` family: each attempt (and each HITL regeneration)
+starts a fresh count.
 
 TaskFlow decorator
 ------------------

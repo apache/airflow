@@ -288,27 +288,53 @@ Parameters
   coerced per field type, failing the task with a ``ValueError`` naming the
   field if a rendered value doesn't parse. Use it to cap requests, tokens, or
   tool calls per task -- agents are particularly prone to runaway tool loops,
-  so ``tool_calls_limit`` is a useful guardrail. It also supports a per-run
+  so ``tool_calls_limit`` is a useful guardrail. It also supports a
   USD ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a
   hard guarantee; not enforced for models pydantic-ai can't price, which log
   a warning instead of failing the run) and an example. Default ``None``.
 
-  .. warning::
-     With ``durable=True``, a task retry replays cached model steps instead of
-     re-calling the model -- but pydantic-ai still adds each replayed step's
-     cost to the retry's own usage total, since it cannot distinguish a replay
-     from a live call. A ``cost_limit`` therefore counts already-paid-for
-     replayed cost against every retry's fresh budget, leaving less headroom
-     for the new calls the retry actually makes. And if the limit is lowered
-     between attempts -- easy to do by accident when ``usage_limits`` is
-     templated as a dict -- a retry can exceed it with zero new model calls.
-     The ``LLM run cost`` line in the task log reports the run's cumulative
-     cost for the same reason, not what this attempt actually spent.
+  On Airflow >= 3.3, setting this counts usage across every attempt of the
+  task instance combined -- the initial run, every retry, and every HITL
+  regeneration all add to one running total kept in the AIP-103 task state
+  store under the ``__commonai_usage__`` key -- instead of each attempt
+  starting a fresh count. This also applies to the implicit
+  ``request_limit=50`` default, which can now block a retry that used to
+  pass on its own. A step replayed by ``durable=True`` does not count toward
+  that total -- see ``durable`` below. To keep the same effective
+  per-attempt headroom this cross-attempt total used to give each attempt on
+  its own, scale each limit by ``retries + 1``, or use ``usage_limits=None``
+  to opt back out.
+
+  Clearing and rerunning a *finished* (failed or succeeded) task instance
+  gets a fresh budget automatically; clearing a *running* task instance does
+  not bump ``max_tries``, so the restarted attempt still sees the prior
+  spend. To reset the budget for a task instance that keeps retrying without
+  a clear of a finished attempt, delete the ``__commonai_usage__`` key via
+  the Task State Store UI.
+
+  .. note::
+     A worker killed with SIGKILL -- including after ``on_kill``'s grace
+     period expires, or an OOM kill -- cannot persist that attempt's usage,
+     so the next attempt's count under-represents actual spend by that
+     amount.
+
+  On Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each attempt
+  (and each HITL regeneration) is still checked and counted on its own, as
+  before.
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results. On retry, cached steps are replayed instead of re-executing
   expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
   configuration needed); on older cores it requires the ``[common.ai]
-  durable_cache_path`` config option to be set. Default ``False``.
+  durable_cache_path`` config option to be set. Default ``False``. A replayed
+  step adds nothing to the usage counted against ``usage_limits`` or reported
+  in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
+  each attempt counts only the model and tool calls it actually makes, on
+  every Airflow version. A step that re-runs live because the conversation
+  changed since the previous attempt is counted like any other live call, and
+  a retry whose cross-attempt total already sits at a limit can still start
+  when the steps it needs are cached. Clearing a failed task instance starts
+  a fresh budget but keeps the durable cache its attempts left behind, so what
+  the rerun replays from that cache is free there too.
 - ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
   tool that the model drives by writing Python, executed in the Monty sandbox.
   Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.

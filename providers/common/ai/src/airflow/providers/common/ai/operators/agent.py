@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from pydantic import BaseModel
 from pydantic_ai.capabilities import Toolset
 from pydantic_ai.toolsets.abstract import AbstractToolset
+from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
@@ -38,10 +39,20 @@ from airflow.providers.common.ai.observability import (
     stamp_identity_on_agent_spans,
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
-from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
+from airflow.providers.common.ai.utils.logging import (
+    format_usage_for_xcom,
+    log_run_summary,
+    log_run_usage,
+    wrap_toolsets_for_logging,
+)
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.toolsets import find_toolset, iter_toolsets
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
+from airflow.providers.common.ai.utils.usage_budget import (
+    TaskStateStoreUsageBudget,
+    copy_run_usage,
+    subtract_run_usage,
+)
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -65,6 +76,8 @@ if TYPE_CHECKING:
     from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
+    from airflow.providers.common.ai.durable.caching_model import CachingModel
+    from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
@@ -153,10 +166,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
     Alongside the returned agent output, the run's ``run_id`` and token ``usage``
     are pushed to XCom under the ``run_id`` and ``usage`` keys, so a downstream
-    task can reference the run and its cost. The ``run_id`` also ties the task to
-    its GenAI trace (see the provider's observability docs). With
-    ``enable_hitl_review``, these reflect the initial model run, not the
-    human-feedback regenerations.
+    task can reference the run and its cost. ``usage`` is this attempt's own
+    usage, not the cross-attempt cumulative total described under
+    ``usage_limits`` below; it is pushed on a failed attempt too, so a
+    downstream ``all_done`` task or failure callback can read what the last
+    attempt spent -- XCom is cleared at the start of every attempt, so only
+    the most recent attempt's value survives, not each historical attempt's.
+    The ``run_id`` also ties the task to its GenAI trace (see the provider's
+    observability docs). With ``enable_hitl_review``, these reflect the
+    initial model run, not the human-feedback regenerations.
 
     :param prompt: The prompt to send to the agent.
     :param llm_conn_id: Connection ID for the LLM provider.
@@ -207,16 +225,47 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
         A dict that omits ``request_limit`` still gets pydantic-ai's default of
         ``50`` requests -- pass ``"request_limit": None`` explicitly for no
-        request cap. See :ref:`howto/operator:llm` for the full set of caveats,
-        and :ref:`howto/operator:agent` for the ``durable=True`` replay
-        double-counting warning.
+        request cap.
+
+        On Airflow >= 3.3, when this is set, the limit counts usage across
+        every attempt of the task instance combined -- the initial run, every
+        retry, and every HITL regeneration all add to one running total kept
+        in the AIP-103 task state store under the ``__commonai_usage__`` key
+        -- rather than resetting on each attempt. This also applies to the
+        implicit ``request_limit=50`` default, which can now block a retry
+        that used to pass on its own. A step replayed by ``durable=True`` does
+        not count toward the total (see ``durable`` below). Clearing and
+        rerunning a *finished* (failed or
+        succeeded) task instance gets a fresh budget automatically; clearing
+        a *running* task instance does not bump ``max_tries``, so the
+        restarted attempt still sees the prior spend. To reset the budget for
+        a task instance that keeps retrying without a clear of a finished
+        attempt, delete the ``__commonai_usage__`` key via the Task State
+        Store UI. A worker killed with SIGKILL -- including after
+        ``on_kill``'s grace period expires, or an OOM kill -- cannot persist
+        that attempt's usage, so the next attempt's count under-represents
+        actual spend by that amount. To keep
+        the same effective per-attempt headroom this cross-attempt total used
+        to give each attempt on its own, scale each limit by
+        ``retries + 1``, or use ``usage_limits=None`` to opt back out. On
+        Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each attempt
+        is still checked and counted on its own, as before. See
+        :ref:`howto/operator:llm` for the full set of caveats, and
+        :ref:`howto/operator:agent` for more on the cross-attempt budget.
     :param durable: When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
         steps are replayed instead of re-executing.  Each cached step is
         verified against the current request before replay: if the prompt,
         model, settings, tools, or message history changed since the failed
         attempt, the affected steps re-run live (with a warning) instead of
-        replaying stale results.  Default ``False``.
+        replaying stale results.  Default ``False``. A replayed step adds
+        nothing to the usage counted against ``usage_limits`` or reported in
+        the ``usage`` XCom -- not its request, tokens, cost, or tool calls --
+        so every attempt counts only the model and tool calls it actually
+        makes. This holds the same way after clearing a failed task
+        instance: it starts a fresh budget but keeps the durable cache its
+        attempts left behind, and whatever the rerun replays from that cache
+        is free.
         On Airflow >= 3.3 the cache is kept in the AIP-103 task state store, so
         no extra configuration is needed. On older cores it is persisted to
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
@@ -357,6 +406,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # outside ``execute`` -- can read them unconditionally.
         self._durable_storage: DurableStorageProtocol | None = None
         self._durable_counter: DurableStepCounter | None = None
+        self._replay_usage: ReplayUsageLedger | None = None
+
+        # Populated in ``execute``; also read (and, if unset, lazily initialized) by
+        # ``regenerate_with_feedback`` outside ``execute``, which is why they need a
+        # declared default here rather than only being set inline in ``execute``.
+        self._usage_budget: TaskStateStoreUsageBudget | None = None
+        self._run_usage: RunUsage | None = None
+        self._run_usage_base: RunUsage | None = None
 
         # Checked ahead of the combination rules below. On a core older than 3.1 the core
         # version is the real blocker, and reporting a combination error first would send the
@@ -546,7 +603,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         """Wrap each toolset with CachingToolset for durable execution."""
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 
-        return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
+        return [
+            CachingToolset(wrapped=ts, storage=storage, counter=counter, replay_usage=self._replay_usage)
+            for ts in toolsets
+        ]
 
     def _build_durable_capabilities(
         self, capabilities: list[Any], storage: DurableStorageProtocol, counter: DurableStepCounter
@@ -570,7 +630,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             # ``Toolset.toolset`` can be a concrete toolset or a callable factory
             # resolved per run; only a concrete toolset can be wrapped here.
             if _is_concrete_toolset_capability(capability):
-                cached = CachingToolset(wrapped=capability.toolset, storage=storage, counter=counter)
+                cached = CachingToolset(
+                    wrapped=capability.toolset,
+                    storage=storage,
+                    counter=counter,
+                    replay_usage=self._replay_usage,
+                )
                 rewrapped.append(replace(capability, toolset=cached))
                 continue
             if isinstance(capability, Toolset):
@@ -611,6 +676,122 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             map_index=ti.map_index if ti.map_index is not None else -1,
         )
 
+    def _build_usage_budget(
+        self, context: Context, usage_limits: UsageLimits | None, *, ti: Any
+    ) -> TaskStateStoreUsageBudget | None:
+        """
+        Return the cross-attempt usage-budget accessor, or ``None`` when it should not apply.
+
+        Gated like ``_build_durable_storage``: only on Airflow >= 3.3, where the task
+        state store survives retries. Also gated on ``usage_limits is not None`` --
+        with ``usage_limits=None`` turning this on would silently impose pydantic-ai's
+        default ``request_limit=50`` across every attempt of every ``AgentOperator`` on
+        3.3+, which nobody asked for.
+        """
+        if not (AIRFLOW_V_3_3_PLUS and usage_limits is not None):
+            return None
+        return TaskStateStoreUsageBudget(context["task_state_store"], max_tries=ti.max_tries)
+
+    def _report_failed_run(self, context: Context, run_usage: RunUsage) -> None:
+        """
+        Log and XCom-push the usage a failed attempt incurred before it raised.
+
+        ``run_usage`` is the (possibly cross-attempt) cumulative total; the delta this
+        attempt itself contributed is computed here, against ``self._run_usage_base`` --
+        the pre-run snapshot ``_run_agent_tracked`` stashes before calling the agent.
+        ``self._run_usage_base`` can still be ``None`` if the raise happened before
+        ``_run_agent_tracked`` was ever entered (for example, ``agent.override(...)``'s
+        ``__enter__``, or a task-timeout signal landing in the narrow window before
+        that method's first line runs) -- fall back to the untouched cumulative total
+        rather than raising, which would replace the caller's real exception.
+
+        Best-effort like ``_emit_run_metadata``: each push is wrapped separately so a
+        failure here (e.g. a downed XCom backend) never masks the run's real exception
+        -- the caller's bare ``raise`` after this call must still surface it.
+        """
+        base = self._run_usage_base
+        try:
+            attempt_usage = subtract_run_usage(run_usage, base) if base is not None else run_usage
+        except Exception:
+            attempt_usage = run_usage
+        try:
+            log_run_usage(self.log, attempt_usage, outcome="failed")
+        except Exception:
+            self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
+        if not self.do_xcom_push:
+            return
+        ti = context["task_instance"]
+        try:
+            ti.xcom_push(key="run_id", value=str(ti.id))
+        except Exception:
+            self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
+        try:
+            ti.xcom_push(key="usage", value=format_usage_for_xcom(attempt_usage))
+        except Exception:
+            self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
+
+    def _run_agent_tracked(
+        self,
+        agent: Agent[Any, Any],
+        prompt: Any,
+        *,
+        run_usage: RunUsage,
+        caching_model: CachingModel | None = None,
+        **run_kwargs: Any,
+    ) -> tuple[Any, RunUsage]:
+        """
+        Run the agent, persisting cumulative usage after every attempt (success or failure).
+
+        ``run_usage`` -- always ``self._run_usage`` -- is taken as an explicit,
+        non-Optional parameter (rather than read off ``self``) purely so mypy can
+        narrow it without an ``assert``: ``self._run_usage`` is declared ``RunUsage |
+        None`` because it is set lazily, but every caller of this method has already
+        ensured it is a real ``RunUsage`` by the time it gets here.
+
+        With ``durable=True``, the replay ledger's unused credits are given back before
+        the total is persisted (see ``ReplayUsageLedger.settle``).
+
+        Stashes the pre-run snapshot on ``self._run_usage_base`` so a caller that
+        catches an exception raised from inside this call can still compute this
+        attempt's delta via ``subtract_run_usage(run_usage, self._run_usage_base)``
+        (see ``_report_failed_run``) -- this method's own return value only covers
+        the success path.
+        """
+        base = copy_run_usage(run_usage)
+        self._run_usage_base = base
+        try:
+            if caching_model is not None:
+                # After the snapshot above, so the credit never shows up in this attempt's delta.
+                caching_model.credit_first_replay()
+            result = self.run_agent_sync(agent, prompt, usage=run_usage, **run_kwargs)
+        finally:
+            if self._replay_usage is not None:
+                # A replay credit the run never used must not reach the persisted total.
+                self._replay_usage.settle()
+            if self._usage_budget:
+                self._usage_budget.save(run_usage)
+        return result, subtract_run_usage(run_usage, base)
+
+    def _run_and_report_on_failure(
+        self,
+        context: Context,
+        agent: Agent[Any, Any],
+        run_usage: RunUsage,
+        run_kwargs: dict[str, Any],
+        caching_model: CachingModel | None = None,
+    ) -> tuple[Any, RunUsage]:
+        """Run ``self.prompt`` via ``_run_agent_tracked``, reporting usage-at-failure on any raise."""
+        try:
+            if caching_model is not None:
+                with agent.override(model=caching_model):
+                    return self._run_agent_tracked(
+                        agent, self.prompt, run_usage=run_usage, caching_model=caching_model, **run_kwargs
+                    )
+            return self._run_agent_tracked(agent, self.prompt, run_usage=run_usage, **run_kwargs)
+        except BaseException:
+            self._report_failed_run(context, run_usage)
+            raise
+
     def execute(self, context: Context) -> Any:
         if self.enable_hitl_review and not isinstance(self.prompt, str):
             raise TypeError(
@@ -623,18 +804,30 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
+        ti = context["task_instance"]
         self._durable_storage = None
         self._durable_counter = None
+        self._replay_usage = None
+        # Reads the state store before the expensive setup below (_build_agent, durable
+        # storage). None on < 3.3 or usage_limits=None -- see _build_usage_budget.
+        self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
+        self._run_usage = self._usage_budget.load() if self._usage_budget else RunUsage()
+        # A local, non-Optional alias of `self._run_usage` for the rest of this method --
+        # see `_run_agent_tracked`'s docstring for why callers pass this explicitly instead
+        # of letting callees read `self._run_usage` (which mypy can't narrow past None).
+        run_usage: RunUsage = self._run_usage
 
         if self.durable:
+            from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger
             from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 
             self._durable_storage = self._build_durable_storage(context)
             self._durable_counter = DurableStepCounter()
+            # Built before _build_agent so the CachingToolset wrappers it creates share it.
+            self._replay_usage = ReplayUsageLedger(run_usage, usage_limits)
 
         agent = self._build_agent()
 
-        ti = context["task_instance"]
         self._run_identity_attrs = build_run_identity_attributes(ti)
         stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
 
@@ -648,6 +841,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
         storage = self._durable_storage
         counter = self._durable_counter
+        caching_model: CachingModel | None = None
         # A killed run raises RunCancelled (see run_agent_sync), which propagates to fail the
         # task. The durable cache cleanup below is skipped on the raise, preserving it for retry.
         if self.durable and storage is not None and counter is not None:
@@ -658,14 +852,31 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             if agent.model is None:
                 raise ValueError("Agent model must be set when durable=True")
             resolved_model = infer_model(agent.model)
-            caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
-            with agent.override(model=caching_model):
-                result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
-        else:
-            result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
+            caching_model = CachingModel(
+                resolved_model, storage=storage, counter=counter, replay_usage=self._replay_usage
+            )
 
-        log_run_summary(self.log, result)
-        self._emit_run_metadata(context, result)
+        result, attempt_usage = self._run_and_report_on_failure(
+            context, agent, run_usage, run_kwargs, caching_model
+        )
+
+        log_run_summary(self.log, result, usage=attempt_usage)
+        self._emit_run_metadata(context, result, usage=attempt_usage)
+        if self._usage_budget:
+            self.log.info(
+                "Cumulative usage across attempts: requests=%s, tool_calls=%s, input_tokens=%s, "
+                "output_tokens=%s, total_tokens=%s",
+                run_usage.requests,
+                run_usage.tool_calls,
+                run_usage.input_tokens,
+                run_usage.output_tokens,
+                run_usage.total_tokens,
+            )
+            if run_usage.cost is not None:
+                self.log.info(
+                    "Cumulative cost across attempts: $%s (USD, best-effort)",
+                    format(run_usage.cost, "f"),
+                )
 
         if self._durable_counter is not None:
             c = self._durable_counter
@@ -695,15 +906,19 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
                 message_history=result.all_messages(),
             )
             if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-                return rehydrate_pydantic_output(
+                hitl_output = rehydrate_pydantic_output(
                     self.output_type,
                     result_str,
                     serialize_output=self._serialize_model_output,
                 )
-            try:
-                return json.loads(result_str)
-            except (ValueError, TypeError):
-                return result_str
+            else:
+                try:
+                    hitl_output = json.loads(result_str)
+                except (ValueError, TypeError):
+                    hitl_output = result_str
+            if self._usage_budget:
+                self._usage_budget.clear()
+            return hitl_output
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
@@ -715,6 +930,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # re-executing every already-completed model and tool step.
         if self._durable_storage is not None:
             self._durable_storage.cleanup()
+        if self._usage_budget:
+            self._usage_budget.clear()
         return output
 
     def _resolve_message_history(self) -> list[ModelMessage] | None:
@@ -747,41 +964,45 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
-    def _emit_run_metadata(self, context: Context, result: Any) -> None:
+    def _emit_run_metadata(self, context: Context, result: Any, *, usage: RunUsage) -> None:
         """Expose the pydantic-ai run id and token usage on XCom for downstream tasks."""
         if not self.do_xcom_push:
             return
-        usage = result.usage
         ti = context["task_instance"]
         ti.xcom_push(key="run_id", value=result.run_id)
-        ti.xcom_push(
-            key="usage",
-            value={
-                "requests": usage.requests,
-                "input_tokens": usage.input_tokens,
-                "output_tokens": usage.output_tokens,
-                "total_tokens": usage.total_tokens,
-                "tool_calls": usage.tool_calls,
-                # Decimal | None, stringified so XCom serialization stays lossless.
-                "cost": str(usage.cost) if usage.cost is not None else None,
-            },
-        )
+        ti.xcom_push(key="usage", value=format_usage_for_xcom(usage))
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
-        """Re-run the agent with *feedback* appended to the conversation history."""
+        """
+        Re-run the agent with *feedback* appended to the conversation history.
+
+        Shares the cross-run ``RunUsage`` with the run that produced the output being
+        reviewed -- so a ``usage_limits`` cap bounds the initial run plus every
+        regeneration combined -- only when ``usage_limits`` is set. With
+        ``usage_limits=None``, each regeneration starts from a fresh ``RunUsage()``,
+        matching the behaviour before the cross-attempt budget existed: nothing shares
+        usage. This applies on every Airflow version; only the *cross-attempt*
+        persistence of a shared, budget-tracked ``RunUsage`` (via the task state store)
+        is gated on >= 3.3, in ``execute()``.
+        """
         usage_limits = coerce_usage_limits(self.usage_limits)
         agent = self._build_agent()
         identity = getattr(self, "_run_identity_attrs", None)
         if identity:
             stamp_identity_on_agent_spans(agent, identity)
         messages = message_history or []
-        result = self.run_agent_sync(
-            agent,
-            feedback,
-            message_history=messages,
-            usage_limits=usage_limits,
+        if usage_limits is None or self._run_usage is None:
+            # No budget requested, or called directly outside execute() (e.g. a
+            # standalone regeneration) -- always start fresh rather than share
+            # `self._run_usage` with whatever produced the output under review.
+            self._run_usage = RunUsage()
+        run_usage: RunUsage = self._run_usage
+        result, regen_usage = self._run_agent_tracked(
+            agent, feedback, run_usage=run_usage, message_history=messages, usage_limits=usage_limits
         )
-        log_run_summary(self.log, result)
+        # This regeneration's own delta, not `result.usage` -- which, when `run_usage` is
+        # shared, is the seeded cumulative object, not what this call alone contributed.
+        log_run_summary(self.log, result, usage=regen_usage)
 
         output = result.output
         if isinstance(output, BaseModel):
