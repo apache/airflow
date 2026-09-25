@@ -21,15 +21,13 @@ Migrating from Git-Sync to GitDagBundle
 =======================================
 
 This guide is for users of the Git-Sync sidecar (``dags.gitSync``) in Helm Chart 1.x.
-The Git-Sync sidecar is planned for removal in Helm Chart 2.0 in favour of the
+The Git-Sync sidecar is planned for removal in Helm Chart 2.0 in favor of the
 Airflow-native :class:`~airflow.providers.git.bundles.git.GitDagBundle`.
 
 What is changing
 ----------------
 
-With Git-Sync, a ``git-sync`` container ran as a sidecar (or init container) on the
-scheduler, dag processor, worker and triggerer pods, keeping a shared DAG folder up
-to date from a git repository.
+Airflow components pods keep a shared DAG folder up to date from a git repository.
 
 With ``GitDagBundle``, syncing moves into Airflow itself. The Dag Processor clones
 the repository once into a local bare repository and refreshes it every
@@ -53,7 +51,7 @@ Differences to be aware of before migrating:
 Prerequisites
 -------------
 
-* Helm Chart 1.x on Airflow 3 (DAG bundles are an Airflow 3 feature).
+* Latest Helm Chart 1.x release with Airflow 3 (DAG bundles are an Airflow 3 feature).
 * The ``apache-airflow-providers-git`` provider package must be installed in the
   image you deploy, along with the ``git`` binary (the ``git`` binary is
   pre-installed in the official ``apache/airflow`` images starting from Airflow
@@ -82,7 +80,7 @@ Value mapping
    * - ``period`` — sync interval as a Go duration string (for example ``"5s"``)
      - ``refresh_interval`` — sync interval in seconds (integer, for example
        ``300``)
-   * - ``credentialsSecret`` (``GITSYNC_USERNAME`` / ``GITSYNC_PASSWORD``)
+   * - ``credentialsSecret`` (``GITSYNC_USERNAME``, ``GIT_SYNC_USERNAME``, ``GITSYNC_PASSWORD``, ``GIT_SYNC_PASSWORD``)
      - ``git_conn_id`` — an Airflow ``git`` connection whose login/password hold
        the username and access token. See :ref:`git_sync_to_git_dag_bundle:auth`
        below.
@@ -104,8 +102,9 @@ Authentication
 --------------
 
 ``GitDagBundle`` authenticates through a standard Airflow connection of type
-``git`` (``kwargs.git_conn_id``), or needs no connection at all for public
-repositories when ``repo_url`` is given directly.
+``git``, selected via the bundle's ``git_conn_id`` kwarg (i.e. the
+``dagProcessor.dagBundleConfigList[].kwargs.git_conn_id`` value), or needs no
+connection at all for public repositories when ``repo_url`` is given directly.
 
 For a private repository over HTTPS with a personal access token, create the
 connection from a Kubernetes secret managed by the chart:
@@ -140,6 +139,12 @@ Then mount it into the pods that need it (the Dag Processor at minimum):
    bundle kwargs — only the credentials from the connection are used. For the
    full list of connection extras (SSH keys, known hosts, proxy, GitHub App
    auth), see :doc:`apache-airflow-providers-git:bundles/index`.
+
+   Instead of injecting the connection through ``extraSecrets``/``extraEnv``,
+   you can create the same ``git`` connection directly in the Airflow UI
+   (**Admin** → **Connections**) or with ``airflow connections add`` — the Dag
+   Processor resolves any connection with a matching conn id from the metadata
+   database.
 
 Step-by-step migration
 ----------------------
