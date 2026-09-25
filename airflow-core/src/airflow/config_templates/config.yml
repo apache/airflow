@@ -759,7 +759,8 @@ database:
       default: ~
     max_db_retries:
       description: |
-        Number of times the code should be retried in case of DB Operational Errors.
+        Total number of attempts (including the initial attempt) the code should make
+        in case of DB Operational Errors, before giving up.
         Not all transactions will be retried as it can cause undesired state.
         Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
       version_added: 2.3.0
