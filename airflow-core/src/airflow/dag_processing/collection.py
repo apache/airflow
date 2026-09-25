@@ -170,19 +170,15 @@ class _RunInfo(NamedTuple):
     num_active_runs: int
 
     @classmethod
-    def calculate(cls, dag: LazyDeserializedDAG, *, session: Session) -> Self:
+    def calculate(cls, dag: LazyDeserializedDAG, *, num_active_runs: int, session: Session) -> Self:
         """
-        Query the run counts from the db.
+        Query the latest-run info from the db.
 
-        :param dags: dict of dags to query
+        :param dag: the Dag to calculate run info for
+        :param num_active_runs: active run count for this Dag, pre-computed by the caller in one
+            batched query across every Dag in the current update so this doesn't become an N+1.
+        :param session: DB session
         """
-        active_run_counts = DagRun.active_runs_of_dags(
-            dag_ids=[dag.dag_id],
-            exclude_backfill=True,
-            session=session,
-        )
-        num_active_runs = active_run_counts.get(dag.dag_id, 0)
-
         # The latest-run lookup below is only used to calculate the *next* scheduled run, so it
         # can be skipped for Dags that can never be scheduled in the first place. num_active_runs
         # is still meaningful for such Dags (e.g. a schedule=None Dag triggered manually more
@@ -628,8 +624,18 @@ class DagModelOperation(NamedTuple):
         session: Session,
     ) -> None:
         # we exclude backfill from active run counts since their concurrency is separate
+        # Batched once across every Dag in this update rather than inside the loop below,
+        # since DagRun.active_runs_of_dags already accepts a list of dag_ids -- calling it
+        # per-Dag would turn this into an N+1 query.
+        active_run_counts = DagRun.active_runs_of_dags(
+            dag_ids=list(orm_dags), exclude_backfill=True, session=session
+        )
         for dag_id, dm in sorted(orm_dags.items()):
-            run_info = _RunInfo.calculate(dag=self.dags[dag_id], session=session)
+            run_info = _RunInfo.calculate(
+                dag=self.dags[dag_id],
+                num_active_runs=active_run_counts.get(dag_id, 0),
+                session=session,
+            )
             dag = self.dags[dag_id]
             dm.fileloc = dag.fileloc
             dm.relative_fileloc = dag.relative_fileloc

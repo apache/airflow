@@ -199,7 +199,7 @@ class DAGDetailsResponse(DAGResponse):
                 "dag_run_timeout": "dagrun_timeout",
                 "last_parsed": "last_loaded",
                 "template_search_path": "template_searchpath",
-                "exceeds_max_active_runs": "exceeds_max_non_backfill",
+                "is_at_max_active_runs": "exceeds_max_non_backfill",
                 **DAG_ALIAS_MAPPING,
             }.get(field_name, field_name),
         ),
@@ -222,7 +222,7 @@ class DAGDetailsResponse(DAGResponse):
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
     active_runs_count: int = 0
-    exceeds_max_active_runs: bool
+    is_at_max_active_runs: bool
     team_name: str | None = None
 
     @field_validator("timezone", mode="before")

@@ -911,7 +911,7 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
-    exceeds_max_active_runs: boolean;
+    is_at_max_active_runs: boolean;
     team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
