@@ -425,6 +425,18 @@ repos:
           ^scripts/ci/prek/upgrade_important_versions\.py$
         pass_filenames: false
         require_serial: true
+      - id: upgrade-dependency-floors
+        name: Upgrade curated dependency floors (manual)
+        entry: ./scripts/ci/prek/upgrade_dependency_floors.py
+        stages: ['manual']
+        language: python
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^scripts/ci/prek/upgrade_dependency_floors\.py$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['packaging>=25', 'requests>=2.31.0', 'rich>=13.6.0', 'tomli>=2.0.1']
   - repo: https://github.com/adamchainz/blacken-docs
     rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:

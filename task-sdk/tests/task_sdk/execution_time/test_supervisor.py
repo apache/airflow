@@ -2035,17 +2035,6 @@ REQUEST_TEST_CASES = [
         message=RetryTask(
             end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test retry task"
         ),
-        client_mock=ClientMock(
-            method_path="task_instances.retry",
-            kwargs={
-                "id": TI_ID,
-                "end_date": timezone.parse("2024-10-31T12:00:00Z"),
-                "rendered_map_index": "test retry task",
-                "retry_delay_seconds": None,
-                "retry_reason": None,
-            },
-            response=OKResponse(ok=True),
-        ),
         test_id="up_for_retry",
     ),
     RequestTestCase(
@@ -3446,6 +3435,84 @@ class TestHandleRequest:
         assert process._terminal_state == TaskInstanceState.FAILED
         assert process._pending_terminal_state_msg is msg
 
+    @pytest.mark.parametrize("exit_code", [0, 1, -signal.SIGTERM])
+    def test_retry_is_reported_after_finalization(self, watched_subprocess, exit_code):
+        process, _ = watched_subprocess
+        msg = RetryTask(
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+            rendered_map_index="retrying",
+            retry_delay_seconds=37,
+            retry_reason="rate limited",
+        )
+
+        process._handle_request(msg, structlog.get_logger(), req_id=1)
+
+        process.client.task_instances.retry.assert_not_called()
+        process._send_heartbeat_if_needed()
+        process.client.task_instances.heartbeat.assert_called_once()
+        process._exit_code = exit_code
+        assert process.final_state == TaskInstanceState.UP_FOR_RETRY
+
+        process.update_task_state_if_needed()
+
+        process.client.task_instances.retry.assert_called_once_with(
+            id=TI_ID,
+            end_date=msg.end_date,
+            rendered_map_index="retrying",
+            retry_delay_seconds=37,
+            retry_reason="rate limited",
+        )
+        process.client.task_instances.finish.assert_not_called()
+
+    def test_retry_finalization_is_bounded_by_overtime(self, watched_subprocess, mocker):
+        process, _ = watched_subprocess
+        kill = mocker.patch.object(ActivitySubprocess, "kill", autospec=True)
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        process._handle_request(RetryTask(end_date=timezone.utcnow()), structlog.get_logger(), req_id=1)
+
+        monotonic.return_value += supervisor.TASK_OVERTIME_THRESHOLD + 1
+        process._handle_process_overtime_if_needed()
+
+        kill.assert_called_once_with(process, signal.SIGTERM, force=True)
+
+    def test_wait_propagates_delayed_retry_report_failure(self, watched_subprocess, mocker):
+        process, _ = watched_subprocess
+        msg = RetryTask(end_date=timezone.utcnow())
+        process.client.task_instances.retry.side_effect = httpx.ConnectError("connection refused")
+        process._handle_request(msg, structlog.get_logger(), req_id=1)
+
+        process.client.task_instances.retry.assert_not_called()
+        process._send_heartbeat_if_needed()
+        process.client.task_instances.heartbeat.assert_called_once()
+
+        def child_exited(process):
+            process._exit_code = 0
+
+        mocker.patch.object(
+            ActivitySubprocess, "_monitor_subprocess", autospec=True, side_effect=child_exited
+        )
+        upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs", autospec=True)
+
+        with pytest.raises(httpx.ConnectError, match="connection refused"):
+            process.wait()
+
+        assert process._terminal_state == TaskInstanceState.UP_FOR_RETRY
+        assert process._pending_terminal_state_msg is msg
+        process.client.task_instances.finish.assert_not_called()
+        upload_logs.assert_called_once_with(process)
+
+    def test_server_termination_cancels_pending_retry(self, watched_subprocess):
+        process, _ = watched_subprocess
+        process._handle_request(RetryTask(end_date=timezone.utcnow()), structlog.get_logger(), req_id=1)
+        process._terminal_state = supervisor.SERVER_TERMINATED
+        process._exit_code = -signal.SIGTERM
+
+        process.update_task_state_if_needed()
+
+        process.client.task_instances.retry.assert_not_called()
+        process.client.task_instances.finish.assert_not_called()
+        assert process.final_state == supervisor.SERVER_TERMINATED
+
     class _OverrideActivitySubprocess(ActivitySubprocess):
         def _handle_set_rendered_map_index(
             self, msg: SetRenderedMapIndex, log: FilteringBoundLogger, req_id: int
@@ -3803,12 +3870,6 @@ class TestHandleRequest:
                 id="succeed",
             ),
             pytest.param(
-                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
-                "retry",
-                TaskInstanceState.UP_FOR_RETRY,
-                id="retry",
-            ),
-            pytest.param(
                 DeferTask(
                     next_method="execute_complete",
                     classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
@@ -3957,17 +4018,17 @@ class TestHandleRequest:
 
 
 @pytest.mark.parametrize(
-    "test_name",
+    ("test_method", "excluded_message_types"),
     [
-        "test_worker_outcome_retained_when_direct_api_fails",
-        "test_update_task_state_replays_pending_terminal_state_call",
+        (TestHandleRequest.test_worker_outcome_retained_when_direct_api_fails, {TaskState, RetryTask}),
+        (TestHandleRequest.test_update_task_state_replays_pending_terminal_state_call, {TaskState}),
     ],
 )
-def test_terminal_message_parameter_coverage(test_name):
-    marks = getattr(TestHandleRequest, test_name).pytestmark
+def test_terminal_message_parameter_coverage(test_method, excluded_message_types):
+    marks = test_method.pytestmark
     cases = next(mark.args[1] for mark in marks if mark.name == "parametrize")
     message_types = set(get_args(get_type_hints(ActivitySubprocess._send_terminal_state_msg)["msg"]))
-    assert {type(case.values[0]) for case in cases} == message_types - {TaskState}
+    assert {type(case.values[0]) for case in cases} == message_types - excluded_message_types
 
     marks = TestHandleRequest.test_task_state_waits_for_exit_and_keeps_heartbeating.pytestmark
     states = next(mark.args[1] for mark in marks if mark.name == "parametrize" and mark.args[0] == "state")
@@ -4015,6 +4076,85 @@ class TestSetSupervisorComms:
 
 
 class TestInProcessTestSupervisor:
+    @pytest.mark.parametrize("callback_error", [None, RuntimeError])
+    def test_retry_callback_finishes_before_retry_report(self, make_ti_context, mocker, callback_error):
+        client = mocker.Mock(spec=sdk_client.Client)
+        client.task_instances = mocker.create_autospec(sdk_client.TaskInstanceOperations, instance=True)
+        client.xcoms = mocker.create_autospec(sdk_client.XComOperations, instance=True)
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=1)
+        observed = []
+
+        def callback(context):
+            ti = context["ti"]
+            observed.append((client.task_instances.retry.call_count, ti.id, ti.end_date))
+            ti.xcom_push(key="retry", value="callback")
+            if callback_error:
+                raise callback_error("callback failed")
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise ValueError("task failed")
+
+        with DAG(dag_id="test_dag"):
+            task = FailingOperator(task_id="failing", retries=1, on_retry_callback=callback)
+        ti = TaskInstance(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            dag_id="test_dag",
+            task_id=task.task_id,
+            run_id="test_run",
+            try_number=1,
+            queue="default",
+        )
+
+        result = InProcessTestSupervisor.start(what=ti, task=task, client=client)
+
+        assert result.state == TaskInstanceState.UP_FOR_RETRY
+        assert observed == [(0, ti.id, result.msg.end_date)]
+        client.xcoms.set.assert_called_once()
+        client.task_instances.retry.assert_called_once_with(
+            id=ti.id,
+            end_date=result.msg.end_date,
+            rendered_map_index=None,
+            retry_delay_seconds=None,
+            retry_reason=None,
+        )
+        client.task_instances.finish.assert_not_called()
+
+    @pytest.mark.parametrize("finalization_error", [RuntimeError, KeyboardInterrupt])
+    def test_pending_retry_is_reported_when_finalization_raises(
+        self, make_ti_context, mocker, finalization_error
+    ):
+        client = mocker.Mock(spec=sdk_client.Client)
+        client.task_instances = mocker.create_autospec(sdk_client.TaskInstanceOperations, instance=True)
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=1)
+        with DAG(dag_id="test_dag"):
+            task = BaseOperator(task_id="failing", retries=1)
+        ti = TaskInstance(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            dag_id="test_dag",
+            task_id=task.task_id,
+            run_id="test_run",
+            try_number=1,
+            queue="default",
+        )
+        finalize = mocker.patch.object(task_runner, "finalize", autospec=True, side_effect=finalization_error)
+
+        with pytest.raises(finalization_error):
+            InProcessTestSupervisor.start(what=ti, task=task, client=client)
+
+        runtime_ti, state, *_ = finalize.call_args.args
+        assert state == TaskInstanceState.UP_FOR_RETRY
+        client.task_instances.retry.assert_called_once_with(
+            id=ti.id,
+            end_date=runtime_ti.end_date,
+            rendered_map_index=None,
+            retry_delay_seconds=None,
+            retry_reason=None,
+        )
+        client.task_instances.finish.assert_not_called()
+
     def test_inprocess_supervisor_comms_roundtrip(self):
         """
         Test that InProcessSupervisorComms correctly sends a message to the supervisor,

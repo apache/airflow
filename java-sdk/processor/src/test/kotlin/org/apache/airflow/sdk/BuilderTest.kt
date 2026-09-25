@@ -62,7 +62,7 @@ class BuilderTest {
           }
 
           @Builder.Task
-          public void t3(Context ctx, @Builder.XCom(task = "t2") int value) {
+          public void t3(Context ctx, int value) {
             System.out.println(String.format("%s %s", ctx.ti, value));
           }
         }
@@ -78,15 +78,14 @@ class BuilderTest {
          package org.apache.airflow.example;
 
          import java.lang.Exception;
-         import java.lang.Number;
+         import java.lang.Integer;
          import java.lang.Override;
-         import java.util.Optional;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
-         import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -111,7 +110,8 @@ class BuilderTest {
            public static final class T3 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               var value = ((Number) Optional.ofNullable(client.getXCom("t2")).orElseThrow(() -> new MissingXComException("t2", "value"))).intValue();
+               TaskArgs args = TaskArgs.of(context, client, 1);
+               int value = args.require(0, Integer.class);
                new TestExample().t3(context, value);
              }
            }
@@ -121,25 +121,19 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("widen primitive numerics directly and boxed numerics null-safely")
-  fun generateBuilderWidensNumericXCom() {
+  @DisplayName("bind data parameters by position, skipping the injected Client and Context")
+  fun generateBuilderBindsDataParametersByPosition() {
     val compilation =
       compile(
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Client;
+        import org.apache.airflow.sdk.Context;
         @Builder.Dag
         public class TestExample {
           @Builder.Task
-          public void t(
-              @Builder.XCom(task = "a") int i,
-              @Builder.XCom(task = "b") long l,
-              @Builder.XCom(task = "c") double d,
-              @Builder.XCom(task = "f") float fl,
-              @Builder.XCom(task = "e") Integer boxedInteger,
-              @Builder.XCom(task = "g") Long boxedLong,
-              @Builder.XCom(task = "h") Double boxedDouble,
-              @Builder.XCom(task = "j") Float boxedFloat) {}
+          public void t(long first, Client client, String second, Context ctx, Integer third) {}
         }
       """,
       )
@@ -153,15 +147,16 @@ class BuilderTest {
          package org.apache.airflow.example;
 
          import java.lang.Exception;
-         import java.lang.Number;
+         import java.lang.Integer;
+         import java.lang.Long;
          import java.lang.Override;
-         import java.util.Optional;
+         import java.lang.String;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
-         import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -172,15 +167,11 @@ class BuilderTest {
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               var i = ((Number) Optional.ofNullable(client.getXCom("a")).orElseThrow(() -> new MissingXComException("a", "i"))).intValue();
-               var l = ((Number) Optional.ofNullable(client.getXCom("b")).orElseThrow(() -> new MissingXComException("b", "l"))).longValue();
-               var d = ((Number) Optional.ofNullable(client.getXCom("c")).orElseThrow(() -> new MissingXComException("c", "d"))).doubleValue();
-               var fl = ((Number) Optional.ofNullable(client.getXCom("f")).orElseThrow(() -> new MissingXComException("f", "fl"))).floatValue();
-               var boxedInteger = Optional.ofNullable((Number) client.getXCom("e")).map(Number::intValue).orElse(null);
-               var boxedLong = Optional.ofNullable((Number) client.getXCom("g")).map(Number::longValue).orElse(null);
-               var boxedDouble = Optional.ofNullable((Number) client.getXCom("h")).map(Number::doubleValue).orElse(null);
-               var boxedFloat = Optional.ofNullable((Number) client.getXCom("j")).map(Number::floatValue).orElse(null);
-               new TestExample().t(i, l, d, fl, boxedInteger, boxedLong, boxedDouble, boxedFloat);
+               TaskArgs args = TaskArgs.of(context, client, 3);
+               long first = args.require(0, Long.class);
+               String second = args.get(1, String.class);
+               Integer third = args.get(2, Integer.class);
+               new TestExample().t(first, client, second, context, third);
              }
            }
          }
@@ -189,20 +180,19 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("guard non-numeric primitives, leave objects and boxed types nullable")
-  fun generateBuilderGuardsNonNumericPrimitiveXCom() {
+  @DisplayName("require primitive parameters, leave boxed and parameterized types nullable")
+  fun generateBuilderRequiresPrimitivesOnly() {
     val compilation =
       compile(
         """
         package org.apache.airflow.example;
+        import java.util.List;
+        import java.util.Map;
         import org.apache.airflow.sdk.Builder;
         @Builder.Dag
         public class TestExample {
           @Builder.Task
-          public void t(
-              @Builder.XCom(task = "a") boolean flag,
-              @Builder.XCom(task = "b") String text,
-              @Builder.XCom(task = "c") Boolean boxed) {}
+          public void t(boolean flag, float fraction, Double boxed, List<String> tags, Map raw) {}
         }
       """,
       )
@@ -216,16 +206,20 @@ class BuilderTest {
          package org.apache.airflow.example;
 
          import java.lang.Boolean;
+         import java.lang.Double;
          import java.lang.Exception;
+         import java.lang.Float;
          import java.lang.Override;
          import java.lang.String;
-         import java.util.Optional;
+         import java.util.List;
+         import java.util.Map;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
-         import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+         import org.apache.airflow.sdk.internal.TypeRef;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -236,15 +230,373 @@ class BuilderTest {
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               var flag = (Boolean) Optional.ofNullable(client.getXCom("a")).orElseThrow(() -> new MissingXComException("a", "flag"));
-               var text = (String) client.getXCom("b");
-               var boxed = (Boolean) client.getXCom("c");
-               new TestExample().t(flag, text, boxed);
+               TaskArgs args = TaskArgs.of(context, client, 5);
+               boolean flag = args.require(0, Boolean.class);
+               float fraction = args.require(1, Float.class);
+               Double boxed = args.get(2, Double.class);
+               List<String> tags = args.get(3, new TypeRef<List<String>>() {});
+               Map raw = args.get(4, Map.class);
+               new TestExample().t(flag, fraction, boxed, tags, raw);
              }
            }
          }
         """,
       )
+  }
+
+  @Test
+  @DisplayName("bind a TaskInput through the shared populator")
+  fun generateBuilderBindsTaskInputFields() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import java.util.List;
+        import org.apache.airflow.sdk.ArgName;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Client;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            @ArgName("region_code") public String region;
+            public double threshold;
+            public List<String> tags;
+          }
+
+          @Builder.Task
+          public double score(Client client, ScoreInput input) { return input.threshold; }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Override;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.ArgValues;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("score", Score.class));
+             return dag;
+           }
+           public static final class Score implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TestExample.ScoreInput input = ArgValues.bindInput(client, TestExample.ScoreInput.class);
+               client.setXCom(new TestExample().score(client, input));
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("keep the positional handle from clashing with a parameter named args")
+  fun generateBuilderAvoidsClashWithParamNamedArgs() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public void t(String args, int other) {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Integer;
+         import java.lang.Override;
+         import java.lang.String;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("t", T.class));
+             return dag;
+           }
+           public static final class T implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args_ = TaskArgs.of(context, client, 2);
+               String args = args_.get(0, String.class);
+               int other = args_.require(1, Integer.class);
+               new TestExample().t(args, other);
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("keep generated locals from clashing with the injected client and context")
+  fun generateBuilderAvoidsClashWithInjectedParamNames() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            public double threshold;
+          }
+
+          @Builder.Task
+          public void flat(String client, int context) {}
+
+          @Builder.Task
+          public void named(ScoreInput context) {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Integer;
+         import java.lang.Override;
+         import java.lang.String;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("flat", Flat.class));
+             dag.addTask(new TaskDef("named", Named.class));
+             return dag;
+           }
+           public static final class Flat implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 2);
+               String client_ = args.get(0, String.class);
+               int context_ = args.require(1, Integer.class);
+               new TestExample().flat(client_, context_);
+             }
+           }
+           public static final class Named implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TestExample.ScoreInput context_ = ArgValues.bindInput(client, TestExample.ScoreInput.class);
+               new TestExample().named(context_);
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject a TaskInput whose inherited field cannot be assigned")
+  fun rejectTaskInputWithNonPublicInheritedField() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class BaseInput {
+            private String secret;
+          }
+
+          public static class ScoreInput extends BaseInput implements TaskInput {
+            public double threshold;
+          }
+
+          @Builder.Task
+          public void t(ScoreInput input) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "TaskInput field ScoreInput.secret must be public and non-final",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a TaskInput whose inherited field folds onto a declared one")
+  fun rejectTaskInputWithCollidingInheritedField() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class BaseInput {
+            public String regionCode;
+          }
+
+          public static class ScoreInput extends BaseInput implements TaskInput {
+            public String region_code;
+          }
+
+          @Builder.Task
+          public void t(ScoreInput input) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "TaskInput fields ScoreInput.region_code and ScoreInput.regionCode claim argument names that " +
+        "differ only in case or underscores",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a TaskInput mixed with flat data parameters")
+  fun rejectTaskInputMixedWithFlatParams() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            public double threshold;
+          }
+
+          @Builder.Task
+          public void t(ScoreInput input, int extra) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task method 't' declares TaskInput parameter 'input' and other data parameters",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task declaring more than one TaskInput")
+  fun rejectMultipleTaskInputs() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            public double threshold;
+          }
+
+          @Builder.Task
+          public void t(ScoreInput first, ScoreInput second) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task method 't' declares more than one TaskInput parameter: 'first', 'second'",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a TaskInput with a non-public field")
+  fun rejectTaskInputWithNonPublicField() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            double threshold;
+          }
+
+          @Builder.Task
+          public void t(ScoreInput input) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "TaskInput field ScoreInput.threshold must be public and non-final",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a TaskInput without a public no-argument constructor")
+  fun rejectTaskInputWithoutNoArgConstructor() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            public double threshold;
+
+            public ScoreInput(double threshold) { this.threshold = threshold; }
+          }
+
+          @Builder.Task
+          public void t(ScoreInput input) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "TaskInput class ScoreInput needs a public no-argument constructor",
+    )
   }
 
   @Test
@@ -334,24 +686,6 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("generate builder for dag class with invalid task parameter")
-  fun generateBuilderForDagClassWithInvalidTaskParameter() {
-    val compilation =
-      compile(
-        """
-        package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
-        public class TestExample { @Builder.Task(id = "foo") public void t1(String client) {} }
-      """,
-      )
-    assertThat(compilation).failed()
-    assertThat(compilation).hadErrorContaining(
-      "Unsupported task parameter 'client' with type: java.lang.String",
-    )
-  }
-
-  @Test
   @DisplayName("generate builder for dag class with varargs task parameter")
   fun generateBuilderForDagClassWithVarArgsTaskParameter() {
     val compilation =
@@ -366,6 +700,169 @@ class BuilderTest {
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
       "Cannot create task from vararg function t1",
+    )
+  }
+
+  @Test
+  @DisplayName("generate a registrar binding each handler to the ids its annotation names")
+  fun generateHandlerRegistrar() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Client;
+        public class TestExample {
+          @Builder.TaskHandler(dag = "etl", task = "score")
+          public long score(Client client, long rows) { return rows; }
+
+          @Builder.TaskHandler(dag = "etl")
+          public void audit() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleHandlers")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleHandlers",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Long;
+         import java.lang.Override;
+         import org.apache.airflow.sdk.Bundle;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         /**
+          * Registers {@link TestExample}'s task handlers against the Dags the Python file owns.
+          */
+         public final class TestExampleHandlers {
+           public static void registerInto(Bundle bundle) {
+             bundle.register("etl", "score", Score.class);
+             bundle.register("etl", "audit", Audit.class);
+           }
+
+           public static final class Score implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 1);
+               long rows = args.require(0, Long.class);
+               client.setXCom(new TestExample().score(client, rows));
+             }
+           }
+
+           public static final class Audit implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().audit();
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject a handler that names no Dag")
+  fun rejectHandlerWithoutDag() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          @Builder.TaskHandler(dag = "")
+          public void t() {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.TaskHandler on 't' must name the Dag the Python file declares",
+    )
+  }
+
+  @Test
+  @DisplayName("name the registrar of a nested handler class after the classes enclosing it")
+  fun generateRegistrarForNestedHandlerClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          public static class Inner {
+            @Builder.TaskHandler(dag = "etl", task = "score")
+            public long score(long rows) { return rows; }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExample_InnerHandlers")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExample_InnerHandlers",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Long;
+         import java.lang.Override;
+         import org.apache.airflow.sdk.Bundle;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         /**
+          * Registers {@link TestExample.Inner}'s task handlers against the Dags the Python file owns.
+          */
+         public final class TestExample_InnerHandlers {
+           public static void registerInto(Bundle bundle) {
+             bundle.register("etl", "score", Score.class);
+           }
+
+           public static final class Score implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 1);
+               long rows = args.require(0, Long.class);
+               client.setXCom(new TestExample.Inner().score(rows));
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject handlers on a nested class that is not static")
+  fun rejectHandlersOnInnerClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          public class Inner {
+            @Builder.TaskHandler(dag = "etl")
+            public void t() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Nested class 'Inner' holding @Builder.TaskHandler methods must be static",
     )
   }
 }

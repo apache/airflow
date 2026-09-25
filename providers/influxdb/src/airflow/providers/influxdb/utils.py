@@ -28,3 +28,19 @@ if TYPE_CHECKING:
 def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
     """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
     return json.loads(dataframe.to_json(orient="records", date_format="iso"))
+
+
+def _first_cell_is_truthy(dataframe: pd.DataFrame) -> bool:
+    """Return whether the first cell meets the sensor condition."""
+    import pandas as pd
+
+    if dataframe.empty or dataframe.shape[1] == 0:
+        return False
+
+    value = dataframe.iat[0, 0]
+    if not pd.api.types.is_scalar(value):
+        raise TypeError("The first query result cell must be a scalar value")
+    if pd.isna(value):
+        return False
+
+    return value not in (0, "0", "", None)

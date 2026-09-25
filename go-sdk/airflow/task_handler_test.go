@@ -123,7 +123,7 @@ func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
 		{
 			name: "variadic",
 			fn:   func(Context, ...string) error { return nil },
-			want: "is variadic; a task argument cannot fill a ... parameter",
+			want: "is variadic; declare the last parameter as []T instead of ...T",
 		},
 	}
 	for _, tt := range tests {

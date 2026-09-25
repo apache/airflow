@@ -677,6 +677,15 @@ breeze release-management prepare-tarball --tarball-type apache_airflow_provider
 The `prepare-*-distributions` commands should produce the reproducible `.whl`, `.tar.gz` packages in the dist folder.
 The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
 
+**Build with the locked Breeze.** Run these with the `breeze` shim installed by
+`scripts/tools/setup_breeze`, from a plain `git clone` (not a `git worktree`). The shim runs Breeze
+with the dependencies locked in the checked-out `dev/breeze/uv.lock`, and that lock is what decides
+the flit version: `flit build` runs without build isolation, so the installed flit - not the
+`flit_core==` pin in the providers' `pyproject.toml` - builds every package and stamps its version
+into the `Generator:` line of each wheel's `WHEEL` file. A `breeze` installed separately (for example
+an older `uv tool install` of `dev/breeze`) can carry a different flit, and voters rebuilding from the
+tag with the locked version then get wheels that differ in that line.
+
 > [!IMPORTANT]
 > `--version-suffix ""` is passed deliberately, and the empty value is the point: the packages
 > committed to SVN carry the **final** version in their filename (`...-6.0.1-py3-none-any.whl`), with
@@ -906,6 +915,31 @@ but the documentation source code and build tools are available in the `apache/a
 you need to run several workflows to publish the documentation. More details about it can be found in
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
+
+### Sync staging with main (skip if another vote is in progress)
+
+Before publishing the staging docs, reset the `staging` branches of
+[`apache/airflow-site`](https://github.com/apache/airflow-site) and
+[`apache/airflow-site-archive`](https://github.com/apache/airflow-site-archive) to `main`, so the staging
+site starts from the current live site rather than from whatever an earlier release left there:
+
+```shell script
+breeze workflow-run sync-staging-to-main
+```
+
+It triggers the `Reset staging to main` workflow in
+[`airflow-site`](https://github.com/apache/airflow-site/actions/workflows/reset-staging.yml) and in
+[`airflow-site-archive`](https://github.com/apache/airflow-site-archive/actions/workflows/reset-staging.yml).
+Each force-updates its repository's `staging` branch to the current `main` commit (`main` itself is not
+changed); in `airflow-site` it also rebuilds the staging site.
+
+> [!WARNING]
+> **Skip this step if a vote for any other release (Airflow, Providers, Helm Chart, airflowctl, ...) is
+> in progress.** Its release candidate docs are on the `staging` branches, and resetting `staging` to `main`
+> would overwrite the staging docs prepared for that vote. The command asks for confirmation before it
+> does anything; answer `n` to skip it.
+
+### Publish the docs
 
 You usually use the `breeze` command to publish the documentation. The command does the following:
 
@@ -1235,7 +1269,9 @@ it means that the build has a verified provenance.
 
 How to verify it:
 
-1) Change directory to where your airflow sources are checked out:
+1) Change directory to where your airflow sources are checked out. It must be a plain `git clone`,
+not a `git worktree`: Breeze refuses to build provider sdists from a worktree, because flit does not
+recognise one and would silently produce incomplete sdists.
 
 ```shell
 cd "$AIRFLOW_REPO_ROOT"
@@ -1254,20 +1290,49 @@ git checkout providers/${RELEASE_DATE}
 rm -rf dist/*
 ```
 
-4) Build the packages using checked out sources
+4) Check which flit version the release manager built the wheels with, and which one Breeze locks at
+the tag. `flit build` runs without build isolation, so the flit installed in Breeze's environment -
+not the `flit_core==` pin in the providers' `pyproject.toml` - builds the packages, and it writes its
+version into the `Generator:` line of every wheel's `WHEEL` file. A different flit version produces
+wheels that differ only in that line (and in its hash in `RECORD`).
+
+```shell
+for i in ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}/*.whl
+do
+  unzip -p "$i" '*.dist-info/WHEEL' | grep Generator
+done | sort | uniq -c
+grep -A1 '^name = "flit"$' dev/breeze/uv.lock
+```
+
+5) Build the packages using checked out sources.
+
+If the `Generator:` version matches the `flit` version in `dev/breeze/uv.lock`, build with the
+`breeze` shim installed by `scripts/tools/setup_breeze` - it runs Breeze with the dependencies locked
+at the checked-out tag:
 
 ```shell
 breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
-5) Switch to the folder where you checked out the SVN dev files
+If they differ, build with a Breeze environment pinned to the release manager's flit version.
+`uv run --with flit==...` does not override the locked version, so use a separate virtualenv:
+
+```shell
+export FLIT_VERSION=4.0.2  # the version from the Generator: line
+uv venv /tmp/breeze-flit
+uv pip install --python /tmp/breeze-flit/bin/python -e ./dev/breeze "flit==${FLIT_VERSION}" "flit-core==${FLIT_VERSION}"
+/tmp/breeze-flit/bin/breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix ""
+/tmp/breeze-flit/bin/breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
+```
+
+6) Switch to the folder where you checked out the SVN dev files
 
 ```shell
 cd ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}
 ```
 
-6) Compare the packages in SVN to the ones you just built
+7) Compare the packages in SVN to the ones you just built
 
 ```shell
 for i in *.tar.gz *.whl
