@@ -63,6 +63,7 @@ CLUSTER_CONFIG_FOR_PHS = {
     },
     "software_config": {
         "properties": {
+            "dataproc:dataproc.allow.zero.workers": "true",
             "spark:spark.history.fs.logDirectory": f"gs://{BUCKET_NAME}",
         },
     },
