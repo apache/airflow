@@ -20,7 +20,7 @@
 Add source_reference to import_error.
 
 Revision ID: ca8499dc1004
-Revises: b6a9c2e7d410
+Revises: c9f4b3e7a218
 Create Date: 2026-08-27 12:45:02.276898
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "ca8499dc1004"
-down_revision = "b6a9c2e7d410"
+down_revision = "c9f4b3e7a218"
 branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"
@@ -41,7 +41,7 @@ airflow_version = "3.4.0"
 def upgrade():
     """Apply add source_reference to import_error."""
     with op.batch_alter_table("import_error", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("source_reference", sa.String(length=1024), nullable=True))
+        batch_op.add_column(sa.Column("source_reference", sa.String(length=2000), nullable=True))
 
 
 def downgrade():

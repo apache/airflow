@@ -35,7 +35,7 @@ class ParseImportError(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     timestamp: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    source_reference: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    source_reference: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     stacktrace: Mapped[str | None] = mapped_column(Text, nullable=True)
 
