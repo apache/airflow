@@ -163,6 +163,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=stream_name,
+            create_log_group=stream_name is None,
             use_queues=True,
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
