@@ -5172,8 +5172,8 @@ export const $DagVersionDiffResponse = {
             type: 'integer',
             title: 'Target Version Number'
         },
-        serialized_dag_schema_versions: {
-            '$ref': '#/components/schemas/DagVersionDiffSchemaVersions'
+        serializer_versions: {
+            '$ref': '#/components/schemas/DagVersionDiffSerializerVersions'
         },
         mode: {
             '$ref': '#/components/schemas/DagVersionDiffMode'
@@ -5212,12 +5212,12 @@ export const $DagVersionDiffResponse = {
         }
     },
     type: 'object',
-    required: ['diff_schema_version', 'base_version_number', 'target_version_number', 'serialized_dag_schema_versions', 'mode', 'values_status', 'truncated', 'total_changes', 'changes'],
+    required: ['diff_schema_version', 'base_version_number', 'target_version_number', 'serializer_versions', 'mode', 'values_status', 'truncated', 'total_changes', 'changes'],
     title: 'DagVersionDiffResponse',
     description: 'Observed-state difference between two stored Dag versions.'
 } as const;
 
-export const $DagVersionDiffSchemaVersions = {
+export const $DagVersionDiffSerializerVersions = {
     properties: {
         base: {
             anyOf: [
@@ -5244,8 +5244,11 @@ export const $DagVersionDiffSchemaVersions = {
     },
     type: 'object',
     required: ['base', 'target'],
-    title: 'DagVersionDiffSchemaVersions',
-    description: 'Which serializer schema each compared version was stored under.'
+    title: 'DagVersionDiffSerializerVersions',
+    description: `Which Dag serializer format each compared version was stored under.
+
+Unrelated to \`\`diff_schema_version\`\`, which versions this payload rather than the
+serialized Dags it describes.`
 } as const;
 
 export const $DagVersionDiffValuesStatus = {

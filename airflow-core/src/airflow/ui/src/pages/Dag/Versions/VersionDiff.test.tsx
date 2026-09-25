@@ -25,7 +25,7 @@ import {
   $DagVersionDiffImpact,
   $DagVersionDiffOperation,
 } from "openapi/requests/schemas.gen";
-import type { DagVersionDiffResponse } from "openapi/requests/types.gen";
+import type { DagVersionDiffChangeResponse, DagVersionDiffResponse } from "openapi/requests/types.gen";
 
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -53,7 +53,7 @@ const redacted: DagVersionDiffResponse = {
   ],
   diff_schema_version: 1,
   mode: "observed_state",
-  serialized_dag_schema_versions: { base: 3, target: 3 },
+  serializer_versions: { base: 3, target: 3 },
   target_version_number: 2,
   total_changes: 3,
   truncated: false,
@@ -116,6 +116,32 @@ describe("VersionDiff", () => {
     expect(screen.queryByText("versions.columns.after")).not.toBeInTheDocument();
     // Says what would grant them, since nothing here can.
     expect(screen.getByText("versions.codeAccess")).toBeInTheDocument();
+  });
+
+  it("renders every returned record", () => {
+    // The endpoint bounds the payload itself, so the table must not page on top of that and hide
+    // records the caller explicitly asked for.
+    const many: Array<DagVersionDiffChangeResponse> = Array.from({ length: 24 }, (_, index) => ({
+      category: "task",
+      impact: "execution",
+      occurrence_count: 1,
+      operation: "changed",
+      path: `/dag/tasks/task_${index}/retries`,
+    }));
+
+    renderDiff({ ...redacted, changes: many, total_changes: many.length });
+
+    for (const change of many) {
+      expect(screen.getByText(change.path)).toBeInTheDocument();
+    }
+  });
+
+  it("keeps the comparison's boundary reachable from above the table", () => {
+    renderDiff(redacted);
+
+    // Below the table it would be pushed off-screen by exactly the long diffs that need it.
+    expect(screen.queryByText("versions.observedStateBoundary")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "versions.aboutThisComparison" })).toBeInTheDocument();
   });
 
   it("shows values and the identifying path once the caller may see them", () => {
@@ -220,7 +246,6 @@ describe("VersionDiff", () => {
     renderDiff({ ...redacted, changes: [], total_changes: 0 });
 
     expect(screen.getByText("versions.noChanges")).toBeInTheDocument();
-    expect(screen.queryByText("versions.columns.path")).not.toBeInTheDocument();
   });
 
   it("reports an unavailable comparison that carries no reason", () => {

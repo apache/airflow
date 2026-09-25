@@ -60,7 +60,7 @@ const diff: DagVersionDiffResponse = {
   ],
   diff_schema_version: 1,
   mode: "observed_state",
-  serialized_dag_schema_versions: { base: 3, target: 3 },
+  serializer_versions: { base: 3, target: 3 },
   target_version_number: 3,
   total_changes: 3,
   truncated: false,

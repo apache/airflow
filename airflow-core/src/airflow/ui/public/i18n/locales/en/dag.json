@@ -250,6 +250,7 @@
     "title": "Task State Store"
   },
   "versions": {
+    "aboutThisComparison": "About this comparison",
     "base": "Compare from",
     "categories": {
       "asset": "Asset",
@@ -292,6 +293,8 @@
       "changed": "Changed",
       "removed": "Removed"
     },
+    "record_one": "Record",
+    "record_other": "Records",
     "selectPrompt": "Select two versions to see what changed between them.",
     "summary_one": "{{count}} change · serialized schema {{baseSchema}} → {{targetSchema}}",
     "summary_other": "{{count}} changes · serialized schema {{baseSchema}} → {{targetSchema}}",

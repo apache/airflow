@@ -1423,7 +1423,7 @@ export type DagVersionDiffResponse = {
     diff_schema_version: number;
     base_version_number: number;
     target_version_number: number;
-    serialized_dag_schema_versions: DagVersionDiffSchemaVersions;
+    serializer_versions: DagVersionDiffSerializerVersions;
     mode: DagVersionDiffMode;
     /**
      * Why no comparison could be made. Populated only when `mode` is `unavailable`.
@@ -1442,9 +1442,12 @@ export type DagVersionDiffResponse = {
 };
 
 /**
- * Which serializer schema each compared version was stored under.
+ * Which Dag serializer format each compared version was stored under.
+ *
+ * Unrelated to ``diff_schema_version``, which versions this payload rather than the
+ * serialized Dags it describes.
  */
-export type DagVersionDiffSchemaVersions = {
+export type DagVersionDiffSerializerVersions = {
     base: number | null;
     target: number | null;
 };
@@ -3692,6 +3695,24 @@ export type GetDagRunStatsData = {
 
 export type GetDagRunStatsResponse = DagRunStatsResponse;
 
+export type GetDagVersionDiffData = {
+    /**
+     * Version to compare from.
+     */
+    baseVersionNumber: number;
+    dagId: string;
+    /**
+     * Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     */
+    maxChanges?: number;
+    /**
+     * Version to compare to.
+     */
+    targetVersionNumber: number;
+};
+
+export type GetDagVersionDiffResponse = DagVersionDiffResponse;
+
 export type GetDagSourceData = {
     accept?: 'application/json' | 'text/plain' | '*/*';
     dagId: string;
@@ -4941,18 +4962,6 @@ export type GetDagVersionsData = {
 };
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
-
-export type GetDagVersionDiffData = {
-    baseVersionNumber: number;
-    dagId: string;
-    /**
-     * Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
-     */
-    maxChanges?: number;
-    targetVersionNumber: number;
-};
-
-export type GetDagVersionDiffResponse = DagVersionDiffResponse;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -6434,6 +6443,37 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DagRunStatsResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagVersions/diff': {
+        get: {
+            req: GetDagVersionDiffData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagVersionDiffResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -8838,37 +8878,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGVersionCollectionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}': {
-        get: {
-            req: GetDagVersionDiffData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: DagVersionDiffResponse;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

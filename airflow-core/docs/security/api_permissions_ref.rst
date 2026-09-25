@@ -471,7 +471,7 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG.VERSION``
      - ``GET``
    * - ``GET``
-     - ``/api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}``
+     - ``/api/v2/dags/{dag_id}/dagVersions/diff``
      - ``DAG.VERSION``
      - ``GET``
    * - ``GET``

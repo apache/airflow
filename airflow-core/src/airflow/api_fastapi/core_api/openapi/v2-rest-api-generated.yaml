@@ -10524,6 +10524,100 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagVersions/diff:
+    get:
+      tags:
+      - DagVersion
+      - experimental
+      summary: 'Experimental: Compare what two stored versions of a Dag currently
+        hold.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice.\n\nReports observed state \u2014 what the two\
+        \ stored versions currently hold \u2014 not why a version was created. Version\
+        \ access returns the changed structure with identifying path components masked;\
+        \ the raw values behind those changes, and the paths that name them, are disclosed\
+        \ only to a caller who may also read the Dag's code."
+      operationId: get_dag_version_diff
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: base_version_number
+        in: query
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          description: Version to compare from.
+          title: Base Version Number
+        description: Version to compare from.
+      - name: target_version_number
+        in: query
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          description: Version to compare to.
+          title: Target Version Number
+        description: Version to compare to.
+      - name: max_changes
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          exclusiveMinimum: 0
+          description: Largest number of records `changes` may hold. A repeat of a
+            path already recorded does not count towards it, and `truncated` says
+            whether the bound dropped anything.
+          default: 500
+          title: Max Changes
+        description: Largest number of records `changes` may hold. A repeat of a path
+          already recorded does not count towards it, and `truncated` says whether
+          the bound dropped anything.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionDiffResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagVersions/{version_number}:
     get:
       tags:
@@ -10670,97 +10764,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}:
-    get:
-      tags:
-      - DagVersion
-      summary: Get Dag Version Diff
-      description: 'Compare what two stored versions of a Dag currently hold.
-
-
-        This reports observed state, not why a version was created. Version access
-        returns the changed
-
-        structure with identifying path components masked; the raw values behind those
-        changes, and the
-
-        paths that name them, are disclosed only to a caller who may also read the
-        Dag''s code.'
-      operationId: get_dag_version_diff
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: base_version_number
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Base Version Number
-      - name: target_version_number
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Target Version Number
-      - name: max_changes
-        in: query
-        required: false
-        schema:
-          type: integer
-          maximum: 5000
-          exclusiveMinimum: 0
-          description: Largest number of records `changes` may hold. A repeat of a
-            path already recorded does not count towards it, and `truncated` says
-            whether the bound dropped anything.
-          default: 500
-          title: Max Changes
-        description: Largest number of records `changes` may hold. A repeat of a path
-          already recorded does not count towards it, and `truncated` says whether
-          the bound dropped anything.
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DagVersionDiffResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
@@ -14877,8 +14880,8 @@ components:
         target_version_number:
           type: integer
           title: Target Version Number
-        serialized_dag_schema_versions:
-          $ref: '#/components/schemas/DagVersionDiffSchemaVersions'
+        serializer_versions:
+          $ref: '#/components/schemas/DagVersionDiffSerializerVersions'
         mode:
           $ref: '#/components/schemas/DagVersionDiffMode'
         unavailable_reason:
@@ -14911,7 +14914,7 @@ components:
       - diff_schema_version
       - base_version_number
       - target_version_number
-      - serialized_dag_schema_versions
+      - serializer_versions
       - mode
       - values_status
       - truncated
@@ -14919,7 +14922,7 @@ components:
       - changes
       title: DagVersionDiffResponse
       description: Observed-state difference between two stored Dag versions.
-    DagVersionDiffSchemaVersions:
+    DagVersionDiffSerializerVersions:
       properties:
         base:
           anyOf:
@@ -14935,8 +14938,14 @@ components:
       required:
       - base
       - target
-      title: DagVersionDiffSchemaVersions
-      description: Which serializer schema each compared version was stored under.
+      title: DagVersionDiffSerializerVersions
+      description: 'Which Dag serializer format each compared version was stored under.
+
+
+        Unrelated to ``diff_schema_version``, which versions this payload rather than
+        the
+
+        serialized Dags it describes.'
     DagVersionDiffValuesStatus:
       type: string
       enum:

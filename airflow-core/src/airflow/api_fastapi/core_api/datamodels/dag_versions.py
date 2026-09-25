@@ -154,8 +154,13 @@ class DagVersionDiffChangeResponse(BaseModel):
     ] = None
 
 
-class DagVersionDiffSchemaVersions(BaseModel):
-    """Which serializer schema each compared version was stored under."""
+class DagVersionDiffSerializerVersions(BaseModel):
+    """
+    Which Dag serializer format each compared version was stored under.
+
+    Unrelated to ``diff_schema_version``, which versions this payload rather than the
+    serialized Dags it describes.
+    """
 
     base: int | None
     target: int | None
@@ -170,7 +175,7 @@ class DagVersionDiffResponse(BaseModel):
     ]
     base_version_number: int
     target_version_number: int
-    serialized_dag_schema_versions: DagVersionDiffSchemaVersions
+    serializer_versions: DagVersionDiffSerializerVersions
     mode: DagVersionDiffMode
     unavailable_reason: Annotated[
         str | None,
