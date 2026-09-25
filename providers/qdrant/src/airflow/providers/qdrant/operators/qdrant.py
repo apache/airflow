@@ -146,6 +146,7 @@ class QdrantSearchOperator(BaseOperator):
         "query",
         "query_filter",
         "limit",
+        "conn_id",
     )
 
     def __init__(
