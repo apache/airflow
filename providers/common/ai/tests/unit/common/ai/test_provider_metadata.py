@@ -18,14 +18,16 @@
 Drift tripwires between ``provider.yaml``'s declared ``external-services`` and what
 pydantic-ai actually installs.
 
-How ``LABELS``, ``NON_MODULE_SERVICES``, ``UNREACHABLE_MODULES`` and
-``DEPRECATED_UPSTREAM_MODULES`` below were derived, including the empirical checks that
-back each exclusion, is documented in the comment directly above each constant.
+How ``LABELS``, ``NON_MODULE_SERVICES``, ``UNREACHABLE_MODULES``,
+``DEPRECATED_UPSTREAM_MODULES`` and ``HOOK_INCOMPATIBLE_AUTH_MODULES`` below were derived,
+including the empirical checks that back each exclusion, is documented in the comment directly
+above each constant.
 """
 
 from __future__ import annotations
 
 import importlib
+import inspect
 import pkgutil
 import re
 from importlib.metadata import version
@@ -67,6 +69,7 @@ LABELS = {
     "deepseek": "DeepSeek",
     "fireworks": "Fireworks AI",
     "gateway": "Pydantic AI Gateway",
+    "github_copilot": "GitHub Copilot",
     "google": "Google Gemini",
     "google_cloud": "Google Vertex AI",
     "groq": "Groq",
@@ -84,14 +87,19 @@ LABELS = {
     "snowflake": "Snowflake Cortex",
     "together": "Together AI",
     "vercel": "Vercel AI Gateway",
+    "vllm": "vLLM",
     "xai": "xAI",
     "zai": "Z.AI",
 }
 
-# Declared in `pydanticai.external-services` but not a pydantic-ai provider module: reached
-# by pointing the `openai` provider's `base_url` at a vLLM endpoint instead
-# (`hooks/pydantic_ai.py`), so it cannot be derived from `pydantic_ai.providers`.
-NON_MODULE_SERVICES = {"vLLM"}
+# Declared in `pydanticai.external-services` but not backed by a `pydantic_ai.providers` module of
+# its own -- reached instead through some other provider's constructor kwargs. Currently empty:
+# `vLLM` was the sole member here (reached by pointing the `openai` provider's `base_url` at a
+# vLLM endpoint, `hooks/pydantic_ai.py`) until pydantic-ai 2.44.0 added a dedicated
+# `pydantic_ai.providers.vllm` module with its own `name` property (`'vllm'`) -- see
+# `LABELS["vllm"]` above. Kept, rather than deleted, as where a future vendor without its own
+# module would go.
+NON_MODULE_SERVICES: set[str] = set()
 
 # Modules `pkgutil` discovers under `pydantic_ai.providers` that `infer_model` never
 # routes to -- `infer_model("voyageai:...")` / `infer_model("sentence-transformers:...")`
@@ -112,6 +120,45 @@ UNREACHABLE_MODULES = {"voyageai", "sentence_transformers"}
 # provider appears under a different module name, the corresponding test goes red instead
 # of silently staying excluded.
 DEPRECATED_UPSTREAM_MODULES = {"github"}
+
+# Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are excluded
+# by decision because `PydanticAIHook` has no way to supply the credentials they require.
+# `PydanticAIHook._get_provider_kwargs()` -- the generic connection type's only credential path
+# (`hooks/pydantic_ai.py`) -- always sends `api_key` (from `conn.password`) and/or `base_url`
+# (from `conn.host`). `pydantic_ai.providers.openai_codex.OpenAICodexProvider.__init__` accepts
+# only `credentials`, `credential_source`, `openai_client`, and `http_client` -- no parameter
+# exists to receive what the hook sends; confirmed empirically (as of pydantic-ai-slim 2.44.0):
+# `OpenAICodexProvider(api_key=..., base_url=...)` raises
+# ``TypeError: unexpected keyword argument 'api_key'``. `PydanticAIHook.get_conn()`'s
+# `_provider_factory` catches that `TypeError` and retries via `infer_provider(pname)`, i.e.
+# `OpenAICodexProvider()` with no arguments, which falls through to its
+# `_read_codex_cli_credentials()` helper: a read-only load of the Codex CLI's on-disk
+# `~/.codex/auth.json`, populated by the OAuth authorization-code + PKCE login flow the Codex CLI
+# itself performs (see `pydantic_ai.providers.openai_codex`'s module docstring and
+# `OpenAICodexOAuthFlow`) -- not by anything `hooks/pydantic_ai.py` can express. No `pydanticai`
+# connection field maps to an OAuth credential or a `credential_source`, so a `pydanticai`
+# connection can never drive this provider regardless of what's configured on it. Advertising a
+# vendor no configuration on this connection type can ever reach is worse than not listing it
+# (mirrors `DEPRECATED_UPSTREAM_MODULES`'s reasoning, for a different cause: hook-incompatible
+# auth rather than a retired backend). `test_hook_incompatible_auth_modules_stay_incompatible`
+# below guards the reversal: if pydantic-ai gives one of these providers an `api_key`/`base_url`
+# constructor parameter, this must fail so a human re-evaluates whether the module belongs back
+# in `LABELS` and `provider.yaml`, instead of it staying excluded forever on a stale rationale.
+HOOK_INCOMPATIBLE_AUTH_MODULES = {"openai_codex"}
+
+# `pydantic_ai.providers.openai_codex` (the sole `HOOK_INCOMPATIBLE_AUTH_MODULES` member) was
+# added in pydantic-ai-slim 2.41.0 -- absent on 2.40.0 and below (bisected empirically; the
+# provider's floor is 2.33.0, `pyproject.toml`). The guard test below imports it unconditionally,
+# so on the floor it would raise `ModuleNotFoundError` instead of testing anything.
+OPENAI_CODEX_AVAILABLE_FROM = Version("2.41.0")
+
+requires_openai_codex_module = pytest.mark.skipif(
+    Version(Version(version("pydantic-ai-slim")).base_version) < OPENAI_CODEX_AVAILABLE_FROM,
+    reason=(
+        f"pydantic-ai-slim is older than {OPENAI_CODEX_AVAILABLE_FROM}, the first release "
+        f"carrying pydantic_ai.providers.openai_codex"
+    ),
+)
 
 # `provider.yaml`'s vendor list is derived from a current pydantic-ai, but the provider
 # supports `pydantic-ai-slim>=2.33.0` (`pyproject.toml`) and CI's "Low dep tests" job installs
@@ -173,7 +220,12 @@ def _find_discovered_provider_modules() -> set[str]:
 
 def _find_reachable_provider_modules() -> set[str]:
     """The discovered modules `common.ai` actually reaches, i.e. minus the documented exclusions."""
-    return _find_discovered_provider_modules() - UNREACHABLE_MODULES - DEPRECATED_UPSTREAM_MODULES
+    return (
+        _find_discovered_provider_modules()
+        - UNREACHABLE_MODULES
+        - DEPRECATED_UPSTREAM_MODULES
+        - HOOK_INCOMPATIBLE_AUTH_MODULES
+    )
 
 
 def _find_derived_vendor_labels() -> set[str]:
@@ -271,6 +323,36 @@ class TestPydanticAIExternalServicesDrift:
                 f"pydantic_ai.providers.{module} is no longer marked @deprecated -- re-evaluate "
                 f"whether '{module}' should be re-added to LABELS and provider.yaml"
             )
+
+    @requires_openai_codex_module
+    def test_hook_incompatible_auth_modules_stay_incompatible(self):
+        """
+        Guard the other direction, for every member of ``HOOK_INCOMPATIBLE_AUTH_MODULES``: if
+        pydantic-ai gives one of these providers an ``api_key``/``base_url`` constructor path (the
+        shape ``PydanticAIHook._get_provider_kwargs`` sends), this must fail so a human
+        re-evaluates whether the module belongs back in ``LABELS`` and ``provider.yaml``, instead
+        of it staying excluded forever on a stale rationale.
+        """
+        for module in HOOK_INCOMPATIBLE_AUTH_MODULES:
+            mod = importlib.import_module(f"pydantic_ai.providers.{module}")
+            provider_classes = [
+                obj
+                for obj in vars(mod).values()
+                if isinstance(obj, type)
+                and obj.__module__ == mod.__name__
+                and obj.__name__.endswith("Provider")
+            ]
+            assert provider_classes, f"no Provider class found in pydantic_ai.providers.{module}"
+            for cls in provider_classes:
+                params = inspect.signature(cls.__init__).parameters
+                assert "api_key" not in params, (
+                    f"{cls.__name__} now accepts api_key -- re-evaluate whether '{module}' "
+                    f"should be re-added to LABELS and provider.yaml"
+                )
+                assert "base_url" not in params, (
+                    f"{cls.__name__} now accepts base_url -- re-evaluate whether '{module}' "
+                    f"should be re-added to LABELS and provider.yaml"
+                )
 
     def test_known_model_name_prefixes_are_all_labelled(self):
         labelled = set(LABELS)

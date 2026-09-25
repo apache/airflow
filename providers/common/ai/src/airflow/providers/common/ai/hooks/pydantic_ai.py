@@ -91,7 +91,7 @@ class PydanticAIHook(BaseHook):
     Hook for LLM access via pydantic-ai.
 
     Covers providers that use a standard ``api_key`` + optional ``base_url``
-    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, …).
+    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, GitHub Copilot, …).
 
     For cloud providers with non-standard auth use the dedicated subclasses:
     :class:`PydanticAIAzureHook`, :class:`PydanticAIBedrockHook`,

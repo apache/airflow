@@ -147,6 +147,7 @@ def get_provider_info():
                     "Crusoe",
                     "DeepSeek",
                     "Fireworks AI",
+                    "GitHub Copilot",
                     "Google Gemini",
                     "Google Vertex AI",
                     "Groq",
