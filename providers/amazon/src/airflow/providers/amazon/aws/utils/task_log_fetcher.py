@@ -100,8 +100,7 @@ class AwsTaskLogFetcher(Thread):
 
     def run(self) -> None:
         continuation_token = AwsLogsHook.ContinuationToken()
-        while not self.is_stopped():
-            time.sleep(self.fetch_interval.total_seconds())
+        while not self._event.wait(self.fetch_interval.total_seconds()):
             self._forward_log_events(continuation_token)
         # `stop()` is called once the task or job has ended, so the events written between the last
         # fetch above and that moment have not been read yet: read them before the thread exits.
