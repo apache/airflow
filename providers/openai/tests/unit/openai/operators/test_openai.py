@@ -18,16 +18,29 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 from fractions import Fraction
+from typing import Any
 from unittest import mock
 from unittest.mock import Mock
 
 import jinja2
 import pytest
 from openai.types.batch import Batch
-from openai.types.responses import Response, ResponseUsage
+from openai.types.responses import (
+    ParsedResponse,
+    ParsedResponseOutputMessage,
+    ParsedResponseOutputText,
+    Response,
+    ResponseError,
+    ResponseFunctionToolCall,
+    ResponseOutputRefusal,
+    ResponseUsage,
+)
 from openai.types.responses.response import IncompleteDetails
 from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
+from pydantic import BaseModel, ValidationError
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.providers.common.compat.sdk import DAG, BaseOperator, Context, TaskDeferred, XComArg
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
@@ -726,6 +739,298 @@ class TestOpenAIResponseOperatorTokenCeilings:
         assert any(
             "ended with status failed" in message and "may be empty" in message for message in caplog.messages
         )
+
+
+class _StructuredPerson(BaseModel):
+    """Pydantic model used by the structured-output operator tests."""
+
+    name: str
+
+
+@pydantic_dataclass
+class _StructuredPersonDataclass:
+    name: str
+
+
+class _Priority(Enum):
+    LOW = "low"
+    HIGH = "high"
+
+
+class _StructuredTask(BaseModel):
+    title: str
+    priority: _Priority
+
+
+def _build_usage() -> ResponseUsage:
+    return ResponseUsage(
+        input_tokens=5,
+        input_tokens_details=InputTokensDetails(cached_tokens=1, cache_write_tokens=0),
+        output_tokens=7,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=2),
+        total_tokens=12,
+    )
+
+
+def _build_parsed_response(
+    output_parsed: BaseModel | None = None,
+    *,
+    response_id: str = "resp_structured",
+    status: str = "completed",
+    error: ResponseError | None = None,
+    incomplete_details: IncompleteDetails | None = None,
+    refusal: str | None = None,
+    output_items: list[Any] | None = None,
+    usage: ResponseUsage | None = None,
+) -> ParsedResponse:
+    content: list[ParsedResponseOutputText[BaseModel] | ResponseOutputRefusal]
+    if output_items is not None:
+        output = output_items
+    elif output_parsed is not None:
+        content = [
+            ParsedResponseOutputText[BaseModel](
+                annotations=[],
+                text=output_parsed.model_dump_json(),
+                type="output_text",
+                parsed=output_parsed,
+            )
+        ]
+        output = [
+            ParsedResponseOutputMessage[BaseModel](
+                id=f"msg_{response_id}",
+                content=content,
+                role="assistant",
+                status="completed",
+                type="message",
+            )
+        ]
+    elif refusal is not None:
+        content = [ResponseOutputRefusal(refusal=refusal, type="refusal")]
+        output = [
+            ParsedResponseOutputMessage[BaseModel](
+                id=f"msg_{response_id}",
+                content=content,
+                role="assistant",
+                status="completed",
+                type="message",
+            )
+        ]
+    else:
+        output = []
+    return ParsedResponse[BaseModel].model_construct(
+        id=response_id,
+        status=status,
+        output=output,
+        error=error,
+        incomplete_details=incomplete_details,
+        usage=usage,
+    )
+
+
+class TestOpenAIResponseOperatorStructuredOutput:
+    @staticmethod
+    def _operator(**kwargs: Any) -> tuple[OpenAIResponseOperator, Mock]:
+        kwargs.setdefault("text_format", _StructuredPerson)
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID, conn_id=CONN_ID, input_text="Extract: Alice", model="test_model", **kwargs
+        )
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        operator.hook = mock_hook_instance
+        return operator, mock_hook_instance
+
+    def test_returns_parsed_model_as_dict(self):
+        operator, hook = self._operator(response_kwargs={"instructions": "Be precise."})
+        hook.parse_response.return_value = _build_parsed_response(_StructuredPerson(name="Alice"))
+
+        result = operator.execute(_build_execute_context())
+
+        assert result == {"name": "Alice"}
+        hook.parse_response.assert_called_once_with(
+            input="Extract: Alice",
+            model="test_model",
+            text_format=_StructuredPerson,
+            instructions="Be precise.",
+        )
+        hook.create_response.assert_not_called()
+
+    def test_dumps_enum_field_as_json_value(self):
+        # A plain Enum, with no str mixin: under model_dump()'s default mode="python" the value
+        # would stay the live _Priority.HIGH member, which neither equals "high" nor is a str.
+        operator, hook = self._operator(text_format=_StructuredTask)
+        hook.parse_response.return_value = _build_parsed_response(
+            _StructuredTask(title="Deploy", priority=_Priority.HIGH)
+        )
+
+        result = operator.execute(_build_execute_context())
+
+        assert result == {"title": "Deploy", "priority": "high"}
+        assert isinstance(result, dict)
+        assert isinstance(result["priority"], str)
+
+    def test_token_ceilings_apply_to_structured_request(self):
+        operator, hook = self._operator(max_output_tokens="100", response_kwargs={"max_tool_calls": 5})
+        hook.parse_response.return_value = _build_parsed_response(_StructuredPerson(name="Alice"))
+
+        operator.execute(_build_execute_context())
+
+        hook.parse_response.assert_called_once_with(
+            input="Extract: Alice",
+            model="test_model",
+            text_format=_StructuredPerson,
+            max_output_tokens=100,
+            max_tool_calls=5,
+        )
+
+    def test_invalid_ceiling_raises_before_structured_request(self):
+        operator, hook = self._operator(max_output_tokens="not-a-number")
+
+        with pytest.raises(ValueError, match="max_output_tokens"):
+            operator.execute(_build_execute_context())
+
+        hook.parse_response.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("do_xcom_push", "expected_push_count"),
+        [
+            pytest.param(True, 2, id="enabled"),
+            pytest.param(False, 0, id="disabled"),
+        ],
+    )
+    def test_pushes_response_id_and_usage(self, do_xcom_push, expected_push_count):
+        operator, hook = self._operator(do_xcom_push=do_xcom_push)
+        usage = _build_usage()
+        hook.parse_response.return_value = _build_parsed_response(
+            _StructuredPerson(name="Alice"), response_id="resp_str_1", usage=usage
+        )
+        context = _build_execute_context(try_number=2)
+
+        operator.execute(context)
+
+        assert context["ti"].xcom_push.call_count == expected_push_count
+        if do_xcom_push:
+            context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_str_1")
+            context["ti"].xcom_push.assert_any_call(
+                key="usage", value={**usage.model_dump(mode="json"), "try_number": 2}
+            )
+
+    def test_rejected_response_still_records_id_and_usage(self):
+        # The API call behind a rejected response was still billed, so its id and token usage
+        # are pushed before the structured output is checked.
+        operator, hook = self._operator()
+        usage = _build_usage()
+        hook.parse_response.return_value = _build_parsed_response(
+            response_id="resp_refused", refusal="I cannot help with that request.", usage=usage
+        )
+        context = _build_execute_context()
+
+        with pytest.raises(ValueError, match="did not return a structured output"):
+            operator.execute(context)
+
+        context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_refused")
+        context["ti"].xcom_push.assert_any_call(
+            key="usage", value={**usage.model_dump(mode="json"), "try_number": 1}
+        )
+
+    def test_refusal_raises_with_refusal_text(self):
+        operator, hook = self._operator()
+        hook.parse_response.return_value = _build_parsed_response(
+            response_id="resp_refused", refusal="I cannot help with that request."
+        )
+
+        with pytest.raises(ValueError, match="did not return a structured output") as excinfo:
+            operator.execute(_build_execute_context())
+
+        message = str(excinfo.value)
+        assert "resp_refused" in message
+        assert "status='completed'" in message
+        assert "refusal='I cannot help with that request.'" in message
+
+    def test_tools_only_response_raises_with_output_types(self):
+        operator, hook = self._operator()
+        hook.parse_response.return_value = _build_parsed_response(
+            response_id="resp_tool_call",
+            output_items=[
+                ResponseFunctionToolCall(
+                    arguments='{"name": "Alice"}',
+                    call_id="call_1",
+                    name="extract_person",
+                    type="function_call",
+                    status="completed",
+                )
+            ],
+        )
+
+        with pytest.raises(ValueError, match="did not return a structured output") as excinfo:
+            operator.execute(_build_execute_context())
+
+        assert "output_types=['function_call']" in str(excinfo.value)
+
+    def test_incomplete_response_raises_even_with_valid_model(self):
+        operator, hook = self._operator()
+        hook.parse_response.return_value = _build_parsed_response(
+            _StructuredPerson(name="Alice"),
+            response_id="resp_incomplete",
+            status="incomplete",
+            incomplete_details=IncompleteDetails(reason="max_output_tokens"),
+        )
+
+        with pytest.raises(ValueError, match="did not complete") as excinfo:
+            operator.execute(_build_execute_context())
+
+        message = str(excinfo.value)
+        assert "status='incomplete'" in message
+        assert "reason='max_output_tokens'" in message
+
+    def test_failed_response_raises_with_error(self):
+        operator, hook = self._operator()
+        hook.parse_response.return_value = _build_parsed_response(
+            response_id="resp_failed",
+            status="failed",
+            error=ResponseError(code="server_error", message="The model failed."),
+        )
+
+        with pytest.raises(ValueError, match="did not complete") as excinfo:
+            operator.execute(_build_execute_context())
+
+        message = str(excinfo.value)
+        assert "status='failed'" in message
+        assert "code='server_error'" in message
+        assert "message='The model failed.'" in message
+
+    def test_validation_error_raises_value_error_naming_model(self):
+        # ``responses.parse`` raises ``pydantic.ValidationError`` when the model's JSON output
+        # can't be coerced into ``text_format`` (e.g. truncated mid-JSON on ``max_output_tokens``).
+        # The operator converts it to a ``ValueError`` so callers see one exception type across
+        # all parse failures.
+        operator, hook = self._operator()
+        with pytest.raises(ValidationError) as exc_info:
+            _StructuredPerson.model_validate({})
+        hook.parse_response.side_effect = exc_info.value
+        context = _build_execute_context()
+
+        with pytest.raises(ValueError, match="'_StructuredPerson'.*max_output_tokens") as excinfo:
+            operator.execute(context)
+
+        assert excinfo.value.__cause__ is exc_info.value
+        # parse() raised before returning a response, so there is no id or usage to record.
+        context["ti"].xcom_push.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "text_format",
+        [
+            pytest.param(_StructuredPersonDataclass, id="pydantic-dataclass"),
+            pytest.param(_StructuredPerson(name="Alice"), id="model-instance"),
+            pytest.param({"type": "object"}, id="json-schema-dict"),
+        ],
+    )
+    def test_rejects_non_base_model_text_format(self, text_format):
+        with pytest.raises(TypeError, match="Pydantic BaseModel subclass"):
+            OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Extract: Alice",
+                text_format=text_format,
+            )
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
