@@ -388,6 +388,34 @@ class TestCloudRemoteLogIO:
             assert self.subject.handler is original
             assert self.subject.handler.shutting_down is True
 
+    @pytest.mark.parametrize("log_stream_name", ["", "task.log"])
+    def test_handler_creates_missing_log_group(self, log_stream_name):
+        self.subject.handler.close()
+        client = self.subject.hook.get_conn()
+        client.delete_log_group(logGroupName=self.remote_log_group)
+        self.subject.log_stream_name = log_stream_name
+
+        handler = self.subject.handler
+
+        assert handler.log_stream_name == log_stream_name
+        groups = client.describe_log_groups(logGroupNamePrefix=self.remote_log_group)["logGroups"]
+        assert [group["logGroupName"] for group in groups] == [self.remote_log_group]
+
+    def test_new_stream_handlers_do_not_recheck_log_group(self):
+        self.subject.handler.close()
+        client = self.subject.hook.get_conn()
+        with mock.patch.object(
+            client, "get_paginator", autospec=True, side_effect=client.get_paginator
+        ) as get_paginator:
+            initial_handler = self.subject.handler
+            with self.subject._stream_lock:
+                first = self.subject._get_stream_handler("first.log")
+                second = self.subject._get_stream_handler("second.log")
+
+        assert first is initial_handler
+        assert second is not first
+        assert get_paginator.call_args_list == [call("describe_log_groups")]
+
     def test_upload_releases_only_the_completed_stream_handler(self):
         completed_path = "dag_id=a/completed.log"
         active_path = "dag_id=a/active.log"
@@ -626,6 +654,12 @@ class TestCloudwatchTaskHandler:
     def test_handler(self):
         self.cloudwatch_task_handler.set_context(self.ti)
         assert isinstance(self.cloudwatch_task_handler.handler, CloudWatchLogHandler)
+
+    def test_handler_creates_missing_log_group(self):
+        self.cloudwatch_task_handler.set_context(self.ti)
+
+        groups = self.conn.describe_log_groups(logGroupNamePrefix=self.remote_log_group)["logGroups"]
+        assert [group["logGroupName"] for group in groups] == [self.remote_log_group]
 
     def test_write(self):
         handler = self.cloudwatch_task_handler
