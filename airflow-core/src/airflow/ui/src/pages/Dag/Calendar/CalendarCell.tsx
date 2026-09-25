@@ -54,6 +54,7 @@ export const CalendarCell = ({
   const hasData = Boolean(cellData && relevantCount > 0);
   const hasTooltip = Boolean(cellData);
   const startDate = cellData?.runs[0]?.date;
+  const hasStartDate = Boolean(startDate);
 
   // States present in this cell, computed with the same view-mode-aware logic the
   // tooltip uses (see CalendarTooltip). Exposed as a `data-states` attribute so e2e
@@ -122,7 +123,7 @@ export const CalendarCell = ({
 
   return (
     <BasicTooltip content={<CalendarTooltip cellData={cellData} viewMode={viewMode} />}>
-      {hasData && Boolean(startDate) ? (
+      {hasData && hasStartDate ? (
         <RouterLink
           to={
             viewMode === "failed"
