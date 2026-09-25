@@ -77,6 +77,10 @@ Pull Request guidelines
 Before you submit a Pull Request (PR) from your forked repo, check that it meets
 these guidelines:
 
+-   Mind the **limit on open PRs**: contributors without write access can have at most 5 open PRs
+    at a time. See `Limit on open Pull Requests <32_open_pull_request_limit.rst>`__ for why, and what
+    to do when you reach it.
+
 -   Start with **Draft**: Until you are sure that your PR passes all the quality checks and tests, keep it
     in **Draft** status. This will signal to maintainers that the PR is not yet ready
     for review and it will prevent maintainers from accidentally merging it before
