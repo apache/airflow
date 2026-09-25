@@ -245,19 +245,36 @@ function moduleSourceTagPlugin(cwd: string): import("esbuild").Plugin {
         // Project-relative so the bundle is portable and readable (no host
         // filesystem prefix), matching how esbuild's own metafile keys sources.
         const relative = path.relative(cwd, file);
-        const tag = `globalThis[Symbol.for(${slotKey})]=${JSON.stringify(relative)};\n`;
-        return { contents: insertAfterShebang(source, tag), loader: loaderFor(file) };
+        // Save the previous slot value, set ours, restore at the end of the
+        // module. Nested imports (this module imports another that also gets
+        // tagged) then leave the slot back on this module's path after the
+        // import returns, so a `new Dag(...)` after the import still sees this
+        // file — not whichever was imported last.
+        const slot = `globalThis[Symbol.for(${slotKey})]`;
+        const localVar = `__airflow_prev_source_${randomLocalSuffix()}`;
+        const openTag = `const ${localVar}=${slot};${slot}=${JSON.stringify(relative)};\n`;
+        const closeTag = `\n;${slot}=${localVar};`;
+        return {
+          contents: withOpenAndCloseTags(source, openTag, closeTag),
+          loader: loaderFor(file),
+        };
       });
     },
   };
 }
 
-/** A shebang has to be the file's first bytes, so the tag goes after it. */
-function insertAfterShebang(source: string, tag: string): string {
-  if (!source.startsWith("#!")) return tag + source;
+/** Distinguish nested tags in the bundled output — a redeclared `const`
+ *  would be a fatal SyntaxError when esbuild inlines several modules. */
+function randomLocalSuffix(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+/** A shebang has to be the file's first bytes; the open tag goes after it. */
+function withOpenAndCloseTags(source: string, openTag: string, closeTag: string): string {
+  if (!source.startsWith("#!")) return `${openTag}${source}${closeTag}`;
   const newline = source.indexOf("\n");
-  if (newline === -1) return `${source}\n${tag}`;
-  return `${source.slice(0, newline + 1)}${tag}${source.slice(newline + 1)}`;
+  if (newline === -1) return `${source}\n${openTag}${closeTag}`;
+  return `${source.slice(0, newline + 1)}${openTag}${source.slice(newline + 1)}${closeTag}`;
 }
 
 function loaderFor(file: string): "ts" | "tsx" | "js" | "jsx" {
