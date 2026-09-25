@@ -235,6 +235,39 @@ class TestGlueJobOperator:
         _, serialized = defer.value.trigger.serialize()
         assert serialized["stop_job_run_on_kill"] is True
 
+    def test_durable_with_stop_job_run_on_kill_raises_in_deferrable(self):
+        with pytest.raises(ValueError, match="incompatible with durable=True in deferrable mode"):
+            GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                deferrable=True,
+                durable=True,
+                stop_job_run_on_kill=True,
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="durable defaults to True only on Airflow 3.3+")
+    def test_stop_job_run_on_kill_disables_default_durable_in_deferrable(self):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            deferrable=True,
+            stop_job_run_on_kill=True,
+        )
+        assert glue.durable is False
+
+    def test_sync_durable_with_stop_job_run_on_kill_allowed(self):
+        """Synchronous mode has no worker/trigger race, so the combination is permitted."""
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            deferrable=False,
+            durable=True,
+            stop_job_run_on_kill=True,
+        )
+        assert glue.stop_job_run_on_kill is True
+        if AIRFLOW_V_3_3_PLUS:
+            assert glue.durable is True
+
     @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")

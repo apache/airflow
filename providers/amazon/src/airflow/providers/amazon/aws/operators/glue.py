@@ -127,7 +127,10 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     :param update_config: If True, Operator will update job configuration.  (default: False)
     :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
     :param stop_job_run_on_kill: If True, stop the job run when the task is killed, including a
-        deferred task that is cleared while running. Defaults to False.
+        deferred task that is cleared while running. Defaults to False. In deferrable mode this is
+        mutually exclusive with ``durable=True``: setting it disables durable reconnection, and
+        passing both as True with ``deferrable=True`` raises ``ValueError``. (In synchronous mode the
+        two may be combined.)
     :param sleep_before_return: time in seconds to wait before returning final status. This is meaningful in case
         of limiting concurrency, Glue needs 5-10 seconds to clean up resources.
         Thus if status is returned immediately it might end up in case of more than 1 concurrent run.
@@ -148,6 +151,9 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         duplicate. Defaults to ``True`` on Airflow 3.3+, which uses task state store for the
         persisted lookup; on earlier versions it defaults to ``False`` and, if set explicitly,
         recovers the run by searching job runs for the task's ``--airflow_task_uuid`` argument.
+        In deferrable mode this is mutually exclusive with ``stop_job_run_on_kill``: setting
+        ``stop_job_run_on_kill=True`` disables durable reconnection, and passing both as True with
+        ``deferrable=True`` raises ``ValueError``. (In synchronous mode the two may be combined.)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -261,6 +267,21 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         self.deferrable = deferrable
         self.job_poll_interval = job_poll_interval
         self.stop_job_run_on_kill = stop_job_run_on_kill
+        # In deferrable mode durable reconnects to the still-running job on clear, while
+        # stop_job_run_on_kill stops it via the trigger: the two are mutually exclusive there. Because
+        # the worker re-executes before the trigger's on_kill runs, a durable retry would reconnect to
+        # a run that on_kill is about to stop and then fail, so reject the contradiction and keep
+        # durable off when the caller asked to stop on kill. (In synchronous mode there is no such
+        # race -- on_kill runs on the worker before the retry -- so the combination is allowed.)
+        if self.deferrable and self.stop_job_run_on_kill and self.durable:
+            if durable is True or resume_glue_job_on_retry is True:
+                raise ValueError(
+                    "stop_job_run_on_kill=True is incompatible with durable=True in deferrable mode: a "
+                    "deferrable durable task reconnects to its still-running job when cleared, so it "
+                    "cannot also stop it. Set durable=False (or leave it unset) when "
+                    "stop_job_run_on_kill=True and deferrable=True."
+                )
+            self.durable = False
         self._job_run_id: str | None = None
         self.sleep_before_return: int = sleep_before_return
         self.s3_script_location: str | None = None
