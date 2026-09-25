@@ -16,10 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Alert, Badge, Box, Code, Flex, Heading, Table, Text } from "@chakra-ui/react";
+import { Alert, Badge, Box, Code, Flex, Heading, Text } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { LuInfo } from "react-icons/lu";
 
-import type { DagVersionDiffResponse } from "openapi/requests/types.gen";
+import type { DagVersionDiffChangeResponse, DagVersionDiffResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
+import { DataTable } from "src/components/DataTable";
+import type { MetaColumn } from "src/components/DataTable/types";
 
 type VersionDiffProps = {
   readonly baseVersionNumber: number;
@@ -50,6 +57,68 @@ const renderValue = (value: unknown) => {
 
   return text.length > MAX_VALUE_LENGTH ? `${text.slice(0, MAX_VALUE_LENGTH)}…` : text;
 };
+
+type ChangeColumns = Array<MetaColumn<DagVersionDiffChangeResponse>>;
+
+const buildValueColumns = (translate: TFunction<"dag">): ChangeColumns => [
+  {
+    accessorKey: "before_value",
+    // Read off the record rather than the accessor value, so a key the server omitted stays
+    // distinguishable from one holding a stored null.
+    cell: ({ row }) => <Code fontSize="sm">{renderValue(row.original.before_value)}</Code>,
+    enableSorting: false,
+    header: translate("versions.columns.before"),
+  },
+  {
+    accessorKey: "after_value",
+    cell: ({ row }) => <Code fontSize="sm">{renderValue(row.original.after_value)}</Code>,
+    enableSorting: false,
+    header: translate("versions.columns.after"),
+  },
+];
+
+const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): ChangeColumns => [
+  {
+    accessorKey: "path",
+    cell: ({ row }) => <Code fontSize="sm">{row.original.path}</Code>,
+    enableSorting: false,
+    header: translate("versions.columns.path"),
+  },
+  {
+    accessorKey: "operation",
+    cell: ({ row }) =>
+      translate(`versions.operations.${row.original.operation}`, {
+        defaultValue: row.original.operation,
+      }),
+    enableSorting: false,
+    header: translate("versions.columns.operation"),
+  },
+  {
+    accessorKey: "category",
+    cell: ({ row }) =>
+      translate(`versions.categories.${row.original.category}`, {
+        defaultValue: row.original.category,
+      }),
+    enableSorting: false,
+    header: translate("versions.columns.category"),
+  },
+  {
+    accessorKey: "impact",
+    cell: ({ row }) => (
+      <Badge colorPalette={IMPACT_COLORS[row.original.impact] ?? "gray"}>
+        {translate(`versions.impacts.${row.original.impact}`, { defaultValue: row.original.impact })}
+      </Badge>
+    ),
+    enableSorting: false,
+    header: translate("versions.columns.impact"),
+  },
+  {
+    accessorKey: "occurrence_count",
+    enableSorting: false,
+    header: translate("versions.columns.occurrences"),
+  },
+  ...(valuesShown ? buildValueColumns(translate) : []),
+];
 
 export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: VersionDiffProps) => {
   const { t: translate } = useTranslation("dag");
@@ -82,9 +151,9 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
           </Heading>
           <Text color="fg.muted" fontSize="sm">
             {translate("versions.summary", {
-              baseSchema: diff.serialized_dag_schema_versions.base ?? "?",
+              baseSchema: diff.serializer_versions.base ?? "?",
               count: diff.total_changes,
-              targetSchema: diff.serialized_dag_schema_versions.target ?? "?",
+              targetSchema: diff.serializer_versions.target ?? "?",
             })}
           </Text>
         </Box>
@@ -98,6 +167,13 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
           <Text color="fg.muted" fontSize="sm">
             {translate("versions.codeAccess")}
           </Text>
+          {/* Above the table rather than below it: a long diff would otherwise push the caveat
+              off-screen exactly when it matters most. */}
+          <Tooltip content={translate("versions.observedStateBoundary")} portalled>
+            <Box aria-label={translate("versions.aboutThisComparison")} as="button" color="fg.muted" p={1}>
+              <LuInfo />
+            </Box>
+          </Tooltip>
         </Flex>
       </Flex>
 
@@ -107,62 +183,15 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
         </Alert.Root>
       ) : undefined}
 
-      {diff.changes.length === 0 ? (
-        <Text color="fg.muted">{translate("versions.noChanges")}</Text>
-      ) : (
-        <Table.Root striped>
-          <Table.Header>
-            <Table.Row>
-              <Table.ColumnHeader>{translate("versions.columns.path")}</Table.ColumnHeader>
-              <Table.ColumnHeader>{translate("versions.columns.operation")}</Table.ColumnHeader>
-              <Table.ColumnHeader>{translate("versions.columns.category")}</Table.ColumnHeader>
-              <Table.ColumnHeader>{translate("versions.columns.impact")}</Table.ColumnHeader>
-              <Table.ColumnHeader>{translate("versions.columns.occurrences")}</Table.ColumnHeader>
-              {valuesShown ? (
-                <>
-                  <Table.ColumnHeader>{translate("versions.columns.before")}</Table.ColumnHeader>
-                  <Table.ColumnHeader>{translate("versions.columns.after")}</Table.ColumnHeader>
-                </>
-              ) : undefined}
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {diff.changes.map((change) => (
-              <Table.Row key={`${change.path}-${change.operation}`}>
-                <Table.Cell>
-                  <Code fontSize="sm">{change.path}</Code>
-                </Table.Cell>
-                <Table.Cell>
-                  {translate(`versions.operations.${change.operation}`, { defaultValue: change.operation })}
-                </Table.Cell>
-                <Table.Cell>
-                  {translate(`versions.categories.${change.category}`, { defaultValue: change.category })}
-                </Table.Cell>
-                <Table.Cell>
-                  <Badge colorPalette={IMPACT_COLORS[change.impact] ?? "gray"}>
-                    {translate(`versions.impacts.${change.impact}`, { defaultValue: change.impact })}
-                  </Badge>
-                </Table.Cell>
-                <Table.Cell>{change.occurrence_count}</Table.Cell>
-                {valuesShown ? (
-                  <>
-                    <Table.Cell>
-                      <Code fontSize="sm">{renderValue(change.before_value)}</Code>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Code fontSize="sm">{renderValue(change.after_value)}</Code>
-                    </Table.Cell>
-                  </>
-                ) : undefined}
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Root>
-      )}
-
-      <Text color="fg.muted" fontSize="sm" mt={3}>
-        {translate("versions.observedStateBoundary")}
-      </Text>
+      <DataTable
+        columns={buildColumns(translate, valuesShown)}
+        data={diff.changes}
+        modelName="dag:versions.record"
+        noRowsMessage={translate("versions.noChanges")}
+        // Records, not underlying changes: a redacted record stands for every change sharing its
+        // path, which is why this can read lower than the count in the summary above.
+        total={diff.changes.length}
+      />
     </Box>
   );
 };

@@ -1530,6 +1530,41 @@ export class ExperimentalService {
         });
     }
     
+    /**
+     * Experimental: Compare what two stored versions of a Dag currently hold.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     *
+     * Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.baseVersionNumber Version to compare from.
+     * @param data.targetVersionNumber Version to compare to.
+     * @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     * @returns DagVersionDiffResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagVersionDiff(data: GetDagVersionDiffData): CancelablePromise<GetDagVersionDiffResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagVersions/diff',
+            path: {
+                dag_id: data.dagId
+            },
+            query: {
+                base_version_number: data.baseVersionNumber,
+                target_version_number: data.targetVersionNumber,
+                max_changes: data.maxChanges
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
 }
 
 export class DagSourceService {
@@ -4777,6 +4812,41 @@ export class DagParsingService {
 
 export class DagVersionService {
     /**
+     * Experimental: Compare what two stored versions of a Dag currently hold.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     *
+     * Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.baseVersionNumber Version to compare from.
+     * @param data.targetVersionNumber Version to compare to.
+     * @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     * @returns DagVersionDiffResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagVersionDiff(data: GetDagVersionDiffData): CancelablePromise<GetDagVersionDiffResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagVersions/diff',
+            path: {
+                dag_id: data.dagId
+            },
+            query: {
+                base_version_number: data.baseVersionNumber,
+                target_version_number: data.targetVersionNumber,
+                max_changes: data.maxChanges
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
      * Get Dag Version
      * Get one Dag Version.
      * @param data The data for the request.
@@ -4834,43 +4904,6 @@ export class DagVersionService {
                 order_by: data.orderBy
             },
             errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Get Dag Version Diff
-     * Compare what two stored versions of a Dag currently hold.
-     *
-     * This reports observed state, not why a version was created. Version access returns the changed
-     * structure with identifying path components masked; the raw values behind those changes, and the
-     * paths that name them, are disclosed only to a caller who may also read the Dag's code.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.baseVersionNumber
-     * @param data.targetVersionNumber
-     * @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
-     * @returns DagVersionDiffResponse Successful Response
-     * @throws ApiError
-     */
-    public static getDagVersionDiff(data: GetDagVersionDiffData): CancelablePromise<GetDagVersionDiffResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}',
-            path: {
-                dag_id: data.dagId,
-                base_version_number: data.baseVersionNumber,
-                target_version_number: data.targetVersionNumber
-            },
-            query: {
-                max_changes: data.maxChanges
-            },
-            errors: {
-                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
