@@ -1917,3 +1917,28 @@ class TestEmrServerlessStartJobOperatorDurable:
         mock_conn.start_job_run.assert_not_called()
         operator.defer.assert_called_once()
         assert operator.defer.call_args.kwargs["trigger"].job_id == "existing-run"
+
+    def test_durable_with_cancel_on_kill_true_raises(self):
+        with pytest.raises(ValueError, match="incompatible with durable=True"):
+            EmrServerlessStartJobOperator(
+                task_id="test_task",
+                application_id=application_id,
+                execution_role_arn=execution_role_arn,
+                job_driver=spark_job_driver,
+                durable=True,
+                cancel_on_kill=True,
+            )
+
+    def test_durable_forces_cancel_on_kill_off(self):
+        operator = self._operator()  # durable=True, cancel_on_kill unset
+        assert operator.cancel_on_kill is False
+
+    def test_cancel_on_kill_defaults_true_without_durable(self):
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=spark_job_driver,
+            durable=False,
+        )
+        assert operator.cancel_on_kill is True
