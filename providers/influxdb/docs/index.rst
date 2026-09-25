@@ -37,6 +37,7 @@
     Connection types (InfluxDB 2.x) <connections/influxdb>
     Connection types (InfluxDB 3.x) <connections/influxdb3>
     Operators <operators/index>
+    Sensors <sensors/index>
 
 .. toctree::
     :hidden:
