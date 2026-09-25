@@ -27,6 +27,8 @@ from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_c
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
+    from openai.types.responses import Response
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -293,6 +295,25 @@ class OpenAIResponseOperator(BaseOperator):
             response_kwargs[param_name] = self._coerce_token_ceiling(param_name, value)
         return response_kwargs
 
+    def _push_response_metadata(self, context: Context, response: Response) -> None:
+        """Push the response id and token usage to XCom when ``do_xcom_push`` is enabled."""
+        if self.do_xcom_push:
+            context["ti"].xcom_push(key="response_id", value=response.id)
+            # model_dump (not a hand-picked field list) keeps a token-usage dimension
+            # the API adds later from being silently dropped; mode="json" keeps the
+            # value XCom-serializable.
+            #
+            # XCom is cleared at the start of every attempt, so this key only ever holds
+            # the last one. Stamping the attempt makes that visible rather than silently
+            # under-reporting total spend across retries. Built as a new dict rather than
+            # mutating what model_dump() returned.
+            usage = (
+                {**response.usage.model_dump(mode="json"), "try_number": context["ti"].try_number}
+                if response.usage is not None
+                else None
+            )
+            context["ti"].xcom_push(key="usage", value=usage)
+
     def execute(self, context: Context) -> str:
         response = self.hook.create_response(
             input=self.input_text, model=self.model, **self._build_response_kwargs()
@@ -329,22 +350,7 @@ class OpenAIResponseOperator(BaseOperator):
                 response.status,
             )
         self.log.info("Generated response %s", response.id)
-        if self.do_xcom_push:
-            context["ti"].xcom_push(key="response_id", value=response.id)
-            # model_dump (not a hand-picked field list) keeps a token-usage dimension
-            # the API adds later from being silently dropped; mode="json" keeps the
-            # value XCom-serializable.
-            #
-            # XCom is cleared at the start of every attempt, so this key only ever holds
-            # the last one. Stamping the attempt makes that visible rather than silently
-            # under-reporting total spend across retries. Built as a new dict rather than
-            # mutating what model_dump() returned.
-            usage = (
-                {**response.usage.model_dump(mode="json"), "try_number": context["ti"].try_number}
-                if response.usage is not None
-                else None
-            )
-            context["ti"].xcom_push(key="usage", value=usage)
+        self._push_response_metadata(context, response)
         return response.output_text
 
 
