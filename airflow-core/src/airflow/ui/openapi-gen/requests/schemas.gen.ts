@@ -6122,16 +6122,12 @@ export const $JobResponse = {
             ],
             title: 'Unixname'
         },
-        team_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Team Name'
+        team_names: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Team Names'
         },
         bundle_names: {
             anyOf: [
@@ -8946,20 +8942,16 @@ export const $TriggererInstanceInfoResponse = {
             ],
             title: 'Latest Triggerer Heartbeat'
         },
-        team_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Team Name'
+        team_names: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Team Names'
         }
     },
     type: 'object',
-    required: ['hostname', 'latest_triggerer_heartbeat', 'team_name'],
+    required: ['hostname', 'latest_triggerer_heartbeat', 'team_names'],
     title: 'TriggererInstanceInfoResponse',
     description: 'Triggerer instance info serializer for responses.'
 } as const;

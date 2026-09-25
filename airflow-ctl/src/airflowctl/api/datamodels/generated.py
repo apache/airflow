@@ -951,7 +951,7 @@ class JobResponse(BaseModel):
     executor_class: Annotated[str | None, Field(title="Executor Class")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     unixname: Annotated[str | None, Field(title="Unixname")]
-    team_name: Annotated[str | None, Field(title="Team Name")] = None
+    team_names: Annotated[list[str] | None, Field(title="Team Names")] = None
     bundle_names: Annotated[list[str] | None, Field(title="Bundle Names")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
@@ -1363,7 +1363,7 @@ class TriggererInstanceInfoResponse(BaseModel):
 
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")]
-    team_name: Annotated[str | None, Field(title="Team Name")]
+    team_names: Annotated[list[str], Field(title="Team Names")]
 
 
 class UpdateHITLDetailPayload(BaseModel):
