@@ -19,18 +19,33 @@
 
 // Cross-realm slot recording the source file of the currently-loading module.
 //
-// `airflow-ts-pack` prepends a single line to each author-owned source file
-// that writes the file's path into this slot before the module's non-import
-// statements run. `Dag`'s constructor reads it so a Dag declared in
-// `src/dags/reports.ts` carries that path even though esbuild has inlined
-// every source file into one bundle.
+// `airflow-ts-pack` prepends a save-and-set to each author-owned source file
+// and appends a restore, so the slot holds the currently-loading module's
+// path throughout that module's top-level code — and returns to the previous
+// path when the module completes. `Dag`'s constructor reads the slot so a
+// Dag declared in `src/dags/reports.ts` carries that path even though
+// esbuild has inlined every source file into one bundle.
 //
-// The slot is process-global, so it is accurate only for a `new Dag(...)`
-// that runs synchronously while its own module is still loading. A Dag
-// constructed later — after a top-level `await` yields to another module
-// that then writes its own path — is attributed to whichever module wrote
-// the slot last. Every Airflow author pattern declares Dags at module
-// top level before any I/O.
+// What the save/restore covers:
+//   - Nested imports. When A imports B, B's tag pushes "B" and its epilog
+//     pops back to "A"; A's `new Dag(...)` after the import still sees "A".
+//   - Top-level `await` within a single module. The slot stays this module's
+//     path across the suspension, so a Dag constructed after the await is
+//     still attributed here.
+//
+// What it does NOT cover:
+//   - A Dag constructed in a scheduled callback (`setTimeout`, `queueMicrotask`,
+//     a `.then(...)`) that runs after the module's synchronous top-level has
+//     returned. The epilog has already restored the previous slot value, so
+//     the Dag is attributed to whichever module the slot points to when the
+//     callback fires — likely the wrong one.
+//   - Two modules genuinely evaluating concurrently, e.g. through a deliberate
+//     `Promise.all([import("./a.js"), import("./b.js")])`. Their save/restore
+//     stacks interleave and either can end up seeing the other's path.
+//
+// Declare Dags at module top level (with or without a preceding await) and
+// the mapping is stable; any Dag construction from a later callback lands in
+// `dag_source_paths` under whichever module ran most recently.
 
 /**
  * Key `airflow-ts-pack` writes into `globalThis[Symbol.for(...)]` to tag the
