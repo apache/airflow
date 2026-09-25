@@ -46,16 +46,15 @@ const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
-const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>] [--source <name>]
+const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>]
 
 Bundles <entry> into a minified ${BUNDLE_FILENAME} with esbuild and embeds the
-airflow metadata generated from the bundle's served Dags, plus <entry> itself as
-the readable source Airflow displays for the bundle.
+airflow metadata generated from the bundle's served Dags, plus each Dag-defining
+source file verbatim so Airflow has readable text to display per Dag.
 
 Options:
   --outdir <dir>    Output directory, holding ${BUNDLE_FILENAME} (default: dist)
   --outfile <path>  Exact output path; its name must end in .min.mjs
-  --source <name>   Display name of the primary source file (default: <entry> basename)
 `;
 
 /** A bundle written without this suffix is invisible to NodeCoordinator. */
@@ -64,7 +63,6 @@ const REQUIRED_OUTFILE_SUFFIX = ".min.mjs";
 export interface PackArgs {
   entry: string;
   outfile: string;
-  source: string;
 }
 
 function usageError(message: string): Error {
@@ -75,15 +73,13 @@ export function parsePackArgs(argv: readonly string[]): PackArgs {
   let entry: string | null = null;
   let outdir: string | null = null;
   let outfile: string | null = null;
-  let source: string | null = null;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
-    if (arg === "--outdir" || arg === "--outfile" || arg === "--source") {
+    if (arg === "--outdir" || arg === "--outfile") {
       const value = argv[i + 1];
       if (!value) throw usageError(`${arg} requires a value`);
       if (arg === "--outdir") outdir = value;
-      else if (arg === "--outfile") outfile = value;
-      else source = value;
+      else outfile = value;
       i += 1;
     } else if (arg.startsWith("-")) {
       throw usageError(`Unknown option ${arg}`);
@@ -106,7 +102,6 @@ export function parsePackArgs(argv: readonly string[]): PackArgs {
   return {
     entry,
     outfile: outfile ?? path.join(outdir ?? "dist", BUNDLE_FILENAME),
-    source: source ?? path.basename(entry),
   };
 }
 
@@ -332,12 +327,9 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     const bundle = encodeBundle({
       bundleManifest: manifest,
       sdkVersion: readSdkVersion(),
-      entrypointName: args.source,
-      // Each native Dag's own file, so the Code tab reads what declared each
-      // Dag rather than the packer's entry only. Mixed-language bundles have
-      // no native Dag and this stays empty; the Python side is what carries
-      // their sources.
-      entrypointSources: readDagSources(manifest.dag_source_paths, cwd),
+      // One source file per native Dag. A bundle with mixed-lang Dags only
+      // (owned by Python) has none, and this stays empty.
+      sourceFiles: readDagSources(manifest.dag_source_paths, cwd),
       executable: readFileSync(stagingPath),
     });
     writeFileSync(bundlePath, bundle);
