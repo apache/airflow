@@ -21,7 +21,7 @@
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.3",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
