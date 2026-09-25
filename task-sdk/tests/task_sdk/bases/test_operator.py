@@ -1142,42 +1142,86 @@ def test_partial_default_args():
     assert op.queue == "THIS"
 
 
+@pytest.fixture(params=["asyncio.Runner", "fallback"])
+def event_loop_runner(request, monkeypatch):
+    """
+    Run a test against both ways ``event_loop()`` can own its loop.
+
+    ``asyncio.Runner`` exists from Python 3.11; the fallback replicates it for Python 3.10 and is
+    exercised on every Python by hiding ``asyncio.Runner`` for the test.
+    """
+    if request.param == "fallback":
+        monkeypatch.delattr(asyncio, "Runner", raising=False)
+    elif not hasattr(asyncio, "Runner"):
+        pytest.skip("asyncio.Runner needs Python 3.11+")
+    return request.param
+
+
+@pytest.fixture
+def fresh_process_loop_state():
+    """
+    Mimic a freshly started task-runner process: no loop set and ``set_event_loop()`` never called.
+
+    In that state ``asyncio.get_event_loop()`` emits ``DeprecationWarning: There is no current event
+    loop`` when it has to create a loop (Python 3.12+) or raises (Python 3.14+).
+    """
+    with warnings.catch_warnings():
+        # The policy API is deprecated on Python 3.14; it is still the only way to reset this state.
+        warnings.simplefilter("ignore", DeprecationWarning)
+        previous = asyncio.get_event_loop_policy()
+        asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+        try:
+            yield
+        finally:
+            asyncio.set_event_loop_policy(previous)
+
+
+def _deprecation_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
+    return [str(w.message) for w in caught if issubclass(w.category, DeprecationWarning)]
+
+
+@pytest.mark.usefixtures("event_loop_runner")
+class TestBaseAsyncOperator:
+    class AsyncOperator(BaseAsyncOperator):
+        async def aexecute(self, context):
+            await asyncio.sleep(0)
+            return "done"
+
+    def test_is_async(self):
+        assert self.AsyncOperator(task_id="async_op").is_async is True
+
+    def test_execute_requires_aexecute(self):
+        with pytest.raises(NotImplementedError):
+            BaseAsyncOperator(task_id="async_op").execute({})
+
+    @pytest.mark.usefixtures("fresh_process_loop_state")
+    @pytest.mark.parametrize("execution_timeout", [None, timedelta(seconds=5)], ids=["no-timeout", "timeout"])
+    def test_execute_runs_aexecute_without_deprecation_warning(self, execution_timeout):
+        op = self.AsyncOperator(task_id="async_op", execution_timeout=execution_timeout)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            assert op.execute({}) == "done"
+
+        assert _deprecation_warnings(caught) == []
+        # The loop execute() ran on is closed and not left behind as the thread's current loop.
+        with pytest.raises(RuntimeError):
+            asyncio.get_event_loop()
+
+    def test_execute_enforces_execution_timeout(self):
+        class SlowOperator(BaseAsyncOperator):
+            async def aexecute(self, context):
+                await asyncio.sleep(60)
+
+        op = SlowOperator(task_id="slow_op", execution_timeout=timedelta(milliseconds=50))
+
+        with pytest.raises(asyncio.TimeoutError):
+            op.execute({})
+
+
+@pytest.mark.usefixtures("event_loop_runner")
 class TestEventLoop:
-    """
-    ``event_loop()`` backs ``BaseAsyncOperator.execute`` on the worker.
-
-    A task-runner process starts without any event loop set, and since Python 3.12
-    ``asyncio.get_event_loop()`` emits ``DeprecationWarning: There is no current event loop`` when it
-    has to create one in that state (Python 3.14 raises instead). The helper owns a loop for the duration
-    of the block instead, through ``asyncio.Runner`` where Python provides it. ``runner_implementation``
-    runs every test against both the ``asyncio.Runner`` path and the Python 3.10 fallback, whatever
-    Python runs the tests.
-    """
-
-    @pytest.fixture(params=["asyncio.Runner", "fallback"], autouse=True)
-    def runner_implementation(self, request, monkeypatch):
-        if request.param == "fallback":
-            monkeypatch.delattr(asyncio, "Runner", raising=False)
-        elif not hasattr(asyncio, "Runner"):
-            pytest.skip("asyncio.Runner needs Python 3.11+")
-        return request.param
-
-    @pytest.fixture
-    def fresh_process_loop_state(self):
-        """Mimic a freshly started process: no loop set and ``set_event_loop()`` never called."""
-        with warnings.catch_warnings():
-            # The policy API is deprecated on Python 3.14; it is still the only way to reset this state.
-            warnings.simplefilter("ignore", DeprecationWarning)
-            previous = asyncio.get_event_loop_policy()
-            asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
-            try:
-                yield
-            finally:
-                asyncio.set_event_loop_policy(previous)
-
-    @staticmethod
-    def _deprecation_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
-        return [str(w.message) for w in caught if issubclass(w.category, DeprecationWarning)]
+    """``event_loop()`` hands synchronous code a loop it owns, through ``asyncio.Runner`` where Python has it."""
 
     @pytest.mark.usefixtures("fresh_process_loop_state")
     def test_creates_and_closes_own_loop_without_deprecation_warning(self):
@@ -1187,7 +1231,7 @@ class TestEventLoop:
                 assert not loop.is_closed()
                 assert loop.run_until_complete(asyncio.sleep(0, result="ran")) == "ran"
 
-        assert self._deprecation_warnings(caught) == []
+        assert _deprecation_warnings(caught) == []
         assert loop.is_closed()
         # Nothing is left behind as the thread's current loop.
         with pytest.raises(RuntimeError):
@@ -1202,7 +1246,7 @@ class TestEventLoop:
             with event_loop() as second:
                 assert second.run_until_complete(asyncio.sleep(0, result="ran")) == "ran"
 
-        assert self._deprecation_warnings(caught) == []
+        assert _deprecation_warnings(caught) == []
         assert first.is_closed()
         assert second.is_closed()
 
@@ -1264,21 +1308,3 @@ class TestEventLoop:
                 pass
 
         assert not running.is_closed()
-
-    @pytest.mark.usefixtures("fresh_process_loop_state")
-    @pytest.mark.parametrize("execution_timeout", [None, timedelta(seconds=5)], ids=["no-timeout", "timeout"])
-    def test_base_async_operator_execute_emits_no_deprecation_warning(self, execution_timeout):
-        class AsyncOperator(BaseAsyncOperator):
-            async def aexecute(self, context):
-                await asyncio.sleep(0)
-                return "done"
-
-        op = AsyncOperator(task_id="async_op", execution_timeout=execution_timeout)
-
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            assert op.execute({}) == "done"
-
-        assert self._deprecation_warnings(caught) == []
-        with pytest.raises(RuntimeError):
-            asyncio.get_event_loop()
