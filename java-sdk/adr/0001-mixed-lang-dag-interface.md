@@ -61,7 +61,7 @@ The processor compiles this into a `Task`:
 public static final class Score implements Task {
   @Override
   public void execute(Context context, Client client) throws Exception {
-    TaskArgs args = TaskArgs.of(context);
+    TaskArgs args = TaskArgs.of(context, client, 3);
     long rows = args.require(0, Long.class);
     double threshold = args.require(1, Double.class);
     List<String> regions = args.require(2, new TypeReference<List<String>>() {});
@@ -103,7 +103,7 @@ public static class SummarizeInput implements TaskInput {
   }
 
   // summarize(region_code=..., transformed=...) is called with keyword
-  // arguments, which bind to the bundle's fields by name.
+  // arguments, which bind to the `TaskInput`'s fields by name.
   public static class Summarize implements InputTask<SummarizeInput> {
     public void execute(@NotNull Context context, Client client, SummarizeInput input) {
       log.log(
@@ -155,11 +155,17 @@ One verb, overloaded, and everything registers as a class: nothing is constructe
 - Annotated task data parameters bind by position; injected `Client` and `Context` do not consume
   positions. Positional binding also needs no parameter names in the class file, so it does not
   depend on compiling with `-parameters`.
-- Keyword arguments bind through one `TaskInput` bundle, with `@ArgName` only when Python and Java
+- Keyword arguments bind through one `TaskInput`, with `@ArgName` only when Python and Java
   names differ.
 - Interface tasks use `InputTask<MyInput>` for named fields. There is no public positional form.
 - `TaskArgs` is internal. It is what generated code reads, and what every syntax above resolves to;
-  nothing in the public API returns or accepts it. It exposes `require(index, type)`, which fails
+  nothing in the public API returns or accepts it. It is opened with
+  `of(context, client, declared)` — the client because resolving a binding may have to pull an
+  upstream's XCom, and the declared count because positions carry the whole meaning of a flat
+  binding, so a call site that bound a different number of arguments than the method takes has
+  already shifted them. A parameter the call site omitted is exempt: its default still
+  arrives, but a method that does not declare it is not reading shifted arguments, so those are
+  dropped before the counts are compared. It exposes `require(index, type)`, which fails
   when the position resolves to nothing, and `get(index, type)`, which yields `null` — each with a
   `Class<T>` and a `TypeReference<T>` form.
 - Annotation processing generates code, it never rewrites it, so the method a user writes stays
@@ -169,7 +175,24 @@ One verb, overloaded, and everything registers as a class: nothing is constructe
   the generated body calls `new Parent().method(...)`.
 - A parameter whose type has type arguments binds through the `TypeReference<T>` overload, so the
   element type survives and the generated code never contains an unchecked cast.
-- Missing reference or boxed values become `null`; primitive inputs fail clearly.
+- **Neither direction of a `TaskInput` name mismatch fails the task.** A field binds by name, so a
+  field nothing supplies keeps its Java default and an argument no field claims changes nothing the
+  task reads. Both are logged, since either one means the Java signature and the Python stub
+  disagree. Captured defaults are not logged, since the Dag author never passed them. Flat
+  positional binding still fails either way, because a dropped or added argument shifts every later
+  one.
+- **Two fields whose argument names fold alike fail when the bundle is built**, because the fold
+  cannot tell them apart and there is no value either could safely take. Two *arguments* that fold
+  alike are the other way round: they reach a field naming one of them exactly, and a field that
+  would match both is left unfilled and reported.
+- **An argument that resolves to nothing is a value, not a mistake.** Once a parameter has claimed
+  its argument, a null literal or an upstream that pushed no XCom gives `null` to a reference or
+  boxed type, and fails for a primitive, which cannot hold it. Declaring a boxed type is how a
+  task says the value is optional.
+- This matches the Go SDK, which logs both directions and zero-values an unmatched struct field
+  ([go-sdk ADR-0006](../../go-sdk/adr/0006-cross-language-argument-binding.md)), and it follows the
+  cross-language rule in
+  [lang-SDK ADR-0007](../../airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md).
 - `@Builder.XCom` is removed, keeping the Python call site as the single source of data-flow
   wiring.
 - **The generated `Task` is one more branch of an existing classifier.** `BuilderProcessor` already

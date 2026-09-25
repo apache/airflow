@@ -75,7 +75,7 @@ internal object TaskRunner {
     client: Client,
   ): Any {
     val definition =
-      bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId]?.definition
+      bundle.taskDef(request.ti.dagId, request.ti.taskId)?.definition
         ?: return TaskResult.of(TaskState.State.REMOVED)
     val instance =
       try {
