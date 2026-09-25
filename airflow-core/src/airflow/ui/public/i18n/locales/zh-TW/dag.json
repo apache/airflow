@@ -44,8 +44,8 @@
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
     "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
-    "count_one": "{{count}} 個期限",
-    "count_other": "{{count}} 個期限",
+    "count_one": "{{count, number}} 個期限",
+    "count_other": "{{count, number}} 個期限",
     "referenceType": {
       "AverageRuntimeDeadline": "平均執行時間",
       "DagRunLogicalDateDeadline": "邏輯日期",
@@ -60,13 +60,13 @@
     "label": "期限",
     "met": "已達成",
     "missed": "已逾期",
-    "missedCount_one": "{{count}} 個已逾期的期限",
-    "missedCount_other": "{{count}} 個已逾期的期限",
-    "mixedCount": "{{missedCount}} 個已逾期，{{upcomingCount}} 個即將到期",
+    "missedCount_one": "{{count, number}} 個已逾期的期限",
+    "missedCount_other": "{{count, number}} 個已逾期的期限",
+    "mixedCount": "{{missedCount, number}} 個已逾期，{{upcomingCount, number}} 個即將到期",
     "stillRunning": "仍在執行中",
     "upcoming": "即將到期",
-    "upcomingCount_one": "{{count}} 個即將到期的期限",
-    "upcomingCount_other": "{{count}} 個即將到期的期限"
+    "upcomingCount_one": "{{count, number}} 個即將到期的期限",
+    "upcomingCount_other": "{{count, number}} 個即將到期的期限"
   },
   "extraLinks": "額外連結",
   "grid": {
@@ -96,7 +96,7 @@
     "info": "INFO",
     "noTryNumber": "無嘗試次數",
     "search": {
-      "matchCount": "{{total}} 中第 {{current}} 筆",
+      "matchCount": "{{total, number}} 中第 {{current, number}} 筆",
       "noMatches": "無符合結果",
       "placeholder": "搜尋日誌..."
     },
@@ -215,8 +215,8 @@
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",
-    "mappedTaskInstances_one": "任務實例 [{{count}}]",
-    "mappedTaskInstances_other": "任務實例 [{{count}}]",
+    "mappedTaskInstances_one": "任務實例 [{{count, number}}]",
+    "mappedTaskInstances_other": "任務實例 [{{count, number}}]",
     "overview": "總覽",
     "renderedTemplates": "渲染後的範本",
     "requiredActions": "待回應的任務實例",

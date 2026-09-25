@@ -14,10 +14,10 @@
   "requiredAction_other": "إجراءات مطلوبة",
   "requiredAction_two": "إجراءان مطلوبان",
   "requiredAction_zero": "لا إجراءات مطلوبة",
-  "requiredActionCount_few": "إجراءات مطلوبة ({{count}})",
-  "requiredActionCount_many": "إجراءات مطلوبة ({{count}})",
-  "requiredActionCount_one": "إجراء مطلوب ({{count}})",
-  "requiredActionCount_other": "إجراءات مطلوبة ({{count}})",
+  "requiredActionCount_few": "إجراءات مطلوبة ({{count, number}})",
+  "requiredActionCount_many": "إجراءات مطلوبة ({{count, number}})",
+  "requiredActionCount_one": "إجراء مطلوب ({{count, number}})",
+  "requiredActionCount_other": "إجراءات مطلوبة ({{count, number}})",
   "requiredActionCount_two": "إجرَاءان مطلوبان",
   "requiredActionCount_zero": "لا توجد إجراءات مطلوبة",
   "requiredActionState": "حالة الإجراء المطلوب",
@@ -37,10 +37,10 @@
       "selectRequiredAction": "اختر إجراءً مطلوباً لعرض التفاصيل"
     },
     "list": {
-      "completedRequiredActions": "الإجراءات المطلوبة المكتملة ({{count}})",
+      "completedRequiredActions": "الإجراءات المطلوبة المكتملة ({{count, number}})",
       "loadError": "تعذّر تحميل الإجراءات المطلوبة",
       "loadingActions": "جارٍ تحميل الإجراءات المطلوبة...",
-      "pendingRequiredActions": "الإجراءات المطلوبة قيد الانتظار ({{count}})"
+      "pendingRequiredActions": "الإجراءات المطلوبة قيد الانتظار ({{count, number}})"
     },
     "openReviewDrawer": "فتح لوحة المراجعة",
     "pageLimitHint": "تُعرض هنا الإجراءات الأولى فقط. استخدم \"$t(review.viewAll)\" لعرضها جميعاً.",

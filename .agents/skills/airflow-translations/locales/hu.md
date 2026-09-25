@@ -103,7 +103,7 @@ that **must be used consistently**:
 
 ### Inflection and Word Order
 
-- Hungarian is an agglutinative language, but inflecting i18next placeholders (`{{count}}`) is difficult. Try to phrase sentences so the variable doesn't need suffixes (e.g., "Összesen: {{count}}" instead of "{{count}}-ból").
+- Hungarian is an agglutinative language, but inflecting i18next placeholders (`{{count, number}}`) is difficult. Try to phrase sentences so the variable doesn't need suffixes (e.g., "Összesen: {{count, number}}" instead of "{{count, number}}-ból").
 - Use a hyphen for inflecting "Dag" if necessary: "Dag-ek" (Plural), "Dag-et" (Accusative).
 
 ### Plural Forms
@@ -176,7 +176,7 @@ Filter → "Szűrő"
 
 - Match tone, style, and terminology from existing `hu/*.json` files.
 - Use formal Hungarian ("Ön" / "Önözés") throughout.
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{type}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{type}}`, etc.
 - Follow Hungarian grammar for singulars after numbers.
 - Translate log levels: `KRITIKUS`, `HIBA`, `FIGYELMEZTETÉS`.
 

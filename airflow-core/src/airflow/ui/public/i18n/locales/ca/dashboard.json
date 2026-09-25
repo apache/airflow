@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "Veure menys",
     "seeMoreContext": "Veure més",
-    "showMoreAlerts_one": "+{{count}} alerta més",
-    "showMoreAlerts_other": "+{{count}} alertes més"
+    "showMoreAlerts_one": "+{{count, number}} alerta més",
+    "showMoreAlerts_other": "+{{count, number}} alertes més"
   },
   "deadlines": {
     "pending": {
@@ -17,11 +17,11 @@
     "showMore": "Mostrar-ne més",
     "title": "Terminis"
   },
-  "deferredSlotsNotCounted": "Diferides no comptades en slots: {{count}}",
+  "deferredSlotsNotCounted": "Diferides no comptades en slots: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Les tasques diferides que es mostren a la barra compten per als slots del Pool. Les tasques diferides que es mostren sota la barra provenen de Pools que no compten les tasques diferides per als slots.",
   "favorite": {
-    "favoriteDags_one": "Primer {{count}} Dag favorit",
-    "favoriteDags_other": "Primers {{count}} Dags favorits",
+    "favoriteDags_one": "Primer {{count, number}} Dag favorit",
+    "favoriteDags_other": "Primers {{count, number}} Dags favorits",
     "noDagRuns": "No hi ha execucions per a aquest Dag encara.",
     "noFavoriteDags": "No hi ha favorits encara. Fes clic a la icona d'estrella al costat d'un Dag a la llista per a afegir-lo als teus favorits."
   },

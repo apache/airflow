@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 εκτέλεση θα ενεργοποιηθεί.",
-    "affected_other": "{{count}} εκτελέσεις θα ενεργοποιηθούν.",
+    "affected_other": "{{count, number}} εκτελέσεις θα ενεργοποιηθούν.",
     "affectedNone": "Δεν βρέθηκαν εκτελέσεις που να ταιριάζουν με τα κριτήρια.",
     "allRuns": "Όλες οι Εκτελέσεις",
     "backwards": "Αντίστροφη Εκτέλεση",
@@ -59,7 +59,7 @@
     "error_one": "1 Σφάλμα",
     "errorAndWarning": "1 Σφάλμα και {{warningText}}",
     "warning_one": "1 Προειδοποίηση",
-    "warning_other": "{{count}} Προειδοποιήσεις"
+    "warning_other": "{{count, number}} Προειδοποιήσεις"
   },
   "dateRangeFilter": {
     "validation": {
@@ -71,17 +71,17 @@
   "durationChart": {
     "duration": "Διάρκεια (δευτερόλεπτα)",
     "lastDagRun_one": "Τελευταία Εκτέλεση Dag",
-    "lastDagRun_other": "Τελευταίες {{count}} Εκτελέσεις Dag",
+    "lastDagRun_other": "Τελευταίες {{count, number}} Εκτελέσεις Dag",
     "lastTaskInstance_one": "Τελευταία Εκτέλεση Εργασίας",
-    "lastTaskInstance_other": "Τελευταίες {{count}} Εκτελέσεις Εργασίας",
+    "lastTaskInstance_other": "Τελευταίες {{count, number}} Εκτελέσεις Εργασίας",
     "medianTotalDuration": "Σύνολο: {{duration}}",
     "queuedDuration": "Διάρκεια σε Ουρά",
     "runAfter": "Εκτέλεση Μετά",
     "runDuration": "Διάρκεια Εκτέλεσης"
   },
   "fileUpload": {
-    "files_one": "{{count}} αρχείο",
-    "files_other": "{{count}} αρχεία"
+    "files_one": "{{count, number}} αρχείο",
+    "files_other": "{{count, number}} αρχεία"
   },
   "flexibleForm": {
     "durationPlaceholder": "Εισάγετε Διάρκεια σε μορφή ISO 8601",
@@ -104,24 +104,24 @@
     "downloadImageError": "Αποτυχία λήψης εικόνας γραφήματος.",
     "downloadImageErrorTitle": "Αποτυχία Λήψης",
     "otherDagRuns": "+Άλλες Εκτελέσεις Dag",
-    "taskCount_one": "{{count}} Εργασία",
-    "taskCount_other": "{{count}} Εργασίες",
+    "taskCount_one": "{{count, number}} Εργασία",
+    "taskCount_other": "{{count, number}} Εργασίες",
     "taskGroup": "Ομάδα Εργασιών",
     "zoomToTask": "Μεγέθυνση στην επιλεγμένη εργασία"
   },
   "jsonPreview": {
     "items_one": "1 στοιχείο",
-    "items_other": "{{count}} στοιχεία"
+    "items_other": "{{count, number}} στοιχεία"
   },
-  "limitedList": "+{{count}} ακόμα",
-  "limitedList.allItems": "Όλα τα {{count}} στοιχεία:",
+  "limitedList": "+{{count, number}} ακόμα",
+  "limitedList.allItems": "Όλα τα {{count, number}} στοιχεία:",
   "limitedList.allTags_one": "Όλες οι Ετικέτες (1)",
-  "limitedList.allTags_other": "Όλες οι Ετικέτες ({{count}})",
+  "limitedList.allTags_other": "Όλες οι Ετικέτες ({{count, number}})",
   "limitedList.clickToInteract": "Κάντε κλικ σε μια ετικέτα για φιλτράρισμα των Dags",
-  "limitedList.clickToOpenFull": "Κάντε κλικ στο «+{{count}} ακόμα» για πλήρη προβολή",
+  "limitedList.clickToOpenFull": "Κάντε κλικ στο «+{{count, number}} ακόμα» για πλήρη προβολή",
   "limitedList.copyPasteText": "Μπορείτε να αντιγράψετε και να επικολλήσετε το παραπάνω κείμενο",
   "limitedList.showingItems_one": "Εμφάνιση 1 στοιχείου",
-  "limitedList.showingItems_other": "Εμφάνιση {{count}} στοιχείων",
+  "limitedList.showingItems_other": "Εμφάνιση {{count, number}} στοιχείων",
   "logs": {
     "file": "Αρχείο",
     "location": "γραμμή {{line}} στο {{name}}"

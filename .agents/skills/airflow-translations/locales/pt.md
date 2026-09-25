@@ -63,7 +63,7 @@ This file contains locale-specific guidelines so AI translation agents produce n
 
 - Match tone, style, gender, casing from existing `pt/*.json` files
 - Use natural Portuguese readable by Brazilian & Portuguese users
-- Preserve all placeholders: `{{count}}`, `{{dagName}}`, etc.
+- Preserve all placeholders: `{{count, number}}`, `{{dagName}}`, etc.
 - For plurals: provide all needed suffixes if source has them
 
 **DON'T:**

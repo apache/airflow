@@ -219,8 +219,8 @@
     "receivedAssetEvents": "수신된 에셋 이벤트"
   },
   "pause": "일시 중지",
-  "pendingDagRun_one": "대기 중인 Dag 실행 {{count}}개",
-  "pendingDagRun_other": "대기 중인 Dag 실행 {{count}}개",
+  "pendingDagRun_one": "대기 중인 Dag 실행 {{count, number}}개",
+  "pendingDagRun_other": "대기 중인 Dag 실행 {{count, number}}개",
   "presetFilters": {
     "deleteTitle": "프리셋 필터 삭제",
     "deleteWarning": "프리셋 필터는 이 브라우저에만 저장됩니다.",
@@ -469,8 +469,8 @@
   "taskInstance_one": "태스크 인스턴스",
   "taskInstance_other": "태스크 인스턴스",
   "teams": {
-    "more_one": "외 {{count}}개",
-    "more_other": "외 {{count}}개",
+    "more_one": "외 {{count, number}}개",
+    "more_other": "외 {{count, number}}개",
     "none": "팀 없음",
     "title": "팀"
   },
@@ -496,21 +496,21 @@
     "bulkClear": {
       "error": "{{resourceName}} 일괄 초기화 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 초기화되었습니다. 키: {{keys}}",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 초기화되었습니다. 키: {{keys}}",
         "title": "{{resourceName}} 일괄 초기화 요청 제출됨"
       }
     },
     "bulkDelete": {
       "error": "{{resourceName}} 일괄 삭제 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}",
         "title": "{{resourceName}} 일괄 삭제 요청 제출됨"
       }
     },
     "bulkUpdate": {
       "error": "{{resourceName}} 일괄 업데이트 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 업데이트되었습니다. 키: {{keys}}",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 업데이트되었습니다. 키: {{keys}}",
         "title": "{{resourceName}} 일괄 업데이트 요청 제출됨"
       }
     },
@@ -531,7 +531,7 @@
     "import": {
       "error": "{{resourceName}} 가져오기 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 가져와졌습니다.",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 가져와졌습니다.",
         "title": "{{resourceName}} 가져오기 요청 제출됨"
       }
     },

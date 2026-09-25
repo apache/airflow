@@ -143,7 +143,7 @@ def get_plural_base(key: str, suffixes: list[str]) -> str | None:
     return None
 
 
-COUNT_PLACEHOLDER = "{{count}}"
+COUNT_PLACEHOLDER_PATTERN = re.compile(r"\{\{\s*count\s*(,[^}]*)?\}\}")
 
 
 def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str] | None = None) -> set[str]:
@@ -151,7 +151,7 @@ def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str
     For a set of keys, expand plural bases to include required suffixes for the language.
 
     When en_key_to_value is provided, expand a plural base if either:
-    - one of the English values for that base contains {{count}}, or
+    - one of the English values for that base interpolates count ({{count}} or {{count, number}}), or
     - English defines multiple plural forms for that base (for example *_one and *_other).
 
     This prevents falsely marking locale-specific plural keys as unused when count drives
@@ -175,7 +175,9 @@ def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str
     for base in base_to_suffixes.keys():
         if en_key_to_value is not None:
             en_keys_for_base = [k for k in keys if get_plural_base(k, suffixes) == base]
-            any_has_count = any(COUNT_PLACEHOLDER in en_key_to_value.get(k, "") for k in en_keys_for_base)
+            any_has_count = any(
+                COUNT_PLACEHOLDER_PATTERN.search(en_key_to_value.get(k, "")) for k in en_keys_for_base
+            )
             has_multiple_en_plural_forms = len(en_keys_for_base) > 1
 
             if not any_has_count and not has_multiple_en_plural_forms:

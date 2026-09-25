@@ -8,8 +8,8 @@
   },
   "requiredAction_one": "การดำเนินการที่จำเป็น",
   "requiredAction_other": "การดำเนินการที่จำเป็น",
-  "requiredActionCount_one": "การดำเนินการที่จำเป็น ({{count}})",
-  "requiredActionCount_other": "การดำเนินการที่จำเป็น ({{count}})",
+  "requiredActionCount_one": "การดำเนินการที่จำเป็น ({{count, number}})",
+  "requiredActionCount_other": "การดำเนินการที่จำเป็น ({{count, number}})",
   "requiredActionState": "สถานะการดำเนินการที่จำเป็น",
   "response": {
     "error": "การตอบสนองล้มเหลว",

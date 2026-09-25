@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "Εμφάνιση λιγότερων",
     "seeMoreContext": "Εμφάνιση περισσότερων",
-    "showMoreAlerts_one": "+{{count}} ακόμη ειδοποίηση",
-    "showMoreAlerts_other": "+{{count}} ακόμη ειδοποιήσεις"
+    "showMoreAlerts_one": "+{{count, number}} ακόμη ειδοποίηση",
+    "showMoreAlerts_other": "+{{count, number}} ακόμη ειδοποιήσεις"
   },
   "deadlines": {
     "pending": {
@@ -17,11 +17,11 @@
     "showMore": "Εμφάνιση περισσότερων",
     "title": "Προθεσμίες"
   },
-  "deferredSlotsNotCounted": "Αναβληθείσες που δεν μετρώνται στις θέσεις: {{count}}",
+  "deferredSlotsNotCounted": "Αναβληθείσες που δεν μετρώνται στις θέσεις: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Οι αναβληθείσες εργασίες που εμφανίζονται στη μπάρα προσμετρώνται στις θέσεις του pool. Οι αναβληθείσες εργασίες που εμφανίζονται κάτω από τη μπάρα προέρχονται από pools που δεν προσμετρούν τις αναβληθείσες εργασίες στις θέσεις.",
   "favorite": {
-    "favoriteDags_one": "Πρώτο αγαπημένο Dag ({{count}})",
-    "favoriteDags_other": "Πρώτα αγαπημένα Dag ({{count}})",
+    "favoriteDags_one": "Πρώτο αγαπημένο Dag ({{count, number}})",
+    "favoriteDags_other": "Πρώτα αγαπημένα Dag ({{count, number}})",
     "noDagRuns": "Δεν υπάρχει ακόμη DagRun για αυτό το dag.",
     "noFavoriteDags": "Δεν υπάρχουν αγαπημένα ακόμα. Κάντε κλικ στο εικονίδιο αστεριού δίπλα σε ένα Dag στη λίστα για να το προσθέσετε στα αγαπημένα σας."
   },
