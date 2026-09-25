@@ -40,6 +40,7 @@ from sqlalchemy.orm import contains_eager, joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -170,6 +171,9 @@ def ti_run(
             TI.unixname,
             TI.pid,
             TI.dag_version_id,
+            TI.queued_dttm,
+            TI.end_date,
+            TI.queue,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -279,6 +283,15 @@ def ti_run(
                     "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
                 },
             )
+
+        # Emit queued_duration server side. In Airflow 3 the QUEUED -> RUNNING transition happens in this route instead of on the worker, so TaskInstance.emit_state_change_metric(RUNNING) never runs and the metric goes missing. Mirror the worker-side emission here (now - queued_dttm), symmetric with the scheduled_duration metric emitted by the scheduler on the QUEUED transition.
+        if previous_state in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING):
+            if ti.queued_dttm is not None and not ti.end_date:
+                stats.timing(
+                    "task.queued_duration",
+                    timezone.utcnow() - ti.queued_dttm,
+                    tags={**dr.stats_tags, "task_id": ti.task_id, "queue": ti.queue},
+                )
 
         # Send the keys to the SDK so that the client requests to clear those XComs from the server.
         # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
