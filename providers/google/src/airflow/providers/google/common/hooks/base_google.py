@@ -799,7 +799,7 @@ class GoogleBaseHook(BaseHook):
         try:
             token = self._get_access_token()
             url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"
-            response = requests.post(url)
+            response = requests.post(url, timeout=30)
             if response.status_code == 200:
                 status = True
                 message = "Connection successfully tested"

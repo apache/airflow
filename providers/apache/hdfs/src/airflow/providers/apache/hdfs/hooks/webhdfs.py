@@ -74,10 +74,10 @@ class WebHDFSHook(BaseHook):
         connection = self.get_connection(self.webhdfs_conn_id)
         namenodes = cast("str", connection.host).split(",")
         for namenode in namenodes:
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", namenode, connection.port)
             try:
-                conn_check = host_socket.connect_ex((namenode, connection.port))
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as host_socket:
+                    conn_check = host_socket.connect_ex((namenode, connection.port))
                 if conn_check == 0:
                     self.log.info("Trying namenode %s", namenode)
                     client = self._get_client(
@@ -90,7 +90,6 @@ class WebHDFSHook(BaseHook):
                     )
                     client.status("/")
                     self.log.info("Using namenode %s for hook", namenode)
-                    host_socket.close()
                     return client
                 self.log.warning("Could not connect to %s:%s", namenode, connection.port)
             except HdfsError as hdfs_error:

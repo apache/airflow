@@ -73,6 +73,10 @@ class GoogleDataprepHook(BaseHook):
     conn_type = "dataprep"
     hook_name = "Google Dataprep"
 
+    # Default timeout in seconds for HTTP requests to the Dataprep API.
+    # Prevents requests from hanging indefinitely if the API is unresponsive.
+    _default_timeout: int = 300
+
     def __init__(self, dataprep_conn_id: str = default_conn_name, api_version: str = "v4", **kwargs) -> None:
         super().__init__(**kwargs)
         self.dataprep_conn_id = dataprep_conn_id
@@ -99,7 +103,7 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint_path = f"{self.api_version}/jobGroups/{job_id}/jobs"
         url: str = urljoin(self._base_url, endpoint_path)
-        response = requests.get(url, headers=self._headers)
+        response = requests.get(url, headers=self._headers, timeout=self._default_timeout)
         self._raise_for_status(response)
         return response.json()
 
@@ -117,7 +121,7 @@ class GoogleDataprepHook(BaseHook):
         params: dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
         endpoint_path = f"{self.api_version}/jobGroups/{job_group_id}"
         url: str = urljoin(self._base_url, endpoint_path)
-        response = requests.get(url, headers=self._headers, params=params)
+        response = requests.get(url, headers=self._headers, params=params, timeout=self._default_timeout)
         self._raise_for_status(response)
         return response.json()
 
@@ -135,7 +139,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint_path = f"{self.api_version}/jobGroups"
         url: str = urljoin(self._base_url, endpoint_path)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -149,7 +155,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/flows"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -172,7 +180,9 @@ class GoogleDataprepHook(BaseHook):
             "description": description,
             "copyDatasources": copy_datasources,
         }
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -185,7 +195,7 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint_path = f"{self.api_version}/flows/{flow_id}"
         url: str = urljoin(self._base_url, endpoint_path)
-        response = requests.delete(url, headers=self._headers)
+        response = requests.delete(url, headers=self._headers, timeout=self._default_timeout)
         self._raise_for_status(response)
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
@@ -198,7 +208,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"{self.api_version}/flows/{flow_id}/run"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -211,7 +223,7 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/jobGroups/{job_group_id}/status"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.get(url, headers=self._headers)
+        response = requests.get(url, headers=self._headers, timeout=self._default_timeout)
         self._raise_for_status(response)
         return response.json()
 
@@ -232,7 +244,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/importedDatasets"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -247,7 +261,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/wrangledDatasets"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -262,7 +278,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/outputObjects"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -277,7 +295,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/writeSettings"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request), timeout=self._default_timeout
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -290,5 +310,5 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/importedDatasets/{dataset_id}"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.delete(url, headers=self._headers)
+        response = requests.delete(url, headers=self._headers, timeout=self._default_timeout)
         self._raise_for_status(response)

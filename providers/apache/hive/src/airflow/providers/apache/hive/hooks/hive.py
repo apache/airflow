@@ -639,12 +639,11 @@ class HiveMetastoreHook(BaseHook):
         if conn.host:
             hosts = conn.host.split(",")
         for host in hosts:
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", host, conn.port)
-            if host_socket.connect_ex((host, conn.port)) == 0:
-                self.log.info("Connected to %s:%s", host, conn.port)
-                host_socket.close()
-                return host
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as host_socket:
+                if host_socket.connect_ex((host, conn.port)) == 0:
+                    self.log.info("Connected to %s:%s", host, conn.port)
+                    return host
             self.log.error("Could not connect to %s:%s", host, conn.port)
         return None
 

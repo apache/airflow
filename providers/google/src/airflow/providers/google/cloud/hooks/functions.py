@@ -168,6 +168,7 @@ class CloudFunctionsHook(GoogleBaseHook):
                     "Content-type": "application/zip",
                     "x-goog-content-length-range": "0,104857600",
                 },
+                timeout=600,
             )
         return upload_url
 
