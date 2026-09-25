@@ -1614,8 +1614,11 @@ class TestDagFileProcessorManager:
 
         assert call_order == ["kill", "close"]
 
-    @pytest.mark.parametrize("bundle_name", ["bundle_a", "bundle_b"])
-    def test_kill_timed_out_processors_kill(self, bundle_name):
+    @pytest.mark.parametrize(
+        ("bundle_name", "expected_bundle_tag"),
+        [("bundle_a", "bundle_a"), ("bundle_b", "bundle_b"), ("bundle a", "bundle_a")],
+    )
+    def test_kill_timed_out_processors_kill(self, bundle_name, expected_bundle_tag):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
         start_time = time.monotonic() - manager.processor_timeout - 1
@@ -1638,7 +1641,7 @@ class TestDagFileProcessorManager:
         )
         stats_incr_mock.assert_called_once_with(
             "dag_processing.processor_timeouts",
-            tags={"file_path": "folder_abc_txt.py", "bundle_name": bundle_name},
+            tags={"file_path": "folder_abc_txt.py", "bundle_name": expected_bundle_tag},
         )
         assert len(manager._processors) == 0
         processor.logger_filehandle.close.assert_called()
