@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -32,7 +33,13 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
+    from pydantic import GetJsonSchemaHandler
+    from pydantic.json_schema import JsonSchemaValue
+    from pydantic_core import CoreSchema
     from sqlalchemy.orm import Session
+
+WARNING_TYPE_MAX_LENGTH = 50
+IMPORTER_WARNING_TYPE_PATTERN = r"^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$"
 
 
 class DagWarning(Base):
@@ -45,7 +52,7 @@ class DagWarning(Base):
     """
 
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    warning_type: Mapped[str] = mapped_column(String(50), primary_key=True)
+    warning_type: Mapped[str] = mapped_column(String(WARNING_TYPE_MAX_LENGTH), primary_key=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
@@ -62,13 +69,10 @@ class DagWarning(Base):
         Index("idx_dag_warning_dag_id", dag_id),
     )
 
-    def __init__(self, dag_id: str, warning_type: DagWarningType | str, message: str, **kwargs):
+    def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
-        # Dag importers supply their own warning types, so anything outside the enum is kept verbatim.
-        self.warning_type = (
-            warning_type.value if isinstance(warning_type, DagWarningType) else str(warning_type)
-        )
+        self.warning_type = DagWarningType(warning_type).value
         self.message = message
 
     def __eq__(self, other) -> bool:
@@ -100,11 +104,40 @@ class DagWarningType(str, Enum):
     """
     Enum for DAG warning types.
 
-    This is the set of allowable values for the ``warning_type`` field
-    in the DagWarning model.
+    Members are the types Airflow emits; importers may add namespaced types such as ``yaml:deprecated_field``.
     """
 
     ASSET_CONFLICT = "asset conflict"
     DUPLICATE_DAG_ID = "duplicate dag id"
     NONEXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+
+    @classmethod
+    def _missing_(cls, value: object) -> DagWarningType | None:
+        if (
+            not isinstance(value, str)
+            or len(value) > WARNING_TYPE_MAX_LENGTH
+            or not re.match(IMPORTER_WARNING_TYPE_PATTERN, value)
+        ):
+            return None
+        # Not registered in _value2member_map_: values come from API queries too, and caching
+        # them would let arbitrary input grow the enum for the life of the process.
+        pseudo_member = str.__new__(cls, value)
+        pseudo_member._name_ = value
+        pseudo_member._value_ = value
+        return pseudo_member
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        return {
+            "anyOf": [
+                handler(core_schema),
+                {
+                    "type": "string",
+                    "pattern": IMPORTER_WARNING_TYPE_PATTERN,
+                    "maxLength": WARNING_TYPE_MAX_LENGTH,
+                },
+            ]
+        }

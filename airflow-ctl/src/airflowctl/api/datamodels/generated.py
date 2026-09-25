@@ -784,18 +784,25 @@ class DagVersionResponse(BaseModel):
     bundle_url: Annotated[str | None, Field(title="Bundle Url")]
 
 
-class DagWarningType(str, Enum):
+class DagWarningType1(str, Enum):
     """
     Enum for DAG warning types.
 
-    This is the set of allowable values for the ``warning_type`` field
-    in the DagWarning model.
+    Members are the types Airflow emits; importers may add namespaced types such as ``yaml:deprecated_field``.
     """
 
     ASSET_CONFLICT = "asset conflict"
     DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+
+
+class DagWarningType2(RootModel[str]):
+    root: Annotated[str, Field(max_length=50, pattern="^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$")]
+
+
+class DagWarningType(RootModel[DagWarningType1 | DagWarningType2]):
+    root: DagWarningType1 | DagWarningType2
 
 
 class DetailedHealthStatus(str, Enum):
@@ -2112,7 +2119,7 @@ class DAGWarningResponse(BaseModel):
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
-    warning_type: Annotated[DagWarningType | str, Field(title="Warning Type")]
+    warning_type: DagWarningType
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]

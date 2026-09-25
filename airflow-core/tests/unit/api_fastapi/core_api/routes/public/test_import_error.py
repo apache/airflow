@@ -235,7 +235,7 @@ class TestGetImportError:
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_get_import_error_with_source_reference(
-        self, mock_get_auth_manager, test_client, session, permitted_dag_model_all
+        self, mock_get_auth_manager, test_client, session, permitted_dag_model_all, url_safe_serializer
     ):
         error = ParseImportError(
             bundle_name=BUNDLE_NAME,
@@ -257,6 +257,9 @@ class TestGetImportError:
             "source_reference": "archive.zip/dags/my_dag.py",
             "stack_trace": STACKTRACE1,
             "bundle_name": BUNDLE_NAME,
+            "file_token": url_safe_serializer.dumps(
+                {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+            ),
         }
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, import_errors):

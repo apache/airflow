@@ -700,9 +700,9 @@ export type ClearTaskInstancesBody = {
      * A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.
      */
     task_ids?: Array<(string | [
-        string,
-        number
-    ])> | null;
+    string,
+    number
+])> | null;
     /**
      * Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.
      */
@@ -1142,7 +1142,7 @@ export type DAGWarningCollectionResponse = {
  */
 export type DAGWarningResponse = {
     dag_id: string;
-    warning_type: DagWarningType | string;
+    warning_type: DagWarningType;
     message: string;
     timestamp: string;
     dag_display_name: string;
@@ -1378,13 +1378,7 @@ export type DagVersionResponse = {
     bundle_url: string | null;
 };
 
-/**
- * Enum for DAG warning types.
- *
- * This is the set of allowable values for the ``warning_type`` field
- * in the DagWarning model.
- */
-export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value' | string;
 
 /**
  * How much of a component's work has a live instance covering it.
@@ -3667,7 +3661,7 @@ export type ListDagWarningsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      */
     orderBy?: Array<(string)>;
-    warningType?: DagWarningType | string | null;
+    warningType?: DagWarningType | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;

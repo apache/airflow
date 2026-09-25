@@ -39,11 +39,11 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``e5a91c7f42b3`` (head) | ``c9f4b3e7a218`` | ``3.4.0``         | Add language column to dag_code.                             |
+| ``e5a91c7f42b3`` (head) | ``ca8499dc1004`` | ``3.4.0``         | Add language column to dag_code.                             |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``c9f4b3e7a218``        | ``ca8499dc1004`` | ``3.4.0``         | Add source_reference to import_error.                        |
+| ``ca8499dc1004``        | ``c9f4b3e7a218`` | ``3.4.0``         | Add source_reference to import_error.                        |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``ca8499dc1004``        | ``3b7a91c5df20`` | ``3.4.0``         | Replace the ``job.team_name`` column with a ``job_team``     |
+| ``c9f4b3e7a218``        | ``3b7a91c5df20`` | ``3.4.0``         | Replace the ``job.team_name`` column with a ``job_team``     |
 |                         |                  |                   | association table.                                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``3b7a91c5df20``        | ``5182d0596ee2`` | ``3.4.0``         | Fold task_map into xcom.mapped_length.                       |

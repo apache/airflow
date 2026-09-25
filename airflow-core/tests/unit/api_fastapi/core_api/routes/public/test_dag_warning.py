@@ -111,9 +111,30 @@ class TestGetDagWarnings:
         response = unauthorized_test_client.get("/dagWarnings", params={})
         assert response.status_code == 403
 
+    def test_get_dag_warnings_bad_request(self, test_client):
+        response = test_client.get("/dagWarnings", params={"warning_type": "invalid"})
+        response_json = response.json()
+        assert response.status_code == 422
+        assert (
+            response_json["detail"][0]["msg"]
+            == "Input should be 'asset conflict', 'duplicate dag id', 'non-existent pool' or 'runtime varying value'"
+        )
+
     def test_get_dag_warnings_non_matching_type(self, test_client):
-        response = test_client.get("/dagWarnings", params={"warning_type": "non-existent-type"})
+        response = test_client.get("/dagWarnings", params={"warning_type": "yaml:unused_type"})
         response_json = response.json()
         assert response.status_code == 200
         assert response_json["total_entries"] == 0
         assert response_json["dag_warnings"] == []
+
+    def test_get_dag_warnings_importer_defined_type(self, test_client, session):
+        session.add(DagWarning(DAG1_ID, "yaml:schema_violation", "importer message"))
+        session.commit()
+
+        response = test_client.get("/dagWarnings", params={"warning_type": "yaml:schema_violation"})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["dag_warnings"][0]["warning_type"] == "yaml:schema_violation"
+        assert response_json["dag_warnings"][0]["message"] == "importer message"
