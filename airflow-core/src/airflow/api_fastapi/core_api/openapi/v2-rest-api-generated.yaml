@@ -11040,6 +11040,14 @@ paths:
           items:
             type: string
           title: State
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: response_received
         in: query
         required: false
