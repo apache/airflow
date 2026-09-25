@@ -1148,10 +1148,19 @@ class TestEventLoop:
 
     A task-runner process starts without any event loop set, and since Python 3.12
     ``asyncio.get_event_loop()`` emits ``DeprecationWarning: There is no current event loop`` when it
-    has to create one in that state (Python 3.14 raises instead).  These tests pin down that the helper
-    creates and cleans up its own loop without relying on that behaviour, while still reusing a loop
-    that the caller already has.
+    has to create one in that state (Python 3.14 raises instead). The helper owns a loop for the duration
+    of the block instead, through ``asyncio.Runner`` where Python provides it. ``runner_implementation``
+    runs every test against both the ``asyncio.Runner`` path and the Python 3.10 fallback, whatever
+    Python runs the tests.
     """
+
+    @pytest.fixture(params=["asyncio.Runner", "fallback"], autouse=True)
+    def runner_implementation(self, request, monkeypatch):
+        if request.param == "fallback":
+            monkeypatch.delattr(asyncio, "Runner", raising=False)
+        elif not hasattr(asyncio, "Runner"):
+            pytest.skip("asyncio.Runner needs Python 3.11+")
+        return request.param
 
     @pytest.fixture
     def fresh_process_loop_state(self):
@@ -1197,38 +1206,62 @@ class TestEventLoop:
         assert first.is_closed()
         assert second.is_closed()
 
-    def test_reuses_loop_already_set_and_leaves_it_open(self):
+    def test_loop_outlives_run_until_complete_calls(self):
+        """Unlike ``asyncio.run()``, work scheduled in one run is still there for the next."""
+        with event_loop() as loop:
+            release = asyncio.Event()
+
+            async def wait_for_release():
+                await release.wait()
+                return "released"
+
+            pending = loop.create_task(wait_for_release())
+            assert loop.run_until_complete(asyncio.sleep(0, result="first run")) == "first run"
+            assert not pending.done()
+
+            release.set()
+            assert loop.run_until_complete(pending) == "released"
+
+    def test_pending_tasks_are_cancelled_on_exit(self):
+        cleaned_up = False
+
+        async def never_finishes():
+            nonlocal cleaned_up
+            try:
+                await asyncio.sleep(3600)
+            except asyncio.CancelledError:
+                cleaned_up = True
+                raise
+
+        with event_loop() as loop:
+            pending = loop.create_task(never_finishes())
+            # Let the task start so cancellation reaches its body.
+            loop.run_until_complete(asyncio.sleep(0))
+
+        assert pending.cancelled()
+        assert cleaned_up
+        assert loop.is_closed()
+
+    def test_leaves_loop_already_set_open_but_does_not_reuse_it(self):
         existing = asyncio.new_event_loop()
         asyncio.set_event_loop(existing)
         try:
             with event_loop() as loop:
-                assert loop is existing
+                assert loop is not existing
+                assert loop.run_until_complete(asyncio.sleep(0, result="ran")) == "ran"
+            assert loop.is_closed()
             assert not existing.is_closed()
-            assert asyncio.get_event_loop() is existing
         finally:
             existing.close()
             asyncio.set_event_loop(None)
 
-    def test_replaces_closed_loop_that_is_set(self):
-        closed = asyncio.new_event_loop()
-        closed.close()
-        asyncio.set_event_loop(closed)
-
-        with event_loop() as loop:
-            assert loop is not closed
-            assert not loop.is_closed()
-            assert loop.run_until_complete(asyncio.sleep(0, result="ran")) == "ran"
-
-        assert loop.is_closed()
-        with pytest.raises(RuntimeError):
-            asyncio.get_event_loop()
-
     @pytest.mark.asyncio
-    async def test_yields_running_loop_from_async_caller(self):
+    async def test_refuses_running_loop(self):
         running = asyncio.get_running_loop()
 
-        with event_loop() as loop:
-            assert loop is running
+        with pytest.raises(RuntimeError, match="running event loop"):
+            with event_loop():
+                pass
 
         assert not running.is_closed()
 
