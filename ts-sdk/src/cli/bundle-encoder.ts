@@ -178,6 +178,15 @@ function encodeSources(sources: Record<string, string>): EncodedSources {
   let offset = 0;
 
   for (const [path, content] of Object.entries(sources)) {
+    // A `*/` in the path would close the marker's own comment early, so the
+    // packer refuses rather than trying to escape it — no real filesystem path
+    // holds one, and rejecting keeps the marker line trivially readable.
+    if (path.includes("*/") || path.includes("\n")) {
+      throw new Error(
+        `Source path ${JSON.stringify(path)} contains a block-comment terminator or newline; ` +
+          `airflow-ts-pack cannot embed it`,
+      );
+    }
     const openBytes = Buffer.from(`${EMBEDDED_SOURCE_MARKER}${path}\n`, "utf-8");
     const payloadBytes = Buffer.from(escapeBlockComment(content), "utf-8");
     const closeBytes = Buffer.from(EMBEDDED_SOURCE_CLOSE, "ascii");
@@ -252,8 +261,11 @@ function buildBundleMetadata(input: BundleEncoderInput): BundleMetadata {
 }
 
 function renderHeader(header: BundleHeader): Buffer {
+  // utf-8 rather than ascii because source paths (`sources[i].path`) may hold
+  // non-ASCII characters — a Latin-1 filename otherwise loses bytes here and
+  // the metadata-to-region mapping stops round-tripping.
   const payload = JSON.stringify(header);
-  return Buffer.from(`${EMBEDDED_LAYOUT_PREFIX}${payload}\n`, "ascii");
+  return Buffer.from(`${EMBEDDED_LAYOUT_PREFIX}${payload}\n`, "utf-8");
 }
 
 function formatOffset(offset: number): string {

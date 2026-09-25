@@ -295,14 +295,11 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       platform: "node",
       format: "esm",
       target: "node22",
-      // Whitespace and syntax only. Identifiers stay: `dag.task(handler)` takes
-      // the task id from the handler's name at run time, and `keepNames` carries
-      // that name through any bundler-collision renames.
-      minifyWhitespace: true,
-      minifySyntax: true,
-      keepNames: true,
-      // The tag plugin attributes each `new Dag(...)` to its source file, so
-      // one Dag-defining file per source region reaches the encoder.
+      // A digest is only worth taking over an artifact nobody reads or edits in place.
+      minify: true,
+      // Tags each author-owned file with its own path before its `new Dag(...)`
+      // constructor runs, so the encoder gets one Dag-defining file per source
+      // region.
       plugins: [moduleSourceTagPlugin(cwd)],
       // The manifest is read by running the staged bundle, so the metadata describes what ships.
       outfile: stagingPath,

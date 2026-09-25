@@ -24,6 +24,13 @@
 // statements run. `Dag`'s constructor reads it so a Dag declared in
 // `src/dags/reports.ts` carries that path even though esbuild has inlined
 // every source file into one bundle.
+//
+// The slot is process-global, so it is accurate only for a `new Dag(...)`
+// that runs synchronously while its own module is still loading. A Dag
+// constructed later — after a top-level `await` yields to another module
+// that then writes its own path — is attributed to whichever module wrote
+// the slot last. Every Airflow author pattern declares Dags at module
+// top level before any I/O.
 
 /**
  * Key `airflow-ts-pack` writes into `globalThis[Symbol.for(...)]` to tag the
