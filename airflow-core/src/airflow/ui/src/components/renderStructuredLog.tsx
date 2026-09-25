@@ -295,13 +295,10 @@ const renderStructuredLogImpl = ({
       );
     });
   } else if (errorDetail !== undefined) {
-    // Some producers render the traceback themselves instead of sending the frames. Break the
-    // line first so it does not run into the event text, and let the whitespace through: both
-    // the text branch and the jsx wrapper below preserve it. Anything that is neither shape is
-    // stringified rather than rendered, so an unexpected value cannot take the log view down.
+    // Some producers send an already rendered traceback; start it on its own line. Any other
+    // shape is stringified so an unexpected value cannot take the log view down.
     const rendered = typeof errorDetail === "string" ? errorDetail : JSON.stringify(errorDetail);
 
-    // An empty detail would otherwise contribute nothing but the line break.
     details = rendered === "" ? undefined : `\n${rendered}`;
   }
 

@@ -1097,10 +1097,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if exc := event.pop("exception", None):
                 if log is fallback_log:
-                    # The triggerer's own log is read as plain text, where structlog's list of
-                    # exception dicts is unreadable. Per-trigger records instead go to the task
-                    # log, whose readers render the structured payload themselves, so those keep
-                    # it as it arrived.
+                    # The triggerer's own log is plain text; the task log UI renders the dicts itself.
                     event["error_detail"] = format_exception_dicts(exc) or exc
                 else:
                     event["error_detail"] = exc

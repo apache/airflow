@@ -183,10 +183,8 @@ def _ends_in_rendered_group(children: list[Any], child_depth: int) -> bool:
 
 def _format_syntax_error(syntax_error: Any) -> list[str]:
     """Render the offending source line of a :exc:`SyntaxError` with a caret beneath it."""
-    # CPython prints the location only when the exception carries a line number, so a
-    # `raise SyntaxError("bad")` written by hand gets none. structlog stores `lineno or 0`,
-    # which turns that absence into a zero, and no real syntax error is reported on line 0.
-    # Printing the header regardless would invent a position that does not exist.
+    # CPython prints the location only when there is a line number; structlog stores
+    # `lineno or 0`, so a zero means there was none.
     lines = []
     if lineno := syntax_error.get("lineno"):
         lines.append(f'  File "{syntax_error.get("filename")}", line {lineno}')

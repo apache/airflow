@@ -498,9 +498,9 @@ def test_process_log_messages_renders_exceptions_from_the_triggerer_itself(
     """The triggerer's own log is read as text, so the exception dicts become a stack trace."""
     supervisor = supervisor_builder()
     # Priming the generator calls configure_logging(), which reconfigures structlog globally
-    # and would replace the capture cap_structlog installed. Keep the patch.
-    mocker.patch("airflow.sdk.log.configure_logging")
-    mocker.patch("airflow.sdk.log.logging_processors")
+    # and would replace the capture cap_structlog installed.
+    mocker.patch("airflow.sdk.log.configure_logging", autospec=True)
+    mocker.patch("airflow.sdk.log.logging_processors", autospec=True)
 
     gen = supervisor._process_log_messages_from_subprocess()
     next(gen)
@@ -528,9 +528,9 @@ def test_process_log_messages_renders_exceptions_from_the_triggerer_itself(
 def test_process_log_messages_leaves_task_log_exceptions_structured(supervisor_builder, mocker):
     """Per-trigger records go to the task log, whose readers render the payload themselves."""
     supervisor = supervisor_builder()
-    mocker.patch("airflow.sdk.log.logging_processors")
-    trigger_log = mocker.MagicMock()
-    supervisor.logger_cache[7] = mocker.MagicMock(return_value=trigger_log)
+    mocker.patch("airflow.sdk.log.logging_processors", autospec=True)
+    trigger_log = mocker.MagicMock(spec=FilteringBoundLogger)
+    supervisor.logger_cache[7] = mocker.MagicMock(spec=TriggerLoggingFactory, return_value=trigger_log)
 
     gen = supervisor._process_log_messages_from_subprocess()
     next(gen)
@@ -553,9 +553,8 @@ def test_process_log_messages_keeps_an_unrecognised_exception_payload(
 ):
     """A payload that is not transformer output is passed through rather than dropped."""
     supervisor = supervisor_builder()
-    # Same reason as the test above: priming reconfigures structlog and drops the capture.
-    mocker.patch("airflow.sdk.log.configure_logging")
-    mocker.patch("airflow.sdk.log.logging_processors")
+    mocker.patch("airflow.sdk.log.configure_logging", autospec=True)
+    mocker.patch("airflow.sdk.log.logging_processors", autospec=True)
     payload = {"not": "a transformer payload"}
 
     gen = supervisor._process_log_messages_from_subprocess()
