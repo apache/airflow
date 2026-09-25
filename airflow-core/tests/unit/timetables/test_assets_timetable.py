@@ -395,9 +395,9 @@ def test_infer_manual_data_interval(core_asset_timetable: CoreAssetOrTimeSchedul
 
 
 def test_infer_manual_data_interval_and(core_asset_and_time_timetable: CoreAssetAndTimeSchedule) -> None:
-    run_after = DateTime.now()
+    run_after = DateTime(2025, 6, 7, 8, 9, tzinfo=UTC)
     result = core_asset_and_time_timetable.infer_manual_data_interval(run_after=run_after)
-    assert isinstance(result, DataInterval)
+    assert result == DataInterval.exact(run_after)
 
 
 def test_next_dagrun_info(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
@@ -418,12 +418,15 @@ def test_next_dagrun_info(core_asset_timetable: CoreAssetOrTimeSchedule) -> None
 
 
 def test_next_dagrun_info_and(core_asset_and_time_timetable: CoreAssetAndTimeSchedule) -> None:
-    last_interval = DataInterval.exact(DateTime.now())
-    restriction = TimeRestriction(earliest=DateTime.now(), latest=None, catchup=True)
+    last_interval = DataInterval.exact(DateTime(2025, 6, 7, 8, 9, tzinfo=UTC))
+    restriction = TimeRestriction(earliest=DateTime(2025, 6, 9, 8, 9, tzinfo=UTC), latest=None, catchup=True)
     result = core_asset_and_time_timetable.next_dagrun_info(
         last_automated_data_interval=last_interval, restriction=restriction
     )
-    assert result is None or isinstance(result, DagRunInfo)
+    assert result == DagRunInfo.interval(
+        DateTime(2025, 6, 9, 8, 9, tzinfo=UTC),
+        DateTime(2025, 6, 10, 8, 9, tzinfo=UTC),
+    )
 
 
 def test_generate_run_id(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
@@ -443,15 +446,29 @@ def test_generate_run_id(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
     assert run_id == "manual__2025-06-07T08:09:00+00:00"
 
 
-def test_generate_run_id_and(core_asset_and_time_timetable: CoreAssetAndTimeSchedule) -> None:
+def test_generate_run_id_and(core_asset_and_time_timetable: CoreAssetAndTimeSchedule, mocker) -> None:
+    date = DateTime(2025, 6, 7, 8, 9, tzinfo=UTC)
+    generate_run_id = mocker.patch.object(
+        core_asset_and_time_timetable.timetable,
+        "generate_run_id",
+        autospec=True,
+        return_value="wrapped_run_id",
+    )
     run_id = core_asset_and_time_timetable.generate_run_id(
         run_type=DagRunType.MANUAL,
         extra_args="test",
-        logical_date=DateTime.now(),
-        run_after=DateTime.now(),
+        logical_date=date,
+        run_after=date,
         data_interval=None,
     )
-    assert isinstance(run_id, str)
+    assert run_id == "wrapped_run_id"
+    generate_run_id.assert_called_once_with(
+        run_type=DagRunType.MANUAL,
+        extra_args="test",
+        logical_date=date,
+        run_after=date,
+        data_interval=None,
+    )
 
 
 @pytest.fixture
