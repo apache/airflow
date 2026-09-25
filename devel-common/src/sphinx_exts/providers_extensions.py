@@ -534,57 +534,6 @@ def _render_connection_services_content(package_name: str) -> str:
     return _render_template("provider_connection_services.rst.jinja2", rows=rows)
 
 
-# Display name for each toolset module: the class name for modules that map to one
-# (`toolsets.rst` documents each under a `` ``ClassName`` `` heading), or a short
-# descriptive name for the two that don't (`managed_agent` documents a family of
-# provider-specific subclasses under "Managed Agent Toolsets"; `langchain_bridge` is a
-# function, documented under "Working with LangChain"). Kept here rather than in
-# `provider.yaml` because it is presentation-only, not metadata the registry also needs.
-#
-# Deliberately no `.get(basename, default)` fallback below: every module in
-# `python-modules` must have an entry here, the same way `LABELS` and the anchor check
-# in `test_provider_metadata.py` require full coverage. A missing entry for a new
-# toolset module fails loudly with a `ValueError` naming the provider and module, not
-# a silently rendered basename.
-_TOOLSET_DISPLAY_NAMES = {
-    "hook": "HookToolset",
-    "sql": "SQLToolset",
-    "datafusion": "DataFusionToolset",
-    "logging": "LoggingToolset",
-    "mcp": "MCPToolset",
-    "skills": "AgentSkillsToolset",
-    "sandbox": "SandboxToolset",
-    "langchain_bridge": "LangChain Bridge",
-    "managed_agent": "Managed Agent Toolsets",
-}
-
-
-def _render_toolset_services_content(package_name: str) -> str:
-    provider = _find_provider_package_data(package_name)
-    rows = []
-    for toolset in provider.get("toolsets", []):
-        services_by_module = {
-            entry["module"]: entry["services"] for entry in toolset.get("external-services") or []
-        }
-        for module in toolset.get("python-modules", []):
-            basename = module.rsplit(".", 1)[-1]
-            try:
-                display_name = _TOOLSET_DISPLAY_NAMES[basename]
-            except KeyError as e:
-                raise ValueError(
-                    f"No display name for toolset module '{module}' of provider "
-                    f"'{package_name}'. Add an entry for '{basename}' to `_TOOLSET_DISPLAY_NAMES`."
-                ) from e
-            rows.append(
-                {
-                    "display_name": display_name,
-                    "services": services_by_module.get(module, []),
-                    "ref": f"howto/toolset:{basename}",
-                }
-            )
-    return _render_template("provider_toolset_services.rst.jinja2", rows=rows)
-
-
 class ProviderConnectionServicesDirective(BaseJinjaReferenceDirective):
     """Render a table of a provider's connection types and the external services each reaches."""
 
@@ -595,20 +544,9 @@ class ProviderConnectionServicesDirective(BaseJinjaReferenceDirective):
         return _render_connection_services_content(self.arguments[0])
 
 
-class ProviderToolsetServicesDirective(BaseJinjaReferenceDirective):
-    """Render a table of a provider's toolset modules and the external services each reaches."""
-
-    required_arguments = 1
-    optional_arguments = 0
-
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_toolset_services_content(self.arguments[0])
-
-
 def setup(app):
     """Setup plugin"""
     app.add_directive("airflow-providers-openlineage-supported-classes", OpenLineageSupportedClassesDirective)
     app.add_directive("provider-connection-services", ProviderConnectionServicesDirective)
-    app.add_directive("provider-toolset-services", ProviderToolsetServicesDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
