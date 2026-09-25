@@ -218,7 +218,11 @@ class TestSetTaskState(TestTaskStateEndpoint):
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
 
-    def test_set_dagrun_deleted_after_scope_lookup_returns_404(self, test_client):
+    @pytest.mark.parametrize("method", ["put", "patch"])
+    def test_write_dagrun_deleted_after_scope_lookup_returns_404(self, test_client, method):
+        if method == "patch":
+            assert test_client.put(f"{BASE_URL}/job_id", json={"value": "old"}).status_code == 204
+
         dag_run_id = self.dag_run.id
         deleted = False
 
@@ -236,7 +240,7 @@ class TestSetTaskState(TestTaskStateEndpoint):
 
         event.listen(settings.engine, "before_execute", delete_run_before_lookup)
         try:
-            response = test_client.put(f"{BASE_URL}/job_id", json={"value": "v"})
+            response = getattr(test_client, method)(f"{BASE_URL}/job_id", json={"value": "v"})
         finally:
             event.remove(settings.engine, "before_execute", delete_run_before_lookup)
 
