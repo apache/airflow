@@ -114,7 +114,7 @@ def run_checkpoint(args, output: Path) -> dict:
 
     from dev.dag_parsing_poc.coordinator import ParsingRecoveryCoordinator
     from dev.dag_parsing_poc.metadata import MetadataReceiptStore
-    from dev.dag_parsing_poc.run import create_workloads, wait_for_api
+    from dev.dag_parsing_poc.run import create_archive, create_workloads, wait_for_api
     from dev.dag_parsing_poc.run_celery import finish_workloads, read_json, read_task_events, wait_until
     from dev.dag_parsing_poc.run_celery_recovery import validate_worker_ready
 
@@ -152,6 +152,7 @@ def run_checkpoint(args, output: Path) -> dict:
         "start_date=datetime(2026, 1, 1, tzinfo=timezone.utc), is_paused_upon_creation=False):\n"
         "    @task\n    def sample():\n        return 1\n    sample()\n"
     )
+    archive = create_archive([source], worker_root / "definitions.zip") if args.archive_members else None
     (output / "worker-evidence").mkdir()
     run_id = str(uuid4())
     listener = socket.socket()
@@ -197,9 +198,9 @@ def run_checkpoint(args, output: Path) -> dict:
         )
         worker = read_json(output / "worker-evidence/isolation.json")
         validate_worker_ready(worker, run_id=run_id, queue=args.queue)
-        workload = create_workloads([source], batch_size=1, timeout=30, generator=generator)[0].model_copy(
-            update={"queue": args.queue}
-        )
+        workload = create_workloads(
+            [source], batch_size=1, timeout=30, generator=generator, archive_path=archive
+        )[0].model_copy(update={"queue": args.queue})
         coordinator.start()
         coordinator.admit(workload)
         publication = coordinator.dispatch_reserved()
@@ -242,6 +243,8 @@ def run_checkpoint(args, output: Path) -> dict:
             raise RuntimeError("Accepted workload was imported more than once")
         return {
             "status": "passed",
+            "importer": "SDK",
+            "definition_kind": "zip_member" if archive else "file",
             "run_id": run_id,
             "workload_id": task_id,
             "result_count": len(results),
@@ -269,6 +272,7 @@ def main() -> None:
     parser.add_argument("--result-backend", default="redis://poc-broker:6379/1")
     parser.add_argument("--queue", default="poc-metadata")
     parser.add_argument("--port", default=8799, type=int)
+    parser.add_argument("--archive-members", action="store_true")
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)

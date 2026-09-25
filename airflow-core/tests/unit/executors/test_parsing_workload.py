@@ -88,6 +88,46 @@ def test_definition_rejects_paths_outside_bundle(parsing_workload, path):
         DagDefinitionAttempt.model_validate(values)
 
 
+@pytest.mark.parametrize(
+    "reference",
+    [
+        {"archive_path": "bundle.zip"},
+        {"archive_revision": "archive-hash"},
+        {"archive_path": "../bundle.zip", "archive_revision": "archive-hash"},
+        {"archive_path": "bundle.tar", "archive_revision": "archive-hash"},
+        {"archive_path": "./bundle.zip", "archive_revision": "archive-hash"},
+        {"archive_path": "bundle.zip", "archive_revision": "archive-hash", "relative_path": "outside.py"},
+        {"archive_path": "bundle.zip", "archive_revision": "archive-hash", "relative_path": "bundle.zip/"},
+        {
+            "archive_path": "bundle.zip",
+            "archive_revision": "archive-hash",
+            "relative_path": "bundle.zip/../outside.py",
+        },
+        {
+            "archive_path": "bundle.zip",
+            "archive_revision": "archive-hash",
+            "relative_path": "bundle.zip/nested//source.py",
+        },
+    ],
+)
+def test_archive_reference_is_complete_and_contained(parsing_workload, reference):
+    values = parsing_workload.definitions[0].model_dump() | reference
+    with pytest.raises(ValidationError):
+        DagDefinitionAttempt.model_validate(values)
+
+
+def test_archive_reference_survives_executor_transport(parsing_workload):
+    values = parsing_workload.definitions[0].model_dump() | {
+        "relative_path": "nested/bundle.zip/member.py",
+        "archive_path": "nested/bundle.zip",
+        "archive_revision": "archive-hash",
+    }
+    parsing_workload.definitions = (DagDefinitionAttempt.model_validate(values),)
+    received = TypeAdapter(workloads.All).validate_json(parsing_workload.model_dump_json())
+    assert received == parsing_workload
+    assert received.definitions[0].archive_revision == "archive-hash"
+
+
 @pytest.mark.parametrize("count", [0, 101])
 def test_parsing_batch_is_bounded(parsing_workload, count):
     values = parsing_workload.model_dump()

@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Experimental executor worker bridging filesystem definitions to the legacy Dag parser.
+Experimental executor worker supervising SDK definition importing.
 
-This is deliberately a core worker, not an AIP-85 importer or an SDK-only runtime.
+Core still supplies validation, policies and serialization; this is not an SDK-only runtime.
 LocalExecutor shares its host's trust boundary. Remote isolation additionally requires
 separate configuration, credentials, filesystems and network policy at deployment time.
 """
@@ -146,13 +146,15 @@ def get_bundle_root(workload: ParseDagDefinitions) -> Path:
 
 
 def resolve_definition_path(bundle_root: Path, definition: DagDefinitionAttempt) -> Path:
-    """Validate containment and content at the legacy file boundary, including symlinks."""
-    path = bundle_root.joinpath(*PurePosixPath(definition.relative_path).parts).resolve(strict=True)
+    """Validate the source file or containing archive, including symlink containment."""
+    source_path = definition.archive_path or definition.relative_path
+    path = bundle_root.joinpath(*PurePosixPath(source_path).parts).resolve(strict=True)
     if not path.is_relative_to(bundle_root.resolve(strict=True)):
         raise ParsingWorkerError("Definition path escapes its configured bundle root")
     if not path.is_file() or path.suffix not in {".py", ".zip"}:
-        raise ParsingWorkerError("The legacy parsing bridge only supports Python files and ZIP archives")
-    if compute_source_revision(path) != definition.source_revision:
+        raise ParsingWorkerError("The parsing PoC only supports Python files and ZIP members")
+    revision = definition.archive_revision or definition.source_revision
+    if compute_source_revision(path) != revision:
         raise ParsingWorkerError("Definition content does not match its registered source revision")
     return path
 
@@ -173,9 +175,17 @@ def parse_definition(
     bundle_root: Path,
     client: Client,
     log_dir: Path,
+    legacy: bool = False,
 ) -> DagDefinitionResult:
-    """Run one claimed legacy definition in its own supervised subprocess."""
+    """Run one claimed definition; the legacy path remains available for baseline comparisons."""
+    from airflow.dag_processing.executor_importer import (
+        SdkDagDefinitionProcess,
+        SdkDagParseRequest,
+        SdkDagParsingResult,
+        run_sdk_importer,
+    )
     from airflow.dag_processing.processor import DagFileProcessorProcess
+    from airflow.sdk.execution_time.supervisor import _should_use_exec
 
     started = time.monotonic()
     result = DagDefinitionResult(
@@ -185,7 +195,7 @@ def parse_definition(
         outcome="worker_error",
         duration_seconds=0,
     )
-    process = None
+    process: DagFileProcessorProcess | SdkDagDefinitionProcess | None = None
     selector = selectors.DefaultSelector()
     log_handle = None
     try:
@@ -204,20 +214,43 @@ def parse_definition(
                 structlog.BytesLogger(log_handle), processors=logging_processors(json_output=True)
             ).bind()
             try:
-                process = DagFileProcessorProcess.start(
-                    id=definition.attempt_id,
-                    path=path,
-                    bundle_path=bundle_root,
-                    bundle_name=workload.bundle_info.name,
-                    dag_file_rel_path=definition.relative_path,
-                    callbacks=[],
-                    logger=logger,
-                    logger_filehandle=log_handle,
-                    selector=selector,
-                    subprocess_logs_to_stdout=True,
-                    client=client,
-                    new_process_group=True,
-                )
+                if legacy:
+                    if definition.archive_path is not None:
+                        raise ParsingWorkerError("The legacy baseline does not accept archive members")
+                    process = DagFileProcessorProcess.start(
+                        id=definition.attempt_id,
+                        path=path,
+                        bundle_path=bundle_root,
+                        bundle_name=workload.bundle_info.name,
+                        dag_file_rel_path=definition.relative_path,
+                        callbacks=[],
+                        logger=logger,
+                        logger_filehandle=log_handle,
+                        selector=selector,
+                        subprocess_logs_to_stdout=True,
+                        client=client,
+                        new_process_group=True,
+                    )
+                else:
+                    process = SdkDagDefinitionProcess.start(
+                        id=definition.attempt_id,
+                        target=run_sdk_importer,
+                        use_exec=_should_use_exec(),
+                        logger=logger,
+                        selector=selector,
+                        subprocess_logs_to_stdout=True,
+                        client=client,
+                        new_process_group=True,
+                    )
+                    process.send_msg(
+                        SdkDagParseRequest(
+                            definition=definition,
+                            bundle_path=bundle_root,
+                            bundle_name=workload.bundle_info.name,
+                            include_source=os.environ.get("AIRFLOW_DAG_PARSING_POC_INCLUDE_SOURCE") == "1",
+                        ),
+                        request_id=0,
+                    )
                 deadline = time.monotonic() + timeout
                 while not process.is_ready:
                     remaining = deadline - time.monotonic()
@@ -233,7 +266,12 @@ def parse_definition(
                     return result
                 # Inputs are expected to be immutable; discard output from a source that changed during import.
                 resolve_definition_path(bundle_root, definition)
-                if os.environ.get("AIRFLOW_DAG_PARSING_POC_INCLUDE_SOURCE") == "1":
+                if isinstance(parsed, SdkDagParsingResult):
+                    result.diagnostics.extend(parsed.diagnostics)
+                    if parsed.worker_error:
+                        return result
+                    result.source_code = parsed.source_code
+                elif os.environ.get("AIRFLOW_DAG_PARSING_POC_INCLUDE_SOURCE") == "1":
                     if path.suffix != ".py":
                         raise ParsingWorkerError("Metadata persistence currently requires a Python file")
                     source = path.read_bytes()

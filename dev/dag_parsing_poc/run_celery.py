@@ -39,7 +39,7 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.parsing import ParseDagDefinitionsState
 
 from dev.dag_parsing_poc.api import TOKEN_AUDIENCE, TOKEN_ISSUER, TOKEN_KEY_ID
-from dev.dag_parsing_poc.run import create_workloads, serve_api, wait_for_api, write_fixtures
+from dev.dag_parsing_poc.run import create_archive, create_workloads, serve_api, wait_for_api, write_fixtures
 from dev.dag_parsing_poc.store import ReceiptStore
 
 
@@ -108,6 +108,7 @@ def run_experiment(args, output: Path, generator: JWTGenerator, store: ReceiptSt
         "    marker.write('imported\\n')\n"
         "time.sleep(5)\nwith DAG('celery_active_duplicate', schedule=None):\n    pass\n"
     )
+    archive = create_archive(files, source / "definitions.zip") if args.archive_members else None
     shutil.copytree(source, worker_root)
     (output / "worker-evidence").mkdir()
     (output / "driver-ready.json").write_text(json.dumps({"port": args.port, "queue": args.queue}) + "\n")
@@ -125,7 +126,7 @@ def run_experiment(args, output: Path, generator: JWTGenerator, store: ReceiptSt
         workloads = [
             workload.model_copy(update={"queue": args.queue})
             for workload in create_workloads(
-                files, batch_size=args.batch_size, timeout=30, generator=generator
+                files, batch_size=args.batch_size, timeout=30, generator=generator, archive_path=archive
             )
         ]
         for workload in workloads:
@@ -141,7 +142,8 @@ def run_experiment(args, output: Path, generator: JWTGenerator, store: ReceiptSt
             if result["outcome"] == "success"
         }
         if outcomes != expected or received_dags != {
-            f"success_{index}.py": [f"executor_parsing_poc_{index}"] for index in range(args.definitions)
+            f"{'definitions.zip/' if archive else ''}success_{index}.py": [f"executor_parsing_poc_{index}"]
+            for index in range(args.definitions)
         }:
             raise RuntimeError(f"Unexpected parsing output: {outcomes}, {received_dags}")
 
@@ -220,6 +222,8 @@ def run_experiment(args, output: Path, generator: JWTGenerator, store: ReceiptSt
         (output / "results.json").write_text(json.dumps(results, indent=2) + "\n")
         return {
             "mode": "dedicated CeleryExecutor, Redis broker/backend, isolated prefork worker",
+            "importer": "SDK",
+            "definition_kind": "zip_member" if archive else "file",
             "definitions": len(files),
             "dispatches": len(workloads),
             "batch_size": args.batch_size,
@@ -236,7 +240,7 @@ def run_experiment(args, output: Path, generator: JWTGenerator, store: ReceiptSt
             "isolation": read_json(output / "worker-evidence" / "isolation.json"),
             "limitations": [
                 "Development receipt API; no production metadata ingestion or parse-time reads.",
-                "Core parser bridge, not the proposed portable SDK importer.",
+                "SDK importing still uses core validation and serialization; not an SDK-only runtime.",
                 "No automatic recovery of abandoned claims or orchestrator restart/adoption.",
                 "Separate worker container on the same Docker host, not a multi-host deployment.",
                 "No concurrent task benchmark, full manager baseline, Kubernetes or HA proof.",
@@ -255,6 +259,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8799)
     parser.add_argument("--definitions", type=int, default=2)
     parser.add_argument("--batch-size", type=int, choices=range(1, 101), default=2)
+    parser.add_argument("--archive-members", action="store_true")
     args = parser.parse_args()
     if args.definitions < 1:
         parser.error("definitions must be positive")

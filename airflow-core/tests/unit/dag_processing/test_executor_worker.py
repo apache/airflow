@@ -135,6 +135,7 @@ def test_serializes_parser_result(start, workload, tmp_path, outcome, include_so
         bundle_root=tmp_path,
         client=create_autospec(Client, instance=True),
         log_dir=tmp_path / "logs",
+        legacy=True,
     )
     assert result.outcome == outcome
     if outcome != "worker_error":
@@ -161,6 +162,7 @@ def test_supervised_timeout_kills_parser(start, monotonic, workload, tmp_path):
         bundle_root=tmp_path,
         client=create_autospec(Client, instance=True),
         log_dir=tmp_path / "logs",
+        legacy=True,
     )
     assert result.outcome == "timeout"
     process.kill.assert_called_once_with(signal.SIGKILL, escalation_delay=1, force=True)
@@ -743,6 +745,7 @@ def test_source_publication_errors_discard_serialized_dags(
         bundle_root=tmp_path,
         client=create_autospec(Client, instance=True),
         log_dir=tmp_path / "logs",
+        legacy=True,
     )
     assert result.outcome == "worker_error"
     assert result.serialized_dags == []

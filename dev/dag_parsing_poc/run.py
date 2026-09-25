@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import multiprocessing
 import os
@@ -33,6 +34,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
+from zipfile import ZipFile
 
 import httpx
 import uvicorn
@@ -50,6 +52,7 @@ from airflow.executors.workloads.parsing import (
     ParseDagDefinitions,
     ParseDagDefinitionsState,
 )
+from airflow.sdk.importers.zip_importer import ZipMemberDagDefinition
 
 from dev.dag_parsing_poc.api import (
     TOKEN_AUDIENCE,
@@ -107,17 +110,38 @@ def write_fixtures(root: Path, count: int, include_failures: bool) -> list[Path]
     return files
 
 
+def create_archive(files: list[Path], archive: Path) -> Path:
+    with ZipFile(archive, "w") as stream:
+        for path in files:
+            stream.write(path, arcname=path.name)
+    return archive
+
+
 def create_workloads(
-    files: list[Path], *, batch_size: int, timeout: float, generator: JWTGenerator
+    files: list[Path],
+    *,
+    batch_size: int,
+    timeout: float,
+    generator: JWTGenerator,
+    archive_path: Path | None = None,
 ) -> list[ParseDagDefinitions]:
     workloads = []
+    archive_revision = compute_source_revision(archive_path) if archive_path else None
     for offset in range(0, len(files), batch_size):
         definitions = tuple(
             DagDefinitionAttempt(
                 attempt_id=uuid4(),
-                relative_path=path.name,
-                source_revision=compute_source_revision(path),
+                relative_path=f"{archive_path.name}/{path.name}" if archive_path else path.name,
+                source_revision=(
+                    hashlib.sha256(
+                        ZipMemberDagDefinition(zip_path=archive_path, file_path=path.name).read_bytes()
+                    ).hexdigest()
+                    if archive_path
+                    else compute_source_revision(path)
+                ),
                 timeout_seconds=0.5 if path.name == "timeout.py" else timeout,
+                archive_path=archive_path.name if archive_path else None,
+                archive_revision=archive_revision,
             )
             for path in files[offset : offset + batch_size]
         )
@@ -149,7 +173,12 @@ def run_baseline(workloads: list[ParseDagDefinitions], root: Path, url: str, out
         with ParsingAPIClient(base_url=f"{url}/execution/", token=workload.token) as client:
             for definition in workload.definitions:
                 result = parse_definition(
-                    workload, definition, bundle_root=root, client=client, log_dir=output / "baseline-logs"
+                    workload,
+                    definition,
+                    bundle_root=root,
+                    client=client,
+                    log_dir=output / "baseline-logs",
+                    legacy=True,
                 )
                 results.append(result.model_dump(mode="json"))
     return {
@@ -208,7 +237,10 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=20)
     parser.add_argument("--baseline", action="store_true")
     parser.add_argument("--success-only", action="store_true")
+    parser.add_argument("--archive-members", action="store_true")
     args = parser.parse_args()
+    if args.archive_members and args.baseline:
+        parser.error("The legacy baseline compares ordinary files; run archive members separately")
     if args.definitions < 1 or args.parallelism < 1 or args.timeout <= 0:
         parser.error("definitions, parallelism and timeout must be positive")
     output = args.output.resolve() / uuid4().hex[:12]
@@ -216,6 +248,7 @@ def main() -> None:
     submitter_root = output / "submitter-bundle"
     worker_root = output / "worker-bundle"
     files = write_fixtures(submitter_root, args.definitions, not args.success_only)
+    archive = create_archive(files, submitter_root / "definitions.zip") if args.archive_members else None
     shutil.copytree(submitter_root, worker_root)
     signing_key = Ed25519PrivateKey.generate()
     public_key_path = output / "verification-key.pem"
@@ -254,7 +287,7 @@ def main() -> None:
                 output,
             )
         workloads = create_workloads(
-            files, batch_size=args.batch_size, timeout=args.timeout, generator=generator
+            files, batch_size=args.batch_size, timeout=args.timeout, generator=generator, archive_path=archive
         )
         for workload in workloads:
             store.register_workload(workload)
@@ -272,13 +305,16 @@ def main() -> None:
             if result["outcome"] == "success"
         }
         expected_dags = {
-            f"success_{index}.py": [f"executor_parsing_poc_{index}"] for index in range(args.definitions)
+            f"{'definitions.zip/' if archive else ''}success_{index}.py": [f"executor_parsing_poc_{index}"]
+            for index in range(args.definitions)
         }
         expected = {"success": args.definitions}
         if not args.success_only:
             expected.update({"import_error": 1, "timeout": 1})
         summary = {
             "mode": "standalone LocalExecutor; development authenticated result API",
+            "importer": "SDK",
+            "definition_kind": "zip_member" if archive else "file",
             "output": str(output),
             "submitter_root": str(submitter_root),
             "worker_root": str(worker_root),

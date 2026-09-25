@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Experimental filesystem definition transport for the executor parsing proof of concept."""
+"""Experimental SDK definition references for the executor parsing proof of concept."""
 
 from __future__ import annotations
 
@@ -62,6 +62,8 @@ class DagDefinitionAttempt(BaseModel):
     relative_path: str = Field(min_length=1)
     source_revision: str = Field(min_length=1)
     timeout_seconds: float = Field(gt=0, allow_inf_nan=False)
+    archive_path: str | None = None
+    archive_revision: str | None = Field(default=None, min_length=1)
 
     @field_validator("relative_path")
     @classmethod
@@ -77,6 +79,24 @@ class DagDefinitionAttempt(BaseModel):
         ):
             raise ValueError("Definition paths must be relative POSIX paths within the bundle")
         return value
+
+    @model_validator(mode="after")
+    def validate_archive_reference(self) -> DagDefinitionAttempt:
+        if (self.archive_path is None) != (self.archive_revision is None):
+            raise ValueError("Archive references require both archive_path and archive_revision")
+        if self.archive_path is not None:
+            self.validate_relative_path(self.archive_path)
+            archive = PurePosixPath(self.archive_path)
+            if archive.suffix != ".zip" or str(archive) != self.archive_path:
+                raise ValueError("archive_path must be a canonical relative ZIP path")
+            prefix = self.archive_path + "/"
+            if not self.relative_path.startswith(prefix):
+                raise ValueError("An archive definition must identify a member below archive_path")
+            member = self.relative_path[len(prefix) :]
+            self.validate_relative_path(member)
+            if str(PurePosixPath(member)) != member:
+                raise ValueError("Archive member paths must be canonical")
+        return self
 
 
 class ParseDagDefinitions(BaseWorkloadSchema):

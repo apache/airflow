@@ -25,6 +25,9 @@
 Checkpoint: September 25, 2026. Branch: `codex/dag-parsing-executor-poc`.
 Base: `61d99c0374e77cefdc8f4bad495cb5d6c0bfc43b`.
 
+The initial implementation checkpoint is commit `9706237a63`. The
+[SDK importer follow-up](#sdk-importer-follow-up) records the subsequent integration.
+
 This work tests whether parsing can reuse executor placement and lifecycle management
 without sharing task capacity. LocalExecutor and an isolated Celery worker now run
 bounded parsing batches, publish authenticated results, and recover unfinished work
@@ -80,7 +83,8 @@ fresh execution UUID for each delivery.
 The worker resolves the bundle against its own configured root, checks containment
 and source revisions, and invokes the current core `DagFileProcessorProcess` bridge.
 Live SDK Dag objects stay inside the importing runtime; serialized per-definition
-results cross HTTP. The SDK AIP-85 definition/importer interfaces are not exercised.
+results cross HTTP. The initial checkpoint did not exercise the SDK AIP-85
+definition/importer interfaces; the follow-up below does.
 
 Each batch member has its own result and supervised import timeout. Source hashes
 are checked around importing. Attempt-ID JSONL logs are written locally or to stdout;
@@ -170,7 +174,7 @@ legacy callers retain their existing retry behavior.
 The worker can include UTF-8 Python source. Acceptance verifies its SHA-256 and supplies
 it to DagCode persistence, so the API need not read worker-local files. Source text counts
 toward the request limit. Explicit empty source is distinguished from missing source.
-Archives and other encodings are outside this metadata checkpoint.
+Archives and other encodings were outside the initial metadata checkpoint.
 
 First acceptance validates the claim, deadline, bundle/version, registered source, and
 current attempt. Logical paths are normalized, version data is preserved, and a definition
@@ -310,10 +314,93 @@ and task `sample` reached `scheduled`. Runtime source hashes matched before and 
 the final experiments. Artifact scans found no JWT strings or private-key markers.
 Runtime databases, logs, copied fixtures, and container inspections are not source files.
 
+## SDK importer follow-up
+
+The worker now uses `DagImporterRegistry`, `FilesystemDagDefinition`, and
+`ZipMemberDagDefinition` from the Task SDK. Importer selection, user code, validation,
+policy checks, and serialization run inside the supervised child. The executor and
+orchestrator receive serialized results. Core still supplies validation, policies,
+and serialization; this is not a runtime with only the SDK installed. The PoC driver
+retains an explicit legacy path for baseline comparisons.
+
+The new [importing adapter](../../airflow-core/src/airflow/dag_processing/executor_importer.py)
+retains cycle checks, executor-field validation, default team pools, cluster-policy
+skip/rejection, and stability checks. SDK import warnings become diagnostics; ordinary
+import failures keep the registered definition's relative identity. Tests cover normal
+return, timeout, and abrupt process exit; successful importing is also exercised under
+fresh-interpreter launch.
+
+An archive member has its own attempt and content hash, plus `archive_path` and
+`archive_revision`. The archive hash covers changes to sibling dependencies.
+References reject traversal, incomplete archive identities, and ambiguous member paths.
+The worker reconstructs the SDK definition after importing to avoid accepting cached
+member bytes after a source change. A whole archive is not one SDK definition.
+Transport remains limited to files and archive members; arbitrary Python objects or
+importer class names are not accepted in workload payloads.
+
+Source publication uses the SDK importer's `get_source_code()` inside the child and
+checks the returned UTF-8 source against the registered member hash. The metadata API
+can therefore persist archive-member source without opening the worker's archive.
+Claims, immutable receipts, acknowledgment recovery, and durable admission semantics
+retain the preceding checkpoint's contracts.
+
+| Live experiment | Outcome and local evidence |
+| --- | --- |
+| SDK Python files through LocalExecutor | Two successes, one import error, one timeout; legacy baseline still runs separately. `poc-runs/75549eb2814b/` |
+| SDK archive members through LocalExecutor | Same four outcomes; two batch dispatches and separate per-member results. `poc-runs/9e6d71979106/` |
+| SDK archive members through isolated Celery | Same outcomes; accepted redelivery preserved receipts/import counts, and an active duplicate did not replace the original execution. `poc-runs/sdk-celery-20260925-01/` |
+| SDK archive member into metadata and scheduler | One import across two accepted deliveries; metadata unchanged on replay; Dag run running and task `sample` scheduled. `poc-runs/sdk-metadata-20260925-01/` |
+
+The Celery runs retained the credential and filesystem restrictions from the earlier
+experiment. Their runtime source hashes matched before and after execution. Neither
+experiment executed the scheduled task. The previous live worker-loss/restart experiment
+has not been repeated with the SDK adapter.
+
+The affected regression suite passed **446 tests**, covering SDK importing, worker
+publication, Local/Celery dispatch, API acceptance, metadata, and admission/recovery.
+Core/dev type checks, Ruff, SDK-import checks, and the documentation links also passed.
+The cached Breeze image still reports an unknown pytest-configuration warning.
+Evidence is retained in `sdk-regression-final.log`, `sdk-types-final.log`, and
+`sdk-hooks-final.log`.
+
+One success-case test initially exceeded its ten-second budget during cold interpreter
+startup. Its fixture now allows thirty seconds; explicit termination tests retain
+one-second timeouts. Production timeout behavior was not relaxed. This is another
+reason to measure startup cost before drawing a performance conclusion.
+
+Both remote workers, their dedicated broker, and the test network were removed.
+The pre-existing container inventory was unchanged. Scans of the retained remote-run
+JSON and logs found no JWT strings or private-key markers.
+
+The development drivers accept `--archive-members` for the archive variant. The Local
+driver's `--baseline` remains a comparison against the legacy file importer and cannot
+be combined with that option. Actual invocations used inside Breeze were:
+
+```bash
+breeze run python -m dev.dag_parsing_poc.run --baseline
+breeze run python -m dev.dag_parsing_poc.run --archive-members
+breeze run python -m dev.dag_parsing_poc.run_celery \
+  --output /files/dag-parsing-aip/poc-runs/sdk-celery-NEW \
+  --broker-url redis://poc-broker:6379/0 \
+  --result-backend redis://poc-broker:6379/1 --queue poc-sdk --archive-members
+breeze run python dev/dag_parsing_poc/run_metadata.py \
+  --output /files/dag-parsing-aip/poc-runs/sdk-metadata-NEW --archive-members
+```
+
+Use the cached-image options recorded above when reproducing this environment.
+Remote runs require the same isolated network and worker setup described earlier;
+their exact launch arguments and inspections are retained with the local evidence.
+
+Custom definition codecs, general discovery/dependency transport, parse-time API
+reads, and an independent SDK serialization runtime remain outside this checkpoint.
+These experiments establish correctness for the tested Python and archive-member
+paths, not comparative performance or completion of M0.
+
 ## Remaining work
 
 1. Agree AIP-85 importer/discovery boundaries and AIP-92 production API/token contracts.
-   Exercise the SDK importer instead of the core bridge, including custom definitions.
+   Extend SDK coverage beyond Python files/archive members to custom definitions,
+   discovery, and dependency transport.
 2. Validate Kubernetes placement, termination, recovery, and dispatch cardinality.
    Extend Celery evidence to automatic broker redelivery and uncertain submission.
 3. Design production schema, authorization, source ownership, and transactional
