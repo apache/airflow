@@ -126,7 +126,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
     :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
-    :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed.
+    :param stop_job_run_on_kill: If True, stop the job run when the task is killed, including a
+        deferred task that is cleared while running. Defaults to False.
     :param sleep_before_return: time in seconds to wait before returning final status. This is meaningful in case
         of limiting concurrency, Glue needs 5-10 seconds to clean up resources.
         Thus if status is returned immediately it might end up in case of more than 1 concurrent run.
@@ -369,6 +370,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     region_name=self.region_name,
                     verify=self.verify,
                     botocore_config=self.botocore_config,
+                    stop_job_run_on_kill=self.stop_job_run_on_kill,
                 ),
                 method_name="execute_complete",
             )
