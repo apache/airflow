@@ -1,0 +1,83 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# FORK / RunsOn test only. Self-owned, S3-backed drop-in for
+# apache/infrastructure-actions/stash/save. See stash-s3-restore for rationale.
+#
+# `path` may be a file, directory, or glob; matching entries are archived with
+# `tar -P` (absolute and workspace-relative paths preserved) and uploaded to
+# s3://<bucket>/cache/airflow-stash/<key>.tar.gz. `retention-days` is accepted for
+# compatibility but ignored — the RunsOn stack's lifecycle rule
+# (S3CacheExpirationInDays) expires the objects instead.
+name: 'Save stash to S3'
+description: 'S3-backed drop-in for stash/save (RunsOn fork test).'
+inputs:
+  key:
+    description: 'Stash key; used as the S3 object name (slashes allowed).'
+    required: true
+  path:
+    description: 'File, directory, or glob to archive and upload.'
+    required: true
+  bucket:
+    description: 'S3 bucket to store the stash in (the RunsOn stack cache bucket).'
+    required: false
+    default: 'runs-on-shahar1-s3bucketcache-bnadailbcwed'
+  if-no-files-found:
+    description: "'error' to fail when path matches nothing, otherwise 'warn'."
+    required: false
+    default: 'warn'
+  retention-days:
+    description: 'Compatibility only — ignored (use an S3 lifecycle rule).'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      env:
+        STASH_KEY: ${{ inputs.key }}
+        STASH_PATH: ${{ inputs.path }}
+        STASH_BUCKET: ${{ inputs.bucket }}
+        IF_NO_FILES_FOUND: ${{ inputs.if-no-files-found }}
+        AWS_DEFAULT_REGION: us-east-2
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        # Expand globs in the path, then keep only entries that actually exist.
+        # shellcheck disable=SC2206
+        candidates=( ${STASH_PATH} )
+        existing=()
+        for p in "${candidates[@]}"; do
+          if [ -e "${p}" ]; then
+            existing+=( "${p}" )
+          fi
+        done
+        if [ ${#existing[@]} -eq 0 ]; then
+          if [ "${IF_NO_FILES_FOUND}" = "error" ]; then
+            echo "::error::No files found for path '${STASH_PATH}'"
+            exit 1
+          fi
+          echo "::warning::No files found for path '${STASH_PATH}' — skipping save"
+          exit 0
+        fi
+        payload="${RUNNER_TEMP:-/tmp}/stash-save-$$.tar.gz"
+        tar -cPzf "${payload}" "${existing[@]}"
+        object="cache/airflow-stash/${STASH_KEY}.tar.gz"
+        aws s3 cp --only-show-errors "${payload}" "s3://${STASH_BUCKET}/${object}"
+        rm -f "${payload}"
+        echo "✅ Saved stash '${STASH_KEY}' (${existing[*]}) to s3://${STASH_BUCKET}"

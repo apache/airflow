@@ -623,9 +623,13 @@ class TestSFTPHook:
 
     def test_store_and_retrieve_directory_concurrently(self):
         stored_dir_name = "stored_dir"
+        # Explicit workers: the default is os.cpu_count(), which on large
+        # (self-hosted) runners spawns dozens of concurrent SSH sessions and
+        # trips the test sshd's MaxSessions/MaxStartups limits into a hang.
         self.hook.store_directory_concurrently(
             remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
             local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR),
+            workers=4,
         )
         output = self.hook.list_directory(
             path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name)
@@ -635,6 +639,7 @@ class TestSFTPHook:
         self.hook.retrieve_directory_concurrently(
             remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
             local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, retrieved_dir_name),
+            workers=4,
         )
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
 

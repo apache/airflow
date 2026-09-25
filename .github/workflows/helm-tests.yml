@@ -52,7 +52,7 @@ jobs:
     name: >-
       Unit tests Helm: ${{ matrix.helm-test-package }}
       (K8S ${{ matrix.kubernetes-version }})
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -98,7 +98,7 @@ jobs:
   tests-helm-release:
     timeout-minutes: 80
     name: "Release Helm"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -142,7 +142,13 @@ jobs:
         env:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Fetch Git Tags"
-        run: git fetch --tags
+        # Fork test: the helm-chart release tags
+        # (helm-chart/1.15.0, /1.16.0, ...) that the issue-content step diffs
+        # live in apache/airflow, not the fork, so fetch them explicitly here.
+        run: |
+          git fetch --tags
+          apache_url=https://github.com/apache/airflow.git
+          git fetch "${apache_url}" "refs/tags/helm-chart/*:refs/tags/helm-chart/*" || true
       - name: "Test helm chart issue generation"
         run: >
           breeze release-management generate-issue-content-helm-chart --limit-pr-count 2

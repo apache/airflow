@@ -823,6 +823,10 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
       apache-https-for-providers/main are available for git log range queries
 
     """
+    # Always point the apache remote at the canonical apache/airflow repo, regardless of
+    # which fork is running CI. Passing a fork URL here produces a broken remote that
+    # cannot resolve provider changelog tags or commit history.
+    _apache_repo_url = "https://github.com/apache/airflow.git"
     try:
         run_command(["git", "remote", "get-url", HTTPS_REMOTE], text=True, capture_output=True)
     except subprocess.CalledProcessError as ex:
@@ -833,7 +837,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
                     "remote",
                     "add",
                     HTTPS_REMOTE,
-                    f"https://github.com/{github_repository}.git",
+                    _apache_repo_url,
                 ],
                 check=True,
             )

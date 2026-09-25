@@ -87,6 +87,26 @@ from tests_common.test_utils.fernet import generate_fernet_key_string
 console = Console(width=400, color_system="standard")
 
 
+def _is_ghcr_airflow_image(image: str) -> bool:
+    """Return True for ghcr.io/<owner>/airflow[/...] images.
+
+    Parses the image reference properly instead of using substring matching,
+    so that 'airflow' must be the second path component (not anywhere in the string).
+    Handles optional tag (:tag) and digest (@sha256:...) suffixes.
+    """
+    image_no_digest = image.split("@", 1)[0]
+    last_slash = image_no_digest.rfind("/")
+    last_colon = image_no_digest.rfind(":")
+    if last_colon > last_slash:
+        image_no_digest = image_no_digest[:last_colon]
+    parts = image_no_digest.split("/")
+    if len(parts) < 3:
+        return False
+    registry = parts[0]
+    repo_parts = parts[1:]
+    return registry == "ghcr.io" and len(repo_parts) >= 2 and repo_parts[1] == "airflow"
+
+
 class _E2ETestState:
     compose_instance: DockerCompose | None = None
     airflow_logs_path: Path | None = None
@@ -961,9 +981,11 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
     # Skip pull for images that exist only locally and cannot be fetched from a registry:
-    # - ghcr.io/apache/airflow/: pre-pulled by the prepare_breeze_and_image CI step
+    # - ghcr.io/<owner>/airflow/: pre-pulled by the prepare_breeze_and_image CI step; fork
+    #   ghcr packages are private, so a `docker compose pull` there fails with an
+    #   authentication error even though the image is present locally.
     # - openlineage-e2e/: locally built by _build_openlineage_e2e_compat_image (never pushed)
-    pull = not DOCKER_IMAGE.startswith(("ghcr.io/apache/airflow/", "openlineage-e2e/"))
+    pull = not (_is_ghcr_airflow_image(DOCKER_IMAGE) or DOCKER_IMAGE.startswith("openlineage-e2e/"))
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")

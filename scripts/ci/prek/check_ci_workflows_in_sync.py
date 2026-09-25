@@ -86,7 +86,13 @@ LINE_RULES: list[tuple[str, str]] = [
     (r"^name: Tests \((?:ARM|AMD)\)$", "name: Tests (PLACEHOLDER)"),
     (r"^  group: ci-(?:arm|amd)-", "  group: ci-PLACEHOLDER-"),
     (r'^      platform: "linux/(?:arm64|amd64)"$', '      platform: "linux/PLACEHOLDER"'),
-    (r"^      runner-type: '\[\"ubuntu-22\.04(?:-arm)?\"\]'$", "      runner-type: 'PLACEHOLDER'"),
+    # Fork / RunsOn test: the label template carries the architecture-specific EC2
+    # families and image; jobs fill in cpu/ram.
+    (
+        r"^      runner-type: '\[\"runs-on=\$\{\{ github\.run_id \}\}/family=(?:m7a\+m7i\+m6a\+m6i|m8g\+m7g\+m6g)"
+        r"/image=ubuntu22-full-(?:x64|arm64)/volume=150gb/cpu=\{0\}/ram=\{1\}\"\]'$",
+        "      runner-type: 'PLACEHOLDER'",
+    ),
     (r'^          PLATFORM: "linux/(?:arm64|amd64)"$', '          PLATFORM: "linux/PLACEHOLDER"'),
     (
         r"^      # (?:ARM|AMD) copy\)\. The matching (?:AMD|ARM) copy lives in ci-(?:amd|arm)\.yml\.$",

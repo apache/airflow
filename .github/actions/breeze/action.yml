@@ -29,6 +29,12 @@ outputs:
 runs:
   using: "composite"
   steps:
+    # Fork / RunsOn test: prints the job's EC2 cost next to the GitHub-hosted price in the
+    # job summary. No-op on GitHub-hosted runners (build-info, the Windows smoke test).
+    - name: "RunsOn cost summary"
+      uses: runs-on/action@efac073ea2507ec18797de3a81704201ade11d9d  # v2.3.1
+      with:
+        show_costs: summary
     - name: "Setup python"
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
       with:

@@ -147,7 +147,8 @@ jobs:
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
-      runner-type: '["ubuntu-22.04-arm"]'
+      # yamllint disable-line rule:line-length
+      runner-type: '["runs-on=${{ github.run_id }}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={0}/ram={1}"]'
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -268,7 +269,9 @@ jobs:
       platform: ${{ needs.build-info.outputs.platform }}
       push-image: "false"
       upload-image-artifact: "true"
-      upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
+      # Fork test: save the mount cache on every run, not only on canary runs, so the
+      # uv cache is warm for the next image build.
+      upload-mount-cache-artifact: "true"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -353,7 +356,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy providers checks"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
     if: needs.build-info.outputs.run-mypy-providers == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -394,7 +397,7 @@ jobs:
     timeout-minutes: 20
     name: "Migration round-trip check"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     if: needs.build-info.outputs.has-migrations == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -516,7 +519,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -545,7 +548,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -574,7 +577,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -604,7 +607,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -633,7 +636,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -664,7 +667,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -695,7 +698,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -725,7 +728,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -811,7 +814,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -841,7 +844,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -952,7 +955,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -968,7 +971,7 @@ jobs:
   tests-go-sdk:
     name: "Go SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1056,7 +1059,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 32, 128) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1086,7 +1089,7 @@ jobs:
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1155,7 +1158,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 4, 16) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1363,7 +1366,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"

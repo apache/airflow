@@ -458,7 +458,7 @@ class TestSetupLangSdkTestNativeSelection:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda python, github_repository="apache/airflow": mock.Mock(airflow_image_kubernetes="img"),
         )
 
         kubernetes_commands._setup_lang_sdk_test(python="3.11", kubernetes_version="v1.35.0")
@@ -494,7 +494,7 @@ class TestSetupLangSdkTestSteps:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda python, github_repository="apache/airflow": mock.Mock(airflow_image_kubernetes="img"),
         )
         return recorded
 
