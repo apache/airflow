@@ -886,7 +886,9 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "deleted":
+        # EksDeleteClusterTrigger yields status "deleted" when the cluster is gone.
+        # Also accept "success" so a future transition to the usual event keeps working.
+        if validated_event["status"] in ("deleted", "success"):
             self.log.info("Cluster deleted successfully.")
 
 

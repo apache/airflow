@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
@@ -32,7 +32,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
@@ -1086,3 +1086,36 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert data["value"] == patch_value
         assert isinstance(data["value"], int), f"Expected int type but got {type(data['value'])}"
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_patch_xcom_preserves_mapped_length(self, test_client, session):
+        """set() replaces the row, so an edit must not drop the recorded expansion length."""
+        key = XCOM_RETURN_KEY
+        XComModel.set(
+            key=key,
+            value=[1, 2, 3],
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=run_id,
+            mapped_length=3,
+            session=session,
+        )
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
+            json={"value": [9, 9, 9]},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["value"] == [9, 9, 9]
+        assert (
+            session.scalar(
+                select(XComModel.mapped_length).where(
+                    XComModel.dag_id == TEST_DAG_ID,
+                    XComModel.task_id == TEST_TASK_ID,
+                    XComModel.run_id == run_id,
+                    XComModel.key == key,
+                )
+            )
+            == 3
+        )

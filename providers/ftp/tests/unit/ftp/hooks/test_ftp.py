@@ -174,6 +174,18 @@ class TestIntegrationFTPHook:
 
         create_connection_without_db(
             Connection(
+                conn_id="ftp_active_str", conn_type="ftp", host="localhost", extra='{"passive": "false"}'
+            )
+        )
+
+        create_connection_without_db(
+            Connection(
+                conn_id="ftp_passive_str", conn_type="ftp", host="localhost", extra='{"passive": "true"}'
+            )
+        )
+
+        create_connection_without_db(
+            Connection(
                 conn_id="ftp_custom_port",
                 conn_type="ftp",
                 host="localhost",
@@ -220,6 +232,16 @@ class TestIntegrationFTPHook:
 
         self._test_mode(FTPHook, "ftp_active", False)
 
+    @pytest.mark.parametrize(
+        ("connection_id", "expected_mode"),
+        [("ftp_active_str", False), ("ftp_passive_str", True)],
+    )
+    @mock.patch("ftplib.FTP")
+    def test_ftp_mode_from_string_extra(self, mock_ftp, connection_id, expected_mode):
+        from airflow.providers.ftp.hooks.ftp import FTPHook
+
+        self._test_mode(FTPHook, connection_id, expected_mode)
+
     @mock.patch("ftplib.FTP")
     def test_ftp_custom_port(self, mock_ftp):
         from airflow.providers.ftp.hooks.ftp import FTPHook
@@ -251,6 +273,16 @@ class TestIntegrationFTPHook:
         from airflow.providers.ftp.hooks.ftp import FTPSHook
 
         self._test_mode(FTPSHook, "ftp_active", False)
+
+    @pytest.mark.parametrize(
+        ("connection_id", "expected_mode"),
+        [("ftp_active_str", False), ("ftp_passive_str", True)],
+    )
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_mode_from_string_extra(self, mock_ftp, connection_id, expected_mode):
+        from airflow.providers.ftp.hooks.ftp import FTPSHook
+
+        self._test_mode(FTPSHook, connection_id, expected_mode)
 
     @mock.patch("ftplib.FTP")
     def test_ftp_encoding_extra(self, mock_ftp):

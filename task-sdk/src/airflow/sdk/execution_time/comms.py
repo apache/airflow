@@ -122,7 +122,13 @@ ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
 class DeadlockImminentError(BaseException):
     """
-    Raised when ``send()`` is called from the event loop thread while ``asend()`` holds the lock.
+    Raised when ``send()`` is called from the event loop thread while an ``asend()`` is in flight.
+
+    An in-flight ``asend()`` holds (or is waiting to take) the channel's thread lock and can only
+    release it once its event loop runs again. That loop runs on the calling thread, so a blocking
+    ``send()`` there can never be satisfied: the loop cannot run while the thread is blocked. This
+    holds whether the loop is currently running (a sync SDK call from inside a coroutine) or paused
+    between two ``run_until_complete`` calls (a sync SDK call from the code that drives the loop).
 
     Inherits from :class:`BaseException` so it escapes ``contextlib.suppress(Exception)``
     and always surfaces to the caller.
@@ -136,9 +142,11 @@ class DeadlockImminentError(BaseException):
     def __str__(self) -> str:
         return (
             f"comms.send() called from the event loop thread for message '{self.msg_type}' "
-            "— deadlock is imminent (asend() is concurrently in-flight). "
+            "— deadlock is imminent (asend() is concurrently in-flight and can only complete once "
+            "the event loop runs again on this thread). "
             "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
-            "from inside an async task. "
+            "from inside an async task, or a synchronous SDK call was made from the thread driving "
+            "the event loop while it was paused between two run_until_complete() calls. "
             "Use the async equivalents instead: "
             "await BaseHook.aget_hook() or await BaseHook.aget_connection()."
             f"\nOffending call stack:\n{self.stack}"
@@ -247,13 +255,37 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 return bool(asyncio.get_running_loop())
         return False
 
+    @property
+    def _asend_in_flight_on_this_thread(self) -> bool:
+        """
+        Whether an ``asend()`` coroutine of a loop that runs on the current thread is in flight.
+
+        ``asend()`` holds ``_async_lock`` for its whole duration, from before it takes
+        ``_thread_lock`` (in an executor thread) until after it releases it, so the async lock
+        being held is the reliable signal that the thread lock is, or is about to be, held by a
+        coroutine. Such a coroutine only makes progress when its loop runs, and that loop runs on
+        this thread. This is thread-scoped on purpose: a loop running on *another* thread keeps
+        going while this one blocks, so ``send()`` from there can safely wait for the lock.
+        """
+        return threading.get_ident() == self._loop_thread_id and self._async_lock.locked()
+
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
         frame_bytes = self._make_frame(msg).as_bytes()
 
-        # When called from the event loop thread, use non-blocking acquire to detect
-        # an imminent deadlock: an asend() coroutine currently holds _thread_lock and
-        # is waiting for the event loop to complete its I/O.
+        # An asend() in flight on this thread's loop can only release _thread_lock once that loop
+        # runs again, and the loop cannot run while this thread blocks in send(). Raise instead of
+        # blocking. This covers the loop being paused between two run_until_complete() calls, where
+        # the running-loop check below does not apply: asyncio.get_running_loop() raises, so send()
+        # would otherwise fall through to a blocking acquire and freeze the process with every
+        # thread idle (seen with a sync XCom read pulling the next iterated sub-task's input while a
+        # sub-task's asend() was parked mid-I/O).
+        if self._asend_in_flight_on_this_thread:
+            raise DeadlockImminentError(msg)
+
+        # When called from the event loop thread while the loop is running, use non-blocking
+        # acquire to detect an imminent deadlock: an asend() coroutine currently holds
+        # _thread_lock and is waiting for the event loop to complete its I/O.
         if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
             raise DeadlockImminentError(msg)
         try:

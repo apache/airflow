@@ -40,7 +40,11 @@ Here's the list of all the Database Migrations that are executed via when you ru
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
 | ``c7d4e8f1a203`` (head) | ``5182d0596ee2`` | ``3.4.0``         | Add workload_run_id to task_instance and                     |
-|                         |                  |                   | task_instance_history.                                       |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c9f4b3e7a218``        | ``3b7a91c5df20`` | ``3.4.0``         | Replace the ``job.team_name`` column with a ``job_team``     |
+|                         |                  |                   | association table.                                           |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``3b7a91c5df20``        | ``5182d0596ee2`` | ``3.4.0``         | Fold task_map into xcom.mapped_length.                       |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``5182d0596ee2``        | ``b6a9c2e7d410`` | ``3.4.0``         | Widen revoked_token.jti to store external-issuer token       |
 |                         |                  |                   | identifiers.                                                 |

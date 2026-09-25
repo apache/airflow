@@ -50,10 +50,15 @@ public class InterfaceExampleBuilder {
     }
   }
 
-  public static class Transform implements Task {
-    public void execute(@NotNull Context context, Client client) {
-      var extracted = client.getXCom("extract");
-      log.log(INFO, "Got XCom from extract: {0}", extracted);
+  public static class TransformInput implements TaskInput {
+    public long extracted;
+  }
+
+  // The Python Dag file calls transform(extracted), so the field of that name
+  // receives the extract task's XCom.
+  public static class Transform implements InputTask<TransformInput> {
+    public void execute(@NotNull Context context, Client client, TransformInput input) {
+      log.log(INFO, "Got extracted value from the bound argument: {0}", input.extracted);
 
       var variable = client.getVariable("my_variable");
       log.log(INFO, "Got variable: {0}", variable);
@@ -63,11 +68,24 @@ public class InterfaceExampleBuilder {
     }
   }
 
-  public static class Load implements Task {
-    public void execute(@NotNull Context context, Client client) {
-      var transformed = client.getXCom("transform");
-      log.log(INFO, "Got XCom from transform: {0}", transformed);
-      throw new RuntimeException("I failed");
+  public static class SummarizeInput implements TaskInput {
+    // Pinned so the field can be called region rather than regionCode. Or drop
+    // it: public String regionCode; binds region_code with nothing declared.
+    @ArgName("region_code")
+    public String region;
+
+    public long transformed;
+  }
+
+  // summarize(region_code=..., transformed=...) is called with keyword
+  // arguments, which bind to the fields by name.
+  public static class Summarize implements InputTask<SummarizeInput> {
+    public void execute(@NotNull Context context, Client client, SummarizeInput input) {
+      log.log(
+          INFO, "Summarize region {0} for transformed value {1}", input.region, input.transformed);
+      if (!"emea".equals(input.region)) {
+        throw new RuntimeException("expected region 'emea' but got " + input.region);
+      }
     }
   }
 
@@ -75,6 +93,6 @@ public class InterfaceExampleBuilder {
     return new DagDef("java_interface_example")
         .addTask("extract", Extract.class)
         .addTask("transform", Transform.class)
-        .addTask("load", Load.class);
+        .addTask("summarize", Summarize.class);
   }
 }
