@@ -24,13 +24,13 @@ from unittest.mock import PropertyMock
 
 import pytest
 from itsdangerous.url_safe import URLSafeSerializer
-from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -74,14 +74,10 @@ class TestTaskInstancesLog:
 
         for ti in dr.task_instances:
             ti.try_number = 1
+            ti.state = TaskInstanceState.FAILED
             ti.hostname = "localhost"
             session.merge(ti)
         dag.clear()
-        for ti in dr.task_instances:
-            ti.try_number = 2
-            ti.id = uuid7()
-            ti.hostname = "localhost"
-            session.merge(ti)
         # Commit changes to avoid locks
         session.commit()
 
@@ -99,14 +95,10 @@ class TestTaskInstancesLog:
 
         for ti in dr2.task_instances:
             ti.try_number = 1
+            ti.state = TaskInstanceState.FAILED
             ti.hostname = "localhost"
             session.merge(ti)
         dummy_dag.clear()
-        for ti in dr2.task_instances:
-            ti.try_number = 2
-            ti.id = uuid7()
-            ti.hostname = "localhost"
-            session.merge(ti)
 
         # Final commit to ensure all changes are persisted
         session.commit()
