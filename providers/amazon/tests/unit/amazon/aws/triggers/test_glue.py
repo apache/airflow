@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.triggers.glue import (
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.glue."
@@ -429,6 +430,9 @@ class TestGlueJobTrigger:
         mock_conn.batch_stop_job_run.assert_not_called()
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="get_task_state path is Airflow 3.x; 2.x uses get_task_instance"
+    )
     @pytest.mark.parametrize(
         ("task_state", "expected"),
         [(TaskInstanceState.RESTARTING, True), (TaskInstanceState.DEFERRED, False)],
