@@ -40,9 +40,10 @@ const BulkPauseDrainDagsButton = ({ deselectKeys, selectedDags }: Props) => {
     onSuccessConfirm: onClose,
   });
 
-  // Nothing is running in any selected Dag, so draining and pausing now are equivalent
+  // Nothing is running in any selected unpaused Dag, so draining and pausing now are equivalent
   // for the whole batch — skip the drain-vs-pause choice, same as the single-Dag toggle does.
-  const allIdle = selectedDags.every((dag) => !dag.has_unfinished_runs);
+  // Already-paused Dags are never drained (see runBulkAction), so their runs don't count.
+  const allIdle = selectedDags.every((dag) => dag.is_paused || !dag.has_unfinished_runs);
   const displayName = `${selectedDags.length} ${translate("dag", { count: selectedDags.length })}`;
 
   const runBulkAction = (schedulingState: DagSchedulingState) => {
@@ -53,7 +54,8 @@ const BulkPauseDrainDagsButton = ({ deselectKeys, selectedDags }: Props) => {
           action_on_non_existence: "skip",
           entities: selectedDags.map((dag) => ({
             dag_id: dag.dag_id,
-            scheduling_state: schedulingState,
+            // Draining a paused Dag would unpause it and let the scheduler resume its unfinished runs.
+            scheduling_state: dag.is_paused ? "paused" : schedulingState,
           })),
         },
       ],

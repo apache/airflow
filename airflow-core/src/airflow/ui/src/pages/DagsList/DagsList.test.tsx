@@ -24,6 +24,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { handlers } from "src/mocks/handlers";
+import { failedDag, pausedDag, successDag } from "src/mocks/handlers/dags";
 import { AppWrapper } from "src/utils/AppWrapper";
 
 let server: SetupServer;
@@ -102,48 +103,96 @@ describe("Dag Filters", () => {
   });
 });
 
+type BulkRequestBody = {
+  actions: Array<{ entities: Array<{ dag_id: string; scheduling_state: string }> }>;
+};
+
+const renderDagsAndSelectAll = async (dags: Array<typeof successDag>) => {
+  const captured: { body?: BulkRequestBody } = {};
+
+  server.use(
+    http.get("/ui/dags", () => HttpResponse.json({ dags, total_entries: dags.length })),
+    http.patch("/api/v2/dags/bulk", async ({ request }) => {
+      captured.body = (await request.json()) as BulkRequestBody;
+
+      return HttpResponse.json({
+        update: { errors: [], success: dags.map((dag) => dag.dag_id) },
+      });
+    }),
+  );
+
+  localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+  render(<AppWrapper initialEntries={["/dags"]} />);
+
+  await waitFor(() => expect(screen.getByText(dags[0]?.dag_display_name ?? "")).toBeInTheDocument());
+
+  fireEvent.click(within(screen.getByTestId("table-list")).getAllByRole("checkbox")[0] as HTMLInputElement);
+
+  return captured;
+};
+
+const getRequestedSchedulingStates = async (captured: { body?: BulkRequestBody }) => {
+  await waitFor(() => expect(captured.body).toBeDefined());
+
+  return Object.fromEntries(
+    (captured.body?.actions[0]?.entities ?? []).map((entity) => [entity.dag_id, entity.scheduling_state]),
+  );
+};
+
 describe("Bulk pause/drain Dags", () => {
-  it("pauses every selected Dag in one bulk request", async () => {
-    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+  it.each([
+    { pausedDagHasUnfinishedRuns: false, scenario: "no selected Dag has unfinished runs" },
+    { pausedDagHasUnfinishedRuns: true, scenario: "only an already-paused Dag has unfinished runs" },
+  ])(
+    "skips the drain choice and pauses every selected Dag when $scenario",
+    async ({ pausedDagHasUnfinishedRuns }) => {
+      const captured = await renderDagsAndSelectAll([
+        successDag,
+        failedDag,
+        { ...pausedDag, has_unfinished_runs: pausedDagHasUnfinishedRuns },
+      ]);
 
-    let requestBody: unknown;
+      fireEvent.click(await screen.findByTestId("bulk-pause-drain-dags"));
 
-    server.use(
-      http.patch("/api/v2/dags/bulk", async ({ request }) => {
-        requestBody = await request.json();
+      const confirmButton = await screen.findByTestId("confirmation-confirm-button");
 
-        return HttpResponse.json({
-          update: {
-            errors: [],
-            success: ["tutorial_taskflow_api_success", "tutorial_taskflow_api_failed", "paused_dag"],
-          },
-        });
-      }),
-    );
+      expect(screen.queryByTestId("drain-dag")).not.toBeInTheDocument();
+      fireEvent.click(confirmButton);
 
-    render(<AppWrapper initialEntries={["/dags"]} />);
+      expect(await getRequestedSchedulingStates(captured)).toEqual({
+        paused_dag: "paused",
+        tutorial_taskflow_api_failed: "paused",
+        tutorial_taskflow_api_success: "paused",
+      });
+    },
+  );
 
-    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+  it.each([
+    { choice: "drain-dag", expectedState: "draining" },
+    { choice: "pause-dag-now", expectedState: "paused" },
+  ])(
+    "offers the drain choice once for a mix of idle and running Dags and applies $choice to the unpaused ones",
+    async ({ choice, expectedState }) => {
+      const captured = await renderDagsAndSelectAll([
+        { ...successDag, has_unfinished_runs: true },
+        failedDag,
+        { ...pausedDag, has_unfinished_runs: true },
+      ]);
 
-    // Select every row via the header checkbox, then trigger the bulk action.
-    const table = screen.getByTestId("table-list");
+      fireEvent.click(await screen.findByTestId("bulk-pause-drain-dags"));
 
-    fireEvent.click(within(table).getAllByRole("checkbox")[0] as HTMLInputElement);
-    fireEvent.click(await screen.findByTestId("bulk-pause-drain-dags"));
+      const choiceButton = await screen.findByTestId(choice);
 
-    // Every mocked Dag has no unfinished runs, so pausing is a single confirm — no drain choice.
-    fireEvent.click(await screen.findByTestId("confirmation-confirm-button"));
+      expect(screen.queryByTestId("confirmation-confirm-button")).not.toBeInTheDocument();
+      fireEvent.click(choiceButton);
 
-    await waitFor(() => expect(requestBody).toBeDefined());
-    const [action] = (
-      requestBody as { actions: Array<{ entities: Array<{ dag_id: string; scheduling_state: string }> }> }
-    ).actions;
-
-    expect(action?.entities.map((entity) => entity.dag_id).sort()).toEqual(
-      ["paused_dag", "tutorial_taskflow_api_failed", "tutorial_taskflow_api_success"].sort(),
-    );
-    expect(action?.entities.every((entity) => entity.scheduling_state === "paused")).toBe(true);
-  });
+      expect(await getRequestedSchedulingStates(captured)).toEqual({
+        paused_dag: "paused",
+        tutorial_taskflow_api_failed: expectedState,
+        tutorial_taskflow_api_success: expectedState,
+      });
+    },
+  );
 });
 
 describe("Dag sorting", () => {
