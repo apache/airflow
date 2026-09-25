@@ -716,6 +716,8 @@ DEPRECATION WARNING:
     `workers.kerberosInitContainer` will be removed in Chart 2.0.
     When upgrading to Chart 2.0, configure `workers.celery.kerberosSidecar` and/or
     `workers.kubernetes.kerberosSidecar` instead.
+    The `kerberos-init` init container is replaced by the `worker-kerberos` container, so update
+    anything that refers to it by name, such as log collection, Pod patches, or monitoring.
 
 {{- end }}
 
@@ -727,6 +729,8 @@ DEPRECATION WARNING:
  DEPRECATION WARNING:
     `workers.{{ $workerType }}.kerberosInitContainer` will be removed in Chart 2.0.
     When upgrading to Chart 2.0, configure `workers.{{ $workerType }}.kerberosSidecar` instead.
+    The `kerberos-init` init container is replaced by the `worker-kerberos` container, so update
+    anything that refers to it by name, such as log collection, Pod patches, or monitoring.
 
 {{- end }}
 {{- end }}
@@ -737,6 +741,8 @@ DEPRECATION WARNING:
  DEPRECATION WARNING:
     `kerberosInitContainer` in Celery worker set {{ $workerSet.name | quote }} will be removed in Chart 2.0.
     When upgrading to Chart 2.0, configure `kerberosSidecar` for that worker set instead.
+    The `kerberos-init` init container is replaced by the `worker-kerberos` container, so update
+    anything that refers to it by name, such as log collection, Pod patches, or monitoring.
 
 {{- end }}
 {{- end }}
