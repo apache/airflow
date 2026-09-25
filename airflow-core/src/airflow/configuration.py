@@ -65,6 +65,12 @@ ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
 
+_AIRFLOW_V2_SENSITIVE_OPTIONS = {
+    ("core", "dataset_manager_kwargs"),
+    ("core", "internal_api_secret_key"),
+    ("smtp", "smtp_password"),
+}
+
 
 class _SecretKeys:
     """Holds the secret keys used in Airflow during runtime."""
@@ -334,7 +340,8 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 is_default = str(value) == str(default_value)
                 value_to_write = str(value)
                 if hide_sensitive and (
-                    self.is_sensitive_option(section, option)
+                    key in _AIRFLOW_V2_SENSITIVE_OPTIONS
+                    or self.is_sensitive_option(section, option)
                     or self.is_sensitive_option(effective_section, effective_option)
                 ):
                     value_to_write = "< hidden >"
