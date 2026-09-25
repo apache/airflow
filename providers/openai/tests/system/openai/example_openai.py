@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pendulum
+from pydantic import BaseModel
 
 # This example uses common.compat for Airflow 2.x/3.x compatibility.
 # If you only need Airflow 3+, you can use: from airflow.sdk import dag, task
@@ -131,6 +132,19 @@ def example_openai_dag():
         max_output_tokens="{{ params.tokens | default('', true) }}",
     )
     # [END howto_operator_openai_response]
+
+    # [START howto_operator_openai_response_structured]
+    class Person(BaseModel):
+        name: str
+        age: int
+
+    OpenAIResponseOperator(
+        task_id="openai_response_structured",
+        conn_id="openai_default",
+        input_text="Extract the name and age from: 'Alice is 30 years old'.",
+        text_format=Person,
+    )
+    # [END howto_operator_openai_response_structured]
 
     create_embeddings_using_hook()
 
