@@ -328,6 +328,7 @@ contextmgr
 contrib
 convertToIri
 cooldown
+Copilot
 copyable
 coreutils
 CoreV
