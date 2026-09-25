@@ -3285,7 +3285,7 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
-    exceeds_max_active_runs: Annotated[bool, Field(title="Exceeds Max Active Runs")]
+    is_at_max_active_runs: Annotated[bool, Field(title="Is At Max Active Runs")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None
     latest_dag_version: DagVersionResponse | None
     is_backfillable: Annotated[
