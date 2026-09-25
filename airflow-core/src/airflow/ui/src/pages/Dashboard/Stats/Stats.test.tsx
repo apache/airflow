@@ -48,7 +48,10 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("src/components/NeedsReviewButton", () => ({ NeedsReviewButtonWithModal: () => null }));
-vi.mock("src/utils", () => ({ useAutoRefresh: () => false }));
+vi.mock("src/utils", () => ({
+  useAutoRefresh: () => false,
+  useFormatNumber: () => String,
+}));
 vi.mock("./DagImportErrors", () => ({ DagImportErrors: () => null }));
 vi.mock("./PluginImportErrors", () => ({ PluginImportErrors: () => null }));
 

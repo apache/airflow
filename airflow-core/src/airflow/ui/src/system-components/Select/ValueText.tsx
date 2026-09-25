@@ -21,12 +21,15 @@ import { forwardRef, type ReactNode } from "react";
 import type { CollectionItem } from "@chakra-ui/react";
 import { Select as ChakraSelect } from "@chakra-ui/react";
 
+import { useFormatNumber } from "src/utils";
+
 type ValueTextProps = {
   readonly children?: (items: Array<CollectionItem>) => ReactNode;
 } & Omit<ChakraSelect.ValueTextProps, "children">;
 
 export const ValueText = forwardRef<HTMLSpanElement, ValueTextProps>((props, ref) => {
   const { children, ...rest } = props;
+  const formatNumber = useFormatNumber();
 
   return (
     <ChakraSelect.ValueText {...rest} ref={ref}>
@@ -44,7 +47,7 @@ export const ValueText = forwardRef<HTMLSpanElement, ValueTextProps>((props, ref
             return select.collection.stringifyItem(items[0]);
           }
 
-          return `${items.length} selected`;
+          return `${formatNumber(items.length)} selected`;
         }}
       </ChakraSelect.Context>
     </ChakraSelect.ValueText>

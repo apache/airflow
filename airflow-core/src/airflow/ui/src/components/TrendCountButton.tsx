@@ -19,6 +19,8 @@
 import { HStack, Badge, Text, Skeleton } from "@chakra-ui/react";
 import { Link, type To } from "react-router-dom";
 
+import { useFormatNumber } from "src/utils";
+
 import { TrendCountChart, type ChartEvent } from "./TrendCountChart";
 
 type Props = {
@@ -41,8 +43,10 @@ export const TrendCountButton = ({
   label,
   route,
   startDate,
-}: Props) =>
-  isLoading ? (
+}: Props) => {
+  const formatNumber = useFormatNumber();
+
+  return isLoading ? (
     <Skeleton borderRadius={4} height="45px" width="350px" />
   ) : (
     <Link to={route}>
@@ -57,7 +61,7 @@ export const TrendCountButton = ({
         width="350px"
       >
         <Badge borderRadius="md" colorPalette={colorPalette} variant="solid">
-          {count}
+          {formatNumber(count)}
         </Badge>
         <Text fontSize="sm" fontWeight="bold">
           {label}
@@ -66,3 +70,4 @@ export const TrendCountButton = ({
       </HStack>
     </Link>
   );
+};

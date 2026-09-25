@@ -26,6 +26,8 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 import { StateBadge } from "src/components/StateBadge";
 
+import { useFormatNumber } from "src/utils";
+
 export const StatsCard = ({
   colorScheme,
   count,
@@ -47,6 +49,8 @@ export const StatsCard = ({
   readonly onClick?: () => void;
   readonly state?: TaskInstanceState | null;
 }) => {
+  const formatNumber = useFormatNumber();
+
   if (isLoading) {
     return <Skeleton borderRadius="lg" height="42px" width="175px" />;
   }
@@ -63,7 +67,7 @@ export const StatsCard = ({
     >
       <StateBadge colorPalette={colorScheme} mr={2} state={state}>
         {icon}
-        {count}
+        {formatNumber(count)}
       </StateBadge>
 
       <Text color="fg" fontSize="sm" fontWeight="bold">

@@ -33,6 +33,7 @@ import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 
 import { useBulkPatchDagRun } from "src/queries/useBulkPatchDagRun";
+import { useFormatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -41,6 +42,7 @@ type Props = {
 
 const BulkMarkDagRunsAsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
   const { t: translate } = useTranslation(["common", "dags"]);
+  const formatNumber = useFormatNumber();
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<DagRunMutableStates>("success");
   const [note, setNote] = useState<string | null>(null);
@@ -75,7 +77,7 @@ const BulkMarkDagRunsAsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
               <HStack justify="space-between" width="full">
                 <StateBadge state={menuState}>{translate(`common:states.${menuState}`)}</StateBadge>
                 <Badge colorPalette="gray" variant="subtle">
-                  {selectedDagRuns.length}
+                  {formatNumber(selectedDagRuns.length)}
                 </Badge>
               </HStack>
             </Menu.Item>

@@ -53,7 +53,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
+import { useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle, useFormatNumber } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -240,6 +240,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
 
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
+  const formatNumber = useFormatNumber();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -405,7 +406,7 @@ export const DagRuns = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />

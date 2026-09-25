@@ -34,6 +34,7 @@ import { StateBadge } from "src/components/StateBadge";
 
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
+import { useFormatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -42,6 +43,7 @@ type Props = {
 
 const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
   const { t: translate } = useTranslation();
+  const formatNumber = useFormatNumber();
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<TaskInstanceState>("success");
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
@@ -113,7 +115,7 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
                 <HStack justify="space-between" width="full">
                   <StateBadge state={menuState}>{translate(`common:states.${menuState}`)}</StateBadge>
                   <Badge colorPalette="gray" variant="subtle">
-                    {count}
+                    {formatNumber(count)}
                   </Badge>
                 </HStack>
               </Menu.Item>

@@ -16,32 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Text } from "@chakra-ui/react";
+import "@testing-library/jest-dom";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
-import { useFormatNumber } from "src/utils";
+import { Wrapper } from "src/utils/Wrapper";
 
-type Props = {
-  readonly count: number | null;
-};
+import { ImportErrorCount } from "./ImportErrorCount";
 
-/**
- * An import-error count, flagged red only when there is something to flag.
- *
- * Null is not zero: it means the caller may not read import errors, so it renders as unknown
- * rather than as a clean bill of health.
- */
-export const ImportErrorCount = ({ count }: Props) => {
-  const formatNumber = useFormatNumber();
+describe("ImportErrorCount", () => {
+  it("groups thousands in the count", () => {
+    render(<ImportErrorCount count={1234} />, { wrapper: Wrapper });
 
-  if (count === null) {
-    return <Text color="fg.muted">-</Text>;
-  }
-
-  return count === 0 ? (
-    <Text color="fg.muted">0</Text>
-  ) : (
-    <Badge colorPalette="failed" variant="solid">
-      {formatNumber(count)}
-    </Badge>
-  );
-};
+    expect(screen.getByText("1,234")).toBeInTheDocument();
+  });
+});

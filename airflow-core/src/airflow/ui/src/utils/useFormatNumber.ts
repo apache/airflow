@@ -16,32 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Text } from "@chakra-ui/react";
+import { useCallback } from "react";
 
-import { useFormatNumber } from "src/utils";
+import { useTranslation } from "react-i18next";
 
-type Props = {
-  readonly count: number | null;
-};
+import { createIntlCache } from "./intlCache";
 
-/**
- * An import-error count, flagged red only when there is something to flag.
- *
- * Null is not zero: it means the caller may not read import errors, so it renders as unknown
- * rather than as a clean bill of health.
- */
-export const ImportErrorCount = ({ count }: Props) => {
-  const formatNumber = useFormatNumber();
+const numberFormatter = createIntlCache<Intl.NumberFormat>();
 
-  if (count === null) {
-    return <Text color="fg.muted">-</Text>;
-  }
+const getNumberFormatter = (locale: string): Intl.NumberFormat =>
+  numberFormatter("number", locale, (forLocale) => new Intl.NumberFormat(forLocale));
 
-  return count === 0 ? (
-    <Text color="fg.muted">0</Text>
-  ) : (
-    <Badge colorPalette="failed" variant="solid">
-      {formatNumber(count)}
-    </Badge>
-  );
+/** Locale digit grouping for counters rendered outside translations; use instead of `toLocaleString`. */
+export const useFormatNumber = (): ((value: number) => string) => {
+  const { i18n } = useTranslation();
+  const locale = i18n.language;
+
+  return useCallback((value: number) => getNumberFormatter(locale).format(value), [locale]);
 };

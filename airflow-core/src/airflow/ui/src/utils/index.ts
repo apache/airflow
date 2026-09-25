@@ -27,5 +27,6 @@ export { useDocumentTitle } from "./useDocumentTitle";
 export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
 export { DocumentTitleProvider } from "./useDocumentTitleProvider";
 export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
+export { useFormatNumber } from "./useFormatNumber";
 export * from "./query";
 export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";

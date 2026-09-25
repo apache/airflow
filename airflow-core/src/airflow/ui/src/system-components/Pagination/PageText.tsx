@@ -21,18 +21,21 @@ import { forwardRef } from "react";
 import type { TextProps } from "@chakra-ui/react";
 import { Text, usePaginationContext } from "@chakra-ui/react";
 
+import { useFormatNumber } from "src/utils";
+
 type PageTextProps = {
   readonly format?: "compact" | "long" | "short";
 } & TextProps;
 
 export const PageText = forwardRef<HTMLParagraphElement, PageTextProps>((props, ref) => {
   const { format = "compact", ...rest } = props;
+  const formatNumber = useFormatNumber();
   const { count, page, pageRange, pages } = usePaginationContext();
 
   const content = {
-    compact: `${page} of ${pages.length}`,
-    long: `${pageRange.start + 1} - ${pageRange.end} of ${count}`,
-    short: `${page} / ${pages.length}`,
+    compact: `${formatNumber(page)} of ${formatNumber(pages.length)}`,
+    long: `${formatNumber(pageRange.start + 1)} - ${formatNumber(pageRange.end)} of ${formatNumber(count)}`,
+    short: `${formatNumber(page)} / ${formatNumber(pages.length)}`,
   };
 
   return (

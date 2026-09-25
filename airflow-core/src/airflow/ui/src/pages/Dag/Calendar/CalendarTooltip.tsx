@@ -22,6 +22,8 @@ import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 
+import { useFormatNumber } from "src/utils";
+
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
 const SQUARE_SIZE = "12px";
@@ -42,6 +44,7 @@ const stateColorMap = {
 
 export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
   const { t: translate } = useTranslation(["dag", "common"]);
+  const formatNumber = useFormatNumber();
 
   if (!cellData) {
     return undefined;
@@ -95,7 +98,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
                 width={SQUARE_SIZE}
               />
               <Text fontSize="xs">
-                {count} {state}
+                {formatNumber(count)} {state}
               </Text>
             </HStack>
           ))}
