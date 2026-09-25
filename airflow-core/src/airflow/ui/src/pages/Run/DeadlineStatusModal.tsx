@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 
 import { Modal, Pagination } from "src/system-components";
 
@@ -31,12 +32,14 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
 import { useDurationFormat } from "src/utils";
+import { translateCompletionRule } from "src/utils/deadlines";
 
 import { CallbackLogViewer } from "./CallbackLogViewer";
 
 const PAGE_LIMIT = 10;
 
 type DeadlineStatusModalProps = {
+  readonly alertMap: Map<string, DeadlineAlertResponse>;
   readonly dagId: string;
   readonly dagRunId: string;
   readonly onClose: () => void;
@@ -45,6 +48,7 @@ type DeadlineStatusModalProps = {
 };
 
 export const DeadlineStatusModal = ({
+  alertMap,
   dagId,
   dagRunId,
   onClose,
@@ -52,7 +56,7 @@ export const DeadlineStatusModal = ({
   runEndDate,
 }: DeadlineStatusModalProps) => {
   const { t: translate } = useTranslation("dag");
-  const { renderDuration } = useDurationFormat();
+  const { locale, renderDuration } = useDurationFormat();
   const [page, setPage] = useState(1);
   const offset = (page - 1) * PAGE_LIMIT;
 
@@ -114,23 +118,22 @@ export const DeadlineStatusModal = ({
       ) : (
         <VStack gap={0} separator={<Separator />}>
           {deadlines.map((dl) => {
+            const alert =
+              dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
+            const completionRule = translateCompletionRule(translate, alert, locale);
             const deadlineTime = dayjs(dl.deadline_time);
 
-            let missedStatusLabel: string | undefined;
+            let actualDurationLabel: string | undefined;
 
-            if (dl.missed) {
-              if (runEndDate === undefined) {
-                missedStatusLabel = translate("deadlineStatus.stillRunning");
-              } else {
-                const diff = dayjs(runEndDate).diff(deadlineTime);
-                const dur = renderDuration(Math.abs(diff) / 1000);
+            if (dl.missed && runEndDate !== undefined) {
+              const diff = dayjs(runEndDate).diff(deadlineTime);
+              const dur = renderDuration(Math.abs(diff) / 1000);
 
-                if (dur !== undefined) {
-                  missedStatusLabel =
-                    diff >= 0
-                      ? translate("deadlineStatus.finishedLate", { duration: dur })
-                      : translate("deadlineStatus.finishedEarly", { duration: dur });
-                }
+              if (dur !== undefined) {
+                actualDurationLabel =
+                  diff >= 0
+                    ? translate("deadlineStatus.finishedLate", { duration: dur })
+                    : translate("deadlineStatus.finishedEarly", { duration: dur });
               }
             }
 
@@ -150,15 +153,32 @@ export const DeadlineStatusModal = ({
                     <CallbackLogViewer callbackId={dl.callback_id} dagId={dagId} dagRunId={dagRunId} />
                   )}
                 </HStack>
+                {completionRule === undefined ? undefined : (
+                  <Text color="fg.muted" fontSize="xs">
+                    {completionRule}
+                  </Text>
+                )}
                 <HStack gap={1}>
                   <Text color="fg.muted" fontSize="xs">
                     {translate("deadlineStatus.expected")}:
                   </Text>
                   <Time datetime={dl.deadline_time} fontSize="xs" />
                 </HStack>
-                {missedStatusLabel === undefined ? undefined : (
-                  <Text color="fg.error" fontSize="xs">
-                    {missedStatusLabel}
+                <HStack gap={1}>
+                  <Text color="fg.muted" fontSize="xs">
+                    {translate("deadlineStatus.actual")}:
+                  </Text>
+                  {runEndDate === undefined ? (
+                    <Text color="fg.muted" fontSize="xs">
+                      {translate("deadlineStatus.stillRunning")}
+                    </Text>
+                  ) : (
+                    <Time datetime={runEndDate} fontSize="xs" />
+                  )}
+                </HStack>
+                {actualDurationLabel === undefined ? undefined : (
+                  <Text color="fg.error" fontSize="xs" pl={1}>
+                    {actualDurationLabel}
                   </Text>
                 )}
               </VStack>

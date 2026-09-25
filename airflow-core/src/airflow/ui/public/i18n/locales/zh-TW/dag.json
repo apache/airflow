@@ -52,6 +52,7 @@
     }
   },
   "deadlineStatus": {
+    "actual": "實際",
     "expected": "預期",
     "finishedEarly": "提前 {{duration}} 達成期限",
     "finishedLate": "逾期 {{duration}} 完成",
@@ -61,6 +62,7 @@
     "missedCount_one": "{{count}} 個已逾期的期限",
     "missedCount_other": "{{count}} 個已逾期的期限",
     "mixedCount": "{{missedCount}} 個已逾期，{{upcomingCount}} 個即將到期",
+    "stillRunning": "仍在執行中",
     "upcoming": "即將到期",
     "upcomingCount_one": "{{count}} 個即將到期的期限",
     "upcomingCount_other": "{{count}} 個即將到期的期限"

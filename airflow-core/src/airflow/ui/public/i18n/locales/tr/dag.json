@@ -51,6 +51,7 @@
     }
   },
   "deadlineStatus": {
+    "actual": "Gerçekleşen",
     "expected": "Beklenen",
     "finishedEarly": "Son tarihten {{duration}} önce tamamlandı",
     "finishedLate": "Son tarihten {{duration}} sonra tamamlandı",
@@ -60,6 +61,7 @@
     "missedCount_one": "{{count}} Kaçırılan Son Tarih",
     "missedCount_other": "{{count}} Kaçırılan Son Tarih",
     "mixedCount": "{{missedCount}} Kaçırılan, {{upcomingCount}} Yaklaşan",
+    "stillRunning": "Hâlâ çalışıyor",
     "upcoming": "Yaklaşan",
     "upcomingCount_one": "{{count}} Yaklaşan Son Tarih",
     "upcomingCount_other": "{{count}} Yaklaşan Son Tarih"

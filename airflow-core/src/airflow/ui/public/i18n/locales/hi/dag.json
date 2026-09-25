@@ -51,6 +51,7 @@
     }
   },
   "deadlineStatus": {
+    "actual": "वास्तविक",
     "expected": "अपेक्षित",
     "finishedEarly": "डेडलाइन से {{duration}} पहले समाप्त",
     "finishedLate": "डेडलाइन के {{duration}} बाद समाप्त",
@@ -60,6 +61,7 @@
     "missedCount_one": "{{count}} छूटी हुई डेडलाइन",
     "missedCount_other": "{{count}} छूटी हुई डेडलाइन",
     "mixedCount": "{{missedCount}} छूटी हुई, {{upcomingCount}} आगामी",
+    "stillRunning": "अभी भी चल रहा है",
     "upcoming": "आगामी",
     "upcomingCount_one": "{{count}} आगामी डेडलाइन",
     "upcomingCount_other": "{{count}} आगामी डेडलाइन"

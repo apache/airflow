@@ -51,6 +51,7 @@
     }
   },
   "deadlineStatus": {
+    "actual": "Πραγματικό",
     "expected": "Αναμενόμενο",
     "finishedEarly": "Ολοκληρώθηκε {{duration}} πριν από την προθεσμία",
     "finishedLate": "Ολοκληρώθηκε {{duration}} μετά την προθεσμία",
@@ -60,6 +61,7 @@
     "missedCount_one": "{{count}} Χαμένη Προθεσμία",
     "missedCount_other": "{{count}} Χαμένες Προθεσμίες",
     "mixedCount": "{{missedCount}} Χαμένες, {{upcomingCount}} Επερχόμενες",
+    "stillRunning": "Εκτελείται ακόμη",
     "upcoming": "Επερχόμενη",
     "upcomingCount_one": "{{count}} Επερχόμενη Προθεσμία",
     "upcomingCount_other": "{{count}} Επερχόμενες Προθεσμίες"

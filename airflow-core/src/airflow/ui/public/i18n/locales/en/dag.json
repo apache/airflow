@@ -57,6 +57,7 @@
     }
   },
   "deadlineStatus": {
+    "actual": "Actual",
     "expected": "Expected",
     "finishedEarly": "Finished {{duration}} before deadline",
     "finishedLate": "Finished {{duration}} after deadline",
@@ -66,7 +67,7 @@
     "missedCount_one": "{{count}} Missed Deadline",
     "missedCount_other": "{{count}} Missed Deadlines",
     "mixedCount": "{{missedCount}} Missed, {{upcomingCount}} Upcoming",
-    "stillRunning": "Dag still running",
+    "stillRunning": "Still running",
     "upcoming": "Upcoming",
     "upcomingCount_one": "{{count}} Upcoming Deadline",
     "upcomingCount_other": "{{count}} Upcoming Deadlines"

@@ -52,6 +52,7 @@
     }
   },
   "deadlineStatus": {
+    "actual": "实际",
     "expected": "预期",
     "finishedEarly": "在截止期限前 {{duration}} 完成",
     "finishedLate": "在截止期限后 {{duration}} 完成",
@@ -61,6 +62,7 @@
     "missedCount_one": "{{count}} 个已错过的截止期限",
     "missedCount_other": "{{count}} 个已错过的截止期限",
     "mixedCount": "{{missedCount}} 个已错过，{{upcomingCount}} 个即将到期",
+    "stillRunning": "仍在运行",
     "upcoming": "即将到期",
     "upcomingCount_one": "{{count}} 个即将到期的截止期限",
     "upcomingCount_other": "{{count}} 个即将到期的截止期限"

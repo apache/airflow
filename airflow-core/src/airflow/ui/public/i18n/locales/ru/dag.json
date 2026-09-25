@@ -53,6 +53,7 @@
     }
   },
   "deadlineStatus": {
+    "actual": "Фактическое",
     "expected": "Ожидаемое",
     "finishedEarly": "Завершено за {{duration}} до крайнего срока",
     "finishedLate": "Завершено через {{duration}} после крайнего срока",
@@ -64,6 +65,7 @@
     "missedCount_one": "{{count}} пропущенный крайний срок",
     "missedCount_other": "{{count}} пропущенных крайних сроков",
     "mixedCount": "{{missedCount}} пропущено, {{upcomingCount}} предстоит",
+    "stillRunning": "Ещё выполняется",
     "upcoming": "Предстоящий",
     "upcomingCount_few": "{{count}} предстоящих крайних срока",
     "upcomingCount_many": "{{count}} предстоящих крайних сроков",
