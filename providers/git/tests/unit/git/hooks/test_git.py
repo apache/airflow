@@ -979,8 +979,7 @@ class TestGitHook:
                 datetime.now(timezone.utc) + timedelta(hours=1),
             ),
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
 
         with hook.configure_hook_env():
             assert hook.env["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"

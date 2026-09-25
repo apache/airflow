@@ -138,6 +138,10 @@ Extra (optional)
     * ``github_api_url``: Base URL of the GitHub REST API. Defaults to ``https://api.github.com``.
       Set it when the repository is not on ``github.com``, for example on GitHub Enterprise Server.
 
+    When a connection includes both ``github_app_id`` and ``github_installation_id``, the Git provider
+    uses GitHub App authentication instead of SSH authentication. In this mode, ``private_key`` or
+    ``key_file`` contains the GitHub App private key, not an SSH key. SSH host-key options do not apply.
+
 
     Example with key file:
 
