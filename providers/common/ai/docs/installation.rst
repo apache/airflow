@@ -47,7 +47,7 @@ The provider's extras split into a few groups:
   than these, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
 * **Agent tooling** (``mcp``, ``skills``, ``code-mode``, ``shields``, ``modal``,
-  ``sandbox-islo``): MCP servers, Agent Skills, code-mode tool execution, shield
+  ``islo``): MCP servers, Agent Skills, code-mode tool execution, shield
   capabilities (input/output guards, tool guards, cost tracking), and the hosted Modal
   and Islo backends for :doc:`sandboxed execution <sandbox/index>`.
 * **Document loading** (``pdf``, ``docx``, ``avro``, ``parquet``): file formats for

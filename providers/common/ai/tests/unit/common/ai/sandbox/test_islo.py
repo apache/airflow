@@ -129,7 +129,7 @@ class TestCredentials:
 
         backend = IsloSandboxBackend(islo_conn_id=None)
         with mock.patch("builtins.__import__", side_effect=blocked_import):
-            with pytest.raises(SandboxTerminalError, match="sandbox-islo"):
+            with pytest.raises(SandboxTerminalError, match=r"\[islo\]"):
                 backend.create()
 
 
@@ -155,6 +155,16 @@ class TestCreate:
 
         with pytest.raises(SandboxTerminalError, match="per-domain egress allowlist"):
             backend.create(spec=SandboxSpec(allow_egress_to=["example.com"]))
+
+    def test_refuses_an_address_egress_allowlist(self):
+        backend, client = _backend_with_client()
+
+        # internet_enabled is all-or-nothing, so honouring block_network=True alone
+        # would silently drop the ranges the Dag author asked to reach.
+        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
+            backend.create(spec=SandboxSpec(allow_egress_to_cidrs=["203.0.113.0/24"]))
+
+        client.sandboxes.create_sandbox.assert_not_called()
 
     def test_refuses_a_path_the_runner_would_drop(self):
         backend, client = _backend_with_client()
@@ -408,21 +418,30 @@ class TestRunCommand:
         assert result.sandbox_terminated
         client.sandboxes.delete_sandbox.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("delete_after", "reclaim"),
+        [
+            (3600, "its delete_after policy removes it 3600s after creation"),
+            (None, "delete_after is disabled, so it persists until deleted by hand"),
+        ],
+    )
     @mock.patch(f"{_MODULE}.log", autospec=True)
     @mock.patch.object(IsloSandboxBackend, "_await_exec", autospec=True, return_value=None)
-    def test_timeout_cleanup_failure_warns_and_leaves_the_lifecycle_policy_to_reclaim(
-        self, _await_exec, logger
+    def test_timeout_cleanup_failure_warns_and_says_whether_anything_reclaims_it(
+        self, _await_exec, logger, delete_after, reclaim
     ):
-        backend, client = _backend_with_client()
+        backend, client = _backend_with_client(delete_after=delete_after)
         client.sandboxes.delete_sandbox.side_effect = ApiError(status_code=503)
 
         result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
 
         # A command that merely ran long must not fail the task because one
-        # cleanup call was refused; the lifecycle policy reclaims the microVM.
+        # cleanup call was refused, but the operator must learn whether the
+        # microVM will be reclaimed at all.
         assert result.timed_out
         assert result.sandbox_terminated
         assert "could not confirm its deletion" in logger.warning.call_args.args[0]
+        assert logger.warning.call_args.args[2] == reclaim
 
     @pytest.mark.parametrize("status", ["cancelled", "dead", "something-new"])
     def test_an_unrecognised_status_is_terminal_rather_than_still_running(self, status):
@@ -610,12 +629,47 @@ class TestFileOperations:
         with pytest.raises(SandboxTerminalError, match="check a sandbox"):
             backend.read_file("box", "/w/a", max_bytes=100)
 
-    def test_download_failure_is_terminal(self):
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ApiError(status_code=503),
+            ApiError(status_code=401),
+            ApiError(status_code=429),
+            httpx.ConnectError("reset"),
+        ],
+        ids=["503", "401", "429", "no-response"],
+    )
+    def test_a_failure_that_says_nothing_about_the_path_is_terminal(self, error):
         backend, client = _backend_with_client()
-        client.sandboxes.download_file.side_effect = ApiError(status_code=503)
+        client.sandboxes.download_file.side_effect = error
 
-        with pytest.raises(SandboxTerminalError, match="download a sandbox file"):
+        with pytest.raises(SandboxTerminalError, match="read a sandbox file"):
             backend.read_file("box", "/w/a", max_bytes=100)
+
+        client.sandboxes.get_sandbox.assert_not_called()
+
+    def test_a_rejected_path_is_recoverable_and_carries_the_api_message(self):
+        # Measured: a relative path is a 400 whose message names the problem.
+        backend, client = _backend_with_client()
+        client.sandboxes.download_file.side_effect = ApiError(
+            status_code=400,
+            body={"code": "INVALID_REQUEST", "message": "path must be absolute: rel.txt"},
+        )
+
+        with pytest.raises(SandboxError) as error:
+            backend.read_file("box", "rel.txt", max_bytes=100)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        assert str(error.value) == "Could not read 'rel.txt' (HTTP 400): path must be absolute: rel.txt."
+
+    def test_a_long_api_message_is_trimmed(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.download_file.side_effect = ApiError(status_code=400, body={"message": "x" * 5000})
+
+        with pytest.raises(SandboxError) as error:
+            backend.read_file("box", "/w/a", max_bytes=100)
+
+        assert len(str(error.value)) < 300
 
     def test_write_file_creates_parents_then_uses_native_upload(self):
         backend, client = _backend_with_client()
@@ -640,11 +694,36 @@ class TestFileOperations:
 
         client.sandboxes.upload_file.assert_not_called()
 
-    def test_upload_failure_is_terminal(self):
+    def test_upload_outage_is_terminal(self):
         backend, client = _backend_with_client()
         client.sandboxes.upload_file.side_effect = ApiError(status_code=503)
 
-        with pytest.raises(SandboxTerminalError, match="upload a sandbox file"):
+        with pytest.raises(SandboxTerminalError, match="write a sandbox file"):
+            backend.write_file("box", "/w/a", b"data")
+
+    def test_an_unwritable_target_is_recoverable_with_a_hint(self):
+        # Measured: uploading onto a directory, or into /proc or /sys, is a bare
+        # 500 whose body says only "An internal error occurred".
+        backend, client = _backend_with_client()
+        client.sandboxes.upload_file.side_effect = ApiError(
+            status_code=500, body={"code": "INTERNAL_ERROR", "message": "An internal error occurred"}
+        )
+
+        with pytest.raises(SandboxError) as error:
+            backend.write_file("box", "/tmp", b"data")
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        assert "(HTTP 500)." in str(error.value)
+        assert "directory or on a read-only filesystem" in str(error.value)
+        assert "internal error" not in str(error.value)
+        client.sandboxes.get_sandbox.assert_called_once()
+
+    def test_an_upload_error_on_a_sandbox_that_cannot_serve_is_terminal(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.upload_file.side_effect = ApiError(status_code=500)
+        client.sandboxes.get_sandbox.return_value = _sandbox_info(status="stopped")
+
+        with pytest.raises(SandboxTerminalError, match="cannot serve requests"):
             backend.write_file("box", "/w/a", b"data")
 
     def test_list_directory_marks_directories_and_preserves_newlines(self):
@@ -798,15 +877,15 @@ class TestCommandWrapper:
         assert all(mode.startswith(("drwxr-xr-x", "-rw-r--r--")) for mode in modes), result.stdout
 
     def test_the_scratch_directory_is_private_while_in_use_and_gone_after(self, tmp_path):
-        scratch_root = Path(os.environ.get("TMPDIR", "/tmp"))
+        scratch_root = tmp_path
         pattern = "airflow-sandbox-[0-9]*"
-        assert not list(scratch_root.glob(pattern)), "a previous run leaked a scratch directory"
 
         process = subprocess.Popen(
             ["sh", "-c", _COMMAND_WRAPPER, "airflow-sandbox", "sleep 2", "1024"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            env={**os.environ, "TMPDIR": str(tmp_path)},
         )
         try:
             deadline = time.monotonic() + 5.0

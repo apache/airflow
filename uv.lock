@@ -4639,6 +4639,9 @@ git = [
 google = [
     { name = "pydantic-ai-slim", extra = ["google"] },
 ]
+islo = [
+    { name = "islo" },
+]
 langchain = [
     { name = "langchain" },
 ]
@@ -4663,9 +4666,6 @@ parquet = [
 ]
 pdf = [
     { name = "pypdf" },
-]
-sandbox-islo = [
-    { name = "islo" },
 ]
 shields = [
     { name = "pydantic-ai-shields" },
@@ -4719,7 +4719,7 @@ requires-dist = [
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
-    { name = "islo", marker = "extra == 'sandbox-islo'", specifier = ">=0.3.19" },
+    { name = "islo", marker = "extra == 'islo'", specifier = ">=0.3.19" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
@@ -4742,7 +4742,7 @@ requires-dist = [
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "code-mode", "shields", "skills", "sandbox-islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
