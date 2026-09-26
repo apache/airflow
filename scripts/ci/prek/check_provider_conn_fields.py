@@ -17,7 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Validation helpers for the conn-fields ↔ get_connection_form_widgets() check.
+Validation helpers for the checks that compare connection UI metadata in provider.yaml with the hook.
+
+``conn-fields`` is compared with ``get_connection_form_widgets()``, and ``ui-field-behaviour``
+with ``get_ui_field_behaviour()``.
 
 These functions have no third-party dependencies so they can be unit-tested
 outside of the Breeze container without any stubbing.
@@ -152,10 +155,11 @@ def check_ui_field_behaviour_for_entry(
     importable, or it does not override the method). Any other exception is converted to an
     error string here so callers never need to catch it.
 
-    Airflow reads ``ui-field-behaviour`` from the provider YAML and ignores the hook method
-    when the YAML is present, so a hook-side edit that is not mirrored in the YAML never
-    reaches the UI. Both a missing ``ui-field-behaviour`` section and any per-section
-    difference are flagged.
+    Airflow 3.2+ builds the connection form from the provider YAML and skips the hook method
+    once the YAML declares connection metadata, while the older Airflow versions a provider
+    still supports call ``get_ui_field_behaviour()``. The two must agree, or the same form
+    looks different depending on the Airflow version. A missing ``ui-field-behaviour``
+    section is flagged too, since the hook method is deprecated in favour of it.
     """
     hook_class_name: str = conn_type_entry["hook-class-name"]
     connection_type: str = conn_type_entry.get("connection-type", "?")
@@ -181,10 +185,10 @@ def check_ui_field_behaviour_for_entry(
     if yaml_behaviour is None:
         return [
             f"{header}\n"
-            "  The hook overrides get_ui_field_behaviour() but provider.yaml has no "
-            "ui-field-behaviour section, so the hook's field behaviour is invisible in the UI.\n"
+            "  The hook overrides get_ui_field_behaviour(), which is deprecated in favour of "
+            "ui-field-behaviour in provider.yaml, but provider.yaml has no such section.\n"
             "[yellow]How to fix it[/]: Declare ui-field-behaviour for this connection-type "
-            "in provider.yaml."
+            "in provider.yaml, matching get_ui_field_behaviour()."
         ]
 
     problems = []
@@ -198,24 +202,24 @@ def check_ui_field_behaviour_for_entry(
             f" only in the hook: {sorted(hook_hidden - yaml_hidden) or '-'}"
         )
 
-    for yaml_key, hook_key in (("relabeling", "relabeling"), ("placeholders", "placeholders")):
+    for section in ("relabeling", "placeholders"):
         yaml_section = {
-            k: normalize_behaviour_value(v) for k, v in (yaml_behaviour.get(yaml_key) or {}).items()
+            k: normalize_behaviour_value(v) for k, v in (yaml_behaviour.get(section) or {}).items()
         }
         hook_section = {
-            k: normalize_behaviour_value(v) for k, v in (hook_behaviour.get(hook_key) or {}).items()
+            k: normalize_behaviour_value(v) for k, v in (hook_behaviour.get(section) or {}).items()
         }
         if yaml_section == hook_section:
             continue
         diff_keys = sorted(
             k for k in yaml_section.keys() | hook_section.keys() if yaml_section.get(k) != hook_section.get(k)
         )
-        problems.append(f"  {yaml_key} differ for: {', '.join(diff_keys)}")
+        problems.append(f"  {section} differ for: {', '.join(diff_keys)}")
 
     if not problems:
         return []
     problems.append(
         "[yellow]How to fix it[/]: Make ui-field-behaviour in provider.yaml say the same "
-        "thing as get_ui_field_behaviour(); the YAML is what the UI actually shows."
+        "thing as get_ui_field_behaviour(); Airflow 3.2+ shows the YAML, older versions the hook method."
     )
     return ["\n".join([header, *problems])]

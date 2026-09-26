@@ -68,58 +68,58 @@ class TestNormalizeBehaviourValue:
 
 
 class TestCheckUiFieldBehaviourForEntry:
-    def test_skips_when_hook_has_no_behaviour(self):
-        assert check_ui_field_behaviour_for_entry(_entry(None), YAML_PATH, _hook(None)) == []
+    @pytest.mark.parametrize(
+        "yaml_behaviour, get_behaviour",
+        [
+            pytest.param(None, _hook(None), id="skip-hook-without-get-ui-field-behaviour"),
+            pytest.param(
+                {
+                    "hidden-fields": ["port", "schema"],
+                    "relabeling": {"host": "Server URL"},
+                    "placeholders": {"extra": '{"a": 1, "b": 2}'},
+                },
+                _hook(
+                    {
+                        "hidden_fields": ["schema", "port"],
+                        "relabeling": {"host": "Server URL"},
+                        "placeholders": {"extra": '{\n  "b": 2,\n  "a": 1\n}\n'},
+                    }
+                ),
+                id="matching-behaviour-with-formatting-differences",
+            ),
+        ],
+    )
+    def test_no_errors(self, yaml_behaviour, get_behaviour):
+        assert check_ui_field_behaviour_for_entry(_entry(yaml_behaviour), YAML_PATH, get_behaviour) == []
 
-    def test_flags_missing_yaml_section(self):
-        errors = check_ui_field_behaviour_for_entry(
-            _entry(None), YAML_PATH, _hook({"hidden_fields": ["port"]})
-        )
+    @pytest.mark.parametrize(
+        "yaml_behaviour, get_behaviour, expected_in_error",
+        [
+            pytest.param(
+                None, _hook({"hidden_fields": ["port"]}), "no such section", id="missing-yaml-section"
+            ),
+            pytest.param(
+                {"hidden-fields": ["port"]},
+                _hook({"hidden_fields": ["port", "schema"]}),
+                "only in the hook: ['schema']",
+                id="hidden-fields-drift",
+            ),
+            pytest.param(
+                {"relabeling": {"host": "Server URL"}},
+                _hook({"relabeling": {"host": "Server URL (optional)"}}),
+                "relabeling differ for: host",
+                id="relabeling-drift",
+            ),
+            pytest.param(
+                {"placeholders": {"extra": '{"model": "old"}'}},
+                _hook({"placeholders": {"extra": '{"model": "new"}', "login": "user"}}),
+                "placeholders differ for: extra, login",
+                id="placeholders-drift",
+            ),
+            pytest.param(None, _raise, "boom", id="unexpected-exception-message"),
+        ],
+    )
+    def test_one_error_containing(self, yaml_behaviour, get_behaviour, expected_in_error):
+        errors = check_ui_field_behaviour_for_entry(_entry(yaml_behaviour), YAML_PATH, get_behaviour)
         assert len(errors) == 1
-        assert "no ui-field-behaviour section" in errors[0]
-
-    def test_matching_behaviour_passes(self):
-        yaml_behaviour = {
-            "hidden-fields": ["port", "schema"],
-            "relabeling": {"host": "Server URL"},
-            "placeholders": {"extra": '{"a": 1, "b": 2}'},
-        }
-        hook_behaviour = {
-            "hidden_fields": ["schema", "port"],
-            "relabeling": {"host": "Server URL"},
-            "placeholders": {"extra": '{\n  "b": 2,\n  "a": 1\n}\n'},
-        }
-        assert (
-            check_ui_field_behaviour_for_entry(_entry(yaml_behaviour), YAML_PATH, _hook(hook_behaviour)) == []
-        )
-
-    def test_flags_hidden_fields_drift(self):
-        errors = check_ui_field_behaviour_for_entry(
-            _entry({"hidden-fields": ["port"]}), YAML_PATH, _hook({"hidden_fields": ["port", "schema"]})
-        )
-        assert len(errors) == 1
-        assert "hidden-fields differ" in errors[0]
-        assert "schema" in errors[0]
-
-    def test_flags_relabeling_drift(self):
-        errors = check_ui_field_behaviour_for_entry(
-            _entry({"relabeling": {"host": "Server URL"}}),
-            YAML_PATH,
-            _hook({"relabeling": {"host": "Server URL (optional)"}}),
-        )
-        assert len(errors) == 1
-        assert "relabeling differ for: host" in errors[0]
-
-    def test_flags_placeholder_content_drift(self):
-        errors = check_ui_field_behaviour_for_entry(
-            _entry({"placeholders": {"extra": '{"model": "old"}'}}),
-            YAML_PATH,
-            _hook({"placeholders": {"extra": '{"model": "new"}', "login": "user"}}),
-        )
-        assert len(errors) == 1
-        assert "placeholders differ for: extra, login" in errors[0]
-
-    def test_converts_unexpected_exception_to_error(self):
-        errors = check_ui_field_behaviour_for_entry(_entry(None), YAML_PATH, _raise)
-        assert len(errors) == 1
-        assert "Failed to call" in errors[0]
+        assert expected_in_error in errors[0]

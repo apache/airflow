@@ -578,8 +578,9 @@ def check_ui_field_behaviour_matches_hook(yaml_files: dict[str, dict]) -> tuple[
     """
     For every connection-type entry whose hook overrides ``get_ui_field_behaviour()``,
     verify the ``ui-field-behaviour`` section in the provider YAML says the same thing.
-    The UI reads the YAML and ignores the hook method when the YAML is present, so both a
-    missing section and any drifted hidden-fields/relabeling/placeholders value are errors.
+    Airflow 3.2+ shows the YAML and older versions the hook method, so a drifted
+    hidden-fields/relabeling/placeholders value is an error, and so is a missing section,
+    since the hook method is deprecated in favour of it.
     """
     num_checks = 0
     num_errors = 0
@@ -596,14 +597,14 @@ def check_ui_field_behaviour_matches_hook(yaml_files: dict[str, dict]) -> tuple[
     return num_checks, num_errors
 
 
-def _get_ui_field_behaviour(hook_class_name: str) -> dict[str, Any] | None:
+def _call_overridden_hook_method(hook_class_name: str, method_name: str) -> Any:
     """
-    Import *hook_class_name* and return its ``get_ui_field_behaviour()`` dict.
+    Import *hook_class_name* and return the result of calling *method_name* on the hook class.
 
-    Returns ``None`` when the hook cannot be imported or does not override
-    ``get_ui_field_behaviour()`` in its own ``__dict__`` (hooks that merely inherit it have no
-    provider-specific behaviour to diff against). Raises for unexpected errors so
-    ``check_ui_field_behaviour_for_entry`` can convert them to an error string.
+    Returns ``None`` when the hook or its UI dependencies cannot be imported, or when the hook
+    does not override *method_name* in its own ``__dict__``: a hook that inherits the method has
+    no provider-specific definition to diff against, so the check is skipped for it. Raises for
+    unexpected errors so the ``check_*_for_entry`` helpers can convert them to an error string.
     """
     try:
         module_name, class_name = hook_class_name.rsplit(".", maxsplit=1)
@@ -612,48 +613,32 @@ def _get_ui_field_behaviour(hook_class_name: str) -> dict[str, Any] | None:
     except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
         return None
 
-    if "get_ui_field_behaviour" not in hook_class.__dict__:
+    if method_name not in hook_class.__dict__:
         return None
 
     with warnings.catch_warnings(record=True):
         try:
-            return hook_class.get_ui_field_behaviour()
+            return getattr(hook_class, method_name)()
         except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
             return None
+
+
+def _get_ui_field_behaviour(hook_class_name: str) -> dict[str, Any] | None:
+    """Return the hook's ``get_ui_field_behaviour()`` dict, or ``None`` to skip the entry."""
+    return _call_overridden_hook_method(hook_class_name, "get_ui_field_behaviour")
 
 
 def _get_widget_keys(hook_class_name: str) -> set[str] | None:
     """
-    Import *hook_class_name* and return the keys of ``get_connection_form_widgets()``.
+    Return the keys of the hook's ``get_connection_form_widgets()``, or ``None`` to skip the entry.
 
-    Returns ``None`` when the hook or its UI dependencies cannot be imported,
-    or when the hook does not override ``get_connection_form_widgets()`` (meaning it
-    has no custom connection fields and the conn-fields check should be skipped).
-    Raises for unexpected errors so ``check_conn_fields_for_entry`` can convert them
-    to an error string.
+    ``get_connection_form_widgets()`` is the source of truth for what conn-fields should declare.
+    Hooks that inherit it without overriding are skipped; as of writing this includes HttpHook,
+    the common/ai hooks, and AzureComputeHook, so any provider whose hook falls into this
+    category will NOT be validated here, even if it declares conn-fields.
     """
-    try:
-        module_name, class_name = hook_class_name.rsplit(".", maxsplit=1)
-        with warnings.catch_warnings(record=True):
-            hook_class = getattr(importlib.import_module(module_name), class_name)
-    except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
-        return None
-
-    # Only validate hooks that override get_connection_form_widgets() in their own __dict__,
-    # because that method is the source-of-truth for what conn-fields should be declared.
-    # Hooks that inherit it without overriding have no provider-specific widget definition
-    # to diff against, so the check is intentionally skipped for them.  As of writing this
-    # includes HttpHook, the common/ai hooks, and AzureComputeHook — any provider whose hook
-    # falls into this category will NOT be validated here, even if it declares conn-fields.
-    if "get_connection_form_widgets" not in hook_class.__dict__:
-        return None
-
-    with warnings.catch_warnings(record=True):
-        try:
-            form_widgets: dict[str, Any] = hook_class.get_connection_form_widgets()
-            return set(form_widgets.keys())
-        except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
-            return None
+    form_widgets = _call_overridden_hook_method(hook_class_name, "get_connection_form_widgets")
+    return None if form_widgets is None else set(form_widgets.keys())
 
 
 @run_check("Checking that hook classes defining conn_type are registered in connection-types")
