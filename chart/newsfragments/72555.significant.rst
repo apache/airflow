@@ -1,0 +1,18 @@
+Kerberos worker sidecars now run as Kubernetes native sidecars
+
+* The ``worker-kerberos`` container now runs in ``spec.initContainers`` with
+  ``restartPolicy: Always``. This lets KubernetesExecutor task Pods finish when their application
+  container exits and keeps Kerberos available during graceful shutdown. Update Pod patches,
+  ``pod_override``, policies, and monitoring from ``spec.containers`` to ``spec.initContainers``;
+  container status moves to ``status.initContainerStatuses``.
+* ``workers.celery.kerberosInitContainer`` and ``workers.kubernetes.kerberosInitContainer``, including
+  Celery worker-set overrides, have been removed. Helm accepts these old values but the chart ignores
+  them. If ``kerberosInitContainer.enabled`` was ``true`` without a new sidecar, the chart no longer
+  adds a Kerberos container or Kerberos environment variables to the affected Pods.
+* Enable ``workers.celery.kerberosSidecar`` or ``workers.kubernetes.kerberosSidecar`` (or a Celery
+  worker-set override) and move any ``resources``, ``securityContexts``, or ``containerLifecycleHooks``
+  overrides. The default ``klist -s`` startup probe waits for a valid ticket before the worker or
+  task starts. Disabling the probe allows earlier startup; custom Airflow images need ``klist``.
+* The sidecar renews tickets. For one-time acquisition, configure ``extraInitContainers`` and provide
+  the Kerberos environment variables and volume mounts yourself.
+* On Kubernetes 1.30 through 1.32, keep the ``SidecarContainers`` feature gate enabled.
