@@ -28,6 +28,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from aiohttp import ClientError
 from kubernetes.client import models as k8s
 from pendulum import DateTime
 from sqlalchemy.orm.session import Session
@@ -458,6 +459,50 @@ class TestKubernetesPodTrigger:
         )
         assert await trigger.run().__anext__() == TriggerEvent(exp_event)
         assert mock_fetch_container_logs_before_current_sec.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.datetime")
+    @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state")
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.fetch_container_logs_before_current_sec"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod")
+    async def test_log_read_failure_retries_after_logging_interval(
+        self, mock_get_pod, mock_fetch, mock_wait_pod, define_pod_container_state, mock_datetime
+    ):
+        fixed_now = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        mock_datetime.datetime.now.side_effect = [
+            fixed_now,
+            fixed_now + datetime.timedelta(seconds=10),
+            fixed_now + datetime.timedelta(seconds=15),
+        ]
+        mock_datetime.timedelta = datetime.timedelta
+        mock_fetch.side_effect = ClientError("boom")
+        define_pod_container_state.side_effect = ["running", "running", "terminated"]
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            trigger_start_time=fixed_now,
+            base_container_name=BASE_CONTAINER_NAME,
+            poll_interval=0,
+            logging_interval=10,
+            last_log_time=DateTime(2022, 1, 1),
+        )
+
+        with mock.patch.object(trigger.log, "warning") as mock_warning:
+            event = await trigger.run().__anext__()
+
+        assert event == TriggerEvent(
+            {
+                "status": "success",
+                "namespace": NAMESPACE,
+                "name": POD_NAME,
+                "last_log_time": DateTime(2022, 1, 1),
+            }
+        )
+        mock_fetch.assert_awaited_once()
+        mock_warning.assert_called_once()
 
     @pytest.mark.parametrize(
         ("container_state", "expected_state"),
