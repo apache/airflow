@@ -9,3 +9,42 @@ plugins:
   - magpie-utilities
   - magpie-agent-guard
   - magpie-release-management
+  - magpie-contributor-growth
+
+reconciled:
+  version: 0.9.0.dev202609251939
+  at:      2026-09-26
+  skills:
+    activity-sweep:            sha256:748187f2d78d9991
+    announce-draft:            sha256:1b0ebe953b9fa334
+    archive-sweep:             sha256:7cb626368f367e76
+    audit-report:              sha256:bed8d4c39f43581d
+    code-review:               sha256:3210ab651b79abc2
+    committer-onboarding:      sha256:0b1081376b51a75a
+    contributor-to-committer:  sha256:babafd2a8a93d87b
+    good-first-issue-author:   sha256:ac2d0fda09c67231
+    good-first-issue-sweep:    sha256:591ae352325ca83d
+    issue-import-from-scan:    sha256:3aa895ba2115c1d9
+    issue-import-via-forwarder: sha256:7be6fd9a774bbde5
+    issue-invalidate:          sha256:af16fa7d6f65328a
+    isolated-setup-install:    sha256:eb1b228a501f2772
+    keys-sync:                 sha256:bc9f77e9dcb305da
+    mentor:                    sha256:3c380e6ecb0fb4c8
+    newcomer-issue-explainer:  sha256:8cfe453a3113abe2
+    nomination:                sha256:c4cdfe4477057b94
+    onboarding-concierge:      sha256:4105a6571bcb70c2
+    pr-stale-sweep:            sha256:34e274305258b9e4
+    pr-triage:                 sha256:f012714a6e62bf8f
+    prepare:                   sha256:5cfba199f4348e98
+    promote:                   sha256:e4f8b18462e8da1d
+    quick-merge:               sha256:e595586446c4bc73
+    rc-cut:                    sha256:3bbf726eae07fe4e
+    reviewer-routing:          sha256:c9b9669a27ceaad7
+    sentiment:                 sha256:c325db1d99634a51
+    stale-sweep:               sha256:d2a78aaabcc57f26
+    stats:                     sha256:3da2380d3a73eccf
+    triage:                    sha256:9b2993211bdc0e80
+    verify-rc:                 sha256:eb35d109439cd24b
+    vote-draft:                sha256:3b74a3ec69e4b358
+    vote-tally:                sha256:b0b69aea022307a5
+    welcome:                   sha256:a61c6575d69da08a
