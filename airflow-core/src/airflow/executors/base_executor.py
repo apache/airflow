@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 import pendulum
 
 from airflow._shared.observability.metrics import stats
+from airflow._shared.observability.traces import start_debug_span
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
@@ -515,6 +516,7 @@ class BaseExecutor(LoggingMixin):
             tags=prune_dict({"status": "running", "executor_class_name": name, "team_name": self.team_name}),
         )
 
+    @start_debug_span("base_executor.trigger_workloads")
     def trigger_workloads(self, open_slots: int) -> None:
         """
         Initiate async execution of queued workloads, up to the number of available slots.

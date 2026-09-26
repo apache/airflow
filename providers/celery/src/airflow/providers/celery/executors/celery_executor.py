@@ -52,6 +52,19 @@ if AIRFLOW_V_3_4_PLUS:
 
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
+try:
+    from airflow.sdk._shared.observability.traces import start_debug_span
+except ImportError:
+
+    def start_debug_span(name, **_kwargs):
+        """No-op fallback so executor code can decorate methods unconditionally."""
+
+        def _decorator(func):
+            return func
+
+        return _decorator
+
+
 log = logging.getLogger(__name__)
 
 
@@ -177,6 +190,7 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_workloads(task_tuples_to_send)
 
+    @start_debug_span("celery_executor._process_workloads")
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3.
         from airflow.executors.workloads import ExecuteTask
