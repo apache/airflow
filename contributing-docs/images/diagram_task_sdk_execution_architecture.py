@@ -226,12 +226,12 @@ def generate_task_sdk_execution_architecture_diagram():
     )
 
     # ------------------------------------------------------------------ #
-    # Native / in-process path — one Python process, no fork, no sockets.
+    # Native / in-process path — one Python process for the task itself, no HTTP.
     # ------------------------------------------------------------------ #
     with g.subgraph(name="cluster_native") as nat:
         nat.attr(
             label="Native (in-process) path — dag.test() / local run"
-            "   ·   ONE Python process · no fork · no sockets · no HTTP",
+            "   ·   ONE Python process for the task itself · no HTTP",
             labelloc="t",
             style="rounded,filled",
             fillcolor="#faf3fc",
@@ -253,7 +253,7 @@ def generate_task_sdk_execution_architecture_diagram():
             nat,
             "in_comms",
             "InProcessSupervisorComms",
-            "in-memory deques, not sockets",
+            "direct call for the task · supervisor socket<br/>for child processes (e.g. virtualenv)",
             shape="box",
             theme=NATIVE,
         )
@@ -269,7 +269,7 @@ def generate_task_sdk_execution_architecture_diagram():
         nat.edge(
             "in_runner",
             "in_comms",
-            label="ToTask / ToSupervisor messages\nvia deque.append / popleft",
+            label="ToTask / ToSupervisor messages\nresponse returned to the caller",
             color=NATIVE[1],
             fontcolor=NATIVE[1],
             dir="both",
