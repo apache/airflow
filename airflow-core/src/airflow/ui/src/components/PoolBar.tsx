@@ -27,6 +27,7 @@ import { Tooltip } from "src/system-components";
 import { StateIcon } from "src/components/StateIcon";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useFormatNumber } from "src/utils";
 import { type Slots, slotConfigs } from "src/utils/slots";
 
 export const UNLIMITED_SLOTS = -1;
@@ -41,6 +42,7 @@ export const PoolBar = ({
   readonly totalSlots: number;
 }) => {
   const { t: translate } = useTranslation();
+  const formatNumber = useFormatNumber();
 
   const isUnlimited = totalSlots === UNLIMITED_SLOTS;
   const isDashboard = Boolean(poolsWithSlotType);
@@ -100,7 +102,7 @@ export const PoolBar = ({
               >
                 {slot.icon}
                 <Text fontSize="xs" fontWeight="bold" truncate>
-                  {slot.slotValue === Infinity ? "∞" : slot.slotValue}
+                  {slot.slotValue === Infinity ? "∞" : formatNumber(slot.slotValue)}
                 </Text>
               </Flex>
             </Tooltip>
@@ -129,7 +131,7 @@ export const PoolBar = ({
             <HStack gap={1} key={slot.key}>
               <StateIcon size={12} state={slot.slotType as TaskInstanceState} />
               <Text color="fg.muted" fontSize="xs" fontWeight="medium">
-                {slot.label}: {slot.slotValue}
+                {slot.label}: {formatNumber(slot.slotValue)}
               </Text>
             </HStack>
           ))}

@@ -49,7 +49,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { useAutoRefresh, isStatePending, useDocumentTitle, useFormatNumber } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
@@ -269,6 +269,7 @@ const taskInstanceColumns = ({
 
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
+  const formatNumber = useFormatNumber();
   const { dagId, groupId, runId, taskId } = useParams();
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
@@ -436,7 +437,7 @@ export const TaskInstances = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearTaskInstancesButton

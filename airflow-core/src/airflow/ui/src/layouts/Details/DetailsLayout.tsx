@@ -50,7 +50,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
-import { useAutoRefresh } from "src/utils";
+import { useAutoRefresh, useFormatNumber } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -224,6 +224,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { onClose, onOpen, open } = useDisclosure();
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const { i18n } = useTranslation();
+  const formatNumber = useFormatNumber();
   const direction = i18n.dir();
   const sharedGridGanttScrollRef = useRef<HTMLDivElement | null>(null);
   // Treat "gantt" as "grid" for panel layout persistence so switching between them doesn't reset sizes.
@@ -442,7 +443,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                       <>
                         <IconButton
                           colorPalette={Boolean(error) ? "red" : "orange"}
-                          label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                          label={`${translate("common:dagWarnings")} (${formatNumber((warningData?.total_entries ?? 0) + Number(error))})`}
                           margin="2"
                           marginBottom="-1"
                           onClick={onOpen}

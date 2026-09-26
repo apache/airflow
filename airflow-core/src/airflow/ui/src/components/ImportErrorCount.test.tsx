@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import "@testing-library/jest-dom";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { getMetaKey } from "./getMetaKey";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export { useFormatNumber } from "./useFormatNumber";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { Wrapper } from "src/utils/Wrapper";
+
+import { ImportErrorCount } from "./ImportErrorCount";
+
+describe("ImportErrorCount", () => {
+  it("groups thousands in the count", () => {
+    render(<ImportErrorCount count={1234} />, { wrapper: Wrapper });
+
+    expect(screen.getByText("1,234")).toBeInTheDocument();
+  });
+});

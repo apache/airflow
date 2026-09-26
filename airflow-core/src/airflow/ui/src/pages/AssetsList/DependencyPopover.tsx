@@ -27,6 +27,7 @@ import { Popover, RouterLink, Tooltip } from "src/system-components";
 import { TeamName } from "src/components/TeamName";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { useFormatNumber } from "src/utils";
 
 type Props = {
   readonly dependencies: Array<DagScheduleAssetReference | TaskOutletAssetReference>;
@@ -61,6 +62,7 @@ const IconTeamName = ({ teamName }: { readonly teamName?: string | null }) => {
 
 export const DependencyPopover = ({ dependencies, type }: Props) => {
   const { t: translate } = useTranslation();
+  const formatNumber = useFormatNumber();
   const dependencyKey = type.toLowerCase() as "dag" | "task";
 
   return (
@@ -68,7 +70,7 @@ export const DependencyPopover = ({ dependencies, type }: Props) => {
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild disabled={dependencies.length === 0}>
         <Button variant="outline">
-          {dependencies.length} {translate(dependencyKey, { count: dependencies.length })}
+          {formatNumber(dependencies.length)} {translate(dependencyKey, { count: dependencies.length })}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">

@@ -45,7 +45,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
-import { useDocumentTitle } from "src/utils";
+import { useDocumentTitle, useFormatNumber } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -140,6 +140,7 @@ const getColumns = ({
 
 export const Variables = () => {
   const { t: translate } = useTranslation("admin");
+  const formatNumber = useFormatNumber();
 
   useDocumentTitle(translate("common:admin.Variables"));
 
@@ -242,7 +243,7 @@ export const Variables = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("variables.delete.tooltip")}>

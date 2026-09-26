@@ -26,6 +26,7 @@ import { RouterLink } from "src/system-components";
 import { StateBadge } from "src/components/StateBadge";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useFormatNumber } from "src/utils";
 
 const DISPLAYED_STATES: ReadonlyArray<DagRunState> = ["success", "failed", "running", "queued"];
 
@@ -39,6 +40,7 @@ type Props = {
 
 export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading, stateCountLimit }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
+  const formatNumber = useFormatNumber();
   const gap = compact ? 0.5 : 1;
   const fontSize = compact ? "xs" : "sm";
 
@@ -62,7 +64,7 @@ export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading, s
     const count = counts[state] ?? 0;
     // A count that reached the API cap is only a lower bound; suffix it with "+".
     const isCapped = stateCountLimit !== undefined && count >= stateCountLimit;
-    const formattedCount = `${count}${isCapped ? "+" : ""}`;
+    const formattedCount = `${formatNumber(count)}${isCapped ? "+" : ""}`;
 
     return {
       formattedCount,

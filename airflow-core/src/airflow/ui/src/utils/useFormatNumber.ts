@@ -16,16 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useCallback } from "react";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { getMetaKey } from "./getMetaKey";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export { useFormatNumber } from "./useFormatNumber";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { useTranslation } from "react-i18next";
+
+import { createIntlCache } from "./intlCache";
+
+const numberFormatter = createIntlCache<Intl.NumberFormat>();
+
+const getNumberFormatter = (locale: string): Intl.NumberFormat =>
+  numberFormatter("number", locale, (forLocale) => new Intl.NumberFormat(forLocale));
+
+/** Locale digit grouping for counters rendered outside translations; use instead of `toLocaleString`. */
+export const useFormatNumber = (): ((value: number) => string) => {
+  const { i18n } = useTranslation();
+  const locale = i18n.language;
+
+  return useCallback((value: number) => getNumberFormatter(locale).format(value), [locale]);
+};

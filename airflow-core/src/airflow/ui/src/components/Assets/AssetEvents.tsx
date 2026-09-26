@@ -26,6 +26,8 @@ import { Select } from "src/system-components";
 
 import { StateBadge } from "src/components/StateBadge";
 
+import { useFormatNumber } from "src/utils";
+
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
 import { AssetEvent } from "./AssetEvent";
@@ -61,6 +63,7 @@ export const AssetEvents = ({
   ...rest
 }: AssetEventProps & BoxProps) => {
   const { t: translate } = useTranslation(["dashboard", "common", "dag"]);
+  const formatNumber = useFormatNumber();
   const assetSortOptions = createListCollection({
     items: [
       { label: translate("sortBy.newestFirst"), value: "-timestamp" },
@@ -80,7 +83,7 @@ export const AssetEvents = ({
           <HStack>
             <StateBadge colorPalette="brand" fontSize="md" variant="solid">
               <FiDatabase />
-              {data?.total_entries ?? " "}
+              {data?.total_entries === undefined ? " " : formatNumber(data.total_entries)}
             </StateBadge>
             <Heading marginEnd="auto" size="md">
               {translate(titleKey ?? "common:assetEvent", { count: data?.total_entries ?? 0 })}

@@ -18,6 +18,8 @@
  */
 import { Badge, Text } from "@chakra-ui/react";
 
+import { useFormatNumber } from "src/utils";
+
 type Props = {
   readonly count: number | null;
 };
@@ -29,6 +31,8 @@ type Props = {
  * rather than as a clean bill of health.
  */
 export const ImportErrorCount = ({ count }: Props) => {
+  const formatNumber = useFormatNumber();
+
   if (count === null) {
     return <Text color="fg.muted">-</Text>;
   }
@@ -37,7 +41,7 @@ export const ImportErrorCount = ({ count }: Props) => {
     <Text color="fg.muted">0</Text>
   ) : (
     <Badge colorPalette="failed" variant="solid">
-      {count}
+      {formatNumber(count)}
     </Badge>
   );
 };
