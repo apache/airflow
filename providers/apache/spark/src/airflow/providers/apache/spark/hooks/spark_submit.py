@@ -55,6 +55,81 @@ ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 
+_SENSITIVE_KEYWORD_RE = re.compile(r"secret|password", re.IGNORECASE)
+_WHITESPACE_RE = re.compile(r"\s")
+_NON_WHITESPACE_RE = re.compile(r"\S")
+# Where a quoted value may stop at the latest: the quote followed by whitespace, or a newline.
+_QUOTED_VALUE_LIMIT_RE = {quote: re.compile(rf"\n|{quote}(?=\s)") for quote in ("'", '"')}
+
+
+def _mask_sensitive_values(text: str) -> str:
+    r"""
+    Mask the value of every ``key=value`` / ``key value`` pair whose key contains ``secret`` or ``password``.
+
+    Produces the same output as the single regular expression used previously::
+
+        (\S*?(?:secret|password)\S*?(?:=|\s+)(['"]?))(?:(?!\2\s).)*(\2)  ->  \1******\3
+
+    but scans the input in linear time. That pattern backtracked quadratically or worse on long tokens,
+    and it runs over arbitrary spark-submit output, so a single long log line could stall the worker.
+
+    - The key starts where scanning resumed within the current token and ends at the first ``=``
+      after the keyword, or at the whitespace ending the token.
+    - A value opening with a quote extends to the last matching quote before either that quote
+      followed by whitespace or a newline; the value is then masked between the quotes.
+    - Any other value, including an unterminated quoted one, is masked up to the next whitespace.
+    """
+    length = len(text)
+    masked: list[str] = []
+    copied = 0
+    pos = 0
+    while True:
+        token = _NON_WHITESPACE_RE.search(text, pos)
+        if token is None:
+            break
+        token_start = token.start()
+        token_end_match = _WHITESPACE_RE.search(text, token_start)
+        token_end = token_end_match.start() if token_end_match else length
+        keyword = _SENSITIVE_KEYWORD_RE.search(text, token_start, token_end)
+        if keyword is None:
+            pos = token_end
+            continue
+        equals = text.find("=", keyword.end(), token_end)
+        if equals != -1:
+            value_start = equals + 1
+        elif token_end < length:
+            next_token = _NON_WHITESPACE_RE.search(text, token_end)
+            value_start = next_token.start() if next_token else length
+        else:
+            # Last token and nothing separates the key from a value.
+            break
+
+        if value_start < length and text[value_start] in "'\"":
+            quote = text[value_start]
+            limit = _QUOTED_VALUE_LIMIT_RE[quote].search(text, value_start + 1)
+            if limit is None:
+                limit_end = length
+            elif limit.group() == quote:
+                limit_end = limit.end()
+            else:
+                limit_end = limit.start()
+            closing = text.rfind(quote, value_start + 1, limit_end)
+            if closing != -1:
+                masked.append(text[copied : value_start + 1])
+                masked.append("******")
+                copied = closing
+                pos = closing + 1
+                continue
+
+        value_end_match = _WHITESPACE_RE.search(text, value_start)
+        value_end = value_end_match.start() if value_end_match else length
+        masked.append(text[copied:value_start])
+        masked.append("******")
+        copied = pos = value_end
+    masked.append(text[copied:])
+    return "".join(masked)
+
+
 # The JVM's default uncaught-exception handler always prints this exact shape.
 _EXCEPTION_START_RE = re.compile(r'Exception in thread "[^"]*"')
 
@@ -516,26 +591,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
-        connection_cmd_masked = re.sub(
-            r"("
-            r"\S*?"  # Match all non-whitespace characters before...
-            r"(?:secret|password)"  # ...literally a "secret" or "password"
-            # word (not capturing them).
-            r"\S*?"  # All non-whitespace characters before either...
-            r"(?:=|\s+)"  # ...an equal sign or whitespace characters
-            # (not capturing them).
-            r"(['\"]?)"  # An optional single or double quote.
-            r")"  # This is the end of the first capturing group.
-            r"(?:(?!\2\s).)*"  # All characters between optional quotes
-            # (matched above); if the value is quoted,
-            # it may contain whitespace.
-            r"(\2)",  # Optional matching quote.
-            r"\1******\3",
-            " ".join(connection_cmd),
-            flags=re.I,
-        )
-
-        return connection_cmd_masked
+        if isinstance(connection_cmd, str):
+            connection_cmd = [connection_cmd]
+        return _mask_sensitive_values(" ".join(connection_cmd))
 
     @property
     def _submit_log_tail(self) -> str:
