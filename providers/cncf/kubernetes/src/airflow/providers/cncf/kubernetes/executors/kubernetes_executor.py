@@ -366,10 +366,21 @@ class KubernetesExecutor(BaseExecutor):
                     queue,
                 )
 
-        self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
+        self._emit_task_event(key, TaskInstanceState.QUEUED, self.scheduler_job_id, consume_run_id=False)
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
         self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
+
+    def _emit_task_event(self, key, state, info=None, *, consume_run_id: bool | None = None) -> None:
+        """Write an executor event; compatible with cores that lack ``record_event``."""
+        record_event = getattr(self, "record_event", None)
+        if callable(record_event):
+            if consume_run_id is None:
+                record_event(key, state, info)
+            else:
+                record_event(key, state, info, consume_run_id=consume_run_id)
+            return
+        self.event_buffer[key] = (state, info)  # type: ignore[assignment]
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
@@ -486,7 +497,12 @@ class KubernetesExecutor(BaseExecutor):
     def _discard_stale_pod_creation_task(self, task: KubernetesJob) -> None:
         """Remove executor bookkeeping for a stale job that will not create a pod."""
         self.running.discard(task.key)
-        if self.event_buffer.get(task.key) == (TaskInstanceState.QUEUED, self.scheduler_job_id):
+        queued_event = self.event_buffer.get(task.key)
+        if (
+            queued_event is not None
+            and queued_event[0] == TaskInstanceState.QUEUED
+            and queued_event[1] == self.scheduler_job_id
+        ):
             self.event_buffer.pop(task.key, None)
 
     def sync(self) -> None:
@@ -837,7 +853,7 @@ class KubernetesExecutor(BaseExecutor):
             return
 
         if state == TaskInstanceState.RUNNING:
-            self.event_buffer[key] = state, None
+            self._emit_task_event(key, state, None, consume_run_id=False)
             return
 
         if self.kube_config.delete_worker_pods:
@@ -911,7 +927,7 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             state = self._get_task_instance_state(key, session=session)
 
-        self.event_buffer[key] = state, termination_reason
+        self._emit_task_event(key, state, termination_reason)
 
     def _get_task_instance_state(self, key: TaskInstanceKey, *, session: Session) -> TaskInstanceState | None:
         """Look up the current task instance state from the metadata database."""

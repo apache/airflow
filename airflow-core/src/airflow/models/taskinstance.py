@@ -443,6 +443,7 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries, ti.try_number)
             ti.state = None
             ti.external_executor_id = None
+            ti.workload_run_id = None
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
@@ -659,6 +660,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+    # Per-invocation id generated on every enqueue. Used to ignore stale executor
+    # SUCCESS events from a previous worker exit (e.g. defer) after the TI was resumed.
+    workload_run_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     # The trigger to resume on if we are in state DEFERRED
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)

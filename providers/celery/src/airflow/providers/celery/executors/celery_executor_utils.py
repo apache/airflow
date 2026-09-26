@@ -556,7 +556,7 @@ class BulkStateFetcher(LoggingMixin):
             else:
                 state = celery_states.PENDING
                 info = None
-            state_info[task_id] = state, info
+            state_info[task_id] = state, info, None
         return state_info
 
     def _get_many_using_multiprocessing(
@@ -581,5 +581,5 @@ class BulkStateFetcher(LoggingMixin):
                         state_or_exception.traceback,
                     )
                 else:
-                    states_and_info_by_task_id[task_id] = state_or_exception, info
+                    states_and_info_by_task_id[task_id] = state_or_exception, info, None
         return states_and_info_by_task_id

@@ -104,6 +104,7 @@ class TaskInstanceHistory(Base):
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    workload_run_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     trigger_timeout: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
