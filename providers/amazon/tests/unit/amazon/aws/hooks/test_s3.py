@@ -2052,6 +2052,20 @@ class TestAwsS3Hook:
         assert "local file last modified" in logs_string
         assert "Downloaded dag_04.py to" in logs_string
 
+    @pytest.mark.parametrize("s3_prefix", ["dags", "project/dags"])
+    @pytest.mark.parametrize("sibling_suffix", ["_archive/old.py", "_old.py", ""])
+    def test_sync_to_local_dir_excludes_sibling_keys(
+        self, s3_bucket, s3_client, tmp_path, s3_prefix, sibling_suffix
+    ):
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{s3_prefix}/dag.py", Body=b"COPY_PROBE_123")
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{s3_prefix}{sibling_suffix}", Body=b"sibling")
+
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        S3Hook().sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix=s3_prefix)
+
+        assert (sync_local_dir / "dag.py").read_bytes() == b"COPY_PROBE_123"
+        assert list(sync_local_dir.iterdir()) == [sync_local_dir / "dag.py"]
+
     def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
         s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")
 

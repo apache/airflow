@@ -1807,7 +1807,13 @@ class S3Hook(AwsBaseHook):
             )
 
     def sync_to_local_dir(self, bucket_name: str, local_dir: Path, s3_prefix="", delete_stale: bool = True):
-        """Download S3 files from the S3 bucket to the local directory."""
+        """
+        Download S3 files from the S3 bucket to the local directory.
+
+        The prefix identifies a directory, with or without a trailing slash.
+        """
+        if s3_prefix and not s3_prefix.endswith("/"):
+            s3_prefix += "/"
         self.log.debug("Downloading data from s3://%s/%s to %s", bucket_name, s3_prefix, local_dir)
 
         local_dir_resolved = local_dir.resolve()
