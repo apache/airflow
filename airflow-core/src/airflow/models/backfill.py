@@ -634,6 +634,7 @@ def _create_backfill(
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
+    drain_dag: bool = False,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -701,6 +702,10 @@ def _create_backfill(
             dag_model=dag,
             triggering_user_name=triggering_user_name,
         )
+        if drain_dag:
+            # Committed with the backfill row, whose initialization window
+            # ``_finalize_draining_dags`` already waits out.
+            DagModel.start_drain(dag_id, session=session)
         session.add(backfill)
         # Commit immediately so the backfill is visible to concurrent requests
         # checking num_active backfills, preventing duplicate active backfills

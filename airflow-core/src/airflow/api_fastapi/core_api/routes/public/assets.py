@@ -509,6 +509,8 @@ def materialize_asset(
             )
 
         params = body.validate_context(context_dag)
+        if body.drain_dag:
+            DagModel.start_drain(dag_id, session=session)
         return dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],

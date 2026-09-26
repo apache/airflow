@@ -40,6 +40,7 @@ import { useTogglePause } from "src/queries/useTogglePause";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
+import PausedDagOptions, { type PausedDagAction } from "../TriggerDag/PausedDagOptions";
 import type { DagRunTriggerParams } from "../TriggerDag/types";
 import { getInlineMessage } from "./inlineMessage";
 
@@ -52,7 +53,7 @@ type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_c
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
-  const [unpause, setUnpause] = useState(true);
+  const [pausedDagAction, setPausedDagAction] = useState<PausedDagAction>("unpause");
   const [overrideParams, setOverrideParams] = useState(false);
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dag.dag_id, true);
@@ -118,7 +119,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
 
   const onSubmit = (fdata: BackfillFormProps) => {
-    if (unpause && dag.is_paused) {
+    if (pausedDagAction === "unpause" && dag.is_paused) {
       togglePause({
         dagId: dag.dag_id,
         requestBody: {
@@ -130,6 +131,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       requestBody: {
         ...fdata,
         dag_run_conf: overrideParams ? (JSON.parse(fdata.conf) as Record<string, unknown>) : null,
+        drain_dag: dag.is_paused && pausedDagAction === "drain",
       },
     });
   };
@@ -256,9 +258,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Spacer />
         {dag.is_paused ? (
           <>
-            <Checkbox checked={unpause} onChange={() => setUnpause(!unpause)} wordBreak="break-all">
-              {translate("backfill.unpause", { dag_display_name: dag.dag_display_name })}
-            </Checkbox>
+            <PausedDagOptions dagId={dag.dag_id} onChange={setPausedDagAction} value={pausedDagAction} />
             <Spacer />
           </>
         ) : undefined}
