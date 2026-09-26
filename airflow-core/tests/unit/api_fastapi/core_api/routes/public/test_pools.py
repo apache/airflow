@@ -460,6 +460,17 @@ class TestPatchPool(TestPoolsEndpoint):
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
 
+    def test_patch_unknown_update_mask_field_returns_400(self, test_client, session):
+        self.create_pools()
+        response = test_client.patch(
+            f"/pools/{POOL2_NAME}",
+            json={"name": POOL2_NAME, "slots": 99, "include_deferred": POOL2_INCLUDE_DEFERRED},
+            params={"update_mask": ["slot"]},
+        )
+        assert response.status_code == 400
+        assert "Unknown field(s) in update_mask: 'slot'" in response.json()["detail"]
+        assert session.scalar(select(Pool.slots).where(Pool.pool == POOL2_NAME)) == POOL2_SLOT
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_patch_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
         self.create_pools()

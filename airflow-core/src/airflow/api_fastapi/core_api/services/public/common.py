@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Generic
+from typing import Generic, cast
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.common.parameters import validate_update_mask
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkAction,
     BulkActionResponse,
@@ -55,6 +56,16 @@ class BulkService(Generic[T], ABC):
             if action.action == BulkAction.CREATE:
                 self.handle_bulk_create(action, results[action.action.value])
             elif action.action == BulkAction.UPDATE:
+                if action.entities:
+                    try:
+                        action.update_mask = validate_update_mask(
+                            cast("type[BaseModel]", type(action.entities[0])), action.update_mask
+                        )
+                    except HTTPException as e:
+                        results[action.action.value].errors.append(
+                            {"error": f"{e.detail}", "status_code": e.status_code}
+                        )
+                        continue
                 self.handle_bulk_update(action, results[action.action.value])
             elif action.action == BulkAction.DELETE:
                 self.handle_bulk_delete(action, results[action.action.value])
