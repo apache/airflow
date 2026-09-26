@@ -25,7 +25,8 @@ try:
     from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
 except ImportError:
     raise AirflowOptionalProviderFeatureException(
-        "This feature requires the 'common.messaging' provider to be installed in version >= 2.0.0."
+        "This feature requires the 'common.messaging' provider to be installed in version >= 2.0.0. "
+        "Install it with: pip install 'apache-airflow-providers-amazon[common.messaging]'"
     )
 
 if TYPE_CHECKING:

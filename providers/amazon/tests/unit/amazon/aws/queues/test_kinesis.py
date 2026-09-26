@@ -89,7 +89,11 @@ def test_message_kinesis_missing_common_messaging_dependency():
     with mock.patch.dict("sys.modules", {"airflow.providers.common.messaging.providers.base_provider": None}):
         with pytest.raises(
             AirflowOptionalProviderFeatureException,
-            match=r"This feature requires the 'common\.messaging' provider to be installed in version >= 2\.0\.0\.",
+            match=(
+                r"This feature requires the 'common\.messaging' provider to be installed in version "
+                r">= 2\.0\.0\. Install it with: pip install "
+                r"'apache-airflow-providers-amazon\[common\.messaging\]'"
+            ),
         ):
             importlib.reload(kinesis_mod)
 
