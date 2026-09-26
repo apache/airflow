@@ -47,6 +47,10 @@ class TestTIClaims:
 
         assert claims.sub == "not-a-uuid"
 
+    def test_bundle_name_claim_defaults_to_none(self):
+        assert TIClaims().bundle_name is None
+        assert TIClaims(bundle_name="my-bundle").bundle_name == "my-bundle"
+
 
 class TestExecutionAPIRoute:
     """Unit tests for ExecutionAPIRoute precomputing allowed_token_types from Security scopes."""
@@ -272,8 +276,8 @@ class TestGetTeamNameDep:
 
     @pytest.mark.asyncio
     async def test_returns_none_without_session_when_multi_team_disabled(self):
-        """When multi_team=False, no async session should be created."""
-        token = MagicMock(spec=TIToken)
+        """When multi_team=False, no async session should be created, even with a bundle_name claim."""
+        token = TIToken(id=UUID(int=0), claims=TIClaims(bundle_name="my-bundle"))
 
         with (
             patch("airflow.configuration.conf.getboolean", return_value=False),
