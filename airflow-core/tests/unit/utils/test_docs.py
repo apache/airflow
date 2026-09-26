@@ -27,26 +27,26 @@ class TestGetDocsUrl:
     @pytest.mark.parametrize(
         ("version", "page", "expected_url"),
         [
+            ("3.4.0", None, "https://airflow.apache.org/docs/apache-airflow/stable/"),
             (
-                "2.0.0.dev0",
-                None,
-                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/"
-                "apache-airflow/stable/",
-            ),
-            (
-                "2.0.0.dev0",
+                "3.4.0.dev0",
                 "migrations-ref.html",
-                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/"
-                "apache-airflow/stable/migrations-ref.html",
+                "https://airflow.apache.org/docs/apache-airflow/stable/migrations-ref.html",
             ),
-            ("1.10.10", None, "https://airflow.apache.org/docs/apache-airflow/1.10.10/"),
+            ("3.4.0rc1", None, "https://airflow.apache.org/docs/apache-airflow/stable/"),
+            ("3.3.1", None, "https://airflow.apache.org/docs/apache-airflow/3.3.1/"),
             (
-                "1.10.10",
+                "3.2.0",
                 "project.html",
-                "https://airflow.apache.org/docs/apache-airflow/1.10.10/project.html",
+                "https://airflow.apache.org/docs/apache-airflow/3.2.0/project.html",
             ),
+            ("2.0.0.dev0", None, "https://airflow.apache.org/docs/apache-airflow/stable/"),
+            ("1.10.10", None, "https://airflow.apache.org/docs/apache-airflow/1.10.10/"),
         ],
     )
     def test_should_return_link(self, version, page, expected_url):
-        with mock.patch("airflow.version.version", version):
+        with (
+            mock.patch("airflow.version.version", version),
+            mock.patch("airflow.utils.docs.LATEST_PUBLISHED_AIRFLOW_VERSION", "3.3.1"),
+        ):
             assert expected_url == get_docs_url(page)

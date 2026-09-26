@@ -16,17 +16,31 @@
 # under the License.
 from __future__ import annotations
 
+from packaging.version import InvalidVersion, Version
+
+# START automatically generated latest published version by supported_versions prek hook
+LATEST_PUBLISHED_AIRFLOW_VERSION = "3.3.1"
+# END automatically generated latest published version by supported_versions prek hook
+
+_DOCS_BASE_URL = "https://airflow.apache.org/docs/apache-airflow/"
+
+
+def _is_unpublished_docs_version(version: str) -> bool:
+    try:
+        parsed = Version(version)
+    except InvalidVersion:
+        return True
+    if parsed.is_prerelease or parsed.is_postrelease or parsed.local is not None or len(parsed.release) != 3:
+        return True
+    return parsed > Version(LATEST_PUBLISHED_AIRFLOW_VERSION)
+
 
 def get_docs_url(page: str | None = None) -> str:
     """Prepare link to Airflow documentation."""
     from airflow.version import version
 
-    if any(suffix in version for suffix in ["dev", "a", "b"]):
-        result = (
-            "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/stable/"
-        )
-    else:
-        result = f"https://airflow.apache.org/docs/apache-airflow/{version}/"
+    docs_version = "stable" if _is_unpublished_docs_version(version) else version
+    result = f"{_DOCS_BASE_URL}{docs_version}/"
     if page:
         result = result + page
     return result
