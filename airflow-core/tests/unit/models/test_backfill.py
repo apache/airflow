@@ -108,6 +108,49 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
         assert b is not None
 
 
+def test_create_backfill_no_orphan_on_run_creation_failure(dag_maker, session):
+    """A failure while creating backfill runs must not leave an orphaned Backfill row.
+
+    The Backfill row is created first; if run creation then fails, the row must be
+    rolled back, otherwise the ``num_active > 0`` check blocks all future backfills
+    for the dag.
+    """
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with mock.patch(
+        "airflow.models.backfill._create_backfill_dag_run_non_partitioned",
+        side_effect=RuntimeError("boom"),
+    ):
+        with pytest.raises(RuntimeError, match="boom"):
+            _create_backfill(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                max_active_runs=2,
+                reverse=False,
+                triggering_user_name="pytest",
+                dag_run_conf={},
+            )
+
+    assert (
+        session.scalar(select(func.count()).select_from(Backfill).where(Backfill.dag_id == dag.dag_id)) == 0
+    )
+
+    # A subsequent backfill must not be blocked by a leftover row.
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+    )
+    assert b is not None
+
+
 @pytest.mark.parametrize("reverse", [True, False])
 @pytest.mark.parametrize("existing", [["2021-01-02", "2021-01-03"], []])
 def test_create_backfill_simple(reverse, existing, dag_maker, session):
