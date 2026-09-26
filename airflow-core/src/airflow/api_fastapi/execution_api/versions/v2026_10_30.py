@@ -54,6 +54,16 @@ class AddCallbackRunEndpoint(VersionChange):
     )
 
 
+class AddDagRunNoteUpdateEndpoint(VersionChange):
+    """Add endpoint for updating a DagRun note from task runtime code."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/task-instances/{task_instance_id}/dag-run-note", ["PATCH"]).didnt_exist,
+    )
+
+
 class AddTerminalStateRetryReasonField(VersionChange):
     """Add the `retry_reason` field to TITerminalStatePayload for failed retry-policy decisions."""
 

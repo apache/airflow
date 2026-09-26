@@ -124,6 +124,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     ToTask,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
@@ -731,6 +732,17 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, PreviousDagRunResult)
 
         return response.dag_run
+
+    def update_dagrun_note(self, note: str | None) -> None:
+        """
+        Update the note for this task instance's DagRun.
+
+        A string sets or replaces the note and an empty string removes it. ``None`` is a
+        no-op, so an existing user-authored note is left untouched.
+        """
+        if note is None:
+            return
+        SUPERVISOR_COMMS.send(msg=UpdateDagRunNote(ti_id=self.id, note=note))
 
     def get_previous_ti(
         self,
