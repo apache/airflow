@@ -120,27 +120,30 @@ def _executor_exists(executor_name: str, team_name: str | None) -> bool:
     return False
 
 
+def _bundle_team_name(bundle_name: str | None) -> str | None:
+    """
+    Team owning ``bundle_name``, or ``None`` when multi-team is off or the bundle is global.
+
+    A Dag inherits its team from the bundle it was parsed from, which is the only team
+    signal available at parse time.
+    """
+    if not bundle_name or not conf.getboolean("core", "multi_team"):
+        return None
+
+    from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+    return DagBundlesManager()._bundle_config[bundle_name].team_name
+
+
 def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
     log = logging.getLogger(__name__)
-    dag_team_name = None
 
-    # Check if multi team is available by reading the multi_team configuration (which is boolean)
-    if conf.getboolean("core", "multi_team"):
-        # Get team name from bundle configuration if available
-        if bundle_name:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-            bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager._bundle_config[bundle_name]
-
-            dag_team_name = bundle_config.team_name
-            if dag_team_name:
-                log.debug(
-                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
-                )
+    dag_team_name = _bundle_team_name(bundle_name)
+    if dag_team_name:
+        log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
 
     for task in dag.tasks:
         if not task.executor:
@@ -167,16 +170,7 @@ def _assign_default_team_pools(
     bundle_name: str | None = None,
 ) -> None:
     """Assign the default team pool to tasks that do not explicitly specify a pool."""
-    dag_team_name = None
-
-    if conf.getboolean("core", "multi_team"):
-        if bundle_name:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-            bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager._bundle_config[bundle_name]
-
-            dag_team_name = bundle_config.team_name
+    dag_team_name = _bundle_team_name(bundle_name)
 
     if not dag_team_name:
         return
@@ -184,6 +178,53 @@ def _assign_default_team_pools(
     for task in dag.tasks:
         if task.pool == Pool.DEFAULT_POOL_NAME:
             task.pool = Pool.get_default_team_pool_name(dag_team_name)
+
+
+def _validate_plugin_scheduling_classes(dag: DAG, bundle_name: str | None = None) -> None:
+    """
+    Reject a Dag that uses scheduling classes belonging to another team's plugin.
+
+    Timetables and priority weight strategies are imported and instantiated by the Dag
+    author, so unlike executors or pools there is no team-aware lookup in the way. This
+    check is the only thing keeping a team-scoped plugin's scheduling classes from being
+    used by Dags outside that team.
+
+    Raising here surfaces as an import error for the Dag, leaving the rest of the bundle
+    to parse normally.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return
+
+    from airflow.plugins_manager import owning_teams_of_scheduling_class
+
+    dag_team_name = _bundle_team_name(bundle_name)
+
+    candidates: list[tuple[str, Any]] = [("its timetable", dag.timetable)]
+    for task in dag.tasks:
+        # A string weight_rule names a built-in strategy, so only instances can come
+        # from a plugin.
+        weight_rule = getattr(task, "weight_rule", None)
+        if weight_rule is not None and not isinstance(weight_rule, str):
+            candidates.append((f"the weight_rule of task {task.task_id!r}", weight_rule))
+
+    for description, candidate in candidates:
+        owning_teams = owning_teams_of_scheduling_class(candidate)
+        # No plugin registered the class, or a global plugin did: either way the class
+        # itself is not tied to a team, whatever team owns this Dag.
+        if owning_teams is None or None in owning_teams:
+            continue
+        if dag_team_name in owning_teams:
+            continue
+
+        owners = ", ".join(sorted(team for team in owning_teams if team))
+        belongs_to = f"team '{dag_team_name}'" if dag_team_name else "no team"
+        raise ValueError(
+            f"Dag '{dag.dag_id}' uses {description}, "
+            f"{type(candidate).__name__}, which is provided by a plugin belonging to {owners}. "
+            f"This Dag belongs to {belongs_to}, so it cannot use it. Move the Dag into a bundle "
+            f"owned by {owners}, or have the plugin provide the class globally instead of for a "
+            "single team."
+        )
 
 
 class DagBag(LoggingMixin):
@@ -369,6 +410,7 @@ class DagBag(LoggingMixin):
                 # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
                 _validate_executor_fields(dag, self.bundle_name)
+                _validate_plugin_scheduling_classes(dag, self.bundle_name)
                 _assign_default_team_pools(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
