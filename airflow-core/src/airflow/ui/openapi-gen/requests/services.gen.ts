@@ -3484,6 +3484,7 @@ export class TaskInstanceService {
      * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.mapIndex
      * @param data.state
+     * @param data.teams
      * @param data.responseReceived
      * @param data.respondedByUserId
      * @param data.respondedByUserName
@@ -3515,6 +3516,7 @@ export class TaskInstanceService {
                 task_id_prefix_pattern: data.taskIdPrefixPattern,
                 map_index: data.mapIndex,
                 state: data.state,
+                teams: data.teams,
                 response_received: data.responseReceived,
                 responded_by_user_id: data.respondedByUserId,
                 responded_by_user_name: data.respondedByUserName,

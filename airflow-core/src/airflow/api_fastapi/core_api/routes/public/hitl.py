@@ -43,7 +43,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIStateFilter,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     datetime_range_filter_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import (
@@ -344,6 +346,7 @@ def get_hitl_details(
     task_id_prefix_pattern: QueryHITLDetailTaskIdPrefixPatternSearch,
     map_index: QueryHITLDetailMapIndexFilter,
     ti_state: QueryTIStateFilter,
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(TI.dag_id))],
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
     responded_by_user_id: QueryHITLDetailRespondedUserIdFilter,
@@ -383,6 +386,7 @@ def get_hitl_details(
             task_id_prefix_pattern,
             map_index,
             ti_state,
+            teams,
             # hitl detail related filter
             response_received,
             responded_by_user_id,
