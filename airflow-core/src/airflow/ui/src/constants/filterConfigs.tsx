@@ -97,6 +97,7 @@ export const useFilterConfigs = () => {
 
   const runStateOptions = withoutAllOption(dagRunStateOptions.items).map((option) => ({
     label: <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>,
+    pillLabel: translate(option.label),
     value: option.value,
   }));
 
@@ -415,10 +416,12 @@ export const useFilterConfigs = () => {
       options: [
         {
           label: <StateBadge state="awaiting_input">{translate("hitl:filters.response.pending")}</StateBadge>,
+          pillLabel: translate("hitl:filters.response.pending"),
           value: "false",
         },
         {
           label: <StateBadge state="success">{translate("hitl:filters.response.received")}</StateBadge>,
+          pillLabel: translate("hitl:filters.response.received"),
           value: "true",
         },
       ],
@@ -455,6 +458,7 @@ export const useFilterConfigs = () => {
             {translate(option.label)}
           </Box>
         ),
+        pillLabel: translate(option.label),
         value: option.value,
       })),
       type: FilterTypes.SELECT,
@@ -515,6 +519,7 @@ export const useFilterConfigs = () => {
       label: translate("common:state"),
       options: withoutAllOption(taskInstanceStateOptions.items).map((option) => ({
         label: <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>,
+        pillLabel: translate(option.label),
         value: option.value,
       })),
       type: FilterTypes.SELECT,
