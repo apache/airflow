@@ -27,10 +27,10 @@ Proposed.
 
 1. **Name each construct after the host language's control flow**, Conditional skipping and branching are `if`/`else` and `switch`/`case` in most languages; the `Operator` suffix and the `Python` infix carry nothing an author of another language needs.
    `If`, with or without `Else`, and `Switch` all serialize as a branch operator.
-2. **A branch selects a task, not a string.** A case is the task reference the SDK already handed back, and the value on the wire is that task's task_id, so the compiler checks the candidate exists and no label has to be kept in step with it.
+2. **A branch selects a task, not a string**, and so does the condition it selects on. A case is the task reference the SDK already handed back, and the value on the wire is that task's task_id, so the compiler checks the candidate exists and no label has to be kept in step with it. `If` and `Switch` take a task reference too, rather than a callable and an id, so nothing about a branch depends on a task's id or on its function name.
 3. **No default case.** `BranchPythonOperator` has none to serialize, and a one-sided `If` whose condition is false follows nothing at all.
    A decider returning a ref that is not one of the declared cases is a run-time error the SDK raises, a narrower check than `skip_all_except`, which only rejects a task_id missing from the whole Dag.
-4. **Triggering a Dag run is an ordinary DSL task**, it is pure DSL purpose instead of a new runtime.
+4. **Triggering a Dag run is an ordinary DSL task**, it is pure DSL purpose instead of a new runtime. It is spelled as a method on the Dag (`dag.TriggerDagRun(spec)`), since the Dag is what it belongs to and it wraps no function of the author's.
 5. **Grouping keeps Python's semantics**: a scope offering the same task and nesting methods as the Dag, prefixing each task_id with the group id (`prefix_group_id`),
    and can be ordered against a task or another group, as `group1 >> group2` does in Python.
 
@@ -67,18 +67,25 @@ loadFallbackRef := dag.Task(loadFallback)
 handleLongRef := dag.Task(handleLong)
 handleShortRef := dag.Task(handleShort)
 
-gate := dag.If(hasRows, airflow.Inputs(validated)) // BranchOperator: skips the side not taken
-gate.Then(loadIfReadyRef)
-gate.Else(loadFallbackRef)
+// The condition and the decider are ordinary tasks; If and Switch take the refs
+// they handed back. A BranchOperator under the hood: it skips the side not taken.
+gateRef := dag.Task(hasRows, airflow.Inputs(validated))
+pickRef := dag.Task(pickPath)
 
-pick := dag.Switch(pickPath) // task_id pickPath, from the function name
-pick.Case(handleLongRef).
+dag.If(gateRef).
+    Then(loadIfReadyRef).
+    Else(loadFallbackRef)
+
+dag.Switch(pickRef).
+    Case(handleLongRef).
     Case(handleShortRef)
 
-dag.Task(airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagId: "downstream_etl"}), airflow.TaskSpec{TaskId: "trigger_downstream"}).After(gate)
+dag.TriggerDagRun(airflow.TriggerDagRunSpec{TaskId: "trigger_downstream", DagId: "downstream_etl"}).After(gateRef)
 ```
 
 A decider has to see the refs it returns, so either they are package-level or it is a closure where the Dag is built.
+
+Taking a ref rather than a callable also means the condition's own return type is checked where the task is declared: a language whose `TaskRef` carries the handler's return type can require `If`'s to be a boolean and `Switch`'s to be a ref, which a callable passed straight to `If` cannot express in every SDK.
 
 A one-sided `If` is a branch with one candidate rather than a `ShortCircuitOperator`.
 That operator defaults to skipping every task in its downstream closure and ignoring their trigger rules, where a branch skips only the immediate downstream it did not take and keeps a task that several branches converge on running.
@@ -90,7 +97,7 @@ That operator defaults to skipping every task in its downstream closure and igno
   An author needing several paths together puts them behind one task, or gates each with its own condition.
   This limitation is accepted rather than open.
 - **No Lang SDK needs a deferral mechanism for now** to offer `deferrable` or `wait_for_completion`, because the trigger task runs in Python.
-- **Nothing extra reaches the Dag JSON**, which carries no branch-candidate field at all. A ref is a task_id by the time the decision is sent, so each SDK stores its cases and nothing else.
+- **Nothing extra reaches the Dag JSON**, which carries no branch-candidate field at all. A ref is a task_id by the time the decision is sent, so each SDK stores its cases and nothing else. The deciding task is still serialized as a skipmixin operator (`_can_skip_downstream`) and writes the `skipmixin_key` XCom alongside the skip, so clearing a skipped branch re-skips it rather than running the side the decision rejected — what `SkipMixin` does for a Python branch.
 - **A group edge needs one base type per SDK** that both a task and a group satisfy, since either can sit at the end of an edge.
   Python already has it: `TaskGroup(TaskGroupMixin, DAGNode)` (`task-sdk/src/airflow/sdk/definitions/taskgroup.py:96`) and every operator inherit `DependencyMixin` (`.../definitions/_internal/mixins.py:35`), where `set_upstream` and `set_downstream` live.
   The Go shape is `airflow.Node` ([`go-sdk/adr/0008`](../../../go-sdk/adr/0008-native-dag-interface.md)).
