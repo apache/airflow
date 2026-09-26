@@ -175,14 +175,15 @@ def update_hitl_detail(
     )
     # Lock the hitl_detail row (FOR UPDATE OF hitl_detail). of= scopes the lock to hitl_detail, which
     # eager-joins task_instance (lazy="joined"); a bare with_for_update() would emit FOR UPDATE against
-    # the nullable side of that outer join, which Postgres rejects. The joinedloaded relationship object
-    # reused below is the same identity-mapped row, now locked for this transaction.
-    session.execute(
+    # the nullable side of that outer join, which Postgres rejects. populate_existing re-reads the
+    # joinedloaded row under the lock, so assignees and options are validated against the state committed
+    # by a concurrent clear that held the lock, not the snapshot taken before locking.
+    hitl_detail_model = session.scalars(
         select(HITLDetailModel)
         .where(HITLDetailModel.ti_id == task_instance.id)
         .with_for_update(of=HITLDetailModel)
-    )
-    hitl_detail_model = task_instance.hitl_detail
+        .execution_options(populate_existing=True)
+    ).one()
     if hitl_detail_model.response_received:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -223,10 +224,10 @@ def update_hitl_detail(
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
         )
 
-    hitl_detail_model.responded_by = hitl_user
+    hitl_detail_model.responded_by = dict(hitl_user)
     hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
-    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+    hitl_detail_model.params_input = dict(update_hitl_detail_payload.params_input)
     session.add(hitl_detail_model)
 
     # Event-driven resume: if the task is parked waiting for this input, transition it directly,
