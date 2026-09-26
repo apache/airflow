@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useConfig } from "src/queries/useConfig";
 import type { ParamSchema, ParamSpec } from "src/queries/useDagParams";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
@@ -91,8 +92,19 @@ const isFieldNumber = (fieldType: string) => {
 
 const isFieldObject = (fieldType: string) => fieldType === "object";
 
-const isFieldPassword = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "string" && fieldSchema.format === "password";
+// Port of SecretsMasker.should_hide_value_for_key: case-insensitive substring match on the
+// normalized key, so `spark.hadoop.fs.s3a.access.key` still matches the `access_key` entry.
+const isSensitiveName = (name: string, sensitiveFieldNames: Array<string>) => {
+  const normalized = name.trim().toLowerCase().replaceAll(/\W+/gu, "_");
+
+  return sensitiveFieldNames.some((field) => normalized.includes(field));
+};
+
+// `null` is included because inferType() returns it for a key with no value yet — an empty
+// free-form extra field is exactly where a secret is about to be typed in plain sight.
+const isFieldPassword = (fieldType: string, fieldSchema: ParamSchema, isSensitive: boolean) =>
+  (fieldType === "string" && fieldSchema.format === "password") ||
+  (isSensitive && (fieldType === "string" || fieldType === "null"));
 
 const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "array" && (fieldSchema.items?.type === undefined || fieldSchema.items.type === "string");
@@ -109,6 +121,7 @@ const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
 export const FieldSelector = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
   const { initialParamDict, paramsDict } = useParamStore(namespace);
+  const sensitiveFieldNames = useConfig("sensitive_field_names") as Array<string> | undefined;
 
   // Use current paramsDict (which has actual values) for type inference, fall back to initialParamDict for schema
   const currentParam = paramsDict[name];
@@ -152,7 +165,7 @@ export const FieldSelector = ({ name, namespace = "default", onUpdate }: Flexibl
     return <FieldDuration name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldMultilineText(fieldType, param.schema)) {
     return <FieldMultilineText name={name} namespace={namespace} onUpdate={onUpdate} />;
-  } else if (isFieldPassword(fieldType, param.schema)) {
+  } else if (isFieldPassword(fieldType, param.schema, isSensitiveName(name, sensitiveFieldNames ?? []))) {
     return <FieldPassword name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else {
     return <FieldString name={name} namespace={namespace} onUpdate={onUpdate} />;
