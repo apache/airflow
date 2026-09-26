@@ -3775,6 +3775,33 @@ class TestTriggerDagRun:
         session.expire_all()
         assert session.get(DagModel, DAG1_ID).scheduling_state == expected_state
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_status"),
+        [pytest.param(True, 403, id="drain"), pytest.param(False, 200, id="no-drain")],
+    )
+    def test_drain_dag_requires_dag_edit_access(
+        self, test_client, session, deny_dag_edit_access, drain_dag, expected_status
+    ):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.commit()
+        count_dag_runs = select(func.count()).select_from(DagRun).where(DagRun.dag_id == DAG1_ID)
+        dag_runs_before = session.scalar(count_dag_runs)
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": drain_dag}
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, DAG1_ID).scheduling_state == DagSchedulingState.PAUSED
+        if drain_dag:
+            assert session.scalar(count_dag_runs) == dag_runs_before
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=DAG1_ID), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+
     def test_trigger_with_drain_dag_leaves_dag_paused_when_run_is_rejected(self, test_client, session):
         session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
         session.commit()

@@ -101,6 +101,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
     ReadableDagRunsFilterDep,
+    authorize_dag_drain,
     requires_access_asset,
     requires_access_dag,
     requires_access_dag_run_bulk,
@@ -814,6 +815,7 @@ def trigger_dag_run(
                 )
 
         if body.drain_dag:
+            authorize_dag_drain(dag_id, user, session=session)
             DagModel.start_drain(dag_id, session=session)
 
         dag_run = dag.create_dagrun(

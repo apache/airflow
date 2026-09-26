@@ -822,6 +822,8 @@ Dag runs, and the Dag pauses again once its unfinished Dag runs finish. If the r
 paused. Because
 draining lets every unfinished Dag run proceed, Dag runs that were already queued on the paused Dag start as
 well. Setting ``drain_dag`` on an active Dag drains it the same way, so the Dag also ends up paused.
+Because it changes the Dag's scheduling state, ``drain_dag`` requires the same permission as pausing the Dag,
+in addition to the permission to create the run.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the Dag that it had seen

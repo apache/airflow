@@ -993,7 +993,7 @@ class MaterializeAssetBody(BaseModel):
     drain_dag: Annotated[
         bool | None,
         Field(
-            description="Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well.",
+            description="Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag.",
             title="Drain Dag",
         ),
     ] = False
@@ -1351,7 +1351,7 @@ class TriggerDAGRunPostBody(BaseModel):
     drain_dag: Annotated[
         bool | None,
         Field(
-            description="Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well.",
+            description="Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag.",
             title="Drain Dag",
         ),
     ] = False
@@ -1653,7 +1653,7 @@ class BackfillPostBody(BaseModel):
     drain_dag: Annotated[
         bool | None,
         Field(
-            description="Put the Dag into the draining state so the backfill executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Ignored by the dry-run endpoint.",
+            description="Put the Dag into the draining state so the backfill executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.",
             title="Drain Dag",
         ),
     ] = False

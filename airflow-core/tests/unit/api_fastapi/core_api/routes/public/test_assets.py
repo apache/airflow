@@ -2382,6 +2382,21 @@ class TestPostAssetMaterialize(TestAssets):
         session.expire_all()
         assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == expected_state
 
+    def test_drain_dag_requires_dag_edit_access(self, test_client, session, deny_dag_edit_access):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json={"drain_dag": True})
+
+        assert response.status_code == 403
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == DagSchedulingState.PAUSED
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+        assert (
+            mock.call(mock.ANY, method="PUT", details=DagDetails(id=self.DAG_ASSET1_ID), user=mock.ANY)
+            in deny_dag_edit_access.call_args_list
+        )
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_partition_key(self, test_client):
         partition_key = "2026-03-23"

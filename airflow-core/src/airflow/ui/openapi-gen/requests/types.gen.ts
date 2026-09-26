@@ -283,7 +283,7 @@ export type BackfillPostBody = {
      */
     run_on_latest_version?: boolean | null;
     /**
-     * Put the Dag into the draining state so the backfill executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Ignored by the dry-run endpoint.
+     * Put the Dag into the draining state so the backfill executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.
      */
     drain_dag?: boolean;
 };
@@ -1674,7 +1674,7 @@ export type MaterializeAssetBody = {
     partition_key?: string | null;
     bundle_version?: string | null;
     /**
-     * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well.
+     * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag.
      */
     drain_dag?: boolean | null;
 };
@@ -2215,7 +2215,7 @@ export type TriggerDAGRunPostBody = {
     partition_key?: string | null;
     bundle_version?: string | null;
     /**
-     * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well.
+     * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag.
      */
     drain_dag?: boolean | null;
 };
