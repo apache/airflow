@@ -394,6 +394,21 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         self._session.refresh(row)
         assert row.value == expected_db
 
+    def test_patch_task_state_store_domain_error_returns_404(self, test_client):
+        """Domain-level ValueError raised during PATCH translates to HTTP 404."""
+        _create_task_state_store_row(self._session, "job_id", "initial", self.dag_run)
+        self._session.commit()
+
+        with patch(
+            "airflow.api_fastapi.core_api.routes.public.task_state_store._get_db_backend"
+        ) as mock_backend:
+            mock_backend.return_value.set.side_effect = ValueError(
+                f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
+            )
+            response = test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"})
+            assert response.status_code == 404
+            assert response.json()["detail"] == f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.patch(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
 
