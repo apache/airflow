@@ -205,11 +205,11 @@ concurrently using ``asyncio.gather`` while limiting concurrency with a semaphor
 
 .. note::
 
-   The upcoming *Dynamic Task Iteration* feature will simplify patterns like this.
+   :ref:`Iterable Tasks (IT) <sdk-dynamic-task-mapping-vs-iteration>` simplifies patterns like this.
    Instead of manually managing concurrency with constructs such as
-   ``asyncio.gather`` and ``asyncio.Semaphore``, authors will be able to iterate
+   ``asyncio.gather`` and ``asyncio.Semaphore``, authors can iterate
    over asynchronous results directly in downstream tasks while still benefiting
-   from a shared event loop. This will make high-throughput patterns such as
+   from a shared event loop. This makes high-throughput patterns such as
    pagination or request multiplexing easier to implement.
 
 MS Graph Async Example

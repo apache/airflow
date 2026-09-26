@@ -1795,3 +1795,23 @@ def test_mapped_operator_retry_delay_explicit(dag_maker):
 
     # Should return the explicitly set value
     assert mapped_deser.retry_delay == custom_retry_delay
+
+
+def test_get_mapped_ti_count_measures_input_before_resolving_parent_group(dag_maker, session):
+    from airflow.models.expandinput import NotFullyPopulated
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, get_mapped_ti_count
+
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        MockOperator.partial(task_id="task").expand(arg1=upstream.output)
+
+    dr = dag_maker.create_dagrun()
+    task = dag.task_dict["task"]
+
+    with patch.object(
+        SerializedMappedOperator, "get_closest_mapped_task_group", autospec=True
+    ) as mock_group_lookup:
+        with pytest.raises(NotFullyPopulated):
+            get_mapped_ti_count(task, dr.run_id, session=session)
+
+    mock_group_lookup.assert_not_called()

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import collections
 import itertools
-from collections.abc import Iterator, Sequence
+from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import attrs
@@ -61,6 +61,31 @@ class LazyXComIterator(Iterator[T]):
 
 
 @attrs.define
+class AsyncLazyXComIterator(AsyncIterator[T]):
+    """
+    Async twin of :class:`LazyXComIterator`: the same item reads, sent through ``asend``.
+
+    An iterated task consumes a mapped task's results as its input on the event loop; reading
+    them synchronously there would block the loop thread on the supervisor channel while the
+    sub-tasks' own ``asend`` calls are in flight (see ``AsyncAwareExecutor.imap_unordered``).
+    """
+
+    seq: LazyXComSequence[T]
+    index: int = 0
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return self
+
+    async def __anext__(self) -> T:
+        try:
+            val = await self.seq.aget(self.index)
+        except IndexError:
+            raise StopAsyncIteration from None
+        self.index += 1
+        return val
+
+
+@attrs.define
 class LazyXComSequence(Sequence[T]):
     _len: int | None = attrs.field(init=False, default=None)
     _xcom_arg: PlainXComArg = attrs.field(alias="xcom_arg")
@@ -86,6 +111,35 @@ class LazyXComSequence(Sequence[T]):
 
     def __iter__(self) -> Iterator[T]:
         return LazyXComIterator(seq=self)
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return AsyncLazyXComIterator(seq=self)
+
+    async def aget(self, index: int) -> T:
+        """Async counterpart of ``self[index]``; the same ``GetXComSequenceItem`` request via ``asend``."""
+        from airflow.sdk.execution_time.comms import (
+            ErrorResponse,
+            GetXComSequenceItem,
+            XComSequenceIndexResult,
+        )
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.xcom import XCom
+
+        source = (xcom_arg := self._xcom_arg).operator
+        msg = await SUPERVISOR_COMMS.asend(
+            GetXComSequenceItem(
+                key=xcom_arg.key,
+                dag_id=source.dag_id,
+                task_id=source.task_id,
+                run_id=self._ti.run_id,
+                offset=index,
+            ),
+        )
+        if isinstance(msg, ErrorResponse):
+            raise IndexError(index)
+        if not isinstance(msg, XComSequenceIndexResult):
+            raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg!r}")
+        return XCom.deserialize_value(_XComWrapper(msg.root))
 
     def __len__(self) -> int:
         if self._len is None:
