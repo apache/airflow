@@ -167,6 +167,49 @@ class TestSnowflakeSqlApiTrigger:
         assert TriggerEvent({"status": "success", "statement_query_ids": QUERY_IDS}) == actual
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.asyncio.sleep", autospec=True)
+    @mock.patch.object(SnowflakeSqlApiTrigger, "get_query_status", autospec=True)
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook", autospec=True)
+    async def test_run_polls_each_query_until_finished(self, mock_hook, mock_get_query_status, mock_sleep):
+        trigger = SnowflakeSqlApiTrigger(
+            poll_interval=POLL_INTERVAL,
+            query_ids=["q1", "q2"],
+            snowflake_conn_id="test_conn",
+            token_life_time=LIFETIME,
+            token_renewal_delta=RENEWAL_DELTA,
+        )
+        mock_get_query_status.side_effect = [
+            {"status": "running"},
+            {"status": "success"},
+            {"status": "success"},
+        ]
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [TriggerEvent({"status": "success", "statement_query_ids": ["q1", "q2"]})]
+        assert [c.args[1] for c in mock_get_query_status.call_args_list] == ["q1", "q1", "q2"]
+        mock_sleep.assert_awaited_once_with(POLL_INTERVAL)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(SnowflakeSqlApiTrigger, "get_query_status", autospec=True)
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook", autospec=True)
+    async def test_run_stops_at_first_failed_query(self, mock_hook, mock_get_query_status):
+        trigger = SnowflakeSqlApiTrigger(
+            poll_interval=POLL_INTERVAL,
+            query_ids=["q1", "q2", "q3"],
+            snowflake_conn_id="test_conn",
+            token_life_time=LIFETIME,
+            token_renewal_delta=RENEWAL_DELTA,
+        )
+        error = {"status": "error", "message": "SQL compilation error"}
+        mock_get_query_status.side_effect = [{"status": "success"}, error]
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [TriggerEvent(error)]
+        assert [c.args[1] for c in mock_get_query_status.call_args_list] == ["q1", "q2"]
+
+    @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
     async def test_snowflake_sql_trigger_failure_status(self, mock_get_sql_api_query_status_async):
         """Test SnowflakeSqlApiTrigger task is executed and triggered with failure status."""
