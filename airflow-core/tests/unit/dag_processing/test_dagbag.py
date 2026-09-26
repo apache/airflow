@@ -58,6 +58,16 @@ from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
+_ZIP_SUBFOLDER_DAG_TEMPLATE = textwrap.dedent(
+    """
+    from airflow.sdk import DAG
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    with DAG(dag_id={dag_id!r}, schedule=None):
+        EmptyOperator(task_id="noop")
+    """
+)
+
 
 def _standard_example_dags_folder() -> Path:
     """
@@ -887,6 +897,57 @@ class TestDagBag:
             dag = dagbag.get_dag(dag_id)
             assert dag, f"{dag_id} was bagged"
             assert dag.fileloc.endswith(f"{pathlib.Path(test_zip_path).parent}/{path}")
+
+    def test_zip_dag_in_package_subfolder_is_loaded(self, tmp_path):
+        """A DAG placed inside a proper package (has ``__init__.py``) of a zip is discovered."""
+        zipped = tmp_path / "test_zip_pkg.zip"
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.writestr("root_dag.py", _ZIP_SUBFOLDER_DAG_TEMPLATE.format(dag_id="zip_root_dag"))
+            zf.writestr("pkg/__init__.py", "")
+            zf.writestr("pkg/nested_dag.py", _ZIP_SUBFOLDER_DAG_TEMPLATE.format(dag_id="zip_pkg_nested_dag"))
+
+        dagbag = DagBag(dag_folder=os.fspath(zipped))
+
+        assert not dagbag.import_errors
+        assert dagbag.get_dag("zip_root_dag") is not None
+        nested = dagbag.get_dag("zip_pkg_nested_dag")
+        assert nested is not None
+        assert nested.fileloc.endswith(f"{zipped}/pkg/nested_dag.py")
+
+    def test_zip_dag_in_deeply_nested_package_is_loaded(self, tmp_path):
+        """A DAG several package levels deep is discovered when every level is a package."""
+        zipped = tmp_path / "test_zip_deep.zip"
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.writestr("pkg/__init__.py", "")
+            zf.writestr("pkg/sub/__init__.py", "")
+            zf.writestr("pkg/sub/deep_dag.py", _ZIP_SUBFOLDER_DAG_TEMPLATE.format(dag_id="zip_deep_dag"))
+
+        dagbag = DagBag(dag_folder=os.fspath(zipped))
+
+        assert not dagbag.import_errors
+        dag = dagbag.get_dag("zip_deep_dag")
+        assert dag is not None
+        assert dag.fileloc.endswith(f"{zipped}/pkg/sub/deep_dag.py")
+
+    def test_zip_dag_in_non_package_subfolder_is_skipped_with_warning(self, tmp_path, caplog):
+        """A DAG in a sub-folder without ``__init__.py`` cannot be imported from a zip and is not
+        silently dropped: it is skipped and a warning names the unreachable file."""
+        zipped = tmp_path / "test_zip_ns.zip"
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.writestr("root_dag.py", _ZIP_SUBFOLDER_DAG_TEMPLATE.format(dag_id="zip_root_dag"))
+            zf.writestr(
+                "plaindir/plain_dag.py", _ZIP_SUBFOLDER_DAG_TEMPLATE.format(dag_id="zip_plaindir_dag")
+            )
+
+        dagbag = DagBag(dag_folder=os.fspath(zipped))
+
+        assert not dagbag.import_errors
+        assert dagbag.get_dag("zip_root_dag") is not None
+        assert dagbag.get_dag("zip_plaindir_dag") is None
+        assert {
+            "event": re.compile(r".*plaindir/plain_dag\.py.*not part of a package"),
+            "log_level": "warning",
+        } in caplog
 
     def test_dag_registration_with_failure(self):
         dagbag = DagBag(dag_folder=os.devnull)
