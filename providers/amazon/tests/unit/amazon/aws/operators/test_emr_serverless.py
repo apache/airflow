@@ -693,6 +693,58 @@ class TestEmrServerlessStartJobOperator:
             log_msgs = [call.args[0] for call in mock_log.call_args_list]
             assert any("Cancelling EMR Serverless job" in msg for msg in log_msgs)
 
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_failure_surfaces_message(self, mock_conn):
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id="app-id",
+            execution_role_arn="arn",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://x"}},
+            deferrable=True,
+        )
+        failed_event = {
+            "status": "failure",
+            "message": "Serverless Job failed: boom",
+            "job_details": {"application_id": "app-id", "job_id": "job-id"},
+        }
+        with pytest.raises(AirflowException, match="boom"):
+            operator.execute_complete(mock.MagicMock(), failed_event)
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_failure_without_job_details_does_not_keyerror(self, mock_conn):
+        """A trigger failure event without job_details must surface the reason, not raise KeyError."""
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id="app-id",
+            execution_role_arn="arn",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://x"}},
+            deferrable=True,
+        )
+        failed_event = {"status": "failure", "message": "Serverless Job failed: boom"}
+        with pytest.raises(AirflowException, match="boom"):
+            operator.execute_complete(mock.MagicMock(), failed_event)
+        # No run id available on resume, so nothing to cancel.
+        mock_conn.cancel_job_run.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_failure_cancel_error_does_not_mask_reason(self, mock_conn):
+        mock_conn.cancel_job_run.side_effect = Exception("run is not in a cancellable state")
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id="app-id",
+            execution_role_arn="arn",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://x"}},
+            deferrable=True,
+        )
+        failed_event = {
+            "status": "failure",
+            "message": "Serverless Job failed: boom",
+            "job_details": {"application_id": "app-id", "job_id": "job-id"},
+        }
+        with pytest.raises(AirflowException, match="boom"):
+            operator.execute_complete(mock.MagicMock(), failed_event)
+        mock_conn.cancel_job_run.assert_called_once()
+
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_job_run_app_not_started_no_wait_for_completion(self, mock_conn, mock_get_waiter):
