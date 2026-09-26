@@ -205,3 +205,10 @@ class TestKubernetesJobTrigger:
             cluster_context=CLUSTER_CONTEXT,
         )
         assert hook_actual == hook_expected
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{HOOK_PATH}.close", autospec=True)
+    async def test_cleanup_closes_hook(self, mock_close, trigger):
+        await trigger.cleanup()
+
+        mock_close.assert_awaited_once_with(trigger.hook)
