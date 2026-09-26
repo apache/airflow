@@ -823,9 +823,13 @@ ARG_NUM_RUNS = Arg(
 
 ARG_ONLY_IDLE = Arg(
     ("-i", "--only-idle"),
-    default=conf.getboolean("scheduler", "only_idle", fallback=False),
-    help="Only count runs after the scheduler becomes idle.",
-    action="store_true",
+    default=None,
+    # Square brackets would be eaten as Rich markup by the help formatter, so name the option dotted.
+    help=(
+        "Only count runs after the scheduler becomes idle. Requires --num-runs to be a positive number. "
+        "Defaults to the scheduler.only_idle config option; pass --no-only-idle to override it."
+    ),
+    action=argparse.BooleanOptionalAction,
 )
 
 ARG_WITHOUT_MINGLE = Arg(
