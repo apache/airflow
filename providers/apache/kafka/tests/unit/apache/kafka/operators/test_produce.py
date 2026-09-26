@@ -26,7 +26,6 @@ import pytest
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
-from airflow.providers.common.compat.sdk import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -89,17 +88,26 @@ class TestProduceToTopic:
 
         operator.execute(context={})
 
-    def test_execute_rejects_empty_rendered_topic(self):
+    @pytest.mark.parametrize(
+        ("rendered_topic", "producer_function"),
+        [
+            pytest.param("", _simple_producer, id="empty-rendered-topic"),
+            pytest.param("test_1", None, id="missing-producer-function"),
+        ],
+    )
+    def test_execute_rejects_empty_rendered_topic_or_missing_producer_function(
+        self, rendered_topic, producer_function
+    ):
         with DAG("kafka_produce", schedule=None, start_date=pendulum.datetime(2020, 1, 1, tz="UTC")):
             operator = ProduceToTopicOperator(
                 kafka_config_id="kafka_d",
                 topic="{{ params.topic }}",
-                producer_function=_simple_producer,
+                producer_function=producer_function,
                 producer_function_args=(b"test", b"test"),
                 task_id="test",
                 synchronous=False,
             )
-        operator.render_template_fields({"params": {"topic": ""}})
-        assert operator.topic == ""
-        with pytest.raises(AirflowException, match="topic and producer_function must be provided"):
+        operator.render_template_fields({"params": {"topic": rendered_topic}})
+        assert operator.topic == rendered_topic
+        with pytest.raises(ValueError, match="topic and producer_function must be provided"):
             operator.execute(context={})
