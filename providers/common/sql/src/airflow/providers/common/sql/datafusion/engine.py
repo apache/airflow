@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl, urlsplit
 
 from datafusion import SessionContext
 
@@ -161,6 +162,12 @@ class DataFusionEngine(LoggingMixin):
                 return extra_dejson[field_name]
             return extra_dejson.get(f"extra__google_cloud_platform__{field_name}")
 
+        def _get_wasb_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
+            # Older Airflow connection UIs wrote custom extra fields as
+            # extra__wasb__<field_name> instead of the bare key; WasbHook still reads that
+            # legacy spelling as a fallback, so this must too.
+            return extra_dejson.get(field_name, extra_dejson.get(f"extra__wasb__{field_name}"))
+
         match conn.conn_type:
             case "aws":
                 try:
@@ -204,6 +211,80 @@ class DataFusionEngine(LoggingMixin):
                     key_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
                 credentials = self._remove_none_values({"key_path": key_path, "keyfile_dict": keyfile_dict})
 
+            case "wasb":
+                extra_dejson = conn.extra_dejson
+                for unsupported_field in (
+                    "connection_string",
+                    "managed_identity_client_id",
+                    "workload_identity_tenant_id",
+                ):
+                    if _get_wasb_extra_field(extra_dejson, unsupported_field):
+                        raise ValueError(
+                            f"Connection field {unsupported_field!r} is not supported for DataFusion "
+                            "Azure Blob Storage access; only tenant_id+login+password (service "
+                            "principal), sas_token, shared_access_key/account_key/password, or ambient "
+                            "credentials (AZURE_* environment variables, managed identity, workload "
+                            "identity, or az login) are used."
+                        )
+                credentials = {"account": self._resolve_wasb_account(conn.host, conn.login)}
+                explicit_credential = False
+                if tenant_id := _get_wasb_extra_field(extra_dejson, "tenant_id"):
+                    if not conn.login or not conn.password:
+                        # Falling through here would silently switch identity (ambient auth, or
+                        # the client secret sent as a shared key) instead of failing clearly.
+                        missing = "login (client_id)" if not conn.login else "password (client_secret)"
+                        raise ValueError(
+                            f"Connection extra 'tenant_id' is set for DataFusion Azure Blob Storage "
+                            f"service-principal auth, but {missing} is not."
+                        )
+                    credentials.update(
+                        {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
+                    )
+                    explicit_credential = True
+                elif sas_token := _get_wasb_extra_field(extra_dejson, "sas_token"):
+                    if sas_token.startswith("http"):
+                        raise ValueError(
+                            "A URL-form `sas_token` is not supported for DataFusion Azure Blob Storage "
+                            "access; provide the SAS token as a query string instead."
+                        )
+                    credentials["sas_query_pairs"] = parse_qsl(sas_token.lstrip("?"))
+                    explicit_credential = True
+                else:
+                    access_key = (
+                        conn.password
+                        or _get_wasb_extra_field(extra_dejson, "shared_access_key")
+                        or _get_wasb_extra_field(extra_dejson, "account_key")
+                    )
+                    if access_key:
+                        credentials["access_key"] = access_key
+                        explicit_credential = True
+
+                if explicit_credential:
+                    # The binding always reads these via from_env() first and checks that
+                    # env-derived access key / workload-identity ahead of what's set here, so
+                    # they'd silently win over the connection's credential. No way to skip
+                    # from_env(), so this can only be caught, not fixed, on the Python side.
+                    conflicting_env_vars = [
+                        var
+                        for var in (
+                            "AZURE_FEDERATED_TOKEN_FILE",
+                            "AZURE_STORAGE_ACCOUNT_KEY",
+                            "AZURE_STORAGE_ACCESS_KEY",
+                            "AZURE_STORAGE_SAS_KEY",
+                            "AZURE_STORAGE_TOKEN",
+                        )
+                        if os.environ.get(var)
+                    ]
+                    if conflicting_env_vars:
+                        raise ValueError(
+                            f"Worker environment variable(s) {', '.join(conflicting_env_vars)} would "
+                            "silently take precedence over this connection's explicit credential in "
+                            "DataFusion's Azure Blob Storage binding. Unset them on the worker, or "
+                            "remove the explicit credential from this connection to rely on the "
+                            "environment instead."
+                        )
+                credentials = self._remove_none_values(credentials)
+
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
         return credentials, extra_config
@@ -212,6 +293,45 @@ class DataFusionEngine(LoggingMixin):
     def _remove_none_values(params: dict[str, Any]) -> dict[str, Any]:
         """Filter out None values from the dictionary."""
         return {k: v for k, v in params.items() if v is not None}
+
+    _AZURE_PUBLIC_SUFFIX = ".blob.core.windows.net"
+
+    @classmethod
+    def _resolve_wasb_account(cls, host: str | None, login: str | None) -> str | None:
+        """
+        Return the storage account name the way WasbHook resolves it.
+
+        From ``host`` when set (its netloc's first label), falling back to ``login`` only when
+        ``host`` is empty -- login holds the service-principal client_id in that auth mode, not
+        the account name. Returns ``None`` when neither is set, so the binding falls back to
+        ``AZURE_STORAGE_ACCOUNT_NAME`` instead of targeting the literal string ``"None"``.
+        Reimplemented locally rather than importing
+        ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling the
+        microsoft-azure provider's full Azure SDK dependency stack into common-sql for one string
+        operation that only needs the stdlib.
+
+        Only the public ``*.blob.core.windows.net`` cloud is supported: DataFusion's Azure binding
+        takes no endpoint override, so a sovereign-cloud or emulator host would otherwise be
+        silently misrouted to the public account of the same name.
+        """
+        if not host and not login:
+            return None
+        netloc = urlsplit(host if host else f"https://{login}.blob.core.windows.net/").netloc
+        if not netloc:
+            # No scheme was given (e.g. a bare DNS name); urlsplit put it all in the path instead.
+            netloc = urlsplit(f"https://{host}").netloc
+        if "." not in netloc:
+            # Only an Active Directory ID was given, not a full URL or DNS name.
+            netloc = f"{login}.blob.core.windows.net"
+        if not netloc.endswith(cls._AZURE_PUBLIC_SUFFIX):
+            raise ValueError(
+                f"Connection host {host!r} does not resolve to the public {cls._AZURE_PUBLIC_SUFFIX} "
+                "cloud, which is the only one DataFusion's Azure Blob Storage binding can target (it "
+                "has no endpoint override). Sovereign clouds and the Azurite emulator are not "
+                "supported; set the AZURE_STORAGE_ENDPOINT environment variable instead."
+            )
+        # Azure storage account names are capped at 24 characters.
+        return netloc.split(".", 1)[0][:24]
 
     def get_schema(self, table_name: str):
         """Get the schema of a table."""

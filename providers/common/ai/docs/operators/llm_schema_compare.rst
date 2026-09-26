@@ -65,7 +65,7 @@ With Object Storage or a Database Table
 
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
-object-storage sources (S3 or GCS Parquet, CSV, Iceberg, etc.) in the comparison.
+object-storage sources (S3, GCS, Azure Blob Storage, Parquet, CSV, Iceberg, etc.) in the comparison.
 These can be freely combined with ``db_conn_ids``. Whether an entry is
 introspected via ``DbApiHook`` or DataFusion depends on what its ``conn_id``
 resolves to, not on its ``uri``/``format`` fields: a ``DataSourceConfig``

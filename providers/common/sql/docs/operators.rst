@@ -297,10 +297,11 @@ Supported Storage Systems
 -------------------------
 - S3
 - GCS
+- Azure Blob Storage
 - Local File System
 
 .. note::
-   Azure, HTTP, Delta are not yet supported but will be added in the future.
+   HTTP, Delta are not yet supported but will be added in the future.
 
 
 
@@ -361,6 +362,49 @@ resolved in this order:
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_gcs]
     :end-before: [END howto_analytics_operator_with_gcs]
+
+Azure Storage
+-------------
+Use an ``az://`` URI with a ``conn_id`` pointing to a ``wasb`` connection.
+``abfs://`` and ``abfss://`` URIs are not recognized yet. The account name
+comes from ``host`` (its first DNS label) when set, falling back to
+``login`` only when ``host`` is empty; only the public
+``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
+has no endpoint override. ``client_secret_auth_config`` (the authority
+override ``WasbHook`` honors) is not read here.
+
+The connection supplies one of the following credentials:
+
+1. Azure AD service principal -- ``tenant_id`` extra, with ``login`` as the
+   client ID and ``password`` as the client secret (both required together)
+2. SAS token -- ``sas_token`` extra, as a query string
+3. Shared key -- ``password``, or the ``shared_access_key``/``account_key`` extra
+4. None of the above -- ambient auth (see below)
+
+**A worker environment variable can override the connection.** DataFusion
+reads ``AZURE_*`` environment variables first, and an environment access
+key or workload-identity token wins over the connection's SAS token or
+client secret. If the connection sets an explicit credential (1-3 above)
+and the worker also has ``AZURE_FEDERATED_TOKEN_FILE``,
+``AZURE_STORAGE_ACCOUNT_KEY``, ``AZURE_STORAGE_ACCESS_KEY``,
+``AZURE_STORAGE_SAS_KEY``, or ``AZURE_STORAGE_TOKEN`` set, this raises
+instead of silently using the wrong identity.
+
+With no explicit credential, authentication falls back to ``AZURE_*``
+environment variables, managed identity, or workload identity. Unlike
+``WasbHook`` (which tries ``az login`` automatically), DataFusion's
+underlying ``object_store`` binding only tries the Azure CLI if
+``AZURE_USE_AZURE_CLI=true`` is set; otherwise it defaults straight to
+IMDS managed identity.
+
+``connection_string``, ``managed_identity_client_id``, ``workload_identity_tenant_id``,
+and a URL-form ``sas_token`` are not supported.
+
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_azure]
+    :end-before: [END howto_analytics_operator_with_azure]
 
 Local File System Storage
 -------------------------
