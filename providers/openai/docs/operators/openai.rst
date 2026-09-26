@@ -173,7 +173,9 @@ know about yet. Options worth knowing about:
     before the response finishes. ``OpenAIResponseOperator`` is synchronous: it makes one
     ``create_response`` call and returns ``response.output_text`` immediately, so a response
     started with ``background=True`` comes back incomplete, and the operator logs its own warning
-    because ``response.status`` is not yet ``"completed"``. Do not set ``background=True`` on
+    because ``response.status`` is not yet ``"completed"``. With ``text_format`` set, the task
+    raises ``ValueError`` instead, and the background response is left running on OpenAI's side.
+    Do not set ``background=True`` on
     ``OpenAIResponseOperator``. If you need a background response, create it from a ``@task``
     using :class:`~airflow.providers.openai.hooks.openai.OpenAIHook`'s ``create_response`` directly.
 

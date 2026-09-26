@@ -144,7 +144,9 @@ class OpenAIResponseOperator(BaseOperator):
         ``tools``, ``conversation`` or ``previous_response_id``). Templated, so values (e.g.
         ``previous_response_id``) may reference upstream XCom.
         Do not set ``background`` or ``stream`` here: ``background=True`` returns before the response
-        completes, so this operator logs a warning and the returned output text may be empty, while
+        completes, so this operator logs a warning and the returned output text may be empty (with
+        ``text_format`` set, the parsed response comes back ``queued`` or ``in_progress``, so the task
+        raises ``ValueError`` and the background response is left running on OpenAI's side), while
         ``stream=True`` returns an object without ``status`` or ``output_text``, so the task raises
         ``AttributeError``. See :ref:`howto/operator:OpenAIResponseOperator` for these and other
         options this operator can pass through, such as ``truncation`` and ``metadata``. ``max_output_tokens``
