@@ -1249,8 +1249,9 @@ class TestSnowflakeSqlApiHook:
         assert result == {"status": "queued", "info": ["a", "b"]}
         sleep_mock.assert_not_called()
 
+    @mock.patch(f"{MODULE_PATH}.time.monotonic")
     @mock.patch(f"{MODULE_PATH}.time.sleep")
-    def test_wait_for_query_timeout_error(self, sleep_mock, time_machine):
+    def test_wait_for_query_timeout_error(self, sleep_mock, monotonic_mock):
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
 
         # Simulate a query that keeps running and never finishes
@@ -1259,9 +1260,13 @@ class TestSnowflakeSqlApiHook:
         qid = "qid-789"
         timeout = 3
 
-        # Freeze the clock. Each sleep advances it explicitly so logger time.time() calls do not skew the timeout.
-        time_machine.move_to(0, tick=False)
-        sleep_mock.side_effect = lambda seconds: time_machine.shift(seconds + 0.1)
+        clock = [0.0]
+        monotonic_mock.side_effect = lambda: clock[0]
+
+        def advance_clock(seconds):
+            clock[0] += seconds + 0.1
+
+        sleep_mock.side_effect = advance_clock
 
         with pytest.raises(TimeoutError):
             hook.wait_for_query(query_id=qid, timeout=timeout, poll_interval=1)
@@ -1271,6 +1276,28 @@ class TestSnowflakeSqlApiHook:
         sleep_mock.assert_has_calls([mock.call(1)] * 3)
         assert hook.get_sql_api_query_status.call_count == 4
         hook.get_sql_api_query_status.assert_has_calls([mock.call(query_id=qid)] * 4)
+
+    @pytest.mark.parametrize("final_status", ["success", "error"])
+    @mock.patch(f"{MODULE_PATH}.time.monotonic")
+    @mock.patch(f"{MODULE_PATH}.time.sleep")
+    def test_wait_for_query_returns_finished_status_after_timeout_elapsed(
+        self, sleep_mock, monotonic_mock, final_status
+    ):
+        """A status check that outlasts the timeout still reports a query that has finished."""
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        clock = [0.0]
+        monotonic_mock.side_effect = lambda: clock[0]
+
+        def finish_after_slow_status_call(query_id):
+            clock[0] += 10
+            return {"status": final_status, "message": "done"}
+
+        hook.get_sql_api_query_status = mock.MagicMock(side_effect=finish_after_slow_status_call)
+
+        result = hook.wait_for_query(query_id="qid-slow", timeout=3, poll_interval=1)
+
+        assert result == {"status": final_status, "message": "done"}
+        sleep_mock.assert_not_called()
 
     @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
     @mock.patch(f"{HOOK_PATH}._process_response")
