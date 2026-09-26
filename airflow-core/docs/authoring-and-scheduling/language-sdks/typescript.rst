@@ -22,10 +22,14 @@ TypeScript SDK
 
 |experimental|
 
-The TypeScript SDK lets you register task handlers on a ``Bundle`` and implement their logic in TypeScript (or
-plain JavaScript), running on Node.js. A matching Python stub Dag still declares the scheduling shape and
-dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
+The TypeScript SDK lets you write Airflow tasks in TypeScript (or plain JavaScript), running on
+Node.js. Tasks are executed in a Node.js subprocess that
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` spawns per task instance.
+
+There are two ways to author with it. In the **mixed-language** mode a Python Dag declares the graph
+and TypeScript supplies the task bodies, which is what :ref:`typescript-sdk/quick-start` shows. In the
+**native** mode the Dag itself is declared in TypeScript, graph and schedule included, and no Python
+file is involved: see :ref:`typescript-sdk/native-dag`.
 
 The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in **beta** and its API may change.
 
@@ -58,6 +62,8 @@ Prerequisites
   .. code-block:: bash
 
       npm install apache-airflow-ts-sdk
+
+.. _typescript-sdk/quick-start:
 
 Quick start
 -----------
@@ -247,8 +253,8 @@ A ``Dag`` is declared on this side rather than in Python: its schedule, its task
 the edges between them are all written in TypeScript. The surface is still growing, so a Dag declared
 this way is not served to Airflow yet.
 
-``dag.task(taskId, handler)`` returns a *factory*. Calling it places the task in the Dag and supplies the
-handler's arguments, so the call graph is the task graph:
+``dag.task(taskId, handler)`` returns a *factory*. A handler takes one object of named arguments, and
+calling the factory names each input, so the call graph is the task graph:
 
 .. code-block:: typescript
 
@@ -257,25 +263,197 @@ handler's arguments, so the call graph is the task graph:
     const dag = new Dag("ts_etl");
 
     const extract = dag.task("extract", async (): Promise<number> => 42);
-    const transform = dag.task("transform", async (rows: number, region: string) => rows * 2);
-    const load = dag.task("load", async (total: number) => {});
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => rows * 2,
+    );
+    const load = dag.task("load", async ({ total }: { total: number }) => {});
 
-    load(transform(extract(), "us"));
+    const extracted = extract();
+    const total = transform({ rows: extracted, region: "us" });
+    load({ total });
 
-Arguments are passed in the order the handler declares them. A handler that declares a single object of
-named arguments can also be called with that object, which names each input instead of ordering it:
+Naming the inputs is how a task is called. A handler that takes no arguments is called with none, and
+a single argument is named like any other, ``load({ total })``.
+
+``withArgList`` supplies the same inputs in order, for a call that reads better that way:
 
 .. code-block:: typescript
 
-    const store = dag.task("store", async ({ total }: { total: number }) => {});
+    import { withArgList } from "apache-airflow-ts-sdk";
 
-    store({ total: extract() });
+    transform(withArgList(extracted, "us"));
+
+Each value binds to the argument in that position, and the order is the one the handler destructures
+its argument in, so the handler has to take a plain object pattern. A named call is the one the
+compiler checks in full: it reports an argument left out, a misspelled one, and a literal of the
+wrong type.
 
 Each argument takes either an upstream reference or a literal JSON value. A reference has to be the
 argument itself: one buried inside an array or an object is a literal, and draws no edge.
 
 Every task has to be called exactly once. An uncalled task fails when the Dag is read, so none can be
 left out of the graph by accident.
+
+The task id may be omitted, in which case it is the handler's function name:
+
+.. code-block:: typescript
+
+    const extract = dag.task(async function extract(): Promise<number> {
+      return 42;
+    });
+
+``airflow-ts-pack`` keeps function names intact, so bundling cannot rename a task. A handler with no
+name of its own, such as an arrow function passed inline, has nothing to take an id from and needs
+one: either positionally or as ``taskId`` in its spec. Give it in one place only, not both.
+
+Order-only edges
+~~~~~~~~~~~~~~~~
+
+An edge that carries no value has no argument name to travel under, so it is drawn between the
+references themselves with ``before`` and ``after``, the TypeScript pair for Python's ``>>`` and
+``<<``:
+
+.. code-block:: typescript
+
+    const loaded = load({ transformed });
+    const cleaned = cleanup();
+
+    loaded.before(cleaned);                  // loaded >> cleaned
+    cleaned.after(loaded, transformed);      // [loaded, transformed] >> cleaned
+
+Both take any number of references, so one call draws several edges, and drawing an edge that
+already exists changes nothing. Each returns the reference it was called on, so
+``loaded.before(cleaned).before(notified)`` draws both edges from ``loaded``.
+
+Pass a value as an argument when the downstream task needs it, and use ``before`` or ``after`` when
+it only needs to run in order.
+
+Task groups
+~~~~~~~~~~~
+
+``dag.taskGroup(groupId)`` opens a scope with the same ``task`` and ``taskGroup`` methods as the Dag,
+prefixing the id of everything declared in it, as Python's ``prefix_group_id`` does:
+
+.. code-block:: typescript
+
+    const staging = dag.taskGroup("staging");
+    staging.task("stage_rows", stageRows)();        // task id "staging.stage_rows"
+    staging.taskGroup("checks").task("nulls", checkNulls)();  // "staging.checks.nulls"
+
+    staging.before(loaded);                          // staging >> loaded
+
+A group is an edge endpoint in its own right, so ``before`` and ``after`` order a whole group against
+a task or against another group.
+
+Tasks and groups share one id namespace, as they do in Python, so a Dag cannot hold both a task and a
+group called ``staging``. A ``.`` is what separates a group from what it holds, so it cannot appear in
+an id of either.
+
+.. warning:: A cycle is not allowed. The Dag is rejected when it is read, naming the tasks on the cycle.
+
+Serialization
+~~~~~~~~~~~~~
+
+A native Dag serializes into the same Dag JSON a Python Dag produces, so the scheduler reads it
+without knowing which language declared it. ``bundle.serve()`` is the entry point for both authoring
+modes: it serves the bundle's task handlers and declares its Dags.
+
+A Dag that cannot be read or serialized is reported as an import error against the bundle, so one
+broken Dag does not take out the others.
+
+``schedule`` accepts what maps to a stock timetable: unset, ``@once``, ``@continuous``, or a cron
+expression. A cron preset such as ``@daily`` is recorded as the expression it stands for. Anything
+else names a Python object a TypeScript bundle cannot point at, and is rejected.
+
+Every task of a native Dag runs on the Node coordinator, so it needs the queue the deployment routes
+there. Set it once on the Dag and each task inherits it:
+
+.. code-block:: typescript
+
+    const dag = new Dag("ts_etl", { schedule: "@daily", queue: "typescript" });
+
+    // ...and one task that needs its own.
+    dag.task("heavy", heavyHandler, { queue: "typescript_large" })();
+
+``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
+``queue_to_coordinator`` entry that sends that queue to the coordinator.
+
+Conditional branching
+~~~~~~~~~~~~~~~~~~~~~
+
+``dag.if`` takes a task whose handler returns a boolean, and names the task each outcome runs:
+
+.. code-block:: typescript
+
+    const condition = dag.task("has_rows", async ({ rows }: { rows: number }) => rows > 0);
+    const gated = condition({ rows: extracted });
+
+    dag.if(gated).then(loaded).else(reportedEmpty);
+
+The condition is an ordinary task, so it is declared, typed and wired like any other, and the
+compiler checks that its handler really returns a boolean. ``else`` is optional: a one-sided
+condition skips its own branch when the condition fails and follows nothing.
+
+A guarded task takes no argument for the control edge, because a condition's boolean decides whether
+the task runs rather than what it runs on. Read a value from the condition with
+``getClient().getXCom``.
+
+The side not taken is skipped when the run reaches it, and stays skipped if you clear it later. Only
+the branches named here are skipped, so a task that several branches converge on still runs — unlike
+Python's ``@task.branch``, which skips every immediate downstream it did not follow.
+
+Multi-way branching
+~~~~~~~~~~~~~~~~~~~
+
+``dag.switch`` is the multi-way form: a task whose handler returns one of the cases it is given.
+
+.. code-block:: typescript
+
+    const decider = dag.task("pick_path", async ({ rows }: { rows: number }) =>
+      rows > 1000 ? handleLong : handleShort,
+    );
+    const picked = decider({ rows: extracted });
+
+    dag.switch(picked).case(handleLong).case(handleShort);
+
+A case is the task reference itself, so the compiler checks the candidate exists and renaming a
+handler cannot silently rewire a Dag. The task's own value is the chosen task's id, which a
+downstream task can read from its XCom.
+
+There is no default case. A decider that returns anything outside its cases fails the task, naming
+what it chose and what it could have chosen.
+
+Exactly one case is selected. Python's branch callable may return a list of task ids, and no language
+SDK offers that yet: put the paths that run together behind one task, or gate each with its own
+condition.
+
+Triggering another Dag
+~~~~~~~~~~~~~~~~~~~~~~
+
+``dag.triggerDagRun`` starts another Dag's run, as a task of this one:
+
+.. code-block:: typescript
+
+    const trigger = dag.triggerDagRun({
+      taskId: "trigger_downstream",
+      dagId: "downstream_etl",
+      waitForCompletion: true,
+    });
+
+    trigger.after(loaded);
+
+There is nothing to call: the task takes no TypeScript arguments, so it hands back the reference
+directly. A second options object carries the task's own spec, as ``dag.task`` takes one.
+
+The task runs on a **Python** worker rather than in this runtime, which is why the SDK needs no
+deferral mechanism of its own to offer ``waitForCompletion``, ``deferrable``, ``pokeInterval`` and the
+state options. It therefore inherits no queue from the Dag: the deployment needs the standard
+provider installed and a Python worker able to pick the task up, and you can name that worker's queue
+in the task spec.
+
+Templated arguments pass through untouched, so ``{{ ds }}`` in a ``conf`` value is rendered
+server-side where rendering already happens.
 
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
@@ -398,9 +576,8 @@ layout header. The layout records the byte ranges and SHA-256 digests of the man
 so there is one file to deploy, with no separate manifest or ``node_modules``.
 
 The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
-read or edit in place. The ``/*! */`` license banners of bundled dependencies are kept. Nothing is identified by
-a function name, so minified names are safe: a Dag and a task are named by the string ids their registration
-states, and a handler is dispatched by reference.
+read or edit in place. Function names are kept through minification, since a task id defaults to its
+handler's name. The ``/*! */`` license banners of bundled dependencies are kept.
 
 Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim in a
 ``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something readable to
@@ -460,9 +637,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 Limitations
 -----------
 
-* **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
-  languages, so task names and dependencies are declared in Python with
-  :func:`@task.stub <airflow.sdk.task.stub>`.
+* **A native Dag cannot express everything a Python Dag can.** Assets, a custom timetable, dynamic task
+  mapping and setup/teardown tasks have no TypeScript spelling yet, so a Dag that needs one of them is
+  declared in Python with :func:`@task.stub <airflow.sdk.task.stub>` tasks instead.
 * **Beta status.** The SDK API may change in incompatible ways between releases.
 * **One Node.js subprocess per task instance.** Tasks that need to share in-process state between instances
   should use XCom or an external store instead.

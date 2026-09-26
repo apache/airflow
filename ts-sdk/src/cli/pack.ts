@@ -215,8 +215,12 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       platform: "node",
       format: "esm",
       target: "node22",
-      // A digest is only worth taking over an artifact nobody reads or edits in place.
       minify: true,
+      // A task id comes from the handler's name, and bundling renames a symbol
+      // that two modules both declare, so the name the SDK reads is pinned to
+      // the one the author wrote. Argument names are property names, which
+      // minification leaves alone.
+      keepNames: true,
       // The manifest is read by running the staged bundle, so the metadata describes what ships.
       outfile: stagingPath,
     });
