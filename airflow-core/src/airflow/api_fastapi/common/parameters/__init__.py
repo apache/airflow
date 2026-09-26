@@ -102,6 +102,7 @@ from airflow.api_fastapi.common.parameters.misc import (
     QueryHITLDetailTaskIdPrefixPatternSearch as QueryHITLDetailTaskIdPrefixPatternSearch,
     QueryIncludeDownstream as QueryIncludeDownstream,
     QueryIncludeUpstream as QueryIncludeUpstream,
+    QueryJobIsAliveFilter as QueryJobIsAliveFilter,
     QueryParseImportErrorBundleNameFilter as QueryParseImportErrorBundleNameFilter,
     QueryParseImportErrorFilenameFilter as QueryParseImportErrorFilenameFilter,
     QueryParseImportErrorFilenamePatternSearch as QueryParseImportErrorFilenamePatternSearch,

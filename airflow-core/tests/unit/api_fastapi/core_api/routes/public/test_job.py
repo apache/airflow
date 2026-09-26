@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import pytest
+import time_machine
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
@@ -221,6 +223,38 @@ class TestGetJobs(TestJobEndpoint):
         assert response_json["total_entries"] == 1
         assert response_json["jobs"][0]["team_names"] == sorted([testing_team.name, extra_team.name])
         assert response_json["jobs"][0]["bundle_names"] == ["bundle-a", "bundle-b"]
+
+    @time_machine.travel(datetime(2024, 1, 1, tzinfo=timezone.utc), tick=False)
+    def test_get_jobs_is_alive_filter_is_consistent_with_pagination(self, test_client, session: Session):
+        clear_db_jobs()
+        now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        jobs = [
+            Job(state=JobState.RUNNING, job_type="SchedulerJob", latest_heartbeat=now),
+            Job(state=JobState.RUNNING, job_type="SchedulerJob", latest_heartbeat=now),
+            # RUNNING but the heartbeat is older than the health-check threshold -> not alive.
+            Job(
+                state=JobState.RUNNING,
+                job_type="SchedulerJob",
+                latest_heartbeat=now - timedelta(days=1),
+            ),
+            # Not RUNNING -> not alive.
+            Job(state=JobState.FAILED, job_type="SchedulerJob", latest_heartbeat=now),
+        ]
+        session.add_all(jobs)
+        session.commit()
+
+        alive = test_client.get("/jobs", params={"is_alive": True}).json()
+        assert alive["total_entries"] == 2
+        assert {job["id"] for job in alive["jobs"]} == {jobs[0].id, jobs[1].id}
+
+        not_alive = test_client.get("/jobs", params={"is_alive": False}).json()
+        assert not_alive["total_entries"] == 2
+        assert {job["id"] for job in not_alive["jobs"]} == {jobs[2].id, jobs[3].id}
+
+        # total_entries counts the filtered set in SQL, so it stays correct once a page limit applies.
+        paged = test_client.get("/jobs", params={"is_alive": True, "limit": 1}).json()
+        assert paged["total_entries"] == 2
+        assert len(paged["jobs"]) == 1
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/jobs")
