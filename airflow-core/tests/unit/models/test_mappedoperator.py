@@ -30,6 +30,7 @@ from sqlalchemy import delete, select
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
@@ -1795,3 +1796,100 @@ def test_mapped_operator_retry_delay_explicit(dag_maker):
 
     # Should return the explicitly set value
     assert mapped_deser.retry_delay == custom_retry_delay
+
+
+@pytest.mark.parametrize(
+    ("batch_size", "items"),
+    [
+        pytest.param(5, [1, 2, 3], id="batch_size-larger-than-items"),
+        pytest.param(2, [1, 2, 3], id="batch_size-smaller-than-items"),
+        pytest.param(3, [1, 2, 3], id="batch_size-equal-to-items"),
+        pytest.param(2, 5, id="scalar-input-is-never-measured"),
+    ],
+)
+def test_batched_ti_count_is_batch_size_regardless_of_items(dag_maker, session, batch_size, items):
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
+
+    with dag_maker(dag_id=f"test_batch_size_{batch_size}", session=session, serialized=True) as dag:
+        MockOperator.partial(task_id="task").batch(size=batch_size).iterate(arg1=items)
+
+    dr = dag_maker.create_dagrun()
+    task = dag.task_dict["task"]
+
+    assert task.get_parse_time_mapped_ti_count() == batch_size
+    assert get_mapped_ti_count(task, dr.run_id, session=session) == batch_size
+
+
+@pytest.mark.parametrize("serialized", [True, False], ids=["serialized", "unserialized"])
+@pytest.mark.parametrize(
+    ("length", "expected"),
+    [
+        pytest.param(3, 3, id="three-instances"),
+        pytest.param(1, None, id="one-is-unusable"),
+        pytest.param(0, None, id="zero-is-unusable"),
+    ],
+)
+def test_runtime_batch_size_counts_from_xcom_mapped_length(dag_maker, session, length, expected, serialized):
+    """``.batch(size=<XComArg>)``: the scheduler never reads the XCom value, it counts instances from
+    the ``mapped_length`` the size task's push records on its XCom row, cannot count before that row
+    exists, and does not trust a length below 2 (the worker never writes one). An unserialized operator, as tests and
+    direct callers hand over, counts the same way instead of erroring."""
+    from airflow.models.expandinput import NotFullyPopulated
+    from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
+
+    with dag_maker(
+        dag_id=f"test_runtime_batch_size_{length}_{serialized}", session=session, serialized=serialized
+    ) as dag:
+        size = BaseOperator(task_id="size")
+        MockOperator.partial(task_id="task").batch(size=XComArg(size)).iterate(arg1=[1, 2, 3])
+
+    dr = dag_maker.create_dagrun()
+    task = dag.task_dict["task"]
+
+    assert "size" in task.upstream_task_ids
+    assert list(task.iter_mapped_dependencies()) == []
+    if serialized:  # the parse-time count is scheduler-side only
+        with pytest.raises(NotFullyPopulated) as ctx:
+            task.get_parse_time_mapped_ti_count()
+        assert ctx.value.missing == {"size"}
+    with pytest.raises(NotFullyPopulated) as ctx:
+        get_mapped_ti_count(task, dr.run_id, session=session)
+    assert ctx.value.missing == {"size"}
+
+    XComModel.set(
+        key=XCOM_RETURN_KEY,
+        value=length,
+        dag_id=dag.dag_id,
+        task_id="size",
+        run_id=dr.run_id,
+        map_index=-1,
+        mapped_length=length,
+        session=session,
+    )
+    session.flush()
+    if expected is None:
+        with pytest.raises(NotFullyPopulated):
+            get_mapped_ti_count(task, dr.run_id, session=session)
+    else:
+        assert get_mapped_ti_count(task, dr.run_id, session=session) == expected
+
+
+def test_get_mapped_ti_count_measures_input_before_resolving_parent_group(dag_maker, session):
+    from airflow.models.expandinput import NotFullyPopulated
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, get_mapped_ti_count
+
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        MockOperator.partial(task_id="task").expand(arg1=upstream.output)
+
+    dr = dag_maker.create_dagrun()
+    task = dag.task_dict["task"]
+
+    with patch.object(
+        SerializedMappedOperator, "get_closest_mapped_task_group", autospec=True
+    ) as mock_group_lookup:
+        with pytest.raises(NotFullyPopulated):
+            get_mapped_ti_count(task, dr.run_id, session=session)
+
+    mock_group_lookup.assert_not_called()

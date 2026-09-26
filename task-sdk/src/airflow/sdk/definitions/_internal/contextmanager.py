@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 from collections import deque
+from contextvars import ContextVar
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
@@ -32,19 +33,19 @@ T = TypeVar("T")
 
 __all__ = ["DagContext", "TaskGroupContext"]
 
-# This is a global variable that stores the current Task context.
-# It is used to push the Context dictionary when Task starts execution
-# and it is used to retrieve the current context in PythonOperator or Taskflow API via
-# the `get_current_context` function.
-_CURRENT_CONTEXT: list[Context] = []
+# ContextVar storing the current task-execution context stack.  Each asyncio task and each ThreadPoolExecutor
+# worker receives its own isolated copy (Python 3.7+ copy-on-submit semantics), so concurrent sub-tasks never
+# observe each other's pushed context.
+_CURRENT_CONTEXT: ContextVar[list[Context] | None] = ContextVar("_current_context", default=None)
 
 
 def _get_current_context() -> Context:
-    if not _CURRENT_CONTEXT:
+    stack = _CURRENT_CONTEXT.get(None)
+    if not stack:
         raise RuntimeError(
             "Current context was requested but no context was found! Are you running within an Airflow task?"
         )
-    return _CURRENT_CONTEXT[-1]
+    return stack[-1]
 
 
 # In order to add a `@classproperty`-like thing we need to define a property on a metaclass.

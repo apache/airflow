@@ -41,6 +41,7 @@ from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGro
 from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 from airflow.sdk.definitions._internal.expandinput import (
     EXPAND_INPUT_EMPTY,
+    DecoratedExpandInput,
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
     is_mappable,
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.batchedoperator import DecoratedBatchedOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
@@ -590,6 +592,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             )
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
+        # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
+        # count consumed by IterableOperator via .iterate()/.iterate_kwargs()).
+        # A plain .expand() never reaches that code path, so reject it here rather than silently
+        # accepting a dead value.
+        if "task_concurrency" in self.kwargs:
+            raise TypeError("unexpected argument: task_concurrency")
         self._validate_arg_names("expand", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict
@@ -598,7 +606,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
+        return XComArg(operator=self._expand(DictOfListsExpandInput(map_kwargs), strict=False))
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         if (
@@ -622,9 +630,18 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
-        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
+        # See the comment in expand() above: task_concurrency has no meaning outside iterate().
+        if "task_concurrency" in self.kwargs:
+            raise TypeError("unexpected argument: task_concurrency")
+        return XComArg(operator=self._expand(ListOfDictsExpandInput(kwargs), strict=strict))
 
-    def _expand(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
+    def _expand(
+        self,
+        expand_input: ExpandInput,
+        *,
+        strict: bool,
+        register_with_dag: bool = True,
+    ) -> DecoratedMappedOperator:
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
@@ -692,7 +709,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except AttributeError:
             operator_name = self.operator_class.__name__
 
-        operator = _MappedOperator(
+        return _MappedOperator(
             operator_class=self.operator_class,
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
             partial_kwargs=partial_kwargs,
@@ -726,8 +743,90 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             start_trigger_args=self.operator_class.start_trigger_args,
             start_from_trigger=self.operator_class.start_from_trigger,
             returns_dag_result=self.returns_dag_result,
+            register_with_dag=register_with_dag,
         )
-        return XComArg(operator=operator)
+
+    def iterate(self, **map_kwargs: OperatorExpandArgument) -> XComArg:
+        """
+        Iterate the task over ``map_kwargs`` inside a single task instance.
+
+        The counterpart of :meth:`expand` for Iterable Tasks: the same inputs, but processed by one
+        :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` instead of one task
+        instance per item.
+        """
+        # Since the input is already checked at parse time, we can set strict
+        # to False to skip the checks on execution.
+        return self._iterate(self._iterate_input(**map_kwargs), strict=False)
+
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        """Iterate the task over a list of dicts or an XComArg; see :meth:`iterate`."""
+        return self._iterate(self._iterate_kwargs_input(kwargs), strict=strict)
+
+    def batch(self, size: int | XComArg) -> DecoratedBatchedOperator:
+        """
+        Spread the iteration over ``size`` task instances instead of one.
+
+        Returns a :class:`~airflow.sdk.definitions.batchedoperator.DecoratedBatchedOperator` whose
+        ``iterate()`` / ``iterate_kwargs()`` build a ``MappedIterableOperator``. ``size`` may be an
+        ``XComArg`` (the return value of a plain, non-mapped task): the number of task instances is
+        then decided at run time, once that upstream has run.
+        """
+        from airflow.sdk.definitions.batchedoperator import DecoratedBatchedOperator, validate_batch_size
+
+        return DecoratedBatchedOperator(operator_partial=self, size=validate_batch_size(size))
+
+    def _iterate_input(self, **map_kwargs: OperatorExpandArgument) -> DictOfListsExpandInput:
+        """Validate ``iterate()`` keyword arguments and wrap them; shared with ``DecoratedBatchedOperator``."""
+        if self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS and any(
+            [isinstance(expanded, XComArg) for expanded in map_kwargs.values()]
+        ):
+            raise ValueError(
+                "Task-generated iterating within a task using 'iterate' is not allowed with trigger rule 'always'."
+            )
+        if not map_kwargs:
+            raise TypeError("no arguments to expand against")
+        self._validate_arg_names("iterate", map_kwargs)
+        prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
+        if self.is_teardown:
+            if "trigger_rule" in self.kwargs:
+                raise ValueError("Trigger rule not configurable for teardown tasks.")
+            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        return DictOfListsExpandInput(map_kwargs)
+
+    def _iterate_kwargs_input(self, kwargs: OperatorExpandKwargsArgument) -> ListOfDictsExpandInput:
+        """Validate ``iterate_kwargs()`` input and wrap it; shared with ``DecoratedBatchedOperator``."""
+        if (
+            self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS
+            and not isinstance(kwargs, XComArg)
+            and any(
+                [
+                    isinstance(v, XComArg)
+                    for kwarg in kwargs
+                    if not isinstance(kwarg, XComArg)
+                    for v in kwarg.values()
+                ]
+            )
+        ):
+            raise ValueError(
+                "Task-generated iterating within a task using 'iterate_kwargs' is not allowed with trigger rule 'always'."
+            )
+        if isinstance(kwargs, Sequence):
+            for item in kwargs:
+                if not isinstance(item, (XComArg, Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        elif not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        return ListOfDictsExpandInput(kwargs)
+
+    def _iterate(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
+        from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+        # The DecoratedMappedOperator only drives the iteration in memory: it is never registered
+        # with the DAG, the IterableOperator is the single real task.
+        operator = self._expand(expand_input, strict=strict, register_with_dag=False)
+        return XComArg(
+            operator=IterableOperator(operator=operator, expand_input=DecoratedExpandInput(expand_input))
+        )
 
     def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)

@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import inspect
 import itertools
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
+from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, overload
 
@@ -78,6 +79,12 @@ class XComArg(ResolveMixin, DependencyMixin):
     :param operator: Operator instance to which the XComArg references.
     :param key: Key used to pull the XCom value. Defaults to *XCOM_RETURN_KEY*,
         i.e. the referenced operator's return value.
+
+    **Subclassing.** A subclass has to implement :meth:`iter_references` and :meth:`resolve`. The
+    rest of the surface an iterated task (``.iterate()``) uses has working defaults built on those
+    two: :meth:`aresolve` runs ``resolve`` in a worker thread, and :meth:`iter_values` /
+    :meth:`aiter_values` walk what ``resolve`` / ``aresolve`` return. Override them only to do
+    better, as the built-in subclasses do by pulling through ``ti.axcom_pull`` directly.
     """
 
     @overload
@@ -95,6 +102,31 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         raise NotImplementedError()
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        """Yield the items an iterated task runs over: the resolved value, or its elements if iterable."""
+        resolved = self.resolve(context)
+
+        if isinstance(resolved, (str, bytes, dict)):
+            yield resolved
+        elif isinstance(resolved, Iterable):
+            yield from resolved
+        else:
+            yield resolved
+
+    async def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[Any]:
+        """Async twin of :meth:`iter_values`, built on :meth:`aresolve`; see ``ExpandInput.aiter_values``."""
+        from airflow.sdk.definitions._internal.expandinput import aiterate
+
+        resolved = await self.aresolve(context)
+
+        if isinstance(resolved, (str, bytes, dict)):
+            yield resolved
+        elif isinstance(resolved, Iterable) or hasattr(resolved, "__aiter__"):
+            async for item in aiterate(resolved):
+                yield item
+        else:
+            yield resolved
 
     @staticmethod
     def iter_xcom_references(arg: Any) -> Iterator[tuple[Operator, str]]:
@@ -179,6 +211,19 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        """
+        Async twin of :meth:`resolve`, for callers running on the task's event loop.
+
+        The default runs :meth:`resolve` in a worker thread, so any subclass that implements
+        ``resolve`` works on the iterated path unchanged: a blocking supervisor call made from that
+        thread waits for the in-flight ``asend`` calls of other sub-tasks instead of deadlocking
+        with them, which the same call on the loop thread would do (see
+        ``AsyncAwareExecutor.imap_unordered``). The built-in subclasses override this to pull
+        through ``ti.axcom_pull`` directly and skip the thread hand-off.
+        """
+        return await asyncio.to_thread(self.resolve, context)
 
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
@@ -331,6 +376,40 @@ class PlainXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
+        map_indexes = self._resolve_map_indexes(ti)
+        if isinstance(map_indexes, LazyXComSequence):
+            return map_indexes
+        result = ti.xcom_pull(
+            task_ids=self.operator.task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
+        return self._check_pulled(ti, result)
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        ti = context["ti"]
+        # Computing the map indexes may count upstream task instances through a synchronous
+        # supervisor call, so keep it off the loop thread.
+        map_indexes = await asyncio.to_thread(self._resolve_map_indexes, ti)
+        if isinstance(map_indexes, LazyXComSequence):
+            return map_indexes
+        result = await ti.axcom_pull(
+            task_ids=self.operator.task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
+        return self._check_pulled(ti, result)
+
+    def _resolve_map_indexes(self, ti: Any) -> LazyXComSequence | int | range | None:
+        """
+        Return the upstream map indexes to pull, or a lazy sequence over the whole mapped upstream.
+
+        A ``LazyXComSequence`` is returned when the upstream is mapped (or expands to a whole mapped
+        task group), so nothing is pulled eagerly; otherwise ``None`` pulls the unmapped instance and
+        an int or range pulls the relevant expanded instances.
+        """
         task_id = self.operator.task_id
 
         if self.operator.is_mapped:
@@ -360,12 +439,10 @@ class PlainXComArg(XComArg):
                     # the value is actually returned and pushed to XCom (see airflow.sdk.serde.serialize).
                     return LazyXComSequence(xcom_arg=self, ti=ti)
                 map_indexes = computed
-        result = ti.xcom_pull(
-            task_ids=task_id,
-            key=self.key,
-            default=NOTSET,
-            map_indexes=map_indexes,
-        )
+        return map_indexes
+
+    def _check_pulled(self, ti: Any, result: Any) -> Any:
+        """Turn a pulled XCom into the resolved value, or raise when the XCom must exist."""
         if is_arg_set(result):
             return result
         if self.key == BaseXCom.XCOM_RETURN_KEY:
@@ -377,7 +454,7 @@ class PlainXComArg(XComArg):
             # different names than the predefined "XCOM_RETURN_KEY" and won't be found.
             # Therefore, it's better to return "None" like we did above where self.key==XCOM_RETURN_KEY.
             return None
-        raise XComNotFound(ti.dag_id, task_id, self.key)
+        raise XComNotFound(ti.dag_id, self.operator.task_id, self.key)
 
 
 def _get_callable_name(f: Callable | str) -> str:
@@ -448,7 +525,12 @@ class MapXComArg(XComArg):
         return MapXComArg(self.arg, [*self.callables, f])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
-        value = self.arg.resolve(context)
+        return self._map(self.arg.resolve(context))
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._map(await self.arg.aresolve(context))
+
+    def _map(self, value: Any) -> _MapResult:
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
         return _MapResult(value, self.callables)
@@ -510,7 +592,12 @@ class ZipXComArg(XComArg):
             yield from arg.iter_references()
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
-        values = [arg.resolve(context) for arg in self.args]
+        return self._zip([arg.resolve(context) for arg in self.args])
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._zip([await arg.aresolve(context) for arg in self.args])
+
+    def _zip(self, values: list[Any]) -> _ZipResult:
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
@@ -571,7 +658,12 @@ class ConcatXComArg(XComArg):
         return ConcatXComArg([*self.args, *others])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
-        values = [arg.resolve(context) for arg in self.args]
+        return self._concat([arg.resolve(context) for arg in self.args])
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._concat([await arg.aresolve(context) for arg in self.args])
+
+    def _concat(self, values: list[Any]) -> _ConcatResult:
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")

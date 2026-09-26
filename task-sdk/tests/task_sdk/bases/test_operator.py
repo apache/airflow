@@ -41,7 +41,7 @@ from airflow.sdk.bases.operator import (
 )
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
-from airflow.triggers.base import StartTriggerArgs
+from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -1137,3 +1137,18 @@ def test_partial_default_args():
     assert op.arg2 == "b"
     assert op.arg3 == 3
     assert op.queue == "THIS"
+
+
+class MockTrigger(BaseTrigger):
+    """A minimal trigger stub that yields a single TriggerEvent-like object."""
+
+    def __init__(self, payload=None, **kwargs):
+        super().__init__(**kwargs)
+        self._payload = payload
+
+    async def run(self):
+        if self._payload is not None:
+            yield mock.Mock(payload=self._payload)
+
+    def serialize(self):
+        return ("tests.MockTrigger", {"payload": self._payload})

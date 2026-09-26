@@ -896,6 +896,8 @@ class TestStringifiedDAGs:
                 "partial_kwargs",
                 "expand_input",
                 "weight_rule",
+                # Always True for serialized operators; excluded from serialization.
+                "_register_with_dag",
             }
 
         assert serialized_task.task_type == task.task_type

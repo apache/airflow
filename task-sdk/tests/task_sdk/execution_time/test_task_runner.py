@@ -170,6 +170,8 @@ from airflow.sdk.execution_time.context import (
     _wrap_external_ref,
 )
 from airflow.sdk.execution_time.task_runner import (
+    IndexedTaskInstance,
+    IndexedTaskState,
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _defer_task,
@@ -1606,6 +1608,37 @@ def test_execution_timeout(create_runtime_ti):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
+def test_execution_timeout_caps_iterated_task_with_sync_sub_tasks(create_runtime_ti, mock_supervisor_comms):
+    """The wrapped operator's execution_timeout is kept on the IterableOperator as the wall-clock cap on
+    the whole iteration. The runner enforces it on the main thread, so it fires even though the sync
+    sub-tasks run in worker threads where SIGALRM cannot reach them."""
+    from airflow.sdk.definitions._internal.expandinput import ListOfDictsExpandInput
+    from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+    class SleepyOperator(BaseOperator):
+        def execute(self, context):
+            time.sleep(1)
+
+    # Two items on a single worker: without the cap the iteration takes two sleeps. With it the
+    # timeout fires during the first item, and the second is never started. Python threads cannot
+    # be interrupted, so the error surfaces once the first item's sleep ends, after one sleep.
+    expand_input = ListOfDictsExpandInput([{}, {}])
+    with DAG("dag_iterate_execution_timeout") as dag:
+        mapped = SleepyOperator.partial(
+            task_id="sleepy", dag=dag, task_concurrency=1, execution_timeout=timedelta(milliseconds=200)
+        )._expand(expand_input, strict=True, register_with_dag=False)
+        with pytest.warns(UserWarning, match="caps the whole iteration"):
+            op = IterableOperator(operator=mapped, expand_input=expand_input, dag=dag)
+    assert op.execution_timeout == timedelta(milliseconds=200)
+
+    ti = create_runtime_ti(task=op, dag_id="dag_iterate_execution_timeout")
+
+    started = time.monotonic()
+    with pytest.raises(AirflowTaskTimeout):
+        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+    assert time.monotonic() - started < 1.8
+
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
@@ -2225,29 +2258,46 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
         inlet_events[Asset(name="no such asset in inlets")]
 
 
-@mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
 @mock.patch.dict(os.environ, {}, clear=True)
-def test_execute_task_exports_env_vars(
-    mock_context_to_airflow_vars, create_runtime_ti, mock_supervisor_comms
-):
-    """Test that _execute_task exports airflow context to environment variables."""
+def test_execute_task_exports_context_vars_to_environ(create_runtime_ti, mock_supervisor_comms):
+    """A regular task instance exports AIRFLOW_CTX_* to os.environ before the operator runs."""
+    captured_vars = {}
 
     def test_function():
+        captured_vars["dag_id"] = os.environ.get("AIRFLOW_CTX_DAG_ID")
+        captured_vars["task_id"] = os.environ.get("AIRFLOW_CTX_TASK_ID")
         return "test function"
 
-    task = PythonOperator(
-        task_id="test_task",
-        python_callable=test_function,
-    )
+    task = PythonOperator(task_id="test_task", python_callable=test_function)
+    ti = create_runtime_ti(task=task, dag_id="dag_with_ctx_vars")
 
-    ti = create_runtime_ti(task=task, dag_id="dag_with_env_vars")
-
-    mock_env_vars = {"AIRFLOW_CTX_DAG_ID": "test_dag_env_vars", "AIRFLOW_CTX_TASK_ID": "test_env_task"}
-    mock_context_to_airflow_vars.return_value = mock_env_vars
     run(ti, ti.get_template_context(), log=mock.MagicMock())
 
-    assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_dag_env_vars"
-    assert os.environ["AIRFLOW_CTX_TASK_ID"] == "test_env_task"
+    assert captured_vars == {"dag_id": "dag_with_ctx_vars", "task_id": "test_task"}
+
+
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_execute_task_leaves_environ_alone_for_indexed_task_instance(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """Indexed sub-tasks run concurrently in one process, so _execute_task must not touch the shared
+    os.environ for them; the parent IterableOperator exported the same values before they started."""
+    captured_vars = {}
+
+    def test_function():
+        captured_vars["dag_id"] = os.environ.get("AIRFLOW_CTX_DAG_ID")
+        return "test function"
+
+    task = PythonOperator(task_id="test_task", python_callable=test_function)
+    ti = create_runtime_ti(task=task, dag_id="dag_with_indexed_ctx_vars")
+    indexed_ti = IndexedTaskInstance.create_indexed_task(
+        context={"ti": ti, "task": task}, index=0, operator=task
+    )
+
+    _execute_task(context=indexed_ti.get_template_context(), ti=indexed_ti, log=mock.MagicMock())
+
+    assert captured_vars == {"dag_id": None}
+    assert "AIRFLOW_CTX_DAG_ID" not in os.environ
 
 
 def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
@@ -2301,6 +2351,84 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
 
     # Verify that rendered_map_index is set (existing behavior)
     assert ti.rendered_map_index == "Label: test_task"
+
+
+class TestIndexedTaskState:
+    @pytest.mark.parametrize(
+        "result",
+        [
+            pytest.param(('[{"@odata.context": "..."}]', "6C5EF9E6CBBE"), id="tuple"),
+            pytest.param(datetime(2026, 9, 17, 21, 16, 7, tzinfo=dt_timezone.utc), id="datetime"),
+            pytest.param([{"a": 1}, {"b": [1, 2]}], id="plain_json"),
+        ],
+    )
+    def test_result_survives_the_state_store_message_and_round_trips(self, result):
+        """The checkpoint is sent as a JsonValue, so a result that is not plain JSON has to be
+        serialized on the way in and restored on the way out."""
+        serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS, result=result).serialize()
+
+        msg = SetTaskStateStore(ti_id=uuid7(), key="_iterable_0", value=serialized, expires_at=None)
+
+        assert IndexedTaskState.deserialize(msg.value).result == result
+
+
+class TestIndexedTaskInstance:
+    @pytest.mark.parametrize(
+        ("index", "key", "value", "expected_key"),
+        [
+            (3, "result", "ok", "result_3"),
+            (2, BaseXCom.XCOM_RETURN_KEY, "value1", f"{BaseXCom.XCOM_RETURN_KEY}_2"),
+            (1, "custom_key", "value2", "custom_key_1"),
+        ],
+        ids=["delegates_with_index_suffix", "default_key", "custom_key"],
+    )
+    def test_xcom_push_suffix(self, make_indexed_ti, index, key, value, expected_key):
+        """xcom_push appends the sub-task's index suffix to the XCom key."""
+        ti = make_indexed_ti(index=index)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner._xcom_push", autospec=True) as mock_push:
+            ti.xcom_push(key=key, value=value)
+
+        mock_push.assert_called_once_with(ti, expected_key, value)
+
+    def test_properties(self, make_indexed_ti):
+        ti = make_indexed_ti(index=7, try_number=4, is_async=True, do_xcom_push=False)
+
+        assert ti.is_async is True
+        assert ti.next_try_number == 5
+        assert ti.do_xcom_push is False
+
+    @staticmethod
+    def _parent_context_and_operator():
+        parent_operator = mock.create_autospec(BaseOperator, instance=True)
+        parent_operator.start_date = timezone.datetime(2024, 12, 3, 9, 55, 0)
+        parent = RuntimeTaskInstance.model_construct(
+            id=uuid7(), task_id="iterated", dag_id="dag", run_id="run_1", map_index=3, try_number=2
+        )
+        context = {"ti": parent, "task": parent_operator}
+        operator = mock.create_autospec(BaseOperator, instance=True)
+        operator.task_id = "iterated"
+        operator.dag_id = "dag"
+        operator.retries = 5
+        return context, operator
+
+    def test_create_indexed_task_shares_the_parent_identity(self):
+        context, operator = self._parent_context_and_operator()
+
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
+
+        parent = context["ti"]
+        assert (ti.id, ti.run_id, ti.map_index, ti.try_number) == (parent.id, "run_1", 3, 2)
+        assert (ti.index, ti.max_tries, ti.task) == (4, 5, operator)
+        assert ti.start_date == context["task"].start_date
+        assert ti.state == TaskInstanceState.SCHEDULED.value
+        assert ti.is_mapped is True
+
+    def test_create_indexed_task_rejects_negative_index(self):
+        context, operator = self._parent_context_and_operator()
+
+        with pytest.raises(ValueError, match="requires index >= 0, got -1"):
+            IndexedTaskInstance.create_indexed_task(context=context, index=-1, operator=operator)
 
 
 class TestSerializeOutletEvents:
@@ -2567,6 +2695,86 @@ class TestRuntimeTaskInstance:
 
         # Now the lazy attribute should trigger the call
         mock_supervisor_comms.send.assert_called_once()
+
+    def test_logical_date_returns_none_without_ti_context_from_server(self, mocked_parse):
+        """Test that logical_date returns None when _ti_context_from_server is not set."""
+        task = BaseOperator(task_id="hello")
+        dag_id = "basic_task"
+
+        get_inline_dag(dag_id=dag_id, task=task)
+
+        ti_id = uuid7()
+        ti = TaskInstance(
+            id=ti_id,
+            task_id=task.task_id,
+            dag_id=dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        start_date = timezone.datetime(2025, 1, 1)
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=None,
+            start_date=start_date,
+        )
+
+        assert runtime_ti.logical_date is None
+
+    def test_logical_date_returns_dag_run_logical_date(self, create_runtime_ti):
+        """Test that logical_date returns the dag run's logical_date when _ti_context_from_server is set."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dag_run = runtime_ti._ti_context_from_server.dag_run
+
+        assert runtime_ti.logical_date == dag_run.logical_date
+        assert runtime_ti.logical_date == timezone.datetime(2024, 12, 1, 1, 0, 0)
+
+    def test_task_state_store_is_cached(self, create_runtime_ti):
+        """Repeated access must return the same instance, not rebuild a new accessor each time."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        first = runtime_ti.task_state_store
+        second = runtime_ti.task_state_store
+
+        assert first is second
+
+    def test_task_state_store_used_by_template_context_is_the_cached_instance(self, create_runtime_ti):
+        """``get_template_context()`` must wire in the same cached accessor, not a fresh one."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        context = runtime_ti.get_template_context()
+
+        assert context["task_state_store"] is runtime_ti.task_state_store
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected_scope_map_index"),
+        [
+            pytest.param(None, -1, id="explicit-none-map-index-falls-back-to-minus-one"),
+            pytest.param(0, 0, id="mapped-task-index-zero"),
+            pytest.param(3, 3, id="mapped-task-index-three"),
+        ],
+    )
+    def test_task_state_store_scope_reflects_map_index(
+        self, create_runtime_ti, map_index, expected_scope_map_index
+    ):
+        """The scope used to namespace task-state-store keys must match the TI's own map_index,
+        falling back to -1 when map_index is None (e.g. an unmapped task)."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task", map_index=map_index)
+        assert runtime_ti.map_index == map_index
+
+        scope = runtime_ti.task_state_store._scope
+
+        assert scope.map_index == expected_scope_map_index
+        assert scope.dag_id == runtime_ti.dag_id
+        assert scope.run_id == runtime_ti.run_id
+        assert scope.task_id == runtime_ti.task_id
 
     def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""
