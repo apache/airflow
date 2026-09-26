@@ -1,0 +1,1 @@
+Fix deferred ``soft_fail`` / ``never_fail`` sensors being marked ``SKIPPED`` instead of ``UP_FOR_RESCHEDULE`` when they request a reschedule on trigger resume.
