@@ -25,7 +25,6 @@ import time
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
-from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.ai.sandbox.base import (
     SandboxBackend,
     SandboxError,
@@ -35,6 +34,8 @@ from airflow.providers.common.ai.sandbox.base import (
     _new_sandbox_name,
     _validate_positive_finite,
 )
+
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
