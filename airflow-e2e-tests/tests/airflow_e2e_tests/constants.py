@@ -95,6 +95,8 @@ GO_SDK_BUNDLE_NAME = "example_dags"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
+# Far from the Go runtime's 30-day fallback, so the e2e test can tell a propagated value from it.
+GO_SDK_STATE_STORE_RETENTION_DAYS = 7
 # Go toolchain image used to build the bundle in the containerized path (i.e. unless
 # LANG_SDK_NATIVE_TOOLCHAIN is set); must satisfy go-sdk/go.mod's toolchain.
 # The Alpine variant is ~7x smaller than the Debian one and is safe here because the

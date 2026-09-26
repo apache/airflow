@@ -17,7 +17,11 @@
 
 package sdk
 
-import "context"
+import (
+	"context"
+	"math"
+	"time"
+)
 
 const (
 	// VariableEnvPrefix is the environment-variable prefix used as a local
@@ -34,6 +38,11 @@ const (
 	// XComReturnValueKey is the key Airflow uses for a task's returned value.
 	XComReturnValueKey = "return_value"
 )
+
+// NeverExpire, passed as the retention to SetTaskStateWithRetention, exempts a
+// task state key from expiry: it is kept until deleted or until its Dag run is
+// removed. It is the Go equivalent of the Python SDK's “NEVER_EXPIRE“.
+const NeverExpire = time.Duration(math.MaxInt64)
 
 // VariableClient reads, writes, and deletes Airflow Variables.
 //
@@ -120,12 +129,62 @@ type XComClient interface {
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
+// TaskStateStoreClient reads and writes a key/value store private to the
+// running task instance. The store is keyed by dag_id, run_id, task_id, and
+// map_index but not try_number, so a value written by one attempt is readable
+// by the next — a task can record progress and resume after a retry.
+type TaskStateStoreClient interface {
+	// GetTaskState returns the value stored under key for this task instance.
+	//
+	// If the key is not found error will be a wrapped ``TaskStateNotFound``:
+	//
+	//		val, err := client.GetTaskState(ctx, "checkpoint")
+	//		if errors.Is(err, TaskStateNotFound) {
+	//				// Handle not found, set default, return custom error etc
+	//		} else {
+	//				// Other errors here, such as transport timeouts etc.
+	//		}
+	GetTaskState(ctx context.Context, key string) (any, error)
+
+	// UnmarshalJSONTaskState fetches a task state value and unmarshals it into
+	// pointer via json.Unmarshal. Use it for values stored as JSON objects or
+	// arrays; pointer must be a non-nil pointer.
+	UnmarshalJSONTaskState(ctx context.Context, key string, pointer any) error
+
+	// SetTaskState stores value under key, creating or replacing the entry. The
+	// key expires per the deployment's “[state_store] default_retention_days“;
+	// if that setting is invalid the write fails.
+	//
+	// value must be non-nil and built from strings, numbers, bools, slices,
+	// string-keyed maps, and structs. A time.Time, a byte slice or array, or a
+	// non-finite float is rejected before it is sent.
+	SetTaskState(ctx context.Context, key string, value any) error
+
+	// SetTaskStateWithRetention is SetTaskState with an explicit retention,
+	// which must be positive or [NeverExpire]; zero or negative is rejected.
+	SetTaskStateWithRetention(
+		ctx context.Context,
+		key string,
+		value any,
+		retention time.Duration,
+	) error
+
+	// DeleteTaskState removes the value stored under key. Deleting a key that
+	// does not exist is not an error.
+	DeleteTaskState(ctx context.Context, key string) error
+
+	// ClearTaskState removes every key stored for this task instance.
+	ClearTaskState(ctx context.Context) error
+}
+
 // Client is the full task-facing API: read/write Variables, read Connections,
-// and read/write XCom. A task gets one from its airflow.Context by calling
-// actx.Client(). A helper that needs only one capability can take the narrower
-// VariableClient, ConnectionClient, or XComClient instead.
+// read/write XCom, and read/write the task state store. A task gets one from
+// its airflow.Context by calling actx.Client(). A helper that needs only one
+// capability can take the narrower VariableClient, ConnectionClient,
+// XComClient, or TaskStateStoreClient instead.
 type Client interface {
 	VariableClient
 	ConnectionClient
 	XComClient
+	TaskStateStoreClient
 }

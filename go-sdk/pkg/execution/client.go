@@ -18,12 +18,18 @@
 package execution
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -36,7 +42,15 @@ const (
 	errCodeVariableNotFound   = "VARIABLE_NOT_FOUND"
 	errCodeConnectionNotFound = "CONNECTION_NOT_FOUND"
 	errCodeXComNotFound       = "XCOM_NOT_FOUND"
+	errCodeTaskStoreNotFound  = "TASK_STORE_NOT_FOUND"
 )
+
+// A language SDK runtime cannot read Airflow config, so the supervisor passes
+// this setting at launch (task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
+const defaultRetentionDaysEnv = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS"
+
+// Matches config.yml's [state_store] default_retention_days default.
+const fallbackRetentionDays = 30
 
 // translateApiError converts a supervisor *ApiError whose Err field matches
 // code into a sentinel-wrapped error. Any other error - including a
@@ -57,15 +71,63 @@ func translateApiError(err error, code string, sentinel error, key string) error
 // over the comm socket using msgpack-framed IPC instead of HTTP.
 type CoordinatorClient struct {
 	comm *CoordinatorComm
+	// Bound at construction, not per call: the Execution API scopes the task
+	// state store to the caller's own task instance ("ti:self").
+	tiID string
 }
 
 var _ sdk.Client = (*CoordinatorClient)(nil)
 
 // NewCoordinatorClient creates a new client backed by the comm socket.
-func NewCoordinatorClient(comm *CoordinatorComm) *CoordinatorClient {
+func NewCoordinatorClient(comm *CoordinatorComm, tiID string) *CoordinatorClient {
 	return &CoordinatorClient{
 		comm: comm,
+		tiID: tiID,
 	}
+}
+
+// resolveDefaultExpiry returns nil ("never expires") for a retention of 0.
+// Only an absent env value falls back (the runtime was not launched by the
+// coordinator); a malformed one fails as it does in Python rather than silently
+// retaining keys for a different period.
+func resolveDefaultExpiry(now time.Time) (any, error) {
+	days := fallbackRetentionDays
+	if raw := os.Getenv(defaultRetentionDaysEnv); raw != "" {
+		parsed, err := parseRetentionDays(raw)
+		if err != nil {
+			return nil, err
+		}
+		days = parsed
+	}
+	if days == 0 {
+		return nil, nil
+	}
+	return now.UTC().AddDate(0, 0, days), nil
+}
+
+// parseRetentionDays accepts "7.0" because Python's getint does.
+func parseRetentionDays(raw string) (int, error) {
+	days, err := strconv.Atoi(raw)
+	if err != nil {
+		f, floatErr := strconv.ParseFloat(raw, 64)
+		if floatErr != nil || f != math.Trunc(f) || math.IsInf(f, 0) {
+			return 0, fmt.Errorf(
+				"failed to convert value to int. Please check %q key in %q section. Current value: %q",
+				"default_retention_days",
+				"state_store",
+				raw,
+			)
+		}
+		days = int(f)
+	}
+	if days < 0 {
+		return 0, fmt.Errorf(
+			"[state_store] default_retention_days must be >= 0, got %d. "+
+				"Set to 0 to disable expiry.",
+			days,
+		)
+	}
+	return days, nil
 }
 
 // GetVariable requests a variable value from the supervisor.
@@ -252,4 +314,184 @@ func (c *CoordinatorClient) PushXCom(
 
 	_, err := c.comm.Communicate(ctx, msg)
 	return err
+}
+
+// GetTaskState requests a task state value from the supervisor.
+func (c *CoordinatorClient) GetTaskState(ctx context.Context, key string) (any, error) {
+	resp, err := c.comm.Communicate(
+		ctx,
+		genmodels.GetTaskStateStore{TIID: c.tiID, Key: key},
+	)
+	if err != nil {
+		return nil, translateApiError(err, errCodeTaskStoreNotFound, sdk.TaskStateNotFound, key)
+	}
+
+	var result genmodels.TaskStateStoreResult
+	if err := decodeBody(resp, &result); err != nil {
+		return nil, fmt.Errorf("decoding task state result: %w", err)
+	}
+
+	return result.Value, nil
+}
+
+// UnmarshalJSONTaskState gets a task state value and unmarshals it into pointer.
+func (c *CoordinatorClient) UnmarshalJSONTaskState(
+	ctx context.Context,
+	key string,
+	pointer any,
+) error {
+	val, err := c.GetTaskState(ctx, key)
+	if err != nil {
+		return err
+	}
+	// The value arrives already decoded from msgpack, not as JSON text, so it
+	// is re-marshaled before encoding/json can fill a typed pointer.
+	b, err := json.Marshal(val)
+	if err != nil {
+		return fmt.Errorf("marshaling task state value: %w", err)
+	}
+	return json.Unmarshal(b, pointer)
+}
+
+// SetTaskState asks the supervisor to store a task state value, expiring it
+// according to the deployment's default retention.
+func (c *CoordinatorClient) SetTaskState(ctx context.Context, key string, value any) error {
+	expiry, err := resolveDefaultExpiry(time.Now())
+	if err != nil {
+		return err
+	}
+	return c.sendSetTaskState(ctx, key, value, expiry)
+}
+
+// SetTaskStateWithRetention stores a task state value with a caller-chosen lifetime.
+func (c *CoordinatorClient) SetTaskStateWithRetention(
+	ctx context.Context,
+	key string,
+	value any,
+	retention time.Duration,
+) error {
+	var expiry any
+	switch {
+	// Checked before any arithmetic: adding NeverExpire overflows.
+	case retention == sdk.NeverExpire:
+		expiry = nil
+	case retention <= 0:
+		return fmt.Errorf(
+			"task state retention must be positive or sdk.NeverExpire, got %s: "+
+				"use SetTaskState to follow the deployment default, or DeleteTaskState to drop key %q",
+			retention, key,
+		)
+	default:
+		expiry = time.Now().UTC().Add(retention)
+	}
+	return c.sendSetTaskState(ctx, key, value, expiry)
+}
+
+func (c *CoordinatorClient) sendSetTaskState(
+	ctx context.Context,
+	key string,
+	value any,
+	expiry any,
+) error {
+	if err := validateJSONRepresentable(value); err != nil {
+		return fmt.Errorf("cannot set task state key %q: %w", key, err)
+	}
+
+	// TODO: warn when the serialized value exceeds the deployment's
+	// [state_store] max_value_storage_bytes, matching Python's
+	// airflow.sdk.execution_time.context task store setter.
+
+	_, err := c.comm.Communicate(ctx, genmodels.SetTaskStateStore{
+		TIID:      c.tiID,
+		Key:       key,
+		Value:     value,
+		ExpiresAt: expiry,
+	})
+	return err
+}
+
+// DeleteTaskState asks the supervisor to delete a task state value.
+func (c *CoordinatorClient) DeleteTaskState(ctx context.Context, key string) error {
+	_, err := c.comm.Communicate(ctx, genmodels.DeleteTaskStateStore{TIID: c.tiID, Key: key})
+	return err
+}
+
+// ClearTaskState asks the supervisor to delete every task state value for this
+// task instance.
+func (c *CoordinatorClient) ClearTaskState(ctx context.Context) error {
+	_, err := c.comm.Communicate(ctx, genmodels.ClearTaskStateStore{TIID: c.tiID})
+	return err
+}
+
+// validateJSONRepresentable checks what the frame encoder actually emits, not
+// the Go value: a reflection walk has to mirror the encoder's field rules (tags,
+// "-", omitempty, embedding, marshalers) and misjudges values wherever it drifts.
+func validateJSONRepresentable(value any) error {
+	var buf bytes.Buffer
+	if err := newFrameEncoder(&buf).Encode(value); err != nil {
+		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+	}
+	dec := msgpack.NewDecoder(&buf)
+	// The default map decoder fails opaquely on non-string keys.
+	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
+		return d.DecodeUntypedMap()
+	})
+	decoded, err := dec.DecodeInterface()
+	if err != nil {
+		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+	}
+	// Checked after decoding: a typed nil such as a nil *string is not == nil,
+	// yet it still encodes to null, which the Execution API rejects.
+	if decoded == nil {
+		return errors.New("value must not be nil")
+	}
+	return validateDecodedValue(decoded)
+}
+
+func validateDecodedValue(v any) error {
+	switch v := v.(type) {
+	case nil, string, bool,
+		int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64:
+		return nil
+	case float32:
+		return checkFinite(float64(v))
+	case float64:
+		return checkFinite(v)
+	case time.Time:
+		return fmt.Errorf(
+			"time.Time is not JSON representable; store value.Format(time.RFC3339) " +
+				"and parse it back with time.Parse",
+		)
+	case []byte:
+		return fmt.Errorf(
+			"[]byte is not JSON representable; encode it, for example with base64.StdEncoding.EncodeToString",
+		)
+	case []any:
+		for _, elem := range v {
+			if err := validateDecodedValue(elem); err != nil {
+				return err
+			}
+		}
+		return nil
+	case map[any]any:
+		for k, elem := range v {
+			if _, ok := k.(string); !ok {
+				return fmt.Errorf("map keys must be strings, got %T", k)
+			}
+			if err := validateDecodedValue(elem); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("%T is not JSON representable", v)
+	}
+}
+
+func checkFinite(f float64) error {
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return fmt.Errorf("value must be a finite number; NaN and Inf are not JSON representable")
+	}
+	return nil
 }
