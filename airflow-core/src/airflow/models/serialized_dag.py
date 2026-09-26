@@ -385,7 +385,7 @@ class SerializedDagModel(Base):
         # dag file location.
         data_["dag"].pop("fileloc", None)
         data_["dag"].pop("bundle_name", None)
-        data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
+        data_json = json.dumps(data_).encode("utf-8")
         return md5(data_json).hexdigest()
 
     @classmethod
