@@ -31,11 +31,14 @@ from pydantic_ai.messages import (
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.utils.logging import (
     _log_output_debug,
+    format_usage_for_xcom,
     log_run_summary,
+    log_run_usage,
     wrap_toolsets_for_logging,
 )
 
@@ -164,6 +167,80 @@ class TestLogRunSummary:
 
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert records[1].message == "LLM run cost: $0.00000075 (USD, best-effort)"
+
+
+class TestLogRunSummaryUsageOverride:
+    def test_usage_override_is_logged_instead_of_result_usage(self):
+        """A ``usage=`` override -- e.g. this attempt's delta -- is logged instead of
+        ``result.usage``, which reports the cross-attempt cumulative total once a usage
+        budget is active."""
+        logger = MagicMock(spec=logging.Logger)
+        result = _make_mock_result(usage_kwargs={"requests": 99, "tool_calls": 0, "input_tokens": 0})
+        override = RunUsage(requests=1, input_tokens=10, cost=Decimal("0.1"))
+
+        log_run_summary(logger, result, usage=override)
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        rendered = summary_format % tuple(summary_args)
+        assert "requests=1" in rendered
+        assert "requests=99" not in rendered
+        cost_call = logger.info.call_args_list[1]
+        assert cost_call.args[1] == "0.1"
+
+    def test_no_override_falls_back_to_result_usage(self):
+        """Omitting ``usage=`` keeps today's behavior: ``result.usage`` is logged."""
+        logger = MagicMock(spec=logging.Logger)
+        result = _make_mock_result(usage_kwargs={"requests": 7, "tool_calls": 0, "input_tokens": 0})
+
+        log_run_summary(logger, result)
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        assert "requests=7" in (summary_format % tuple(summary_args))
+
+
+class TestLogRunUsage:
+    def test_logs_usage_fields_and_outcome(self):
+        logger = MagicMock(spec=logging.Logger)
+        usage = RunUsage(requests=2, tool_calls=1, input_tokens=10, output_tokens=5)
+
+        log_run_usage(logger, usage, outcome="failed")
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        rendered = summary_format % tuple(summary_args)
+        assert "failed" in rendered
+        assert "requests=2" in rendered
+        assert "tool_calls=1" in rendered
+        assert "input_tokens=10" in rendered
+        assert "output_tokens=5" in rendered
+
+    def test_cost_none_does_not_log_cost_line(self):
+        logger = MagicMock(spec=logging.Logger)
+        log_run_usage(logger, RunUsage(cost=None), outcome="failed")
+        assert logger.info.call_count == 1
+
+    def test_cost_set_logs_cost_line_with_plain_decimal(self):
+        """Same "$%s (USD, best-effort)" formatting as log_run_summary -- no scientific notation."""
+        logger = MagicMock(spec=logging.Logger)
+        log_run_usage(logger, RunUsage(cost=Decimal("0.00000075")), outcome="failed")
+        cost_call = logger.info.call_args_list[1]
+        assert cost_call.args[1] == "0.00000075"
+
+
+class TestFormatUsageForXcom:
+    def test_builds_expected_dict_shape(self):
+        usage = RunUsage(requests=3, tool_calls=1, input_tokens=10, output_tokens=5, cost=Decimal("0.25"))
+
+        assert format_usage_for_xcom(usage) == {
+            "requests": 3,
+            "input_tokens": 10,
+            "output_tokens": 5,
+            "total_tokens": 15,
+            "tool_calls": 1,
+            "cost": "0.25",
+        }
+
+    def test_none_cost_stays_none_not_stringified(self):
+        assert format_usage_for_xcom(RunUsage(cost=None))["cost"] is None
 
 
 class TestLogOutputDebug:

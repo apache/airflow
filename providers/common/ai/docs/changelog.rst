@@ -29,6 +29,31 @@ Changelog
 ......
 
 .. note::
+  On Airflow >= 3.3, ``AgentOperator``'s ``usage_limits`` now counts usage across every
+  attempt of the task instance combined -- the initial run, every retry, and every HITL
+  regeneration all add to one running total kept in the AIP-103 task state store -- instead
+  of each attempt starting a fresh count. This also applies to the implicit
+  ``request_limit=50`` default, which can now block a retry that used to pass on its own.
+  To keep the same effective per-attempt headroom this used to give each attempt on its
+  own, scale each limit by ``retries + 1``, or set ``usage_limits=None`` to opt back out.
+  A regeneration only shares this total with the run before it when ``usage_limits`` is
+  set (on every Airflow version); with ``usage_limits=None`` each regeneration still
+  starts a fresh count of its own, as before.
+  With ``durable=True``, a step replayed from the cache no longer counts toward
+  ``usage_limits`` or the ``usage`` XCom -- not its request, tokens, cost, or tool calls --
+  on every Airflow version. Previously each retry counted its replayed steps again, so a
+  ``cost_limit`` could be hit by an attempt that made no new model calls. Clearing and
+  rerunning a *finished* (failed or succeeded) task instance gets a fresh budget
+  automatically; clearing a *running* task
+  instance does not bump ``max_tries``, so the restarted attempt still sees the prior
+  spend. To reset the budget for a task instance that keeps retrying without a clear of a
+  finished attempt, delete the ``__commonai_usage__`` key via the Task State Store UI. On
+  Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each attempt is still checked
+  and counted on its own, as before. The ``usage`` XCom is now also pushed on a failed
+  attempt, reporting that attempt's own usage (not the cross-attempt total). See
+  :ref:`howto/operator:agent`.
+
+.. note::
   ``LLMBranchOperator`` and ``LLMOperator`` now push a ``decision`` XCom on every run, next to
   ``return_value``, with the model's pick, the action taken, the confidence and probabilities
   when the model reports them, and the ``decision_policy`` that applied. ``LLMBranchOperator``
