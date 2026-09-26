@@ -23,8 +23,8 @@ Islo Connection
 The ``islo`` connection type holds the API key and endpoints for
 `islo.dev <https://islo.dev>`__, the hosted microVM sandbox service behind
 :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend`. It backs
-:class:`~airflow.providers.common.ai.hooks.islo.IsloHook` (see
-:doc:`../hooks/islo` for hook usage and installation instructions).
+:class:`~airflow.providers.common.ai.sandbox.islo.IsloHook`, kept beside the
+sandbox backend so the Islo-specific implementation stays sandbox-scoped.
 
 Default Connection IDs
 ----------------------
