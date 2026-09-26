@@ -1566,6 +1566,25 @@ class TestDagRun:
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert deadline.deadline_time == first_deadline_time
 
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_uses_callers_session(self, _, session, deadline_test_dag):
+        """DagRun creation resolves the interval inside an open transaction, so the caller's
+        session has to reach ``Variable.get``. See ``resolve_deadline_alert_interval()``."""
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("my_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with mock.patch.object(Variable, "get", return_value="60") as mock_get:
+            self.create_dag_run(dag=scheduler_dag, session=session)
+
+        mock_get.assert_called_once_with("my_key", session=session)
+
     def test_dagrun_deadline_logs_when_reference_column_is_null(self, session, deadline_test_dag, caplog):
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
