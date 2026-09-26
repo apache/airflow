@@ -193,6 +193,21 @@ setting ``system_site_packages`` to ``True`` or you won't have access to most co
 If you want the context related to datetime objects like ``data_interval_start``, you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
+Accessing the current context
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On Airflow 3, set ``use_airflow_context=True`` to make the task context available through
+:func:`airflow.sdk.get_current_context` inside the virtual environment. Airflow must be installed in that
+environment, either through ``system_site_packages=True`` or as one of the environment's requirements.
+
+.. code-block:: python
+
+    @task.virtualenv(system_site_packages=True, use_airflow_context=True)
+    def print_run_id():
+        from airflow.sdk import get_current_context
+
+        print(get_current_context()["run_id"])
+
 .. important::
 
     When Airflow or provider packages are required, you must specify the Airflow :ref:`apache-airflow:installation:constraints`
@@ -318,6 +333,21 @@ of the virtualenv environment in the same version as the Airflow version the tas
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy`` to your virtual environment.
+
+Accessing the current context
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On Airflow 3, set ``use_airflow_context=True`` to make the task context available through
+:func:`airflow.sdk.get_current_context`. The external environment must contain the same Airflow version as the
+main environment, and ``expect_airflow`` must remain enabled.
+
+.. code-block:: python
+
+    @task.external_python(python=PATH_TO_PYTHON_BINARY, use_airflow_context=True)
+    def print_run_id():
+        from airflow.sdk import get_current_context
+
+        print(get_current_context()["run_id"])
 
 .. important::
     The Python function body defined to be executed is cut out of the Dag into a temporary file w/o surrounding code.
