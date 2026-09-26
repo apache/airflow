@@ -42,6 +42,8 @@ class CalendarTimeRangeCollectionResponse(BaseModel):
 
     total_entries: int
     dag_runs: list[CalendarTimeRangeResponse]
+    # True when the planned-run scan hit its iteration cap before the end of the year
+    planned_runs_capped: bool = False
 
 
 class CalendarDeadlineResponse(BaseModel):
