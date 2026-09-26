@@ -26,10 +26,10 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
     UserResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.parameters import get_effective_limit
+from airflow.providers.fab.auth_manager.api_fastapi.routes.login import _get_flask_app
 from airflow.providers.fab.auth_manager.api_fastapi.routes.router import fab_router
 from airflow.providers.fab.auth_manager.api_fastapi.security import requires_fab_custom_view
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
-from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
 
 
@@ -47,7 +47,7 @@ from airflow.providers.fab.www.security import permissions
     dependencies=[Depends(requires_fab_custom_view("POST", permissions.RESOURCE_USER))],
 )
 def create_user(body: UserBody) -> UserResponse:
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerUsers.create_user(body=body)
 
 
@@ -69,7 +69,7 @@ def get_users(
     offset: int = Query(0, ge=0, description="Number of items to skip before starting to collect results."),
 ) -> UserCollectionResponse:
     """List users with pagination and ordering."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerUsers.get_users(order_by=order_by, limit=limit, offset=offset)
 
 
@@ -86,7 +86,7 @@ def get_users(
 )
 def get_user(username: str = Path(..., min_length=1)) -> UserResponse:
     """Get a user by username."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerUsers.get_user(username=username)
 
 
@@ -109,7 +109,7 @@ def update_user(
     update_mask: str | None = Query(None, description="Comma-separated list of fields to update"),
 ) -> UserResponse:
     """Update an existing user."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerUsers.update_user(username=username, body=body, update_mask=update_mask)
 
 
@@ -127,5 +127,5 @@ def update_user(
 )
 def delete_user(username: str = Path(..., min_length=1)):
     """Delete a user by username."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         FABAuthManagerUsers.delete_user(username=username)
