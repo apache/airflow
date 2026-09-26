@@ -213,6 +213,7 @@ class DagBag(LoggingMixin):
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self._import_warnings: dict[str, list[DagImportWarning]] = {}
+        self.task_group_cycle_warnings: dict[str, str] = {}
         # The source code of each definition that produced Dags, keyed by its fileloc
         self.dag_source_codes: dict[str, DagSourceCode] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
@@ -446,7 +447,11 @@ class DagBag(LoggingMixin):
         """Get the set of DagWarnings for the bagged dags."""
         from airflow.models.dagwarning import DagWarning, DagWarningType
 
-        dag_warnings: set[DagWarning] = set()
+        dag_warnings: set[DagWarning] = {
+            DagWarning(dag_id, DagWarningType.TASK_GROUP_CYCLE, message)
+            for dag_id, message in self.task_group_cycle_warnings.items()
+            if dag_id in self.dags
+        }
         for dag in self.dags.values():
             for import_warning in self._import_warnings.get(dag.fileloc, ()):
                 # Only importer-namespaced types (``yaml:deprecated_field``) are Dag warnings;
@@ -491,7 +496,23 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        dag.check_cycle()
+        from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning
+
+        self.task_group_cycle_warnings.pop(dag.dag_id, None)
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            # DeprecationWarning is ignored by default outside __main__, which would hide it here too.
+            warnings.simplefilter("always", TaskGroupCycleDeprecationWarning)
+            dag.check_cycle()
+        for captured in captured_warnings:
+            if issubclass(captured.category, TaskGroupCycleDeprecationWarning):
+                self.task_group_cycle_warnings[dag.dag_id] = str(captured.message)
+            warnings.warn_explicit(
+                message=captured.message,
+                category=captured.category,
+                filename=captured.filename,
+                lineno=captured.lineno,
+                source=captured.source,
+            )
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
