@@ -200,25 +200,66 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     return Resources(**resources)
 
 
+def _cancel_all_tasks(loop: AbstractEventLoop) -> None:
+    """Cancel every task still pending on ``loop`` and let it run its cleanup, as ``asyncio.run()`` does."""
+    to_cancel = asyncio.all_tasks(loop)
+    if not to_cancel:
+        return
+    for task in to_cancel:
+        task.cancel()
+    loop.run_until_complete(asyncio.gather(*to_cancel, return_exceptions=True))
+    for task in to_cancel:
+        if not task.cancelled() and task.exception() is not None:
+            loop.call_exception_handler(
+                {
+                    "message": "unhandled exception during event_loop() shutdown",
+                    "exception": task.exception(),
+                    "task": task,
+                }
+            )
+
+
 @contextlib.contextmanager
 def event_loop() -> Generator[AbstractEventLoop]:
-    new_event_loop = False
-    loop = None
+    """
+    Own an event loop for the duration of the block, to drive coroutines from synchronous code.
+
+    Unlike ``asyncio.run()``, which creates a loop for one coroutine and closes it, the loop yielded here
+    outlives any number of ``run_until_complete()`` calls: tasks created on it in one call are still there
+    for the next, which is what code that pauses and resumes a loop between batches of work needs.
+
+    On Python 3.11+ this is :class:`asyncio.Runner`; Python 3.10 has no ``Runner`` and gets a fallback that
+    replicates ``Runner.close()``. In both cases the loop is set as the current loop of the thread while the
+    block runs and unset afterwards, leftover tasks are cancelled, async generators and the default executor
+    are shut down and the loop is closed. Nothing goes through ``asyncio.get_event_loop()``, which since
+    Python 3.12 warns and since 3.14 raises when no loop is set. Entering the block from a running loop is
+    refused: a loop cannot drive another loop on the same thread.
+    """
     try:
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                raise RuntimeError
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            new_event_loop = True
+        asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+    else:
+        raise RuntimeError("event_loop() cannot be used from a running event loop")
+
+    if Runner := getattr(asyncio, "Runner", None):
+        with Runner() as runner:
+            yield runner.get_loop()
+        return
+
+    # Python 3.10 has no asyncio.Runner: replicate what Runner.close() does. Drop with Python 3.10 support.
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
         yield loop
     finally:
-        if new_event_loop and loop is not None:
-            with contextlib.suppress(AttributeError):
-                loop.close()
-                asyncio.set_event_loop(None)
+        try:
+            _cancel_all_tasks(loop)
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.run_until_complete(loop.shutdown_default_executor())
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
 
 
 class _PartialDescriptor:
