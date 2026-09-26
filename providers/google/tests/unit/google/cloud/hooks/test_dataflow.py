@@ -1368,6 +1368,74 @@ class TestDataflowJob:
         mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
         assert result == ["event_1", "event_2"]
 
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController._fetch_jobs_by_prefix_name"))
+    def test_get_current_jobs_multiple_with_one_active(self, mock_fetch_prefix):
+        mock_fetch_prefix.return_value = [
+            {
+                "id": "job-finished-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:00:00Z",
+            },
+            {
+                "id": "job-active-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                "createTime": "2026-06-25T15:10:00Z",
+            },
+        ]
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="test-job",
+            location=TEST_LOCATION,
+            multiple_jobs=False,
+        )
+
+        result = jobs_controller._get_current_jobs()
+
+        assert jobs_controller._job_id == "job-active-id"
+        assert len(result) == 2
+
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController._fetch_jobs_by_prefix_name"))
+    def test_get_current_jobs_multiple_all_finished_takes_most_recent(self, mock_fetch_prefix):
+        mock_fetch_prefix.return_value = [
+            {
+                "id": "job-old-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:00:00Z",
+            },
+            {
+                "id": "job-new-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:30:00Z",
+            },
+            {
+                "id": "job-mid-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:15:00Z",
+            },
+        ]
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="test-job",
+            location=TEST_LOCATION,
+            multiple_jobs=False,
+        )
+
+        result = jobs_controller._get_current_jobs()
+
+        assert jobs_controller._job_id == "job-new-id"
+        assert result[0]["id"] == "job-new-id"
+        assert result[1]["id"] == "job-mid-id"
+        assert result[2]["id"] == "job-old-id"
+
 
 @pytest.mark.db_test
 class TestDataflowPipelineHook:
