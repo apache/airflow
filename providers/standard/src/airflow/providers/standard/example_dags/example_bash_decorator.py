@@ -138,6 +138,30 @@ def example_bash_decorator():
     show_dag_folder_stats(folder=dag_stats["dag_folder"], count=dag_stats["file_count"])
     # [END howto_decorator_bash_multiple_outputs]
 
+    # [START howto_decorator_bash_xcom_dir]
+    @task.bash
+    def write_multiple_xcoms() -> str:
+        # The filename is the XCom key, so no value needs quoting or escaping.
+        return """
+            set -e
+            echo "42" > "$AIRFLOW_XCOM_DIR/row_count"
+            echo '{"rows": 42, "errors": 0}' > "$AIRFLOW_XCOM_DIR/summary.json"
+        """
+
+    # Pass pulled values through env: interpolated into the returned command, they would run as
+    # shell code, and @task.bash also renders that command as a Jinja template.
+    @task.bash(
+        env={
+            "ROW_COUNT": "{{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='row_count') }}",
+            "ERRORS": "{{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='summary')['errors'] }}",
+        }
+    )
+    def read_multiple_xcoms() -> str:
+        return 'echo "row_count=$ROW_COUNT errors=$ERRORS"'
+
+    write_multiple_xcoms() >> read_multiple_xcoms()
+    # [END howto_decorator_bash_xcom_dir]
+
     chain(run_me_loop, run_this)
     chain([also_this, also_this_again, this_skips, run_this], run_this_last)
 
