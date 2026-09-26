@@ -1087,6 +1087,61 @@ class TestDagFileProcessorManager:
         assert known_file not in manager._file_stats
         assert versioned_file in manager._file_stats
 
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    def test_prepare_file_queue_ignores_stale_callback_stats_for_recently_parsed_file(self):
+        """A stale callback stat must not mask a recent parse of the same file."""
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+        known_files = {"testing": {known_file}}
+
+        manager = DagFileProcessorManager(max_runs=3)
+        # A callback pins bundle_version, so its entry is added after the scan entry and
+        # then never refreshed -- resolving by insertion order would pick the stale one.
+        manager._file_stats = {
+            known_file: DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1),
+            versioned_file: DagFileStat(1, 0, freezed_base_time - timedelta(hours=2), 1.0, 1, 1),
+        }
+
+        with time_machine.travel(freezed_base_time):
+            manager.prepare_file_queue(known_files=known_files)
+
+        assert manager._file_queue == OrderedDict()
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_sort_by_mtime_ignores_stale_callback_stats(self, mock_getmtime):
+        """A stale callback stat must not make an unmodified file look changed."""
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+
+        manager = DagFileProcessorManager(max_runs=3)
+        manager._file_stats = {
+            known_file: DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1),
+            versioned_file: DagFileStat(1, 0, freezed_base_time - timedelta(hours=2), 1.0, 1, 1),
+        }
+
+        with time_machine.travel(freezed_base_time):
+            mock_getmtime.side_effect = [(freezed_base_time - timedelta(seconds=10)).timestamp()]
+            _, changed_recently = manager._sort_by_mtime([known_file])
+
+        assert changed_recently == set()
+
+    def test_processed_recently_uses_newest_stat(self):
+        """Duplicate stats for one file resolve to the most recent parse."""
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+
+        manager = DagFileProcessorManager(max_runs=3)
+        manager._file_stats = {
+            versioned_file: DagFileStat(1, 0, freezed_base_time - timedelta(hours=2), 1.0, 1, 1),
+            known_file: DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1),
+        }
+
+        assert manager.processed_recently(freezed_base_time, known_file) is True
+
     def test_file_paths_in_queue_sorted_by_priority(self):
         from airflow.models.dagbag import DagPriorityParsingRequest
 
