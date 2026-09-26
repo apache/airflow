@@ -119,7 +119,11 @@ class TestSchedulerCommand:
             mock_scheduler_job.return_value.job_type = "SchedulerJob"
             args = self.parser.parse_args(["scheduler"])
             scheduler_command.scheduler(args)
+
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
+            mock_process().start.assert_called_once()
+            mock_process().terminate.assert_called_once()
+            mock_process().join.assert_called_once()
 
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")

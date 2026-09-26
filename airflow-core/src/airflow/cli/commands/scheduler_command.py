@@ -105,3 +105,4 @@ def _serve_health_check(enable_health_check: bool = False):
     finally:
         if sub_proc:
             sub_proc.terminate()
+            sub_proc.join()
