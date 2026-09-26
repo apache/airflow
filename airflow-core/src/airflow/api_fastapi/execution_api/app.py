@@ -44,6 +44,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
 
 if TYPE_CHECKING:
     import httpx
@@ -140,25 +141,24 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
         response: Response = await call_next(request)
 
         refreshed_token: str | None = None
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1]
+        token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
+        if token:
             try:
-                async with svcs.Container(request.app.state.svcs_registry) as services:
-                    validator: JWTValidator = await services.aget(JWTValidator)
-                    claims = await validator.avalidated_claims(token, {})
+                claims = token.claims.model_dump() if hasattr(token, "claims") else token
 
-                    # Workload and callback tokens are long-lived and meant to survive
-                    # queue wait times so avoid refreshing them. If avalidated_claims
-                    # raises for such a token, the outer except handles it.
-                    if claims.get("scope") in ("workload", "callback"):
-                        return response
+                # Workload and callback tokens are long-lived and meant to survive
+                # queue wait times so avoid refreshing them. We already validated once
+                # when JWTBearer populated request.scope, so reuse those cached claims
+                # instead of re-validating and racing against expiry.
+                if claims.get("scope") in ("workload", "callback"):
+                    return response
 
-                    now = int(time.time())
-                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
-                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
-                    valid_left = int(claims.get("exp", 0)) - now
-                    if valid_left <= refresh_when_less_than:
+                now = int(time.time())
+                token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+                refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
+                valid_left = int(claims.get("exp", 0)) - now
+                if valid_left <= refresh_when_less_than:
+                    async with svcs.Container(request.app.state.svcs_registry) as services:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
                         refreshed_token = generator.generate(claims)
             except Exception as err:
