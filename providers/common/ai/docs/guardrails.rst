@@ -39,6 +39,12 @@ but anything passed through ``agent_params`` is forwarded to the underlying
 
 Capabilities compose with toolsets -- pydantic-ai merges tools from both.
 
+When ``enable_tool_logging=True`` (the default), ``AgentOperator`` includes
+tools contributed by capabilities in real-time tool-call logging, including
+MCP toolsets. Output tools and provider-native tools, including native MCP,
+are not covered. See :doc:`toolsets/logging` for configuration details and the
+complete limitations.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
     :language: python
     :start-after: [START howto_operator_agent_capabilities_composed]
