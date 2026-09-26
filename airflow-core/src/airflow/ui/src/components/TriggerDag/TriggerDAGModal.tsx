@@ -139,7 +139,6 @@ const TriggerDAGModal = ({
 
           {runMode === RunMode.SINGLE ? (
             <TriggerDAGForm
-              dagDisplayName={dagDisplayName}
               dagId={dagId}
               error={error}
               hasSchedule={hasSchedule}

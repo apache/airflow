@@ -22,8 +22,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { useDagRunServiceTriggerDagRun, useDagServiceGetDagsUiKey } from "openapi/queries";
-import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
+import {
+  UseDagServiceGetDagKeyFn,
+  useDagRunServiceTriggerDagRun,
+  useDagServiceGetDagsUiKey,
+} from "openapi/queries";
+import type { TriggerDagRunData, TriggerDagRunResponse } from "openapi/requests/types.gen";
 
 import { toaster } from "src/system-components";
 
@@ -41,10 +45,16 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const location = useLocation();
   const { dagId: selectedDagId } = useParams();
 
-  const onSuccess = async (dagRun: TriggerDagRunResponse) => {
+  const onSuccess = async (dagRun: TriggerDagRunResponse, variables: TriggerDagRunData) => {
+    const drainKeys = variables.requestBody.drain_dag
+      ? [UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }])]
+      : [];
+
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] }),
-      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...[...gridQueryKeys(dagId), ...drainKeys].map((key) =>
+        queryClient.invalidateQueries({ queryKey: key }),
+      ),
     ]);
 
     toaster.create({
@@ -110,6 +120,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         dag_run_id: checkDagRunId,
         data_interval_end: formattedDataIntervalEnd,
         data_interval_start: formattedDataIntervalStart,
+        drain_dag: dagRunRequestBody.drainDag,
         logical_date: formattedLogicalDate,
         note: checkNote,
         partition_key: toNullablePartitionKey(dagRunRequestBody.partitionKey),

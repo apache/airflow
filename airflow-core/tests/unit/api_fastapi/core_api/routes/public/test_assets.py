@@ -54,7 +54,7 @@ from airflow.sdk import Asset
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -2363,6 +2363,24 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize", content=content, headers=headers)
         assert response.status_code == 422
         assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_materialize_paused_dag_with_drain_dag(self, test_client, session, drain_dag, expected_state):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json={"drain_dag": drain_dag})
+
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == expected_state
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_partition_key(self, test_client):

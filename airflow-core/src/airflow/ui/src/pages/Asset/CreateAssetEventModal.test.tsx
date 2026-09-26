@@ -224,6 +224,26 @@ describe("CreateAssetEventModal", () => {
     );
   });
 
+  it("forwards the trigger form's drain choice as drain_dag", () => {
+    vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+      data: upstreamDag,
+    } as ReturnType<typeof useDagServiceGetDagDetails>);
+    materializeSubmitParams.drainDag = true;
+
+    render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getByText("createEvent.materialize.label"));
+    fireEvent.click(screen.getByText("submit materialize"));
+
+    expect(materializeAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestBody: expect.objectContaining({ drain_dag: true }) as unknown,
+      }),
+    );
+    materializeSubmitParams.drainDag = undefined;
+  });
+
   it("sends the materialize partition_key from the trigger form as-is", () => {
     vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
     vi.mocked(useDagServiceGetDagDetails).mockReturnValue({

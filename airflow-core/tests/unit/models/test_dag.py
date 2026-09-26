@@ -101,6 +101,7 @@ from airflow.timetables.simple import (
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -2992,6 +2993,45 @@ class TestDagModel:
         assert dag_model.scheduling_state == state
         assert dag_model.is_paused is (state == DagSchedulingState.PAUSED)
         assert dag_model.is_draining is (state == DagSchedulingState.DRAINING)
+
+    @pytest.mark.parametrize("state", list(DagSchedulingState))
+    def test_start_drain(self, state, session, testing_dag_bundle):
+        dag_model = DagModel(dag_id="test_start_drain", bundle_name="testing")
+        dag_model.set_scheduling_state(state)
+        session.add(dag_model)
+        session.flush()
+
+        DagModel.start_drain(dag_model.dag_id, session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+    def test_start_drain_reads_state_committed_after_the_dag_was_loaded(self, session, testing_dag_bundle):
+        dag_model = DagModel(dag_id="test_start_drain_stale", bundle_name="testing")
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.add(dag_model)
+        session.flush()
+        # The drain finalizer pauses the Dag behind the back of the already-loaded object.
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == dag_model.dag_id)
+            .values(is_paused=True, is_draining=False)
+            .execution_options(synchronize_session=False)
+        )
+
+        DagModel.start_drain(dag_model.dag_id, session=session)
+        session.flush()
+
+        assert session.scalar(select(DagModel.is_draining).where(DagModel.dag_id == dag_model.dag_id))
+
+    @mock.patch("airflow.models.dag.with_row_locks", autospec=True, side_effect=with_row_locks)
+    def test_start_drain_locks_the_dag_row(self, mock_with_row_locks, session, testing_dag_bundle):
+        dag_model = DagModel(dag_id="test_start_drain_lock", bundle_name="testing", is_paused=True)
+        session.add(dag_model)
+        session.flush()
+
+        DagModel.start_drain(dag_model.dag_id, session=session)
+
+        mock_with_row_locks.assert_called_once_with(mock.ANY, of=DagModel, session=session)
 
     def test_dags_needing_dagruns_only_unpaused(self, testing_dag_bundle):
         """

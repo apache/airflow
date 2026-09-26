@@ -796,6 +796,8 @@ with different data intervals. These dependencies are calculated by the schedule
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
 :class:`~airflow.serialization.serialized_objects.DependencyDetector`
 
+.. _concepts:dag-pausing:
+
 Dag pausing, deactivation and deletion
 --------------------------------------
 
@@ -812,6 +814,14 @@ tasks. As with a paused Dag, you can still trigger runs explicitly. After the ou
 the scheduler automatically changes the Dag to paused. A backfill started while the Dag is draining extends
 the drain until its Dag runs have been created and finished. While a Dag is draining, you can cancel the drain
 to make the Dag active again.
+
+To execute a manual run, backfill or asset materialization on a paused Dag without resuming its schedule,
+choose **Run without resuming the schedule** in the UI, or set ``drain_dag`` to ``true`` in the REST API
+request. The Dag starts draining together with the run, so the run executes while the scheduler creates no new
+Dag runs, and the Dag pauses again once its unfinished Dag runs finish. If the run is rejected, the Dag stays
+paused. Because
+draining lets every unfinished Dag run proceed, Dag runs that were already queued on the paused Dag start as
+well. Setting ``drain_dag`` on an active Dag drains it the same way, so the Dag also ends up paused.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the Dag that it had seen

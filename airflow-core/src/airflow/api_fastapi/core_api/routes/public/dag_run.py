@@ -813,6 +813,9 @@ def trigger_dag_run(
                     f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
                 )
 
+        if body.drain_dag:
+            DagModel.start_drain(dag_id, session=session)
+
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],

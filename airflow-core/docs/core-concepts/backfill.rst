@@ -89,7 +89,11 @@ For UI, follow the following steps:
    - **Max active runs**: limit concurrent backfill runs for this backfill.
    - **Run backwards**: execute most recent intervals first.
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
-   - If the Dag is paused, you can **Unpause** it in the same window.
+   - If the Dag is paused, expand the **Dag is paused** section to choose how the backfill runs:
+     **Unpause on trigger** (the default), which resumes the Dag's schedule; **Run without resuming the
+     schedule**, which drains the Dag until the backfill finishes and then pauses it again (see
+     :ref:`concepts:dag-pausing`); or **Leave paused**, which keeps the backfill runs queued until the Dag
+     is unpaused.
 
 .. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)

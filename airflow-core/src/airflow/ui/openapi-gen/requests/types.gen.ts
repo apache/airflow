@@ -282,6 +282,10 @@ export type BackfillPostBody = {
      * Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Put the Dag into the draining state so the backfill executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Ignored by the dry-run endpoint.
+     */
+    drain_dag?: boolean;
 };
 
 /**
@@ -1669,6 +1673,10 @@ export type MaterializeAssetBody = {
     note?: string | null;
     partition_key?: string | null;
     bundle_version?: string | null;
+    /**
+     * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well.
+     */
+    drain_dag?: boolean | null;
 };
 
 /**
@@ -2206,6 +2214,10 @@ export type TriggerDAGRunPostBody = {
     note?: string | null;
     partition_key?: string | null;
     bundle_version?: string | null;
+    /**
+     * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well.
+     */
+    drain_dag?: boolean | null;
 };
 
 /**
