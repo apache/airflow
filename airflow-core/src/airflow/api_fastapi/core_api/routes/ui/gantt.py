@@ -17,15 +17,23 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import or_, select, union_all
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.parameters import (
+    NullableDatetimeRangeFilter,
+    RangeFilter,
+    datetime_range_filter_factory,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, GanttTaskInstance
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.state import TaskInstanceState
@@ -58,6 +66,10 @@ gantt_router = AirflowRouter(prefix="/gantt", tags=["Gantt"])
 def get_gantt_data(
     dag_id: str,
     run_id: str,
+    start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("start_date", TaskInstance))
+    ],
+    end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TaskInstance))],
     session: SessionDep,
 ) -> GanttResponse:
     """Get all task instance tries for Gantt chart."""
@@ -95,14 +107,24 @@ def get_gantt_data(
 
     combined = union_all(current_tis, history_tis).subquery()
     query = select(combined).order_by(combined.c.task_id, combined.c.try_number)
+    # Rebind the filters to the union subquery columns so they apply to both TI and TIH rows.
+    query = NullableDatetimeRangeFilter(start_date_range.value, combined.c.start_date).to_orm(query)  # type: ignore[arg-type]
+    query = NullableDatetimeRangeFilter(end_date_range.value, combined.c.end_date).to_orm(query)  # type: ignore[arg-type]
 
     results = session.execute(query).fetchall()
 
     if not results:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"No task instances for dag_id={dag_id} run_id={run_id}",
-        )
+        # With an active range filter, an existing run with all rows filtered out is not an error.
+        filtered_existing_run = (
+            start_date_range.is_active() or end_date_range.is_active()
+        ) and session.scalar(
+            select(DagRun.run_id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        ) is not None
+        if not filtered_existing_run:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"No task instances for dag_id={dag_id} run_id={run_id}",
+            )
 
     task_instances = [
         GanttTaskInstance(
