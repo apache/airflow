@@ -2454,6 +2454,34 @@ class TestPostAssetMaterialize(TestAssets):
             == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
         )
 
+    def test_materialize_logs_when_dag_at_max_active_runs(self, test_client, session, dag_maker, caplog):
+        """Materializing an asset via the REST API logs if the run is blocked by max_active_runs."""
+        dag_id = "test_materialize_logs_when_dag_at_max_active_runs"
+        asset = session.get(AssetModel, 3).to_serialized()
+
+        with dag_maker(dag_id, schedule=None, max_active_runs=1, session=session):
+            EmptyOperator(task_id="task", outlets=asset)
+        session.commit()
+
+        response = test_client.post("/assets/3/materialize", json={"dag_run_id": "running_run"})
+        assert response.status_code == 200
+        running_run = session.scalars(select(DagRun).where(DagRun.run_id == "running_run")).one()
+        running_run.state = DagRunState.RUNNING
+        session.commit()
+
+        with caplog.at_level("INFO", logger="airflow.models.dagrun"):
+            response = test_client.post("/assets/3/materialize", json={"dag_run_id": "queued_run"})
+        assert response.status_code == 200
+
+        assert {
+            "event": "created DagRun will not be scheduled yet, dag is at max_active_runs",
+            "dag_id": dag_id,
+            "run_id": "queued_run",
+            "active_runs": 1,
+            "max_active_runs": 1,
+            "log_level": "info",
+        } in caplog
+
     def test_materialize_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
         """Asset materialization allowed_run_types is enforced from the requested bundle version, not latest."""
         bundle_name = "allowed_run_types_bundle"

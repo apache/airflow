@@ -93,6 +93,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagrun import DagRun
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -509,7 +510,7 @@ def materialize_asset(
             )
 
         params = body.validate_context(context_dag)
-        return dag.create_dagrun(
+        dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
             data_interval=params["data_interval"],
@@ -526,6 +527,8 @@ def materialize_asset(
             bundle_version=body.bundle_version,
             dag_version=preloaded_dag_version,
         )
+        DagRun.log_if_new_run_blocked_by_max_active_runs(dag=dag, run_id=dag_run.run_id, session=session)
+        return dag_run
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     except DagVersionNotFound as e:

@@ -27,6 +27,7 @@ from airflow.models import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
@@ -167,3 +168,36 @@ def test_trigger_dag_operator_denied_when_only_manual_allowed(dag_maker, session
             triggered_by=DagRunTriggeredByType.OPERATOR,
             session=session,
         )
+
+
+def test_trigger_dag_logs_when_dag_at_max_active_runs(dag_maker, session, caplog):
+    """A run created via trigger_dag() (CLI, TriggerDagRunOperator) logs if it's blocked."""
+    with dag_maker(session=session, dag_id="TEST_DAG_MAX_ACTIVE_RUNS", schedule=None, max_active_runs=1):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+
+    running_run = trigger_dag(
+        dag_id="TEST_DAG_MAX_ACTIVE_RUNS",
+        run_id="running_run",
+        triggered_by=DagRunTriggeredByType.REST_API,
+        session=session,
+    )
+    running_run.state = DagRunState.RUNNING
+    session.commit()
+
+    with caplog.at_level("INFO", logger="airflow.models.dagrun"):
+        trigger_dag(
+            dag_id="TEST_DAG_MAX_ACTIVE_RUNS",
+            run_id="queued_run",
+            triggered_by=DagRunTriggeredByType.CLI,
+            session=session,
+        )
+
+    assert {
+        "event": "created DagRun will not be scheduled yet, dag is at max_active_runs",
+        "dag_id": "TEST_DAG_MAX_ACTIVE_RUNS",
+        "run_id": "queued_run",
+        "active_runs": 1,
+        "max_active_runs": 1,
+        "log_level": "info",
+    } in caplog

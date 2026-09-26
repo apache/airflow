@@ -1649,6 +1649,86 @@ class TestDagRun:
                     session=session,
                 )
 
+    def test_log_if_new_run_blocked_by_max_active_runs_logs_when_at_max(self, session, caplog):
+        dag = DAG(
+            dag_id="test_log_if_new_run_blocked_by_max_active_runs_logs_when_at_max",
+            schedule=None,
+            max_active_runs=1,
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="running_run",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.RUNNING,
+            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
+        )
+
+        with caplog.at_level("INFO", logger="airflow.models.dagrun"):
+            DagRun.log_if_new_run_blocked_by_max_active_runs(
+                dag=scheduler_dag, run_id="queued_run", session=session
+            )
+
+        assert {
+            "event": "created DagRun will not be scheduled yet, dag is at max_active_runs",
+            "dag_id": "test_log_if_new_run_blocked_by_max_active_runs_logs_when_at_max",
+            "run_id": "queued_run",
+            "active_runs": 1,
+            "max_active_runs": 1,
+            "log_level": "info",
+        } in caplog
+
+    def test_log_if_new_run_blocked_by_max_active_runs_does_not_log_when_below_max(self, session, caplog):
+        dag = DAG(
+            dag_id="test_log_if_new_run_blocked_by_max_active_runs_does_not_log_when_below_max",
+            schedule=None,
+            max_active_runs=1,
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        with caplog.at_level("INFO", logger="airflow.models.dagrun"):
+            DagRun.log_if_new_run_blocked_by_max_active_runs(
+                dag=scheduler_dag, run_id="queued_run", session=session
+            )
+
+        assert not any(
+            record.msg == "created DagRun will not be scheduled yet, dag is at max_active_runs"
+            for record in caplog.records
+        )
+
+    def test_log_if_new_run_blocked_by_max_active_runs_does_not_log_when_max_active_runs_unset(
+        self, session, caplog
+    ):
+        dag = DAG(
+            dag_id="test_log_if_new_run_blocked_by_max_active_runs_does_not_log_when_max_active_runs_unset",
+            schedule=None,
+            max_active_runs=0,
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="running_run",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.RUNNING,
+            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
+        )
+
+        with caplog.at_level("INFO", logger="airflow.models.dagrun"):
+            DagRun.log_if_new_run_blocked_by_max_active_runs(
+                dag=scheduler_dag, run_id="queued_run", session=session
+            )
+
+        assert not any(
+            record.msg == "created DagRun will not be scheduled yet, dag is at max_active_runs"
+            for record in caplog.records
+        )
+
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
