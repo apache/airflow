@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import itertools
 from typing import TYPE_CHECKING, Any
 
@@ -137,5 +138,6 @@ class EventsTimetable(Timetable):
             presorted=True,
             description=data["description"],
         )
-        timetable._summary = data["_summary"]
+        with contextlib.suppress(KeyError):
+            timetable._summary = data["_summary"]
         return timetable
