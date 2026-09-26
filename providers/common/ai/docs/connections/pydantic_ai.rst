@@ -81,9 +81,9 @@ API Key (Password field)
     environment-based auth (Bedrock via ``AWS_PROFILE``, Vertex via
     ``GOOGLE_APPLICATION_CREDENTIALS``).
 
-    For Bedrock and Google models, provider-specific values from Extra are used
-    instead. A populated Password or Host is ignored for those model prefixes;
-    the hook emits a warning identifying the replacement Extra fields.
+    For Bedrock and Google models, provider-specific values from "Extra" field are used
+    instead. A populated value from "Password" or "Host" field is ignored for those model prefixes;
+    the hook emits a warning identifying the replacement "Extra" fields.
 
 Host (optional)
     Base URL for the model provider's API. Only needed for custom endpoints:

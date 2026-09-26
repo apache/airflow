@@ -144,21 +144,19 @@ class TestPydanticAIHookInit:
         assert hook.model_id == "openai:gpt-5.6-sol"
         assert hook.embed_model_id == "openai:text-embedding-3-small"
 
-    def test_azure_hook_uses_own_default_conn_name(self):
+    @pytest.mark.parametrize(
+        ("hook_class", "expected_conn_id"),
+        [
+            (PydanticAIAzureHook, "pydanticai_azure_default"),
+            (PydanticAIBedrockHook, "pydanticai_bedrock_default"),
+            (PydanticAIVertexHook, "pydanticai_vertex_default"),
+        ],
+    )
+    def test_provider_hook_uses_own_default_conn_name(self, hook_class, expected_conn_id):
         """Subclass default_conn_name is used, not the base class value."""
-        hook = PydanticAIAzureHook()
-        assert hook.llm_conn_id == "pydanticai_azure_default"
-        assert hook.embed_conn_id == "pydanticai_azure_default"
-
-    def test_bedrock_hook_uses_own_default_conn_name(self):
-        hook = PydanticAIBedrockHook()
-        assert hook.llm_conn_id == "pydanticai_bedrock_default"
-        assert hook.embed_conn_id == "pydanticai_bedrock_default"
-
-    def test_vertex_hook_uses_own_default_conn_name(self):
-        hook = PydanticAIVertexHook()
-        assert hook.llm_conn_id == "pydanticai_vertex_default"
-        assert hook.embed_conn_id == "pydanticai_vertex_default"
+        hook = hook_class()
+        assert hook.llm_conn_id == expected_conn_id
+        assert hook.embed_conn_id == expected_conn_id
 
 
 class TestGetUiFieldBehaviour:
@@ -1252,7 +1250,7 @@ class TestPydanticAIHookFallbackConnectionFetchCount:
         assert mock_get_connection.call_count == 3
 
 
-class TestPydanticAIHookGetEmbedder:
+class TestPydanticAIHookCreateEmbedder:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
     def test_embedding_uses_model_provider_mapping_instead_of_hook_type(self, mock_infer_provider_class):
         mock_infer_provider_class.return_value.return_value = MagicMock(spec=Provider)
@@ -1265,7 +1263,7 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            result = hook.get_embedder()
+            result = hook.create_embedder()
 
         assert isinstance(result, Embedder)
         mock_infer_provider_class.assert_called_once_with("openai")
@@ -1341,13 +1339,13 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_infer_provider_class.assert_called_once_with(provider_name)
         mock_infer_provider_class.return_value.assert_called_once_with(**expected_provider_kwargs)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_embedder_reports_connection_fields_rejected_by_provider(self, mock_infer_provider_class):
+    def test_create_embedder_reports_connection_fields_rejected_by_provider(self, mock_infer_provider_class):
         mock_infer_provider_class.return_value.side_effect = TypeError("unexpected credential")
         hook = PydanticAIHook(embed_conn_id="embedding_conn", embed_model_id="openai:text-embedding-3-small")
         conn = Connection(
@@ -1360,7 +1358,7 @@ class TestPydanticAIHookGetEmbedder:
             patch.object(hook, "get_connection", return_value=conn),
             pytest.raises(TypeError, match="embedding_conn.*api_key.*unexpected credential"),
         ):
-            hook.get_embedder()
+            hook.create_embedder()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_mixed_providers_require_separate_embedding_connection(self, mock_infer_embedding_model):
@@ -1376,7 +1374,7 @@ class TestPydanticAIHookGetEmbedder:
             patch.object(hook, "get_connection", return_value=conn),
             pytest.raises(ValueError, match="Set embed_conn_id"),
         ):
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_infer_embedding_model.assert_not_called()
 
@@ -1394,7 +1392,7 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            result = hook.get_embedder()
+            result = hook.create_embedder()
 
         assert result.model is embedding_model
         mock_infer_embedding_model.assert_called_once_with("openai:text-embedding-3-small")
@@ -1414,7 +1412,7 @@ class TestPydanticAIHookGetEmbedder:
             patch.object(hook, "get_connection", return_value=conn),
             pytest.raises(ValueError, match="provide a provider prefix"),
         ):
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_infer_embedding_model.assert_called_once_with("text-embedding-3-small")
 
@@ -1431,7 +1429,7 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            result = hook.get_embedder()
+            result = hook.create_embedder()
 
         assert result.model is embedding_model
         assert mock_infer_embedding_model.call_args.args == ("openai:text-embedding-3-small",)
@@ -1451,7 +1449,7 @@ class TestPydanticAIHookGetEmbedder:
             patch.object(hook, "get_connection", return_value=conn),
             pytest.raises(ValueError, match="has no default model provider"),
         ):
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_infer_embedding_model.assert_not_called()
 
@@ -1467,7 +1465,7 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder()
+            hook.create_embedder()
 
         assert mock_infer_embedding_model.call_args.args == (embed_model_id,)
         assert "provider_factory" in mock_infer_embedding_model.call_args.kwargs
@@ -1489,12 +1487,12 @@ class TestPydanticAIHookGetEmbedder:
         conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_infer_embedding_model.assert_called_once_with(embed_model_id)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_embedder_rejects_unsupported_embedding_provider(self, mock_infer_provider_class):
+    def test_create_embedder_rejects_unsupported_embedding_provider(self, mock_infer_provider_class):
         mock_infer_provider_class.return_value.return_value = MagicMock(spec=Provider)
         hook = PydanticAIHook(embed_model_id="azure-responses:text-embedding-3-small")
         conn = Connection(
@@ -1507,7 +1505,7 @@ class TestPydanticAIHookGetEmbedder:
             patch.object(hook, "get_connection", return_value=conn),
             pytest.raises(UserError, match="Unknown embeddings model"),
         ):
-            hook.get_embedder()
+            hook.create_embedder()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_local_embedding_does_not_receive_connection_credentials(self, mock_infer_embedding_model):
@@ -1522,20 +1520,20 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_infer_embedding_model.assert_called_once_with("sentence-transformers:all-MiniLM-L6-v2")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_get_embedder_uses_instrumentation(self, mock_infer_embedding_model, mock_settings):
+    def test_create_embedder_uses_instrumentation(self, mock_infer_embedding_model, mock_settings):
         mock_settings.return_value = sentinel.instrumentation_settings
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
         hook = PydanticAIHook(embed_model_id="openai:text-embedding-3-small")
         conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
-            embedder = hook.get_embedder()
+            embedder = hook.create_embedder()
 
         mock_settings.assert_called_once_with()
         assert embedder.instrument is sentinel.instrumentation_settings
@@ -1543,7 +1541,7 @@ class TestPydanticAIHookGetEmbedder:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Embedder", autospec=True)
-    def test_get_embedder_forwards_settings_and_preserves_caller_instrumentation(
+    def test_create_embedder_forwards_settings_and_preserves_caller_instrumentation(
         self, mock_embedder, mock_infer_embedding_model, mock_settings
     ):
         embedding_model = MagicMock(spec=EmbeddingModel)
@@ -1553,7 +1551,7 @@ class TestPydanticAIHookGetEmbedder:
         conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder(settings=settings, defer_model_check=False, instrument=False)
+            hook.create_embedder(settings=settings, defer_model_check=False, instrument=False)
 
         mock_embedder.assert_called_once_with(
             embedding_model,
@@ -1566,7 +1564,7 @@ class TestPydanticAIHookGetEmbedder:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Embedder", autospec=True)
-    def test_get_embedder_omits_instrument_when_automatic_instrumentation_is_disabled(
+    def test_create_embedder_omits_instrument_when_automatic_instrumentation_is_disabled(
         self, mock_embedder, mock_infer_embedding_model, mock_settings
     ):
         embedding_model = MagicMock(spec=EmbeddingModel)
@@ -1576,12 +1574,12 @@ class TestPydanticAIHookGetEmbedder:
         conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_embedder.assert_called_once_with(embedding_model)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_get_embedder_uses_embed_conn_id(self, mock_infer_embedding_model):
+    def test_create_embedder_uses_embed_conn_id(self, mock_infer_embedding_model):
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
         hook = PydanticAIHook(
             llm_conn_id="chat_conn",
@@ -1595,20 +1593,20 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=embedding_conn) as mock_get_connection:
-            hook.get_embedder()
+            hook.create_embedder()
 
         mock_get_connection.assert_called_once_with("embedding_conn")
         mock_infer_embedding_model.assert_called_once_with("openai:text-embedding-3-small")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_get_embedder_without_credentials_uses_default_provider(self, mock_infer_embedding_model):
+    def test_create_embedder_without_credentials_uses_default_provider(self, mock_infer_embedding_model):
         mock_embedding_model = MagicMock(spec=EmbeddingModel)
         mock_infer_embedding_model.return_value = mock_embedding_model
         hook = PydanticAIHook(llm_conn_id="test_conn", embed_model_id="openai:text-embedding-3-small")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
-            result = hook.get_embedder()
+            result = hook.create_embedder()
 
         assert isinstance(result, Embedder)
         assert result.model is mock_embedding_model
@@ -1616,7 +1614,7 @@ class TestPydanticAIHookGetEmbedder:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_embedder_with_base_url_only(
+    def test_create_embedder_with_base_url_only(
         self,
         mock_infer_provider_class,
         mock_infer_embedding_model,
@@ -1630,14 +1628,14 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder()
+            hook.create_embedder()
 
         provider_factory = mock_infer_embedding_model.call_args.kwargs["provider_factory"]
         provider_factory("openai")
         mock_infer_provider_class.return_value.assert_called_once_with(base_url="http://localhost:8000/v1")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_get_embedder_with_model_from_extra(self, mock_infer_embedding_model):
+    def test_create_embedder_with_model_from_extra(self, mock_infer_embedding_model):
         mock_embedding_model = MagicMock(spec=EmbeddingModel)
         mock_infer_embedding_model.return_value = mock_embedding_model
         hook = PydanticAIHook(llm_conn_id="test_conn")
@@ -1648,7 +1646,7 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            result = hook.get_embedder()
+            result = hook.create_embedder()
 
         assert isinstance(result, Embedder)
         assert result.model is mock_embedding_model
@@ -1665,40 +1663,40 @@ class TestPydanticAIHookGetEmbedder:
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_embedder()
+            hook.create_embedder()
 
         assert mock_infer_embedding_model.call_args.args == ("openai:text-embedding-3-small",)
 
-    def test_get_embedder_raises_when_no_model(self):
+    def test_create_embedder_raises_when_no_model(self):
         hook = PydanticAIHook(llm_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
             with pytest.raises(ValueError, match="No embedding model specified"):
-                hook.get_embedder()
+                hook.create_embedder()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_get_embedder_caches_embedder_for_same_kwargs(self, mock_infer_embedding_model):
+    def test_create_embedder_caches_embedder_for_same_kwargs(self, mock_infer_embedding_model):
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
         hook = PydanticAIHook(embed_model_id="openai:text-embedding-3-small")
         conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
-            first = hook.get_embedder(settings=EmbeddingSettings(dimensions=512))
-            second = hook.get_embedder(settings=EmbeddingSettings(dimensions=512))
+            first = hook.create_embedder(settings=EmbeddingSettings(dimensions=512))
+            second = hook.create_embedder(settings=EmbeddingSettings(dimensions=512))
 
         assert first is second
         mock_infer_embedding_model.assert_called_once()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_get_embedder_rebuilds_cached_embedder_for_different_kwargs(self, mock_infer_embedding_model):
+    def test_create_embedder_rebuilds_cached_embedder_for_different_kwargs(self, mock_infer_embedding_model):
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
         hook = PydanticAIHook(embed_model_id="openai:text-embedding-3-small")
         conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
 
         with patch.object(hook, "get_connection", return_value=conn):
-            first = hook.get_embedder(settings=EmbeddingSettings(dimensions=512))
-            second = hook.get_embedder(settings=EmbeddingSettings(dimensions=256))
+            first = hook.create_embedder(settings=EmbeddingSettings(dimensions=512))
+            second = hook.create_embedder(settings=EmbeddingSettings(dimensions=256))
 
         assert first is not second
         assert mock_infer_embedding_model.call_count == 2

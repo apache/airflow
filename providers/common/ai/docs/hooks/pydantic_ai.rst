@@ -62,7 +62,7 @@ Embedding Models
 ----------------
 
 Set ``embed_model_id`` on the hook or ``embed_model`` in the connection's extra JSON,
-then call ``get_embedder()``. ``embed_conn_id`` defaults to ``llm_conn_id``. Different
+then call ``create_embedder()``. ``embed_conn_id`` defaults to ``llm_conn_id``. Different
 LLM and embedding providers require separate connections when the shared connection
 produces explicit configuration for the embedding provider, so those values cannot be
 reused for the wrong provider. They can share a connection when no embedding provider
@@ -80,13 +80,13 @@ do not use provider credentials. The resolved ``Embedder`` is cached on the hook
         embed_conn_id="my_embeddings",
         embed_model_id="openai:text-embedding-3-small",
     )
-    embedder = hook.get_embedder()
+    embedder = hook.create_embedder()
     result = embedder.embed_query_sync("Apache Airflow orchestrates workflows.")
     embedding = result.embeddings[0]
 
 Keyword arguments accepted by pydantic-ai's `Embedder constructor
 <https://ai.pydantic.dev/api/embeddings/#pydantic_ai.embeddings.Embedder.__init__>`__
-can be passed directly to ``get_embedder()``. These currently include ``settings`` and ``instrument``. Caller-supplied ``instrument`` takes
+can be passed directly to ``create_embedder()``, such as ``settings`` and ``instrument``. Caller-supplied ``instrument`` takes
 precedence over Airflow's automatic instrumentation. Repeated calls with the same
 arguments return the cached instance; passing different arguments creates and caches
 a new instance.
@@ -95,7 +95,7 @@ a new instance.
 
     from pydantic_ai.embeddings import EmbeddingSettings
 
-    embedder = hook.get_embedder(settings=EmbeddingSettings(dimensions=512))
+    embedder = hook.create_embedder(settings=EmbeddingSettings(dimensions=512))
 
 Structured Output
 -----------------

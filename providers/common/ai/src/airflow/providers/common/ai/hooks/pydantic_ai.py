@@ -182,11 +182,11 @@ class PydanticAIHook(BaseHook):
         # argument values at class-definition time.
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
-        self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
-        self.embed_model_id = embed_model_id
         # ``None`` means "not configured here, read the connection's extra";
         # an empty list means "explicitly no fallbacks", overriding the extra.
         self.fallback_conn_ids = fallback_conn_ids
+        self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
+        self.embed_model_id = embed_model_id
         self._model: Model | None = None
         self._embedder: Embedder | None = None
         self._embedder_kwargs: dict[str, Any] | None = None
@@ -238,7 +238,7 @@ class PydanticAIHook(BaseHook):
             kwargs["base_url"] = base_url
         return kwargs
 
-    def _get_conn_and_extra(self, conn_id) -> tuple[Connection, dict[str, Any]]:
+    def _get_conn_and_extra(self, conn_id: str) -> tuple[Connection, dict[str, Any]]:
         """Return this hook's connection and its deserialized extra, fetching at most once."""
         if conn_id not in self._connections:
             conn = self.get_connection(conn_id)
@@ -604,7 +604,7 @@ class PydanticAIHook(BaseHook):
 
         return models
 
-    def get_embedder(self, **embedder_kwargs: Any) -> Embedder:
+    def create_embedder(self, **embedder_kwargs: Any) -> Embedder:
         """
         Return a pydantic-ai ``Embedder`` using this connection's credentials.
 
@@ -666,14 +666,14 @@ class PydanticAIHook(BaseHook):
             )
         return None
 
-    def _get_embedder_if_model_configured(self) -> Embedder | None:
+    def _create_embedder_if_model_configured(self) -> Embedder | None:
         """Return the embedder only when the hook or connection explicitly configures one."""
         if self.embed_model_id:
-            return self.get_embedder()
+            return self.create_embedder()
 
         _, extra = self._get_conn_and_extra(self.embed_conn_id)
         if extra.get("embed_model"):
-            return self.get_embedder()
+            return self.create_embedder()
 
         return None
 
@@ -788,7 +788,7 @@ class PydanticAIHook(BaseHook):
         """
         try:
             model = self._get_conn_if_model_configured()
-            embedder = self._get_embedder_if_model_configured()
+            embedder = self._create_embedder_if_model_configured()
             if model is not None and embedder is not None:
                 return True, "Model and embedding model resolved successfully."
             if model is not None:
