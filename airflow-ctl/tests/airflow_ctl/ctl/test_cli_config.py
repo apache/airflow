@@ -295,6 +295,58 @@ class TestCommandFactory:
                         assert arg.kwargs.get("default") == test_arg[1].get("default")
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
+    @pytest.mark.parametrize("missing_field", [None, "--dag-id", "--from-date", "--to-date"])
+    def test_command_factory_required_datamodel_fields(self, tmp_path, capsys, missing_field):
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class BackfillsOperations(BaseOperations):
+                    def create(self, backfill: BackfillPostBody) -> BackfillResponse:
+                        pass
+            """,
+        )
+        command_factory = CommandFactory(file_path=str(temp_file))
+        command = command_factory.group_commands[0].subcommands[0]
+        parser = argparse.ArgumentParser(prog="airflowctl backfills create")
+        for arg in command.args:
+            arg.add_to_parser(parser)
+
+        required_values = {
+            "--dag-id": "example_dag",
+            "--from-date": "2026-01-01T00:00:00Z",
+            "--to-date": "2026-01-02T00:00:00Z",
+        }
+        argv = [
+            token
+            for flag, value in required_values.items()
+            if missing_field is not None and flag != missing_field
+            for token in (flag, value)
+        ]
+        with pytest.raises(SystemExit) as exc_info:
+            parser.parse_args(argv)
+        assert exc_info.value.code == 2
+        missing_flags = missing_field or ", ".join(required_values)
+        assert f"the following arguments are required: {missing_flags}" in capsys.readouterr().err
+
+        argv = [token for pair in required_values.items() for token in pair]
+        parsed = parser.parse_args(argv)
+        assert parsed.dag_id == "example_dag"
+        assert parsed.run_backwards is False
+        assert parsed.dag_run_conf is None
+        assert parser.parse_args([*argv, "--run-backwards"]).run_backwards is True
+        assert parser.parse_args([*argv, "--no-run-backwards"]).run_backwards is False
+
+    def test_command_factory_required_datamodel_field_with_cli_default(self):
+        command_factory = CommandFactory()
+        group = next(group for group in command_factory.group_commands if group.name == "dags")
+        command = next(command for command in group.subcommands if command.name == "trigger")
+        parser = argparse.ArgumentParser()
+        for arg in command.args:
+            arg.add_to_parser(parser)
+
+        parsed = parser.parse_args(["example_dag"])
+        assert parsed.logical_date is None
+
     def test_command_factory_optional_bool_uses_boolean_optional_action(self, tmp_path):
         """Optional bool parameters should support --flag and --no-flag forms."""
         temp_file = self._save_temp_operations_py(
