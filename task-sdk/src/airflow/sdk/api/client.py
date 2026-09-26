@@ -262,10 +262,9 @@ class TaskInstanceOperations:
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 detail = e.detail
-                if (
-                    isinstance(detail, dict)
-                    and detail.get("reason") == "invalid_state"
-                    and detail.get("previous_state") == "running"
+                if isinstance(detail, dict) and (
+                    detail.get("reason") == "running_elsewhere"
+                    or (detail.get("reason") == "invalid_state" and detail.get("previous_state") == "running")
                 ):
                     raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
             raise
@@ -278,18 +277,22 @@ class TaskInstanceOperations:
         when: datetime,
         rendered_map_index,
         retry_reason: str | None = None,
+        *,
+        pid: int | None = None,
     ):
-        """Tell the API server that this TI has reached a terminal state."""
+        """Report a terminal outcome or acknowledge server-requested termination."""
         if state == TaskInstanceState.SUCCESS:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
-        # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(
             end_date=when,
             state=TerminalStateNonSuccess(state),
             rendered_map_index=rendered_map_index,
             retry_reason=retry_reason,
         )
-        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+        if state == TerminalStateNonSuccess.SERVER_TERMINATED:
+            body.hostname = get_hostname()
+            body.pid = pid
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json(exclude_unset=True))
 
     def retry(
         self,

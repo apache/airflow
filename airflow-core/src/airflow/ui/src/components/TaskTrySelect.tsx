@@ -78,10 +78,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
     (tiHistory?.task_instances ?? []).filter((ti) => ti.try_number > 0).map((ti) => [ti.try_number, ti]),
   );
 
-  if (finalTryNumber > 0 && state !== "up_for_retry" && state !== null) {
-    // The current task instance is authoritative when it is also present in history.
-    triesByNumber.set(finalTryNumber, taskInstance);
-  }
+  triesByNumber.set(finalTryNumber, taskInstance);
 
   const sortedTries = [...triesByNumber.values()].sort((tryA, tryB) => tryA.try_number - tryB.try_number);
 

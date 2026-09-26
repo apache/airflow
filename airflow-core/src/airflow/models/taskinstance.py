@@ -404,9 +404,7 @@ def clear_task_instances(
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     for ti in tis:
-        ti.prepare_db_for_next_try(session)
-
-        if ti.state == TaskInstanceState.RUNNING:
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING):
             if prevent_running_task:
                 raise AirflowClearRunningTaskException(
                     "AirflowClearRunningTaskException: Disable 'prevent_running_task' to proceed, or wait until the task is not running, queued, or scheduled state."
@@ -418,6 +416,12 @@ def clear_task_instances(
         # set its state to RESTARTING so that
         # the task is terminated and becomes eligible for retry.
         else:
+            if ti.state in (None, TaskInstanceState.UP_FOR_RETRY):
+                # The pending attempt hasn't run, so base its retry budget on the preceding attempt.
+                previous_try_number = max(0, ti.try_number - 1)
+            else:
+                previous_try_number = ti.try_number
+                ti.prepare_db_for_next_try(session)
             dr = ti.dag_run
             # A run with no version of its own has nothing to re-run on but the latest, and the
             # run loop below moves it there.
@@ -434,13 +438,13 @@ def clear_task_instances(
                 ti.refresh_from_task(task, dag_run=dr)
                 if TYPE_CHECKING:
                     assert ti.task
-                ti.max_tries = ti.try_number + task.retries
+                ti.max_tries = previous_try_number + task.retries
             else:
                 # Ignore errors when updating max_tries if the DAG or
                 # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
-                ti.max_tries = max(ti.max_tries, ti.try_number)
+                ti.max_tries = max(ti.max_tries, previous_try_number)
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
@@ -1068,12 +1072,27 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
     def prepare_db_for_next_try(self, session: Session):
-        """Update the metadata with all the records needed to put this TI in queued for the next try."""
+        """Archive this attempt and allocate the next attempt's UUID and try number."""
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
         TaskInstanceHistory.record_ti(self, session=session)
         session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
         self.id = uuid7()
+        self.try_number += 1
+
+    def complete_restart(self, *, session: Session) -> None:
+        """Release a cleared attempt after termination; the caller must hold its row lock."""
+        if self.state != TaskInstanceState.RESTARTING:
+            raise ValueError("Only a restarting task instance can complete a restart")
+        if self.task is not None:
+            self.max_tries = self.try_number + self.task.retries
+        else:
+            self.max_tries = max(self.max_tries, self.try_number)
+        self.prepare_db_for_next_try(session)
+        self.state = None
+        self.external_executor_id = None
+        self.clear_next_method_args()
+        session.flush()
 
     @provide_session
     def are_dependents_done(self, *, session: Session = NEW_SESSION) -> bool:
@@ -1262,6 +1281,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
+        # While waiting for retry, the live row already identifies the next attempt.
+        failed_try_number = (
+            self.try_number - 1 if self.state == TaskInstanceState.UP_FOR_RETRY else self.try_number
+        )
         delay = self.task.retry_delay
         multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
         if multiplier != 1.0 and multiplier > 0:
@@ -1271,7 +1294,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 # will occur in the modded_hash calculation.
                 # this probably gives unexpected results if a task instance has previously been cleared,
                 # because try_number can increase without bound
-                min_backoff = math.ceil(delay.total_seconds() * (multiplier ** (self.try_number - 1)))
+                min_backoff = math.ceil(delay.total_seconds() * (multiplier ** (failed_try_number - 1)))
             except OverflowError:
                 min_backoff = MAX_RETRY_DELAY
                 self.log.warning(
@@ -1288,7 +1311,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # deterministic per task instance
             ti_hash = int(
                 hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
+                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{failed_try_number}".encode(),
                     usedforsecurity=False,
                 ).hexdigest(),
                 16,
@@ -1857,7 +1880,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # Then, update ourselves so it matches the deferral request
             # Keep an eye on the logic in `check_and_change_state_before_execution()`
             # depending on self.next_method semantics
-            pre_deferral_state = self.state
             self.state = TaskInstanceState.DEFERRED
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
@@ -1871,8 +1893,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
                 else:
                     self.trigger_timeout = self.start_date + execution_timeout
-            if pre_deferral_state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                self.try_number += 1
+            if self.try_number == 0:
+                self.try_number = 1
             if self.test_mode:
                 _add_log(event=self.state, task_instance=self, session=session)
             return True
@@ -1927,32 +1949,30 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Actual callbacks are handled by the DAG processor, not the scheduler
         task = getattr(ti, "task", None)
 
+        allocate_next_try = False
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state != TaskInstanceState.RESTARTING:
-                # Record the current attempt and prepare the TI for its next try.
-                # Covers every path eligible for retry reaching handle_failure():
-                # - RUNNING: task raised an exception during execution (normal failure)
-                # - QUEUED/SCHEDULED: executor killed the task externally before
-                #   it could start (e.g. pod OOMKilled in KubernetesExecutor)
-                # RESTARTING is excluded: the task was cleared via the UI/API while running;
-                # prepare_db_for_next_try() was already called during that clear operation.
-                ti.prepare_db_for_next_try(session)
-
+            allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY
 
+        ti.notify_failure(error)
+        if allocate_next_try:
+            ti.prepare_db_for_next_try(session)
+
+        return ti
+
+    def notify_failure(self, error: str | None) -> None:
+        """Notify listeners before replacing this try's UUID and try number."""
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING, task_instance=self, error=error
             )
         except Exception:
             log.exception("error calling listener")
-
-        return ti
 
     @staticmethod
     @provide_session

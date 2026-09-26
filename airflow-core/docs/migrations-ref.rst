@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``c9f4b3e7a218`` (head) | ``3b7a91c5df20`` | ``3.4.0``         | Replace the ``job.team_name`` column with a ``job_team``     |
+| ``a61f0c9d2b47`` (head) | ``c9f4b3e7a218`` | ``3.4.0``         | Allocate attempt numbers for pending retries and cleared     |
+|                         |                  |                   | tasks.                                                       |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c9f4b3e7a218``        | ``3b7a91c5df20`` | ``3.4.0``         | Replace the ``job.team_name`` column with a ``job_team``     |
 |                         |                  |                   | association table.                                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``3b7a91c5df20``        | ``5182d0596ee2`` | ``3.4.0``         | Fold task_map into xcom.mapped_length.                       |

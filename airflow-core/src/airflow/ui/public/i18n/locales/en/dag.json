@@ -100,7 +100,11 @@
       "placeholder": "Search logs..."
     },
     "settings": "Log Settings",
+    "tryNotStarted": "This try hasn't started yet.",
+    "viewFailedTry": "View logs for failed try {{tryNumber}}",
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
+    "viewPreviousTry": "View logs for previous try {{tryNumber}}",
+    "waitingToRetry": "Try {{tryNumber}} is waiting to retry.",
     "warning": "WARNING"
   },
   "notFound": {

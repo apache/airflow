@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -384,10 +384,7 @@ def get_task_instance_tries(
         ).options(joinedload(orm_object.hitl_detail))
         return query
 
-    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
-    tis = session.scalars(
-        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
-    ).all()
+    tis = session.scalars(_query(TI)).all()
     task_instances = list(session.scalars(_query(TIH)).all()) + list(tis)
 
     if not task_instances:
