@@ -10534,6 +10534,18 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        callback_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Id'
         }
     },
     type: 'object',

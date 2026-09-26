@@ -34,6 +34,8 @@ import Time from "src/components/Time";
 import { useDurationFormat } from "src/utils";
 import { translateCompletionRule } from "src/utils/deadlines";
 
+import { CallbackLogViewer } from "./CallbackLogViewer";
+
 const PAGE_LIMIT = 10;
 
 type DeadlineStatusModalProps = {
@@ -146,6 +148,9 @@ export const DeadlineStatusModal = ({
                     <Text color="fg.muted" fontSize="xs">
                       {dl.alert_name}
                     </Text>
+                  )}
+                  {dl.callback_id === undefined || dl.callback_id === null ? undefined : (
+                    <CallbackLogViewer callbackId={dl.callback_id} dagId={dagId} dagRunId={dagRunId} />
                   )}
                 </HStack>
                 {completionRule === undefined ? undefined : (
