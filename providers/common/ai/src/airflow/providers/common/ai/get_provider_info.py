@@ -92,7 +92,6 @@ def get_provider_info():
                 "integration-name": "LlamaIndex",
                 "python-modules": ["airflow.providers.common.ai.hooks.llamaindex"],
             },
-            {"integration-name": "Islo", "python-modules": ["airflow.providers.common.ai.hooks.islo"]},
         ],
         "plugins": [
             {
@@ -409,7 +408,7 @@ def get_provider_info():
                 },
             },
             {
-                "hook-class-name": "airflow.providers.common.ai.hooks.islo.IsloHook",
+                "hook-class-name": "airflow.providers.common.ai.sandbox.islo.IsloHook",
                 "hook-name": "Islo",
                 "connection-type": "islo",
                 "ui-field-behaviour": {
