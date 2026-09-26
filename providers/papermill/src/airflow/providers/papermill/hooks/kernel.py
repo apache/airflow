@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import typing
+from dataclasses import dataclass
 from typing import cast
+from urllib.parse import urlsplit, urlunsplit
 
 from jupyter_client import AsyncKernelManager, KernelConnectionInfo
 from papermill.clientwrap import PapermillNotebookClient
@@ -33,6 +35,16 @@ JUPYTER_KERNEL_STDIN_PORT = 60318
 JUPYTER_KERNEL_CONTROL_PORT = 60319
 JUPYTER_KERNEL_HB_PORT = 60320
 REMOTE_KERNEL_ENGINE = "remote_kernel_engine"
+REMOTE_GATEWAY_KERNEL_ENGINE = "remote_gateway_kernel_engine"
+
+
+def _coerce_bool(value: typing.Any, default: bool) -> bool:
+    """Interpret connection-extra booleans that may arrive as strings (UI/URI-defined extras)."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "t", "yes", "y", "1")
+    return bool(value)
 
 
 class KernelConnection:
@@ -47,12 +59,35 @@ class KernelConnection:
     session_key: str
 
 
+@dataclass
+class GatewayKernelConnection:
+    """Connection details for kernels behind a Jupyter server or kernel gateway reached over HTTP(S)."""
+
+    url: str
+    token: str | None = None
+    auth_scheme: str = "token"
+    auth_header_key: str = "Authorization"
+    verify_ssl: bool = True
+    ca_certs: str | None = None
+    client_cert: str | None = None
+    client_key: str | None = None
+    request_timeout: float | None = None
+    connect_timeout: float | None = None
+    kernel_id: str | None = None
+    headers: dict | None = None
+
+
 class KernelHook(BaseHook):
     """
     The KernelHook can be used to interact with remote jupyter kernel.
 
     Takes kernel host/ip from connection and refers to jupyter kernel ports and session_key
      from ``extra`` field.
+
+    Alternatively, when the connection host is an ``http://`` or ``https://`` URL (or the
+    ``use_gateway`` extra is set), the connection describes a Jupyter server or kernel gateway
+    (e.g. JupyterHub user server, Jupyter Kernel Gateway, Enterprise Gateway) reached over
+    HTTP(S) with token authentication.
 
     :param kernel_conn_id: connection that has kernel host/ip
     """
@@ -65,9 +100,22 @@ class KernelHook(BaseHook):
     def __init__(self, kernel_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.kernel_conn = self.get_connection(kernel_conn_id)
-        register_remote_kernel_engine()
+        if self.use_gateway:
+            register_remote_gateway_kernel_engine()
+        else:
+            register_remote_kernel_engine()
 
-    def get_conn(self) -> KernelConnection:
+    @property
+    def use_gateway(self) -> bool:
+        """Whether the connection points at a Jupyter server/gateway over HTTP(S) rather than raw ZMQ."""
+        host = self.kernel_conn.host or ""
+        return host.startswith(("http://", "https://")) or _coerce_bool(
+            self.kernel_conn.extra_dejson.get("use_gateway"), False
+        )
+
+    def get_conn(self) -> KernelConnection | GatewayKernelConnection:
+        if self.use_gateway:
+            return self._get_gateway_conn()
         kernel_connection = KernelConnection()
         kernel_connection.ip = cast("str", self.kernel_conn.host)
         kernel_connection.shell_port = self.kernel_conn.extra_dejson.get(
@@ -86,12 +134,45 @@ class KernelHook(BaseHook):
         kernel_connection.session_key = self.kernel_conn.extra_dejson.get("session_key", "")
         return kernel_connection
 
+    def _get_gateway_conn(self) -> GatewayKernelConnection:
+        extra = self.kernel_conn.extra_dejson
+        host = cast("str", self.kernel_conn.host)
+        url = host if "://" in host else f"https://{host}"
+        parts = urlsplit(url)
+        if self.kernel_conn.port and not parts.port:
+            parts = parts._replace(netloc=f"{parts.netloc}:{self.kernel_conn.port}")
+        # urlunsplit also normalizes the scheme to lowercase.
+        url = urlunsplit(parts)
+        return GatewayKernelConnection(
+            url=url,
+            token=self.kernel_conn.password or extra.get("token"),
+            auth_scheme=extra.get("auth_scheme", "token"),
+            auth_header_key=extra.get("auth_header_key", "Authorization"),
+            verify_ssl=_coerce_bool(extra.get("verify_ssl"), True),
+            ca_certs=extra.get("ca_certs"),
+            client_cert=extra.get("client_cert"),
+            client_key=extra.get("client_key"),
+            request_timeout=extra.get("request_timeout"),
+            connect_timeout=extra.get("connect_timeout"),
+            kernel_id=extra.get("kernel_id"),
+            headers=extra.get("headers"),
+        )
+
 
 def register_remote_kernel_engine():
     """Register ``RemoteKernelEngine`` papermill engine."""
     from papermill.engines import papermill_engines
 
     papermill_engines.register(REMOTE_KERNEL_ENGINE, RemoteKernelEngine)
+
+
+def register_remote_gateway_kernel_engine():
+    """Register ``GatewayKernelEngine`` papermill engine."""
+    from papermill.engines import papermill_engines
+
+    from airflow.providers.papermill.hooks.gateway_kernel import GatewayKernelEngine
+
+    papermill_engines.register(REMOTE_GATEWAY_KERNEL_ENGINE, GatewayKernelEngine)
 
 
 class RemoteKernelManager(AsyncKernelManager):

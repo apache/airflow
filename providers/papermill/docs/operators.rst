@@ -70,3 +70,15 @@ Example Dag to Verify the message in the notebook using a remote jupyter kernel:
     :language: python
     :start-after: [START howto_verify_operator_papermill_remote_kernel]
     :end-before: [END howto_verify_operator_papermill_remote_kernel]
+
+
+Example Dag executing the notebook on a kernel behind a Jupyter server or kernel gateway
+(e.g. JupyterHub, Jupyter Kernel Gateway, Enterprise Gateway) reached over HTTP(S) with
+token authentication. The operator usage is identical to the remote kernel case — only the
+:ref:`Jupyter Kernel connection <howto/connection:jupyter_kernel>` differs (an ``http(s)://``
+URL as host and the auth token as password):
+
+.. exampleinclude:: /../../papermill/tests/system/papermill/example_papermill_gateway.py
+    :language: python
+    :start-after: [START howto_operator_papermill_gateway_kernel]
+    :end-before: [END howto_operator_papermill_gateway_kernel]
