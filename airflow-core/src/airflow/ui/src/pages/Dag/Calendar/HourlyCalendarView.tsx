@@ -38,6 +38,7 @@ import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -66,6 +67,7 @@ export const HourlyCalendarView = ({
 }: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, { selectedMonth, selectedYear, timezone });
+  const { dagId = "" } = useParams();
 
   return (
     <Box data-testid="calendar-hourly-view" mb={4}>
@@ -177,6 +179,7 @@ export const HourlyCalendarView = ({
                     <CalendarCell
                       backgroundColor={scale.getColor(emptyCounts)}
                       cellData={emptyData}
+                      dagId={dagId}
                       index={index}
                       key={`${day.day}-${hour}`}
                       viewMode={viewMode}
@@ -193,6 +196,7 @@ export const HourlyCalendarView = ({
                   <CalendarCell
                     backgroundColor={scale.getColor(hourData.counts)}
                     cellData={formattedHourData}
+                    dagId={dagId}
                     index={index}
                     key={`${day.day}-${hour}`}
                     viewMode={viewMode}

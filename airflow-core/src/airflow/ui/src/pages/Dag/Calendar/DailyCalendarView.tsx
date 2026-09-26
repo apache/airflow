@@ -37,6 +37,7 @@
 import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -55,6 +56,7 @@ type Props = {
 export const DailyCalendarView = ({ data, scale, selectedYear, timezone, viewMode = "total" }: Props) => {
   const { t: translate } = useTranslation("dag");
   const dailyData = generateDailyCalendarData(data, selectedYear, timezone);
+  const { dagId = "" } = useParams();
 
   const weekdays = [
     translate("calendar.weekdays.sunday"),
@@ -112,6 +114,7 @@ export const DailyCalendarView = ({ data, scale, selectedYear, timezone, viewMod
                     <CalendarCell
                       backgroundColor="transparent"
                       cellData={undefined}
+                      dagId={dagId}
                       key={day.date}
                       viewMode={viewMode}
                     />
@@ -122,6 +125,7 @@ export const DailyCalendarView = ({ data, scale, selectedYear, timezone, viewMod
                   <CalendarCell
                     backgroundColor={scale.getColor(day.counts)}
                     cellData={day}
+                    dagId={dagId}
                     key={day.date}
                     viewMode={viewMode}
                   />
