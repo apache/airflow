@@ -21,10 +21,11 @@ Using the hook directly: ``PydanticAIHook``
 ===========================================
 
 Use :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook` to interact
-with LLM providers via `pydantic-ai <https://ai.pydantic.dev/>`__.
+with LLM and embedding providers via `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 The hook manages API credentials from an Airflow connection and creates pydantic-ai
-``Model`` and ``Agent`` objects. It supports any provider that pydantic-ai supports.
+``Model``, ``Agent``, and ``Embedder`` objects. Supported providers depend on the
+corresponding pydantic-ai model API.
 
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
@@ -57,7 +58,46 @@ The model can be specified at three levels (highest priority first):
     # Override with a specific model
     hook = PydanticAIHook(llm_conn_id="my_llm", model_id="anthropic:claude-sonnet-5")
 
-Structured output
+Embedding Models
+----------------
+
+Set ``embed_model_id`` on the hook or ``embed_model`` in the connection's extra JSON,
+then call ``create_embedder()``. ``embed_conn_id`` defaults to ``llm_conn_id``. Different
+LLM and embedding providers require separate connections when the shared connection
+produces explicit configuration for the embedding provider, so those values cannot be
+reused for the wrong provider. They can share a connection when no embedding provider
+configuration can be built from it; pydantic-ai then resolves the embedding provider
+independently, for example from environment variables, even if the LLM uses configuration
+from the connection. Equivalent OpenAI and Azure chat/response prefixes can share their
+provider's embedding connection. Local
+``sentence-transformers:`` embeddings can also share the LLM connection because they
+do not use provider credentials. The resolved ``Embedder`` is cached on the hook instance.
+
+.. code-block:: python
+
+    hook = PydanticAIHook(
+        llm_conn_id="my_llm",
+        embed_conn_id="my_embeddings",
+        embed_model_id="openai:text-embedding-3-small",
+    )
+    embedder = hook.create_embedder()
+    result = embedder.embed_query_sync("Apache Airflow orchestrates workflows.")
+    embedding = result.embeddings[0]
+
+Keyword arguments accepted by pydantic-ai's `Embedder constructor
+<https://ai.pydantic.dev/api/embeddings/#pydantic_ai.embeddings.Embedder.__init__>`__
+can be passed directly to ``create_embedder()``, such as ``settings`` and ``instrument``. Caller-supplied ``instrument`` takes
+precedence over Airflow's automatic instrumentation. Repeated calls with the same
+arguments return the cached instance; passing different arguments creates and caches
+a new instance.
+
+.. code-block:: python
+
+    from pydantic_ai.embeddings import EmbeddingSettings
+
+    embedder = hook.create_embedder(settings=EmbeddingSettings(dimensions=512))
+
+Structured Output
 -----------------
 
 Pydantic-ai's structured output works naturally through the hook.

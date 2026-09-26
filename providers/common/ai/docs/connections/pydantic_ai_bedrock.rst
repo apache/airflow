@@ -55,6 +55,9 @@ Model
     prepended (``bedrock:us.anthropic.claude-opus-4-6-v1:0``). Writing the
     ``bedrock:`` prefix yourself has the same effect and is still accepted.
 
+Embedding Model
+    Bedrock embedding model identifier (e.g. ``bedrock:amazon.titan-embed-text-v2:0``).
+
 AWS Region
     AWS region (e.g. ``us-east-1``). Falls back to the ``AWS_DEFAULT_REGION``
     environment variable.
