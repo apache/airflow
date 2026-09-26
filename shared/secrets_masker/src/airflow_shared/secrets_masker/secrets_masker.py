@@ -79,6 +79,42 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 SECRETS_TO_SKIP_MASKING = {"airflow"}
 """Common terms that should be excluded from masking in both production and tests"""
 
+KNOWN_SECRET_PATTERNS: dict[str, str] = {
+    # Word-boundary lookarounds keep AWS keys from matching inside longer
+    # uppercase runs (e.g. an unrelated 20-char identifier that happens to
+    # start with "AKIA").
+    "aws_access_key": r"(?<![A-Z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Z0-9])",
+    "github_token": r"\bgh[pousr]_[A-Za-z0-9]{36,255}\b",
+    "slack_token": r"\bxox[baprs]-[A-Za-z0-9-]{10,255}\b",
+    "google_api_key": r"\bAIza[0-9A-Za-z_\-]{35}\b",
+    "stripe_live_key": r"\bsk_live_[0-9A-Za-z]{24,64}\b",
+    # Match the full PEM block, including header/footer, so the entire
+    # key material is redacted rather than only the label line. Body is
+    # bounded to keep the regex engine's work strictly linear on any input.
+    "pem_private_key_block": (
+        r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----"
+        r"[\s\S]{1,16384}?-----END (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----"
+    ),
+    # Require both header and payload segments to start with "eyJ" (base64
+    # of `{"`) so we don't match arbitrary dotted base64-looking blobs. Each
+    # segment is bounded so an adversarial input cannot force unbounded work.
+    "jwt": (
+        r"\beyJ[A-Za-z0-9_\-]{10,4096}"
+        r"\.eyJ[A-Za-z0-9_\-]{10,4096}"
+        r"\.[A-Za-z0-9_\-]{10,4096}\b"
+    ),
+}
+"""Regexes for well-known secret formats detected by value.
+
+The set is intentionally narrow: each entry has a distinctive prefix
+(``AKIA``/``ASIA``, ``gh[pousr]_``, ``xox[baprs]-``, ``AIza``, ``sk_live_``,
+``-----BEGIN … PRIVATE KEY-----``, ``eyJ…eyJ…``) so a match is overwhelmingly
+likely to be a real credential. Formats with high false-positive rates
+(generic credit-card, SSN, email) are deliberately excluded from this
+list — deployments that want them can register their own patterns via
+:meth:`SecretsMasker.add_content_patterns`.
+"""
+
 
 def should_hide_value_for_key(name):
     """
@@ -196,6 +232,7 @@ class SecretsMasker(logging.Filter):
     MAX_RECURSION_DEPTH = 5
     _has_warned_short_secret = False
     mask_secrets_in_logs = False
+    mask_content_patterns = False
 
     min_length_to_mask = 5
     secret_mask_adapter = None
@@ -205,6 +242,8 @@ class SecretsMasker(logging.Filter):
         self.patterns = set()
         self.sensitive_variables_fields = []
         self.hide_sensitive_var_conn_fields = True
+        self._content_pattern_sources: dict[str, str] = dict(KNOWN_SECRET_PATTERNS)
+        self._content_pattern_replacer: Pattern | None = None
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -249,6 +288,58 @@ class SecretsMasker(logging.Filter):
     def is_log_masking_enabled(cls) -> bool:
         """Check if secret masking in logs is enabled."""
         return cls.mask_secrets_in_logs
+
+    @classmethod
+    def enable_content_pattern_masking(cls) -> None:
+        """Enable value-content pattern masking (well-known secret formats)."""
+        cls.mask_content_patterns = True
+
+    @classmethod
+    def disable_content_pattern_masking(cls) -> None:
+        """Disable value-content pattern masking."""
+        cls.mask_content_patterns = False
+
+    @classmethod
+    def is_content_pattern_masking_enabled(cls) -> bool:
+        """Check if value-content pattern masking is enabled."""
+        return cls.mask_content_patterns
+
+    def add_content_patterns(self, patterns: dict[str, str]) -> None:
+        """
+        Register additional named regex patterns for value-content masking.
+
+        Keys are pattern names (used for diagnostics), values are regex
+        source strings. Existing entries with the same name are replaced.
+        Invalid regexes are skipped with a warning rather than raising, so
+        a misconfigured deployment does not disable the whole masker.
+        """
+        changed = False
+        for name, source in patterns.items():
+            try:
+                re.compile(source)
+            except re.error as exc:
+                log.warning(
+                    "Skipping invalid content-mask pattern %r: %s",
+                    name,
+                    exc,
+                    extra={self.ALREADY_FILTERED_FLAG: True},
+                )
+                continue
+            self._content_pattern_sources[name] = source
+            changed = True
+        if changed:
+            self._content_pattern_replacer = None
+
+    def _get_content_pattern_replacer(self) -> Pattern | None:
+        """Return the compiled union of registered content patterns, or ``None`` if empty."""
+        if self._content_pattern_replacer is not None:
+            return self._content_pattern_replacer
+        sources = list(self._content_pattern_sources.values())
+        if not sources:
+            return None
+        combined = "|".join(f"(?:{src})" for src in sources)
+        self._content_pattern_replacer = re.compile(combined)
+        return self._content_pattern_replacer
 
     @cached_property
     def _record_attrs_to_ignore(self) -> Iterable[str]:
@@ -313,7 +404,9 @@ class SecretsMasker(logging.Filter):
             # "private" flag that stops us needing to process it more than once
             return True
 
-        if self.replacer:
+        # Redact when either explicit masks are registered or value-content
+        # pattern masking is enabled — otherwise there is nothing to look for.
+        if self.replacer or self.mask_content_patterns:
             for k, v in record.__dict__.items():
                 if k not in self._record_attrs_to_ignore:
                     record.__dict__[k] = self.redact(v)
@@ -414,12 +507,20 @@ class SecretsMasker(logging.Filter):
                     )
                 return tmp
             if isinstance(item, str):
+                content_replacer = (
+                    self._get_content_pattern_replacer() if self.mask_content_patterns else None
+                )
+                if not self.replacer and content_replacer is None:
+                    return item
+                text = str(item)
                 if self.replacer:
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
-                    return self.replacer.sub(replacement, str(item))
-                return item
+                    text = self.replacer.sub(replacement, text)
+                if content_replacer is not None:
+                    text = content_replacer.sub(replacement, text)
+                return text
             return item
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
@@ -640,6 +741,8 @@ class SecretsMasker(logging.Filter):
         """Reset the patterns and the replacer in the masker instance."""
         self.patterns = set()
         self.replacer = None
+        self._content_pattern_sources = dict(KNOWN_SECRET_PATTERNS)
+        self._content_pattern_replacer = None
 
 
 class RedactedIO(TextIO):
