@@ -661,7 +661,13 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "local_task_job_heartbeat_sec"),
-        renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_sec"),
+        was_deprecated=False,
+        suggestion="Set the task heartbeat interval with `min_heartbeat_interval` in the `workers` section.",
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "task_instance_heartbeat_sec"),
+        was_deprecated=False,
+        suggestion="Set the task heartbeat interval with `min_heartbeat_interval` in the `workers` section.",
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "scheduler_zombie_task_threshold"),
