@@ -55,7 +55,10 @@ import {
   type StartupDetails,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { bundleDagTaskIds, type Bundle } from "../sdk/bundle.js";
+import { bundleDagTaskIds, listBundleNativeDags, type Bundle } from "../sdk/bundle.js";
+import type { Dag } from "../sdk/dag.js";
+import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
+import { computeRelativeFileloc, serializeDag } from "./serde.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -262,22 +265,77 @@ export function createRuntimeAbort(
   };
 }
 
+/**
+ * Answer a parse request with the Dags this bundle declared in TypeScript.
+ *
+ * No handler body runs: a `TaskRef` is inert, so reading a Dag only walks what
+ * its module already built. Reading it is also what enforces that every task
+ * was called exactly once, which is why a Dag that is not fully laid out
+ * surfaces here.
+ *
+ * A Dag that cannot be serialized becomes an import error against this file,
+ * as a Python Dag file that raises does, rather than failing the whole parse:
+ * one broken Dag must not take out the others a bundle serves.
+ */
 function handleParse(
   request: { file: string; bundle_path: string },
   bundle: Bundle,
   logs: LogChannel,
 ): RuntimeDagFileParsingResult {
-  // TypeScript-native Dag parsing is not yet supported.
-  // Respond with an empty result so the Python-stub-Dag workflow works.
-  logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: Object.fromEntries(bundleDagTaskIds(bundle)),
+  const fileloc = request.file;
+  const relativeFileloc = computeRelativeFileloc(fileloc, request.bundle_path);
+  const serializedDags: { data: Record<string, unknown> }[] = [];
+  // Airflow keys an import error by the bundle-relative path and holds one row
+  // per file (`DagFileProcessorManager.update_import_errors`), so every failure
+  // in this bundle is reported under that one key, naming its Dag in the
+  // message. An absolute path, or one with a Dag id appended, would give a row
+  // the UI cannot tie back to the file, and would leave the file itself looking
+  // healthy while its Dags had vanished.
+  const failures: string[] = [];
+
+  let dags: Dag[];
+  try {
+    dags = listBundleNativeDags(bundle);
+  } catch (err) {
+    // Reading the bundle closes every native Dag in it, so a fault in one is
+    // reported against the file rather than leaving the request unanswered.
+    const detail = err instanceof Error ? err.message : String(err);
+    logs.error("Bundle could not be read for parsing", { fileloc, detail });
+    return {
+      type: "DagFileParsingResult",
+      fileloc,
+      serialized_dags: [],
+      import_errors: { [relativeFileloc]: detail },
+    };
+  }
+
+  for (const dag of dags) {
+    try {
+      serializedDags.push({
+        data: {
+          __version: SERIALIZATION_VERSION,
+          dag: serializeDag(dag, fileloc, relativeFileloc),
+        },
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      logs.error("Dag could not be serialized", { dag_id: dag.dagId, detail });
+      failures.push(`Dag "${dag.dagId}": ${detail}`);
+    }
+  }
+
+  logs.info("Parse-mode response", {
+    fileloc,
+    dag_ids: dags.map((dag) => dag.dagId),
+    serialized: serializedDags.length,
+    import_errors: failures.length,
   });
-  const response: RuntimeDagFileParsingResult = {
+  return {
     type: "DagFileParsingResult",
-    fileloc: request.file,
-    serialized_dags: [],
-  };
-  return response;
+    fileloc,
+    serialized_dags: serializedDags,
+    ...(failures.length > 0 && { import_errors: { [relativeFileloc]: failures.join("\n") } }),
+  } as RuntimeDagFileParsingResult;
 }
 
 async function handleTask(
