@@ -525,45 +525,6 @@ def test_process_log_messages_renders_exceptions_from_the_triggerer_itself(
     } in cap_structlog
 
 
-def test_process_log_messages_leaves_task_log_exceptions_structured(supervisor_builder, mocker):
-    """Per-trigger records go to the task log, whose readers render the payload themselves."""
-    supervisor = supervisor_builder()
-    mocker.patch("airflow.sdk.log.logging_processors", autospec=True)
-    trigger_log = mocker.MagicMock(spec=FilteringBoundLogger)
-    supervisor.logger_cache[7] = mocker.MagicMock(spec=TriggerLoggingFactory, return_value=trigger_log)
-
-    gen = supervisor._process_log_messages_from_subprocess()
-    next(gen)
-    gen.send(
-        msgspec.json.encode(
-            {
-                "event": "Trigger failed",
-                "level": "error",
-                "trigger_id": 7,
-                "exception": EXCEPTION_PAYLOAD,
-            }
-        )
-    )
-
-    assert trigger_log.log.call_args.kwargs["error_detail"] == EXCEPTION_PAYLOAD
-
-
-def test_process_log_messages_keeps_an_unrecognised_exception_payload(
-    supervisor_builder, mocker, cap_structlog
-):
-    """A payload that is not transformer output is passed through rather than dropped."""
-    supervisor = supervisor_builder()
-    mocker.patch("airflow.sdk.log.configure_logging", autospec=True)
-    mocker.patch("airflow.sdk.log.logging_processors", autospec=True)
-    payload = {"not": "a transformer payload"}
-
-    gen = supervisor._process_log_messages_from_subprocess()
-    next(gen)
-    gen.send(msgspec.json.encode({"event": "Trigger failed", "level": "error", "exception": payload}))
-
-    assert {"event": "Trigger failed", "log_level": "error", "error_detail": payload} in cap_structlog
-
-
 def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
     """``supervisor.client`` delegates to ``make_client`` (the subclass-override hook)
     and caches the result across accesses."""

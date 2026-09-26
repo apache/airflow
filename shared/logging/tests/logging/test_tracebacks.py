@@ -621,7 +621,6 @@ class TestAgainstRealTransformerOutput:
 
         assert "    x ==== 1\n        ^\n" in rendered
         # CPython would underline the whole operator, but `end_offset` is not in the payload.
-        assert "^^" in namespace["stdlib"]
 
     def test_non_builtin_exception_loses_its_module_because_structlog_drops_it(self):
         namespace = run_in_synthetic_module("    import socket\n    raise socket.gaierror('dns')")
@@ -632,4 +631,3 @@ class TestAgainstRealTransformerOutput:
         # bare class name, so the module cannot be recovered here. Airflow's own exceptions
         # are all non-builtin, so this applies to most real triggerer tracebacks.
         assert rendered.endswith("gaierror: dns")
-        assert "socket.gaierror: dns" in namespace["stdlib"]

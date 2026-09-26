@@ -1063,7 +1063,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         from airflow.sdk.log import configure_logging
 
-        configure_logging(json_output=conf.getboolean("logging", "json_logs", fallback=False))
+        json_logs = conf.getboolean("logging", "json_logs", fallback=False)
+        configure_logging(json_output=json_logs)
 
         fallback_log = structlog.get_logger(logger_name=__name__)
 
@@ -1096,8 +1097,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 log = fallback_log
 
             if exc := event.pop("exception", None):
-                if log is fallback_log:
-                    # The triggerer's own log is plain text; the task log UI renders the dicts itself.
+                if log is fallback_log and not json_logs:
+                    # A plain-text triggerer log gets a readable traceback; JSON output and the
+                    # task log keep the structured dicts.
                     event["error_detail"] = format_exception_dicts(exc) or exc
                 else:
                     event["error_detail"] = exc
