@@ -121,7 +121,7 @@ def run_command(*args, **kwargs) -> None:
 
 
 def read_airflow_version() -> str:
-    ast_obj = ast.parse((AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py").read_text())
+    ast_obj = ast.parse((AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py").read_text(encoding="utf-8"))
     for node in ast_obj.body:
         if isinstance(node, ast.Assign):
             if node.targets[0].id == "__version__":  # type: ignore[attr-defined]
@@ -142,7 +142,7 @@ def _read_global_constants_assignment(name: str) -> Any:
     (``NAME: type = ...``). The value must be a literal so it can be safely
     evaluated with ``ast.literal_eval``.
     """
-    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
+    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text(encoding="utf-8"))
     for node in tree.body:
         if isinstance(node, ast.Assign):
             for target in node.targets:
@@ -229,7 +229,7 @@ def insert_documentation(
     extra_information: str | None = None,
 ) -> bool:
     found = False
-    old_content = file_path.read_text()
+    old_content = file_path.read_text(encoding="utf-8")
     lines = old_content.splitlines(keepends=True)
     replacing = False
     result: list[str] = []
@@ -251,7 +251,7 @@ def insert_documentation(
         print(f"Header {header} not found in {file_path}")
         sys.exit(1)
     if new_content != old_content:
-        file_path.write_text(new_content)
+        file_path.write_text(new_content, encoding="utf-8")
         console.print(f"Updated {file_path} with {extra_information or 'generated documentation'}")
         return True
     return False
@@ -277,7 +277,7 @@ def read_uv_required_min_version() -> tuple[str, tuple[int, ...]]:
     Parses ``[tool.uv] required-version = ">=X.Y.Z"`` and returns ``(raw, tuple)``.
     We parse by regex to avoid pulling a TOML dep into every prek script.
     """
-    pyproject = (AIRFLOW_ROOT_PATH / "pyproject.toml").read_text()
+    pyproject = (AIRFLOW_ROOT_PATH / "pyproject.toml").read_text(encoding="utf-8")
     # Narrow to the [tool.uv] section so we don't match a different required-version.
     match = re.search(r"^\[tool\.uv\]\s*$(?P<body>.*?)(?=^\[|\Z)", pyproject, re.MULTILINE | re.DOTALL)
     if not match:
@@ -381,12 +381,14 @@ def describe_breeze_not_running_from_lock() -> str | None:
     if resolved.is_relative_to(BREEZE_LOCKED_VENV_PATH.resolve()):
         return None
     try:
-        text = Path(breeze_bin).read_text()
+        text = Path(breeze_bin).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return None
     if BREEZE_SHIM_MARKER not in text:
         return f"`{breeze_bin}` is a legacy global install, which ignores the lock"
-    expected_version = _read_shim_version(SETUP_BREEZE_PATH.read_text(), SETUP_BREEZE_SHIM_VERSION_PREFIX)
+    expected_version = _read_shim_version(
+        SETUP_BREEZE_PATH.read_text(encoding="utf-8"), SETUP_BREEZE_SHIM_VERSION_PREFIX
+    )
     if expected_version is None:
         return None
     installed_version = _read_shim_version(text, BREEZE_SHIM_VERSION_PREFIX)
@@ -693,7 +695,7 @@ def get_all_provider_ids(
         if excluded_states:
             import yaml
 
-            provider_info = yaml.safe_load(provider_file.read_text())
+            provider_info = yaml.safe_load(provider_file.read_text(encoding="utf-8"))
             if provider_info.get("state") in excluded_states:
                 continue
         provider_id = get_provider_id_from_path(provider_file)
@@ -723,7 +725,7 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
         provider_id = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)).replace(os.sep, ".")
         import yaml
 
-        provider_info = yaml.safe_load(provider_file.read_text())
+        provider_info = yaml.safe_load(provider_file.read_text(encoding="utf-8"))
         if provider_info["state"] != "suspended":
             providers[provider_id] = provider_info
     return providers
@@ -880,7 +882,7 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
     When only_top_level = False then returns
         ['os', 'collections.defaultdict', 'numpy', 'pandas.DataFrame', 'json', 'pathlib.Path', 'pathlib.PurePath']
     """
-    root = ast.parse(file_path.read_text(), file_path.name)
+    root = ast.parse(file_path.read_text(encoding="utf-8"), file_path.name)
     imports: list[str] = []
 
     nodes = ast.iter_child_nodes(root) if only_top_level else ast.walk(root)
@@ -1070,11 +1072,11 @@ class AllowlistManager(abc.ABC):
         """Return mapping of ``relative_path -> allowed_count``."""
         if not self.allowlist_file.exists():
             return {}
-        return self.parse(self.allowlist_file.read_text())
+        return self.parse(self.allowlist_file.read_text(encoding="utf-8"))
 
     def save(self, counts: dict[str, int]) -> None:
         lines = [f"{rel}::{count}" for rel, count in sorted(counts.items())]
-        self.allowlist_file.write_text("\n".join(lines) + "\n")
+        self.allowlist_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     @abc.abstractmethod
     def iter_files(self) -> Iterable[Path]:
