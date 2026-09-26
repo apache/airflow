@@ -136,6 +136,7 @@
     "empty": "此範圍內沒有已完成的任務實例",
     "title": "最慢的任務實例"
   },
+  "sortMultiColumnHint": "按住 Shift 並點選欄位，可依多個欄位排序",
   "sortedAscending": "遞增排序",
   "sortedDescending": "遞減排序",
   "sortedUnsorted": "未排序",

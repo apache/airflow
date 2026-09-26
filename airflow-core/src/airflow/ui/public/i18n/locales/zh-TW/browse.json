@@ -10,6 +10,36 @@
       "eventType": "事件類型"
     }
   },
+  "dagBundles": {
+    "active": "啟用中",
+    "columns": {
+      "active": "啟用中",
+      "importErrors": "匯入錯誤",
+      "lastRefreshed": "最後重新整理時間",
+      "name": "名稱",
+      "version": "版本"
+    },
+    "detail": {
+      "status": "狀態"
+    },
+    "files": {
+      "columns": {
+        "file": "檔案",
+        "lastParsed": "最後解析時間",
+        "parseDuration": "解析時長"
+      },
+      "file_one": "檔案",
+      "file_other": "檔案",
+      "importErrorGone": "此匯入錯誤已不再記錄，可能已在重新解析後修正。",
+      "neverParsed": "從未",
+      "showImportError_one": "檢視 {{count}} 個錯誤",
+      "showImportError_other": "檢視 {{count}} 個錯誤"
+    },
+    "inactive": "未啟用",
+    "neverRefreshed": "從未",
+    "notRefreshedYet": "尚未重新整理",
+    "notVersioned": "無版本"
+  },
   "deadlines": {
     "columns": {
       "alertName": "警示名稱",
