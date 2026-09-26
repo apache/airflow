@@ -26,7 +26,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
@@ -100,6 +100,8 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
+    ReadableAssetEventsByAssetFilterDep,
+    ReadableAssetEventsFilterDep,
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
@@ -120,7 +122,7 @@ from airflow.api_fastapi.core_api.services.public.dag_run import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagVersionNotFound, ParamValidationError
 from airflow.models import DagModel, DagRun
-from airflow.models.asset import AssetEvent
+from airflow.models.asset import AssetEvent, association_table as dagrun_asset_event_table
 from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -280,26 +282,34 @@ def bulk_dag_runs(
     ],
 )
 def get_upstream_asset_events(
-    dag_id: str, dag_run_id: str, session: SessionDep
+    dag_id: str,
+    dag_run_id: str,
+    readable_asset_events_filter: ReadableAssetEventsFilterDep,
+    readable_asset_events_by_asset_filter: ReadableAssetEventsByAssetFilterDep,
+    session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """If dag run is asset-triggered, return the asset events that triggered it."""
-    dag_run: DagRun | None = session.scalar(
-        select(DagRun)
-        .where(
+    dag_run_pk = session.scalar(
+        select(DagRun.id).where(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
-        .options(
-            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset),
-            joinedload(DagRun.consumed_asset_events).subqueryload(AssetEvent.created_dagruns),
-        )
     )
-    if dag_run is None:
+    if dag_run_pk is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-    events = dag_run.consumed_asset_events
+    # Reading the consuming run must not expose events of assets or source Dags the caller may not read.
+    events_select = apply_filters_to_select(
+        statement=select(AssetEvent)
+        .join(dagrun_asset_event_table, dagrun_asset_event_table.c.event_id == AssetEvent.id)
+        .where(dagrun_asset_event_table.c.dag_run_id == dag_run_pk)
+        .options(joinedload(AssetEvent.asset), subqueryload(AssetEvent.created_dagruns))
+        .order_by(AssetEvent.id),
+        filters=[readable_asset_events_filter, readable_asset_events_by_asset_filter],
+    )
+    events = session.scalars(events_select).unique().all()
     return AssetEventCollectionResponse(
         asset_events=serialize_asset_events(events, session=session),
         total_entries=len(events),
