@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import dataclasses
 import datetime
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -28,24 +30,35 @@ from decimal import Decimal
 
 import httpx
 import pydantic
+import pytest
+from pydantic import TypeAdapter
+from pydantic_ai import Agent
 from pydantic_ai.messages import (
+    BinaryContent,
+    ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
     SystemPromptPart,
+    TextPart,
     ToolCallPart,
+    ToolReturnPart,
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.settings import ToolOrOutput
 from pydantic_ai.tools import ToolDefinition
 
 from airflow.providers.common.ai.durable import fingerprint as fingerprint_module
 from airflow.providers.common.ai.durable.fingerprint import (
-    _canonical,
     _digest,
+    _render,
     fingerprint_model_request,
     fingerprint_tool_call,
 )
+
+# Not valid UTF-8, so a renderer that decodes bytes as text raises on it.
+_PNG = b"\x89PNG\r\n\x1a\n" + bytes(range(16))
 
 
 def make_messages(system: str = "You are a bot.", user: str = "hello", **part_kwargs):
@@ -291,7 +304,128 @@ class TestPydanticNativeValues:
         payload = {"model": "m", "args": {"b": [1, True, None, "x", 2.5]}, "settings": None}
         pre_normalization = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
-        assert _digest(payload) == pre_normalization
+        assert _digest(_render(payload)) == pre_normalization
+
+    def test_dict_keys_render_as_a_json_mode_dump_renders_them(self):
+        by_day = {datetime.date(2026, 1, 1): 1.5, datetime.date(2026, 1, 2): 2.5}
+
+        assert _render({"series": by_day}) == {"series": {"2026-01-01": 1.5, "2026-01-02": 2.5}}
+        assert _render({1: "a", "b": 2}) == {"1": "a", "b": 2}
+
+    def test_keys_that_collide_once_rendered_are_refused(self):
+        """``1`` and ``"1"`` render alike, so hashing either payload could replay the other."""
+        assert fingerprint_tool_call("t", {"d": {1: "a", "1": "b"}}, "id1") is None
+
+    def test_bytes_that_are_not_utf8_render_as_base64(self):
+        """Decoding bytes as text would raise on an image and stop the tool from being cached."""
+        assert _render({"image": _PNG}) == {"image": base64.urlsafe_b64encode(_PNG).decode()}
+        assert fingerprint_tool_call("t", {"image": _PNG}, "id1") is not None
+
+
+def _json_mode_reference(model_identifier, messages, model_request_parameters):
+    """The fingerprint main computes: pydantic's json-mode dump, hashed as is.
+
+    For anything that is not a set, fingerprints must equal this, or entries stored
+    by an earlier version stop matching and the first retry after an upgrade re-runs
+    the whole agent.
+    """
+    dumped = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
+    stripped = [
+        {
+            **{k: v for k, v in message.items() if k not in ("timestamp", "run_id", "conversation_id")},
+            "parts": [{k: v for k, v in part.items() if k != "timestamp"} for part in message["parts"]],
+        }
+        for message in dumped
+    ]
+    params = TypeAdapter(ModelRequestParameters).dump_python(model_request_parameters, mode="json")
+    payload = {"model": model_identifier, "messages": stripped, "settings": None, "params": params}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+def _with_tool_return(content):
+    return [
+        ModelRequest(parts=[UserPromptPart(content="go")]),
+        ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="c1")]),
+        ModelRequest(parts=[ToolReturnPart(tool_name="t", content=content, tool_call_id="c1")]),
+    ]
+
+
+class TestMessageHistoryMatchesJsonModeDump:
+    """The message history must hash exactly as pydantic's json-mode dump renders it.
+
+    Each case here is something a hand-written renderer gets wrong: raw bytes (not
+    valid UTF-8), dict keys that are not strings, ``NaN``, tuples, and fields whose
+    serializer only applies in JSON mode, such as ``InstructionPart.id``.
+    """
+
+    @pytest.mark.parametrize(
+        "messages",
+        [
+            pytest.param(
+                [
+                    ModelRequest(
+                        parts=[
+                            UserPromptPart(content=["look", BinaryContent(data=_PNG, media_type="image/png")])
+                        ]
+                    )
+                ],
+                id="binary-content-in-prompt",
+            ),
+            pytest.param(_with_tool_return(_PNG), id="bytes-tool-return"),
+            pytest.param(
+                _with_tool_return({datetime.date(2026, 1, 1): 1.5, datetime.date(2026, 1, 2): 2.5}),
+                id="date-keyed-tool-return",
+            ),
+            pytest.param(_with_tool_return({1: "a", "b": 2}), id="mixed-key-tool-return"),
+            pytest.param(_with_tool_return({"x": math.nan}), id="nan-tool-return"),
+            pytest.param(
+                _with_tool_return({"when": datetime.datetime(2026, 1, 1)}), id="datetime-tool-return"
+            ),
+        ],
+    )
+    def test_fingerprint_equals_the_json_mode_digest(self, messages):
+        fp = fingerprint_model_request("m", messages, None, ModelRequestParameters())
+
+        assert fp is not None
+        assert fp == _json_mode_reference("m", messages, ModelRequestParameters())
+
+    def test_request_parameters_hash_as_their_json_mode_dump(self):
+        """An agent's instructions reach the request parameters with a json-only serializer."""
+        seen = {}
+
+        class Spy(FunctionModel):
+            async def request(self, messages, model_settings, model_request_parameters):
+                seen.setdefault("messages", messages)
+                seen.setdefault("params", model_request_parameters)
+                return await super().request(messages, model_settings, model_request_parameters)
+
+        async def respond(messages, info):
+            return ModelResponse(parts=[TextPart(content="ok")])
+
+        Agent(Spy(respond), instructions="Be terse.").run_sync("hi")
+
+        fp = fingerprint_model_request("m", seen["messages"], None, seen["params"])
+
+        assert fp == _json_mode_reference("m", seen["messages"], seen["params"])
+
+    def test_tuple_parts_still_drop_part_timestamps(self):
+        """Message history passed as objects can hold its parts in a tuple."""
+        t1 = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+        t2 = datetime.datetime(2026, 1, 2, tzinfo=datetime.timezone.utc)
+
+        def history(timestamp):
+            return [ModelRequest(parts=(UserPromptPart(content="hi", timestamp=timestamp),))]
+
+        assert fingerprint_model_request(
+            "m", history(t1), None, ModelRequestParameters()
+        ) == fingerprint_model_request("m", history(t2), None, ModelRequestParameters())
+
+    def test_set_in_a_tool_return_hashes_as_its_ordered_members(self):
+        assert fingerprint_model_request(
+            "m", _with_tool_return({"tags": {"b", "c", "a"}}), None, ModelRequestParameters()
+        ) == fingerprint_model_request(
+            "m", _with_tool_return({"tags": ["a", "b", "c"]}), None, ModelRequestParameters()
+        )
 
 
 class TestSetMemberOrdering:
@@ -304,32 +438,32 @@ class TestSetMemberOrdering:
     """
 
     def test_set_hashes_as_its_ordered_members(self):
-        assert _canonical({"tags": {"beta", "alpha"}}) == {"tags": ["alpha", "beta"]}
+        assert _render({"tags": {"beta", "alpha"}}) == {"tags": ["alpha", "beta"]}
 
     def test_set_matches_the_equivalent_list(self):
-        assert _digest({"tags": {"alpha", "beta", "gamma"}}) == _digest({"tags": ["alpha", "beta", "gamma"]})
+        assert _render({"tags": {"alpha", "beta", "gamma"}}) == _render({"tags": ["alpha", "beta", "gamma"]})
 
     def test_frozenset_matches_set(self):
-        assert _digest({"tags": frozenset({"a", "b"})}) == _digest({"tags": {"b", "a"}})
+        assert _render({"tags": frozenset({"a", "b"})}) == _render({"tags": {"b", "a"}})
 
     def test_different_members_still_produce_different_digests(self):
-        assert _digest({"tags": {"a", "b"}}) != _digest({"tags": {"a", "c"}})
+        assert _render({"tags": {"a", "b"}}) != _render({"tags": {"a", "c"}})
 
     def test_set_nested_inside_a_list(self):
-        assert _canonical({"filters": [{"z", "y"}]}) == {"filters": [["y", "z"]]}
+        assert _render({"filters": [{"z", "y"}]}) == {"filters": [["y", "z"]]}
 
     def test_set_inside_a_dataclass_field(self):
         @dataclasses.dataclass
         class Filter:
             tags: set
 
-        assert _canonical(Filter(tags={"b", "a"})) == {"tags": ["a", "b"]}
+        assert _render(Filter(tags={"b", "a"})) == {"tags": ["a", "b"]}
 
     def test_set_inside_a_basemodel_field(self):
         class Filter(pydantic.BaseModel):
             tags: set[str]
 
-        assert _canonical(Filter(tags={"b", "a"})) == {"tags": ["a", "b"]}
+        assert _render(Filter(tags={"b", "a"})) == {"tags": ["a", "b"]}
 
     def test_digest_is_stable_across_process_hash_seeds(self):
         """The real proof: two fresh interpreters must agree, as two attempts would.
@@ -343,7 +477,7 @@ class TestSetMemberOrdering:
             f"spec = importlib.util.spec_from_file_location('fp', r'{fingerprint_module.__file__}');"
             "mod = importlib.util.module_from_spec(spec);"
             "spec.loader.exec_module(mod);"
-            "print(mod._digest({'tags': {'alpha', 'beta', 'gamma', 'delta'}}))"
+            "print(mod._digest(mod._render({'tags': {'alpha', 'beta', 'gamma', 'delta'}})))"
         )
         digests = set()
         for seed in ("0", "1", "2", "42"):
@@ -356,6 +490,32 @@ class TestSetMemberOrdering:
             )
             digests.add(completed.stdout.strip().splitlines()[-1])
 
+        assert len(digests) == 1, f"digest depends on the hash seed: {digests}"
+
+    def test_set_returned_by_a_tool_is_stable_across_process_hash_seeds(self):
+        """The same proof through the message history, where a tool's set return lands."""
+        snippet = (
+            "import importlib.util;"
+            "from pydantic_ai.messages import ModelRequest, ToolReturnPart;"
+            "from pydantic_ai.models import ModelRequestParameters;"
+            f"spec = importlib.util.spec_from_file_location('fp', r'{fingerprint_module.__file__}');"
+            "mod = importlib.util.module_from_spec(spec);"
+            "spec.loader.exec_module(mod);"
+            "part = ToolReturnPart(tool_name='t', content={'alpha', 'beta', 'gamma', 'delta'}, tool_call_id='c1');"
+            "print(mod.fingerprint_model_request('m', [ModelRequest(parts=[part])], None, ModelRequestParameters()))"
+        )
+        digests = set()
+        for seed in ("0", "1", "2", "42"):
+            completed = subprocess.run(
+                [sys.executable, "-c", snippet],
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
+                check=True,
+            )
+            digests.add(completed.stdout.strip().splitlines()[-1])
+
+        assert "None" not in digests
         assert len(digests) == 1, f"digest depends on the hash seed: {digests}"
 
 
@@ -388,14 +548,14 @@ class TestLazilyValidatedIterable:
 
 
 class TestUnwalkablePayloadsDegradeRatherThanRaise:
-    """Whatever the canonicalizer cannot walk must become ``None``, never propagate.
+    """Whatever the renderer cannot walk must become ``None``, never propagate.
 
     A failed fingerprint costs a re-run; an exception escaping here would fail the
     task outright, which durable execution must never do on its own account.
     """
 
     def test_circular_reference_returns_none(self):
-        """``_canonical`` recurses before ``json.dumps`` can apply its own cycle check."""
+        """The iterator and set walks recurse before pydantic can apply its own cycle check."""
         cycle: dict = {}
         cycle["self"] = cycle
 
@@ -413,10 +573,3 @@ class TestUnwalkablePayloadsDegradeRatherThanRaise:
         )
 
         assert fp is None
-
-    def test_a_message_that_does_not_dump_to_a_mapping_returns_none(self):
-        """A python-mode dump passes an unrecognised object straight through."""
-        assert (
-            fingerprint_model_request("m", [object()], None, ModelRequestParameters())  # type: ignore[list-item]
-            is None
-        )
