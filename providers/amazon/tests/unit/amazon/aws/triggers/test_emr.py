@@ -589,6 +589,34 @@ class TestEmrServerlessStartJobTrigger:
         mock_hook.conn.cancel_job_run.assert_not_called()
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_on_kill_waits_for_cancellation_to_settle(self, mock_sleep):
+        """on_kill() polls until the cancelled run leaves its active states, so a durable retry does
+        not reconnect to a run that is about to be cancelled and then fail."""
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=True,
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.conn.cancel_job_run.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_hook.conn.get_job_run.side_effect = [
+            {"jobRun": {"state": "SCHEDULED"}},  # still active right after the cancel request
+            {"jobRun": {"state": "CANCELLING"}},  # left active -> stop polling
+        ]
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.conn.cancel_job_run.assert_called_once_with(applicationId="test_app", jobRunId="test_job")
+        assert mock_hook.conn.get_job_run.call_count == 2
+        mock_sleep.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_on_kill_skips_when_no_job_id(self):
         """Test that on_kill() does nothing when job_id is None."""
         trigger = EmrServerlessStartJobTrigger(

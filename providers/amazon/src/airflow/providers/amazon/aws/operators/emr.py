@@ -22,7 +22,7 @@ import copy
 import warnings
 from collections.abc import Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from botocore.exceptions import WaiterError
@@ -1298,7 +1298,20 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         Tez UI or Spark stdout logs. Defaults to False.
     :param cancel_on_kill: If True, the EMR Serverless job will be cancelled when the task is killed
         while in deferrable mode. This ensures that orphan jobs are not left running in EMR Serverless
-        when an Airflow task is cancelled. Defaults to True.
+        when an Airflow task is cancelled. Defaults to True. In deferrable mode it is incompatible with
+        ``durable=True`` (see ``durable``); setting both to True with ``deferrable=True`` raises
+        ``ValueError``.
+    :param durable: If True, the submitted job run id is persisted to task state (Airflow 3.3+) so a
+        retry or a manual clear/rerun reconnects to the still-running (or already-succeeded) Spark job
+        instead of submitting a duplicate, mirroring ``GlueJobOperator``. In deferrable mode this is
+        mutually exclusive with ``cancel_on_kill``: a deferrable durable task reconnects to its job on
+        clear rather than cancelling it, so ``durable=True`` forces ``cancel_on_kill`` off (and passing
+        both as True with ``deferrable=True`` raises). To get "cancel the old run and submit a fresh
+        one" on clear instead, use ``durable=False`` with ``cancel_on_kill=True`` (the default).
+        Because task state is retained across a clear (unless ``[state_store] clear_on_success`` is
+        enabled), clearing a task whose run already succeeded reconnects to that completed run and
+        returns without re-running it. Defaults to False. Has no effect on Airflow < 3.3, where task
+        state is unavailable.
     :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
         into the EMR Serverless ``spark-defaults`` configuration so the Spark job emits a
         ``parentRunFacet`` linking back to the Airflow task. Defaults to the
@@ -1331,6 +1344,9 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         EmrServerlessLogsLink(),
     )
 
+    # Key under which the job run id is persisted to task_state_store for durable reconnection.
+    external_id_key = "emr_serverless_job_run_id"
+
     def __init__(
         self,
         application_id: str,
@@ -1345,7 +1361,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         enable_application_ui_links: bool = False,
-        cancel_on_kill: bool = True,
+        cancel_on_kill: bool | ArgNotSet = NOTSET,
+        durable: bool = False,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -1369,7 +1386,24 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         self.job_id: str | None = None
         self.deferrable = deferrable
         self.enable_application_ui_links = enable_application_ui_links
-        self.cancel_on_kill = cancel_on_kill
+        # In deferrable mode durable reconnects to the still-running job on clear, while cancel_on_kill
+        # (which only applies to the deferrable trigger) kills it: the two are mutually exclusive there.
+        # Because the worker re-executes before the trigger's on_kill runs, a durable retry would
+        # reconnect to a run that on_kill is about to cancel and then fail, so reject the contradiction
+        # and keep cancel_on_kill off when durable is enabled. Synchronous runs have no such race and
+        # cancel_on_kill does not apply to them, so the value is left untouched there.
+        if durable and deferrable:
+            if cancel_on_kill is True:
+                raise ValueError(
+                    "cancel_on_kill=True is incompatible with durable=True in deferrable mode: a "
+                    "deferrable durable task reconnects to its still-running job when cleared, so it "
+                    "cannot also cancel it. Leave cancel_on_kill unset (or set it to False) when "
+                    "durable=True and deferrable=True."
+                )
+            self.cancel_on_kill = False
+        else:
+            self.cancel_on_kill = True if cancel_on_kill is NOTSET else cast("bool", cancel_on_kill)
+        self.durable = durable
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
         super().__init__(**kwargs)
@@ -1409,37 +1443,11 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         self.log.info("Starting job on Application: %s", self.application_id)
         self.name = self.name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
 
-        configuration_overrides = self.configuration_overrides
-        if self.openlineage_inject_parent_job_info:
-            self.log.info("Injecting OpenLineage parent job information into EMR Serverless configuration.")
-            configuration_overrides = inject_parent_job_information_into_emr_serverless_properties(
-                configuration_overrides, context
-            )
-        if self.openlineage_inject_transport_info:
-            self.log.info("Injecting OpenLineage transport information into EMR Serverless configuration.")
-            configuration_overrides = inject_transport_information_into_emr_serverless_properties(
-                configuration_overrides, context
-            )
-
-        args = {
-            "clientToken": self.client_request_token,
-            "applicationId": self.application_id,
-            "executionRoleArn": self.execution_role_arn,
-            "jobDriver": self.job_driver,
-            "name": self.name,
-            **self.config,
-        }
-        if configuration_overrides is not None:
-            args["configurationOverrides"] = configuration_overrides
-        response = self.hook.conn.start_job_run(
-            **args,
-        )
-
-        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-            raise AirflowException(f"EMR serverless job failed to start: {response}")
-
-        self.job_id = response["jobRunId"]
-        self.log.info("EMR serverless job started: %s", self.job_id)
+        self.job_id = self._reconnect_to_existing_job_run(context) if self.durable else None
+        if self.job_id is None:
+            self.job_id = self._start_job_run(context)
+            if self.durable:
+                self._persist_job_run_id(context)
 
         self.persist_links(context)
 
@@ -1489,6 +1497,88 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                     raise
 
         return self.job_id
+
+    def _start_job_run(self, context: Context) -> str:
+        """Submit a new EMR Serverless job run and return its id."""
+        configuration_overrides = self.configuration_overrides
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Injecting OpenLineage parent job information into EMR Serverless configuration.")
+            configuration_overrides = inject_parent_job_information_into_emr_serverless_properties(
+                configuration_overrides, context
+            )
+        if self.openlineage_inject_transport_info:
+            self.log.info("Injecting OpenLineage transport information into EMR Serverless configuration.")
+            configuration_overrides = inject_transport_information_into_emr_serverless_properties(
+                configuration_overrides, context
+            )
+
+        args = {
+            "clientToken": self.client_request_token,
+            "applicationId": self.application_id,
+            "executionRoleArn": self.execution_role_arn,
+            "jobDriver": self.job_driver,
+            "name": self.name,
+            **self.config,
+        }
+        if configuration_overrides is not None:
+            args["configurationOverrides"] = configuration_overrides
+        response = self.hook.conn.start_job_run(
+            **args,
+        )
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"EMR serverless job failed to start: {response}")
+
+        job_id = response["jobRunId"]
+        self.log.info("EMR serverless job started: %s", job_id)
+        return job_id
+
+    def _reconnect_to_existing_job_run(self, context: Context) -> str | None:
+        """
+        Return a job run id to reconnect to instead of submitting a new one, or ``None`` to submit fresh.
+
+        With ``durable=True`` the submitted run id is persisted to ``task_state_store`` (Airflow 3.3+) and
+        read back on a retry or a manual clear/rerun, so a still-running Spark job is reattached to rather
+        than duplicated -- matching ``GlueJobOperator``'s ``durable`` behaviour. A prior run that already
+        succeeded is reattached to (its poll returns immediately); a terminal-failed run falls through to a
+        fresh submission. Returns ``None`` when the store is unavailable (Airflow < 3.3) or holds no id.
+
+        The deferrable path cannot reuse ``ResumableJobMixin`` for this today; tracked at
+        https://github.com/apache/airflow/issues/71485.
+        """
+        task_state_store = context.get("task_state_store")
+        if task_state_store is None:
+            return None
+        stored_job_id = task_state_store.get(self.external_id_key)
+        if not stored_job_id:
+            return None
+        job_run_id = cast("str", stored_job_id)
+        state = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=job_run_id)["jobRun"][
+            "state"
+        ]
+        if state in EmrServerlessHook.JOB_INTERMEDIATE_STATES:
+            self.log.info(
+                "Reconnecting to in-flight EMR Serverless job run %s (state: %s)", job_run_id, state
+            )
+            return job_run_id
+        if state in EmrServerlessHook.JOB_SUCCESS_STATES:
+            self.log.info(
+                "Prior EMR Serverless job run %s already succeeded; reconnecting instead of resubmitting",
+                job_run_id,
+            )
+            return job_run_id
+        self.log.warning(
+            "Prior EMR Serverless job run %s is in terminal state %s; submitting a fresh run",
+            job_run_id,
+            state,
+        )
+        return None
+
+    def _persist_job_run_id(self, context: Context) -> None:
+        """Persist the submitted job run id so a retry or clear can reconnect (Airflow 3.3+)."""
+        task_state_store = context.get("task_state_store")
+        if task_state_store is not None and self.job_id is not None:
+            task_state_store.set(self.external_id_key, self.job_id)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
