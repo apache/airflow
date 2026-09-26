@@ -686,7 +686,14 @@ class TestDag:
             SerializedDAG.bulk_write_to_db("testing", None, dags)
 
     @pytest.mark.parametrize("interval", [None, "@daily"])
-    def test_bulk_write_to_db_interval_save_runtime(self, testing_dag_bundle, interval):
+    def test_bulk_write_to_db_interval_batches_active_run_count_query(self, testing_dag_bundle, interval):
+        """active_runs_of_dags is called exactly once per update, batched across every Dag.
+
+        This holds regardless of whether any Dag in the batch has a schedule: the active-run
+        count is needed even for schedule=None Dags (to keep exceeds_max_non_backfill accurate
+        for Dags that are only ever triggered manually/via the API), so this must not be skipped
+        just because none of the Dags being updated can be scheduled.
+        """
         mock_active_runs_of_dags = mock.MagicMock(side_effect=DagRun.active_runs_of_dags)
         with mock.patch.object(DagRun, "active_runs_of_dags", mock_active_runs_of_dags):
             dags_null_timetable = [
@@ -694,10 +701,7 @@ class TestDag:
                 create_scheduler_dag(DAG("dag-interval-test", schedule=interval, start_date=TEST_DATE)),
             ]
             SerializedDAG.bulk_write_to_db("testing", None, dags_null_timetable)
-            if interval:
-                mock_active_runs_of_dags.assert_called_once()
-            else:
-                mock_active_runs_of_dags.assert_not_called()
+            mock_active_runs_of_dags.assert_called_once()
 
     @pytest.mark.parametrize(
         ("state", "catchup", "expected_next_dagrun"),
