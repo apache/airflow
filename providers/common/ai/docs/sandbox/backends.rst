@@ -25,7 +25,8 @@ Modal (hosted)
 
 :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` runs each
 sandbox in Modal, provisioned over the API. Of the backends that ship with the
-provider, **this is the one to use in production**, and the only one that runs on
+provider, **this is the managed one to use in production**, and with
+:ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
 Kubernetes: nothing has to be installed on the worker, model-written code never
 executes on the worker host, and Modal reclaims a sandbox at its own lifetime
 whether or not the worker survives. It needs the ``modal`` extra and ambient
@@ -159,6 +160,69 @@ them.
 that is a symlink replaces the link with a regular file and leaves the original
 target untouched, where a shell redirect would follow the link.
 
+.. _sandbox-backend-opensandbox:
+
+OpenSandbox (self-hosted remote)
+--------------------------------
+
+:class:`~airflow.providers.common.ai.sandbox.opensandbox.OpenSandboxBackend`
+runs sandboxes through an `OpenSandbox <https://open-sandbox.ai/>`__ server.
+The server may use Docker or Kubernetes; Airflow workers only use its HTTP API
+and do not need access to the container runtime.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[opensandbox]"
+
+Use a generic Airflow connection, resolved lazily on first use:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import OpenSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(OpenSandboxBackend(opensandbox_conn_id="opensandbox_default"))
+
+The connection ``host`` is required; ``port`` is optional, ``schema`` defaults to
+``http``, and ``password`` carries the API key when required. Extras may set
+``request_timeout`` (default 30 seconds) and ``use_server_proxy`` (default
+``true``). Set ``opensandbox_conn_id=None`` to let the SDK read
+``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY``.
+
+``SandboxSpec.env`` is sent at creation. A default spec sends a deny-all
+network policy; ``allow_egress_to`` becomes explicit allow rules. With
+``block_network=False``, the backend omits network policy entirely so a
+deployment without the egress sidecar can still run an intentionally open
+sandbox. Deny/allowlist policy requires the sidecar, so the backend reads the
+enforced policy back after creation and destroys the sandbox if it does not
+match the requested spec. ``allow_egress_to_cidrs`` is refused: OpenSandbox only
+enforces CIDR targets in ``dns+nft`` mode, and the Python SDK does not expose
+that enforcement mode on policy read-back, so this backend cannot prove the
+address-layer restriction is active.
+
+Every sandbox carries ``created-by: airflow`` metadata and an
+``airflow-sandbox-*`` name for attribution and cleanup. The server enforces a
+sandbox lifetime (default 3600 seconds). If the SDK event stream stalls, the
+worker abandons the call after the command budget plus a grace period, destroys
+the sandbox, and reports ``sandbox_terminated`` so the toolset provisions a fresh
+one. Output is bounded per stream after the SDK yields it; a single newline-free
+line is the SDK-level exception, because the SDK assembles that line before the
+backend sees it.
+
+Constructor parameters:
+
+- ``image``: image used by the server. Default ``"python:3.12-slim"``.
+- ``cpu`` and ``memory``: resource limits. Defaults ``"1"`` and ``"2Gi"``.
+- ``sandbox_timeout``: server-side lifetime in seconds. Default ``3600``.
+- ``ready_timeout``: provisioning/reconnect timeout. Default ``120``.
+- ``use_server_proxy``: override the connection extra for file and command calls.
+
+The runtime remains a deployment choice. The default Docker runtime shares the
+host kernel; choose a stronger runtime such as Kata when your threat model needs
+a VM boundary.
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 
@@ -202,23 +266,28 @@ Constructor parameters:
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open
   and pass ``SandboxSpec(block_network=False)`` to match.
 
-What differs between the two
-----------------------------
+What differs between the backends
+---------------------------------
 
 Swapping the backend is one constructor argument, and tool names, spec and prompt
 do not change. Four behaviours do, so read them before assuming the same Dag
-behaves identically in both places:
+behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
-  0.125 of one, so set ``cpu``.
+  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
-  into. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal and
-  refused on ``sbx``, which has no per-sandbox address rule.
-- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files; a
-  Modal sandbox survives with its files intact.
+  into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
+  enforced policy back rather than trusting the create request. ``allow_egress_to_cidrs``
+  is enforced at the address layer on Modal, refused on ``sbx``, and refused by
+  OpenSandbox because its SDK cannot prove that the sidecar is running in the
+  ``dns+nft`` mode required for CIDR enforcement.
+- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
+  Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
+  OpenSandbox destroys it only if the command event stream itself stalls past the
+  client-side grace period.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal.
+  replaces it on Modal and OpenSandbox.
 
 Bringing your own backend
 -------------------------

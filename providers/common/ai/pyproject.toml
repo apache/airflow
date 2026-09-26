@@ -103,6 +103,7 @@ dependencies = [
 # cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
 # only Modal credentials.
 "modal" = ["modal>=1.5.0"]
+"opensandbox" = ["opensandbox>=1.1.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
 # Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
@@ -173,6 +174,7 @@ dev = [
     # needs them so the adapter tests, which build real SDK models, run instead of skipping.
     "openai>=2.47.0",
     "anthropic>=1.0.0",
+    "opensandbox>=1.1.0",
 ]
 
 # To build docs:
