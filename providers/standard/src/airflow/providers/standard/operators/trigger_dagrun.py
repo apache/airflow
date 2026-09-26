@@ -46,6 +46,7 @@ from airflow.providers.standard.utils.openlineage import safe_inject_openlineage
 from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
     BaseOperator,
     is_arg_set,
 )
@@ -265,8 +266,9 @@ class TriggerDagRunOperator(BaseOperator):
             run_id = str(self.trigger_run_id)
         else:
             if AIRFLOW_V_3_0_PLUS:
+                run_type = DagRunType.OPERATOR_TRIGGERED if AIRFLOW_V_3_3_PLUS else DagRunType.MANUAL
                 run_id = DagRun.generate_run_id(
-                    run_type=DagRunType.MANUAL,
+                    run_type=run_type,
                     logical_date=parsed_logical_date,
                     run_after=parsed_run_after or timezone.utcnow(),
                 )
