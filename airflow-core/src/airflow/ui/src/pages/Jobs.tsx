@@ -33,9 +33,10 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-const createColumns = (translate: TFunction): Array<ColumnDef<JobResponse>> => [
+const createColumns = (translate: TFunction, multiTeam: boolean): Array<ColumnDef<JobResponse>> => [
   {
     accessorKey: "id",
     header: translate("jobs.columns.id"),
@@ -44,6 +45,16 @@ const createColumns = (translate: TFunction): Array<ColumnDef<JobResponse>> => [
     accessorKey: "job_type",
     header: translate("jobs.columns.jobType"),
   },
+  ...(multiTeam
+    ? ([
+        {
+          accessorKey: "team_names",
+          cell: ({ row: { original } }) => original.team_names?.join(", "),
+          enableSorting: false,
+          header: translate("common:dagDetails.team"),
+        },
+      ] as Array<ColumnDef<JobResponse>>)
+    : []),
   {
     accessorKey: "state",
     cell: ({
@@ -97,15 +108,18 @@ const jobsFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 export const Jobs = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   useDocumentTitle(translate("common:browse.jobs"));
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams] = useSearchParams();
 
-  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(jobsFilterKeys);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(
+    multiTeamEnabled ? [...jobsFilterKeys, SearchParamsKeys.TEAMS] : jobsFilterKeys,
+  );
 
-  const columns = createColumns(translate);
+  const columns = createColumns(translate, multiTeamEnabled);
 
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
@@ -119,6 +133,7 @@ export const Jobs = () => {
   const filteredStartDateLte = searchParams.get(SearchParamsKeys.START_DATE_LTE);
   const filteredEndDateGte = searchParams.get(SearchParamsKeys.END_DATE_GTE);
   const filteredEndDateLte = searchParams.get(SearchParamsKeys.END_DATE_LTE);
+  const teams = searchParams.getAll(SearchParamsKeys.TEAMS);
 
   const { data, error, isFetching, isLoading } = useJobServiceGetJobs({
     endDateGte: filteredEndDateGte ?? undefined,
@@ -132,6 +147,7 @@ export const Jobs = () => {
     orderBy,
     startDateGte: filteredStartDateGte ?? undefined,
     startDateLte: filteredStartDateLte ?? undefined,
+    teams: teams.length > 0 ? teams : undefined,
   });
 
   return (

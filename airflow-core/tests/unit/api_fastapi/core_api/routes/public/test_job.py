@@ -222,6 +222,23 @@ class TestGetJobs(TestJobEndpoint):
         assert response_json["jobs"][0]["team_names"] == sorted([testing_team.name, extra_team.name])
         assert response_json["jobs"][0]["bundle_names"] == ["bundle-a", "bundle-b"]
 
+    def test_get_jobs_filters_by_teams(self, test_client, session: Session, testing_team):
+        clear_db_jobs()
+        session.add_all(
+            [
+                Job(state=JobState.RUNNING, job_type="SchedulerJob", team_names=[testing_team.name]),
+                Job(state=JobState.RUNNING, job_type="SchedulerJob"),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get("/jobs", params={"teams": [testing_team.name]})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["jobs"][0]["team_names"] == [testing_team.name]
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/jobs")
         assert response.status_code == 401

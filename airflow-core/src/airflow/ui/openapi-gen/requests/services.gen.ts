@@ -3619,6 +3619,7 @@ export class JobService {
      * @param data.jobType
      * @param data.hostname
      * @param data.executorClass
+     * @param data.teams
      * @returns JobCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3643,7 +3644,8 @@ export class JobService {
                 dag_id: data.dagId,
                 job_type: data.jobType,
                 hostname: data.hostname,
-                executor_class: data.executorClass
+                executor_class: data.executorClass,
+                teams: data.teams
             },
             errors: {
                 400: 'Bad Request',
