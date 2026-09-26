@@ -50,6 +50,7 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskreschedule import TaskReschedule
@@ -776,6 +777,16 @@ class TestDBCleanup:
                 # "dagrun_id" intentionally omitted from extra_columns
             )
 
+    def test_table_config_join_recency_table_requires_join_keys(self):
+        """A join_recency_table configured without join_keys must fail fast at construction."""
+        with pytest.raises(ValueError, match="sets join_recency_table but join_keys is empty"):
+            _TableConfig(
+                table_name="rendered_task_instance_fields",
+                recency_column_name="start_date",
+                join_recency_table="task_instance",
+                join_keys=None,
+            )
+
     def test_do_delete_rolls_back_before_drop_on_failure(self):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
@@ -1079,7 +1090,6 @@ class TestDBCleanup:
             "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
-            "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
@@ -2120,6 +2130,110 @@ class TestTaskRescheduleCleanup:
             assert session.scalar(select(func.count(TaskInstance.id))) == 0
             assert session.scalar(select(func.count(TaskReschedule.id))) == 0
             archives = _get_archived_table_names(["task_reschedule"], session)
+            assert len(archives) == 1
+
+    def test_cleanup_rendered_task_instance_fields_standalone(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = "testing"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-rtif-standalone_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_1",
+                run_type=DagRunType.SCHEDULED,
+                start_date=base_date,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add(dag_run)
+            session.add(ti)
+            session.flush()
+
+            rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields={"op": "val"})
+            session.add(rtif)
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["rendered_task_instance_fields"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            assert session.scalar(select(func.count(RenderedTaskInstanceFields.dag_id))) == 0
+            assert session.scalar(select(func.count(TaskInstance.id))) == 1
+            archives = [
+                t
+                for t in _get_archived_table_names(["rendered_task_instance_fields"], session)
+                if "rendered_task_instance_fields" in t
+            ]
+            assert len(archives) == 1
+
+    def test_cleanup_rendered_task_instance_fields_as_task_instance_dependent(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = "testing"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-rtif-cascade_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_1",
+                run_type=DagRunType.SCHEDULED,
+                start_date=base_date,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add(dag_run)
+            session.add(ti)
+            session.flush()
+
+            rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields={"op": "val"})
+            session.add(rtif)
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["task_instance"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            assert session.scalar(select(func.count(TaskInstance.id))) == 0
+            assert session.scalar(select(func.count(RenderedTaskInstanceFields.dag_id))) == 0
+            archives = [
+                t
+                for t in _get_archived_table_names(["rendered_task_instance_fields"], session)
+                if "rendered_task_instance_fields" in t
+            ]
             assert len(archives) == 1
 
 

@@ -123,6 +123,9 @@ class _TableConfig:
     :param dag_id_scope: how to apply ``--dag-ids`` / ``--exclude-dag-ids`` to a table that has no
         Dag id column of its own and reaches its Dag through a foreign key. Mutually exclusive with
         ``dag_id_column_name``.
+    :param join_recency_table: optional table name to join when recency_column_name belongs to a parent table
+        rather than this table (e.g. joining task_instance to filter rendered_task_instance_fields by start_date).
+    :param join_keys: list of column names used to join this table with join_recency_table.
     :param skip_if_referenced: list of ``(referencing_table, fk_column)`` pairs whose FK points at this
         table's ``referenced_pk_column``. A row that is still referenced by any of these is excluded from
         deletion. This avoids issuing deletes that would violate an ``ON DELETE RESTRICT`` foreign key
@@ -136,6 +139,8 @@ class _TableConfig:
     extra_columns: list[str] | None = None
     dag_id_column_name: str | None = None
     dag_id_scope: _IndirectDagScope | None = None
+    join_recency_table: str | None = None
+    join_keys: list[str] | None = None
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
@@ -154,23 +159,15 @@ class _TableConfig:
     def __post_init__(self):
         self.schema_name, self.bare_table_name = _split_schema_table(self.table_name)
         self.recency_column = column(self.recency_column_name)
-        if self.dag_id_column_name is None:
-            self.dag_id_column = None
-            self.orm_model: Base = table(
-                self.bare_table_name,
-                *[column(x) for x in self.extra_columns or []],
-                self.recency_column,
-                schema=self.schema_name,
-            )
-        else:
+        cols = [column(x) for x in self.extra_columns or []]
+        if not self.join_recency_table:
+            cols.append(self.recency_column)
+        if self.dag_id_column_name is not None:
             self.dag_id_column = column(self.dag_id_column_name)
-            self.orm_model: Base = table(
-                self.bare_table_name,
-                *[column(x) for x in self.extra_columns or []],
-                self.dag_id_column,
-                self.recency_column,
-                schema=self.schema_name,
-            )
+            cols.append(self.dag_id_column)
+        else:
+            self.dag_id_column = None
+        self.orm_model: Base = table(self.bare_table_name, *cols, schema=self.schema_name)
 
         if self.dag_id_scope is not None:
             if self.dag_id_column_name is not None:
@@ -185,6 +182,18 @@ class _TableConfig:
                     f"fk_column {self.dag_id_scope.fk_column!r} is not one of its columns; "
                     f"add {self.dag_id_scope.fk_column!r} to extra_columns."
                 )
+
+        if self.join_recency_table is not None:
+            if not self.join_keys:
+                raise ValueError(
+                    f"_TableConfig for table {self.table_name!r} sets join_recency_table but join_keys is empty."
+                )
+            for key in self.join_keys:
+                if key not in self.orm_model.c.keys():
+                    raise ValueError(
+                        f"_TableConfig for table {self.table_name!r} sets join_keys but key {key!r} "
+                        f"is not in extra_columns or primary columns; add {key!r} to extra_columns."
+                    )
 
         # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
         # (added via extra_columns). Fail fast with a clear message instead of a cryptic KeyError
@@ -203,7 +212,11 @@ class _TableConfig:
     def readable_config(self):
         return {
             "table": self.table_name,
-            "recency_column": str(self.recency_column),
+            "recency_column": (
+                f"{self.join_recency_table}.{self.recency_column_name}"
+                if self.join_recency_table
+                else str(self.recency_column)
+            ),
             "dag_id_column": (
                 f"{self.dag_id_scope.fk_column} -> "
                 f"{self.dag_id_scope.referenced_table}.{self.dag_id_scope.referenced_dag_id_column}"
@@ -258,7 +271,20 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom", "task_reschedule"],
+        dependent_tables=[
+            "task_instance_history",
+            "xcom",
+            "task_reschedule",
+            "rendered_task_instance_fields",
+        ],
+        dag_id_column_name="dag_id",
+    ),
+    _TableConfig(
+        table_name="rendered_task_instance_fields",
+        recency_column_name="start_date",
+        extra_columns=["task_id", "run_id", "map_index"],
+        join_recency_table="task_instance",
+        join_keys=["dag_id", "task_id", "run_id", "map_index"],
         dag_id_column_name="dag_id",
     ),
     _TableConfig(
@@ -582,13 +608,28 @@ def _build_query(
     extra_filters: list[Any] | None = None,
     skip_if_referenced: list[tuple[str, str]] | None = None,
     referenced_pk_column: str = "id",
+    join_recency_table: str | None = None,
+    join_keys: list[str] | None = None,
     **kwargs,
 ) -> Select:
     base_table_alias = _BASE_TABLE_ALIAS
     base_table = aliased(orm_model, name=base_table_alias)
     query = select(text(f"{base_table_alias}.*")).select_from(base_table)
-    base_table_recency_col = base_table.c[recency_column.name]
-    conditions = [base_table_recency_col < clean_before_timestamp]
+
+    if join_recency_table and join_keys:
+        recency_parent = table(
+            join_recency_table,
+            *[column(k) for k in join_keys],
+            column(recency_column.name),
+        )
+        query = query.join(
+            recency_parent,
+            and_(*[base_table.c[k] == recency_parent.c[k] for k in join_keys]),
+        )
+        conditions = [recency_parent.c[recency_column.name] < clean_before_timestamp]
+    else:
+        base_table_recency_col = base_table.c[recency_column.name]
+        conditions = [base_table_recency_col < clean_before_timestamp]
 
     if extra_filters:
         conditions.extend(extra_filters)
@@ -681,6 +722,8 @@ def _cleanup_table(
     extra_filters: list[Any] | None = None,
     skip_if_referenced: list[tuple[str, str]] | None = None,
     referenced_pk_column: str = "id",
+    join_recency_table: str | None = None,
+    join_keys: list[str] | None = None,
     **kwargs,
 ) -> None:
     print()
@@ -700,6 +743,8 @@ def _cleanup_table(
         extra_filters=extra_filters,
         skip_if_referenced=skip_if_referenced,
         referenced_pk_column=referenced_pk_column,
+        join_recency_table=join_recency_table,
+        join_keys=join_keys,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
