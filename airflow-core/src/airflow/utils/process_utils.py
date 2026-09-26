@@ -109,7 +109,9 @@ def reap_process_group(
                     os.kill(process_group_id, sig)
                 except OSError as err_kill:
                     if err_kill.errno == errno.EPERM:
-                        subprocess.check_call(["sudo", "-n", "kill", "-" + str(process_group_id)])
+                        subprocess.check_call(
+                            ["sudo", "-n", "kill", "-" + str(int(sig)), str(process_group_id)]
+                        )
                     else:
                         raise
             else:
