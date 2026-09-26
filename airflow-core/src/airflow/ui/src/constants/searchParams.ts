@@ -19,6 +19,7 @@
 export enum SearchParamsKeys {
   AFTER = "after",
   ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
+  BASE_VERSION_NUMBER = "base_version_number",
   BEFORE = "before",
   BODY_SEARCH = "body_search",
   BUNDLE_VERSION = "bundle_version",
@@ -79,6 +80,7 @@ export enum SearchParamsKeys {
   MAPPED = "mapped",
   MAX_ACTIVE_RUNS_GTE = "max_active_runs_gte",
   MAX_ACTIVE_RUNS_LTE = "max_active_runs_lte",
+  MAX_CHANGES = "max_changes",
   MISSED = "missed",
   NAME_PATTERN = "name_pattern",
   NEEDS_REVIEW = "needs_review",
@@ -113,6 +115,7 @@ export enum SearchParamsKeys {
   SUBJECT_SEARCH = "subject_search",
   TAGS = "tags",
   TAGS_MATCH_MODE = "tags_match_mode",
+  TARGET_VERSION_NUMBER = "target_version_number",
   TASK_GROUP = "task_group",
   TASK_ID = "task_id",
   TASK_ID_PATTERN = "task_id_pattern",

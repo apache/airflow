@@ -768,6 +768,76 @@ class DagTagResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
+class DagVersionDiffCategory(str, Enum):
+    """
+    What part of a Dag a difference belongs to. Mirrors ``DiffCategory``.
+    """
+
+    ASSET = "asset"
+    AUTHORIZATION = "authorization"
+    CALLBACK = "callback"
+    DEADLINE = "deadline"
+    DEPENDENCY = "dependency"
+    METADATA = "metadata"
+    PARAM = "param"
+    PROVENANCE = "provenance"
+    SCHEDULE = "schedule"
+    TASK = "task"
+    UNKNOWN = "unknown"
+
+
+class DagVersionDiffImpact(str, Enum):
+    """
+    What a difference affects. Mirrors ``DiffImpact``.
+    """
+
+    AUTHORIZATION = "authorization"
+    EXECUTION = "execution"
+    METADATA = "metadata"
+    PROVENANCE = "provenance"
+    UNKNOWN = "unknown"
+
+
+class DagVersionDiffMode(str, Enum):
+    """
+    Whether a comparison could be made at all.
+    """
+
+    OBSERVED_STATE = "observed_state"
+    UNAVAILABLE = "unavailable"
+
+
+class DagVersionDiffOperation(str, Enum):
+    """
+    How a difference presents at its path.
+    """
+
+    ADDED = "added"
+    REMOVED = "removed"
+    CHANGED = "changed"
+
+
+class DagVersionDiffSerializerVersions(BaseModel):
+    """
+    Which Dag serializer format each compared version was stored under.
+
+    Unrelated to ``diff_schema_version``, which versions this payload rather than the
+    serialized Dags it describes.
+    """
+
+    base: Annotated[int | None, Field(title="Base")]
+    target: Annotated[int | None, Field(title="Target")]
+
+
+class DagVersionDiffValuesStatus(str, Enum):
+    """
+    Whether values were disclosed. Mirrors ``ValuesStatus``.
+    """
+
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+
+
 class DagVersionResponse(BaseModel):
     """
     Dag Version serializer for responses.
@@ -2153,6 +2223,93 @@ class DagStatsResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     stats: Annotated[list[DagStatsStateResponse], Field(title="Stats")]
+
+
+class DagVersionDiffChangeResponse(BaseModel):
+    """
+    One structural difference between two stored Dag versions.
+    """
+
+    path: Annotated[str, Field(title="Path")]
+    operation: DagVersionDiffOperation
+    category: DagVersionDiffCategory
+    impact: DagVersionDiffImpact
+    occurrence_count: Annotated[
+        int,
+        Field(
+            description="How many underlying changes this record stands for. Always 1 when values are disclosed, since each change is then its own record; a redacted record merges every change sharing its path and operation.",
+            title="Occurrence Count",
+        ),
+    ]
+    before_digest: Annotated[
+        str | None,
+        Field(
+            description="SHA-256 over the canonical JSON of `before_value`. Present only when values are disclosed, and null when the change has no before side.",
+            title="Before Digest",
+        ),
+    ] = None
+    after_digest: Annotated[
+        str | None,
+        Field(
+            description="SHA-256 over the canonical JSON of `after_value`. Present only when values are disclosed, and null when the change has no after side.",
+            title="After Digest",
+        ),
+    ] = None
+    before_value: Annotated[
+        Any | None,
+        Field(
+            description="The value this path held in the base version. Present only when values are disclosed, and omitted entirely when the change has no before side — which is how an absent side is told apart from a stored null.",
+            title="Before Value",
+        ),
+    ] = None
+    after_value: Annotated[
+        Any | None,
+        Field(
+            description="The value this path holds in the target version. Present only when values are disclosed, and omitted entirely when the change has no after side — which is how an absent side is told apart from a stored null.",
+            title="After Value",
+        ),
+    ] = None
+
+
+class DagVersionDiffResponse(BaseModel):
+    """
+    Observed-state difference between two stored Dag versions.
+    """
+
+    diff_schema_version: Annotated[
+        int,
+        Field(
+            description="Wire format of this payload. Incremented when its shape changes.",
+            title="Diff Schema Version",
+        ),
+    ]
+    base_version_number: Annotated[int, Field(title="Base Version Number")]
+    target_version_number: Annotated[int, Field(title="Target Version Number")]
+    serializer_versions: DagVersionDiffSerializerVersions
+    mode: DagVersionDiffMode
+    unavailable_reason: Annotated[
+        str | None,
+        Field(
+            description="Why no comparison could be made. Populated only when `mode` is `unavailable`.",
+            title="Unavailable Reason",
+        ),
+    ] = None
+    values_status: DagVersionDiffValuesStatus
+    truncated: Annotated[
+        bool,
+        Field(
+            description="Whether a change at a path not already in `changes` was dropped to stay within `max_changes`. Paths that are absent are absent, not unchanged.",
+            title="Truncated",
+        ),
+    ]
+    total_changes: Annotated[
+        int,
+        Field(
+            description="Underlying changes across every disclosed path, not the number of records. Exact when `truncated` is false; a lower bound when it is true, because the changes at dropped paths are not counted.",
+            title="Total Changes",
+        ),
+    ]
+    changes: Annotated[list[DagVersionDiffChangeResponse], Field(title="Changes")]
 
 
 class DryRunBackfillCollectionResponse(BaseModel):

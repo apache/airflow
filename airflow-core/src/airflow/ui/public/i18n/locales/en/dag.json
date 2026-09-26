@@ -220,6 +220,7 @@
     "taskInstances": "Task Instances",
     "taskStateStore": "Task State Store",
     "tasks": "Tasks",
+    "versions": "Versions",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -247,5 +248,67 @@
       "never": "Never"
     },
     "title": "Task State Store"
+  },
+  "versions": {
+    "aboutThisComparison": "About this comparison",
+    "base": "Compare from",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Authorization",
+      "callback": "Callback",
+      "deadline": "Deadline",
+      "dependency": "Dependency",
+      "metadata": "Metadata",
+      "param": "Param",
+      "provenance": "Provenance",
+      "schedule": "Schedule",
+      "task": "Task",
+      "unknown": "Unknown"
+    },
+    "codeAccess": "Values require access to Dag code",
+    "columns": {
+      "after": "After",
+      "before": "Before",
+      "category": "Category",
+      "impact": "Impact",
+      "occurrences": "Occurrences",
+      "operation": "Operation",
+      "path": "Path"
+    },
+    "heading": "Version {{base}} → Version {{target}}",
+    "impacts": {
+      "authorization": "Authorization",
+      "execution": "Execution",
+      "metadata": "Metadata",
+      "provenance": "Provenance",
+      "unknown": "Unknown"
+    },
+    "maxChanges": "Max changes",
+    "maxChangesDefault": "Default",
+    "noChanges": "These versions hold the same state.",
+    "observedState": "Observed state",
+    "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
+    "operations": {
+      "added": "Added",
+      "changed": "Changed",
+      "removed": "Removed"
+    },
+    "record_one": "Record",
+    "record_other": "Records",
+    "selectPrompt": "Select two versions to see what changed between them.",
+    "summary_one": "{{count}} change · serialized schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} changes · serialized schema {{baseSchema}} → {{targetSchema}}",
+    "target": "Compare to",
+    "truncated": {
+      "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",
+      "title": "Some changes were not returned"
+    },
+    "unavailable": {
+      "description": "These versions could not be compared. Reason:",
+      "title": "Comparison unavailable",
+      "withoutReason": "These versions could not be compared."
+    },
+    "valuesHidden": "Values hidden",
+    "valuesShown": "Values shown"
   }
 }

@@ -40,7 +40,7 @@ type VersionCompareSelectProps = {
 export const VersionCompareSelect = ({
   label,
   onVersionChange,
-  placeholder = "Select version",
+  placeholder,
   selectedVersionNumber,
 }: VersionCompareSelectProps) => {
   const { t: translate } = useTranslation("components");
@@ -71,7 +71,7 @@ export const VersionCompareSelect = ({
       <Select.Label fontSize="xs">{label}</Select.Label>
       <Select.Control>
         <Select.Trigger>
-          <Select.ValueText placeholder={placeholder}>
+          <Select.ValueText placeholder={placeholder ?? translate("versionSelect.placeholder")}>
             {selectedVersion === undefined ? undefined : (
               <Flex gap={2} justifyContent="space-between">
                 <Text>
