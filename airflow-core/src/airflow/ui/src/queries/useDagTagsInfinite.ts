@@ -24,10 +24,12 @@ import type { DAGTagCollectionResponse } from "openapi/requests/types.gen";
 
 export const useDagTagsInfinite = <TError = unknown>(
   {
+    advancedSearch = false,
     limit,
     orderBy,
     tagNamePattern,
   }: {
+    advancedSearch?: boolean;
     limit?: number;
     orderBy?: Array<string>;
     tagNamePattern?: string;
@@ -57,9 +59,18 @@ export const useDagTagsInfinite = <TError = unknown>(
     ) => (firstPageParam > 0 ? -firstPage.tags.length + firstPageParam : undefined),
     initialPageParam: 0,
     queryFn: ({ pageParam }: { pageParam: number }) =>
-      DagService.getDagTags({ limit, offset: pageParam, orderBy, tagNamePrefixPattern: tagNamePattern }),
+      DagService.getDagTags({
+        limit,
+        offset: pageParam,
+        orderBy,
+        ...(advancedSearch ? { tagNamePattern } : { tagNamePrefixPattern: tagNamePattern }),
+      }),
     queryKey: UseDagServiceGetDagTagsKeyFn(
-      { limit, orderBy, tagNamePrefixPattern: tagNamePattern },
+      {
+        limit,
+        orderBy,
+        ...(advancedSearch ? { tagNamePattern } : { tagNamePrefixPattern: tagNamePattern }),
+      },
       queryKey,
     ),
     ...options,

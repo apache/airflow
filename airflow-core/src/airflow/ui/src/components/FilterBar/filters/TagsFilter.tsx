@@ -20,6 +20,7 @@ import { useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
 
 import type { FilterPluginProps } from "../types";
@@ -32,8 +33,10 @@ import { MultiSelectPill } from "./MultiSelectPill";
 export const TagsFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const { t: translate } = useTranslation();
   const [pattern, setPattern] = useState("");
+  const advanced = useAdvancedSearch(filter.config.key);
 
   const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
+    advancedSearch: advanced.enabled,
     limit: 10,
     orderBy: ["name"],
     tagNamePattern: pattern,
