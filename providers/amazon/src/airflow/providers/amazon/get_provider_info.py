@@ -39,6 +39,12 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "DuckDB on AWS",
+                "external-doc-url": "https://duckdb.org/docs/stable/extensions/httpfs/s3api",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/duckdb.rst"],
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon Bedrock",
                 "external-doc-url": "https://aws.amazon.com/bedrock/",
                 "logo": "/docs/integration-logos/Amazon-Bedrock_light-bg@4x.png",
@@ -727,6 +733,10 @@ def get_provider_info():
                 ],
             },
             {
+                "integration-name": "DuckDB on AWS",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.duckdb"],
+            },
+            {
                 "integration-name": "Amazon Bedrock",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.bedrock"],
             },
@@ -1226,6 +1236,19 @@ def get_provider_info():
                         "schema": "https",
                         "host": "hooks.chime.aws/incomingwebhook/",
                         "password": "T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX",
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook",
+                "hook-name": "DuckDB on AWS",
+                "connection-type": "duckdb_aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "port", "schema"],
+                    "relabeling": {"host": "Database path"},
+                    "placeholders": {
+                        "host": "/tmp/analytics.duckdb (leave empty for an in-memory database)",
+                        "extra": '{\n  "credential_strategy": "credential_chain",\n  "region_name": "us-east-1",\n  "memory_limit": "2GB",\n  "threads": 4\n}\n',
                     },
                 },
             },
