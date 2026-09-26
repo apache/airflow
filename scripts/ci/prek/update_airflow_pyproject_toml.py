@@ -120,10 +120,6 @@ PROVIDER_METADATA_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_metada
 PROVIDER_DEPENDENCIES_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
 file_list = sys.argv[1:]
-console.print("[bright_blue]Updating min-provider versions in apache-airflow\n")
-
-all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
-all_providers_dependencies = json.loads(PROVIDER_DEPENDENCIES_FILE_PATH.read_text())
 
 
 def _read_toml(path: Path) -> dict[str, Any]:
@@ -179,9 +175,11 @@ def _fallback_provider_version(
     return None, ""
 
 
-def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
+def find_min_provider_version(
+    provider_id: str, provider_metadata: dict[str, Any]
+) -> tuple[Version | None, str]:
     console.print(f"[bright_blue]Finding min version for provider id:[/] {provider_id}")
-    metadata = all_providers_metadata.get(provider_id)
+    metadata = provider_metadata.get(provider_id)
     # We should periodically update the starting date to avoid pip install resolution issues
     # TODO: when min Python version is 3.11 change back the code to fromisoformat
     # https://github.com/apache/airflow/pull/49155/files
@@ -236,20 +234,21 @@ PROVIDER_MIN_VERSIONS: dict[str, str | None] = {}
 
 def get_exclusion_marker(provider_dependencies: dict[str, Any]) -> str:
     """
-    Return an environment marker string excluding Python versions and platforms.
+    Return an environment marker string for a provider's supported environments.
 
-    Combines ``excluded-python-versions`` and ``excluded-platforms`` from the provider
-    metadata into a single PEP 508 marker, e.g.:
-    '; python_version != "3.14" and platform_machine != "aarch64" and platform_machine != "arm64"'
+    Combines ``excluded-python-versions`` and ``excluded-platforms`` from the
+    provider metadata into a single PEP 508 marker.
 
-    If neither is set, it returns an empty str.
+    If none is set, it returns an empty str.
     """
     if not provider_dependencies:
         return ""
-    conditions = [
-        f'python_version !=\\"{version}\\"'
-        for version in provider_dependencies.get("excluded-python-versions", [])
-    ]
+    conditions = []
+    for version in provider_dependencies.get("excluded-python-versions", []):
+        if version.count(".") == 2:
+            conditions.append(f'python_full_version !=\\"{version}.*\\"')
+        else:
+            conditions.append(f'python_version !=\\"{version}\\"')
     for platform in provider_dependencies.get("excluded-platforms", []):
         conditions.extend(
             f'platform_machine !=\\"{machine}\\"' for machine in EXCLUDED_PLATFORM_MACHINES.get(platform, [])
@@ -260,6 +259,10 @@ def get_exclusion_marker(provider_dependencies: dict[str, Any]) -> str:
 
 
 if __name__ == "__main__":
+    console.print("[bright_blue]Updating min-provider versions in apache-airflow\n")
+    all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
+    all_providers_dependencies = json.loads(PROVIDER_DEPENDENCIES_FILE_PATH.read_text())
+
     all_optional_dependencies = []
     optional_airflow_core_dependencies = get_optional_dependencies(AIRFLOW_CORE_PYPROJECT_TOML_FILE)
     for optional in sorted(optional_airflow_core_dependencies):
@@ -284,7 +287,7 @@ if __name__ == "__main__":
     all_provider_lines = []
     for provider_id in released_providers:
         distribution_name = provider_distribution_name(provider_id)
-        min_provider_version, comment = find_min_provider_version(provider_id)
+        min_provider_version, comment = find_min_provider_version(provider_id, all_providers_metadata)
         exclusion_marker = get_exclusion_marker(all_providers_dependencies.get(provider_id, {}))
 
         if min_provider_version:

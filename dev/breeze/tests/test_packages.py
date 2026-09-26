@@ -20,8 +20,11 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
+from airflow_breeze.utils import packages
 from airflow_breeze.utils.packages import (
     PipRequirements,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -268,6 +271,30 @@ def test_validate_provider_info_with_schema():
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
     assert get_min_airflow_version(provider_id) == min_version
+
+
+def test_patch_exclusion_in_generated_provider_metadata(monkeypatch):
+    details = get_provider_details("asana")._replace(excluded_python_versions=["3.10.0", "3.14"])
+    monkeypatch.setattr(packages, "get_provider_details", lambda provider_id: details)
+
+    requirements = (
+        packages.get_python_requires("asana"),
+        get_provider_jinja_context("asana", current_release_version="1.0.0", version_suffix="")[
+            "REQUIRES_PYTHON"
+        ],
+    )
+    for requirement in requirements:
+        assert "!=3.10.0.*" in requirement
+        specifier = SpecifierSet(requirement)
+        assert Version("3.10.0") not in specifier
+        assert Version("3.10.0.post1") not in specifier
+        assert Version("3.10.1") in specifier
+        assert Version("3.11.0") in specifier
+        assert Version("3.14.1") not in specifier
+
+    context = get_provider_jinja_context("asana", current_release_version="1.0.0", version_suffix="")
+    assert "3.10" in context["SUPPORTED_PYTHON_VERSIONS"]
+    assert "3.14" not in context["SUPPORTED_PYTHON_VERSIONS"]
 
 
 @pytest.mark.parametrize(

@@ -31,8 +31,9 @@ the correct environment marker.
 Provider exclusions are authoritative in each provider's ``provider.yaml``
 (``excluded-python-versions`` and ``excluded-platforms`` fields).  Any dependency
 string in the meta-package ``pyproject.toml`` that names an excluded provider without
-a matching ``python_version != "X.Y"`` (per excluded Python version) or
-``platform_machine != "MACHINE"`` (per excluded platform) marker is flagged as an error.
+a matching ``python_version != "X.Y"`` or ``python_full_version != "X.Y.Z.*"``
+(per excluded Python version) or ``platform_machine != "MACHINE"``
+(per excluded platform) marker is flagged as an error.
 """
 
 from __future__ import annotations
@@ -93,11 +94,34 @@ def _check_dependency(dep_str: str, excluded_providers: dict[str, dict[str, list
     errors = []
     exclusions = excluded_providers[package_name]
     for version in exclusions.get("python", []):
-        env = {"python_version": version}
-        if req.marker is None or req.marker.evaluate(env):
+        parts = version.split(".")
+        is_patch = len(parts) == 3
+        marker_name = "python_full_version" if is_patch else "python_version"
+        marker_version = f"{version}.*" if is_patch else version
+        env = {
+            "python_version": ".".join(parts[:2]),
+            "python_full_version": version if is_patch else f"{version}.0",
+            "platform_machine": "__other__",
+        }
+        excluded_environments = [env]
+        if is_patch:
+            excluded_environments.append({**env, "python_full_version": f"{version}.post1"})
+        if req.marker is None or any(req.marker.evaluate(excluded) for excluded in excluded_environments):
             errors.append(
-                f'Dependency on "{package_name}" is missing python_version !="{version}" marker: {dep_str}'
+                f'Dependency on "{package_name}" is missing {marker_name} !="{marker_version}" marker: {dep_str}'
             )
+        if is_patch and req.marker is not None:
+            adjacent_patches = [int(parts[2]) + 1]
+            if int(parts[2]):
+                adjacent_patches.append(int(parts[2]) - 1)
+            for patch in adjacent_patches:
+                adjacent = f"{parts[0]}.{parts[1]}.{patch}"
+                if adjacent in exclusions["python"] or ".".join(parts[:2]) in exclusions["python"]:
+                    continue
+                if not req.marker.evaluate({**env, "python_full_version": adjacent}):
+                    errors.append(
+                        f'Dependency on "{package_name}" excludes supported Python {adjacent}: {dep_str}'
+                    )
     for machine in exclusions.get("machines", []):
         env = {"platform_machine": machine}
         if req.marker is None or req.marker.evaluate(env):
@@ -141,6 +165,8 @@ def main() -> int:
             "\n[yellow]Each dependency on a provider with excluded-python-versions or "
             "excluded-platforms in provider.yaml must have a matching marker.[/]\n"
             "[yellow]Example: 'apache-airflow-providers-amazon>=9.0.0; python_version !=\"3.14\"'[/]\n"
+            "[yellow]Example: 'apache-airflow-providers-example>=1.0.0; "
+            'python_full_version !="3.10.0.*"\'[/]\n'
             '[yellow]Example: \'apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !="aarch64" '
             'and platform_machine !="arm64"\'[/]'
         )

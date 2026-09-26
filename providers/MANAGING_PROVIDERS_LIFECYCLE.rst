@@ -272,6 +272,26 @@ your provider:
       - hook-class-name: airflow.providers.<PROVIDER>.hooks.<PROVIDER>.NewProviderHook
         connection-type: provider_connection_type
 
+Provider compatibility exceptions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two optional ``provider.yaml`` fields describe environments where a provider cannot be installed:
+
+* ``excluded-python-versions`` accepts Python minors as ``X.Y`` and patches as ``X.Y.Z``.
+  The entry ``"3.14"`` excludes the whole minor from generated provider ``Requires-Python`` metadata.
+  Root extras use a ``python_version`` marker, and CI omits the provider from the ``3.14`` test lane.
+  The entry ``"3.10.0"`` excludes only that patch prefix from provider metadata.
+  Root extras use ``python_full_version``. CI keeps the ``3.10`` test lane.
+  Use a patch entry when a dependency needs ``>=3.10.1`` but the provider otherwise supports Python 3.10.
+  The generated requirement uses ``!=3.10.0.*``. An exact ``!=3.10.0`` leaves versions below ``3.10.1``
+  that uv cannot resolve.
+* ``excluded-platforms`` removes the provider from matching platform test matrices and adds
+  ``platform_machine`` markers that prevent the root package extras from installing it there.
+
+uv resolves all workspace members against their combined ``Requires-Python`` range. A patch excluded
+by a provider is therefore unavailable to the whole workspace during locking, even though the root
+extra marker omits that provider on the patch.
+
 
 Building documentation locally
 -------------------------------
