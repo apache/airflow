@@ -192,7 +192,8 @@ export const GanttTimeline = ({
     <Box
       maxW="100%"
       minW={0}
-      overflow="clip"
+      overflowX="clip"
+      overflowY="visible"
       position="relative"
       style={{ isolation: "isolate" }}
       w="100%"
