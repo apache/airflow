@@ -39,6 +39,7 @@ import socket
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -51,6 +52,14 @@ import yaml
 
 PROVIDERS_ROOT = Path("/opt/airflow/providers")
 ALLOWED_EXTRACT_PREFIXES = ("/opt/", "/tmp/")
+# Socket timeout for a single connect or read. Without it, urllib inherits the kernel's
+# TCP connect timeout (over two minutes), so an unreachable upstream burned the whole
+# job before the first retry. Short timeouts plus rounds of retries recover from a
+# blackholed IP or a stalled transfer quickly; a healthy server never comes close to it.
+DOWNLOAD_TIMEOUT_SECONDS = 20
+# Each round tries the URL as resolved by DNS and then every fallback IP in turn.
+DOWNLOAD_ROUNDS = 3
+SLEEP_BETWEEN_ROUNDS_SECONDS = 10
 ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 ALLOWED_TOP_LEVEL_KEYS = {"downloads", "env"}
@@ -145,7 +154,10 @@ def override_dns(hostname: str, ip: str) -> Iterator[None]:
 
 def _attempt_download(url: str, expected_sha256: str, dest: Path) -> None:
     digest = hashlib.sha256()
-    with urllib.request.urlopen(url) as response, dest.open("wb") as out:
+    with (
+        urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response,
+        dest.open("wb") as out,
+    ):
         while True:
             chunk = response.read(64 * 1024)
             if not chunk:
@@ -163,34 +175,40 @@ def download_with_checksum(
     dest: Path,
     fallback_ips: list[str] | None = None,
 ) -> None:
-    print(f"Downloading {url}")
-    try:
-        _attempt_download(url, expected_sha256, dest)
-        return
-    except (urllib.error.URLError, OSError) as primary_err:
-        if not fallback_ips:
-            raise
-        print(
-            f"Primary download failed ({type(primary_err).__name__}: {primary_err}); "
-            f"trying {len(fallback_ips)} fallback IP(s)"
-        )
+    """Download `url` to `dest`, retrying the whole set of routes in rounds.
 
-    hostname = urlparse(url).hostname
-    if not hostname:
-        fail(f"cannot extract hostname from url {url!r} for fallback resolution")
+    A checksum mismatch is not retried - that means the manifest disagrees with what
+    upstream serves, which no amount of retrying fixes.
+    """
+    fallback_routes: list[tuple[str, str]] = []
+    if fallback_ips:
+        hostname = urlparse(url).hostname
+        if not hostname:
+            fail(f"cannot extract hostname from url {url!r} for fallback resolution")
+        fallback_routes = [(hostname, ip) for ip in fallback_ips]
 
     last_err: BaseException | None = None
-    for ip in fallback_ips:
-        print(f"  Retrying with {hostname} -> {ip}")
+    for round_number in range(1, DOWNLOAD_ROUNDS + 1):
+        print(f"Downloading {url} (round {round_number} of {DOWNLOAD_ROUNDS})")
         try:
-            with override_dns(hostname, ip):
-                _attempt_download(url, expected_sha256, dest)
-            print(f"  Success via {ip}")
+            _attempt_download(url, expected_sha256, dest)
             return
         except (urllib.error.URLError, OSError) as e:
-            print(f"  {ip} failed: {type(e).__name__}: {e}")
+            print(f"  failed: {type(e).__name__}: {e}")
             last_err = e
-            continue
+        for hostname, ip in fallback_routes:
+            print(f"  Retrying with {hostname} -> {ip}")
+            try:
+                with override_dns(hostname, ip):
+                    _attempt_download(url, expected_sha256, dest)
+                print(f"  Success via {ip}")
+                return
+            except (urllib.error.URLError, OSError) as e:
+                print(f"  {ip} failed: {type(e).__name__}: {e}")
+                last_err = e
+        if round_number < DOWNLOAD_ROUNDS:
+            print(f"  Sleeping {SLEEP_BETWEEN_ROUNDS_SECONDS}s before the next round")
+            time.sleep(SLEEP_BETWEEN_ROUNDS_SECONDS)
 
     fail(f"all download attempts failed for {url}; last error: {last_err}")
 
