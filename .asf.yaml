@@ -78,9 +78,11 @@ github:
     allow_update_branch: true
     # auto-delete head branches after being merged
     del_branch_on_merge: true
-    # The open pull request cap (contributing-docs/32_open_pull_request_limit.rst) is temporarily
-    # removed: enabling `creation_cap` fails because the asfyaml version supporting it is not
-    # deployed yet. Restore it once https://issues.apache.org/jira/browse/INFRA-28454 is fixed.
+    # cap how many PRs a user without write access may have open at once
+    # (committers and other users with write access are not affected)
+    creation_cap:
+      enabled: true
+      max_open_pull_requests: 5
 
   # Legacy branch protection is being migrated to Rulesets below.
   #
