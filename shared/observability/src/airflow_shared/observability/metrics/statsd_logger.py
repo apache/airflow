@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, cast
@@ -26,6 +27,7 @@ from statsd import StatsClient, UnixSocketStatsClient
 
 from .protocols import Timer
 from .validators import (
+    ALLOWED_CHARACTERS,
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
@@ -41,6 +43,14 @@ T = TypeVar("T", bound=Callable)
 log = logging.getLogger(__name__)
 
 
+_INVALID_TAG_CHARS_RE = re.compile(f"[^{re.escape(''.join(ALLOWED_CHARACTERS))}]")
+
+
+def _normalize_influx_tag(part: str) -> str:
+    """Replace characters the stat name validator would reject with underscores."""
+    return _INVALID_TAG_CHARS_RE.sub("_", part)
+
+
 def prepare_stat_with_tags(fn: T) -> T:
     """Add tags to stat with influxdb standard format if influxdb_tags_enabled is True."""
 
@@ -54,7 +64,10 @@ def prepare_stat_with_tags(fn: T) -> T:
                     if self.metric_tags_validator.test(k):
                         v_str = "true" if v == "" else v
                         if all(c not in [",", "="] for c in f"{v_str}{k}"):
-                            stat += f",{k}={v_str}"
+                            # Tags become part of the stat name here, so they must satisfy the same
+                            # character rules as the name or ``validate_stat`` drops the whole metric.
+                            normalized_value = _normalize_influx_tag(f"{v_str}")
+                            stat += f",{_normalize_influx_tag(k)}={normalized_value}"
                         else:
                             log.error("Dropping invalid tag: %s=%s.", k, v)
         return fn(self, stat, *args, tags=tags, **kwargs)
