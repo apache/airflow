@@ -480,6 +480,45 @@ class TestGetGcpCredentialsAndProjectId:
                 in caplog.messages
             )
 
+    @pytest.mark.parametrize(
+        "extra_params",
+        [
+            pytest.param(None, id="no-extra-params"),
+            pytest.param({"audience": TEST_AUDIENCE, "scope": "openid"}, id="extra-params"),
+        ],
+    )
+    @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider.ClientCredentialsGrantFlowTokenSupplier"
+    )
+    def test_get_credentials_using_identity_provider_passes_extra_params_to_token_supplier(
+        self, mock_token_supplier, mock_load_credentials_from_dict, extra_params
+    ):
+        result = get_credentials_and_project_id(
+            credential_config_file=CREDENTIAL_CONFIG_STRING_FILE,
+            idp_issuer_url=IDP_LINK,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            idp_extra_params_dict=extra_params,
+        )
+
+        mock_token_supplier.assert_called_once_with(
+            oidc_issuer_url=IDP_LINK,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            **(extra_params or {}),
+        )
+        mock_load_credentials_from_dict.assert_called_once_with(
+            info={
+                "audience": TEST_AUDIENCE,
+                "subject_token_type": TOKEN_TYPE,
+                "service_account_impersonation_url": ACCOUNT_IMPERSONATION,
+                "subject_token_supplier": mock_token_supplier.return_value,
+            },
+            scopes=ANY,
+        )
+        assert result == ("CREDENTIALS", "PROJECT_ID")
+
     def test_get_credentials_using_idp_no_credential_config(self):
         with pytest.raises(
             AirflowException,
