@@ -29,12 +29,12 @@ from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_c
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
-    from openai.types.responses import Response
+    from openai.types.responses import ParsedResponse, Response
 
     from airflow.providers.common.compat.sdk import Context
 
 
-def _get_structured_response_details(response: Any) -> str:
+def _get_structured_response_details(response: ParsedResponse[BaseModel]) -> str:
     """Return API-reported context for a structured-response failure."""
     details = [f"status={response.status!r}"]
     if response.error is not None:
