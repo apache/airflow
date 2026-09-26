@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
-
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
@@ -25,8 +23,7 @@ import tz from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import {
   useCalendarServiceGetCalendar,
@@ -38,7 +35,7 @@ import { IconButton, ButtonGroupToggle } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 
-import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useTimezone } from "src/context/timezone";
 
 import { CalendarLegend } from "./CalendarLegend";
@@ -57,12 +54,46 @@ dayjs.extend(tz);
 export const Calendar = () => {
   const { dagId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
-  const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">(
-    CALENDAR_GRANULARITY_KEY,
-    "hourly",
-  );
-  const [viewMode, setViewMode] = useLocalStorage<"failed" | "total">(CALENDAR_VIEW_MODE_KEY, "total");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const granularity: "daily" | "hourly" =
+    searchParams.get(SearchParamsKeys.CALENDAR_GRANULARITY) === "daily" ? "daily" : "hourly";
+  const viewMode: "failed" | "total" =
+    searchParams.get(SearchParamsKeys.CALENDAR_VIEW_MODE) === "failed" ? "failed" : "total";
+
+  const dateParam = searchParams.get(SearchParamsKeys.CALENDAR_DATE);
+  const selectedDate = dateParam !== null && dayjs(dateParam).isValid() ? dayjs(dateParam) : dayjs();
+
+  const setGranularity = (value: "daily" | "hourly") => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+
+      next.set(SearchParamsKeys.CALENDAR_GRANULARITY, value);
+
+      return next;
+    });
+  };
+
+  const setViewMode = (value: "failed" | "total") => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+
+      next.set(SearchParamsKeys.CALENDAR_VIEW_MODE, value);
+
+      return next;
+    });
+  };
+
+  const setSelectedDate = (value: dayjs.Dayjs) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+
+      next.set(SearchParamsKeys.CALENDAR_DATE, value.format("YYYY-MM-DD"));
+
+      return next;
+    });
+  };
 
   const currentDate = dayjs();
 
