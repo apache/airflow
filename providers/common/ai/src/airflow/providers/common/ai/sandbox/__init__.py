@@ -26,9 +26,15 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxSpec,
     SandboxTerminalError,
 )
+
+# The Islo backend imports its SDK lazily, on first use, so the package is
+# importable without the optional ``islo`` extra; a missing SDK surfaces as an
+# actionable error from the backend instead. sbx has no Python dependency.
+from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "IsloSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",

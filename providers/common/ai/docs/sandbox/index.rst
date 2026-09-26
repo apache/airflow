@@ -50,11 +50,12 @@ model a disposable workspace for that code instead. It exposes four tools:
 
 The sandbox is provisioned by a
 :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` on the model's first
-tool call and torn down when the agent run ends. Two backends ship: a hosted one on
-`Modal <https://modal.com/docs/guide/sandbox>`__ for production and Kubernetes,
-and a local microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__
-for development. The four tool names and shapes match pydantic-ai's own sandbox
-capabilities, so a model that has seen one already knows this one.
+tool call and torn down when the agent run ends. Three backends ship: hosted ones
+on `Modal <https://modal.com/docs/guide/sandbox>`__ and
+`Islo <https://islo.dev>`__ for production and Kubernetes, and a local microVM one
+on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ for development.
+The four tool names and shapes match pydantic-ai's own sandbox capabilities, so a
+model that has seen one already knows this one.
 
 **Adding this toolset gives the agent shell and file operations in a separate
 workspace. Every other tool keeps its existing permissions and runs where it ran
@@ -73,6 +74,8 @@ Pages in this section
 
     Configuration and lifecycle <configuration>
     Backends <backends>
+    Islo connection <../connections/islo>
+    IsloHook <../hooks/islo>
 
 .. _sandbox-quick-start:
 
@@ -357,17 +360,20 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
 
 **What it cannot do**
 
-- Only one of its two backends runs on Kubernetes. ``SbxSandboxBackend`` drives
-  Docker Sandboxes on the worker host, and its own documentation says to use it
-  for local development: it wants the ``sbx`` binary on the host, an
+- One of its three backends does not run on Kubernetes. ``SbxSandboxBackend``
+  drives Docker Sandboxes on the worker host, and its own documentation says to
+  use it for local development: it wants the ``sbx`` binary on the host, an
   authenticated Docker account, a one-time ``sbx policy init``, and on Linux KVM
   or nested virtualization, which an unprivileged container cannot provide.
-  Production and Kubernetes use
-  :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend`, a
-  hosted backend behind the ``modal`` extra that installs nothing on the worker
-  and reclaims a sandbox at its own lifetime if the worker dies. Both implement
-  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and a third
-  vendor can too.
+  Production and Kubernetes use a hosted backend instead, either
+  :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` behind
+  the ``modal`` extra or
+  :class:`~airflow.providers.common.ai.sandbox.islo.IsloSandboxBackend` behind
+  the ``islo`` extra; neither installs anything on the worker, and both reclaim a
+  sandbox at a server-side lifetime if the worker dies (for Islo, unless
+  ``delete_after=None``). All implement
+  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and another vendor
+  can too.
 - It does not contain the agent. Only what these tools do runs in the sandbox;
   the agent loop, the model calls, and every other toolset on the same agent stay
   in the worker with the worker's credentials. It contains model-written code, so
