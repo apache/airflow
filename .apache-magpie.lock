@@ -39,7 +39,6 @@ reconciled:
     promote:                   sha256:e4f8b18462e8da1d
     quick-merge:               sha256:e595586446c4bc73
     rc-cut:                    sha256:3bbf726eae07fe4e
-    reviewer-routing:          sha256:c9b9669a27ceaad7
     sentiment:                 sha256:c325db1d99634a51
     stale-sweep:               sha256:d2a78aaabcc57f26
     stats:                     sha256:3da2380d3a73eccf
