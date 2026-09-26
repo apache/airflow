@@ -100,15 +100,19 @@ and the rule is skipped with a WARNING. The same applies to unknown keys inside 
 - ``dag_id`` — applies to task and/or DAG-level events for the named DAG (use ``emit_task_events``
   / ``emit_dag_events`` in ``controls`` to target one type selectively).
 - ``task_id`` — only valid alongside ``dag_id``; targets a specific task.
+- ``hook``: fully-qualified class name (``module.ClassName``) of the object that reported a
+  hook-collected dataset, usually a hook such as
+  ``airflow.providers.amazon.aws.hooks.s3.S3Hook``. It can be added to any of the other scopes
+  and narrows the rule to the datasets that hook reports. See :ref:`emission_policy_datasets:openlineage`.
 - *(empty ``scope: {}``)* — global default; applies to every task and DAG event.
 
-``scope`` must be one of: global (empty), operator-only, dag-only, or dag+task. ``task_id``
-without ``dag_id``, or ``operator`` combined with ``dag_id`` / ``task_id``, is rejected with
-a WARNING.
+``scope`` must be one of: global (empty), operator-only, dag-only, or dag+task, each optionally
+with ``hook``. ``task_id`` without ``dag_id``, or ``operator`` combined with ``dag_id`` /
+``task_id``, is rejected with a WARNING.
 
 **``match_mode``** (top-level): ``"exact"`` (default) or ``"regex"``. When ``"regex"``, every
-value inside ``scope`` (``dag_id``, ``task_id``, ``operator``) is treated as a ``re.fullmatch``
-pattern.
+value inside ``scope`` (``dag_id``, ``task_id``, ``operator``, ``hook``) is treated as a
+``re.fullmatch`` pattern.
 
 **Control flag keys** (all optional inside ``controls``; the dict must be non-empty):
 
@@ -150,6 +154,10 @@ pattern.
        ``false``, only a curated subset of task attributes is sent. When ``true``, all
        serializable task parameters are included, which may significantly increase event size.
        Task events only.
+   * - ``exclude_datasets``
+     - ``[]``
+     - List of regex patterns; datasets whose ``<namespace>/<name>`` matches any of them are
+       dropped. Task events only. See :ref:`emission_policy_datasets:openlineage`.
 
 ``locked`` (top-level, default ``false``) is an admin-only floor lock: when ``true``, the
 control fields carried by this rule's ``controls`` dict cannot be overridden by per-Dag /
@@ -220,6 +228,85 @@ In the example above:
 - Source code is disabled globally for all operators (``PythonOperator`` was already covered above,
   but the global rule applies to ``BashOperator`` and any other operator with source code).
 
+.. _emission_policy_datasets:openlineage:
+
+Excluding datasets (``exclude_datasets``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``exclude_datasets`` drops individual datasets while keeping the rest of a task's lineage, for
+example the per-chunk objects of a multipart upload that hook lineage reports one by one.
+
+- Patterns are always matched with ``re.fullmatch``, independent of ``match_mode``, against
+  ``<namespace>/<name>`` of the OpenLineage dataset: ``s3://my-bucket/staging/part_1`` for a
+  dataset with namespace ``s3://my-bucket`` and name ``staging/part_1``. Airflow assets are
+  matched after translation to OpenLineage, so assets that cannot be translated are never
+  reported, whatever the patterns.
+- They apply to every source of task lineage: extractor results, hook-collected assets,
+  manually declared ``inlets`` / ``outlets``, runtime outlet events, the per-query events emitted
+  from SQL hook lineage, and the ``emit_dataset_lineage`` / ``emit_query_lineage`` APIs.
+- Only datasets are dropped, never events. A SQL hook lineage query event, or an
+  ``emit_query_lineage`` event, is still emitted when every dataset of the query is excluded,
+  because it also carries the query text and id. ``emit_dataset_lineage`` skips its event in
+  that case, since the event exists only to carry the datasets.
+- Excluding datasets never changes which source is used. If an extractor returns datasets that
+  are all excluded, hook lineage is not consulted as a fallback; if hook lineage collected assets
+  that are all excluded, manually declared ``inlets`` / ``outlets`` are not used either.
+- A rule whose ``scope`` has a ``hook`` key only applies to datasets reported by that hook, and
+  only to hook lineage and SQL hook lineage (the other sources have no reporting hook). Such a
+  rule may only carry ``exclude_datasets`` or ``hook_lineage``; with a ``hook`` scope,
+  ``hook_lineage: false`` drops every dataset the hook reports and ``hook_lineage: true`` keeps
+  them all. A hook-scoped ``hook_lineage`` does not affect whether hook lineage is collected.
+
+The list is resolved per dataset, and the most specific matching rule that sets it **replaces**
+broader ones instead of merging with them, so a narrower rule can shorten a broader exclusion or
+clear it with ``[]``. For a dataset reported by a hook, each tier is preceded by its
+``hook`` variant:
+
+1. ``dag_id`` + ``task_id`` + ``hook``
+2. ``dag_id`` + ``task_id``
+3. ``dag_id`` + ``hook``
+4. ``dag_id``
+5. ``operator`` + ``hook``
+6. ``operator``
+7. ``hook``
+8. Global (empty ``scope``)
+
+Every replacement is logged at INFO level, naming the winning rule and the broader rules it
+replaced. ``locked`` keeps its usual meaning: a locked rule blocks authoring overrides of
+``exclude_datasets`` for the datasets it applies to, but a more specific conf rule still replaces
+its list.
+
+.. code-block:: ini
+
+    [openlineage]
+    emission_policy = [
+      {"scope": {"hook": ".*\\.S3Hook"}, "match_mode": "regex", "controls": {"exclude_datasets": ["s3://.*/_temporary/.*"]}},
+      {"scope": {"dag_id": "chunked_dag", "task_id": "upload", "hook": "airflow.providers.amazon.aws.hooks.s3.S3Hook"}, "controls": {"exclude_datasets": ["s3://my-bucket/staging/part_.*"]}},
+      {"scope": {"dag_id": "noisy_dag", "hook": "airflow.providers.google.cloud.hooks.gcs.GCSHook"}, "controls": {"hook_lineage": false}}
+    ]
+
+In the example above:
+
+- ``_temporary`` objects reported by ``S3Hook`` are dropped in every Dag.
+- ``upload`` in ``chunked_dag`` drops the staging parts its ``S3Hook`` writes. Its list replaces
+  the first rule's, so ``_temporary`` objects are kept for that task.
+- Every dataset ``GCSHook`` reports in ``noisy_dag`` is dropped; other hooks in that Dag are
+  unaffected.
+
+.. note::
+
+    **Exclusion happens after the collector cap.** Hook-collected assets are filtered when
+    OpenLineage reads the hook lineage collector, after
+    :ref:`[lineage] max_assets_per_collector<config:lineage__max_assets_per_collector>` has
+    limited what the collector kept. Excluding assets reduces what gets reported, but it does not
+    make room for assets the cap already discarded.
+
+.. note::
+
+    Only the event ``inputs`` / ``outputs`` lists are filtered. Facets can still refer to an
+    excluded dataset: ``columnLineage`` on the remaining datasets, and the task's ``inlets``,
+    ``outlets`` and runtime outlet assets in the ``airflow`` run facet.
+
 **Audit logging**: whenever a control flag is non-default (suppressed or enabled), an INFO-level log
 is emitted identifying the field, the event context, and the exact rule that caused the change.
 This provides a clear audit trail for operational troubleshooting.
@@ -253,6 +340,9 @@ wins **unless** the matching conf rule is marked with ``"locked": true``.
     # Suppress DAG-run events but keep task events
     extend_global_openlineage_emission_policy(dag, emit_dag_events=False)
 
+    # Drop the staging objects a task writes, keep the rest of its lineage
+    extend_global_openlineage_emission_policy(extract, exclude_datasets=["s3://my-bucket/staging/.*"])
+
 Key semantics:
 
 - **Resolution priority**: authoring flags > unlocked conf rules > built-in defaults.
@@ -269,6 +359,9 @@ Key semantics:
   tasks present on the Dag at the moment the call is made. Tasks defined later (e.g. inside
   ``with DAG(...) as dag:`` before the operators are declared) will not inherit them. Call
   ``extend_global_openlineage_emission_policy(dag, ...)`` *after* defining the tasks, or set flags per task.
+- **``exclude_datasets`` has no hook dimension**: an authored list applies to every dataset of
+  the task and replaces the conf lists, including hook-scoped ones, except where a locked rule
+  applies.
 - **No unset API**: pass an explicit boolean to override; passing ``None`` means "not provided"
   and leaves any previously-stored value intact.
 - **Legacy options cannot be locked**. ``"locked": true`` is an ``emission_policy`` feature.

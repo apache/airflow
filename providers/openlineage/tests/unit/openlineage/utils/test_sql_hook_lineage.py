@@ -26,6 +26,7 @@ from openlineage.client.facet_v2 import external_query_run, sql_job
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.sqlparser import SQLParser
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, Rule
 from airflow.providers.openlineage.utils.sql_hook_lineage import (
     _get_hook_conn_id,
     emit_lineage_from_sql_extras,
@@ -141,6 +142,33 @@ class TestEmitLineageFromSqlExtras:
             mock.call(mock.sentinel.start_event),
             mock.call(mock.sentinel.end_event),
         ]
+
+    def test_datasets_excluded_for_reporting_hook_only(self):
+        class FakeHook:
+            def get_connection(self, conn_id):
+                return mock.MagicMock()
+
+            def get_openlineage_database_info(self, connection):
+                return mock.MagicMock()
+
+        self.mock_ns.return_value = "postgres://host/db"
+        in_table = OpenLineageDataset(namespace="ns", name="in_table")
+        out_table = OpenLineageDataset(namespace="ns", name="out_table")
+        self.mock_facets_fn.side_effect = lambda **_: OperatorLineage(inputs=[in_table], outputs=[out_table])
+        rule = Rule(
+            scope={"hook": f"{FakeHook.__module__}.{FakeHook.__name__}"},
+            controls={"exclude_datasets": ["ns/in_table"]},
+        )
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock.MagicMock(dag_id="dag_id", task_id="task_id"),
+            sql_extras=[_make_extra(sql="SELECT 1", hook=FakeHook()), _make_extra(sql="SELECT 2")],
+            dataset_filter=DatasetFilter(tiers=((rule,),)),
+        )
+
+        first, second = self.mock_build.call_args_list
+        assert (first.kwargs["inputs"], first.kwargs["outputs"]) == ([], [out_table])
+        assert (second.kwargs["inputs"], second.kwargs["outputs"]) == ([in_table], [out_table])
 
     def test_multiple_queries_increment_counter(self):
         self.mock_ns.return_value = "postgres://host/db"

@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
-from openlineage.client.event_v2 import RunState
+from openlineage.client.event_v2 import Dataset, RunState
 
 from airflow.providers.openlineage.api.sql import emit_query_lineage
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, EmissionPolicy
 
 _MODULE = "airflow.providers.openlineage.api.sql"
 _CORE = "airflow.providers.openlineage.api.core"
@@ -333,3 +335,24 @@ def test_noop_when_emission_policy_blocks_emit(patched_emit):
         )
 
     patched_emit.assert_not_called()
+
+
+def _policy_excluding(patterns: tuple[str, ...]) -> EmissionPolicy:
+    return dataclasses.replace(
+        EmissionPolicy.defaults(), dataset_filter=DatasetFilter(authoring_patterns=patterns)
+    )
+
+
+def test_excludes_datasets_from_events(patched_emit):
+    ti = _make_task_instance()
+    with mock.patch(f"{_MODULE}.resolve_task_emission_policy", return_value=_policy_excluding(("ns/drop",))):
+        emit_query_lineage(
+            query_id="qid-1",
+            query_source_namespace="snowflake://ACCT",
+            inputs=[Dataset(namespace="ns", name="drop"), Dataset(namespace="ns", name="keep")],
+            task_instance=ti,
+        )
+
+    start_event, end_event = (c.args[0] for c in patched_emit.call_args_list)
+    assert [d.name for d in start_event.inputs] == ["keep"]
+    assert [d.name for d in end_event.inputs] == ["keep"]

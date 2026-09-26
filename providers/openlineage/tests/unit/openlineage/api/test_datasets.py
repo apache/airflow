@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 from datetime import datetime, timezone
 from unittest import mock
 
@@ -24,6 +25,7 @@ from openlineage.client.event_v2 import Dataset, RunEvent, RunState
 
 from airflow.providers.openlineage.api.datasets import emit_dataset_lineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, EmissionPolicy
 
 _MODULE = "airflow.providers.openlineage.api.datasets"
 _CORE = "airflow.providers.openlineage.api.core"
@@ -276,3 +278,29 @@ def test_passes_include_full_task_info_to_run_facets(patched_emit):
 
     mock_build_run_facets.assert_called_once()
     assert mock_build_run_facets.call_args.kwargs["include_full_task_info"] is True
+
+
+def _policy_excluding(patterns: tuple[str, ...]) -> EmissionPolicy:
+    return dataclasses.replace(
+        EmissionPolicy.defaults(), dataset_filter=DatasetFilter(authoring_patterns=patterns)
+    )
+
+
+def test_excludes_datasets_from_event(patched_emit):
+    ti = _make_task_instance()
+    with mock.patch(f"{_MODULE}.resolve_task_emission_policy", return_value=_policy_excluding(("ns/drop",))):
+        emit_dataset_lineage(
+            inputs=[Dataset(namespace="ns", name="drop"), Dataset(namespace="ns", name="keep")],
+            task_instance=ti,
+        )
+
+    (event,) = patched_emit.call_args.args
+    assert event.inputs == [Dataset(namespace="ns", name="keep")]
+
+
+def test_noop_when_every_dataset_excluded(patched_emit):
+    ti = _make_task_instance()
+    with mock.patch(f"{_MODULE}.resolve_task_emission_policy", return_value=_policy_excluding(("ns/.*",))):
+        emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")], task_instance=ti)
+
+    patched_emit.assert_not_called()

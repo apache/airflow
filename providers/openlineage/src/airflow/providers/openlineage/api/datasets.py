@@ -146,6 +146,17 @@ def emit_dataset_lineage(
             )
             return
 
+        inputs = controls.dataset_filter.exclude(inputs)
+        outputs = controls.dataset_filter.exclude(outputs)
+        if not inputs and not outputs:
+            log.info(
+                "Skipping OpenLineage RUNNING event emission for task `%s` in dag `%s`: every dataset "
+                "passed to emit_dataset_lineage is excluded by the emission policy.",
+                task_instance.task_id,
+                task_instance.dag_id,
+            )
+            return
+
         run_facets = build_task_event_run_facets(
             task_instance=task_instance,
             dag_run=dag_run,
