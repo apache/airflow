@@ -21,6 +21,8 @@ import { describe, it, expect } from "vitest";
 import {
   Dag,
   finalizeDag,
+  getDagOrderEdges,
+  getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   type DagSpec,
@@ -28,6 +30,7 @@ import {
   type TaskSpec,
 } from "../../src/sdk/dag.js";
 import { Bundle, finalizeBundleDags } from "../../src/sdk/bundle.js";
+import { withArgList } from "../../src/sdk/arg-list.js";
 
 describe("Dag", () => {
   it("returns a factory whose call yields a frozen TaskRef with the Dag and task identity", () => {
@@ -36,7 +39,7 @@ describe("Dag", () => {
     expect(typeof myTask).toBe("function");
 
     const ref = myTask();
-    expect(ref).toEqual({ dagId: "example_dag", taskId: "my_task" });
+    expect(ref).toMatchObject({ dagId: "example_dag", taskId: "my_task" });
     expect(Object.isFrozen(ref)).toBe(true);
   });
 
@@ -53,9 +56,9 @@ describe("Dag", () => {
     const transformed = transform({ extracted });
     const loaded = load({ transformed });
 
-    expect(extracted).toEqual({ dagId: "chained_dag", taskId: "extract" });
-    expect(transformed).toEqual({ dagId: "chained_dag", taskId: "transform" });
-    expect(loaded).toEqual({ dagId: "chained_dag", taskId: "load" });
+    expect(extracted).toMatchObject({ dagId: "chained_dag", taskId: "extract" });
+    expect(transformed).toMatchObject({ dagId: "chained_dag", taskId: "transform" });
+    expect(loaded).toMatchObject({ dagId: "chained_dag", taskId: "load" });
 
     const inputs = getDagTaskInputs(dag);
     expect(inputs.get("extract")).toEqual({});
@@ -86,7 +89,7 @@ describe("Dag", () => {
     const transform = dag.task("transform", async (_: { upstream: unknown }) => undefined);
     const lookalike = { dagId: "lookalike_dag", taskId: "ghost" };
 
-    transform({ upstream: lookalike });
+    transform({ upstream: lookalike } as unknown as { upstream: TaskRef });
 
     expect(getDagTaskInputs(dag).get("transform")).toEqual({ upstream: lookalike });
   });
@@ -193,103 +196,124 @@ describe("Dag", () => {
     );
   });
 
-  it("records a positional call in argument order", () => {
+  it("records a listed call in the order the handler destructures", () => {
     const dag = new Dag("example_dag");
     const extract = dag.task("extract", async (): Promise<number> => 1);
-    const transform = dag.task("transform", async (rows: number, region: string) => `${region}`);
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => `${region}${rows}`,
+    );
 
     const extracted = extract();
-    transform(extracted, "us");
+    transform(withArgList(extracted, "us"));
 
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ arg0: extracted, arg1: "us" });
-    expect(Object.keys(getDagTaskInputs(dag).get("transform")!)).toEqual(["arg0", "arg1"]);
+    expect(Object.entries(getDagTaskInputs(dag).get("transform")!)).toEqual([
+      ["rows", extracted],
+      ["region", "us"],
+    ]);
   });
 
-  it("names positional arguments from argBindings", () => {
+  it("tells one listed order from the other, since position is what binds", () => {
     const dag = new Dag("example_dag");
     const extract = dag.task("extract", async (): Promise<number> => 1);
-    const transform = dag.task("transform", async (rows: number, region: string) => `${region}`, {
-      argBindings: ["rows", "region"],
-    });
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => `${region}${rows}`,
+    );
 
     const extracted = extract();
-    transform(extracted, "us");
+    // Both values are types an argument takes, so which one each supplies is
+    // the order it was given in, and nothing else.
+    transform(withArgList("us", extracted));
 
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ rows: extracted, region: "us" });
+    expect(Object.entries(getDagTaskInputs(dag).get("transform")!)).toEqual([
+      ["rows", "us"],
+      ["region", extracted],
+    ]);
   });
 
-  it("labels the arguments argBindings does not reach", () => {
-    const dag = new Dag("example_dag");
-    const transform = dag.task("transform", async (rows: number, region: string) => `${region}`, {
-      argBindings: ["rows"],
-    });
+  it("records a listed call and a named call alike", () => {
+    const handler = async ({ rows, region }: { rows: number; region: string }) =>
+      `${region}${rows}`;
+    const listed = new Dag("d");
+    listed.task("transform", handler)(withArgList(1, "us"));
+    const named = new Dag("d");
+    named.task("transform", handler)({ rows: 1, region: "us" });
 
-    transform(1, "us");
-
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ rows: 1, arg1: "us" });
+    expect(getDagTaskInputs(listed).get("transform")).toEqual(
+      getDagTaskInputs(named).get("transform"),
+    );
   });
 
-  it.each([
-    [
-      "not an array",
-      { argBindings: 1 },
-      /argBindings for Dag "d" task "t" must be an array of names/,
-    ],
-    ["not a string", { argBindings: [1] }, /holds 1; each name must be a non-empty string/],
-    ["empty", { argBindings: [""] }, /holds ""; each name must be a non-empty string/],
-    ["a number", { argBindings: ["0"] }, /holds "0"; each name must be a non-empty string/],
-    [
-      "a duplicate",
-      { argBindings: ["a", "a"] },
-      /argBindings for Dag "d" task "t" names "a" twice/,
-    ],
-  ])("rejects argBindings that are %s", (_label, options, expected) => {
-    const dag = new Dag("d");
-
-    expect(() => dag.task("t", async (a: number) => a, options as never)).toThrowError(expected);
-  });
-
-  it("reads a single argument that is not a map of names as one positional input", () => {
-    const dag = new Dag("example_dag");
-    const when = new Date();
-    const transform = dag.task("transform", async (at: Date) => at);
-
-    transform(when as never);
-
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ arg0: when });
-  });
-
-  it("reads a single reference as one positional input rather than a map of names", () => {
-    const dag = new Dag("example_dag");
-    const extract = dag.task("extract", async (): Promise<{ rows: number }> => ({ rows: 1 }));
-    const load = dag.task("load", async (totals: { rows: number }) => totals.rows);
-
-    const extracted = extract();
-    load(extracted);
-
-    expect(getDagTaskInputs(dag).get("load")).toEqual({ arg0: extracted });
-  });
-
-  it("spreads a positional task's bound arguments back into its argument list", async () => {
+  it("calls a listed task with its inputs under the names it recorded", async () => {
     const dag = new Dag("example_dag");
     const seen: unknown[] = [];
     const transform = dag.task(
       "transform",
-      async (rows: number, region: string) => {
+      async ({ rows, region }: { rows: number; region: string }) => {
         seen.push(rows, region);
       },
-      { argBindings: ["rows", "region"] },
     );
 
-    transform(1, "us");
-    // The order the runtime hands the bound arguments over in, which is the
-    // order they were recorded.
+    transform(withArgList(1, "us"));
     await new Bundle(dag).getTaskHandler("example_dag", "transform")!({
       rows: 1,
       region: "us",
     } as never);
 
     expect(seen).toEqual([1, "us"]);
+  });
+
+  it("rejects a listed call when the handler's argument is not a plain object pattern", () => {
+    const dag = new Dag("example_dag");
+    const transform = dag.task(
+      "transform",
+      async ({ rows, ...rest }: { rows: number; region?: string }) => `${rows}${String(rest)}`,
+    );
+
+    expect(() => transform(withArgList(1))).toThrowError(
+      /cannot take its inputs in order: its handler's argument is not a plain object pattern/,
+    );
+  });
+
+  it("rejects a listed call that gives the wrong number of values", () => {
+    const dag = new Dag("example_dag");
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => `${region}${rows}`,
+    );
+
+    expect(() => transform(withArgList(1))).toThrowError(
+      /takes 2 arguments \(rows, region\) but was given 1/,
+    );
+  });
+
+  it.each([
+    ["a bare value", 7],
+    ["an array of values", [1, "us"]],
+  ])("rejects %s where a task's inputs belong", (_label, inputs) => {
+    const dag = new Dag("example_dag");
+    const load = dag.task("load", async ({ total }: { total: number }) => total);
+
+    expect(() => load(inputs as never)).toThrowError(
+      /takes one object naming its inputs — myTask\({ rows, region }\) — or withArgList/,
+    );
+  });
+
+  it("rejects a bare reference where a task's inputs belong", () => {
+    const dag = new Dag("example_dag");
+    const extract = dag.task("extract", async (): Promise<{ rows: number }> => ({ rows: 1 }));
+    const load = dag.task("load", async ({ totals }: { totals: { rows: number } }) => totals.rows);
+
+    expect(() => load(extract() as never)).toThrowError(/takes one object naming its inputs/);
+  });
+
+  it("rejects a handler that declares more than one parameter", () => {
+    const dag = new Dag("example_dag");
+
+    expect(() =>
+      dag.task("transform", ((rows: number, region: string) => `${region}${rows}`) as never),
+    ).toThrowError(/declares 2 parameters; a handler takes one object of named arguments/);
   });
 
   it("calls a task declaring one object of named arguments with that object", async () => {
@@ -447,7 +471,6 @@ describe("Dag", () => {
   it.each([
     ["a misspelling", "retry"],
     ["the raw schema key", "retry_delay"],
-    ["the positional task_id", "taskId"],
   ])("rejects %s in the task spec", (_label, key) => {
     const dag = new Dag("example_dag");
     expect(() =>
@@ -478,6 +501,484 @@ describe("Dag", () => {
       dag.task("transform", async () => undefined, spec as unknown as TaskSpec),
     ).toThrowError(/spec for Dag "example_dag" task "transform" must be an object/);
     expect(dag.taskIds).toEqual([]);
+  });
+
+  describe("an omitted task id", () => {
+    it("takes the handler's function name", () => {
+      const dag = new Dag("named_dag");
+      dag.task(async function extract() {})();
+
+      expect(dag.taskIds).toEqual(["extract"]);
+    });
+
+    it("takes the name of a handler declared elsewhere", () => {
+      async function transform() {}
+      const dag = new Dag("named_dag");
+      dag.task(transform)();
+
+      expect(dag.taskIds).toEqual(["transform"]);
+    });
+
+    it("still accepts a spec as the second argument", () => {
+      const dag = new Dag("named_dag");
+      dag.task(async function extract() {}, { retries: 2 })();
+
+      expect(getDagTaskRecords(dag).get("extract")?.spec).toEqual({ retries: 2 });
+    });
+
+    it("is taken from the spec when one names the task", () => {
+      const dag = new Dag("specced_id_dag");
+      dag.task(async function extract() {}, { taskId: "extract_rows" })();
+
+      expect(dag.taskIds).toEqual(["extract_rows"]);
+    });
+
+    it("prefers the positional id over the handler name", () => {
+      const dag = new Dag("positional_dag");
+      dag.task("extract_rows", async function extract() {})();
+
+      expect(dag.taskIds).toEqual(["extract_rows"]);
+    });
+
+    it("rejects a positional id and a spec id together", () => {
+      // The positional one used to win and the spec's was dropped in silence.
+      const dag = new Dag("two_ids_dag");
+
+      expect(() =>
+        dag.task("extract_rows", async function extract() {}, { taskId: "from_spec" }),
+      ).toThrowError(
+        /Task "extract_rows" of Dag "two_ids_dag" also carries taskId "from_spec" in its spec/,
+      );
+      expect(dag.taskIds).toEqual([]);
+    });
+
+    it("fails for an anonymous handler, naming the two ways to give it an id", () => {
+      const dag = new Dag("anonymous_dag");
+
+      expect(() => dag.task(async () => 42)).toThrowError(
+        /A task of Dag "anonymous_dag" has no id: its handler has no name/,
+      );
+      expect(dag.taskIds).toEqual([]);
+    });
+
+    it("points at the bundler when a handler's name was minified away", () => {
+      const dag = new Dag("minified_dag");
+      // What a bundle built by something other than airflow-ts-pack can hold:
+      // the function is real, but the bundler took its name.
+      const minified = Object.defineProperty(async () => 42, "name", { value: "" });
+
+      expect(() => dag.task(minified)).toThrowError(
+        /A bundler that drops function names also lands here/,
+      );
+    });
+
+    it("rejects a handler name Airflow would not accept as an id", () => {
+      const dag = new Dag("bound_dag");
+      async function extract({ rows }: { rows: number }) {
+        return rows;
+      }
+
+      // `bind` names the result "bound extract", which has a space in it.
+      expect(() => dag.task(extract.bind(null))).toThrowError(
+        /would take the id "bound extract" from its handler's name, which Airflow does not accept/,
+      );
+    });
+
+    it("rejects a non-function where a handler belongs", () => {
+      const dag = new Dag("bad_handler_dag");
+
+      expect(() => dag.task("x", 42 as unknown as () => Promise<void>)).toThrowError(
+        /handler for Dag "bad_handler_dag" task "x" must be a function/,
+      );
+    });
+  });
+
+  describe("order-only edges", () => {
+    /** A Dag whose tasks are all placed, ready for edges to be drawn on it. */
+    function placedDag(dagId: string, ...taskIds: string[]) {
+      const dag = new Dag(dagId);
+      const refs = Object.fromEntries(
+        taskIds.map((taskId) => [taskId, dag.task(taskId, async () => undefined)()]),
+      );
+      return { dag, refs };
+    }
+
+    it("draws an edge with before, from the receiver to the argument", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+
+      expect(getDagOrderEdges(dag)).toEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it("draws an edge with after, from the argument to the receiver", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it("fans out from one before call", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup", "notify");
+
+      refs.load!.before(refs.cleanup!, refs.notify!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup" },
+        { upstream: "load", downstream: "notify" },
+      ]);
+    });
+
+    it("fans in from one after call", () => {
+      const { dag, refs } = placedDag("d", "load", "transform", "cleanup");
+
+      refs.cleanup!.after(refs.load!, refs.transform!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup" },
+        { upstream: "transform", downstream: "cleanup" },
+      ]);
+    });
+
+    it.each([
+      ["before", (a: TaskRef, b: TaskRef) => a.before(b)],
+      ["after", (a: TaskRef, b: TaskRef) => b.after(a)],
+    ])("returns the receiver from %s, not the arguments", (_verb, draw) => {
+      const { refs } = placedDag("d", "load", "cleanup");
+
+      // A fan-out has no single "next" reference, so chaining continues from
+      // the same task rather than from what was just pointed at.
+      expect(draw(refs.load!, refs.cleanup!)).toBe(_verb === "before" ? refs.load : refs.cleanup);
+    });
+
+    it("records an edge once however many times it is drawn", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+      refs.load!.before(refs.cleanup!);
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it("rejects an edge from a task to itself", () => {
+      const { refs } = placedDag("d", "a");
+
+      expect(() => refs.a!.before(refs.a!)).toThrowError(
+        /before\(\) cannot draw an edge from node "a" of Dag "d" to itself/,
+      );
+      expect(() => refs.a!.after(refs.a!)).toThrowError(
+        /after\(\) cannot draw an edge from node "a" of Dag "d" to itself/,
+      );
+    });
+
+    it("keeps the two directions apart", () => {
+      const { dag, refs } = placedDag("d", "a", "b");
+
+      refs.a!.before(refs.b!);
+      refs.b!.before(refs.a!);
+
+      // Two distinct edges, both recorded: rejecting the cycle they form is a
+      // Dag-level concern, not an edge-level one.
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "a", downstream: "b" },
+        { upstream: "b", downstream: "a" },
+      ]);
+    });
+
+    it("leaves a frozen edge that a caller cannot rewrite", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+      refs.load!.before(refs.cleanup!);
+
+      expect(Object.isFrozen(getDagOrderEdges(dag)[0])).toBe(true);
+    });
+
+    it("carries no value, so it records no input", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+
+      expect(getDagTaskInputs(dag).get("cleanup")).toEqual({});
+    });
+
+    it.each([
+      ["before", (ref: TaskRef, other: TaskRef) => ref.before(other)],
+      ["after", (ref: TaskRef, other: TaskRef) => ref.after(other)],
+    ])("rejects a %s edge to a task of another Dag", (verb, draw) => {
+      const { refs: here } = placedDag("here", "load");
+      const { refs: there } = placedDag("there", "cleanup");
+
+      expect(() => draw(here.load!, there.cleanup!)).toThrowError(
+        new RegExp(
+          `${verb}\\(\\) cannot draw an edge to Dag "there" node "cleanup" from Dag "here"`,
+        ),
+      );
+    });
+
+    it("rejects a reference from another Dag object carrying the same Dag ID", () => {
+      const { refs: first } = placedDag("same_id", "load");
+      const { refs: second } = placedDag("same_id", "cleanup");
+
+      expect(() => first.load!.before(second.cleanup!)).toThrowError(
+        /before\(\) was given a reference to "cleanup" that this Dag did not hand out/,
+      );
+    });
+
+    it.each([
+      ["a plain object", { dagId: "d", taskId: "cleanup" }],
+      ["a string", "cleanup"],
+      ["null", null],
+    ])("rejects %s where a reference belongs", (_label, value) => {
+      const { refs } = placedDag("d", "load");
+
+      expect(() => refs.load!.before(value as unknown as TaskRef)).toThrowError(
+        /before\(\) on Dag "d" takes tasks and task groups this Dag handed out/,
+      );
+    });
+
+    it("records nothing when an edge is rejected", () => {
+      const { dag, refs } = placedDag("d", "load");
+
+      expect(() => refs.load!.before("cleanup" as unknown as TaskRef)).toThrow();
+      expect(getDagOrderEdges(dag)).toEqual([]);
+    });
+
+    it("rejects an edge drawn after the Dag was read", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+      finalizeDag(dag);
+
+      expect(() => refs.load!.before(refs.cleanup!)).toThrowError(
+        /An edge was drawn on Dag "d" after the Dag was read/,
+      );
+    });
+
+    it("has no edges before any are drawn", () => {
+      const { dag } = placedDag("d", "load");
+      expect(getDagOrderEdges(dag)).toEqual([]);
+    });
+  });
+
+  describe("task groups", () => {
+    it("prefixes the id of every task declared in it", () => {
+      const dag = new Dag("grouped");
+      const staging = dag.taskGroup("staging");
+      staging.task("stage_rows", async () => undefined)();
+
+      expect(dag.taskIds).toEqual(["staging.stage_rows"]);
+    });
+
+    it("prefixes a task id defaulted from the handler name", () => {
+      const dag = new Dag("grouped");
+      dag.taskGroup("staging").task(async function stageRows() {})();
+
+      expect(dag.taskIds).toEqual(["staging.stageRows"]);
+    });
+
+    it("nests, joining every enclosing group's id", () => {
+      const dag = new Dag("grouped");
+      const outer = dag.taskGroup("outer");
+      const inner = outer.taskGroup("inner");
+      inner.task("deep", async () => undefined)();
+
+      expect(dag.taskIds).toEqual(["outer.inner.deep"]);
+      expect(inner.groupId).toBe("outer.inner");
+    });
+
+    it("carries the Dag's own identity", () => {
+      const dag = new Dag("grouped");
+      expect(dag.taskGroup("staging").dagId).toBe("grouped");
+    });
+
+    it("records the tree, so nested groups serialize as one", () => {
+      const dag = new Dag("grouped");
+      const outer = dag.taskGroup("outer");
+      outer.task("first", async () => undefined)();
+      const inner = outer.taskGroup("inner");
+      inner.task("second", async () => undefined)();
+
+      expect([...getDagTaskGroups(dag).values()]).toEqual([
+        {
+          groupId: "outer",
+          taskIds: ["outer.first"],
+          childGroupIds: ["outer.inner"],
+        },
+        {
+          groupId: "outer.inner",
+          parentGroupId: "outer",
+          taskIds: ["outer.inner.second"],
+          childGroupIds: [],
+        },
+      ]);
+    });
+
+    it("lets the same handler name be reused across groups", () => {
+      const dag = new Dag("grouped");
+      dag.taskGroup("north").task(async function extract() {})();
+      dag.taskGroup("south").task(async function extract() {})();
+
+      expect(dag.taskIds).toEqual(["north.extract", "south.extract"]);
+    });
+
+    it("lets a task in a group be wired to one outside it", () => {
+      const dag = new Dag("grouped");
+      const extracted = dag.task("extract", async () => 1)();
+      const staged = dag
+        .taskGroup("staging")
+        .task(
+          "stage",
+          async (_: { extracted: number }) => undefined,
+        )({ extracted });
+
+      expect(staged.taskId).toBe("staging.stage");
+      expect(getDagTaskInputs(dag).get("staging.stage")).toEqual({ extracted });
+    });
+
+    describe("as an edge endpoint", () => {
+      it("orders a whole group before a task", () => {
+        const dag = new Dag("grouped");
+        const staging = dag.taskGroup("staging");
+        staging.task("stage", async () => undefined)();
+        const loaded = dag.task("load", async () => undefined)();
+
+        staging.before(loaded);
+
+        expect(getDagOrderEdges(dag)).toEqual([{ upstream: "staging", downstream: "load" }]);
+      });
+
+      it("orders a task before a whole group", () => {
+        const dag = new Dag("grouped");
+        const extracted = dag.task("extract", async () => undefined)();
+        const staging = dag.taskGroup("staging");
+        staging.task("stage", async () => undefined)();
+
+        extracted.before(staging);
+
+        expect(getDagOrderEdges(dag)).toEqual([{ upstream: "extract", downstream: "staging" }]);
+      });
+
+      it("orders one group against another", () => {
+        const dag = new Dag("grouped");
+        const first = dag.taskGroup("first");
+        first.task("a", async () => undefined)();
+        const second = dag.taskGroup("second");
+        second.task("b", async () => undefined)();
+
+        second.after(first);
+
+        expect(getDagOrderEdges(dag)).toEqual([{ upstream: "first", downstream: "second" }]);
+      });
+
+      it("returns its own receiver, as a task does", () => {
+        const dag = new Dag("grouped");
+        const staging = dag.taskGroup("staging");
+        staging.task("stage", async () => undefined)();
+        const loaded = dag.task("load", async () => undefined)();
+
+        expect(staging.before(loaded)).toBe(staging);
+      });
+
+      it("rejects a group from another Dag object with the same ID", () => {
+        const first = new Dag("same_id");
+        const second = new Dag("same_id");
+        const loaded = first.task("load", async () => undefined)();
+        const foreign = second.taskGroup("staging");
+
+        expect(() => loaded.before(foreign)).toThrowError(
+          /before\(\) was given a reference to "staging" that this Dag did not hand out/,
+        );
+      });
+
+      it("rejects a foreign group even when this Dag has one of the same ID", () => {
+        // Matching on the ID alone used to accept it, and the edge was then
+        // drawn at this Dag's own group of that name.
+        const first = new Dag("same_id");
+        const second = new Dag("same_id");
+        first.taskGroup("staging").task("stage", async () => undefined)();
+        const loaded = first.task("load", async () => undefined)();
+        const foreign = second.taskGroup("staging");
+
+        expect(() => loaded.before(foreign)).toThrowError(
+          /before\(\) was given a reference to "staging" that this Dag did not hand out/,
+        );
+        expect(getDagOrderEdges(first)).toEqual([]);
+      });
+    });
+
+    it.each([
+      ["an empty ID", ""],
+      ["a non-string ID", 42],
+    ])("rejects %s", (_label, groupId) => {
+      const dag = new Dag("grouped");
+      expect(() => dag.taskGroup(groupId as string)).toThrowError(
+        /A task group of Dag "grouped" must have a non-empty ID/,
+      );
+    });
+
+    it("rejects a group ID holding the separator, which nesting is for", () => {
+      const dag = new Dag("grouped");
+      expect(() => dag.taskGroup("outer.inner")).toThrowError(
+        /Task group ID "outer.inner" of Dag "grouped" cannot contain "\."; nest groups with taskGroup/,
+      );
+    });
+
+    it.each([
+      [
+        "a task and a group",
+        (dag: Dag) => [() => dag.task("x", async () => undefined), () => dag.taskGroup("x")],
+      ],
+      [
+        "a group and a task",
+        (dag: Dag) => [() => dag.taskGroup("x"), () => dag.task("x", async () => undefined)],
+      ],
+      ["two groups", (dag: Dag) => [() => dag.taskGroup("x"), () => dag.taskGroup("x")]],
+    ])(
+      "rejects %s sharing one ID, since a serialized Dag addresses both by it",
+      (_label, build) => {
+        const dag = new Dag("grouped");
+        const [first, second] = build(dag);
+
+        first!();
+        expect(() => second!()).toThrowError(/"x" is already registered for Dag "grouped"/);
+      },
+    );
+
+    it("allows the same group ID under different parents", () => {
+      const dag = new Dag("grouped");
+      dag
+        .taskGroup("north")
+        .taskGroup("shared")
+        .task("t", async () => undefined)();
+      dag
+        .taskGroup("south")
+        .taskGroup("shared")
+        .task("t", async () => undefined)();
+
+      expect(dag.taskIds).toEqual(["north.shared.t", "south.shared.t"]);
+    });
+
+    it("rejects a group declared after the Dag was read", () => {
+      const dag = new Dag("grouped");
+      dag.task("extract", async () => undefined)();
+      finalizeDag(dag);
+
+      expect(() => dag.taskGroup("late")).toThrowError(
+        /Task group "late" cannot be added to Dag "grouped" after the Dag was read/,
+      );
+    });
+
+    it("holds its tasks to the same every-task-is-called rule", () => {
+      const dag = new Dag("grouped");
+      dag.taskGroup("staging").task("stage", async () => undefined);
+
+      expect(() => finalizeDag(dag)).toThrowError(
+        /Task "staging.stage" of Dag "grouped" is never called/,
+      );
+    });
+
+    it("has no groups before any are declared", () => {
+      expect(getDagTaskGroups(new Dag("plain")).size).toBe(0);
+    });
   });
 
   it("exposes its task IDs in attachment order", () => {
@@ -536,13 +1037,25 @@ describe("Dag", () => {
     );
   });
 
-  it("treats a dotted TaskGroup taskId as a single taskId (group.task)", () => {
+  it("rejects a dotted task id, which names a group that does not exist", () => {
+    // A dotted id used to be accepted verbatim, giving a task whose id carries
+    // a group prefix while the Dag holds no such group. `taskGroup(...)` is
+    // what puts a task under a prefix now.
     const dag = new Dag("example_dag");
-    dag.task("transforms.normalize", async () => "ok")();
-    const bundle = new Bundle();
-    bundle.register(dag);
+
+    expect(() => dag.task("transforms.normalize", async () => "ok")).toThrowError(
+      /Task ID "transforms.normalize" of Dag "example_dag" cannot contain "\."/,
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it("names a task inside a group without the author writing the prefix", () => {
+    const dag = new Dag("example_dag");
+    dag.taskGroup("transforms").task("normalize", async () => "ok")();
+    const bundle = new Bundle(dag);
+
     expect(bundle.getTaskHandler("example_dag", "transforms.normalize")).toBeDefined();
-    // Should NOT accidentally match the prefix alone
+    // And not the prefix or the leaf on its own.
     expect(bundle.getTaskHandler("example_dag", "transforms")).toBeUndefined();
     expect(bundle.getTaskHandler("example_dag", "normalize")).toBeUndefined();
   });
