@@ -110,6 +110,8 @@ class Timer(TimerProtocol):
 
     def __init__(self, real_timer: BackendTimerProtocol | None = None) -> None:
         self.real_timer = real_timer
+        self._start_time = None
+        self.duration = None
 
     def __enter__(self) -> Self:
         return self.start()
