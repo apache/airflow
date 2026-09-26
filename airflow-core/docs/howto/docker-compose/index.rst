@@ -92,6 +92,8 @@ This file contains several service definitions:
 - ``airflow-api-server`` - The api server is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-triggerer`` - The triggerer runs an event loop for deferrable tasks.
+- ``airflow-log-groomer`` - The log groomer that deletes task logs older than the configured retention
+  period. See :ref:`docker-compose-log-retention`.
 - ``airflow-init`` - The initialization service.
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
@@ -228,6 +230,50 @@ In a second terminal you can check the condition of the containers and make sure
     7cb1fb603a98   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp             compose_airflow-api_server_1
     74f3bbe506eb   postgres:16      |version-spacepad| "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
     0bd6576d23cb   redis:latest     |version-spacepad| "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
+
+.. _docker-compose-log-retention:
+
+Log rotation and retention
+==========================
+
+Task logs accumulate in the ``logs`` folder that is mounted into the containers. Airflow itself never
+rotates or deletes them, so this quick-start runs an ``airflow-log-groomer`` service that periodically
+deletes task logs older than the retention period, which is 15 days by default. It runs the same
+``/clean-logs`` script as the ``logGroomerSidecar`` of the :doc:`official Helm chart <helm-chart:index>`.
+
+The variables below can be set in the ``.env`` file next to your ``docker-compose.yaml``, or in the
+environment of the ``airflow-log-groomer`` service:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Variable
+     - Description
+     - Default
+   * - ``AIRFLOW__LOG_RETENTION_DAYS``
+     - Number of days to keep task logs for.
+     - ``15``
+   * - ``AIRFLOW__LOG_RETENTION_MINUTES``
+     - Number of extra minutes to keep task logs for, for finer granularity than days.
+     - ``0``
+   * - ``AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES``
+     - How often the log groomer looks for old task logs.
+     - ``15``
+   * - ``AIRFLOW__LOG_MAX_SIZE_BYTES``
+     - Maximum size of the logs folder. When it is exceeded, the retention period is reduced step by step until the folder fits. ``0`` disables the limit.
+     - ``0``
+   * - ``AIRFLOW__LOG_MAX_SIZE_PERCENT``
+     - Same as ``AIRFLOW__LOG_MAX_SIZE_BYTES``, but as a percentage of the disk size. Ignored when ``AIRFLOW__LOG_MAX_SIZE_BYTES`` is set.
+     - ``0``
+
+.. note::
+
+    The ``AIRFLOW__LOG_*`` variables are read by the ``/clean-logs`` script, not by Airflow itself.
+    Despite the prefix, they are not Airflow configuration options.
+
+If you prefer to keep all your logs, remove the ``airflow-log-groomer`` service from your
+``docker-compose.yaml``. For deployments that do not use this Docker Compose file, see
+:doc:`/administration-and-deployment/logging-monitoring/advanced-logging-configuration`.
 
 Accessing the environment
 =========================
@@ -507,3 +553,6 @@ users with the most common customizations.
 |                                  | example: ``lxml==4.6.3 charset-normalizer==1.4.1``. |                          |
 |                                  | Available in Airflow image 2.1.1 and above.         |                          |
 +----------------------------------+-----------------------------------------------------+--------------------------+
+
+In addition, the ``airflow-log-groomer`` service supports the ``AIRFLOW__LOG_*`` retention variables
+described in :ref:`docker-compose-log-retention`.

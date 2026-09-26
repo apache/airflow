@@ -54,6 +54,28 @@ These patterns can be adjusted by :ref:`config:logging__log_filename_template`.
 
 In addition, you can supply a remote location to store current logs and backups.
 
+Log rotation and retention
+--------------------------
+
+Local task log files are neither rotated nor deleted by Airflow — they keep growing until something else
+removes them, and no ``airflow.cfg`` option limits how long they are kept.
+
+A single task log file can be rotated by size through the standard Python logging configuration, by
+setting ``max_bytes`` and ``backup_count`` on the ``task`` handler as described in
+:doc:`advanced-logging-configuration`. Note that ``backup_count`` limits the number of rotated files per
+task attempt, not the number of days.
+
+Retention over time has to be handled by the deployment, for example with a cron job or a ``logrotate``
+configuration that removes old files from :ref:`config:logging__base_log_folder`. The
+:doc:`Docker Compose quick-start </howto/docker-compose/index>` runs an ``airflow-log-groomer`` service
+that does exactly this, and the official Helm chart has an equivalent ``logGroomerSidecar``. The Airflow
+image ships the same script as ``/clean-logs``, so any deployment can run it directly.
+
+If logs must be kept for longer than the local disk allows, use remote logging (see
+:doc:`apache-airflow-providers:core-extensions/logging`) together with the retention policy of the
+storage backend, optionally deleting the uploaded local copies with
+:ref:`config:logging__delete_local_logs`.
+
 Writing to task logs from your code
 -----------------------------------
 
