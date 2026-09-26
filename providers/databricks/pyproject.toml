@@ -20,7 +20,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==4.0.2"]
+requires = ["flit_core==4.1.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -87,7 +87,7 @@ dependencies = [
     "apache-airflow-providers-amazon>=9.22.0"
 ]
 "azure-identity" = [
-    "azure-identity>=1.3.1",
+    "azure-identity>=1.25.3",
 ]
 "fab" = [
     "apache-airflow-providers-fab>=2.2.0"
