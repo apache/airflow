@@ -1,0 +1,22 @@
+Google provider: ``CloudSqlProxyRunner`` can now run Cloud SQL Auth Proxy v2
+
+A new ``sql_proxy_major_version`` option (default ``1``, behavior unchanged) opts into
+the v2 binary: GitHub-releases download URL with its own version regex,
+``--unix-socket`` + positional instance instead of ``-dir``/``-instances``,
+``--auto-iam-authn`` for IAM login, and the v2 ready-line on startup.
+
+v1 cannot complete ``caching_sha2_password`` full authentication, so on Cloud SQL for
+MySQL 8.4 (where it is the default and ``mysql_native_password`` is unavailable) the
+first connection after a server restart, failover or maintenance event fails with
+``1045 Access denied``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
