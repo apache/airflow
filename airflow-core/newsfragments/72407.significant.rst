@@ -1,4 +1,4 @@
-Gracefully pause Dags by draining active runs (#72407, #73225)
+Gracefully pause Dags by draining active runs (#72407, #73225, #73055)
 
 Airflow now supports a ``draining`` scheduling state for Dags. Draining stops
 the scheduler from creating new scheduled or asset-triggered Dag runs while
@@ -9,6 +9,7 @@ After outstanding Dag runs finish, the Dag automatically transitions to
 ``paused``. Users can cancel draining to return the Dag to ``active``.
 
 The UI, REST API, and ``airflowctl`` expose the ``active``, ``draining``, and
-``paused`` scheduling states. Existing ``is_paused`` API usage remains
+``paused`` scheduling states, and the Dags list can pause, drain, or unpause
+several selected Dags at once. Existing ``is_paused`` API usage remains
 supported; use ``scheduling_state`` when the draining state must be selected or
 reported explicitly.

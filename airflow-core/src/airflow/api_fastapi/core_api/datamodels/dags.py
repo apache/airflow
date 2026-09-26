@@ -182,6 +182,12 @@ class DAGPatchBody(StrictBaseModel):
 DAGPatchBodyPartial = make_partial_model(DAGPatchBody)
 
 
+class BulkDAGBody(DAGPatchBody):
+    """Request body for bulk update of Dags."""
+
+    dag_id: str
+
+
 class DAGCollectionResponse(BaseModel):
     """Dag Collection serializer for responses."""
 
