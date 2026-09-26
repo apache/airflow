@@ -1946,26 +1946,46 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         The final state of the TaskInstance.
 
-        By default, this will be derived from the exit code of the task
-        (0=success, failed otherwise) but can be changed by the subprocess
-        sending a TaskState message, as long as the process exits with 0.
+        If a terminal state was already set -- via message from the subprocess (TaskState,
+        SucceedTask, RetryTask, etc.) or set directly by the supervisor itself (e.g.
+        SERVER_TERMINATED from `_send_heartbeat_if_needed`, with no subprocess message at all)
+        -- that terminal state is authoritative and takes precedence over the exit code, even
+        over a genuinely non-zero one, e.g. from `_handle_process_overtime_if_needed()`'s
+        SIGTERM once `_terminal_state` is already set. This subsumes SERVER_TERMINATED and
+        UP_FOR_RETRY specifically needing precedence; every terminal state does.
 
-        A nonzero exit code can override the worker outcome here. Deliver reports
-        using the message state, not this inferred state.
+        The clearest live case: `SucceedTask` writes SUCCESS directly
+        (`_send_terminal_state_msg`) before the process exits and clears the pending-message
+        slot on success. Without this precedence, a later non-zero exit code would override
+        the confirmed SUCCESS once nothing is pending: with retries disabled,
+        `update_task_state_if_needed()` would call `.finish()` against a row `succeed()`
+        already wrote, which 409s; with retries enabled, no write happens, but the state would
+        resolve to UP_FOR_RETRY instead of SUCCESS.
+
+        `TaskState(SKIPPED)` -- and any other terminal state outside STATES_SENT_DIRECTLY, e.g.
+        FAILED -- is normally delivered through the pending-message dispatch in
+        `update_task_state_if_needed()` (using the message's own state directly, never
+        consulting this property while a message is pending), so this precedence is
+        defense-in-depth there rather than the reachable case: it only matters if that
+        property is ever consulted with `_terminal_state` set and no message pending.
+
+        Only fall back to deriving the state from the exit code when no terminal state was
+        ever set at all.
 
         Not valid before the process has finished.
         """
-        if self._terminal_state in (SERVER_TERMINATED, TaskInstanceState.UP_FOR_RETRY):
+        if self._terminal_state is not None:
             return self._terminal_state
+
         if self._exit_code == 0:
-            return self._terminal_state or TaskInstanceState.SUCCESS
+            return TaskInstanceState.SUCCESS
 
         # Any non zero exit code indicates a failure
         # If retries are configured, mark as UP_FOR_RETRY
         # Negative exit codes indicate signal kills (often transient)
         # Positive exit codes can also be transient failures like network issues in a task communicating to
         # external services
-        if self._exit_code != 0 and self._should_retry:
+        if self._should_retry:
             return TaskInstanceState.UP_FOR_RETRY
 
         return TaskInstanceState.FAILED
