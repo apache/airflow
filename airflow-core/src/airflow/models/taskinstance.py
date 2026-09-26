@@ -541,6 +541,25 @@ def clear_task_instances(
     session.flush()
 
 
+def set_task_instances_state(
+    tis: Iterable[TaskInstance], state: TaskInstanceState | None, *, session: Session
+) -> None:
+    """
+    Set the state of task instances loaded in ``session``, flushing once.
+
+    The bulk counterpart of :meth:`TaskInstance.set_state`: the same state and dates on
+    each task instance, then one flush for all of them, so the unit of work emits the
+    UPDATEs in batches instead of a merge and a flush per task instance.
+
+    :meta private:
+    """
+    now = timezone.utcnow()
+    for ti in tis:
+        if ti.state != state:
+            ti._set_state_and_dates(state, now)
+    session.flush()
+
+
 def _creator_note(val):
     """Creator for the ``note`` association proxy."""
     if isinstance(val, str):
@@ -1048,18 +1067,21 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if self.state == state:
             return False
 
-        current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
         if self not in session:
             self.refresh_from_db(session=session)
-        self.state = state
-        self.start_date = self.start_date or current_time
-        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
-            self.end_date = self.end_date or current_time
-            self.duration = (self.end_date - self.start_date).total_seconds()
+        self._set_state_and_dates(state, timezone.utcnow())
         session.merge(self)
         session.flush()
         return True
+
+    def _set_state_and_dates(self, state: str | None, now: datetime) -> None:
+        """Set ``state`` and the dates it implies -- the part of :meth:`set_state` that touches no session."""
+        self.state = state
+        self.start_date = self.start_date or now
+        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
+            self.end_date = self.end_date or now
+            self.set_duration()
 
     @property
     def is_premature(self) -> bool:
