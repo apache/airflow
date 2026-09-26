@@ -213,6 +213,62 @@ class TestGlueJobOperator:
         assert serialized["verify"] is False
         assert serialized["botocore_config"] == botocore_config
 
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_forwards_stop_job_run_on_kill_to_trigger(self, _, mock_initialize_job):
+        """stop_job_run_on_kill must reach the trigger so a cleared deferred task can stop the run."""
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            deferrable=True,
+            stop_job_run_on_kill=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute(mock.MagicMock())
+
+        _, serialized = defer.value.trigger.serialize()
+        assert serialized["stop_job_run_on_kill"] is True
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="durable is a no-op before Airflow 3.3")
+    def test_durable_with_stop_job_run_on_kill_raises_in_deferrable(self):
+        with pytest.raises(ValueError, match="incompatible with durable=True in deferrable mode"):
+            GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                deferrable=True,
+                durable=True,
+                stop_job_run_on_kill=True,
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="durable defaults to True only on Airflow 3.3+")
+    def test_stop_job_run_on_kill_disables_default_durable_in_deferrable(self):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            deferrable=True,
+            stop_job_run_on_kill=True,
+        )
+        assert glue.durable is False
+
+    def test_sync_durable_with_stop_job_run_on_kill_allowed(self):
+        """Synchronous mode has no worker/trigger race, so the combination is permitted."""
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            deferrable=False,
+            durable=True,
+            stop_job_run_on_kill=True,
+        )
+        assert glue.stop_job_run_on_kill is True
+        if AIRFLOW_V_3_3_PLUS:
+            assert glue.durable is True
+
     @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
