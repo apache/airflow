@@ -19,4 +19,10 @@
 
 /** @module Types */
 
-export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "../src/index.js";
+export type {
+  ConnectionResult,
+  GetXComOpts,
+  JsonValue,
+  SetTaskStateStoreOpts,
+  SetXComOpts,
+} from "../src/index.js";
