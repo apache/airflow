@@ -105,3 +105,4 @@ class DagWarningType(str, Enum):
     DUPLICATE_DAG_ID = "duplicate dag id"
     NONEXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+    TASK_GROUP_CYCLE = "task group cycle"

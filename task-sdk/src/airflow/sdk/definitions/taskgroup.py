@@ -702,6 +702,70 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
         return [nodes[i] for i in sorted_indices]
 
+    def _find_dependency_cycles(self, *, group_dict: dict[str, TaskGroup]) -> list[list[str]]:
+        """
+        Find children that depend on each other in a cycle when each child TaskGroup is one unit.
+
+        A task with no upstream inside its own group counts as a root of that group, so edges
+        routed through tasks outside a group can make siblings depend on each other even though
+        the task-level graph is acyclic. ``topological_sort`` raises for such cycles.
+
+        :return: one list of child node ids per cycle, each in insertion order
+        """
+        nodes = list(self.children.values())
+        id_to_idx = {nid: i for i, nid in enumerate(self.children)}
+        projected = [
+            self._project_child_deps(i, child, id_to_idx, group_dict) for i, child in enumerate(nodes)
+        ]
+        members: dict[int, list[str]] = {}
+        for i, component in enumerate(self._find_projection_components(projected)):
+            members.setdefault(component, []).append(nodes[i].node_id)
+        return [node_ids for node_ids in members.values() if len(node_ids) > 1]
+
+    @staticmethod
+    def _find_projection_components(projected: list[tuple[int, ...]]) -> list[int]:
+        """Return each child's strongly connected component, numbered in order of its first child."""
+        n = len(projected)
+        successors: list[list[int]] = [[] for _ in range(n)]
+        for i, deps in enumerate(projected):
+            for d in deps:
+                successors[d].append(i)
+
+        # Kosaraju: finish order along successors, then collect components along dependencies.
+        visited = bytearray(n)
+        finish_order: list[int] = []
+        for start in range(n):
+            if visited[start]:
+                continue
+            visited[start] = 1
+            stack: list[tuple[int, Iterator[int]]] = [(start, iter(successors[start]))]
+            while stack:
+                node, remaining = stack[-1]
+                for s in remaining:
+                    if not visited[s]:
+                        visited[s] = 1
+                        stack.append((s, iter(successors[s])))
+                        break
+                else:
+                    stack.pop()
+                    finish_order.append(node)
+
+        root_of = [-1] * n
+        for start in reversed(finish_order):
+            if root_of[start] != -1:
+                continue
+            root_of[start] = start
+            to_visit = [start]
+            while to_visit:
+                node = to_visit.pop()
+                for d in projected[node]:
+                    if root_of[d] == -1:
+                        root_of[d] = start
+                        to_visit.append(d)
+
+        numbering: dict[int, int] = {}
+        return [numbering.setdefault(root, len(numbering)) for root in root_of]
+
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
         """
         Return mapped task groups in the hierarchy.

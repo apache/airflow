@@ -229,6 +229,7 @@ class DagBag(LoggingMixin):
         # Store import errors with relative file paths as keys (relative to bundle_path)
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
+        self.task_group_cycle_warnings: dict[str, str] = {}
         self.has_logged = False
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
@@ -387,9 +388,15 @@ class DagBag(LoggingMixin):
         """Get the set of DagWarnings for the bagged dags."""
         from airflow.models.dagwarning import DagWarning, DagWarningType
 
+        warnings: set[DagWarning] = {
+            DagWarning(dag_id, DagWarningType.TASK_GROUP_CYCLE, message)
+            for dag_id, message in self.task_group_cycle_warnings.items()
+            if dag_id in self.dags
+        }
+
         # None means this feature is not enabled. Empty set means we don't know about any pools at all!
         if self.known_pools is None:
-            return set()
+            return warnings
 
         def get_pools(dag) -> dict[str, set[str]]:
             return {dag.dag_id: {task.pool for task in dag.tasks}}
@@ -398,7 +405,6 @@ class DagBag(LoggingMixin):
         for dag in self.dags.values():
             pool_dict.update(get_pools(dag))
 
-        warnings: set[DagWarning] = set()
         for dag_id, dag_pools in pool_dict.items():
             nonexistent_pools = dag_pools - self.known_pools
             if nonexistent_pools:
@@ -429,7 +435,16 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        dag.check_cycle()
+        from airflow.sdk.exceptions import AirflowDagCycleException, TaskGroupCycleDeprecationWarning
+
+        self.task_group_cycle_warnings.pop(dag.dag_id, None)
+        with _capture_with_reraise() as captured_warnings:
+            # DeprecationWarning is ignored by default outside __main__, which would hide it here too.
+            warnings.simplefilter("always", TaskGroupCycleDeprecationWarning)
+            dag.check_cycle()
+        for captured in captured_warnings:
+            if issubclass(captured.category, TaskGroupCycleDeprecationWarning):
+                self.task_group_cycle_warnings[dag.dag_id] = str(captured.message)
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
@@ -452,8 +467,6 @@ class DagBag(LoggingMixin):
         except Exception as e:
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
-        from airflow.sdk.exceptions import AirflowDagCycleException
-
         try:
             prev_dag = self.dags.get(dag.dag_id)
             if prev_dag and prev_dag.fileloc != dag.fileloc:
