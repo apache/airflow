@@ -403,6 +403,13 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
+    # Cache per-dag lookups of the latest serialized DAG and DagVersion:
+    # get_latest_version_of_dag deserializes the whole DAG on every call, so
+    # calling it per task instance makes clearing O(n) full-DAG loads. One
+    # lookup per dag_id also keeps the clear consistent if a new version is
+    # serialized while it runs.
+    latest_dags: dict[str, Any] = {}
+    latest_versions: dict[str, DagVersion | None] = {}
     for ti in tis:
         ti.prepare_db_for_next_try(session)
 
@@ -423,7 +430,11 @@ def clear_task_instances(
             # run loop below moves it there.
             use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
             if use_latest_version:
-                ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
+                if ti.dag_id not in latest_dags:
+                    latest_dags[ti.dag_id] = scheduler_dagbag.get_latest_version_of_dag(
+                        ti.dag_id, session=session
+                    )
+                ti_dag = latest_dags[ti.dag_id]
             else:
                 ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
             if not ti_dag:
@@ -446,7 +457,9 @@ def clear_task_instances(
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
-                latest_dag_version = DagVersion.get_latest_version(ti.dag_id, session=session)
+                if ti.dag_id not in latest_versions:
+                    latest_versions[ti.dag_id] = DagVersion.get_latest_version(ti.dag_id, session=session)
+                latest_dag_version = latest_versions[ti.dag_id]
                 if latest_dag_version is not None:
                     ti.dag_version_id = latest_dag_version.id
             elif ti.dag_version_id is None:
