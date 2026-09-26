@@ -383,20 +383,20 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :raises RuntimeError: If the query status is 'error' and `raise_error` is True.
         :raises TimeoutError: If the query doesn't finish within the specified timeout.
         """
-        start_time = time.time()
+        start_time = time.monotonic()
 
         while True:
             response = self.get_sql_api_query_status(query_id=query_id)
             self.log.debug("Query status `%s`", response["status"])
 
-            if time.time() - start_time > timeout:
-                raise TimeoutError(
-                    f"Query `{query_id}` did not finish within the timeout period of {timeout} seconds."
-                )
-
             if response["status"] != "running":
                 self.log.info("Query status `%s`", response["status"])
                 break
+
+            if time.monotonic() - start_time > timeout:
+                raise TimeoutError(
+                    f"Query `{query_id}` did not finish within the timeout period of {timeout} seconds."
+                )
 
             time.sleep(poll_interval)
 
