@@ -1669,7 +1669,13 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 stats.incr(
                     "dag_processing.processor_timeouts",
-                    tags=prune_dict({"file_path": file_path_tag, "team_name": team_name}),
+                    tags=prune_dict(
+                        {
+                            "file_path": file_path_tag,
+                            "bundle_name": normalize_name_for_stats(file.bundle_name),
+                            "team_name": team_name,
+                        }
+                    ),
                 )
                 processor.kill(signal.SIGKILL)
 

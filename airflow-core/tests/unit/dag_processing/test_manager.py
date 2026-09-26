@@ -1614,14 +1614,18 @@ class TestDagFileProcessorManager:
 
         assert call_order == ["kill", "close"]
 
-    def test_kill_timed_out_processors_kill(self):
+    @pytest.mark.parametrize(
+        ("bundle_name", "expected_bundle_tag"),
+        [("bundle_a", "bundle_a"), ("bundle_b", "bundle_b"), ("bundle a", "bundle_a")],
+    )
+    def test_kill_timed_out_processors_kill(self, bundle_name, expected_bundle_tag):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
         start_time = time.monotonic() - manager.processor_timeout - 1
         processor, _ = self.mock_processor(start_time=start_time)
         manager._processors = {
             DagFileInfo(
-                bundle_name="testing", rel_path=Path("folder/abc txt.py"), bundle_path=TEST_DAGS_FOLDER
+                bundle_name=bundle_name, rel_path=Path("folder/abc txt.py"), bundle_path=TEST_DAGS_FOLDER
             ): processor
         }
         with (
@@ -1637,7 +1641,7 @@ class TestDagFileProcessorManager:
         )
         stats_incr_mock.assert_called_once_with(
             "dag_processing.processor_timeouts",
-            tags={"file_path": "folder_abc_txt.py"},
+            tags={"file_path": "folder_abc_txt.py", "bundle_name": expected_bundle_tag},
         )
         assert len(manager._processors) == 0
         processor.logger_filehandle.close.assert_called()
@@ -4182,7 +4186,7 @@ class TestMultiTeamMetrics:
         )
         mock_incr.assert_any_call(
             "dag_processing.processor_timeouts",
-            tags={"file_path": "dag_file.py", "team_name": "team_alpha"},
+            tags={"file_path": "dag_file.py", "bundle_name": "testing", "team_name": "team_alpha"},
         )
 
     @conf_vars({("core", "multi_team"): "true"})
