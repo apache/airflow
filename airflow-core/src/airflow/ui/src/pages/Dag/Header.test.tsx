@@ -49,6 +49,7 @@ const mockDag = {
   next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
   next_dagrun_run_after: "2024-08-22T19:00:00+00:00",
   owner_links: {},
+  queued_runs_count: 0,
   relative_fileloc: "stale_dag.py",
   tags: [],
   timetable_partitioned: false,
@@ -91,6 +92,32 @@ describe("Header", () => {
 
     expect(screen.getByText(i18n.t("common:dagDetails.activeRuns"))).toBeInTheDocument();
     expect(screen.getByText("2 of 2")).toBeInTheDocument();
+  });
+
+  it("does not show an info icon or queued count when nothing is queued", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 1, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByTestId("active-runs-exceeds-max-info")).not.toBeInTheDocument();
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+  });
+
+  it("shows an info icon and the queued count when runs are queued behind the maximum", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 1, max_active_runs: 1, queued_runs_count: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("active-runs-exceeds-max-info")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        i18n.t("common:dagDetails.activeRunsWithQueued", { activeRuns: 1, maxActiveRuns: 1, queuedRuns: 2 }),
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders the draining badge instead of the next run timestamp for a draining Dag", () => {

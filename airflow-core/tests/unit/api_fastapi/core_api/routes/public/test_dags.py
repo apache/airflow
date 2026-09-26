@@ -1356,6 +1356,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_at_max_active_runs": False,
             "is_backfillable": False,
             "is_favorite": False,
             "is_paused": False,
@@ -1394,6 +1395,7 @@ class TestDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
+            "queued_runs_count": 0,
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "rerun_with_latest_version": None,
@@ -1456,7 +1458,7 @@ class TestDagDetails(TestDagEndpoint):
         assert response.json()["asset_expression"] is None
 
     def test_dag_details_includes_active_runs_count(self, session, test_client):
-        """Test that DAG details include the active_runs_count field."""
+        """Test that DAG details include the active_runs_count and queued_runs_count fields."""
         # Create running and queued DAG runs for DAG2
         session.add(
             DagRun(
@@ -1503,6 +1505,11 @@ class TestDagDetails(TestDagEndpoint):
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 1  # only running counts, queued does not
 
+        # Verify queued_runs_count field is present and correct
+        assert "queued_runs_count" in body
+        assert isinstance(body["queued_runs_count"], int)
+        assert body["queued_runs_count"] == 1  # only queued counts, running/success do not
+
         # Test with DAG that has no active runs
         response = test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 200
@@ -1511,6 +1518,31 @@ class TestDagDetails(TestDagEndpoint):
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
+
+        assert "queued_runs_count" in body
+        assert isinstance(body["queued_runs_count"], int)
+        assert body["queued_runs_count"] == 0
+
+    def test_dag_details_includes_is_at_max_active_runs(self, session, test_client):
+        """Test that DAG details include the is_at_max_active_runs field."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.exceeds_max_non_backfill = True
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "is_at_max_active_runs" in body
+        assert body["is_at_max_active_runs"] is True
+
+        # Test with a DAG that has not hit its max_active_runs
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "is_at_max_active_runs" in body
+        assert body["is_at_max_active_runs"] is False
 
     def test_dag_details_team_name_none_without_multi_team(self, test_client):
         """Without multi-team enabled, ``team_name`` stays ``None`` and no lookup happens."""

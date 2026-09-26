@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiBookOpen } from "react-icons/fi";
+import { FiBookOpen, FiInfo } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 
-import { RouterLink } from "src/system-components";
+import { RouterLink, Tooltip } from "src/system-components";
 
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
@@ -113,11 +114,27 @@ export const Header = ({
     },
     ...nextRunStat,
     {
-      label: translate("dagDetails.activeRuns"),
+      label:
+        (dag?.queued_runs_count ?? 0) > 0 ? (
+          <HStack gap={1}>
+            {translate("dagDetails.activeRuns")}
+            <Tooltip content={translate("dagDetails.activeRunsExceedsMaxTooltip")}>
+              <FiInfo data-testid="active-runs-exceeds-max-info" />
+            </Tooltip>
+          </HStack>
+        ) : (
+          translate("dagDetails.activeRuns")
+        ),
       value:
         dag?.max_active_runs === undefined
           ? undefined
-          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
+          : (dag.queued_runs_count ?? 0) > 0
+            ? translate("dagDetails.activeRunsWithQueued", {
+                activeRuns: dag.active_runs_count ?? 0,
+                maxActiveRuns: dag.max_active_runs,
+                queuedRuns: dag.queued_runs_count,
+              })
+            : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
     },
     {
       label: translate("dagDetails.owner"),
