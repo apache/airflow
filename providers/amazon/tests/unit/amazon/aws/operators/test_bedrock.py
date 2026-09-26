@@ -702,6 +702,129 @@ class TestBedrockCreateKnowledgeBaseOperator:
         assert mock_conn.create_knowledge_base.call_count == 21
         assert mock_sleep.call_count == 20
 
+    def test_create_managed_knowledge_base(self, mock_conn):
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_kb",
+            name="managed_kb",
+            role_arn="role-arn",
+            knowledge_base_configuration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+            },
+            wait_for_completion=False,
+        )
+
+        result = operator.execute({})
+
+        assert result == self.KNOWLEDGE_BASE_ID
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name="managed_kb",
+            roleArn="role-arn",
+            knowledgeBaseConfiguration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+            },
+        )
+
+    def test_create_managed_knowledge_base_via_create_knowledge_base_kwargs(self, mock_conn):
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_kb",
+            name="managed_kb",
+            role_arn="role-arn",
+            create_knowledge_base_kwargs={
+                "knowledgeBaseConfiguration": {
+                    "type": "MANAGED",
+                    "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+                }
+            },
+            wait_for_completion=False,
+        )
+
+        result = operator.execute({})
+
+        assert result == self.KNOWLEDGE_BASE_ID
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name="managed_kb",
+            roleArn="role-arn",
+            knowledgeBaseConfiguration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+            },
+        )
+
+    def test_managed_knowledge_base_does_not_retry_indexing(self, mock_conn):
+        """Managed knowledge base does not have a self-managed vector index, so it must not retry."""
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_kb",
+            name="managed_kb",
+            role_arn="role-arn",
+            knowledge_base_configuration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+            },
+            wait_for_completion=False,
+        )
+        validation_error = self._create_validation_error("no such index [some-index]")
+        mock_conn.create_knowledge_base.side_effect = [validation_error]
+
+        with pytest.raises(ClientError):
+            operator.execute({})
+
+        assert mock_conn.create_knowledge_base.call_count == 1
+
+    def test_missing_role_arn_raises_value_error(self):
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_kb",
+            name="my_kb",
+            embedding_model_arn="arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1",
+            storage_config={"type": "OPENSEARCH_SERVERLESS"},
+            wait_for_completion=False,
+        )
+        with pytest.raises(ValueError, match="`role_arn` must be specified"):
+            operator.execute({})
+
+    def test_missing_config_and_embedding_model_raises_value_error(self):
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_kb",
+            name="my_kb",
+            role_arn="role-arn",
+            wait_for_completion=False,
+        )
+        with pytest.raises(
+            ValueError,
+            match="Either `knowledge_base_configuration` or `embedding_model_arn` must be provided",
+        ):
+            operator.execute({})
+
+    def test_vector_kb_missing_storage_config_raises_value_error(self):
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_kb",
+            name="my_kb",
+            role_arn="role-arn",
+            embedding_model_arn="arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1",
+            wait_for_completion=False,
+        )
+        with pytest.raises(
+            ValueError, match="`storage_config` is required when creating a VECTOR knowledge base"
+        ):
+            operator.execute({})
+
+    def test_knowledge_base_config_property_and_alias(self):
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_kb",
+            name="my_kb",
+            role_arn="role-arn",
+            knowledge_base_config={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+            },
+        )
+        assert operator.knowledge_base_configuration == {
+            "type": "MANAGED",
+            "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+        }
+        assert operator.knowledge_base_config == operator.knowledge_base_configuration
+
 
 class TestBedrockCreateDataSourceOperator:
     DATA_SOURCE_ID = "data_source_id"
