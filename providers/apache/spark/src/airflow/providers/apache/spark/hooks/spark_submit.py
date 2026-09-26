@@ -515,27 +515,64 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
-        # where key contains password (case insensitive), e.g. HivePassword='abc'
-        connection_cmd_masked = re.sub(
-            r"("
-            r"\S*?"  # Match all non-whitespace characters before...
-            r"(?:secret|password)"  # ...literally a "secret" or "password"
-            # word (not capturing them).
-            r"\S*?"  # All non-whitespace characters before either...
-            r"(?:=|\s+)"  # ...an equal sign or whitespace characters
-            # (not capturing them).
-            r"(['\"]?)"  # An optional single or double quote.
-            r")"  # This is the end of the first capturing group.
-            r"(?:(?!\2\s).)*"  # All characters between optional quotes
-            # (matched above); if the value is quoted,
-            # it may contain whitespace.
-            r"(\2)",  # Optional matching quote.
-            r"\1******\3",
-            " ".join(connection_cmd),
-            flags=re.I,
-        )
+        # where key contains password (case insensitive), e.g. HivePassword='abc'.
+        #
+        # Tokenised rather than matched with a single regex over the whole command:
+        # a regex with a lazy \S*? prefix re-attempts that scan from every position
+        # in the string, so a long user-controlled token containing neither "secret"
+        # nor "password" (e.g. a crafted application_arg) made the previous
+        # implementation quadratic in that token's length (CVE affecting this
+        # method). Splitting on whitespace first, then checking each token with a
+        # plain substring test, keeps every step linear regardless of what a caller
+        # puts in application_args.
+        tokens = " ".join(connection_cmd).split()
+        masked_tokens = []
+        index = 0
+        while index < len(tokens):
+            token = tokens[index]
+            lowered = token.lower()
+            if "secret" not in lowered and "password" not in lowered:
+                masked_tokens.append(token)
+                index += 1
+                continue
+            if "=" in token:
+                key, _, value_head = token.partition("=")
+                index += 1
+                masked_value, index = self._mask_value(value_head, tokens, index)
+                masked_tokens.append(f"{key}={masked_value}")
+            else:
+                # Bare key with no "="; the value is whitespace-separated, e.g.
+                # "--password 'abc'", so it's the next token.
+                masked_tokens.append(token)
+                index += 1
+                if index < len(tokens):
+                    value_head = tokens[index]
+                    index += 1
+                    masked_value, index = self._mask_value(value_head, tokens, index)
+                    masked_tokens.append(masked_value)
+        return " ".join(masked_tokens)
 
-        return connection_cmd_masked
+    @staticmethod
+    def _mask_value(value_head: str, tokens: list[str], index: int) -> tuple[str, int]:
+        """
+        Mask a single value, folding in later tokens if it opens an unclosed quote.
+
+        ``value_head`` is the first (possibly only) token of the value. If it opens a
+        quote that the same token doesn't also close, the value contains whitespace
+        (e.g. ``--password 'a b c'`` splits into multiple tokens), so this consumes
+        tokens from ``tokens`` starting at ``index`` until one closes the quote.
+        Returns the masked value and the index to resume scanning from.
+        """
+        if not value_head or value_head[0] not in "'\"":
+            return "******", index
+        quote = value_head[0]
+        if len(value_head) > 1 and value_head[-1] == quote:
+            return f"{quote}******{quote}", index
+        while index < len(tokens) and not tokens[index].endswith(quote):
+            index += 1
+        if index < len(tokens):
+            index += 1  # Consume the token that closed the quote too.
+        return f"{quote}******{quote}", index
 
     @property
     def _submit_log_tail(self) -> str:
