@@ -21,7 +21,7 @@ import { useState } from "react";
 import { Center, HStack, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { useDagServiceGetDag } from "openapi/queries";
+import { useDagServiceGetDagDetails } from "openapi/queries";
 
 import { Modal, Tooltip, RadioCardItem, RadioCardRoot } from "src/system-components";
 
@@ -64,19 +64,22 @@ const TriggerDAGModal = ({
     data: dag,
     isError,
     isLoading,
-  } = useDagServiceGetDag(
+  } = useDagServiceGetDagDetails(
     {
       dagId,
     },
     undefined,
     {
       enabled: open,
+      // suggested_partition_key is computed per request; a cached one may name an elapsed partition.
+      staleTime: 0,
     },
   );
 
   const isBackfillable = dag?.is_backfillable ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
+  const suggestedPartitionKey = dag?.suggested_partition_key ?? undefined;
   const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
@@ -149,6 +152,7 @@ const TriggerDAGModal = ({
               onSubmitTrigger={triggerDagRun}
               open={open}
               prefillConfig={prefillConfig}
+              suggestedPartitionKey={suggestedPartitionKey}
             />
           ) : (
             isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />

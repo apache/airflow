@@ -338,6 +338,35 @@ class Timetable(Protocol):
         """
         return None
 
+    def suggest_partition_key(self, now: DateTime) -> str | None:
+        """
+        Suggest a partition key for a manual trigger happening at *now*.
+
+        Used to pre-populate the partition key field when a user manually triggers a Dag
+        run through the UI, so they are not required to know the exact key format by
+        heart. Returns ``None`` when this timetable is not ``partitioned``, when it defers
+        partition selection to runtime (``partitioned_at_runtime``), or when the concrete
+        timetable does not implement a suggestion (the default).
+
+        :param now: The instant to compute the suggestion for — normally "right now", the
+            moment the trigger form is rendered.
+        :returns: A partition key string ready to pre-fill the trigger form, or ``None`` if
+            no suggestion is available.
+        """
+        if not self.partitioned or self.partitioned_at_runtime:
+            return None
+        return self._compute_current_partition_key(now)
+
+    def _compute_current_partition_key(self, now: DateTime) -> str | None:
+        """
+        Compute the key of the partition that is current as of *now*.
+
+        Called by :meth:`suggest_partition_key` only after the partitioned-state guards
+        pass. The default returns ``None``; partitioned timetables that can derive a
+        current partition from a point in time override this.
+        """
+        return None
+
     @property
     def partition_mapper_info(self) -> list[PartitionMapperInfo]:
         """
