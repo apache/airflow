@@ -601,6 +601,17 @@ class BaseSerialization:
                     [cls.serialize(v, strict=strict) for v in var],
                     type_=DAT.SET,
                 )
+        elif isinstance(var, frozenset):
+            try:
+                return cls._encode(
+                    sorted(cls.serialize(v, strict=strict) for v in var),
+                    type_=DAT.FROZENSET,
+                )
+            except TypeError:
+                return cls._encode(
+                    [cls.serialize(v, strict=strict) for v in var],
+                    type_=DAT.FROZENSET,
+                )
         elif isinstance(var, tuple):
             # FIXME: casts tuple to list in customized serialization in future.
             return cls._encode(
@@ -700,6 +711,8 @@ class BaseSerialization:
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
+        elif type_ == DAT.FROZENSET:
+            return frozenset(cls.deserialize(v) for v in var)
         elif type_ == DAT.TUPLE:
             return tuple(cls.deserialize(v) for v in var)
         elif type_ == DAT.PARAM:
