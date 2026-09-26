@@ -72,12 +72,12 @@ mid-size active project.
 
 | Dimension | Default (low bar) | Project value | Notes |
 |---|---|---|---|
-| `prs_merged` | `5` | | Merged PRs — the clearest signal of sustained code contribution |
-| `reviews_total` | `3` | | Total review acts — shows engagement with others' work |
-| `reviews_substantive` | `2` | | Reviews with real inline feedback (≥ 3 comments or > 50 char body) |
-| `issues_filed` | `0` | | Set to 0 to treat as non-required; many valid tracks don't involve filing issues |
-| `threads_commented` | `5` | | PR/issue comment threads — basic community presence |
-| `area_breadth` | `0` | | Distinct `area:*` labels across merged PRs; 0 = no breadth requirement |
+| `prs_merged` | `5` | `40` | Merged PRs — the clearest signal of sustained code contribution |
+| `reviews_total` | `3` | `20` | Total review acts — shows engagement with others' work |
+| `reviews_substantive` | `2` | `3` | Reviews with real inline feedback (≥ 3 comments or > 50 char body) |
+| `issues_filed` | `0` | `2` | Set to 0 to treat as non-required; many valid tracks don't involve filing issues |
+| `threads_commented` | `5` | `35` | PR/issue comment threads — basic community presence |
+| `area_breadth` | `0` | `5` | Distinct `area:*` labels across merged PRs; 0 = no breadth requirement |
 
 ---
 
@@ -89,12 +89,49 @@ PMC as a senior track.
 
 | Dimension | Default (low bar) | Project value | Notes |
 |---|---|---|---|
-| `prs_merged` | `10` | | |
-| `reviews_total` | `8` | | PMC members are expected to help evaluate others' work |
-| `reviews_substantive` | `4` | | |
-| `issues_filed` | `0` | | |
-| `threads_commented` | `10` | | |
-| `area_breadth` | `2` | | PMC members typically span multiple project areas |
+| `prs_merged` | `10` | `40` | |
+| `reviews_total` | `8` | `100` | PMC members are expected to help evaluate others' work |
+| `reviews_substantive` | `4` | `8` | |
+| `issues_filed` | `0` | `2` | |
+| `threads_commented` | `10` | `150` | |
+| `area_breadth` | `2` | `8` | PMC members typically span multiple project areas |
+
+---
+
+## Automated and low-signal contributions
+
+How the readiness tracker discounts visibly automated or low-signal GitHub activity.
+The full definition — detection heuristics, aggregation, and how the brief reports raw and adjusted counts — is [`automated-contributions.md`](https://github.com/apache/magpie/blob/main/skills/contributor-nomination/automated-contributions.md).
+
+The discount is a signal for the humans reading the brief, never an automatic disqualification.
+Using AI tools, and disclosing that use, is not penalised; only restatement, content maintainers pushed back on, and work closed after that pushback are discounted.
+
+Each key is resolved from this file first, then from `contributor-nomination-config.md`, then from the default below.
+
+| Key | Default | Project value | Notes |
+|---|---|---|---|
+| `automated_contribution_weight` | `0.25` | | Weight (0–1) of a merged or open PR, issue, review or comment that drew maintainer pushback as looking generated, unreviewed, restating, fabricated, or unwanted |
+| `restatement_comment_weight` | `0` | | Weight (0–1) of a comment or review body that only restates the description, earlier comments, or the diff |
+| `closed_after_pushback_weight` | `0` | | Weight (0–1) of a PR or issue closed unmerged after that pushback; `0` removes it from every metric |
+| `automated_pushback_phrases` | empty | | Extra phrases your maintainers use when pushing back, added to the generic list |
+
+Set all three weights to `1` to turn the arithmetic off; flagged items are still listed in the brief.
+
+### Project expectations for AI-assisted contributions
+
+List the documents in which your project states what it expects from AI-assisted and automated contributions — a generative-AI contribution policy, PR guidelines, a review or triage guide.
+Use paths relative to the repository root, or `https://` URLs, optionally with a `#section` anchor.
+
+```yaml
+automated_contribution_expectations:
+  - contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions
+  - contributing-docs/25_maintainer_pr_triage.md#why-the-first-pass-is-automated
+  - contributing-docs/25_maintainer_pr_triage.md#for-contributors
+```
+
+When the list is present, the skill reads each document, judges contributions against it first, and cites the document and section each flagged item conflicts with.
+When it is empty or none of the documents can be read, the skill falls back to the framework's generic heuristics and says so in the brief.
+The skill does not go looking for policy documents this list does not name.
 
 ---
 
@@ -109,6 +146,10 @@ about how the PMC calibrates nominations.
 Source: COMMITTERS.rst ("Guidelines to become an Airflow Committer" and
 "Guidelines for promoting Committers to Airflow PMC"). There is no strict
 numeric protocol; the PMC weighs combined contributions across areas.
+- The numeric thresholds are a floor for surfacing candidates, never a
+  decision rule: activity volume alone does not make a candidate. Breadth
+  across areas, dev list participation, release testing and sustained
+  activity weigh as much as the counts.
 - Committer prerequisites: consistent contribution over at least three
   months; visibility on the dev list, Slack or GitHub issues/discussions
   (including non-binding votes and testing release candidates); helping

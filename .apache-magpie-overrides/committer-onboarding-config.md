@@ -125,7 +125,7 @@ committer_intake_dco:
   # Linux Foundation / CNCF projects typically link
   # https://developercertificate.org/ plus their own CONTRIBUTING.md.
   # Consumed by: committer-onboarding.
-  reference_url: TODO  # e.g. https://developercertificate.org/
+  reference_url: null  # n/a — Airflow uses the icla model, not DCO
 
   # Minimum number of the candidate's recently merged PRs that must
   # carry a valid `Signed-off-by:` line before the skill considers
@@ -218,7 +218,7 @@ committer_governance_github_codeowners:
   # committer/maintainer team. The skill invites the new committer
   # to this team after the vote passes.
   # Consumed by: committer-onboarding.
-  maintainers_team: TODO  # e.g. apache/airflow-committers
+  maintainers_team: apache/airflow-committers
 
   # Path to the CODEOWNERS file in the upstream repo, relative to
   # the repo root. The skill optionally opens a PR adding the new
@@ -233,7 +233,7 @@ committer_governance_github_codeowners:
   # `off-band` = the vote happened in Slack / email / another channel
   # and the skill just records the outcome.
   # Consumed by: committer-onboarding (vote-validation step).
-  vote_channel: TODO  # github-discussion | github-issue | off-band
+  vote_channel: off-band  # votes are held on the private PMC mailing list
 ```
 
 #### `maintainer-roster` model
@@ -243,19 +243,19 @@ committer_governance_maintainer_roster:
   # Path to the roster file (relative to <project-config>/) that
   # the skill updates when a vote passes.
   # Consumed by: committer-onboarding.
-  roster_file: TODO  # e.g. MAINTAINERS.md
+  roster_file: null  # n/a — Airflow uses the asf-pmc model (roster in Whimsy)
 
   # Minimum number of approvals required from existing listed
   # maintainers before the skill considers the vote passed.
   # Consumed by: committer-onboarding (vote-validation step).
-  min_approvals: TODO  # e.g. 2
+  min_approvals: 3  # ASF rule: at least 3 binding +1 votes and no veto
 
   # Channel where votes are held — used by the skill when
   # summarising the vote result.
   # Allowed values: github-discussion, github-issue, mailing-list,
   #   slack-channel, off-band
   # Consumed by: committer-onboarding.
-  vote_channel: TODO
+  vote_channel: mailing-list
 ```
 
 ---
