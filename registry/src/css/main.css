@@ -3552,12 +3552,14 @@ main {
 /* Module Actions (View Docs, Source) */
 .provider-detail-page .module-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-3);
 }
 
 .provider-detail-page .module-actions .docs-link,
+.provider-detail-page .module-actions .guide-link,
 .provider-detail-page .module-actions .source-link {
   display: inline-flex;
   align-items: center;
@@ -3572,6 +3574,14 @@ main {
 }
 
 .provider-detail-page .module-actions .docs-link:hover {
+  color: var(--color-cyan-300);
+}
+
+.provider-detail-page .module-actions .guide-link {
+  color: var(--accent-secondary);
+}
+
+.provider-detail-page .module-actions .guide-link:hover {
   color: var(--color-cyan-300);
 }
 
