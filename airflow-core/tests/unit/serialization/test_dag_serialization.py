@@ -1226,6 +1226,15 @@ class TestStringifiedDAGs:
                 relativedelta(weekday=FR(2)),
                 {"__type": "relativedelta", "__var": {"weekday": [4, 2]}},
             ),
+            # Every friday at midnight: absolute fields set to 0 must be kept
+            (
+                relativedelta(weekday=FR, hour=0, minute=0, second=0),
+                {"__type": "relativedelta", "__var": {"weekday": [4], "hour": 0, "minute": 0, "second": 0}},
+            ),
+            (
+                relativedelta(days=1, hour=0, microsecond=0),
+                {"__type": "relativedelta", "__var": {"days": 1, "hour": 0, "microsecond": 0}},
+            ),
         ],
     )
     def test_roundtrip_relativedelta(self, val, expected):

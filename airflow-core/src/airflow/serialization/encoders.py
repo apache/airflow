@@ -117,9 +117,20 @@ def encode_expand_input(var: ExpandInput) -> dict[str, Any]:
     return {"type": var.EXPAND_INPUT_TYPE, "value": BaseSerialization.serialize(var.value)}
 
 
+_RELATIVEDELTA_ABSOLUTE_FIELDS = frozenset(
+    {"year", "month", "day", "hour", "minute", "second", "microsecond"}
+)
+
+
 def encode_relativedelta(var: relativedelta) -> dict[str, Any]:
     """Encode a relativedelta object."""
-    encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
+    # Relative fields (days, hours, ...) default to 0, absolute ones (day, hour, ...) to None.
+    # 0 is a real value for an absolute field, e.g. hour=0 snaps to midnight.
+    encoded = {
+        k: v
+        for k, v in var.__dict__.items()
+        if not k.startswith("_") and (v is not None if k in _RELATIVEDELTA_ABSOLUTE_FIELDS else v)
+    }
     if var.weekday and var.weekday.n:
         # Every n'th Friday for example
         encoded["weekday"] = [var.weekday.weekday, var.weekday.n]
