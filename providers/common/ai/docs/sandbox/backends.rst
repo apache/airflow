@@ -185,7 +185,7 @@ Install the SDK extra:
 
 Credentials come from an ``islo`` connection (see :doc:`../connections/islo`),
 resolved lazily on first use through
-:class:`~airflow.providers.common.ai.hooks.islo.IsloHook`, so the API key lives in
+:class:`~airflow.providers.common.ai.sandbox.islo.IsloHook`, so the API key lives in
 your configured secrets backend rather than the worker environment.
 
 Constructor parameters:
