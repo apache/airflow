@@ -346,6 +346,7 @@ Currently, **officially** using Airflow:
 1. [Logitravel Group](https://www.logitravel.com/)
 1. [LokSuvidha](http://loksuvidha.com/) [[@saurabhwahile](https://github.com/saurabhwahile)]
 1. [Los Angeles Times](http://www.latimes.com/) [[@standyro](https://github.com/standyro)]
+1. [Louisa AI](https://www.louisa.ai/) [[@VinolFernandes](https://github.com/VinolFernandes)]
 1. [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]
 1. [Lumos Labs](https://www.lumosity.com/) [[@rfroetscher](https://github.com/rfroetscher/) & [@zzztimbo](https://github.com/zzztimbo/)]
 1. [Lyft](https://www.lyft.com/) [[@feng-tao](https://github.com/feng-tao), [@milton0825](https://github.com/milton0825), [@astahlman](https://github.com/astahlman), [@youngyjd](https://github.com/youngyjd), [@ArgentFalcon](https://github.com/ArgentFalcon)]
