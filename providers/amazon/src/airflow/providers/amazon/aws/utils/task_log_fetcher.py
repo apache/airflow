@@ -100,24 +100,26 @@ class AwsTaskLogFetcher(Thread):
 
     def run(self) -> None:
         continuation_token = AwsLogsHook.ContinuationToken()
-        while not self.is_stopped():
-            time.sleep(self.fetch_interval.total_seconds())
-            log_events = self._get_log_events(continuation_token)
-            prev_timestamp_event = None
-            for log_event in log_events:
-                current_timestamp_event = datetime.fromtimestamp(
-                    log_event["timestamp"] / 1000.0, tz=timezone.utc
-                )
-                if current_timestamp_event == prev_timestamp_event:
-                    # When multiple events have the same timestamp, somehow, only one event is logged
-                    # As a consequence, some logs are missed in the log group (in case they have the same
-                    # timestamp)
-                    # When a slight delay is added before logging the event, that solves the issue
-                    # See https://github.com/apache/airflow/issues/40875
-                    time.sleep(0.001)
-                level = _parse_log_level(log_event["message"])
-                self.logger.log(level, self.event_to_str(log_event))
-                prev_timestamp_event = current_timestamp_event
+        while not self._event.wait(self.fetch_interval.total_seconds()):
+            self._forward_log_events(continuation_token)
+        # `stop()` is called once the task or job has ended, so the events written between the last
+        # fetch above and that moment have not been read yet: read them before the thread exits.
+        self._forward_log_events(continuation_token)
+
+    def _forward_log_events(self, continuation_token: AwsLogsHook.ContinuationToken) -> None:
+        prev_timestamp_event = None
+        for log_event in self._get_log_events(continuation_token):
+            current_timestamp_event = datetime.fromtimestamp(log_event["timestamp"] / 1000.0, tz=timezone.utc)
+            if current_timestamp_event == prev_timestamp_event:
+                # When multiple events have the same timestamp, somehow, only one event is logged
+                # As a consequence, some logs are missed in the log group (in case they have the same
+                # timestamp)
+                # When a slight delay is added before logging the event, that solves the issue
+                # See https://github.com/apache/airflow/issues/40875
+                time.sleep(0.001)
+            level = _parse_log_level(log_event["message"])
+            self.logger.log(level, self.event_to_str(log_event))
+            prev_timestamp_event = current_timestamp_event
 
     def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
         if skip_token is None:
