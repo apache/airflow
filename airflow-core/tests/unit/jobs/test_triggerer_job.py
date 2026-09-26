@@ -1239,16 +1239,27 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     create_trigger_in_db(session, trigger)
 
     trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
-    trigger_runner_supervisor.load_triggers()
+    try:
+        trigger_runner_supervisor.load_triggers()
 
-    for _ in range(30):
-        trigger_runner_supervisor._service_subprocess(0.1)
+        expected_lines = {
+            f"{trigger_count} triggers currently running",
+            f"{watcher_count} watchers currently running",
+        }
+        # _service_subprocess returns as soon as there is I/O, not after a full 0.1s, so a fixed
+        # iteration count is not a wall-clock budget: on a loaded runner the forked runner process may
+        # not have reached its status log yet. Poll until both lines arrive instead.
+        stdout = ""
+        for _ in range(300):
+            trigger_runner_supervisor._service_subprocess(0.1)
+            stdout += capsys.readouterr().out
+            if all(line in stdout for line in expected_lines):
+                break
+    finally:
+        trigger_runner_supervisor.kill(force=False)
 
-    stdout = capsys.readouterr().out
-    assert f"{trigger_count} triggers currently running" in stdout
-    assert f"{watcher_count} watchers currently running" in stdout
-
-    trigger_runner_supervisor.kill(force=False)
+    for line in expected_lines:
+        assert line in stdout
 
 
 def test_trigger_logger_close():
