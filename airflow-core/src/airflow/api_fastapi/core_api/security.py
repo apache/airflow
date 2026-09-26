@@ -228,6 +228,22 @@ def requires_access_dag(
     return inner
 
 
+def authorize_dag_drain(dag_id: str, user: BaseUser, *, session: Session) -> None:
+    """
+    Require the access pausing a Dag takes, for a request that drains it while creating a run.
+
+    Draining changes the Dag's scheduling state, which ``PATCH /dags/{dag_id}`` guards with ``PUT`` on the
+    Dag, while the run-creating routes' dependencies only cover creating runs. ``drain_dag`` is part of the
+    request body, so the route handler checks it instead of a dependency.
+    """
+    team_name = DagModel.get_team_name(dag_id, session=session)
+    _requires_access(
+        is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
+            method="PUT", details=DagDetails(id=dag_id, team_name=team_name), user=user
+        )
+    )
+
+
 def requires_access_dag_from_file_token(
     method: ResourceMethod,
 ) -> Callable[[str, Request, BaseUser, Session], None]:

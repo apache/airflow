@@ -8,6 +8,11 @@ runs remain allowed.
 After outstanding Dag runs finish, the Dag automatically transitions to
 ``paused``. Users can cancel draining to return the Dag to ``active``.
 
+Manual runs, backfills and asset materializations can also start the drain
+themselves, so they execute on a paused Dag without resuming its schedule.
+Choose **Run without resuming the schedule** in the UI, or set ``drain_dag``
+in the REST API request; the Dag pauses again once its runs finish.
+
 The UI, REST API, and ``airflowctl`` expose the ``active``, ``draining``, and
 ``paused`` scheduling states. Existing ``is_paused`` API usage remains
 supported; use ``scheduling_state`` when the draining state must be selected or

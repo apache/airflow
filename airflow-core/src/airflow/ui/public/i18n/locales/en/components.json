@@ -35,7 +35,6 @@
         "title": "Backfill generated"
       }
     },
-    "unpause": "Unpause {{dag_display_name}} on trigger",
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
       "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
@@ -131,6 +130,17 @@
     "hide": "Hide value",
     "show": "Show value"
   },
+  "pausedDag": {
+    "drain": "Run without resuming the schedule",
+    "drainDescription": "The Dag drains: no scheduled runs are created, and it pauses again once its unfinished runs finish.",
+    "keepPaused": "Leave paused",
+    "keepPausedDescription": "Runs stay queued until the Dag is unpaused.",
+    "title": "Dag is paused",
+    "unfinishedRunsWillRun_one": "This Dag already has 1 unfinished Dag run. It will run as well.",
+    "unfinishedRunsWillRun_other": "This Dag already has {{count}} unfinished Dag runs. They will run as well.",
+    "unpause": "Unpause on trigger",
+    "unpauseDescription": "Scheduled runs resume."
+  },
   "reparseDag": "Reparse Dag",
   "slowestTaskInstances": {
     "empty": "No completed task instances in this range",
@@ -175,8 +185,7 @@
         "title": "Dag Run Triggered"
       }
     },
-    "triggerAgainWithConfig": "Trigger again with this config",
-    "unpause": "Unpause {{dagDisplayName}} on trigger"
+    "triggerAgainWithConfig": "Trigger again with this config"
   },
   "trimText": {
     "details": "Details",

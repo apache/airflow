@@ -74,6 +74,7 @@ from airflow.api_fastapi.core_api.security import (
     ReadableAssetEventsFilterDep,
     ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
+    authorize_dag_drain,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
@@ -509,6 +510,9 @@ def materialize_asset(
             )
 
         params = body.validate_context(context_dag)
+        if body.drain_dag:
+            authorize_dag_drain(dag_id, user, session=session)
+            DagModel.start_drain(dag_id, session=session)
         return dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],

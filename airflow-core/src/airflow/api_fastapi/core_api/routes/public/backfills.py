@@ -47,6 +47,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
 from airflow.api_fastapi.core_api.security import (
     BACKFILL_NOT_FOUND,
     GetUserDep,
+    authorize_dag_drain,
     requires_access_backfill,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
@@ -302,6 +303,8 @@ def create_backfill(
         session,
         fallback=True,
     )
+    if backfill_request.drain_dag:
+        authorize_dag_drain(backfill_request.dag_id, user, session=session)
     try:
         backfill_obj = _create_backfill(
             dag_id=backfill_request.dag_id,
@@ -313,6 +316,7 @@ def create_backfill(
             triggering_user_name=user.get_display_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            drain_dag=backfill_request.drain_dag,
         )
         return BackfillResponse.model_validate(backfill_obj)
     except OperationalError as e:

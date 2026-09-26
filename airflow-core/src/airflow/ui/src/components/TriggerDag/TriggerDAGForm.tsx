@@ -24,7 +24,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
-import { Checkbox, RadioCardItem, RadioCardRoot } from "src/system-components";
+import { RadioCardItem, RadioCardRoot } from "src/system-components";
 
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
@@ -34,11 +34,11 @@ import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
+import PausedDagOptions, { type PausedDagAction } from "./PausedDagOptions";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
 import { dataIntervalModeOptions, type DagRunTriggerParams } from "./types";
 
 type TriggerDAGFormProps = {
-  readonly dagDisplayName: string;
   readonly dagId: string;
   readonly error?: unknown;
   readonly hasSchedule: boolean;
@@ -57,7 +57,6 @@ type TriggerDAGFormProps = {
 };
 
 const TriggerDAGForm = ({
-  dagDisplayName,
   dagId,
   error,
   hasSchedule,
@@ -73,7 +72,7 @@ const TriggerDAGForm = ({
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
-  const [unpause, setUnpause] = useState(true);
+  const [pausedDagAction, setPausedDagAction] = useState<PausedDagAction>("unpause");
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
@@ -152,10 +151,10 @@ const TriggerDAGForm = ({
     dataIntervalMode === "manual" &&
     (noDataInterval || dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd)));
   const onSubmit = (data: DagRunTriggerParams) => {
-    if (unpause && isPaused) {
+    if (pausedDagAction === "unpause" && isPaused) {
       togglePause({ dagId, requestBody: { is_paused: false } });
     }
-    onSubmitTrigger?.(data);
+    onSubmitTrigger?.({ ...data, drainDag: isPaused && pausedDagAction === "drain" });
   };
 
   return (
@@ -236,9 +235,7 @@ const TriggerDAGForm = ({
         )}
         {isPaused ? (
           <>
-            <Checkbox checked={unpause} onChange={() => setUnpause(!unpause)} wordBreak="break-all">
-              {translate("components:triggerDag.unpause", { dagDisplayName })}
-            </Checkbox>
+            <PausedDagOptions dagId={dagId} onChange={setPausedDagAction} value={pausedDagAction} />
             <Spacer />
           </>
         ) : undefined}

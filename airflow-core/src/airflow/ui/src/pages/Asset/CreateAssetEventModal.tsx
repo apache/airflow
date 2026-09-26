@@ -147,6 +147,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       dag_run_id: dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId,
       data_interval_end: dataIntervalEnd?.toISOString() ?? null,
       data_interval_start: dataIntervalStart?.toISOString() ?? null,
+      drain_dag: dagRunRequestBody.drainDag,
       logical_date: logicalDate?.toISOString() ?? null,
       note: dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note,
       partition_key: toNullablePartitionKey(dagRunRequestBody.partitionKey),
@@ -231,7 +232,6 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       ) : undefined}
       {eventType === "materialize" && dag !== undefined && upstreamDagId !== undefined ? (
         <TriggerDAGForm
-          dagDisplayName={dag.dag_display_name}
           dagId={upstreamDagId}
           error={materializeError}
           hasSchedule={dag.timetable_summary !== null}

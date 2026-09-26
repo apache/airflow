@@ -186,6 +186,19 @@ def unauthorized_test_client(request, _isolated_shared_app):
 
 
 @pytest.fixture
+def deny_dag_edit_access():
+    """Let the test client's user do everything with a Dag but edit the Dag itself (``PUT``)."""
+    with mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+        autospec=True,
+        side_effect=lambda _self, *, method, user, access_entity=None, details=None: (
+            not (method == "PUT" and access_entity is None)
+        ),
+    ) as mock_is_authorized_dag:
+        yield mock_is_authorized_dag
+
+
+@pytest.fixture
 def client(request):
     """This fixture is more flexible than test_client, as it allows to specify which apps to include."""
 

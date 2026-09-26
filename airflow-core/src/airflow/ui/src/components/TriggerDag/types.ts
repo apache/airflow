@@ -25,6 +25,7 @@ export type DagRunTriggerParams = {
   dataIntervalEnd: string;
   dataIntervalMode: DataIntervalMode;
   dataIntervalStart: string;
+  drainDag?: boolean;
   logicalDate: string;
   note: string;
   partitionKey: string | undefined;
