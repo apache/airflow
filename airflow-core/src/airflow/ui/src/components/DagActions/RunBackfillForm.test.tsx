@@ -55,6 +55,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("openapi/queries", () => ({
+  useBackfillServiceListBackfillsUi: vi.fn(() => ({ data: undefined })),
   useDagRunServiceGetDagRuns: vi.fn(() => ({ data: undefined })),
   useDagServiceGetDagDetails: vi.fn(() => ({ data: undefined })),
 }));

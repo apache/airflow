@@ -702,10 +702,6 @@ def _create_backfill(
             dag_model=dag,
             triggering_user_name=triggering_user_name,
         )
-        if drain_dag:
-            # Committed with the backfill row, whose initialization window
-            # ``_finalize_draining_dags`` already waits out.
-            DagModel.start_drain(dag_id, session=session)
         session.add(backfill)
         # Commit immediately so the backfill is visible to concurrent requests
         # checking num_active backfills, preventing duplicate active backfills
@@ -716,6 +712,9 @@ def _create_backfill(
 
         first_info = dagrun_info_list[0]
         try:
+            if drain_dag:
+                # After the backfill row's commit, so the drain commits or rolls back with the runs.
+                DagModel.start_drain(dag_id, session=session)
             if first_info.partition_key:
                 _create_runs_partitioned(
                     backfill=backfill,

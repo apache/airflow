@@ -19,11 +19,20 @@
 import { Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { useDagRunServiceGetDagRuns } from "openapi/queries";
+import { useBackfillServiceListBackfillsUi, useDagRunServiceGetDagRuns } from "openapi/queries";
+import type { DagRunType } from "openapi/requests/types.gen";
 
 import { Accordion, Alert, RadioCardItem, RadioCardRoot } from "src/system-components";
 
 export type PausedDagAction = "drain" | "keepPaused" | "unpause";
+
+const NON_BACKFILL_RUN_TYPES: Array<Exclude<DagRunType, "backfill">> = [
+  "scheduled",
+  "manual",
+  "operator_triggered",
+  "asset_triggered",
+  "asset_materialization",
+];
 
 type PausedDagOptionsProps = {
   readonly dagId: string;
@@ -36,8 +45,19 @@ const PausedDagOptions = ({ dagId, onChange, value }: PausedDagOptionsProps) => 
   // Draining a paused Dag lets every unfinished run proceed, not only the one being created. The
   // cached count can predate runs that have since finished (e.g. the run of an earlier drain), so
   // it is refetched and only trusted once fetched for this form.
+  const { data: activeBackfills } = useBackfillServiceListBackfillsUi({ active: true, dagId }, undefined, {
+    enabled: value === "drain",
+    staleTime: 0,
+  });
+  // A paused backfill's runs do not start while it stays paused, draining or not.
+  const isBackfillPaused = activeBackfills?.backfills.some((backfill) => backfill.is_paused) ?? false;
   const { data: unfinishedRuns, isFetchedAfterMount } = useDagRunServiceGetDagRuns(
-    { dagId, limit: 1, state: ["queued", "running"] },
+    {
+      dagId,
+      limit: 1,
+      runType: isBackfillPaused ? NON_BACKFILL_RUN_TYPES : undefined,
+      state: ["queued", "running"],
+    },
     undefined,
     { enabled: value === "drain", staleTime: 0 },
   );

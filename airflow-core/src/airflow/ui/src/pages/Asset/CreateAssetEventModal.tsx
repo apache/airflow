@@ -30,6 +30,8 @@ import {
   useAssetServiceMaterializeAsset,
   UseDagRunServiceGetDagRunsKeyFn,
   useDagServiceGetDagDetails,
+  UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetDagKeyFn,
   useDagServiceGetDagsUiKey,
   useDependenciesServiceGetDependencies,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -95,6 +97,8 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       queryKeys = [
         ...queryKeys,
         [useDagServiceGetDagsUiKey],
+        UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
+        UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
       ];
@@ -117,6 +121,8 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
 
   const { data: dag } = useDagServiceGetDagDetails({ dagId: upstreamDagId ?? "" }, undefined, {
     enabled: Boolean(upstreamDagId),
+    // The paused state decides whether a drain is requested, so it must not come from a stale cache.
+    staleTime: 0,
   });
 
   const {

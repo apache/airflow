@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
@@ -74,7 +74,6 @@ from airflow.api_fastapi.core_api.security import (
     ReadableAssetEventsFilterDep,
     ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
-    authorize_dag_drain,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
@@ -452,6 +451,7 @@ def materialize_asset(
     user: GetUserDep,
     session: SessionDep,
     body: MaterializeAssetBody,
+    request: Request,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
@@ -511,7 +511,7 @@ def materialize_asset(
 
         params = body.validate_context(context_dag)
         if body.drain_dag:
-            authorize_dag_drain(dag_id, user, session=session)
+            requires_access_dag(method="PUT", param_dag_id=dag_id)(request, user)
             DagModel.start_drain(dag_id, session=session)
         return dag.create_dagrun(
             run_id=params["run_id"],

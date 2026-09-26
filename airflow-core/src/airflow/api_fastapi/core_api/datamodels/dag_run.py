@@ -236,7 +236,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     note: str | None = None
     partition_key: str | None = None
     bundle_version: str | None = None
-    drain_dag: bool | None = Field(
+    drain_dag: bool = Field(
         default=False,
         description="Put the Dag into the draining state so this run executes without resuming the "
         "schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued "

@@ -71,6 +71,8 @@ const TriggerDAGModal = ({
     undefined,
     {
       enabled: open,
+      // The paused state decides whether a drain is requested, so it must not come from a stale cache.
+      staleTime: 0,
     },
   );
 
@@ -143,7 +145,7 @@ const TriggerDAGModal = ({
               error={error}
               hasSchedule={hasSchedule}
               isPartitioned={isPartitioned}
-              isPaused={isPaused}
+              isPaused={dag?.is_paused ?? isPaused}
               isPending={isPending}
               onSubmitTrigger={triggerDagRun}
               open={open}

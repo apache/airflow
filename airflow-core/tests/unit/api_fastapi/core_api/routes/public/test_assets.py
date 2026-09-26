@@ -2393,7 +2393,13 @@ class TestPostAssetMaterialize(TestAssets):
         assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == DagSchedulingState.PAUSED
         assert session.scalar(select(func.count()).select_from(DagRun)) == 0
         assert (
-            mock.call(mock.ANY, method="PUT", details=DagDetails(id=self.DAG_ASSET1_ID), user=mock.ANY)
+            mock.call(
+                mock.ANY,
+                method="PUT",
+                access_entity=None,
+                details=DagDetails(id=self.DAG_ASSET1_ID),
+                user=mock.ANY,
+            )
             in deny_dag_edit_access.call_args_list
         )
 

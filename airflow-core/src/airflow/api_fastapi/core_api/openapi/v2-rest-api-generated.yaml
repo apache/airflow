@@ -15733,9 +15733,7 @@ components:
           - type: 'null'
           title: Bundle Version
         drain_dag:
-          anyOf:
-          - type: boolean
-          - type: 'null'
+          type: boolean
           title: Drain Dag
           description: Put the Dag into the draining state so this run executes without
             resuming the schedule. The Dag pauses once all of its unfinished runs
@@ -17399,9 +17397,7 @@ components:
           - type: 'null'
           title: Bundle Version
         drain_dag:
-          anyOf:
-          - type: boolean
-          - type: 'null'
+          type: boolean
           title: Drain Dag
           description: Put the Dag into the draining state so this run executes without
             resuming the schedule. The Dag pauses once all of its unfinished runs

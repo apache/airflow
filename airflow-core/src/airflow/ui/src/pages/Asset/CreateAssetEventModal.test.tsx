@@ -24,7 +24,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
-import type { AssetEventResponse, AssetResponse, DAGDetailsResponse } from "openapi/requests/types.gen";
+import type {
+  AssetEventResponse,
+  AssetResponse,
+  DAGDetailsResponse,
+  DAGRunResponse,
+} from "openapi/requests/types.gen";
 
 import type * as Ui from "src/system-components";
 
@@ -102,6 +107,8 @@ const {
   useAssetServiceGetAssetsUiKey,
   useAssetServiceMaterializeAsset,
   useDagServiceGetDagDetails,
+  UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetDagKeyFn,
   useDependenciesServiceGetDependencies,
 } = await import("openapi/queries");
 
@@ -144,6 +151,7 @@ const upstreamDag = {
 describe("CreateAssetEventModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    materializeSubmitParams.drainDag = undefined;
     vi.mocked(useAssetServiceCreateAssetEvent).mockReturnValue({
       error: undefined,
       isPending: false,
@@ -241,7 +249,37 @@ describe("CreateAssetEventModal", () => {
         requestBody: expect.objectContaining({ drain_dag: true }) as unknown,
       }),
     );
-    materializeSubmitParams.drainDag = undefined;
+  });
+
+  it("refetches the upstream Dag's paused state instead of trusting the cache", () => {
+    vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+
+    render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    expect(useDagServiceGetDagDetails).toHaveBeenCalledWith(
+      { dagId: "upstream_dag" },
+      undefined,
+      expect.objectContaining({ staleTime: 0 }),
+    );
+  });
+
+  it("invalidates the upstream Dag after a materialize", async () => {
+    const invalidateSpy = vi.spyOn(QueryClient.prototype, "invalidateQueries").mockResolvedValue();
+
+    render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    const onSuccess = vi.mocked(useAssetServiceMaterializeAsset).mock.calls.at(-1)?.[0]?.onSuccess as
+      ((data: DAGRunResponse) => Promise<void>) | undefined;
+
+    expect(onSuccess).toBeTypeOf("function");
+    await onSuccess?.({ dag_id: "upstream_dag", dag_run_id: "materialize__run" } as DAGRunResponse);
+
+    for (const queryKey of [
+      UseDagServiceGetDagKeyFn({ dagId: "upstream_dag" }, [{ dagId: "upstream_dag" }]),
+      UseDagServiceGetDagDetailsKeyFn({ dagId: "upstream_dag" }, [{ dagId: "upstream_dag" }]),
+    ]) {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey });
+    }
   });
 
   it("sends the materialize partition_key from the trigger form as-is", () => {

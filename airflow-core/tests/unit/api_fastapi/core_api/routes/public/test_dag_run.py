@@ -3801,8 +3801,6 @@ class TestTriggerDagRun:
         [
             pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
             pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
-            # Generated clients such as airflowctl send unset optional fields as null.
-            pytest.param(None, DagSchedulingState.PAUSED, id="null"),
         ],
     )
     def test_trigger_paused_dag_with_drain_dag(self, test_client, session, drain_dag, expected_state):
@@ -3817,6 +3815,13 @@ class TestTriggerDagRun:
         assert response.json()["state"] == "queued"
         session.expire_all()
         assert session.get(DagModel, DAG1_ID).scheduling_state == expected_state
+
+    def test_trigger_rejects_null_drain_dag(self, test_client):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": None}
+        )
+
+        assert response.status_code == 422
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize(
@@ -3841,7 +3846,9 @@ class TestTriggerDagRun:
         if drain_dag:
             assert session.scalar(count_dag_runs) == dag_runs_before
             assert (
-                mock.call(mock.ANY, method="PUT", details=DagDetails(id=DAG1_ID), user=mock.ANY)
+                mock.call(
+                    mock.ANY, method="PUT", access_entity=None, details=DagDetails(id=DAG1_ID), user=mock.ANY
+                )
                 in deny_dag_edit_access.call_args_list
             )
 

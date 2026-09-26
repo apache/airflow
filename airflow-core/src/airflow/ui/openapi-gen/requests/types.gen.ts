@@ -1735,7 +1735,7 @@ export type MaterializeAssetBody = {
     /**
      * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag.
      */
-    drain_dag?: boolean | null;
+    drain_dag?: boolean;
 };
 
 /**
@@ -2284,7 +2284,7 @@ export type TriggerDAGRunPostBody = {
     /**
      * Put the Dag into the draining state so this run executes without resuming the schedule. The Dag pauses once all of its unfinished runs finish, and any runs already queued on a paused Dag start as well. Requires the same permission as pausing the Dag.
      */
-    drain_dag?: boolean | null;
+    drain_dag?: boolean;
 };
 
 /**

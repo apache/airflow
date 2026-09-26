@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Annotated, NoReturn
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
 from sqlalchemy import select, update
@@ -47,8 +47,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
 from airflow.api_fastapi.core_api.security import (
     BACKFILL_NOT_FOUND,
     GetUserDep,
-    authorize_dag_drain,
     requires_access_backfill,
+    requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
@@ -294,6 +294,7 @@ def create_backfill(
     backfill_request: BackfillPostBody,
     user: GetUserDep,
     session: SessionDep,
+    request: Request,
 ) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
@@ -304,7 +305,7 @@ def create_backfill(
         fallback=True,
     )
     if backfill_request.drain_dag:
-        authorize_dag_drain(backfill_request.dag_id, user, session=session)
+        requires_access_dag(method="PUT", param_dag_id=backfill_request.dag_id)(request, user)
     try:
         backfill_obj = _create_backfill(
             dag_id=backfill_request.dag_id,

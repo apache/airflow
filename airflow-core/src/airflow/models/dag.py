@@ -512,7 +512,7 @@ class DagModel(Base):
     @classmethod
     def start_drain(cls, dag_id: str, *, session: Session) -> None:
         """
-        Put the Dag into the draining state unless it is already draining.
+        Put the Dag into the draining state.
 
         Call this in the transaction that creates the explicit run the drain is started for,
         before the run is inserted. The row lock keeps ``_finalize_draining_dags`` from
@@ -525,8 +525,7 @@ class DagModel(Base):
                 select(cls).where(cls.dag_id == dag_id), of=cls, session=session
             ).execution_options(populate_existing=True)
         ).one()
-        if not dag_model.is_draining:
-            dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
 
     def is_rollup_asset(self, *, name: str, uri: str) -> bool:
         """

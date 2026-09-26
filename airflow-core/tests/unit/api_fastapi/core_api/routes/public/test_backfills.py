@@ -517,7 +517,9 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.PAUSED
         assert session.scalar(select(func.count()).select_from(Backfill)) == 0
         assert (
-            mock.call(mock.ANY, method="PUT", details=DagDetails(id=dag.dag_id), user=mock.ANY)
+            mock.call(
+                mock.ANY, method="PUT", access_entity=None, details=DagDetails(id=dag.dag_id), user=mock.ANY
+            )
             in deny_dag_edit_access.call_args_list
         )
 

@@ -22,11 +22,11 @@ import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UseDagRunServiceGetDagRunsKeyFn } from "openapi/queries";
-import { DagRunService } from "openapi/requests/services.gen";
-import type { DAGRunCollectionResponse } from "openapi/requests/types.gen";
+import { BackfillService, DagRunService } from "openapi/requests/services.gen";
+import type { BackfillResponse, DAGRunCollectionResponse } from "openapi/requests/types.gen";
 
 import PausedDagOptions from "./PausedDagOptions";
 
@@ -44,6 +44,12 @@ const UNFINISHED_RUNS_QUERY = { dagId: DAG_ID, limit: 1, state: ["queued", "runn
 const serveUnfinishedRuns = (totalEntries: number) =>
   vi.spyOn(DagRunService, "getDagRuns").mockResolvedValue({ dag_runs: [], total_entries: totalEntries });
 
+const serveActiveBackfills = (backfills: Array<Partial<BackfillResponse>>) =>
+  vi.spyOn(BackfillService, "listBackfillsUi").mockResolvedValue({
+    backfills: backfills as Array<BackfillResponse>,
+    total_entries: backfills.length,
+  });
+
 const createWrapper = (queryClient: QueryClient) => {
   const TestWrapper = ({ children }: { readonly children: ReactNode }) => (
     <ChakraProvider value={defaultSystem}>
@@ -57,6 +63,8 @@ const createWrapper = (queryClient: QueryClient) => {
 // Mirrors the app's client: cached data stays fresh for minutes, so it is not refetched on mount.
 const createQueryClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } });
+
+beforeEach(() => serveActiveBackfills([]));
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -108,6 +116,37 @@ describe("PausedDagOptions", () => {
 
     expect(await screen.findByText("pausedDag.unfinishedRunsWillRun:3")).toBeInTheDocument();
   });
+
+  it.each([
+    { expectedRunType: undefined, isPaused: false },
+    {
+      expectedRunType: [
+        "scheduled",
+        "manual",
+        "operator_triggered",
+        "asset_triggered",
+        "asset_materialization",
+      ],
+      isPaused: true,
+    },
+  ])(
+    "leaves out backfill runs only while the backfill is paused (paused=$isPaused)",
+    async ({ expectedRunType, isPaused }) => {
+      serveActiveBackfills([{ dag_id: DAG_ID, id: 1, is_paused: isPaused }]);
+      const getDagRuns = serveUnfinishedRuns(2);
+
+      render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="drain" />, {
+        wrapper: createWrapper(createQueryClient()),
+      });
+
+      await waitFor(() =>
+        expect(getDagRuns).toHaveBeenLastCalledWith(
+          expect.objectContaining({ ...UNFINISHED_RUNS_QUERY, runType: expectedRunType }),
+        ),
+      );
+      expect(await screen.findByText("pausedDag.unfinishedRunsWillRun:2")).toBeInTheDocument();
+    },
+  );
 
   it("ignores an unfinished-run count cached before the earlier runs finished", async () => {
     const getDagRuns = serveUnfinishedRuns(0);

@@ -81,6 +81,7 @@ describe("useTrigger", () => {
     const onSuccess = vi.mocked(useDagRunServiceTriggerDagRun).mock.calls.at(-1)?.[0]?.onSuccess as
       ((dagRun: TriggerDagRunResponse, variables: TriggerDagRunData) => Promise<void>) | undefined;
 
+    expect(onSuccess).toBeTypeOf("function");
     await onSuccess?.({ dag_id: DAG_ID, dag_run_id: "manual__run" } as TriggerDagRunResponse, {
       dagId: DAG_ID,
       requestBody: { drain_dag: drainDag, logical_date: null },
@@ -93,6 +94,5 @@ describe("useTrigger", () => {
     } else {
       expect(invalidateSpy).not.toHaveBeenCalledWith(dagQuery);
     }
-    invalidateSpy.mockRestore();
   });
 });

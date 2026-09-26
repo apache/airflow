@@ -35,7 +35,6 @@
         "title": "Auffüllung gestartet"
       }
     },
-    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
     "validation": {
       "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
       "startBeforeEnd": "Das Startdatum muss vor oder auf dem Enddatum liegen."
@@ -176,8 +175,7 @@
         "title": "Dag-Lauf ausgelöst"
       }
     },
-    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen",
-    "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
+    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen"
   },
   "trimText": {
     "details": "Details",

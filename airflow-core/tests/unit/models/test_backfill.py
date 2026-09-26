@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import nullcontext
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -24,7 +25,8 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
@@ -49,7 +51,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo, DataInterval
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -163,6 +165,42 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert backfill_dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(
+            OperationalError("statement", "params", sqlite3.OperationalError("database is locked")),
+            id="lock-error",
+        ),
+        pytest.param(RuntimeError("run creation failed"), id="other-error"),
+    ],
+)
+@mock.patch("airflow.models.backfill._create_runs_non_partitioned", autospec=True)
+def test_create_backfill_with_drain_dag_leaves_dag_paused_when_run_creation_fails(
+    mock_create_runs, error, dag_maker, session
+):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+    session.commit()
+    mock_create_runs.side_effect = error
+
+    with pytest.raises(type(error)):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+            drain_dag=True,
+        )
+
+    session.expire_all()
+    assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.PAUSED
 
 
 @pytest.mark.parametrize("run_on_latest_version", [True, False])
