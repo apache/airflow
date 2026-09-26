@@ -42,6 +42,7 @@
     Deferrable Operators <deferrable>
     Secrets backends <secrets-backends/index>
     Logging for Tasks <logging/index>
+    Amazon MSK <msk>
     Configuration <configurations-ref>
     Executors <executors/index>
     Message Queues <message-queues/index>
