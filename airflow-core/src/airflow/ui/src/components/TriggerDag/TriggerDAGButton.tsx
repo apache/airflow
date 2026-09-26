@@ -18,10 +18,10 @@
  */
 import { useState } from "react";
 
-import { Box, Button, useDisclosure } from "@chakra-ui/react";
+import { Button, ButtonGroup, useDisclosure } from "@chakra-ui/react";
 import type { DagRunType } from "openapi-gen/requests/types.gen";
 import { useTranslation } from "react-i18next";
-import { FiPlay } from "react-icons/fi";
+import { FiChevronDown, FiPlay } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
@@ -92,76 +92,66 @@ export const TriggerDAGButton = ({
     onClose();
   };
 
-  // If there's a selected DAG Run with config, show menu with options
-  if (selectedDagRun?.conf !== undefined) {
-    return (
-      <Box>
-        <Menu.Root>
-          <Tooltip content={translate("triggerDag.manualRunDenied")} disabled={!isManualRunDenied}>
-            <Menu.Trigger asChild>
-              <Button
-                aria-label={translate("triggerDag.title")}
-                data-testid="trigger-dag-button"
-                disabled={isManualRunDenied}
-                variant={variant}
-              >
-                <FiPlay />
-                {translate("triggerDag.button")}
-              </Button>
-            </Menu.Trigger>
-          </Tooltip>
-          <Menu.Content>
-            <Menu.Item onClick={handleNormalTrigger} value="trigger">
-              {translate("triggerDag.button")}
-            </Menu.Item>
-            <Menu.Item onClick={handleTriggerWithConfig} value="triggerWithConfig">
-              {translate("triggerDag.triggerAgainWithConfig")}
-            </Menu.Item>
-          </Menu.Content>
-        </Menu.Root>
+  const triggerOptionsLabel = isManualRunDenied
+    ? translate("triggerDag.manualRunDenied")
+    : translate("triggerDag.triggerOptions");
 
-        <TriggerDAGModal
-          dagDisplayName={dagDisplayName}
-          dagId={dagId}
-          isPaused={isPaused}
-          onClose={handleModalClose}
-          open={open}
-          prefillConfig={prefillConfig}
-        />
-      </Box>
-    );
-  }
-
-  // Normal trigger button without menu
   return (
     <>
-      <Tooltip
-        content={isManualRunDenied ? translate("triggerDag.manualRunDenied") : translate("triggerDag.button")}
-        disabled={withText ? !isManualRunDenied : undefined}
-      >
-        {withText ? (
-          <Button
-            aria-label={translate("triggerDag.title")}
-            data-testid="trigger-dag-button"
-            disabled={isManualRunDenied}
-            onClick={handleNormalTrigger}
-            variant={variant}
-          >
-            <FiPlay />
-            {translate("triggerDag.button")}
-          </Button>
-        ) : (
-          <IconButton
-            aria-label={translate("triggerDag.title")}
-            data-testid="trigger-dag-button"
-            disabled={isManualRunDenied}
-            onClick={onOpen}
-            variant={variant}
-          >
-            <FiPlay />
-          </IconButton>
-        )}
-      </Tooltip>
+      <ButtonGroup attached variant={variant}>
+        <Tooltip
+          content={
+            isManualRunDenied ? translate("triggerDag.manualRunDenied") : translate("triggerDag.button")
+          }
+          disabled={withText ? !isManualRunDenied : undefined}
+        >
+          {withText ? (
+            <Button
+              aria-label={translate("triggerDag.title")}
+              data-testid="trigger-dag-button"
+              disabled={isManualRunDenied}
+              onClick={handleNormalTrigger}
+              variant={variant}
+            >
+              <FiPlay />
+              {translate("triggerDag.button")}
+            </Button>
+          ) : (
+            <IconButton
+              aria-label={translate("triggerDag.title")}
+              data-testid="trigger-dag-button"
+              disabled={isManualRunDenied}
+              onClick={handleNormalTrigger}
+              variant={variant}
+            >
+              <FiPlay />
+            </IconButton>
+          )}
+        </Tooltip>
+
+        <Menu.Root tooltipLabel={triggerOptionsLabel}>
+          <Menu.Trigger asChild>
+            <IconButton
+              aria-label={translate("triggerDag.triggerOptions")}
+              data-testid="trigger-dag-options-button"
+              disabled={isManualRunDenied}
+              variant={variant}
+            >
+              <FiChevronDown />
+            </IconButton>
+          </Menu.Trigger>
+          <Menu.Content>
+            <Menu.Item onClick={handleNormalTrigger} value="triggerWithConfig">
+              {translate("triggerDag.triggerWithConfig")}
+            </Menu.Item>
+            {selectedDagRun?.conf !== undefined && (
+              <Menu.Item onClick={handleTriggerWithConfig} value="triggerAgainWithConfig">
+                {translate("triggerDag.triggerAgainWithConfig")}
+              </Menu.Item>
+            )}
+          </Menu.Content>
+        </Menu.Root>
+      </ButtonGroup>
 
       <TriggerDAGModal
         dagDisplayName={dagDisplayName}
@@ -169,7 +159,7 @@ export const TriggerDAGButton = ({
         isPaused={isPaused}
         onClose={handleModalClose}
         open={open}
-        prefillConfig={undefined}
+        prefillConfig={prefillConfig}
       />
     </>
   );
