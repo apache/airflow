@@ -2105,6 +2105,66 @@ class TestKubernetesExecutor:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
+        ("failure_details", "expected_reason"),
+        [
+            pytest.param(
+                {
+                    "pod_status": "Failed",
+                    "pod_reason": None,
+                    "pod_message": None,
+                    "container_state": "terminated",
+                    "container_reason": "OOMKilled",
+                    "container_message": None,
+                    "exit_code": 137,
+                    "container_type": "main",
+                    "container_name": "base",
+                },
+                "Pod failed because of OOMKilled (container: base, exit code: 137)",
+                id="container-reason-when-pod-reason-empty",
+            ),
+            pytest.param(
+                {"pod_status": "Failed", "pod_reason": "Evicted", "pod_message": "node pressure"},
+                "Pod failed because of Evicted",
+                id="pod-reason-wins",
+            ),
+            pytest.param(
+                {"pod_status": "Failed", "pod_reason": None, "pod_message": None},
+                "Pod failed because of unknown reason",
+                id="no-reason-at-all",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler"
+    )
+    def test_change_state_failed_termination_reason(
+        self,
+        mock_kubescheduler,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        failure_details,
+        expected_reason,
+    ):
+        """The info sent to the scheduler names the container reason when pod.status.reason is empty."""
+        executor = self.kubernetes_executor
+        executor.kube_config.delete_worker_pods = False
+        executor.kube_config.delete_worker_pods_on_failure = False
+        executor.start()
+        try:
+            key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=3)
+            executor.running = {key}
+            results = KubernetesResults(
+                key, State.FAILED, "pod_id", "test-namespace", "resource_version", failure_details
+            )
+            executor._change_state(results)
+            assert executor.event_buffer[key] == (State.FAILED, expected_reason)
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
         "ti_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.DEFERRED]
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
