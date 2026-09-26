@@ -30,7 +30,8 @@ import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
   description: string | undefined;
-  include_deferred: boolean;
+  // Left undefined when the value is fixed cluster-wide, so it is not sent to the API
+  include_deferred: boolean | undefined;
   name: string;
   slots: number;
   team_name: string;
@@ -58,9 +59,13 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
     mode: "onChange",
   });
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
+  const includeDeferredConfig = useConfig("pool_include_deferred");
+  // A boolean means include_deferred is fixed cluster-wide and cannot be chosen per pool
+  const includeDeferredOverride =
+    typeof includeDeferredConfig === "boolean" ? includeDeferredConfig : undefined;
 
   const onSubmit = (data: PoolBody) => {
-    manageMutate(data);
+    manageMutate(includeDeferredOverride === undefined ? data : { ...data, include_deferred: undefined });
   };
 
   const handleReset = () => {
@@ -143,11 +148,22 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         control={control}
         name="include_deferred"
         render={({ field }) => (
-          <Field.Root mb={4} mt={4}>
+          <Field.Root disabled={includeDeferredOverride !== undefined} mb={4} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
-            <Checkbox checked={field.value} onChange={field.onChange}>
+            <Checkbox
+              checked={includeDeferredOverride ?? field.value}
+              disabled={includeDeferredOverride !== undefined}
+              onChange={field.onChange}
+            >
               {translate("pools.form.checkbox")}
             </Checkbox>
+            {includeDeferredOverride === undefined ? undefined : (
+              <Field.HelperText>
+                {translate("pools.form.includeDeferredFixedHelperText", {
+                  value: includeDeferredOverride ? "True" : "False",
+                })}
+              </Field.HelperText>
+            )}
           </Field.Root>
         )}
       />
