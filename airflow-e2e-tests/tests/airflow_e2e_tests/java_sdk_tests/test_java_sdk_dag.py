@@ -54,6 +54,15 @@ confirms:
 4. A Java task that throws with retries left returns ``RetryTask`` rather than a
    terminal ``FAILED``, so the supervisor marks it UP_FOR_RETRY and re-runs it;
    ``load`` therefore ends ``success`` on its second attempt (try_number 2).
+
+5. Keyword arguments at the stub call site bind to a ``TaskInput``'s fields by
+   name, matched ignoring case and underscores; ``report`` asserts the value it
+   received, so it only succeeds if ``run_label`` reached its ``runLabel``
+   field.
+
+The ``java_interface_example`` and ``scala_spark_example`` Dags are covered too:
+the former for tasks written against ``InputTask``, whose arguments the SDK
+resolves from the stub call site into a ``TaskInput`` and injects.
 """
 
 from __future__ import annotations
@@ -81,6 +90,7 @@ _SPARK_TASK_TIMEOUT = 1200
 _LOG_FETCH_TIMEOUT = 60
 
 _ANNOTATION_DAG_ID = "java_annotation_example"
+_INTERFACE_DAG_ID = "java_interface_example"
 _XCOM_CASTING_DAG_ID = "java_xcom_casting_example"
 _SCALA_SPARK_DAG_ID = "scala_spark_example"
 _VARIABLE_WRITE_DAG_ID = "java_variable_write"
@@ -172,6 +182,12 @@ def annotation_example_run() -> _CompletedRun:
 
 
 @pytest.fixture(scope="module")
+def interface_example_run() -> _CompletedRun:
+    """Trigger the interface example once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_INTERFACE_DAG_ID, _JAVA_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
 def xcom_casting_example_run() -> _CompletedRun:
     """Trigger the XCom casting example once for all of its assertions."""
     return _trigger_and_wait_for_dag(_XCOM_CASTING_DAG_ID, _JAVA_TASK_TIMEOUT)
@@ -211,6 +227,19 @@ class TestJavaSDKAnnotationExample:
         )
         assert value > 0, (
             f"Expected 'transform' XCom to be a positive integer (millisecond timestamp), got {value!r}"
+        )
+
+    def test_report_binds_keyword_arguments_by_folded_name(self, annotation_example_run: _CompletedRun):
+        """``report`` declares a ``TaskInput`` with no ``@ArgName``, so reaching ``success``
+        proves ``run_label`` folded onto its ``runLabel`` field: the task throws unless that
+        field holds the ``run_label="nightly"`` literal from the keyword call site."""
+        report_ti = annotation_example_run.get_task_instance("report")
+
+        assert report_ti.get("state") == "success", (
+            f"Java 'report' task did not succeed.\n"
+            f"  task state : {report_ti.get('state')!r}\n"
+            f"  dag state  : {annotation_example_run.state!r}\n"
+            f"  all tasks  : {annotation_example_run.ti_states}"
         )
 
     def test_concurrent_client_calls_succeed(self, annotation_example_run: _CompletedRun):
@@ -377,13 +406,32 @@ class TestJavaSDKVariableWrite:
         )
 
 
+class TestJavaSDKInterfaceExample:
+    """Verify tasks written against ``InputTask`` receive their bound arguments."""
+
+    def test_input_tasks_receive_their_bound_arguments(self, interface_example_run: _CompletedRun):
+        """``transform`` and ``summarize`` implement ``InputTask``, so reaching ``success``
+        proves the supervisor's bindings arrived: ``transform`` binds the ``extract`` XCom
+        onto its bundle's ``extracted`` field, and ``summarize`` throws unless its bundle
+        holds the ``region_code="emea"`` literal from the keyword call site."""
+        for task_id in ("transform", "summarize"):
+            task_instance = interface_example_run.get_task_instance(task_id)
+            assert task_instance.get("state") == "success", (
+                f"Java {task_id!r} task did not succeed.\n"
+                f"  task state : {task_instance.get('state')!r}\n"
+                f"  dag state  : {interface_example_run.state!r}\n"
+                f"  all tasks  : {interface_example_run.ti_states}"
+            )
+
+
 class TestJavaSDKXComCastingExample:
     """Verify numeric XCom values are cast across declared Java types."""
 
     def test_numeric_xcom_casting(self, xcom_casting_example_run: _CompletedRun):
         """Numeric XComs are read across declared types (int -> long -> double, and a wire
-        double back as a float), and a boxed param stays null when its XCom is absent."""
-        for task_id in ("widen_to_double", "consume_nullable", "consume_float"):
+        double back as a float), a boxed param stays null when its XCom is absent, and a
+        ``List<Double>`` param keeps its element type over a literal list of integers."""
+        for task_id in ("widen_to_double", "consume_nullable", "consume_float", "consume_double_list"):
             task_instance = xcom_casting_example_run.get_task_instance(task_id)
             assert task_instance.get("state") == "success", (
                 f"Java {task_id!r} task did not succeed.\n"

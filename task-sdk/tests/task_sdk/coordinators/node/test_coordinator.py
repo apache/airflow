@@ -24,6 +24,7 @@ from unittest import mock
 
 import pytest
 from task_sdk.coordinators.node._bundle_test_utils import (
+    BUNDLE_NAME,
     mutate_byte,
     read_layout,
     write_bundle,
@@ -98,24 +99,33 @@ class TestNodeCoordinatorExecuteTaskCommand:
 
 
 class TestBundleFind:
-    def test_ignores_roots_without_bundle_mjs(self, tmp_path):
-        (tmp_path / "tasks.mjs").write_bytes(b"export {};\n")
+    @pytest.mark.parametrize(
+        "name",
+        ["tasks.mjs", "tasks.js", "tasks.min.js", "bundle.min.mjs.bak", "min.mjs.txt"],
+        ids=["mjs", "js", "min-js", "suffixed", "embedded"],
+    )
+    def test_ignores_files_without_the_bundle_suffix(self, tmp_path, name):
+        # Written as a real bundle, so only the name can exclude it.
+        write_bundle(tmp_path, "sales", name=name)
 
-        with pytest.raises(FileNotFoundError, match="dag_id='sales'"):
+        with pytest.raises(FileNotFoundError, match="dag_id='sales'") as exc_info:
             _Bundle.find([tmp_path], "sales")
+
+        # Never opened, so it cannot appear among the rejected candidates.
+        assert "rejected candidates" not in str(exc_info.value)
 
     def test_reports_unreadable_bundle(self, tmp_path, monkeypatch):
         write_bundle(tmp_path, "sales")
         original_open = pathlib.Path.open
 
         def raise_os_error(self, *args, **kwargs):
-            if self.name == "bundle.mjs":
+            if self.name == BUNDLE_NAME:
                 raise PermissionError("denied")
             return original_open(self, *args, **kwargs)
 
         monkeypatch.setattr(pathlib.Path, "open", raise_os_error)
 
-        with pytest.raises(FileNotFoundError, match="cannot read bundle.mjs"):
+        with pytest.raises(FileNotFoundError, match="cannot read bundle.min.mjs"):
             _Bundle.find([tmp_path], "sales")
 
     def test_skips_root_when_bundle_probe_fails(self, tmp_path, monkeypatch):
@@ -123,20 +133,68 @@ class TestBundleFind:
         second = tmp_path / "second"
         first.mkdir()
         second.mkdir()
-        write_bundle(first, "sales")
+        unstattable = write_bundle(first, "sales")
         expected = write_bundle(second, "sales")
-        original_is_file = pathlib.Path.is_file
+        original_stat = pathlib.Path.stat
 
-        def fail_first_probe(self):
-            if self.parent == first:
+        def fail_first_probe(self, *args, **kwargs):
+            if self == unstattable:
                 raise PermissionError("denied")
-            return original_is_file(self)
+            return original_stat(self, *args, **kwargs)
 
-        monkeypatch.setattr(pathlib.Path, "is_file", fail_first_probe)
+        monkeypatch.setattr(pathlib.Path, "stat", fail_first_probe)
 
         found = _Bundle.find([first, second], "sales")
 
         assert found.path == expected
+
+    def test_finds_bundle_nested_below_a_root(self, tmp_path):
+        expected = write_bundle(tmp_path / "team" / "sales", "sales")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_selects_bundle_by_dag_id_within_one_root(self, tmp_path):
+        write_bundle(tmp_path, "inventory", name="inventory.min.mjs")
+        expected = write_bundle(tmp_path, "sales", name="sales.min.mjs")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_orders_candidates_in_one_root_by_path(self, tmp_path):
+        # Directory iteration order is filesystem-dependent, so sorted name decides the winner.
+        expected = write_bundle(tmp_path, "sales", name="a.min.mjs")
+        write_bundle(tmp_path, "sales", name="b.min.mjs")
+        write_bundle(tmp_path / "nested", "sales")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_survives_a_directory_symlink_loop(self, tmp_path):
+        expected = write_bundle(tmp_path, "sales")
+        loop = tmp_path / "loop"
+        try:
+            loop.symlink_to(tmp_path, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("filesystem does not support directory symlinks")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_names_unrelated_min_mjs_file_among_rejected_candidates(self, tmp_path):
+        stray = tmp_path / "vendor.min.mjs"
+        stray.write_bytes(b"export {};\n")
+
+        with pytest.raises(FileNotFoundError) as exc_info:
+            _Bundle.find([tmp_path], "sales")
+
+        message = str(exc_info.value)
+        assert str(stray) in message
+        assert "no airflow bundle layout" in message
 
     def test_selects_later_bundle_containing_requested_dag(self, tmp_path):
         first = tmp_path / "first"
@@ -236,7 +294,7 @@ class TestBundleFind:
         second = tmp_path / "second"
         first.mkdir()
         second.mkdir()
-        (first / "bundle.mjs").write_bytes(b"export {};\n")
+        (first / BUNDLE_NAME).write_bytes(b"export {};\n")
         write_bundle(second, "inventory")
 
         with pytest.raises(FileNotFoundError) as exc_info:

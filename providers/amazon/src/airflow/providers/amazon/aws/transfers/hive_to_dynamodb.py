@@ -56,7 +56,11 @@ class HiveToDynamoDBOperator(BaseOperator):
     :param df_type: DataFrame type to use ("pandas" or "polars").
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = (
+        "sql",
+        "hiveserver2_conn_id",
+        "aws_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "hql"}
     ui_color = "#a0e08c"

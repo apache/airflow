@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.amazon.aws.hooks.bedrock import (
     BedrockAgentCoreControlHook,
     BedrockAgentHook,
@@ -25,9 +23,6 @@ from airflow.providers.amazon.aws.hooks.bedrock import (
 )
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class BedrockCustomizeModelCompletedTrigger(AwsBaseWaiterTrigger):
@@ -38,7 +33,14 @@ class BedrockCustomizeModelCompletedTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = BedrockHook
 
     def __init__(
         self,
@@ -47,6 +49,9 @@ class BedrockCustomizeModelCompletedTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={"job_name": job_name},
@@ -60,10 +65,10 @@ class BedrockCustomizeModelCompletedTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return BedrockHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
@@ -75,7 +80,14 @@ class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 5)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 24)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = BedrockAgentHook
 
     def __init__(
         self,
@@ -84,6 +96,9 @@ class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 5,
         waiter_max_attempts: int = 24,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={"knowledge_base_id": knowledge_base_id},
@@ -97,10 +112,10 @@ class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return BedrockAgentHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
@@ -112,7 +127,14 @@ class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = BedrockHook
 
     def __init__(
         self,
@@ -121,6 +143,9 @@ class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={"provisioned_model_id": provisioned_model_id},
@@ -134,10 +159,10 @@ class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return BedrockHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
@@ -151,7 +176,14 @@ class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 10)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = BedrockAgentHook
 
     def __init__(
         self,
@@ -162,6 +194,9 @@ class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 10,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={
@@ -183,10 +218,10 @@ class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return BedrockAgentHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockAgentRuntimeReadyTrigger(AwsBaseWaiterTrigger):
@@ -199,7 +234,14 @@ class BedrockAgentRuntimeReadyTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = BedrockAgentCoreControlHook
 
     def __init__(
         self,
@@ -210,6 +252,9 @@ class BedrockAgentRuntimeReadyTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={
@@ -230,10 +275,10 @@ class BedrockAgentRuntimeReadyTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return BedrockAgentCoreControlHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockAgentRuntimeDeletedTrigger(AwsBaseWaiterTrigger):
@@ -244,7 +289,14 @@ class BedrockAgentRuntimeDeletedTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = BedrockAgentCoreControlHook
 
     def __init__(
         self,
@@ -253,6 +305,9 @@ class BedrockAgentRuntimeDeletedTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={"agent_runtime_id": agent_runtime_id},
@@ -266,10 +321,10 @@ class BedrockAgentRuntimeDeletedTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return BedrockAgentCoreControlHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):
@@ -281,7 +336,14 @@ class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = BedrockHook
 
     def __init__(
         self,
@@ -291,6 +353,9 @@ class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         if waiter_name == NOTSET:
             raise NotImplementedError("Triggers must provide a waiter name.")
@@ -307,10 +372,10 @@ class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return BedrockHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockBatchInferenceCompletedTrigger(BedrockBaseBatchInferenceTrigger):
@@ -322,6 +387,11 @@ class BedrockBatchInferenceCompletedTrigger(BedrockBaseBatchInferenceTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     def __init__(
@@ -331,6 +401,9 @@ class BedrockBatchInferenceCompletedTrigger(BedrockBaseBatchInferenceTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             waiter_name="batch_inference_complete",
@@ -338,6 +411,9 @@ class BedrockBatchInferenceCompletedTrigger(BedrockBaseBatchInferenceTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
 
 
@@ -350,6 +426,11 @@ class BedrockBatchInferenceScheduledTrigger(BedrockBaseBatchInferenceTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     def __init__(
@@ -359,6 +440,9 @@ class BedrockBatchInferenceScheduledTrigger(BedrockBaseBatchInferenceTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             waiter_name="batch_inference_scheduled",
@@ -366,4 +450,7 @@ class BedrockBatchInferenceScheduledTrigger(BedrockBaseBatchInferenceTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )

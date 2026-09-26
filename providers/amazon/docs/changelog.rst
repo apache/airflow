@@ -26,6 +26,88 @@
 Changelog
 ---------
 
+9.37.0
+......
+
+.. warning::
+  Deferrable AWS operators and sensors now hand ``region_name``, ``verify`` and ``botocore_config``
+  to the trigger they defer to, so the triggerer builds its hook from the operator's settings
+  instead of falling back to boto3 defaults. Deployments where the triggerer happened to work
+  *because* of those defaults will see it change: it now uses the operator's region rather than the
+  triggerer host's ``AWS_DEFAULT_REGION``, and it applies the operator's SSL verification and
+  botocore configuration, which previously never reached it. Set these explicitly on the operator
+  if the deferred half needs to differ from the synchronous half.
+
+.. warning::
+  ``FTPToS3Operator``, ``S3ToFTPOperator``, ``S3ToSFTPOperator``, and ``SFTPToS3Operator`` now match
+  the source ``*_filenames``, when it is a string other than ``"*"``, as a leading prefix of the
+  file name, as documented, instead of as a substring anywhere in the listed entry. Entries that
+  contained it only elsewhere are no longer selected, and a warning reports how many, naming up to
+  ten. Renaming now replaces only that leading prefix, instead of every occurrence.
+
+  For ``S3ToFTPOperator`` and ``S3ToSFTPOperator`` the prefix is not an S3 key prefix. Keys under
+  ``s3_key`` are matched on their last path segment and keep their directory at the destination,
+  and a prefix that contains ``/`` no longer matches. To select a subdirectory, narrow ``s3_key``
+  to it and append it to ``ftp_path`` or ``sftp_path`` to keep the same destination.
+
+  With a string ``ftp_filenames``, ``FTPToS3Operator`` now builds the destination key from the file
+  name alone, so on servers that qualify ``nlst`` entries with the listed directory the key no
+  longer embeds that directory.
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add AthenaSparkOperator (#72081)``
+* ``Preserve SageMaker job lifecycle states in trigger events (#71653)``
+* ``Add Kinesis Data Streams trigger (#71135)``
+* ``Add 'MskHook' (#69000)``
+* ``Add deferrable mode to EmrServerlessJobSensor (#71652)``
+* ``Support code packages in MWAA Serverless workflow operators (#72622)``
+* ``Add deferrable mode to QuickSight operator and sensor (#70218)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix prefix handling in Amazon transfer operators (#73269)``
+* ``Log the success message when a deferred EKS cluster deletion completes (#73455)``
+* ``Build deferred AWS hooks from the operator's own settings (#72171)``
+* ``Preserve OpenSearch Serverless hook configuration when deferring (#72472)``
+* ``Fix id_to_job_info memory leak in the AWS Batch executor (#72186)``
+* ``Fix EMR Serverless delete operator skipping deletion when deferrable (#73323)``
+* ``Contain remote log upload paths within base_log_folder (#72162)``
+* ``Log the HTTP response in HttpToS3Operator when log_response is set (#72951)``
+* ``Give EKS delete operations longer to ride out ResourceInUseException (#73219)``
+* ``Fix empty status messages in deferrable Bedrock/OpenSearch sensors (#72330)``
+* ``Reject empty match_glob in GCSToS3Operator on old google provider (#71591)``
+
+Misc
+~~~~
+
+* ``Unify executor workload queues (#63491)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+* ``Fix howto guide link in AzureBlobStorageToS3Operator docstring (#73227)``
+* ``Stop recommending psycopg3 connection strings on older Airflow (#70619)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Amazon system tests creating connections on Airflow 2 (#73571)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Fix example_dms Dag parsing on Airflow 2 (#73563)``
+   * ``Drop stale OpenSearch Serverless entries from deferred hook configuration test (#73502)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Add fallback to standard provider import in 'example_dms' (#73193)``
+   * ``Add missing Amazon utility tests (#72985)``
+   * ``Fix BaseBotoWaiter deferrable test failing without aiobotocore (#73019)``
+   * ``Wait for the EKS cluster to be stable before deleting Fargate profiles (#72957)``
+   * ``Skip legacy models when selecting a Bedrock inference profile (#72521)``
+   * ``Add unit tests for BaseBotoWaiter in Amazon provider (#72819)``
+
 9.36.0
 ......
 

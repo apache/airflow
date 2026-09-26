@@ -710,6 +710,29 @@ emergency cases.
 
 We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
 
+### Sync staging with main (skip if another vote is in progress)
+
+Before publishing the staging docs, reset the `staging` branches of
+[`apache/airflow-site`](https://github.com/apache/airflow-site) and
+[`apache/airflow-site-archive`](https://github.com/apache/airflow-site-archive) to `main`, so the staging
+site starts from the current live site rather than from whatever an earlier release left there:
+
+```shell script
+breeze workflow-run sync-staging-to-main
+```
+
+It triggers the `Reset staging to main` workflow in
+[`airflow-site`](https://github.com/apache/airflow-site/actions/workflows/reset-staging.yml) and in
+[`airflow-site-archive`](https://github.com/apache/airflow-site-archive/actions/workflows/reset-staging.yml).
+Each force-updates its repository's `staging` branch to the current `main` commit (`main` itself is not
+changed); in `airflow-site` it also rebuilds the staging site.
+
+> [!WARNING]
+> **Skip this step if a vote for any other release (Airflow, Providers, Helm Chart, airflowctl, ...) is
+> in progress.** Its release candidate docs are on the `staging` branches, and resetting `staging` to `main`
+> would overwrite the staging docs prepared for that vote. The command asks for confirmation before it
+> does anything; answer `n` to skip it.
+
 ### Using breeze commands
 
 You can use the `breeze` command to publish the documentation.

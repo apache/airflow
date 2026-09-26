@@ -30,7 +30,7 @@ import typing
 import uuid
 from collections.abc import AsyncIterator
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -46,6 +46,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import TypeAdapter
+from sqlalchemy import delete, update
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -54,6 +55,7 @@ from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    _REASSIGNED_CANCEL_MSG,
     _USER_ACTION_CANCEL_MSG,
     ToTriggerRunner,
     ToTriggerSupervisor,
@@ -71,6 +73,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -118,9 +121,6 @@ from tests_common.test_utils.db import (
     clear_db_xcom,
 )
 from tests_common.test_utils.taskinstance import create_task_instance
-
-if TYPE_CHECKING:
-    from kgb import SpyAgency
 
 pytestmark = pytest.mark.db_test
 
@@ -272,7 +272,7 @@ def test_execute_passes_job_team_name_to_supervisor(mock_supervisor_start, team_
     mock_supervisor._exit_code = 0
     mock_supervisor_start.return_value = mock_supervisor
 
-    job = Job(team_name=team_name)
+    job = Job(team_names=[team_name] if team_name else [])
     job_runner = TriggererJobRunner(job)
     with (
         patch.object(job_runner, "register_signals"),
@@ -348,6 +348,36 @@ def supervisor_builder(mocker, session):
         return proc
 
     return builder
+
+
+class InProcessTriggerComms:
+    """Runner-side comms that deliver requests straight to a supervisor in the same process.
+
+    Every request goes through the same msgpack framing, ``handle_requests`` decode and
+    ``send_msg`` encode as the socket path, but synchronously: no subprocess, no selector and no
+    wall-clock waits, so a test can drive both halves of the triggerer deterministically.
+    """
+
+    def __init__(self, supervisor: TriggerRunnerSupervisor):
+        self._supervisor = supervisor
+        # stdin is the Mock(spec=socket) that supervisor_builder installs
+        self._stdin = typing.cast("MagicMock", supervisor.stdin)
+        self._requests = supervisor.handle_requests(log=MagicMock(spec=FilteringBoundLogger))
+        next(self._requests)
+        self._ids = itertools.count()
+        self._request_decoder = msgspec.msgpack.Decoder(_RequestFrame)
+        self._response_decoder = msgspec.msgpack.Decoder(_ResponseFrame)
+        self._body_decoder: TypeAdapter[ToTriggerRunner] = TypeAdapter(ToTriggerRunner)
+
+    async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
+        frame = _RequestFrame(id=next(self._ids), body=msg.model_dump())
+        self._stdin.sendall.reset_mock()
+        self._requests.send(self._request_decoder.decode(frame.as_bytes()[4:]))
+        (raw,), _ = self._stdin.sendall.call_args
+        response = self._response_decoder.decode(raw[4:])
+        assert response.id == frame.id
+        assert response.error is None, response.error
+        return self._body_decoder.validate_python(response.body)
 
 
 def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
@@ -1126,37 +1156,34 @@ class TestTriggerSupervisorAssetStateStore:
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
 
-def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
+@pytest.mark.asyncio
+@pytest.mark.execution_timeout(20)
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_trigger_lifecycle(session, supervisor_builder):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
     and send it to the trigger runner, and then delete it when it vanishes.
+
+    Supervisor and runner both live in this process, wired by ``InProcessTriggerComms``. The
+    runner calls below are the ones ``TriggerRunner.arun`` makes on every loop iteration, driven
+    by hand so the whole lifecycle is deterministic.
     """
     # Use a trigger that will not fire for the lifetime of the test
     # (we want to avoid it firing and deleting itself)
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
-    dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
-    # Make a TriggererJobRunner and have it retrieve DB tasks
-    trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=12345), capacity=10)
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+    supervisor = supervisor_builder()
+    runner = TriggerRunner()
+    runner.comms_decoder = InProcessTriggerComms(supervisor)
 
     try:
-        # Spy on it so we can see what gets send, but also call the original.
-        message = None
+        supervisor.load_triggers()
+        assert {w.id for w in supervisor.creating_triggers} == {trigger_orm.id}
 
-        @spy_agency.spy_for(TriggerRunnerSupervisor.send_msg)
-        def send_msg_spy(self, msg, *args, **kwargs):
-            nonlocal message
-            message = msg
-            TriggerRunnerSupervisor.send_msg.call_original(self, msg, *args, **kwargs)
-
-        trigger_runner_supervisor.load_triggers()
-        trigger_runner_supervisor._service_subprocess(0.1)
-
-        # Make sure it turned up in TriggerRunner's queue
-        assert trigger_runner_supervisor.running_triggers == {trigger_orm.id}
-
-        assert message is not None, "spy was not called"
-        assert len(message.to_create) == 1
-        assert message.to_create[0] == (
+        # Runner checks in: the supervisor hands over the workload and marks it as running
+        await runner.sync_state_to_supervisor(finished_ids=[])
+        assert supervisor.running_triggers == {trigger_orm.id}
+        assert list(runner.to_create) == [
             workloads.RunTrigger.model_construct(
                 id=trigger_orm.id,
                 ti=ANY,
@@ -1166,24 +1193,35 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 dag_data=ANY,
                 queued_at=ANY,
             )
-        )
-        # OK, now remove it from the DB
+        ]
+
+        await runner.create_triggers()
+        task = runner.triggers[trigger_orm.id]["task"]
+        assert not task.done()
+
+        # OK, now remove it from the DB; the supervisor must ask the runner to cancel it
         session.delete(trigger_orm)
         session.commit()
+        supervisor.load_triggers()
+        assert supervisor.cancelling_triggers == {trigger_orm.id}
 
-        # Re-load the triggers
-        trigger_runner_supervisor.load_triggers()
+        await runner.sync_state_to_supervisor(finished_ids=[])
+        await runner.cancel_triggers()
+        # Wait for the trigger coroutine itself to unwind, not for the clock
+        await asyncio.wait([task])
+        finished_ids = await runner.cleanup_finished_triggers()
+        assert finished_ids == [trigger_orm.id]
+        await runner.sync_state_to_supervisor(finished_ids=finished_ids)
 
-        # Wait for up to 10 seconds for it to vanish from the TriggerRunner's storage
-        for _ in range(100):
-            if not trigger_runner_supervisor.running_triggers:
-                break
-            trigger_runner_supervisor._service_subprocess(0.1)
-        else:
-            pytest.fail("TriggerRunnerSupervisor never deleted trigger")
+        assert supervisor.running_triggers == set()
+        assert supervisor.cancelling_triggers == set()
+        assert not supervisor.failed_triggers
+        assert runner.triggers == {}
     finally:
-        # We always have to stop the runner
-        trigger_runner_supervisor.kill(force=False)
+        # Never leave a trigger coroutine pending on the test loop
+        for details in runner.triggers.values():
+            details["task"].cancel()
+        await asyncio.gather(*(d["task"] for d in runner.triggers.values()), return_exceptions=True)
 
 
 @pytest.mark.parametrize(
@@ -1440,6 +1478,63 @@ class TestTriggerRunner:
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
         mock_trigger.on_kill.assert_not_called()
+
+    def test_run_trigger_skips_on_kill_when_trigger_reassigned(self, session, cap_structlog) -> None:
+        """on_kill() is not called when the trigger was handed to another triggerer."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_REASSIGNED_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_not_called()
+        assert {
+            "event": "Trigger reassigned to another triggerer, dropping it without on_kill",
+            "log_level": "info",
+            "name": "mock_name",
+        } in cap_structlog
+
+    @pytest.mark.asyncio
+    async def test_cancel_triggers_uses_distinct_messages_for_user_action_and_reassignment(self) -> None:
+        trigger_runner = TriggerRunner()
+        user_task = MagicMock(spec=asyncio.Task)
+        reassigned_task = MagicMock(spec=asyncio.Task)
+        trigger_runner.triggers = {
+            1: {"task": user_task, "is_watcher": False, "name": "user", "events": 0},
+            2: {"task": reassigned_task, "is_watcher": False, "name": "moved", "events": 0},
+        }
+        trigger_runner.to_cancel.append(1)
+        trigger_runner.to_release.append(2)
+        # An id the runner no longer knows about is ignored on both queues.
+        trigger_runner.to_cancel.append(3)
+        trigger_runner.to_release.append(4)
+
+        await trigger_runner.cancel_triggers()
+
+        user_task.cancel.assert_called_once_with(_USER_ACTION_CANCEL_MSG)
+        reassigned_task.cancel.assert_called_once_with(_REASSIGNED_CANCEL_MSG)
+        assert not trigger_runner.to_cancel
+        assert not trigger_runner.to_release
+
+    @pytest.mark.asyncio
+    async def test_sync_state_to_supervisor_queues_released_triggers(self) -> None:
+        trigger_runner = TriggerRunner()
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
+            to_create=[], to_cancel={1}, to_release={2}
+        )
+
+        await trigger_runner.sync_state_to_supervisor([])
+
+        assert list(trigger_runner.to_cancel) == [1]
+        assert list(trigger_runner.to_release) == [2]
 
     def test_run_trigger_on_kill_exception_does_not_swallow_cancelled_error(self, session) -> None:
         """CancelledError propagates even if on_kill() raises."""
@@ -2742,6 +2837,97 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
     assert len(supervisor.creating_triggers) == 0
     assert trigger_orm.id not in supervisor.running_triggers
     supervisor.stdin.write.assert_not_called()
+
+
+def _alive_triggerer_job(session) -> Job:
+    other_job = Job(job_type="TriggererJob")
+    other_job.latest_heartbeat = timezone.utcnow()
+    session.add(other_job)
+    session.flush()
+    return other_job
+
+
+def test_load_triggers_releases_reassigned_trigger_without_user_action_cancel(session, supervisor_builder):
+    """
+    A trigger whose row moved to another triggerer must be dropped locally, not queued
+    as a user-action cancel (which would fire ``on_kill()`` and cancel remote work the new
+    owner is still polling).
+    """
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {trigger_orm.id}
+
+    # Our heartbeat lapsed and another (alive) triggerer took the trigger over.
+    other_job = _alive_triggerer_job(session)
+    session.execute(update(Trigger).where(Trigger.id == trigger_orm.id).values(triggerer_id=other_job.id))
+    session.flush()
+
+    supervisor.load_triggers()
+
+    assert supervisor.cancelling_triggers == set()
+    assert supervisor.releasing_triggers == {trigger_orm.id}
+
+
+def test_load_triggers_cancels_deleted_trigger_as_user_action(session, supervisor_builder):
+    """A trigger whose row is gone (task left the deferred state) takes the user-action path."""
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, _, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {trigger_orm.id}
+
+    session.execute(
+        update(TaskInstance)
+        .where(TaskInstance.id == task_instance.id)
+        .values(trigger_id=None, state="scheduled")
+    )
+    session.execute(delete(Trigger).where(Trigger.id == trigger_orm.id))
+    session.flush()
+
+    supervisor.load_triggers()
+
+    assert supervisor.cancelling_triggers == {trigger_orm.id}
+    assert supervisor.releasing_triggers == set()
+
+
+def test_update_triggers_splits_cancel_set_by_row_existence(supervisor_builder, mocker):
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {1, 2, 3}
+    fetch_assignments = mocker.patch.object(
+        TriggerRunnerSupervisor, "fetch_trigger_assignments", autospec=True, return_value={2: 99}
+    )
+
+    supervisor.update_triggers({3})
+
+    fetch_assignments.assert_called_once_with(supervisor, {1, 2})
+    assert supervisor.releasing_triggers == {2}
+    assert supervisor.cancelling_triggers == {1}
+
+    # Already-classified triggers are not re-queried on the next loop.
+    supervisor.update_triggers({3})
+    fetch_assignments.assert_called_once()
+
+
+def test_state_sync_sends_released_triggers_separately_from_cancels(supervisor_builder, mocker):
+    supervisor = supervisor_builder()
+    send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    log = MagicMock(spec=FilteringBoundLogger)
+    supervisor.running_triggers = {1, 2}
+    supervisor.cancelling_triggers = {1}
+    supervisor.releasing_triggers = {2}
+
+    supervisor._handle_request(messages.TriggerStateChanges(), log=log, req_id=1)
+
+    resp = send_msg.call_args.args[1]
+    assert isinstance(resp, messages.TriggerStateSync)
+    assert resp.to_cancel == {1}
+    assert resp.to_release == {2}
+
+    # The runner reporting them finished clears both tracking sets.
+    supervisor._handle_request(messages.TriggerStateChanges(finished=[1, 2]), log=log, req_id=2)
+    assert supervisor.cancelling_triggers == set()
+    assert supervisor.releasing_triggers == set()
+    assert supervisor.running_triggers == set()
 
 
 class TestTriggererJobRunner:

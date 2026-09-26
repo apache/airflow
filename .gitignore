@@ -140,6 +140,8 @@ ENV/
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/aip-user-stories
+!.claude/skills/airflow-pr-draft-summary
+!.claude/skills/airflow-publish-changes
 !.claude/skills/airflow-translations
 !.claude/skills/prepare-providers-documentation
 !.claude/skills/upgrade-fab-provider

@@ -1571,7 +1571,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance
             from airflow.models.serialized_dag import SerializedDagModel
-            from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             from tests_common.test_utils.compat import AssetEvent
@@ -1607,7 +1606,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
                     self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
                     if AIRFLOW_V_3_0_PLUS:
                         for bundle_name in self.created_bundle_names:
@@ -2145,6 +2143,26 @@ def reset_team_name_cache():
         yield
     finally:
         clear_team_name_cache()
+
+
+@pytest.fixture(autouse=True)
+def clear_current_task_instance_session():
+    """Reset the process global taskinstance session between tests.
+
+    Reaching it outside a task run leaves it set, and every later ``ti.run()`` in the process
+    then raises "Session already set for this task". No-op on Airflow 3.
+    """
+    try:
+        import airflow.utils.task_instance_session as task_instance_session
+    except ModuleNotFoundError:
+        yield
+        return
+
+    task_instance_session.__current_task_instance_session = None
+    try:
+        yield
+    finally:
+        task_instance_session.__current_task_instance_session = None
 
 
 @pytest.fixture(autouse=True)

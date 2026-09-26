@@ -29,7 +29,11 @@ import pytest
 from sqlalchemy import func, select, update
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _guess_best_bundle_for_fileloc
+from airflow.dag_processing.bundles.manager import (
+    DagBundlesManager,
+    _get_configured_bundle_team_names,
+    _guess_best_bundle_for_fileloc,
+)
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -140,6 +144,40 @@ OTHER_BUNDLE_CONFIG = [
         "kwargs": {"refresh_interval": 1},
     }
 ]
+
+TEAM_BUNDLE_CONFIG = [
+    {
+        "name": "team-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        "kwargs": {"refresh_interval": 1},
+        "team_name": "team-a",
+    },
+    {
+        "name": "unscoped-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        "kwargs": {"refresh_interval": 1},
+    },
+]
+
+
+@pytest.mark.parametrize("load_examples", ["False", "True"])
+def test_get_configured_bundle_team_names(load_examples):
+    with conf_vars(
+        {
+            ("core", "load_examples"): load_examples,
+            ("core", "multi_team"): "True",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
+        }
+    ):
+        assert _get_configured_bundle_team_names() == {
+            "team-bundle": "team-a",
+            "unscoped-bundle": None,
+        }
+
+
+@conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
+def test_get_configured_bundle_team_names_without_config():
+    assert _get_configured_bundle_team_names() == {}
 
 
 def test_get_bundle():

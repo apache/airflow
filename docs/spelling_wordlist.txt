@@ -3,6 +3,7 @@ abc
 AbstractFileSystem
 AbstractToolset
 accessor
+accessors
 AccessSecretVersionResponse
 aci
 Ack
@@ -489,6 +490,8 @@ deserializer
 deserializes
 deserializing
 dest
+destructures
+destructuring
 dev
 devel
 DevOps
@@ -771,6 +774,7 @@ gsuite
 gte
 Gunicorn
 gunicorn
+gVisor
 gz
 Gzip
 gzipped
@@ -798,6 +802,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honoured
 hookimpl
 hookspec
 HostAliases
@@ -914,6 +919,7 @@ jdk
 jenkins
 JenkinsRequest
 Jetson
+Jev
 Jiajie
 Jinja
 jinja
@@ -941,6 +947,7 @@ Json
 json
 jsonl
 JsonValue
+jti
 juli
 Jupyter
 jupyter
@@ -1038,6 +1045,7 @@ logstash
 longblob
 lookups
 loopback
+lowercased
 lshift
 lte
 lxml
@@ -1329,6 +1337,7 @@ pretify
 prev
 Proc
 proc
+procfs
 productionalize
 ProductSearchClient
 profiler
@@ -1343,6 +1352,7 @@ protobuf
 provisioner
 proxied
 proxies
+proxying
 psql
 psrp
 psycopg
@@ -1575,6 +1585,7 @@ SlackHook
 SlackResponse
 slas
 smtp
+SNI
 SnowflakeHook
 Snowpark
 snowpark
@@ -1838,6 +1849,7 @@ uncompress
 undeploy
 undeployed
 Undeploys
+unescaped
 unicode
 unicodecsv
 unindent

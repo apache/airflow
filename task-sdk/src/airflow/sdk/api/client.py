@@ -271,13 +271,23 @@ class TaskInstanceOperations:
             raise
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
+    def finish(
+        self,
+        id: uuid.UUID,
+        state: TerminalStateNonSuccess,
+        when: datetime,
+        rendered_map_index,
+        retry_reason: str | None = None,
+    ):
         """Tell the API server that this TI has reached a terminal state."""
         if state == TaskInstanceState.SUCCESS:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(
-            end_date=when, state=TerminalStateNonSuccess(state), rendered_map_index=rendered_map_index
+            end_date=when,
+            state=TerminalStateNonSuccess(state),
+            rendered_map_index=rendered_map_index,
+            retry_reason=retry_reason,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
@@ -329,7 +339,12 @@ class TaskInstanceOperations:
 
     def heartbeat(self, id: uuid.UUID, pid: int):
         body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
-        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
+        self.client.request(
+            "PUT",
+            f"task-instances/{id}/heartbeat",
+            content=body.model_dump_json(),
+            retry=False,  # heartbeats do not retry: they are implicitly retried by the supervisor loop.
+        )
 
     def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):
         """Tell the API server to skip the downstream tasks of this TI."""
@@ -467,7 +482,7 @@ class ConnectionOperations:
     def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
         try:
-            resp = self.client.get(f"connections/{conn_id}")
+            resp = self.client.get(f"connections/{quote(conn_id, safe='')}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
@@ -1228,15 +1243,17 @@ class Client(httpx.Client):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 
-    @retry(
-        retry=retry_if_exception(_should_retry_api_request),
-        stop=stop_after_attempt(API_RETRIES),
-        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=_log_and_trace_retry,
-        reraise=True,
-    )
-    def request(self, *args, **kwargs):
-        """Implement a convenience for httpx.Client.request with a retry layer."""
+    def request(self, *args, retry: bool = True, **kwargs):
+        """
+        Make a request using our httpx.Client.request with a default retry policy.
+
+        Pass ``retry=False`` to bypass the default retry policy.
+        """
+        if not retry:
+            return self._request_without_retry(*args, **kwargs)
+        return self._request_with_retry(*args, **kwargs)
+
+    def _request_without_retry(self, *args, **kwargs):
         # Set content type as convenience if not already set
         if kwargs.get("content", None) is not None and "content-type" not in (
             kwargs.get("headers", {}) or {}
@@ -1244,6 +1261,16 @@ class Client(httpx.Client):
             kwargs["headers"] = {"content-type": "application/json"}
 
         return super().request(*args, **kwargs)
+
+    @retry(
+        retry=retry_if_exception(_should_retry_api_request),
+        stop=stop_after_attempt(API_RETRIES),
+        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
+        before_sleep=_log_and_trace_retry,
+        reraise=True,
+    )
+    def _request_with_retry(self, *args, **kwargs):
+        return self._request_without_retry(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
     # methods on one object prefixed with the object type (`.task_instances.update` rather than

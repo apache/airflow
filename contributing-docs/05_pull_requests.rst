@@ -77,6 +77,10 @@ Pull Request guidelines
 Before you submit a Pull Request (PR) from your forked repo, check that it meets
 these guidelines:
 
+-   Mind the **limit on open PRs**: contributors without write access can have at most 5 open PRs
+    at a time. See `Limit on open Pull Requests <32_open_pull_request_limit.rst>`__ for why, and what
+    to do when you reach it.
+
 -   Start with **Draft**: Until you are sure that your PR passes all the quality checks and tests, keep it
     in **Draft** status. This will signal to maintainers that the PR is not yet ready
     for review and it will prevent maintainers from accidentally merging it before
@@ -218,6 +222,13 @@ contains suspicious changes (e.g. attempts to exfiltrate secrets, modify CI pipe
 maliciously, or inject harmful code), **all open PRs by the same author** will be closed
 and labeled ``suspicious changes detected``. A comment is posted on each PR explaining that
 the closure was triggered by suspicious changes found in the flagged PR.
+
+**What happens when a PR is closed because of the open PR limit?**
+
+When the `limit on open PRs <32_open_pull_request_limit.rst>`__ was introduced, maintainers ran a
+one-time closure of the PRs of contributors who had more than 5 open PRs, except PRs where a
+maintainer had already engaged. Those PRs are labeled ``closed because of open PR limit`` and can be
+reopened once you have a free slot.
 
 If a contributor believes any closure described above was applied in error, the appeal channel
 is the PMC private list — see the
@@ -463,6 +474,31 @@ Converting an existing truthiness check is not neutral: a guard that raises when
 *both* set only gets stricter, but ``if not field: raise`` gets looser — ``""`` and ``0`` start
 passing, and that half is a value check. ``not exactly_one(a, b)`` carries both, since it also
 requires at least one.
+
+Operators that support ``start_from_trigger`` are the third exception. The scheduler sends the task
+straight to the triggerer and ``execute`` never runs; the triggerer renders the ``trigger_kwargs``
+entries whose key is both an operator template field and an attribute of the trigger. Copying such
+a field verbatim into ``start_trigger_args`` under its own name is therefore fine in the
+constructor:
+
+.. code-block:: python
+
+    def __init__(self, *, job: dict, start_from_trigger: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.job = job
+        self.start_from_trigger = start_from_trigger
+        if start_from_trigger:
+            self.start_trigger_args = dataclasses.replace(
+                self.start_trigger_args, trigger_kwargs={"job": self.job}
+            )
+
+A transformed value, a copy under a key that is not a template field of the operator, and a template
+field passed as ``timeout`` or ``next_kwargs`` are never rendered and are still flagged. A copy under
+the name of a *different* template field is rendered, under that key, but is flagged as well — the
+entry no longer holds the field its key names.
+
+The hook only verifies the operator half of that pair: it cannot tell whether the key is also an
+attribute of the trigger class, so a passing hook is not confirmation that the kwarg will be rendered.
 
 The reason for doing it is that we are working on a cleaning up our code to have
 `prek hook <../scripts/ci/prek/validate_operators_init.py>`_

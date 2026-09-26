@@ -56,6 +56,18 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.influxdb.operators.influxdb3"],
             },
         ],
+        "sensors": [
+            {
+                "integration-name": "InfluxDB 3",
+                "python-modules": ["airflow.providers.influxdb.sensors.influxdb3"],
+            }
+        ],
+        "triggers": [
+            {
+                "integration-name": "InfluxDB 3",
+                "python-modules": ["airflow.providers.influxdb.triggers.influxdb3"],
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.influxdb.hooks.influxdb.InfluxDBHook",

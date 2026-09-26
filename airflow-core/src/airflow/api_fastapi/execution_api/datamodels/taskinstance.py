@@ -85,6 +85,7 @@ class TITerminalStatePayload(StrictBaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -445,6 +446,17 @@ class TIRunContext(BaseModel):
     Ordered positional-argument binding spec for stub (foreign-runtime) tasks.
 
     ``None`` for regular tasks and for stub tasks that declare no parameters.
+    """
+
+    multi_team: bool = False
+    """
+    Whether the deployment runs in multi-team mode.
+
+    Sent explicitly because a worker cannot read ``core.multi_team`` itself: its config is
+    not guaranteed to match the scheduler's, and reading it as disabled while it is in fact
+    enabled would drop team scoping and apply a team's plugins to every task. ``team_name``
+    cannot stand in for this, being ``None`` both for a teamless task and for every task
+    when multi-team is off.
     """
 
 

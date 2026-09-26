@@ -736,9 +736,12 @@ database:
     sql_alchemy_connect_args_async:
       description: |
         Import path for connect args in SQLAlchemy. Defaults to an empty dict.
-        This is similar to ``sql_alchemy_connect_args``, but only for async connections.
+        This is similar to ``sql_alchemy_connect_args``, but only for async connections and must be a dict.
 
-        This configuration is only applied to async engines, such as asyncpg.
+        This is applied to the async engine only. The default async Postgres driver (psycopg3) needs
+        no extra args. If you opt in to the ``asyncpg`` driver behind transaction-mode pgbouncer, set
+        ``statement_cache_size`` and ``prepared_statement_cache_size`` to ``0`` here to avoid "prepared
+        statement does not exist" errors. See the async driver section of the Postgres setup guide.
       version_added: 3.1.0
       type: string
       example: 'airflow_local_settings.connect_args_async'
@@ -2097,13 +2100,19 @@ workers:
     max_failed_heartbeats:
       description: |
         The maximum number of consecutive failed heartbeats before terminating the task instance process.
+
+        Unlike other calls to the execution API, heartbeats are not retried. This setting and
+        ``min_heartbeat_interval`` together determine how long a worker tolerates an unreachable API server
+        before killing running tasks.
       version_added: 3.0.0
       type: integer
       example: ~
-      default: "3"
+      default: "30"
     execution_api_retries:
       description: |
         The maximum number of retry attempts to the execution API server.
+
+        Note that task instance heartbeats are not retried.
       version_added: 3.0.0
       type: integer
       example: ~

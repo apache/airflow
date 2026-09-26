@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enforce the message queue provider contract without breaking scheme-only providers (#73168)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add missing unit tests for the common-messaging provider base class (#72915)``
+
 2.1.0
 .....
 

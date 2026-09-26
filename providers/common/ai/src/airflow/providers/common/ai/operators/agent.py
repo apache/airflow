@@ -18,19 +18,29 @@
 
 from __future__ import annotations
 
+import copy
 import json
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
+from pydantic_ai.capabilities import Toolset
+from pydantic_ai.toolsets.abstract import AbstractToolset
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
+from airflow.providers.common.ai.observability import (
+    build_run_identity_attributes,
+    stamp_identity_on_agent_spans,
+)
+from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.toolsets import find_toolset, iter_toolsets
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
@@ -49,9 +59,9 @@ except ImportError:  # pragma: no cover - cores before the worker-side registrat
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    import jinja2
     from pydantic_ai import Agent
     from pydantic_ai.messages import ModelMessage
-    from pydantic_ai.toolsets.abstract import AbstractToolset
     from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
@@ -93,6 +103,18 @@ class HITLReviewLink(BaseOperatorLink):
         )
 
 
+def _is_concrete_toolset_capability(capability: Any) -> bool:
+    """Whether *capability* is a ``Toolset`` holding a toolset, not a callable factory resolved per run."""
+    return isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset)
+
+
+def _declares_agent_template_fields(toolset: Any) -> bool:
+    """Whether *toolset*, or a toolset it wraps or combines, has connection IDs to render."""
+    return isinstance(toolset, AbstractToolset) and any(
+        getattr(leaf, "agent_template_fields", None) for leaf in iter_toolsets(toolset)
+    )
+
+
 def _build_code_mode() -> Any:
     """
     Return a pydantic-ai-harness ``CodeMode`` capability, or raise if not installed.
@@ -118,7 +140,10 @@ def _build_code_mode() -> Any:
     return CodeMode()
 
 
-class AgentOperator(BaseOperator, HITLReviewMixin):
+# CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
+# no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
+# test in tests/unit/common/ai/mixins/test_cancellable_run.py.
+class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
 
@@ -126,10 +151,24 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     and run the agent. The agent reasons about the prompt, calls tools in a
     multi-turn loop, and returns a final answer.
 
+    Alongside the returned agent output, the run's ``run_id`` and token ``usage``
+    are pushed to XCom under the ``run_id`` and ``usage`` keys, so a downstream
+    task can reference the run and its cost. The ``run_id`` also ties the task to
+    its GenAI trace (see the provider's observability docs). With
+    ``enable_hitl_review``, these reflect the initial model run, not the
+    human-feedback regenerations.
+
     :param prompt: The prompt to send to the agent.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
         ``BaseModel`` subclass for structured output; the model instance is
@@ -137,7 +176,15 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
-        (e.g. ``SQLToolset``, ``HookToolset``).
+        (e.g. ``SQLToolset``, ``HookToolset``). The connection IDs of
+        ``SQLToolset``, ``MCPToolset`` and ``HookToolset`` (its hook's
+        ``conn_name_attr``) are templated, e.g.
+        ``SQLToolset(db_conn_id="warehouse_{{ var.value.environment }}")`` per
+        environment, or ``"tenant_{{ task.op_kwargs.customer }}"`` per map index of
+        a mapped ``@task.agent``. Each task instance renders its own copy and logs
+        the rendered toolset id; the toolset object in the Dag file is not
+        modified. Derive the connection ID from values the Dag controls rather than
+        ``params`` or ``dag_run.conf``, which whoever triggers the Dag controls.
     :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
         ``LoggingToolset`` that logs tool calls with timing at INFO level and
         arguments at DEBUG level. Set to ``False`` to disable.
@@ -181,6 +228,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         retry; put tools you need replayed in ``toolsets=``. Provider-native
         capabilities such as ``WebSearch`` and ``Thinking`` execute inside the
         model call and are covered by model-response caching.
+        Cannot be combined with a ``SandboxToolset`` (raises): a sandbox is
+        destroyed when the run ends, so replayed tool results would describe
+        files that no longer exist.
     :param code_mode: When ``True``, wraps the agent's tools in a single
         ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
         ``CodeMode``). Instead of one model round-trip per tool call, the model
@@ -216,7 +266,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         iterative review loop after the first generation.  A human reviewer
         can approve, reject, or request changes via the plugin's REST API
         at ``/hitl-review`` or through the **HITL Review** extra link
-        on the task instance.  Default ``False``.
+        on the task instance.  Default ``False``. Cannot be combined with a
+        ``SandboxToolset`` (raises): regeneration after feedback is a second
+        run, which starts from an empty sandbox while its history describes
+        the first run's files.
     :param max_hitl_iterations: Maximum outputs shown to the reviewer (1 =
         initial output). When the reviewer requests changes at
         iteration >= this limit, the task fails with ``HITLMaxIterationsError``
@@ -244,6 +297,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "prompt",
         "llm_conn_id",
         "model_id",
+        "fallback_conn_ids",
         "system_prompt",
         "agent_params",
         "message_history",
@@ -258,6 +312,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         prompt: str,
         llm_conn_id: str,
         model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type = str,
         toolsets: list[AbstractToolset] | None = None,
@@ -280,6 +335,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.prompt = prompt
         self.llm_conn_id = llm_conn_id
         self.model_id = model_id
+        self.fallback_conn_ids = fallback_conn_ids
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
@@ -329,16 +385,130 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             # surface the final message history.
             raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
 
+        if durable or enable_hitl_review:
+            self._reject_sandbox_without_continuity(durable=durable, enable_hitl_review=enable_hitl_review)
+
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
+
+    def _reject_sandbox_without_continuity(self, *, durable: bool, enable_hitl_review: bool) -> None:
+        """
+        Refuse a ``SandboxToolset`` under a feature that assumes the sandbox outlives the run.
+
+        A sandbox is provisioned on the first tool call and destroyed when the run
+        ends, so nothing in it survives into a retry or a second run. Two features
+        assume otherwise, and each produces a wrong answer rather than an error:
+
+        * ``durable=True`` replays cached tool results on a retry without calling the
+          backend, so a replayed ``write_file`` reports success while no sandbox exists,
+          and the first call that misses the cache runs against a fresh, empty one.
+        * ``enable_hitl_review=True`` regenerates after reviewer feedback by starting a
+          second agent run, which gets an empty sandbox while its message history still
+          describes the files the first run wrote.
+
+        The toolset is looked for inside wrappers and combinations (``.prefixed()``,
+        ``.filtered()``, several toolsets passed together) and inside ``Toolset``
+        capabilities, since those are the compositions the documentation recommends.
+        A toolset resolved per run from a callable cannot be inspected here.
+        """
+        candidates = list(self.toolsets or [])
+        for capability in self.agent_params.get("capabilities") or ():
+            if _is_concrete_toolset_capability(capability):
+                candidates.append(capability.toolset)
+        if find_toolset(candidates, SandboxToolset) is None:
+            return
+        flag = "durable=True" if durable else "enable_hitl_review=True"
+        why = (
+            "cached tool results would be replayed against a sandbox that no longer exists"
+            if durable
+            else "a regenerated run would start from an empty sandbox while its history describes "
+            "files from the first run"
+        )
+        raise ValueError(
+            f"{flag} cannot be used with a SandboxToolset: {why}. "
+            f"Drop {flag}, or move the sandbox work into its own task."
+        )
+
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Context,
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
+    ) -> None:
+        super()._do_render_template_fields(parent, template_fields, context, jinja_env, seen_oids)
+        # Hooked here rather than in render_template_fields because a mapped task never calls
+        # that one -- MappedOperator renders through _do_render_template_fields on the unmapped task.
+        if parent is self:
+            self._render_toolsets(context, jinja_env, seen_oids)
+
+    def _render_toolsets(self, context: Context, jinja_env: jinja2.Environment, seen_oids: set[int]) -> None:
+        """
+        Render the connection IDs of toolsets that declare ``agent_template_fields``.
+
+        ``toolsets`` is not itself a template field: serializing it would put each
+        toolset's repr -- which for pydantic-ai's dataclass toolsets embeds function
+        addresses -- into the Dag hash and the rendered-fields view. Instead, each leaf
+        toolset that opts in (``SQLToolset``, ``MCPToolset``, ``HookToolset``) is
+        rendered here, found with pydantic-ai's ``visit_and_replace`` inside
+        ``.prefixed()`` / ``.filtered()`` wrappers, ``Toolset`` capabilities, and a
+        ``toolsets`` list passed through ``agent_params``. A ``Toolset`` capability
+        backed by a callable factory is resolved per run and is not rendered.
+
+        A rendered *copy* replaces the original, which is left untouched: mapped task
+        instances and ``dag.test()`` share one toolset object across runs in the same
+        process, and rendering it in place would hand one map index's connection to
+        the next. That is also why the opt-in is ``agent_template_fields`` and not
+        ``template_fields``: Airflow's templater renders any object carrying
+        ``template_fields`` in place wherever it sits inside another template field,
+        such as ``agent_params``.
+        """
+
+        def render(toolset: AbstractToolset[Any]) -> AbstractToolset[Any]:
+            fields = getattr(toolset, "agent_template_fields", None)
+            if not fields:
+                return toolset
+            rendered = copy.copy(toolset)
+            self._do_render_template_fields(rendered, fields, context, jinja_env, seen_oids)
+            # The rendered connection is recorded nowhere else, so this line is the audit trail
+            # of which connection this task instance's agent was given. @task.agent renders a
+            # second time, when the id no longer changes, so this logs once per task instance.
+            if rendered.id != toolset.id:
+                self.log.info("Rendered toolset %s", rendered.id)
+            return rendered
+
+        def render_all(toolsets: list[Any]) -> list[Any]:
+            # Leave anything without a templated leaf alone: rebuilding a wrapper via
+            # visit_and_replace breaks wrapper subclasses with their own __init__.
+            return [
+                toolset.visit_and_replace(render) if _declares_agent_template_fields(toolset) else toolset
+                for toolset in toolsets
+            ]
+
+        if self.toolsets:
+            self.toolsets = render_all(self.toolsets)
+        agent_params = dict(self.agent_params)
+        if agent_params.get("toolsets"):
+            agent_params["toolsets"] = render_all(agent_params["toolsets"])
+        if agent_params.get("capabilities"):
+            agent_params["capabilities"] = [
+                replace(capability, toolset=capability.toolset.visit_and_replace(render))
+                if _is_concrete_toolset_capability(capability)
+                and _declares_agent_template_fields(capability.toolset)
+                else capability
+                for capability in agent_params["capabilities"]
+            ]
+        self.agent_params = agent_params
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
         """Return PydanticAIHook for the configured LLM connection."""
         hook_params = {
             "model_id": self.model_id,
+            "fallback_conn_ids": self.fallback_conn_ids,
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
@@ -393,19 +563,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         unchanged, as does a ``Toolset`` holding a callable factory rather than a
         concrete toolset (only a concrete toolset can be wrapped here).
         """
-        # pydantic-ai (and the pydantic-ai-importing CachingToolset) are imported
-        # lazily to keep them out of DAG-parse-time imports, matching
-        # ``_build_durable_toolsets`` and the rest of this module.
-        from pydantic_ai.capabilities import Toolset
-        from pydantic_ai.toolsets.abstract import AbstractToolset
-
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 
         rewrapped: list[Any] = []
         for capability in capabilities:
             # ``Toolset.toolset`` can be a concrete toolset or a callable factory
             # resolved per run; only a concrete toolset can be wrapped here.
-            if isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset):
+            if _is_concrete_toolset_capability(capability):
                 cached = CachingToolset(wrapped=capability.toolset, storage=storage, counter=counter)
                 rewrapped.append(replace(capability, toolset=cached))
                 continue
@@ -470,13 +634,22 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         agent = self._build_agent()
 
-        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits}
+        ti = context["task_instance"]
+        self._run_identity_attrs = build_run_identity_attributes(ti)
+        stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
+
+        # The task-instance id is non-nullable and regenerated on each retry, so it
+        # is a unique, reverse-resolvable join key. It lands on result.run_id, the
+        # run's messages, and the ``gen_ai.agent.call.id`` span attribute.
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": str(ti.id)}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history
 
         storage = self._durable_storage
         counter = self._durable_counter
+        # A killed run raises RunCancelled (see run_agent_sync), which propagates to fail the
+        # task. The durable cache cleanup below is skipped on the raise, preserving it for retry.
         if self.durable and storage is not None and counter is not None:
             from pydantic_ai.models import infer_model
 
@@ -487,11 +660,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             resolved_model = infer_model(agent.model)
             caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
             with agent.override(model=caching_model):
-                result = agent.run_sync(self.prompt, **run_kwargs)
+                result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
         else:
-            result = agent.run_sync(self.prompt, **run_kwargs)
+            result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
 
         log_run_summary(self.log, result)
+        self._emit_run_metadata(context, result)
 
         if self._durable_counter is not None:
             c = self._durable_counter
@@ -535,10 +709,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             output = output.model_dump()
 
         # Clean up the durable cache only after the run and every post-run step
-        # that can still fail (the message-history XCom push above and output
-        # serialization) has succeeded. Cleaning up earlier and then raising
-        # would leave the Airflow retry with an empty cache, re-executing every
-        # already-completed model and tool step.
+        # that can still fail (the run-metadata and message-history XCom pushes
+        # above and output serialization) has succeeded. Cleaning up earlier and
+        # then raising would leave the Airflow retry with an empty cache,
+        # re-executing every already-completed model and tool step.
         if self._durable_storage is not None:
             self._durable_storage.cleanup()
         return output
@@ -573,12 +747,36 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
+    def _emit_run_metadata(self, context: Context, result: Any) -> None:
+        """Expose the pydantic-ai run id and token usage on XCom for downstream tasks."""
+        if not self.do_xcom_push:
+            return
+        usage = result.usage
+        ti = context["task_instance"]
+        ti.xcom_push(key="run_id", value=result.run_id)
+        ti.xcom_push(
+            key="usage",
+            value={
+                "requests": usage.requests,
+                "input_tokens": usage.input_tokens,
+                "output_tokens": usage.output_tokens,
+                "total_tokens": usage.total_tokens,
+                "tool_calls": usage.tool_calls,
+                # Decimal | None, stringified so XCom serialization stays lossless.
+                "cost": str(usage.cost) if usage.cost is not None else None,
+            },
+        )
+
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """Re-run the agent with *feedback* appended to the conversation history."""
         usage_limits = coerce_usage_limits(self.usage_limits)
         agent = self._build_agent()
+        identity = getattr(self, "_run_identity_attrs", None)
+        if identity:
+            stamp_identity_on_agent_spans(agent, identity)
         messages = message_history or []
-        result = agent.run_sync(
+        result = self.run_agent_sync(
+            agent,
             feedback,
             message_history=messages,
             usage_limits=usage_limits,

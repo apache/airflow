@@ -105,7 +105,7 @@ The cleanup task, also known as "garbage collection" is triggered using the Airf
   Rows whose ``expires_at < now()`` are deleted. ``expires_at`` is computed on the *worker* at write time, not by the server.
 
 **``default_retention_days`` fallback (task state store only)**
-  Keys written with no explicit retention get an ``expires_at`` of now + default_retention_days computed at write time. Garbage collection deletes rows where ``expires_at < now()``."
+  Keys written with no explicit retention get an ``expires_at`` of now + default_retention_days computed at write time. Garbage collection deletes rows where ``expires_at < now()``.
 
 **``NEVER_EXPIRE`` keys**
   Keys set with ``retention=NEVER_EXPIRE`` are stored with ``expires_at = NULL`` and a flag that tells the garbage collection to skip them unconditionally. They are never deleted by time-based cleanup, regardless of ``default_retention_days``.
@@ -124,7 +124,7 @@ Custom backends
 
 A custom backend must subclass :class:`~airflow.sdk.state.BaseStoreBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStoreBackend` for the full API.
 
-Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. Use ``isinstance`` to dispatch:
+Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. The union of the two is exported as ``airflow.sdk.state.StoreScope`` for type annotations. Use ``isinstance`` to dispatch:
 
 .. code-block:: python
 
@@ -150,13 +150,13 @@ If the storage client is synchronous, implement the async methods by offloading 
             return await asyncio.to_thread(self.get, scope, key)
 
         async def aset(self, scope, key, value, *, expires_at=None, session=None):
-            await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at, session=session)
+            await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at)
 
         async def adelete(self, scope, key, *, session=None):
-            await asyncio.to_thread(self.delete, scope, key, session=session)
+            await asyncio.to_thread(self.delete, scope, key)
 
         async def aclear(self, scope, *, all_map_indices=False, session=None):
-            await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices, session=session)
+            await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices)
 
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
 

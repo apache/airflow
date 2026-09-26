@@ -78,12 +78,17 @@ class AssetExpressionAssetInfo(BaseModel):
     persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
     optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
     degrades gracefully instead of failing response validation.
+
+    A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+    and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+    schedule stays visible without revealing which asset it waits on.
     """
 
-    uri: Annotated[str, Field(title="Uri")]
-    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str | None, Field(title="Uri")]
+    name: Annotated[str | None, Field(title="Name")]
     group: Annotated[str, Field(title="Group")]
     id: Annotated[int | None, Field(title="Id")] = None
+    hidden: Annotated[bool | None, Field(title="Hidden")] = False
 
 
 class AssetExpressionRef(BaseModel):
@@ -128,14 +133,6 @@ class AsyncConnectionTestResponse(BaseModel):
     state: Annotated[str, Field(title="State")]
     result_message: Annotated[str | None, Field(title="Result Message")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
-
-
-class BaseInfoResponse(BaseModel):
-    """
-    Base info serializer for responses.
-    """
-
-    status: Annotated[str | None, Field(title="Status")]
 
 
 class BulkActionNotOnExistence(str, Enum):
@@ -285,6 +282,13 @@ class ClearTaskInstancesBody(BaseModel):
         Field(
             description="A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
             title="Task Ids",
+        ),
+    ] = None
+    task_group_id: Annotated[
+        str | None,
+        Field(
+            description="Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.",
+            title="Task Group Id",
         ),
     ] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
@@ -496,6 +500,95 @@ class DAGTagCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class DagBundleDetailResponse(BaseModel):
+    """
+    Dag bundle serializer for the single-bundle response.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    active: Annotated[
+        bool | None,
+        Field(
+            description="Whether the bundle is still present in this deployment's configuration.",
+            title="Active",
+        ),
+    ]
+    version: Annotated[
+        str | None,
+        Field(
+            description="The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.",
+            title="Version",
+        ),
+    ]
+    last_refreshed: Annotated[
+        datetime | None,
+        Field(
+            description="When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.",
+            title="Last Refreshed",
+        ),
+    ]
+    bundle_url: Annotated[
+        str | None,
+        Field(
+            description="A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.",
+            title="Bundle Url",
+        ),
+    ]
+    team_name: Annotated[
+        str | None,
+        Field(description="The team owning the bundle, in a multi-team deployment.", title="Team Name"),
+    ]
+    import_error_count: Annotated[
+        int | None,
+        Field(
+            description="Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.",
+            title="Import Error Count",
+        ),
+    ]
+    dag_count: Annotated[
+        int,
+        Field(
+            description="Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.",
+            title="Dag Count",
+        ),
+    ]
+
+
+class DagBundleFileResponse(BaseModel):
+    """
+    A file in a Dag bundle, as the Dag processor last saw it.
+    """
+
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
+    dag_count: Annotated[
+        int,
+        Field(
+            description="Number of live Dags the file defines that the caller may read.", title="Dag Count"
+        ),
+    ]
+    last_parsed_time: Annotated[
+        datetime | None,
+        Field(
+            description="When the file was last parsed, or null if it has never parsed successfully.",
+            title="Last Parsed Time",
+        ),
+    ]
+    last_parse_duration: Annotated[
+        float | None,
+        Field(
+            description="How long the last successful parse of the file took, in seconds.",
+            title="Last Parse Duration",
+        ),
+    ]
+    import_error_count: Annotated[
+        int | None,
+        Field(
+            description="Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.",
+            title="Import Error Count",
+        ),
+    ]
+
+
 class DagBundleResponse(BaseModel):
     """
     Dag bundle serializer for responses.
@@ -548,7 +641,6 @@ class DagProcessorInstanceInfoResponse(BaseModel):
     Dag processor instance info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_dag_processor_heartbeat: Annotated[str | None, Field(title="Latest Dag Processor Heartbeat")]
     bundle_names: Annotated[list[str] | None, Field(title="Bundle Names")]
@@ -705,6 +797,16 @@ class DagWarningType(str, Enum):
     RUNTIME_VARYING_VALUE = "runtime varying value"
 
 
+class DetailedHealthStatus(str, Enum):
+    """
+    How much of a component's work has a live instance covering it.
+    """
+
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    DOWN = "down"
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -806,6 +908,15 @@ class HTTPExceptionResponse(BaseModel):
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
 
 
+class HealthStatus(str, Enum):
+    """
+    Aggregate health of a component: whether it has at least one live instance.
+    """
+
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
+
+
 class ImportErrorResponse(BaseModel):
     """
     Import Error Response.
@@ -816,6 +927,13 @@ class ImportErrorResponse(BaseModel):
     filename: Annotated[str, Field(title="Filename")]
     bundle_name: Annotated[str | None, Field(title="Bundle Name")]
     stack_trace: Annotated[str, Field(title="Stack Trace")]
+    file_token: Annotated[
+        str,
+        Field(
+            description="Return a signed token identifying the file, used to request its reparse.",
+            title="File Token",
+        ),
+    ]
 
 
 class JobResponse(BaseModel):
@@ -833,7 +951,7 @@ class JobResponse(BaseModel):
     executor_class: Annotated[str | None, Field(title="Executor Class")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     unixname: Annotated[str | None, Field(title="Unixname")]
-    team_name: Annotated[str | None, Field(title="Team Name")] = None
+    team_names: Annotated[list[str] | None, Field(title="Team Names")] = None
     bundle_names: Annotated[list[str] | None, Field(title="Bundle Names")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
@@ -1030,7 +1148,6 @@ class SchedulerInstanceInfoResponse(BaseModel):
     Scheduler instance info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_scheduler_heartbeat: Annotated[str | None, Field(title="Latest Scheduler Heartbeat")]
 
@@ -1244,10 +1361,9 @@ class TriggererInstanceInfoResponse(BaseModel):
     Triggerer instance info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")]
-    team_name: Annotated[str | None, Field(title="Team Name")]
+    team_names: Annotated[list[str], Field(title="Team Names")]
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -1539,6 +1655,14 @@ class BackfillResponse(BaseModel):
     completed_at: Annotated[datetime | None, Field(title="Completed At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+
+
+class BaseInfoResponse(BaseModel):
+    """
+    Base info serializer for responses.
+    """
+
+    status: HealthStatus | None
 
 
 class BulkCreateActionConnectionBody(BaseModel):
@@ -2001,14 +2125,23 @@ class DagBundleCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class DagBundleFileCollectionResponse(BaseModel):
+    """
+    Dag bundle file collection response.
+    """
+
+    dag_bundle_files: Annotated[list[DagBundleFileResponse], Field(title="Dag Bundle Files")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
 class DagProcessorInfoResponse(BaseModel):
     """
     DagProcessor info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
+    status: HealthStatus | None
     latest_dag_processor_heartbeat: Annotated[str | None, Field(title="Latest Dag Processor Heartbeat")]
-    detailed_status: Annotated[str | None, Field(title="Detailed Status")]
+    detailed_status: DetailedHealthStatus | None
     instances: Annotated[list[DagProcessorInstanceInfoResponse] | None, Field(title="Instances")] = None
 
 
@@ -2181,9 +2314,9 @@ class SchedulerInfoResponse(BaseModel):
     Scheduler info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
+    status: HealthStatus | None
     latest_scheduler_heartbeat: Annotated[str | None, Field(title="Latest Scheduler Heartbeat")]
-    detailed_status: Annotated[str | None, Field(title="Detailed Status")]
+    detailed_status: DetailedHealthStatus | None
     instances: Annotated[list[SchedulerInstanceInfoResponse] | None, Field(title="Instances")] = None
 
 
@@ -2320,9 +2453,9 @@ class TriggererInfoResponse(BaseModel):
     Triggerer info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
+    status: HealthStatus | None
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")]
-    detailed_status: Annotated[str | None, Field(title="Detailed Status")]
+    detailed_status: DetailedHealthStatus | None
     instances: Annotated[list[TriggererInstanceInfoResponse] | None, Field(title="Instances")] = None
 
 

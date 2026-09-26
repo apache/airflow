@@ -65,6 +65,7 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1226,8 +1227,8 @@ class TestDag:
             )
 
             # should not raise any exception
-        dag_run.execute_dag_callbacks(dag=dag, success=False)
-        dag_run.execute_dag_callbacks(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False, session=session)
+            dag_run.execute_dag_callbacks(dag=dag, success=True, session=session)
 
         mock_incr.assert_called_with(
             "dag.callback_exceptions",
@@ -1267,8 +1268,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag_run.execute_dag_callbacks(dag=dag, success=False)
-            dag_run.execute_dag_callbacks(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False, session=session)
+            dag_run.execute_dag_callbacks(dag=dag, success=True, session=session)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(
@@ -1814,6 +1815,47 @@ class TestDag:
 
         dag.test()
         mock_object.assert_called_with("output of first task")
+
+    @pytest.mark.parametrize("callback_error", [None, RuntimeError])
+    def test_dag_test_retry_callback_keeps_attempt_live(self, testing_dag_bundle, callback_error):
+        observed = []
+
+        def on_retry(context):
+            ti = context["ti"]
+            ti.xcom_push(key="retry_callback", value="written")
+            value = ti.xcom_pull(task_ids=ti.task_id, key="retry_callback")
+            with create_session() as session:
+                stored_ti = session.get(TI, ti.id)
+                observed.append((ti.id, stored_ti.state if stored_ti else None, ti.end_date, value))
+            if callback_error:
+                raise callback_error("callback failed")
+
+        with DAG(dag_id="test_retry_callback_live_attempt", schedule=None, start_date=DEFAULT_DATE) as dag:
+
+            @task_decorator(retries=1, retry_delay=timedelta(0), on_retry_callback=on_retry)
+            def fail_once(**context):
+                if context["ti"].try_number == 1:
+                    raise RuntimeError("retry this attempt")
+
+            fail_once()
+        sync_dag_to_db(dag)
+
+        dr = dag.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        assert len(observed) == 1
+        old_id, state_during_callback, end_date, value = observed[0]
+        assert state_during_callback == TaskInstanceState.RUNNING
+        assert value == "written"
+        with create_session() as session:
+            history = session.scalar(
+                select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+            )
+            assert history is not None
+            assert history.end_date == end_date
+            ti = dr.get_task_instance("fail_once", session=session)
+            assert ti.id != old_id
+            assert ti.try_number == 2
 
     def test_dag_test_with_fail_handler(self, testing_dag_bundle):
         mock_handle_object_1 = mock.MagicMock()

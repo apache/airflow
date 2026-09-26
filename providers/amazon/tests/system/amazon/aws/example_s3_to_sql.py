@@ -51,7 +51,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
+from tests_common.test_utils.api_client_helpers import create_airflow_connection
 from tests_common.test_utils.watcher import watcher
 
 # Externally fetched variables:
@@ -79,11 +79,9 @@ SAMPLE_DATA = r"""1,Caipirinha,Cachaca
 @task
 def create_connection(conn_id_name: str, cluster_id: str):
     cluster_endpoint = RedshiftHook().conn.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    make_authenticated_rest_api_request(
-        path="/api/v2/connections",
-        method="POST",
-        body={
-            "connection_id": conn_id_name,
+    create_airflow_connection(
+        connection_id=conn_id_name,
+        connection_conf={
             "conn_type": "redshift",
             "host": cluster_endpoint["Endpoint"]["Address"],
             "login": DB_LOGIN,

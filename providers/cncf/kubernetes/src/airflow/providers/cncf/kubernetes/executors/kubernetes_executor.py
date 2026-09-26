@@ -59,12 +59,15 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -77,6 +80,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
+    from airflow.executors.workloads import ExecuteTask
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
@@ -104,11 +108,6 @@ class KubernetesExecutor(BaseExecutor):
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
     supports_multi_team: bool = True
-
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -372,14 +371,6 @@ class KubernetesExecutor(BaseExecutor):
         self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
 
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
-
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
 
@@ -394,9 +385,109 @@ class KubernetesExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
-            del self.queued_tasks[key]
+            if AIRFLOW_V_3_4_PLUS:
+                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+            else:
+                del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
+
+    def _should_create_pod_for_job(self, task: KubernetesJob) -> bool:
+        """
+        Check whether an executor job still represents the current queued task instance.
+
+        The scheduler creates an ``ExecuteTask`` workload while the task instance is queued, but the
+        Kubernetes pod may be created much later, for example after API-server throttling or quota
+        failures. In an HA scheduler deployment, the task instance may have been retried, cleared, or
+        otherwise replaced before this executor gets another chance to create the pod. Revalidating the
+        immutable task instance id and launch ownership here prevents an obsolete workload from creating
+        a stale worker pod.
+        """
+        try:
+            from airflow.executors.workloads import ExecuteTask
+        except ImportError:
+            # Compatibility with older Airflow versions tested by provider compatibility jobs.
+            return True
+
+        if not task.command or not isinstance(task.command[0], ExecuteTask):
+            return True
+
+        return self._should_create_pod_for_execute_task(task, task.command[0])
+
+    @provide_session
+    def _should_create_pod_for_execute_task(
+        self,
+        task: KubernetesJob,
+        workload: ExecuteTask,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> bool:
+        """Check that an ``ExecuteTask`` workload still owns the queued task instance row."""
+        from airflow.models.taskinstance import TaskInstance
+
+        workload_ti = workload.ti
+        try:
+            scheduler_job_id = int(self.scheduler_job_id) if self.scheduler_job_id is not None else None
+        except ValueError:
+            self.log.debug(
+                "Skipping stale Kubernetes workload check because scheduler_job_id %r is not numeric",
+                self.scheduler_job_id,
+            )
+            return True
+
+        # Bind the id as the mapped column's own Python type so the predicate stays sargable and
+        # uses the primary-key index. The column is a native ``Uuid`` on Airflow 3.2+ but a ``String``
+        # on older versions exercised by provider compatibility jobs, and SQLite rejects binding a
+        # ``UUID`` object against a string column.
+        try:
+            ti_id_python_type = TaskInstance.id.type.python_type
+        except NotImplementedError:
+            ti_id_python_type = str
+        ti_id = ti_id_python_type(str(workload_ti.id))
+
+        ti = session.execute(
+            select(
+                TaskInstance.id,
+                TaskInstance.state,
+                TaskInstance.try_number,
+                TaskInstance.queued_by_job_id,
+            ).where(TaskInstance.id == ti_id)
+        ).one_or_none()
+        if ti is None:
+            self.log.info(
+                "Dropping stale Kubernetes workload for %s because task instance id %s no longer exists",
+                task.key,
+                workload_ti.id,
+            )
+            return False
+
+        _, state, try_number, queued_by_job_id = ti
+        if (
+            state == TaskInstanceState.QUEUED
+            and try_number == workload_ti.try_number
+            and queued_by_job_id == scheduler_job_id
+        ):
+            return True
+
+        self.log.info(
+            "Dropping stale Kubernetes workload for %s because current task instance state does not "
+            "match the queued workload. task_instance_id=%s, state=%s, try_number=%s, "
+            "queued_by_job_id=%s, workload_try_number=%s, scheduler_job_id=%s",
+            task.key,
+            workload_ti.id,
+            state,
+            try_number,
+            queued_by_job_id,
+            workload_ti.try_number,
+            scheduler_job_id,
+        )
+        return False
+
+    def _discard_stale_pod_creation_task(self, task: KubernetesJob) -> None:
+        """Remove executor bookkeeping for a stale job that will not create a pod."""
+        self.running.discard(task.key)
+        if self.event_buffer.get(task.key) == (TaskInstanceState.QUEUED, self.scheduler_job_id):
+            self.event_buffer.pop(task.key, None)
 
     def sync(self) -> None:
         """Synchronize task state."""
@@ -416,7 +507,10 @@ class KubernetesExecutor(BaseExecutor):
 
         if self.running:
             self.log.debug("self.running: %s", self.running)
-        if self.queued_tasks:
+        if AIRFLOW_V_3_4_PLUS:
+            if any(self.executor_queues.values()):
+                self.log.debug("self.queued: %s", self.executor_queues)
+        elif self.queued_tasks:
             self.log.debug("self.queued: %s", self.queued_tasks)
         self.kube_scheduler.sync()
 
@@ -486,6 +580,9 @@ class KubernetesExecutor(BaseExecutor):
                 task: KubernetesJob = self.task_queue.get_nowait()
                 created += 1
                 try:
+                    if not self._should_create_pod_for_job(task):
+                        self._discard_stale_pod_creation_task(task)
+                        continue
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(task.key, None)
                 except (
@@ -517,7 +614,12 @@ class KubernetesExecutor(BaseExecutor):
         jobs: list[KubernetesJob] = []
         with contextlib.suppress(Empty):
             for _ in range(self.kube_config.worker_pods_creation_batch_size):
-                jobs.append(self.task_queue.get_nowait())
+                task = self.task_queue.get_nowait()
+                if not self._should_create_pod_for_job(task):
+                    self._discard_stale_pod_creation_task(task)
+                    self.task_queue.task_done()
+                    continue
+                jobs.append(task)
         if not jobs:
             return
         start: float = time.monotonic()
@@ -1000,8 +1102,12 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
+
         self.running.discard(ti.key)
-        self.queued_tasks.pop(ti.key, None)
+        if AIRFLOW_V_3_4_PLUS:
+            self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+        else:
+            self.queued_tasks.pop(ti.key, None)
         pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
         # Build the pod selector
         base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"

@@ -26,7 +26,7 @@ from cadwyn import (
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TITerminalStatePayload
 
 
 class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
@@ -52,3 +52,26 @@ class AddCallbackRunEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
     )
+
+
+class AddTerminalStateRetryReasonField(VersionChange):
+    """Add the `retry_reason` field to TITerminalStatePayload for failed retry-policy decisions."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TITerminalStatePayload).field("retry_reason").didnt_exist,
+    )
+
+
+class AddMultiTeamToTIRunContext(VersionChange):
+    """Add ``multi_team`` so a worker can determine multi-team (e.g. for plugin scoping) without needing to trust its own config."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("multi_team").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_multi_team_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``multi_team`` from the run context for older clients."""
+        response.body.pop("multi_team", None)

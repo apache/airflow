@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, overload
 
 from deprecated import deprecated
 from openai import OpenAI
@@ -56,6 +56,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.openai.exceptions import (
+    OpenAIAgentSessionError,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -494,21 +495,39 @@ class OpenAIHook(BaseHook):
         run = self.conn.beta.threads.runs.update(thread_id=thread_id, run_id=run_id, **kwargs)
         return run
 
+    @overload
+    def create_embeddings(
+        self,
+        text: str | list[int],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float]: ...
+
+    @overload
+    def create_embeddings(
+        self,
+        text: list[str] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[list[float]]: ...
+
     def create_embeddings(
         self,
         text: str | list[str] | list[int] | list[list[int]],
         model: str = "text-embedding-3-small",
         **kwargs: Any,
-    ) -> list[float]:
+    ) -> list[float] | list[list[float]]:
         """
         Generate embeddings for the given text using the given model.
 
         :param text: The text to generate embeddings for.
         :param model: The model to use for generating embeddings.
+        :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
-        embeddings: list[float] = response.data[0].embedding
-        return embeddings
+        if isinstance(text, str) or (text and isinstance(text[0], int)):
+            return response.data[0].embedding
+        return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
 
     def upload_file(self, file: str, purpose: Literal["fine-tune", "assistants", "batch"]) -> FileObject:
         """
@@ -696,3 +715,69 @@ class OpenAIHook(BaseHook):
         """
         batch = self.conn.batches.cancel(batch_id=batch_id)
         return batch
+
+    #: Consecutive ``poll_agent_session`` failures tolerated before an agent wait gives up.
+    MAX_CONSECUTIVE_POLL_FAILURES = 3
+
+    @cached_property
+    def _managed_agents(self) -> Any:
+        agents = getattr(self.conn.beta, "agents", None)
+        if agents is None:
+            raise OpenAIAgentSessionError(
+                "Managed Agents requires openai>=3.13.0. Upgrade the OpenAI SDK on workers and triggerers."
+            )
+        return agents
+
+    def create_agent(self, **kwargs: Any) -> Any:
+        """Create a reusable Managed Agent using the SDK's agent configuration arguments."""
+        return self._managed_agents.create(**kwargs)
+
+    def create_agent_session(self, *, input: str, environment: dict[str, Any], **kwargs: Any) -> Any:
+        """Create a fresh Managed Agents session and submit its initial turn."""
+        if "stream" in kwargs:
+            raise ValueError("create_agent_session does not support streaming")
+        return self._managed_agents.sessions.create(
+            input=input, environment=environment, stream=False, **kwargs
+        )
+
+    def get_agent_session(self, session_id: str) -> Any:
+        """Retrieve a Managed Agents session, including required actions and usage."""
+        return self._managed_agents.sessions.retrieve(session_id)
+
+    def cancel_agent_session(self, session_id: str) -> None:
+        """Request cancellation of the session's active turn, preserving its history and artifacts."""
+        self._managed_agents.sessions.events.create(
+            session_id, events=[{"type": "agent.session.input.cancel"}]
+        )
+
+    def poll_agent_session(self, session_id: str) -> dict[str, Any] | None:
+        """
+        Check the first turn of a fresh, exclusively owned session.
+
+        Return a terminal result, or ``None`` while waiting. An idle session without
+        a visible turn is not completion: the submitted input may still be queued.
+        This helper must not be used to wait for subsequent turns of a reused session.
+        """
+        session = self.get_agent_session(session_id)
+        turns = self._managed_agents.sessions.turns.list(session_id, order="asc", limit=1)
+        turn = turns.data[0] if turns.data else None
+        result: dict[str, Any] = {"session_id": session_id}
+        if turn is not None:
+            result["turn_id"] = turn.id
+            result["usage"] = turn.usage.model_dump(mode="json") if turn.usage is not None else None
+            if turn.status == "completed":
+                return {**result, "status": "success"}
+            if turn.status in {"failed", "cancelled"}:
+                message = f"Agent turn {turn.id} {turn.status}"
+                if turn.error is not None:
+                    message += f" ({turn.error.code}): {turn.error.message}"
+                return {**result, "status": "error", "message": message}
+        if session.status == "failed":
+            return {**result, "status": "error", "message": f"Agent session failed: {session.error}"}
+        if any(action.type == "function_call" for action in session.required_actions):
+            return {
+                **result,
+                "status": "error",
+                "message": "The agent requested a client-side function tool. Use server-side tools with this operator.",
+            }
+        return None
