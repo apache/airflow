@@ -2091,7 +2091,14 @@ class ActivitySubprocess(WatchedSubprocess):
         self, msg: TriggerDagRun, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
         resp = self.client.dag_runs.trigger(
-            msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
+            msg.dag_id,
+            msg.run_id,
+            msg.conf,
+            msg.logical_date,
+            msg.run_after,
+            msg.reset_dag_run,
+            msg.note,
+            only_failed=msg.only_failed_and_downstream,
         )
         return resp, {}
 
