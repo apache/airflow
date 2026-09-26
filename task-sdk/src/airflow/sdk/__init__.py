@@ -60,6 +60,7 @@ __all__ = [
     "FixedKeyMapper",
     "HourWindow",
     "IdentityMapper",
+    "JitteredCronTimetable",
     "Label",
     "Metadata",
     "MinimumCount",
@@ -220,6 +221,7 @@ if TYPE_CHECKING:
         CronPartitionTimetable,
         CronTriggerTimetable,
         DeltaTriggerTimetable,
+        JitteredCronTimetable,
         MultipleCronTriggerTimetable,
     )
     from airflow.sdk.definitions.variable import Variable
@@ -272,6 +274,7 @@ __lazy_imports: dict[str, str] = {
     "FixedKeyMapper": ".definitions.partition_mappers.fixed_key",
     "HourWindow": ".definitions.partition_mappers.window",
     "IdentityMapper": ".definitions.partition_mappers.identity",
+    "JitteredCronTimetable": ".definitions.timetables.trigger",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "MinimumCount": ".definitions.partition_mappers.wait_policy",
