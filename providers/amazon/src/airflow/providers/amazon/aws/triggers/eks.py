@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Literal
 
 import tenacity
 from botocore.exceptions import ClientError
@@ -137,6 +138,7 @@ class EksPodTrigger(KubernetesPodTrigger):
         config_dict: dict | None = None,
         in_cluster: bool | None = None,
         get_logs: bool = True,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         startup_timeout: int = 120,
         startup_check_interval: float = 5,
         schedule_timeout: int = 120,
@@ -159,6 +161,7 @@ class EksPodTrigger(KubernetesPodTrigger):
             config_dict=config_dict,
             in_cluster=in_cluster,
             get_logs=get_logs,
+            init_container_logs=init_container_logs,
             startup_timeout=startup_timeout,
             startup_check_interval=startup_check_interval,
             schedule_timeout=schedule_timeout,
