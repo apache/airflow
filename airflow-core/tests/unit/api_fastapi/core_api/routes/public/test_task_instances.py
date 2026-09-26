@@ -4468,64 +4468,23 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 403
 
-    def test_ti_in_retry_state_not_returned(self, test_client, session):
+    def test_tries_include_failed_and_pending_retry(self, test_client, session):
         self.create_task_instances(
-            session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+            session=session, task_instances=[{"state": State.FAILED}], with_ti_history=True
         )
         ti = session.scalars(select(TaskInstance)).one()
         ti.state = State.UP_FOR_RETRY
-        session.merge(ti)
         session.commit()
 
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
         )
-        response_data = response.json()
         assert response.status_code == 200
-        assert response_data["total_entries"] == 1
-        assert len(response_data["task_instances"]) == 1
-        assert response_data == {
-            "task_instances": [
-                {
-                    "dag_id": "example_python_operator",
-                    "dag_display_name": "example_python_operator",
-                    "duration": 10000.0,
-                    "end_date": "2020-01-03T00:00:00Z",
-                    "executor": None,
-                    "executor_config": "{}",
-                    "hostname": "",
-                    "map_index": -1,
-                    "max_tries": 0,
-                    "operator": "PythonOperator",
-                    "operator_name": "PythonOperator",
-                    "pid": 100,
-                    "pool": "default_pool",
-                    "pool_slots": 1,
-                    "priority_weight": 14,
-                    "queue": "default_queue",
-                    "queued_when": None,
-                    "scheduled_when": None,
-                    "start_date": "2020-01-02T00:00:00Z",
-                    "state": "success",
-                    "task_id": "print_the_context",
-                    "task_display_name": "print_the_context",
-                    "try_number": 1,
-                    "unixname": getuser(),
-                    "dag_run_id": "TEST_DAG_RUN_ID",
-                    "dag_version": {
-                        "bundle_name": "apache-airflow-providers-standard-example-dags",
-                        "bundle_url": None,
-                        "bundle_version": None,
-                        "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
-                        "dag_display_name": "example_python_operator",
-                        "dag_id": "example_python_operator",
-                        "id": response_data["task_instances"][0]["dag_version"]["id"],
-                        "version_number": 1,
-                    },
-                },
-            ],
-            "total_entries": 1,
-        }
+        response_data = response.json()
+        assert response_data["total_entries"] == 2
+        assert sorted(
+            (task_try["try_number"], task_try["state"]) for task_try in response_data["task_instances"]
+        ) == [(1, "failed"), (2, "up_for_retry")]
 
     def test_mapped_task_should_respond_200(self, test_client, session):
         tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
