@@ -65,10 +65,12 @@ from airflow.providers.keycloak.auth_manager.constants import (
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from starlette.middleware import _MiddlewareFactory
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -200,7 +202,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         :param refresh_token: Keycloak refresh JWT
         """
         user = cast("KeycloakAuthManagerUser", await super().get_user_from_token(token))
-        if not AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_4_PLUS or not AIRFLOW_V_3_3_PLUS:
             return user
         if access_token:
             # The Airflow JWT is signed and establishes who the caller is. The Keycloak
@@ -435,10 +437,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return app
 
-    def get_fastapi_middlewares(self):
+    def get_jwt_refresh_middleware(self) -> tuple[_MiddlewareFactory[[Any]], dict[str, Any]]:
         from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
+        
+        return KeycloakJWTMiddleware, {}
 
-        return [(KeycloakJWTMiddleware, {})]
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory, dict[str, Any]]]:
+        if not AIRFLOW_V_3_4_PLUS:
+            from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
+
+            return [(KeycloakJWTMiddleware, {})]
+        return []
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

@@ -209,7 +209,7 @@ class TestKeycloakAuthManager:
                 "refresh_token": "refresh_token",
             }
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
+    @pytest.mark.skipif((not AIRFLOW_V_3_3_PLUS) or AIRFLOW_V_3_4_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
     async def test_get_user_from_token_with_keycloak_tokens(self, auth_manager):
         mock_get_user_from_token = AsyncMock(
@@ -232,15 +232,19 @@ class TestKeycloakAuthManager:
         assert user.access_token == access_token
         assert user.refresh_token == "refresh_token"
 
-    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Testing Old Keycloak JWT flow.")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS and not AIRFLOW_V_3_4_PLUS, reason="Testing Base Keycloak JWT flow.")
     @pytest.mark.asyncio
     async def test_get_user_from_token(self, auth_manager):
         mock_token_validator = Mock()
         mock_get_token_validator = Mock(return_value=mock_token_validator)
+        serialised_user = dict(
+                user_id="user_id", name="name"
+        ) if AIRFLOW_V_3_3_PLUS else dict(
+            user_id="user_id", name="name", access_token="access_token", refresh_token="refresh_token"
+        )
+
         mock_token_validator.avalidated_claims = AsyncMock(
-            return_value=dict(
-                user_id="user_id", name="name", access_token="access_token", refresh_token="refresh_token"
-            )
+            return_value=serialised_user
         )
         with (
             patch.object(
@@ -253,8 +257,9 @@ class TestKeycloakAuthManager:
         mock_token_validator.avalidated_claims.assert_called_with("token")
         assert user.get_id() == "user_id"
         assert user.get_name() == "name"
-        assert user.access_token == "access_token"
-        assert user.refresh_token == "refresh_token"
+        if not AIRFLOW_V_3_4_PLUS:
+            assert user.access_token == "access_token"
+            assert user.refresh_token == "refresh_token"
 
     @pytest.mark.asyncio
     async def test_api_token_authenticates_without_cookies(self, auth_manager):
@@ -1604,4 +1609,8 @@ class TestKeycloakAuthManager:
         mock_executor.assert_called_once_with(max_workers=expected_max_workers)
 
     def test_get_fastapi_middleware(self, auth_manager):
-        assert auth_manager.get_fastapi_middlewares() == [(KeycloakJWTMiddleware, {})]
+        middlewares = auth_manager.get_fastapi_middlewares()
+        if not AIRFLOW_V_3_4_PLUS:
+            assert middlewares == [(KeycloakJWTMiddleware, {})]
+        else:
+            assert middlewares == []
