@@ -415,6 +415,25 @@ metrics:
     legacy_name: "-"
     name_variables: ["tool", "platform", "role", "position"]
 
+  - name: "managed_agent.invoked"
+    description: "Number of managed agent invocations attempted through a
+    ``BaseManagedAgentToolset`` tool call, emitted once per attempt whether it
+    succeeds or fails. Emitted by whichever toolset is actually reached
+    through this path -- a lone toolset, or a ``FailoverManagedAgentToolset``
+    group answering under its own tool name -- exactly once per call
+    regardless of how many members a group tries internally. A group's
+    members are never reached through this path themselves (the group calls
+    ``member.invoke()``, never ``member.call_tool()``), so a member never
+    emits this counter on its own. Metric with tool and platform tagging;
+    platform is the literal string ``unknown`` when the toolset's own
+    ``agent_ref`` returns a dict with no ``platform`` key, and is always the
+    literal string ``failover`` for a group, since a group reports its own
+    identity regardless of which member actually answered.
+    Denominator for managed_agent.failover when read per tool."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["tool", "platform"]
+
   # ==========
   # Gauges
   # ==========

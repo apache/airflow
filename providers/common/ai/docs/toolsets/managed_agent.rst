@@ -59,6 +59,77 @@ derives one from a method name when there is no docstring.
     name and the description are the whole of what the model knows about the
     agent.
 
+Metrics
+-------
+
+Every call -- through a lone toolset or a ``FailoverManagedAgentToolset``
+alike -- emits ``managed_agent.invoked``, tagged by ``tool`` and ``platform``,
+whether it succeeds or fails. It is emitted before ``invoke()`` runs, from the
+shared ``call_tool()`` path that every toolset inherits, so a lone toolset
+gets a per-tool call count it would otherwise have no metric for at all, and a
+group gets exactly one increment per call regardless of how many members were
+tried -- an attempt, not an answer, so it keeps moving even during a total
+outage that leaves nothing to divide by otherwise.
+
+For a group, the ``platform`` tag on ``managed_agent.invoked`` is always the
+literal string ``"failover"``, not the cloud that actually answered --
+``agent_ref`` on a group describes the group's own identity, not whichever
+member ends up serving the call. Summing ``managed_agent.invoked`` by
+``platform`` therefore mixes that ``failover`` bucket in with real platform
+names from lone toolsets; filter by ``tool`` instead when a group and its
+members share a dashboard.
+
+For ``managed_agent.invoked``, ``platform`` can also show up as the literal
+string ``"unknown"``, but only when a subclass's ``agent_ref`` returns a dict
+with no ``platform`` key: the tag degrades rather than failing the call over a
+missing label. For this counter, ``"unknown"`` is not the bucket for an
+identity that fails to resolve. ``call_tool()`` reads the toolset's own
+``agent_ref`` directly, so one that *raises* -- a connection lookup failing, or
+a bug in the subclass -- fails the tool call rather than sending the
+invocation out under an ``"unknown"`` tag.
+
+``managed_agent.served`` and ``managed_agent.failover`` are different: inside
+a group, every member's ``agent_ref`` is read through a helper that collapses
+*both* a dict with no ``platform`` key *and* a raised lookup failure into the
+same ``{"platform": "unknown", "name": "?"}`` stand-in before ``invoke()``
+ever sees it. So on these two counters, ``"unknown"`` (and, on
+``managed_agent.failover``, ``from_platform="unknown"``) covers two different
+causes on a member -- a raised lookup failure, or an ``agent_ref``
+implementation that silently omits the ``platform`` key -- and the tag alone
+cannot tell them apart.
+
+The one identity failure a call tolerates is a *member's*, inside a group: a
+group resolves every member to build its own label, and renders an
+unreachable one as ``?`` in ``name``. Only the raised-lookup-failure case logs
+its own warning naming the member's class and the original exception; a
+member whose ``agent_ref`` silently omits ``platform`` leaves no such warning,
+the same way a lone toolset's would not. So an operator watching
+``platform="unknown"`` climb on ``managed_agent.served`` should check the task
+log for that warning before assuming a broken connection -- its absence
+points at the member's own ``agent_ref`` instead. ``managed_agent.failover``
+carries no ``position`` tag of its own, but the transition warning that fires
+alongside every failover names both the failing member and the standby taking
+over by their position in the member list, so a chain longer than two can
+still be narrowed down from the task log. That keeps a broken standby from
+failing a call the primary can serve, which is the whole point of the group.
+
+.. warning::
+
+    ``managed_agent.invoked`` and ``managed_agent.served`` (see `Failover
+    between interchangeable agents`_ below) are counted over different
+    populations -- do not treat them as sharing a denominator.
+    ``managed_agent.invoked`` counts calls that arrive through pydantic-ai's
+    tool-call path, ``call_tool()`` -- that is, however the calling model
+    invokes the tool during an agent run. ``managed_agent.served`` counts
+    successful returns from ``FailoverManagedAgentToolset.invoke()``, and only
+    exists for a group. Reaching a toolset directly and bypassing
+    ``call_tool()`` -- for example calling ``toolset.invoke(prompt)`` or
+    ``group.invoke(prompt)`` outside of an agent run -- is not counted in
+    ``managed_agent.invoked`` at all. That gap is a known trade-off of keeping
+    the two metrics independent rather than unifying them; see the metrics
+    table below for what ``managed_agent.invoked`` *is* the right denominator
+    for.
+
 Sync or async?
 --------------
 
@@ -120,6 +191,15 @@ the retry boundary is the task, not the tool call: on retry the agent loop resta
 and re-issues the call. Durable execution covers the *completed* call (see
 ``replayable`` below); it does not cover a call that was still in flight.
 
+Timeout
+-------
+
+``timeout`` is exposed through the read-only ``timeout`` property so an
+implementation is not left reaching into a private attribute to read it
+back. The base class never enforces it -- honoring it, typically by
+passing it to the vendor SDK's own timeout parameter in
+``invoke_sync``/``invoke``, is the implementation's job.
+
 Error handling
 --------------
 
@@ -179,6 +259,23 @@ Groups nest.
         members=[bedrock_claims_agent, foundry_claims_agent],  # same image, two clouds
     )
 
+.. note::
+
+    Each member still needs its own ``tool_name`` -- the constructor rejects
+    an empty one -- but nothing reads it once the member is inside a group.
+    The group calls only ``member.invoke()``, never ``member.get_tools()``,
+    so a member's ``tool_name``, ``description``, and ``max_retries`` are
+    inert; only the group's own values reach the calling model.
+
+.. note::
+
+    ``FailoverManagedAgentToolset`` rejects ``timeout=`` outright, with a
+    ``ValueError``, rather than silently ignoring it: the group's ``invoke()``
+    above calls only ``member.invoke(prompt)`` and never reads
+    ``self.timeout``, so a value passed here would never take effect. Set
+    ``timeout`` on each member instead, the same platform-specific way a lone
+    toolset would.
+
 Members must satisfy two preconditions the class cannot check.
 
 **Substitutability.** The same agent deployed twice, not two specialists with
@@ -221,7 +318,7 @@ durable cache cannot know which member produced the answer it holds.
     run, where failing the task would discard the calling agent's accumulated
     context and re-run every earlier tool call.
 
-Two counters make failover visible, because a failover is a *success-shaped*
+These counters make failover visible, because a failover is a *success-shaped*
 event: without them a primary that has been down for a week looks identical to a
 healthy one:
 
@@ -231,15 +328,25 @@ healthy one:
 
     * - Metric
       - Tags
+    * - ``managed_agent.invoked``
+      - ``tool`` and ``platform``, one per call, whether it succeeds or fails
     * - ``managed_agent.failover``
-      - ``from_platform``, ``to_platform`` (one per failover transition)
+      - ``tool``, ``from_platform``, ``to_platform`` (one per failover transition)
     * - ``managed_agent.served``
-      - ``platform`` and ``role`` (``primary`` / ``standby``), one per answer
+      - ``tool``, ``platform`` and ``role`` (``primary`` / ``standby``), ``position``, one per answer
 
 The standby-served fraction is a ratio over ``managed_agent.served`` alone, so
 "are we quietly running on the standby?" is a dashboard question rather than a log
-grep. Both are tagged by platform rather than agent name to keep cardinality
+grep. All three are tagged by platform rather than agent name to keep cardinality
 bounded.
+
+``managed_agent.invoked`` (see `Metrics`_ above) is the denominator for
+``managed_agent.failover``, matched on the same ``tool`` tag -- but the result
+counts failover transitions per call, not a rate bounded by 1: a three-member
+group where the first two fail adds two to the numerator for a single
+invocation. ``managed_agent.served`` is not a substitute denominator for that
+count -- it is already split by member ``role`` and ``position``, and it does
+not exist for a lone toolset at all.
 
 One limitation remains: which member served a *particular* answer is in the task
 log but not in XCom. ``agent_ref`` on a group describes the group, not the
