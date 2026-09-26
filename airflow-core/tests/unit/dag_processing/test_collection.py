@@ -27,10 +27,13 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, event, func, inspect as sa_inspect, select
-from sqlalchemy.exc import OperationalError, SAWarning
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select, text
+from sqlalchemy.exc import IntegrityError, OperationalError, SAWarning
+from sqlalchemy.orm import Session as SqlaSession
+from sqlalchemy.orm.exc import StaleDataError
 
 import airflow.dag_processing.collection
+from airflow import settings
 from airflow._shared.timezones import timezone as tz
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
@@ -46,12 +49,16 @@ from airflow.exceptions import SerializationError
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
+    AssetAliasModel,
     AssetModel,
+    DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
     DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -64,10 +71,12 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.triggers.base import BaseEventTrigger
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -171,6 +180,62 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
 
 
 @pytest.mark.db_test
+class TestDagModelOperation:
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        clear_db_dags()
+        yield
+        clear_db_dags()
+
+    @staticmethod
+    def _build_dags(dag_maker, names):
+        dags = {}
+        for name in names:
+            with dag_maker(dag_id=name) as dag:
+                EmptyOperator(task_id="mytask")
+            dags[name] = LazyDeserializedDAG.from_dag(dag)
+        return dags
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_existing_dag_lookup_orders_by_dag_id(self, dag_maker, session):
+        dags = self._build_dags(dag_maker, ("c_dag", "a_dag", "b_dag"))
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        queries = [q for q in statements if "dag_id IN" in q]
+        assert queries, statements
+        assert all("ORDER BY dag.dag_id" in q for q in queries), queries
+
+    def test_new_dag_rows_are_created_in_a_stable_order(self, session):
+        dags = {
+            name: LazyDeserializedDAG.from_dag(DAG(dag_id=name, schedule=None))
+            for name in ("c_dag", "a_dag", "b_dag")
+        }
+        created: list[str] = []
+
+        def spy(*, bundle_name, bundle_version, dags, session):
+            created.extend(dag.dag_id for dag in dags)
+            return []
+
+        with (
+            mock.patch.object(DagModelOperation, "find_orm_dags", autospec=True, return_value={}),
+            mock.patch("airflow.dag_processing.collection._create_orm_dags", spy),
+        ):
+            DagModelOperation(dags, "testing", None).add_dags(session=session)
+
+        assert created == ["a_dag", "b_dag", "c_dag"], created
+
+
+@pytest.mark.db_test
 class TestAssetModelOperation:
     @staticmethod
     def clean_db():
@@ -183,6 +248,175 @@ class TestAssetModelOperation:
         self.clean_db()
         yield
         self.clean_db()
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.parametrize("kind", ["asset", "alias"])
+    @pytest.mark.parametrize("metadata_changed", [False, True], ids=["unchanged", "updated"])
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @conf_vars({("core", "min_serialized_dag_update_interval"): "0"})
+    def test_parser_waits_for_shared_metadata_only_when_updating(self, session, kind, metadata_changed):
+        model = AssetModel if kind == "asset" else AssetAliasModel
+        reference = DagScheduleAssetReference if kind == "asset" else DagScheduleAssetAliasReference
+
+        def build_dag(group, description):
+            schedules = [
+                Asset(name=name, uri=f"s3://bucket/{name}", group=group)
+                if kind == "asset"
+                else AssetAlias(name, group=group)
+                for name in ("shared_b", "shared_a")
+            ]
+            with DAG("shared_metadata", schedule=schedules, description=description) as dag:
+                EmptyOperator(task_id="task")
+            dag.fileloc = __file__
+            dag.relative_fileloc = "test_collection.py"
+            return LazyDeserializedDAG.from_dag(dag)
+
+        def publish(dag, *, session):
+            errors = {}
+            update_dag_parsing_results_in_db("testing", None, [dag], errors, None, set(), session=session)
+            assert not errors
+
+        publish(build_dag("original", "previous publication"), session=session)
+        session.commit()
+        session.close()
+        group = "updated" if metadata_changed else "original"
+        failures = []
+        with (
+            create_session(scoped=False) as blocker,
+            settings.engine.connect() as connection,
+            SqlaSession(bind=connection, autoflush=False) as writer,
+            mock.patch.object(
+                SerializedDAG, "bulk_write_to_db", autospec=True, side_effect=SerializedDAG.bulk_write_to_db
+            ) as write_dags,
+        ):
+            blocker.scalars(select(model).with_for_update()).all()
+            is_postgres = connection.dialect.name == "postgresql"
+            writer.execute(
+                text(
+                    "SET LOCAL lock_timeout = '200ms'"
+                    if is_postgres
+                    else "SET SESSION innodb_lock_wait_timeout = 1"
+                )
+            )
+
+            def release_after_error(context):
+                if context.connection is connection:
+                    failures.append(context.sqlalchemy_exception)
+                    blocker.rollback()
+
+            event.listen(connection.engine, "handle_error", release_after_error)
+            try:
+                publish(build_dag(group, "published during contention"), session=writer)
+                writer.commit()
+            finally:
+                event.remove(connection.engine, "handle_error", release_after_error)
+                writer.rollback()
+                if not is_postgres:
+                    connection.execute(text("SET SESSION innodb_lock_wait_timeout = DEFAULT"))
+
+            assert write_dags.call_count == (2 if metadata_changed else 1)
+            assert len(failures) == (1 if metadata_changed else 0)
+            if metadata_changed:
+                failure = failures[0]
+                assert isinstance(failure, OperationalError)
+                assert failure.statement.lower().startswith(f"update {model.__tablename__} ")
+                error_code = (
+                    getattr(failure.orig, "sqlstate", None) or getattr(failure.orig, "pgcode", None)
+                    if is_postgres
+                    else failure.orig.args[0]
+                )
+                assert error_code == ("55P03" if is_postgres else 1205)
+
+        with create_session(scoped=False) as observer:
+            assert observer.scalars(select(model.group)).all() == [group, group]
+            assert observer.get(DagModel, "shared_metadata").description == "published during contention"
+            assert observer.scalar(select(SerializedDagModel)).data["dag"]["description"] == (
+                "published during contention"
+            )
+            assert observer.scalars(select(reference.dag_id)).all() == ["shared_metadata"] * 2
+
+    def test_new_assets_and_aliases_are_inserted_in_a_stable_order(self, session):
+        """Two writers reaching the same rows must take them the same way round or they deadlock."""
+        dags = self._build_dags_scheduled_on(
+            [
+                Asset(name="dup", uri="s3://zzz"),
+                AssetAlias("z_alias"),
+                Asset("a_asset"),
+                AssetAlias("a_alias"),
+                Asset(name="dup", uri="s3://aaa"),
+            ]
+        )
+
+        def inserted(op):
+            with (
+                mock.patch.object(
+                    airflow.dag_processing.collection.asset_manager,
+                    "create_assets",
+                    autospec=True,
+                    side_effect=lambda assets, *, session: [
+                        AssetModel.from_serialized(asset) for asset in assets
+                    ],
+                ) as assets,
+                mock.patch.object(
+                    airflow.dag_processing.collection.asset_manager,
+                    "create_asset_aliases",
+                    autospec=True,
+                    side_effect=lambda aliases, *, session: [
+                        AssetAliasModel.from_serialized(alias) for alias in aliases
+                    ],
+                ) as aliases,
+            ):
+                op.sync_assets(session=session)
+                op.sync_asset_aliases(session=session)
+            return (
+                [(a.name, a.uri) for a in assets.call_args.args[0]],
+                [a.name for a in aliases.call_args.args[0]],
+            )
+
+        forwards = inserted(AssetModelOperation.collect(dags))
+        backwards = inserted(AssetModelOperation.collect(dict(reversed(list(dags.items())))))
+
+        # Two rows share a name, so the uri half of the key decides their order.
+        assert forwards == (
+            [("a_asset", "a_asset"), ("dup", "s3://aaa/"), ("dup", "s3://zzz/")],
+            ["a_alias", "z_alias"],
+        )
+        assert forwards == backwards, "the order the Dags arrived in reached the insert"
+
+    @staticmethod
+    def _build_dags_scheduled_on(schedules: list) -> dict:
+        """One unpersisted Dag per schedule, so nothing is written before the call under test."""
+        return {
+            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[schedule]))
+            for i, schedule in enumerate(schedules)
+        }
+
+    @staticmethod
+    def _read_active_assets(session) -> list[tuple[str, str]]:
+        return sorted((a.name, a.uri) for a in session.scalars(select(AssetActive)))
+
+    @pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+    @pytest.mark.parametrize(
+        "existing_indices", [(), (0, 1), (0,), (1,)], ids=["new", "existing", "existing-first", "new-first"]
+    )
+    def test_collection_order_decides_which_asset_is_activated(self, existing_indices, reverse, session):
+        candidates = [Asset(name="dup", uri="s3://zzz/"), Asset(name="dup", uri="s3://aaa/")]
+        if reverse:
+            candidates.reverse()
+        session.add_all(
+            AssetModel(id=-1 - index, name=asset.name, uri=asset.uri, group=asset.group)
+            for index, asset in reversed(list(enumerate(candidates)))
+            if index in existing_indices
+        )
+        session.commit()
+
+        operation = AssetModelOperation.collect(self._build_dags_scheduled_on(candidates))
+        orm_assets = operation.sync_assets(session=session)
+        session.flush()
+        operation.activate_assets_if_possible(orm_assets.values(), session=session)
+
+        assert list(orm_assets) == [(asset.name, asset.uri) for asset in candidates]
+        assert self._read_active_assets(session) == [(candidates[0].name, candidates[0].uri)]
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
@@ -725,64 +959,126 @@ class TestUpdateDagParsingResults:
 
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
 
-    @patch.object(SerializedDagModel, "write_dag")
-    @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
-    def test_sync_to_db_is_retried(
-        self, mock_bulk_write_to_db, mock_s10n_write_dag, testing_dag_bundle, session
-    ):
-        """Test that important DB operations in db sync are retried on OperationalError"""
-        serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
-        assert serialized_dags_count == 0
-        mock_dag = mock.MagicMock()
-        dags = [mock_dag]
+    @pytest.mark.usefixtures("clean_db", "testing_dag_bundle")
+    @pytest.mark.parametrize("error_type", [OperationalError, IntegrityError, StaleDataError])
+    @pytest.mark.parametrize(
+        ("model", "method"),
+        [(SerializedDAG, "bulk_write_to_db"), (SerializedDagModel, "write_dag")],
+        ids=["metadata", "serialization"],
+    )
+    def test_sync_to_db_is_retried(self, session, error_type, model, method):
+        with DAG("retried_dag", schedule=None, description="published after retry") as dag:
+            EmptyOperator(task_id="task")
+        dag.fileloc = __file__
+        dag.relative_fileloc = "test_collection.py"
+        serialized_dag = LazyDeserializedDAG.from_dag(dag)
+        write = getattr(model, method)
+        attempts = 0
 
-        op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
+        def write_then_fail(*args, **kwargs):
+            nonlocal attempts
+            attempts += 1
+            result = write(*args, **kwargs)
+            if attempts < 3:
+                if error_type is IntegrityError:
+                    session.add_all(AssetModel(name="duplicate", uri="duplicate") for _ in range(2))
+                    if method == "bulk_write_to_db":
+                        session.flush()
+                elif error_type is OperationalError:
+                    raise OperationalError("publish Dag", {}, RuntimeError("retry publication"))
+                else:
+                    raise StaleDataError("retry publication")
+            return result
 
-        # Mock error for the first 2 tries and a successful third try
-        side_effect = [op_error, op_error, mock.ANY]
+        import_errors = {}
+        with (
+            mock.patch.object(model, method, autospec=True, side_effect=write_then_fail),
+            mock.patch.object(session, "rollback", autospec=True, side_effect=session.rollback) as rollback,
+        ):
+            update_dag_parsing_results_in_db(
+                "testing", None, [serialized_dag], import_errors, None, set(), session=session
+            )
+        session.commit()
 
-        mock_bulk_write_to_db.side_effect = side_effect
+        assert attempts == 3
+        assert rollback.call_count == 2
+        assert import_errors == {}
+        with create_session(scoped=False) as observer:
+            assert observer.get(DagModel, dag.dag_id).description == "published after retry"
+            assert observer.scalar(select(SerializedDagModel.dag_id)) == dag.dag_id
+            assert observer.scalar(select(AssetModel.id).where(AssetModel.name == "duplicate")) is None
 
-        mock_session = mock.MagicMock()
-        update_dag_parsing_results_in_db(
-            "testing",
-            None,
-            dags=dags,
-            import_errors={},
-            parse_duration=None,
-            warnings=set(),
-            session=mock_session,
-        )
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("clean_db", "testing_dag_bundle")
+    @conf_vars({("core", "min_serialized_dag_update_interval"): "0"})
+    def test_deferred_source_update_is_retried_after_lock_timeout(self, session):
+        dag = DAG("retried_source", schedule=None)
+        dag.fileloc = __file__
+        dag.relative_fileloc = "test_collection.py"
+        serialized = LazyDeserializedDAG.from_dag(dag)
 
-        # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
-        mock_bulk_write_to_db.assert_has_calls(
-            [
-                mock.call("testing", None, mock.ANY, None, session=mock.ANY),
-                mock.call("testing", None, mock.ANY, None, session=mock.ANY),
-                mock.call("testing", None, mock.ANY, None, session=mock.ANY),
-            ]
-        )
-        # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
-        mock_session.rollback.assert_has_calls([mock.call(), mock.call()])
-        # Check that 'SerializedDagModel.write_dag' is also called
-        # Only called once since the other two times the 'DAG.bulk_write_to_db' error'd
-        # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
-        mock_s10n_write_dag.assert_has_calls(
-            [
-                mock.call(
-                    mock_dag,
-                    bundle_name="testing",
-                    bundle_version=None,
-                    version_data=None,
-                    min_update_interval=mock.ANY,
-                    session=mock_session,
-                    _prefetched=mock.ANY,
-                ),
-            ]
-        )
+        def publish(writer):
+            update_dag_parsing_results_in_db("testing", None, [serialized], {}, None, set(), session=writer)
 
-        serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
-        assert serialized_dags_count == 0
+        publish(session)
+        session.commit()
+        code = session.scalar(select(DagCode).where(DagCode.dag_id == dag.dag_id))
+        expected_source = code.source_code
+        code.source_code = "previous source"
+        code.source_code_hash = DagCode.dag_source_hash(code.source_code)
+        session.commit()
+        session.close()
+
+        failures = []
+        with (
+            create_session(scoped=False) as blocker,
+            settings.engine.connect() as connection,
+            SqlaSession(bind=connection, autoflush=False) as writer,
+            mock.patch.object(
+                SerializedDagModel, "write_dag", autospec=True, side_effect=SerializedDagModel.write_dag
+            ) as write_dag,
+        ):
+            blocker.scalar(select(DagCode).where(DagCode.dag_id == dag.dag_id).with_for_update())
+            is_postgres = connection.dialect.name == "postgresql"
+            writer.execute(
+                text(
+                    "SET LOCAL lock_timeout = '200ms'"
+                    if is_postgres
+                    else "SET SESSION innodb_lock_wait_timeout = 1"
+                )
+            )
+
+            def release_after_error(context):
+                if context.connection is connection:
+                    failures.append(context.sqlalchemy_exception)
+                    blocker.rollback()
+
+            event.listen(connection.engine, "handle_error", release_after_error)
+            try:
+                publish(writer)
+                writer.commit()
+            finally:
+                event.remove(connection.engine, "handle_error", release_after_error)
+                writer.rollback()
+                if not is_postgres:
+                    connection.execute(text("SET SESSION innodb_lock_wait_timeout = DEFAULT"))
+
+            assert write_dag.call_count == 2
+            assert len(failures) == 1
+            failure = failures[0]
+            assert isinstance(failure, OperationalError)
+            assert failure.statement.lower().startswith("update dag_code ")
+            error_code = (
+                getattr(failure.orig, "sqlstate", None) or getattr(failure.orig, "pgcode", None)
+                if is_postgres
+                else failure.orig.args[0]
+            )
+            assert error_code == ("55P03" if is_postgres else 1205)
+
+        with create_session(scoped=False) as observer:
+            code = observer.scalar(select(DagCode).where(DagCode.dag_id == dag.dag_id))
+            assert code.source_code == expected_source
+            assert code.source_code_hash == DagCode.dag_source_hash(expected_source)
 
     def test_serialized_dags_are_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test DAGs are Serialized and written to DB when parsing result is updated"""
