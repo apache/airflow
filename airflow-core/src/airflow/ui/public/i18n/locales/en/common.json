@@ -199,6 +199,7 @@
     "plugins": "Plugins",
     "security": "Security"
   },
+  "no": "No",
   "noItemsFound": "No {{modelName}} found",
   "note": {
     "add": "Add a note",
@@ -570,5 +571,6 @@
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
-  }
+  },
+  "yes": "Yes"
 }
