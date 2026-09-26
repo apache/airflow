@@ -2278,7 +2278,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
     if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
 
     return result
 
