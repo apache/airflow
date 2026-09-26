@@ -33,9 +33,6 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 from airflow.providers.common.compat.sdk import timezone
 
 if TYPE_CHECKING:
-    from openlineage.client.event_v2 import RunEvent
-    from openlineage.client.facet_v2 import JobFacet
-
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.databricks.hooks.databricks import DatabricksHook
     from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
@@ -63,6 +60,7 @@ def _get_parent_run_facet(task_instance):
         lineage_job_name,
         lineage_job_namespace,
         lineage_root_job_name,
+        lineage_root_job_namespace,
         lineage_root_run_id,
         lineage_run_id,
     )
@@ -72,14 +70,8 @@ def _get_parent_run_facet(task_instance):
     parent_job_namespace = lineage_job_namespace()
 
     root_parent_run_id = lineage_root_run_id(task_instance)
-    rot_parent_job_name = lineage_root_job_name(task_instance)
-
-    try:  # Added in OL provider 2.9.0, try to use it if possible
-        from airflow.providers.openlineage.plugins.macros import lineage_root_job_namespace
-
-        root_parent_job_namespace = lineage_root_job_namespace(task_instance)
-    except ImportError:
-        root_parent_job_namespace = lineage_job_namespace()
+    root_parent_job_name = lineage_root_job_name(task_instance)
+    root_parent_job_namespace = lineage_root_job_namespace(task_instance)
 
     return parent_run.ParentRunFacet(
         run=parent_run.Run(runId=parent_run_id),
@@ -90,7 +82,7 @@ def _get_parent_run_facet(task_instance):
         root=parent_run.Root(
             run=parent_run.RootRun(runId=root_parent_run_id),
             job=parent_run.RootJob(
-                name=rot_parent_job_name,
+                name=root_parent_job_name,
                 namespace=root_parent_job_namespace,
             ),
         ),
@@ -153,44 +145,15 @@ def _get_queries_details_from_databricks(
     return query_details
 
 
-def _create_ol_event_pair(
-    job_namespace: str,
-    job_name: str,
-    start_time: datetime.datetime,
-    end_time: datetime.datetime,
-    is_successful: bool,
-    run_facets: dict | None = None,
-    job_facets: dict | None = None,
-) -> tuple[RunEvent, RunEvent]:
-    """Create a pair of OpenLineage RunEvents representing the start and end of a query execution."""
-    from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
-    from openlineage.client.uuid import generate_new_uuid
-
-    run = Run(runId=str(generate_new_uuid()), facets=run_facets or {})
-    job = Job(namespace=job_namespace, name=job_name, facets=job_facets or {})
-
-    start = RunEvent(
-        eventType=RunState.START,
-        eventTime=start_time.isoformat(),
-        run=run,
-        job=job,
-    )
-    end = RunEvent(
-        eventType=RunState.COMPLETE if is_successful else RunState.FAIL,
-        eventTime=end_time.isoformat(),
-        run=run,
-        job=job,
-    )
-    return start, end
-
-
-@require_openlineage_version(provider_min_version="2.5.0")
+@require_openlineage_version(provider_min_version="2.16.0")
 def emit_openlineage_events_for_databricks_queries(
     task_instance,
     hook: DatabricksSqlHook | DatabricksHook | None = None,
     query_ids: list[str] | None = None,
     query_source_namespace: str | None = None,
     query_for_extra_metadata: bool = False,
+    default_database: str | None = None,
+    default_schema: str | None = None,
     additional_run_facets: dict | None = None,
     additional_job_facets: dict | None = None,
 ) -> None:
@@ -217,19 +180,17 @@ def emit_openlineage_events_for_databricks_queries(
         can be `None` only if hook is provided.
         query_for_extra_metadata: Whether to query Databricks for additional metadata about queries.
         Must be `False` if `hook` is not provided.
+        default_database: Default database used to qualify table references parsed out of each query's
+        text that don't already carry their own database qualifier. Callers with a hook typically pass
+        `hook.get_openlineage_database_info(connection).database`.
+        default_schema: Default schema used to qualify table references parsed out of each query's text
+        that don't already carry their own schema qualifier. Callers with a hook typically pass
+        `hook.get_openlineage_default_schema()`.
         additional_run_facets: Additional run facets to include in OpenLineage events.
         additional_job_facets: Additional job facets to include in OpenLineage events.
     """
-    from openlineage.client.facet_v2 import job_type_job
-
-    from airflow.providers.common.compat.openlineage.facet import (
-        ErrorMessageRunFacet,
-        ExternalQueryRunFacet,
-        RunFacet,
-        SQLJobFacet,
-    )
-    from airflow.providers.openlineage.conf import namespace
-    from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
+    from airflow.providers.common.compat.openlineage.facet import SQLJobFacet
+    from airflow.providers.openlineage.api import emit_query_lineage
 
     log.info("OpenLineage will emit events for Databricks queries.")
 
@@ -278,19 +239,6 @@ def emit_openlineage_events_for_databricks_queries(
     )
     default_state = "finished" if default_state in ("running", "success") else default_state
 
-    log.debug("Generating OpenLineage facets")
-    common_run_facets = {"parent": _get_parent_run_facet(task_instance)}
-    common_job_facets: dict[str, JobFacet] = {
-        "jobType": job_type_job.JobTypeJobFacet(
-            jobType="QUERY",
-            integration="DATABRICKS",
-            processingType="BATCH",
-        )
-    }
-    additional_run_facets = additional_run_facets or {}
-    additional_job_facets = additional_job_facets or {}
-
-    events: list[RunEvent] = []
     for counter, query_id in enumerate(query_ids, 1):
         query_metadata = databricks_metadata.get(query_id, {})
         log.debug(
@@ -300,36 +248,29 @@ def emit_openlineage_events_for_databricks_queries(
             query_metadata if query_metadata else "not found",
         )
 
-        query_specific_run_facets: dict[str, RunFacet] = {
-            "externalQuery": ExternalQueryRunFacet(externalQueryId=query_id, source=query_source_namespace)
-        }
-        if query_metadata.get("error_message"):
-            query_specific_run_facets["error"] = ErrorMessageRunFacet(
-                message=query_metadata["error_message"],
-                programmingLanguage="SQL",
-            )
-
-        query_specific_job_facets = {}
+        query_job_facets = dict(additional_job_facets or {})
         if query_metadata.get("query_text"):
-            query_specific_job_facets["sql"] = SQLJobFacet(query=query_metadata["query_text"])
+            query_job_facets["sql"] = SQLJobFacet(query=query_metadata["query_text"])
 
-        log.debug("Creating OpenLineage event pair for query ID: %s", query_id)
-        event_batch = _create_ol_event_pair(
-            job_namespace=namespace(),
-            job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
+        log.debug("Emitting OpenLineage event pair for query ID: %s", query_id)
+        emit_query_lineage(
+            query_id=query_id,
+            query_source_namespace=query_source_namespace,
+            # Not forwarding query_text: that would additionally parse it into input/output datasets,
+            # which is a bigger behavior change than attaching the raw SQL text as a job facet above.
+            query_text=None,
             start_time=query_metadata.get("start_time") or default_event_time,
             end_time=query_metadata.get("end_time") or default_event_time,
             # Only finished status means it completed without failures
             is_successful=(query_metadata.get("status") or default_state).lower() == "finished",
-            run_facets={**query_specific_run_facets, **common_run_facets, **additional_run_facets},
-            job_facets={**query_specific_job_facets, **common_job_facets, **additional_job_facets},
+            error_message=query_metadata.get("error_message"),
+            default_database=default_database,
+            default_schema=default_schema,
+            job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
+            task_instance=task_instance,
+            additional_run_facets=additional_run_facets,
+            additional_job_facets=query_job_facets,
         )
-        events.extend(event_batch)
-
-    log.debug("Generated %s OpenLineage events; emitting now.", len(events))
-    adapter = get_openlineage_listener().adapter
-    for event in events:
-        adapter.emit(event)
 
     log.info("OpenLineage has successfully finished processing information about Databricks queries.")
     return
