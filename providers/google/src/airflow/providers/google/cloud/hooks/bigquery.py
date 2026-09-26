@@ -513,11 +513,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         """
         _table_resource: dict[str, Any] = {}
-        if isinstance(table_resource, Table):
-            _table_resource = Table.from_api_repr(table_resource)  # type: ignore
+        if isinstance(table_resource, (Table, TableReference, TableListItem)):
+            _table_resource = table_resource.to_api_repr()
+            if isinstance(table_resource, TableReference):
+                # A bare TableReference serializes to a flat dict without the
+                # "tableReference" wrapper expected by the API resource.
+                _table_resource = {"tableReference": _table_resource}
         if schema_fields:
             _table_resource["schema"] = {"fields": schema_fields}
-        table_resource_final = {**table_resource, **_table_resource}  # type: ignore
+        if isinstance(table_resource, dict):
+            table_resource_final = {**table_resource, **_table_resource}
+        else:
+            table_resource_final = _table_resource
         table_resource = self._resolve_table_reference(
             table_resource=table_resource_final,
             project_id=project_id,

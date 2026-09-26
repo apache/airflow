@@ -38,7 +38,7 @@ from google.cloud.bigquery import (
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.bigquery.routine import Routine
-from google.cloud.bigquery.table import _EmptyRowIterator
+from google.cloud.bigquery.table import TableListItem, _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -945,6 +945,59 @@ class TestTableOperations(_BigQueryBaseTestClass):
             retry=DEFAULT_RETRY,
             timeout=None,
         )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_with_table_object(self, mock_bq_client):
+        table_resource = Table.from_api_repr({"tableReference": TABLE_REFERENCE_REPR})
+        self.hook.create_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource=table_resource,
+        )
+        created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_with_table_reference_object(self, mock_bq_client):
+        self.hook.create_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource=TABLE_REFERENCE,
+        )
+        created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_with_table_list_item(self, mock_bq_client):
+        table_resource = TableListItem({"tableReference": TABLE_REFERENCE_REPR, "type": "TABLE"})
+        self.hook.create_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource=table_resource,
+        )
+        created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_with_table_object_and_schema_fields(self, mock_bq_client):
+        table_resource = Table.from_api_repr({"tableReference": TABLE_REFERENCE_REPR})
+        schema_fields = [
+            {"name": "id", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+        ]
+        self.hook.create_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource=table_resource,
+            schema_fields=schema_fields,
+        )
+        created_table = mock_bq_client.return_value.create_table.call_args.kwargs["table"]
+        assert created_table.reference.to_api_repr() == TABLE_REFERENCE_REPR
+        assert created_table.to_api_repr()["schema"]["fields"] == schema_fields
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_get_tables_list(self, mock_client):
