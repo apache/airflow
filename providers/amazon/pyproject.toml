@@ -92,7 +92,7 @@ dependencies = [
     "aiobotocore>=3.0.0",
 ]
 "cncf.kubernetes" = [
-    "apache-airflow-providers-cncf-kubernetes>=7.2.0",
+    "apache-airflow-providers-cncf-kubernetes>=7.2.0",  # use next version
 ]
 "s3fs" = [
     "s3fs>=2023.10.0",
