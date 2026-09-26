@@ -282,8 +282,9 @@ class OpenAIHook(BaseHook):
     def parse_response(
         self,
         input: Any,
-        text_format: type[_TextFormatT],
         model: str = "gpt-4o-mini",
+        *,
+        text_format: type[_TextFormatT],
         **kwargs: Any,
     ) -> ParsedResponse[_TextFormatT]:
         """
@@ -296,10 +297,10 @@ class OpenAIHook(BaseHook):
         parsed output (for example a refusal).
 
         :param input: Text, image, or file input(s) to the model.
-        :param text_format: A Pydantic ``BaseModel`` subclass describing the expected
-            structured output. The SDK converts it to a JSON schema and sends the
-            structured-output request.
         :param model: ID of the model to use.
+        :param text_format: A Pydantic ``BaseModel`` subclass describing the expected
+            structured output. Keyword-only, as in the SDK. The SDK converts it to a JSON schema
+            and sends the structured-output request.
         """
         return self.conn.responses.parse(input=input, model=model, text_format=text_format, **kwargs)
 

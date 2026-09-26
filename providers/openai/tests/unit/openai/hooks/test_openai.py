@@ -342,6 +342,19 @@ def test_parse_response(mock_openai_hook):
     assert result is expected
 
 
+def test_parse_response_matches_create_response_positional_order(mock_openai_hook):
+    class Person(BaseModel):
+        name: str
+
+    # model is the second positional argument, as in create_response; text_format is keyword-only.
+    mock_openai_hook.parse_response("Extract: Alice", MODEL, text_format=Person)
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL, input="Extract: Alice", text_format=Person
+    )
+    with pytest.raises(TypeError, match="text_format"):
+        mock_openai_hook.parse_response("Extract: Alice", Person)
+
+
 def test_get_response(mock_openai_hook):
     expected = mock_openai_hook.conn.responses.retrieve.return_value
     result = mock_openai_hook.get_response("resp_123")
