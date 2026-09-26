@@ -39,6 +39,23 @@ _DATES = (
 key, value = next(iter(_DATES.items()))
 
 
+def _api_server_error(status_code: int, message: str | None = None):
+    """Build the error a trigger gets back when an execution API call fails."""
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    return AirflowRuntimeError(
+        ErrorResponse(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": status_code,
+                "message": f"Server returned {status_code}",
+                "detail": {"detail": {"reason": "not_found", "message": message}} if message else None,
+            },
+        )
+    )
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
 class TestWorkflowTrigger:
     DAG_ID = "external_task"
@@ -407,7 +424,110 @@ class TestWorkflowTrigger:
             "allowed_states": self.STATES,
             "poke_interval": 5,
             "soft_fail": False,
+            "check_existence": False,
         }
+
+    def test_serialization_check_existence(self):
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            logical_dates=[self.LOGICAL_DATE],
+            external_task_ids=[self.TASK_ID],
+            check_existence=True,
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["check_existence"] is True
+
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_task_not_found(self, mock_get_task_states, mock_get_dr_count):
+        """The API reporting the awaited task unknown to the run ends the wait with a not_found event."""
+        mock_get_dr_count.return_value = 1
+        mock_get_task_states.side_effect = _api_server_error(
+            404, f"Task {self.TASK_ID} not found in DAG {self.DAG_ID}"
+        )
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            logical_dates=[self.LOGICAL_DATE],
+            external_task_ids=[self.TASK_ID],
+            allowed_states=self.STATES,
+            poke_interval=0.2,
+            check_existence=True,
+        )
+        gen = trigger.run()
+        result = await gen.__anext__()
+        assert result.payload["status"] == "not_found"
+        assert result.payload["kind"] == "task"
+        assert self.TASK_ID in result.payload["message"]
+        mock_get_dr_count.assert_called_once_with(dag_id=self.DAG_ID, logical_dates=[self.LOGICAL_DATE])
+        mock_get_task_states.assert_called_once_with(
+            dag_id=self.DAG_ID, task_ids=[self.TASK_ID], logical_dates=[self.LOGICAL_DATE]
+        )
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
+
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_task_group_not_found(
+        self, mock_get_task_states, mock_get_ti_count, mock_get_dr_count
+    ):
+        """The API reporting the group unknown to the run ends the wait with a not_found event."""
+        mock_get_dr_count.return_value = 1
+        mock_get_task_states.side_effect = _api_server_error(
+            404, f"Task group missing_group not found in DAG {self.DAG_ID}"
+        )
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            run_ids=[self.RUN_ID],
+            external_task_group_id="missing_group",
+            allowed_states=self.STATES,
+            poke_interval=0.2,
+            check_existence=True,
+        )
+        gen = trigger.run()
+        result = await gen.__anext__()
+        assert result.payload["status"] == "not_found"
+        assert result.payload["kind"] == "task_group"
+        assert "missing_group" in result.payload["message"]
+        mock_get_task_states.assert_called_once_with(
+            dag_id=self.DAG_ID, task_group_id="missing_group", run_ids=[self.RUN_ID]
+        )
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
+
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @mock.patch("asyncio.sleep")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_waits_for_run_before_checking(
+        self, mock_sleep, mock_get_ti_count, mock_get_task_states, mock_get_dr_count
+    ):
+        """Nothing is concluded while the run is missing; once it exists the task is verified and the wait goes on."""
+        mock_get_dr_count.side_effect = [0, 1]
+        mock_get_task_states.return_value = {}  # the API knows the task once the run exists
+        # the state poll: the task reaches an allowed state only after the run exists
+        mock_get_ti_count.side_effect = lambda **kwargs: 1 if mock_get_dr_count.call_count == 2 else 0
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            logical_dates=[self.LOGICAL_DATE],
+            external_task_ids=[self.TASK_ID],
+            allowed_states=self.STATES,
+            poke_interval=0.2,
+            check_existence=True,
+        )
+        gen = trigger.run()
+        result = await gen.__anext__()
+        assert result.payload == {"status": "success"}
+        assert mock_get_dr_count.call_count == 2
+        mock_get_task_states.assert_called_once_with(
+            dag_id=self.DAG_ID, task_ids=[self.TASK_ID], logical_dates=[self.LOGICAL_DATE]
+        )
+        mock_sleep.assert_awaited_once()
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
