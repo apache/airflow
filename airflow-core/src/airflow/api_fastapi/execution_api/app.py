@@ -47,6 +47,7 @@ from airflow.api_fastapi.auth.tokens import (
 
 if TYPE_CHECKING:
     import httpx
+    from sqlalchemy.ext.asyncio import AsyncEngine
 
 import structlog
 from structlog.contextvars import bind_contextvars
@@ -362,10 +363,19 @@ def _shutdown_loop(
     loop: asyncio.AbstractEventLoop,
     thread: threading.Thread,
     cm: AsyncExitStack,
+    async_engine: AsyncEngine | None,
 ) -> None:
     """Close the FastAPI lifespan and stop the background event loop + thread."""
+
+    async def close_resources() -> None:
+        try:
+            if async_engine is not None:
+                await async_engine.dispose()
+        finally:
+            await cm.aclose()
+
     try:
-        asyncio.run_coroutine_threadsafe(cm.aclose(), loop).result(timeout=5)
+        asyncio.run_coroutine_threadsafe(close_resources(), loop).result(timeout=5)
     except Exception:
         logger.exception("Error while closing in-process execution API lifespan")
     loop.call_soon_threadsafe(loop.stop)
@@ -427,6 +437,9 @@ class InProcessExecutionAPI:
         import httpx
         from a2wsgi import ASGIMiddleware
 
+        from airflow import settings
+        from airflow.api_fastapi.common.db.common import _get_async_session
+
         # We choose to own the event loop + executor thread here so that we can have explicit control over
         # their lifecycle.
         loop = asyncio.new_event_loop()
@@ -437,13 +450,28 @@ class InProcessExecutionAPI:
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
+            async_engine, session_factory = settings.create_async_session_factory()
+            if session_factory is not None:
+                app.state.async_session_factory = session_factory
+
+                async def get_async_session():
+                    async with session_factory() as session:
+                        try:
+                            yield session
+                            await session.commit()
+                        except Exception:
+                            await session.rollback()
+                            raise
+
+                app.dependency_overrides[_get_async_session] = get_async_session
             await cm.enter_async_context(app.router.lifespan_context(app))
+            return async_engine
 
         cm = AsyncExitStack()
 
         # Wait for lifespan startup to complete so callers see a ready app and so the finalizer can
         # safely aclose() a context whose __aenter__ has actually run.
-        asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
+        async_engine = asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
 
         transport = httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
@@ -452,7 +480,7 @@ class InProcessExecutionAPI:
         # the factory object (e.g. ``Client(transport=InProcessExecutionAPI().transport)``); finalizing on
         # ``self`` would stop the loop while the transport is still in use, so every later request would
         # hang on the now-dead loop.
-        weakref.finalize(transport, _shutdown_loop, loop, thread, cm)
+        weakref.finalize(transport, _shutdown_loop, loop, thread, cm, async_engine)
 
         return transport
 

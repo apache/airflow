@@ -247,7 +247,7 @@ class ExecutionAPIRoute(APIRoute):
         self.allowed_token_types = frozenset(token_scopes) if token_scopes else frozenset({"execution"})
 
 
-async def get_team_name_dep(token=CurrentTIToken) -> str | None:
+async def get_team_name_dep(request: Request, token=CurrentTIToken) -> str | None:
     """Return the team name associated to the task (if any)."""
     from airflow.configuration import conf
 
@@ -256,7 +256,8 @@ async def get_team_name_dep(token=CurrentTIToken) -> str | None:
 
     from airflow.utils.session import create_session_async
 
-    async with create_session_async() as session:
+    session_factory = getattr(request.app.state, "async_session_factory", create_session_async)
+    async with session_factory() as session:
         return await session.scalar(_team_name_for_ti_stmt(token.id))
 
 

@@ -21,6 +21,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
+from airflow import settings
 from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -74,5 +75,10 @@ def client(request: pytest.FixtureRequest):
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
         yield client
+        # Pooled async connections are bound to this client's event loop. Dispose them while
+        # the loop is still running so the next test's loop never inherits one.
+        if settings.async_engine is not None:
+            assert client.portal is not None
+            client.portal.call(settings.async_engine.dispose)
 
     exec_app.dependency_overrides.pop(require_auth, None)

@@ -24,9 +24,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import or_, select
 
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
     from airflow.models import Connection
@@ -61,6 +62,28 @@ class MetastoreBackend(BaseSecretsBackend):
             session.expunge(conn)
         return conn
 
+    async def aget_connection(
+        self, conn_id: str, team_name: str | None = None, *, session: AsyncSession | None = None
+    ) -> Connection | None:
+        """Get an Airflow Connection from the metadata DB using native async I/O."""
+        if session is None:
+            async with create_session_async() as owned_session:
+                return await self.aget_connection(conn_id, team_name=team_name, session=owned_session)
+
+        from airflow.models import Connection
+
+        conn = await session.scalar(
+            select(Connection)
+            .where(
+                Connection.conn_id == conn_id,
+                or_(Connection.team_name == team_name, Connection.team_name.is_(None)),
+            )
+            .limit(1)
+        )
+        if conn:
+            session.expunge(conn)
+        return conn
+
     @provide_session
     def get_variable(
         self, key: str, team_name: str | None = None, *, session: Session = NEW_SESSION
@@ -83,4 +106,24 @@ class MetastoreBackend(BaseSecretsBackend):
         if var_value:
             session.expunge(var_value)
             return var_value.val
+        return None
+
+    async def aget_variable(
+        self, key: str, team_name: str | None = None, *, session: AsyncSession | None = None
+    ) -> str | None:
+        """Get an Airflow Variable from the metadata DB using native async I/O."""
+        if session is None:
+            async with create_session_async() as owned_session:
+                return await self.aget_variable(key, team_name=team_name, session=owned_session)
+
+        from airflow.models import Variable
+
+        variable = await session.scalar(
+            select(Variable)
+            .where(Variable.key == key, or_(Variable.team_name == team_name, Variable.team_name.is_(None)))
+            .limit(1)
+        )
+        if variable:
+            session.expunge(variable)
+            return variable.val
         return None

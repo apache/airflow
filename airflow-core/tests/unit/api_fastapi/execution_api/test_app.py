@@ -31,6 +31,7 @@ from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow import settings
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
@@ -40,6 +41,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.variable import Variable
 
 from tests_common.test_utils.config import conf_vars
 
@@ -193,6 +195,22 @@ def test_in_process_execution_api_transport_lifecycle():
     assert not thread.is_alive()
 
 
+def test_in_process_execution_api_uses_its_own_async_session_factory(session, monkeypatch):
+    Variable.set("in-process-loop", "value", session=session)
+    session.commit()
+
+    global_session_factory = mock.Mock(side_effect=AssertionError("In-process API used the global session"))
+    monkeypatch.setattr(settings, "AsyncSession", global_session_factory)
+
+    with conf_vars({("core", "multi_team"): "True"}):
+        api = InProcessExecutionAPI()
+        with httpx.Client(transport=api.transport) as client:
+            response = client.get("http://localhost/variables/in-process-loop")
+
+    assert response.json() == {"key": "in-process-loop", "value": "value"}
+    global_session_factory.assert_not_called()
+
+
 class TestCorrelationIdMiddleware:
     def test_correlation_id_echoed_in_response_headers(self, client):
         """Test that correlation-id from request is echoed back in response headers."""
@@ -323,7 +341,10 @@ class TestTraceContextPropagation:
         # where AsyncExitStack unwinds the generator in the correct asyncio context.
         with (
             mock.patch.object(otel_propagate, "extract", wraps=real_extract) as extract_spy,
-            mock.patch("airflow.models.variable.Variable.get", side_effect=RuntimeError("boom")),
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+                side_effect=RuntimeError("boom"),
+            ),
             TestClient(app, raise_server_exceptions=False) as test_client,
         ):
             response = test_client.get("/variables/k", headers={"Authorization": "Bearer fake"})
