@@ -33,7 +33,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
-import { allowedStates } from "../utils";
+import { allowedTaskStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
 type Props = {
@@ -82,10 +82,8 @@ export const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance
           </IconButton>
         </Menu.Trigger>
         <Menu.Content>
-          {allowedStates.map((menuState) => {
-            const content = translate(
-              `dags:runAndTaskActions.markAs.buttonTooltip.${menuState === "success" ? "success" : "failed"}`,
-            );
+          {allowedTaskStates.map((menuState) => {
+            const content = translate(`dags:runAndTaskActions.markAs.buttonTooltip.${menuState}`);
 
             return (
               <Tooltip
