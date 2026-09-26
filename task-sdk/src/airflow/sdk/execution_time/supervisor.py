@@ -1760,10 +1760,12 @@ class ActivitySubprocess(WatchedSubprocess):
                     pid=self.pid,
                 )
             except ServerResponseError as error:
-                if error.response.status_code != HTTPStatus.NOT_FOUND:
+                if error.response.status_code not in (HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT):
                     raise
                 log.info(
-                    "Task instance no longer exists; no termination acknowledgement needed", ti_id=self.id
+                    "Termination acknowledgement rejected; task process has already stopped",
+                    ti_id=self.id,
+                    status_code=error.response.status_code,
                 )
             return
 

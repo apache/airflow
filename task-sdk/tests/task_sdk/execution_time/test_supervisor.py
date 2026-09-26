@@ -1042,7 +1042,7 @@ class TestWatchedSubprocess:
         assert reports == [msg.state, SERVER_TERMINATED]
         upload_logs.assert_called_once_with(proc)
 
-    @pytest.mark.parametrize("ack_status", [204, 404])
+    @pytest.mark.parametrize("ack_status", [204, 404, 409])
     def test_restarting_start_reports_stop_after_reaping(self, mocker, ack_status, captured_logs):
         ti_id = uuid7()
         start = mocker.spy(ActivitySubprocess, "start")
@@ -1071,6 +1071,8 @@ class TestWatchedSubprocess:
                 return httpx.Response(
                     404, json={"detail": {"reason": "not_found", "message": "Task Instance not found"}}
                 )
+            if ack_status == 409:
+                return httpx.Response(409, json={"detail": {"reason": "running_elsewhere"}})
             return httpx.Response(ack_status)
 
         exit_code = supervise_task(
@@ -4206,7 +4208,6 @@ class TestHandleRequest:
         ("state", "status_code"),
         [
             (SERVER_TERMINATED, 403),
-            (SERVER_TERMINATED, 409),
             (SERVER_TERMINATED, 500),
             (SERVER_TERMINATED, None),
             (TaskInstanceState.FAILED, 404),
