@@ -2,10 +2,53 @@
 
 method:       marketplace
 url:          apache/magpie
-min_version:  0.2.0.dev202609222337
+min_version:  0.9.0.dev202609261254
 
 plugins:
   - magpie-setup
   - magpie-utilities
   - magpie-agent-guard
   - magpie-release-management
+  - magpie-contributor-growth
+
+reconciled:
+  version: 0.9.0.dev202609261254
+  at:      2026-09-26
+  skills:
+    activity-sweep:            sha256:748187f2d78d9991
+    announce-draft:            sha256:1b0ebe953b9fa334
+    archive-sweep:             sha256:7cb626368f367e76
+    audit-report:              sha256:bed8d4c39f43581d
+    backlog-stats:             sha256:34d5f05ebb5ee5b3
+    code-review:               sha256:261649569ebac577
+    committer-onboarding:      sha256:0b1081376b51a75a
+    contributor-to-committer:  sha256:57f8813ba1ea4a69
+    deduplicate:               sha256:cee70e29c6fadb04
+    good-first-issue-author:   sha256:ac2d0fda09c67231
+    good-first-issue-sweep:    sha256:591ae352325ca83d
+    isolated-setup-install:    sha256:eb1b228a501f2772
+    issue-import-from-scan:    sha256:3aa895ba2115c1d9
+    issue-import-via-forwarder: sha256:7be6fd9a774bbde5
+    issue-invalidate:          sha256:af16fa7d6f65328a
+    keys-sync:                 sha256:bc9f77e9dcb305da
+    mentor:                    sha256:3c380e6ecb0fb4c8
+    newcomer-issue-explainer:  sha256:8cfe453a3113abe2
+    nomination:                sha256:4dbd3136d81a2f87
+    onboarding-concierge:      sha256:4105a6571bcb70c2
+    pr-stale-sweep:            sha256:2c5b8030569b63e6
+    pr-triage:                 sha256:4a3a20f254a3b7c7
+    prepare:                   sha256:5cfba199f4348e98
+    promote:                   sha256:e4f8b18462e8da1d
+    quick-merge:               sha256:ea4648413feb1eca
+    rc-cut:                    sha256:3bbf726eae07fe4e
+    reassess:                  sha256:26b90046cd97aef2
+    reassess-stats:            sha256:17acede01fa2f929
+    reproducer:                sha256:573d724afd671f6f
+    sentiment:                 sha256:c325db1d99634a51
+    stale-sweep:               sha256:d2a78aaabcc57f26
+    stats:                     sha256:6f0c574efb46849a
+    triage:                    sha256:9b2993211bdc0e80
+    verify-rc:                 sha256:eb35d109439cd24b
+    vote-draft:                sha256:3b74a3ec69e4b358
+    vote-tally:                sha256:b0b69aea022307a5
+    welcome:                   sha256:a61c6575d69da08a
