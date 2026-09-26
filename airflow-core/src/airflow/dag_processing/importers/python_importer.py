@@ -191,7 +191,7 @@ class PythonDagImporter(AbstractDagImporter):
             )
 
         # Process imported modules to extract DAGs
-        self._process_modules(filepath, modules, bundle_name, bundle_path, result)
+        PythonDagImporter._process_modules(modules, bundle_path, result)
 
         return result
 
@@ -331,11 +331,9 @@ class PythonDagImporter(AbstractDagImporter):
                         del sys.path[0]
         return mods
 
+    @staticmethod
     def _process_modules(
-        self,
-        filepath: str,
         mods: list[Any],
-        bundle_name: str | None,
         bundle_path: Path | None,
         result: DagImportResult,
     ) -> None:
@@ -353,7 +351,7 @@ class PythonDagImporter(AbstractDagImporter):
 
         for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
-            relative_fileloc = self.get_relative_path(dag.fileloc, bundle_path)
+            relative_fileloc = PythonDagImporter.get_relative_path(dag.fileloc, bundle_path)
             dag.relative_fileloc = relative_fileloc
 
             result.dags.append(dag)
