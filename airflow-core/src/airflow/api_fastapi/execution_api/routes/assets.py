@@ -22,7 +22,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.models.asset import AssetModel, expand_alias_to_assets
 
@@ -35,24 +35,24 @@ router = APIRouter(
 
 
 @router.get("/by-name")
-def get_asset_by_name(
+async def get_asset_by_name(
     name: Annotated[str, Query(description="The name of the Asset")],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> AssetResponse:
     """Get an Airflow Asset by `name`."""
-    asset = session.scalar(select(AssetModel).where(AssetModel.name == name, AssetModel.active.has()))
+    asset = await session.scalar(select(AssetModel).where(AssetModel.name == name, AssetModel.active.has()))
     _raise_if_not_found(asset, f"Asset with name {name} not found")
 
     return AssetResponse.model_validate(asset)
 
 
 @router.get("/by-uri")
-def get_asset_by_uri(
+async def get_asset_by_uri(
     uri: Annotated[str, Query(description="The URI of the Asset")],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> AssetResponse:
     """Get an Airflow Asset by `uri`."""
-    asset = session.scalar(select(AssetModel).where(AssetModel.uri == uri, AssetModel.active.has()))
+    asset = await session.scalar(select(AssetModel).where(AssetModel.uri == uri, AssetModel.active.has()))
     _raise_if_not_found(asset, f"Asset with URI {uri} not found")
 
     return AssetResponse.model_validate(asset)

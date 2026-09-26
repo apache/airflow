@@ -3484,6 +3484,7 @@ class TestTIPutRTIF:
         }
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestPreviousDagRun:
     def setup_method(self):
         clear_db_runs()
@@ -3582,7 +3583,19 @@ class TestPreviousDagRun:
         }
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetRescheduleStartDate:
+    @mock.patch.object(AsyncSession, "scalar", autospec=True)
+    def test_awaits_async_scalar(self, mock_scalar, client):
+        start_date = timezone.datetime(2024, 1, 1)
+        mock_scalar.return_value = start_date
+
+        response = client.get("/execution/task-reschedules/0182e924-0f1e-77e6-ab50-e977118bc139/start_date")
+
+        assert response.status_code == 200
+        assert response.json() == "2024-01-01T00:00:00Z"
+        mock_scalar.assert_awaited_once()
+
     def test_get_start_date(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_ti_update_state_reschedule_mysql_limit",
@@ -3918,6 +3931,7 @@ class TestGetCount:
         assert response.json() == expected_count
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetPreviousTI:
     def setup_method(self):
         clear_db_runs()
@@ -4518,6 +4532,7 @@ class TestGetTaskStates:
         assert response.json() == {"task_states": {dr.run_id: expected}}
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetTaskInstanceBreadcrumbs:
     def setup_method(self):
         clear_db_runs()

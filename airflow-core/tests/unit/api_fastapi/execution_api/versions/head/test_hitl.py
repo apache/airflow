@@ -209,13 +209,14 @@ def test_update_hitl_detail_without_ti(client: Client) -> None:
     }
 
 
-@pytest.mark.usefixtures("sample_hitl_detail")
+@pytest.mark.usefixtures("sample_hitl_detail", "reconfigure_async_db_engine")
 def test_get_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
     response = client.get(f"/execution/hitlDetails/{sample_ti.id}")
     assert response.status_code == 200
     assert response.json() == expected_empty_hitl_detail_response_part
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 def test_get_hitl_detail_without_ti(client: Client) -> None:
     response = client.get(f"/execution/hitlDetails/{uuid7()}")
     assert response.status_code == 404
