@@ -855,8 +855,13 @@ class _CredentialsToken(Token):
         await sync_to_async(self.credentials.refresh)(google.auth.transport.requests.Request())
 
         self.access_token = cast("str", self.credentials.token)
-        self.access_token_duration = 3600
         self.access_token_acquired_at = self._now()
+        # Metadata servers can return cached tokens with less than an hour remaining.
+        self.access_token_duration = (
+            max(0, int((self.credentials.expiry - self.access_token_acquired_at).total_seconds()))
+            if self.credentials.expiry is not None
+            else 3600
+        )
         return TokenResponse(value=self.access_token, expires_in=self.access_token_duration)
 
     async def acquire_access_token(self, timeout: int = 10) -> None:
