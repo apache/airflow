@@ -82,6 +82,17 @@ class ParsingClaimDispositionUnknownError(ParsingWorkerError):
     """A claim could not be reconciled; another delivery may still own the attempt."""
 
 
+class ParsingPublicationError(ParsingWorkerError):
+    """Publication failed after every importer started by this delivery was observed to exit."""
+
+    def __init__(self, message: str, execution_id: str):
+        super().__init__(message)
+        self.execution_id = execution_id
+
+    def __reduce__(self):
+        return type(self), (str(self), self.execution_id)
+
+
 class ParsingRequestTooLargeError(ParsingWorkerError):
     """The API rejected the payload, possibly after an uncertain earlier submission."""
 
@@ -433,6 +444,7 @@ def supervise_dag_parse(workload: ParseDagDefinitions, *, server: str) -> int:
             if claim["status"] not in {"claimed", "already_claimed"}:
                 raise ParsingWorkerError("API returned an unknown claim state")
             pending.append(definition)
+        imports_finished = True
         # The start deadline covers batch admission, not the start of every serial import.
         for definition in pending:
             path = f"poc/parsing/workloads/{workload.workload_id}/attempts/{definition.attempt_id}"
@@ -453,12 +465,18 @@ def supervise_dag_parse(workload: ParseDagDefinitions, *, server: str) -> int:
                 result = parse_definition(
                     workload, definition, bundle_root=root, client=client, log_dir=log_dir
                 )
-            _publish_result(
-                client,
-                f"{path}/result",
-                execution_id,
-                definition,
-                result,
-                deadline=workload.stop_deadline,
-            )
+            imports_finished &= result.outcome in {"success", "import_error"}
+            try:
+                _publish_result(
+                    client,
+                    f"{path}/result",
+                    execution_id,
+                    definition,
+                    result,
+                    deadline=workload.stop_deadline,
+                )
+            except ParsingWorkerError as error:
+                if imports_finished:
+                    raise ParsingPublicationError(str(error), execution_id) from None
+                raise
     return 0

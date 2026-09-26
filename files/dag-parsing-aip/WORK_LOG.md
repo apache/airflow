@@ -22,7 +22,7 @@
 
 # Dag parsing through executors: PoC work log
 
-Checkpoint: September 25, 2026. Branch: `codex/dag-parsing-executor-poc`.
+Checkpoint: September 26, 2026. Branch: `codex/dag-parsing-executor-poc`.
 Base: `61d99c0374e77cefdc8f4bad495cb5d6c0bfc43b`.
 
 The initial implementation checkpoint is commit `9706237a63`. The
@@ -36,8 +36,13 @@ under one trusted coordinator. A separate metadata experiment takes a remote res
 through Airflow's persistence code into scheduler consumption.
 
 This is an M0 experiment, not a production feature or completion of M0. The existing
-Dag processor remains required for normal deployments. Scheduler hosting, Kubernetes,
-production API integration, and comparative performance measurements remain open.
+Dag processor remains required for normal deployments. A single-scheduler hosting
+experiment now works with registered inventory and isolated Celery workers. Remote
+discovery, HA hosting, Kubernetes and production API integration remain open. A preliminary local comparison is now
+available; broader performance validation and acceptance thresholds remain open.
+
+The [scheduler-hosting experiment](scheduler-hosting-20260926.md) records the latest
+scope, reproduction command and measured scheduler responsiveness.
 
 ## Scope and organization
 
@@ -53,10 +58,11 @@ The original checkpoints have these outcomes:
 | P0: contracts and baseline | Workload/result contracts and a legacy importer bridge implemented; a small serial-parser baseline recorded. Full baseline and related-AIP agreement remain open. |
 | P1: LocalExecutor slice | Passed real process/HTTP execution, per-definition errors and timeouts, and a 100-definition batch under `spawn`. |
 | P2: remote execution and recovery | Celery transport, isolated deployment, duplicate delivery, worker loss, admission restoration, and metadata consumption demonstrated. Kubernetes and HA adoption remain open. |
-| P3: measurements and AIP feedback | No throughput or performance conclusion. Comparable load tests and agreed acceptance thresholds remain open. |
+| P3: measurements and AIP feedback | Preliminary local comparison completed: slower startup and repeat coverage than the manager. Realistic load, remote comparisons and agreed acceptance thresholds remain open. |
 
-No task executor default, normal callback route, or scheduler parsing loop was changed.
-The opt-in Dag processor command and development drivers enable dedicated parsing executors.
+Task executor defaults and normal callback routes are unchanged. The opt-in Dag processor
+command and development drivers enable dedicated parsing executors; the scheduler now
+has an explicit `--parsing-config` experiment using the same orchestrator.
 
 ## Implementation map
 
@@ -607,6 +613,92 @@ mypy, passed (`review-static-final.log`). These counts overlap the focused run.
 The cached image still reports its existing unknown pytest configuration warning.
 The [review report](review-core-integration.md) records the fixes and scope limits.
 
+### Local benchmark
+
+The [September 25 benchmark](benchmark-local-20260925.md) compares the normal and
+opt-in commands at commit `49572f28d5`: 10 and 100 definitions, 20 tasks per
+definition, two parsing slots, three parses per definition and three repetitions.
+All 12 samples passed result checks. At 100 definitions, median completion was
+24.86 seconds for the manager and 49.77 seconds for the prototype. Repeated
+full-inventory coverage was 15.72 versus 10.53 definitions per second.
+
+The prototype has substantial startup cost and also trails after initial coverage.
+These local SQLite runs establish no speed or resource-efficiency benefit.
+One baseline sample needed a second shutdown signal; the report retains its valid
+completion timing and excludes affected resource measurements. Raw results, the
+measured driver snapshot and reproduction instructions are linked in the report.
+The new benchmark driver passed repository static checks, including development mypy.
+
+### Publication recovery and measurement corrections
+
+The local worker now returns its execution identity when publication fails after
+every importer it started has been observed to exit. The runner uses that evidence
+to retire unfinished attempts atomically and release the batch reservation. Accepted
+results survive, including results whose acknowledgment was lost; only unaccepted
+definitions become eligible again after the orchestrator's existing backoff.
+
+This evidence applies only to the current runner's own local submissions. Unknown
+claims, mismatched execution identities, timeouts, worker errors and submissions
+inherited after restart retain their reservations. An elapsed deadline does not
+prove termination. Remote routes still need their own termination evidence.
+
+The benchmark now snapshots the tracked patch and measurement sources, detects
+source edits during a run, and remembers descendants for cleanup after parent exit.
+Resource summaries exclude forced cleanup and shutdown escalation. Repeat coverage
+and aggregate acceptance rates are reported separately. The profiler uses the same
+container-local storage as the benchmark, separates importer samples from worker
+samples, and records actual process CPU deltas instead of inferring CPU time from
+sampled stacks. Earlier unsupported profiling claims are withdrawn in the corrected
+[improvement plan](improvement-plan-2026-09-25.md).
+
+The expanded recovery and measurement regression passed 243 tests. Core static
+checks and development mypy passed after correcting the profiler's aggregation types.
+
+Continuous execution now skips the source-table scan that only finite invocations
+use to count completed parses. The focused regression failed before this change and
+passes with it; finite invocations retain their count and release behavior. The
+follow-up run passed 99 tests, including publication failure before later batch
+members start and the real opt-in CLI's parsing, restart and reparsing path. These
+test counts overlap. Final repository checks, including core and development mypy,
+passed (`recovery-scan-final-static.log`).
+
+The [isolated scan experiment](recovery-and-scan-20260926.md) measured executor
+completion at 66.12 seconds before and 64.70 seconds after. The unchanged manager
+control improved by a similar amount, and the ranges overlap, so this does not
+establish a reliable speedup. A sample interrupted by a six-hour clock gap during
+shutdown is excluded and preserved; a replacement pair completed cleanly. The
+completed executor samples had matching receipts and no remaining reservations.
+The corrected profiler also passed a real five-second smoke run: it identified all
+roles, separated importer samples, recorded process CPU deltas and shut down without
+forced cleanup (`profile-smoke.log`).
+
+## Scheduler-hosting follow-up
+
+The scheduler can now opt into the existing orchestrator through `--parsing-config`.
+Its timer reads registered inventory and commits bounded admission work. The new store
+defers on a busy SQLite write lock and rolls back on its cooperative SQL deadline.
+Discovery, importing, result publication and provider calls remain in separate processes.
+The default scheduler path is unchanged. The host uses the standalone executor parsing
+lock and refuses a second owner; this does not implement HA leasing or adoption.
+
+The shared runner now accepts a dedicated Celery executor. Complete successful/import-error
+receipts plus a successful remote event permit release; partial remote results and failures
+retain their reservations. Existing local publication-failure recovery remains local-only.
+
+A real scheduler with no Dag source mount repeatedly parsed two definitions through an
+isolated Celery worker. It completed five additional EmptyOperator tasks in each ten-second
+phase: slow imports, a paused broker, and database contention. Parsing callback maxima
+were below 7 ms in the first successful run, including 31 immediate contention deferrals.
+All reservations drained after shutdown. The [report](scheduler-hosting-20260926.md)
+contains raw artifact paths, reproduction instructions and measurement limitations.
+
+The follow-up regression passed 242 tests, including the normal opt-in Dag processor
+command, plus 104 measurement and recovery tests. Core mypy passed. Review also fixed
+container diagnostics, startup-failure cleanup and missing metrics validation.
+The final repeat also passed all phases, with callback maxima below 5.2 ms and 36
+contention deferrals. Final static checks passed, including core/development mypy,
+Bandit and the metrics registry. The experiments left no containers or networks behind.
+
 ## Remaining work
 
 1. Agree AIP-85 importer/discovery boundaries and AIP-92 production API/token contracts.
@@ -616,14 +708,16 @@ The [review report](review-core-integration.md) records the fixes and scope limi
    Extend Celery evidence to automatic broker redelivery and uncertain submission.
 3. Design production schema, authorization, source ownership, and transactional
    acceptance across supported databases. Address nontransactional listener effects.
-4. Resolve distributed ownership/adoption and bounded recovery of uncertain capacity
-   before claiming HA or scheduler-safe orchestration.
+4. Resolve distributed ownership/adoption and bounded recovery of uncertain capacity;
+   extend scheduler responsiveness evidence beyond this single-owner SQLite experiment
+   before claiming production scheduler hosting.
 5. Extend standalone periodic discovery to remote bundles, production source
    deletion/deactivation, parse-time API reads, and
    remote log retrieval. Callback and priority-routing changes are not implemented here.
-6. Measure comparable throughput, freshness, resource usage, request rates, and recovery
-   under load; agree acceptance thresholds before deciding on default rollout or pool
-   retirement.
+6. Profile the local benchmark's startup and repeated-coverage gaps. Extend comparisons
+   to realistic imports, longer runs, concurrent tasks and remote execution, including
+   resource usage, request rates and recovery under load. Agree acceptance thresholds
+   before deciding on default rollout or pool retirement.
 
 This work log consolidates the implementation history for the local checkpoint commit.
 No production rollout or publication is implied.

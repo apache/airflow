@@ -49,7 +49,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.discovery import discover_python_bundle
-from airflow.dag_processing.executor_runner import LocalParsingRunner
+from airflow.dag_processing.executor_runner import ParsingExecutorRunner
 from airflow.dag_processing.orchestrator import ParseOrchestrator
 from airflow.dag_processing.parsing_metadata import MetadataOrchestrationStore
 from airflow.executors.local_executor import LocalExecutor
@@ -111,7 +111,7 @@ def _run_executor(
 
     executor = LocalExecutor(parallelism=parallelism)
     executor.supported_workload_types = frozenset({WorkloadType.PARSE_DAG_DEFINITIONS})
-    runner = LocalParsingRunner(
+    runner = ParsingExecutorRunner(
         MetadataOrchestrationStore(store_path), executor, route=ROUTE, token_issuer=issue_token
     )
     runner.start()
@@ -335,18 +335,16 @@ class ExecutorDagProcessor(LoggingMixin):
                     ]
                     orchestrator.update_inventory(BundleInfo(name=bundle.name, version=None), definitions)
                     next_refresh[bundle.name] = time.monotonic() + refresh
-                sources = [row for row in store.get_sources(ROUTE, bundle.name) if row["present"]]
-                for row in sources:
-                    baselines.setdefault((bundle.name, row["path"]), row["accepted_count"])
-                eligible_paths = (
-                    {
+                eligible_paths = None
+                if self.max_runs != -1:
+                    sources = [row for row in store.get_sources(ROUTE, bundle.name) if row["present"]]
+                    for row in sources:
+                        baselines.setdefault((bundle.name, row["path"]), row["accepted_count"])
+                    eligible_paths = {
                         row["path"]
                         for row in sources
                         if row["accepted_count"] < baselines[bundle.name, row["path"]] + self.max_runs
                     }
-                    if self.max_runs != -1
-                    else None
-                )
                 if eligible_paths is None or eligible_paths:
                     finished = False
                     result = orchestrator.step(eligible_paths=eligible_paths)

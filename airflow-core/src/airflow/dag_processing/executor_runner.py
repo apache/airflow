@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Dedicated LocalExecutor runner for the standalone orchestration checkpoint."""
+"""Dedicated executor runner, separated from either orchestration host."""
 
 from __future__ import annotations
 
@@ -23,7 +23,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from airflow.dag_processing.executor_worker import ParsingPublicationError
 from airflow.dag_processing.parsing_state import ReceiptExpiredError
+from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.parsing import ParseDagDefinitions, ParseDagDefinitionsState
 
@@ -31,10 +33,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from airflow.dag_processing.orchestrator import OrchestrationStore
-    from airflow.executors.local_executor import LocalExecutor
+    from airflow.executors.base_executor import BaseExecutor
 
 
-class LocalParsingRunner:
+class ParsingExecutorRunner:
     """
     Own provider I/O separately from ParseOrchestrator.step().
 
@@ -45,7 +47,7 @@ class LocalParsingRunner:
     def __init__(
         self,
         store: OrchestrationStore,
-        executor: LocalExecutor,
+        executor: BaseExecutor,
         *,
         route: str,
         token_issuer: Callable[[dict], str],
@@ -56,7 +58,7 @@ class LocalParsingRunner:
             raise ValueError("Runner requires an explicit route and finite positive capacity")
         self.store, self.executor, self.route, self.token_issuer = store, executor, route, token_issuer
         self._submitted: dict[str, ParseDagDefinitions] = {}
-        self._terminal: set[str] = set()
+        self._terminal: dict[str, str | None] = {}
         self._started = False
 
     def start(self) -> None:
@@ -74,7 +76,7 @@ class LocalParsingRunner:
         for workload_id in tuple(self._submitted):
             if workload_id not in active:
                 del self._submitted[workload_id]
-                self._terminal.discard(workload_id)
+                self._terminal.pop(workload_id, None)
         submitted = sum(row["state"] == "submitted" for row in admissions)
         for row in admissions:
             if row["state"] != "reserved":
@@ -92,7 +94,7 @@ class LocalParsingRunner:
                 self.store.retire_expired_reservation(workload.workload_id)
                 continue
             # A crash after this commit retains capacity; never automatically republish submitted work.
-            # LocalExecutor only enqueues; this session must remain unbound to the metadata engine.
+            # Parsing enqueue must not use a task instance or a metadata-bound session.
             with Session() as session:
                 self.executor.queue_workload(workload, session=session)
             self._submitted[str(workload.workload_id)] = workload
@@ -101,37 +103,49 @@ class LocalParsingRunner:
         self._reconcile_returned()
 
     def _reconcile_returned(self) -> None:
-        for key, (state, _) in self.executor.get_event_buffer().items():
+        for key, (state, info) in self.executor.get_event_buffer().items():
             if state not in {ParseDagDefinitionsState.SUCCESS, ParseDagDefinitionsState.FAILED}:
                 continue
+            if not isinstance(self.executor, LocalExecutor) and state != ParseDagDefinitionsState.SUCCESS:
+                continue
             if str(key) in self._submitted:
-                self._terminal.add(str(key))
-        for workload_id in tuple(self._terminal):
+                self._terminal[str(key)] = (
+                    info.execution_id
+                    if isinstance(self.executor, LocalExecutor) and isinstance(info, ParsingPublicationError)
+                    else None
+                )
+        for workload_id, finished_execution in tuple(self._terminal.items()):
             workload = self._submitted[workload_id]
             attempts = self.store.get_attempts(workload.workload_id)
             results = self.store.get_results(workload.workload_id)
-            if len(results) != len(attempts) or any(
-                result["outcome"] not in {"success", "import_error"} for result in results
+            if len(results) != len(attempts) and finished_execution is None:
+                continue
+            if finished_execution is not None and any(
+                attempt["status"] == "claimed" and attempt["execution_id"] != finished_execution
+                for attempt in attempts
             ):
                 continue
-            # Success/import_error require an observed importer exit. kill() can return without
-            # termination, so timeouts, worker errors and missing receipts need external evidence.
-            # Only this runner's single local delivery qualifies; never apply this to remote events.
+            if any(result["outcome"] not in {"success", "import_error"} for result in results):
+                continue
+            # Remote success needs every importer-exit receipt. Partial results or generic remote
+            # failures need external evidence; only a local delivery can attest a publication failure.
             self.store.retire_and_replace(
                 workload.workload_id,
                 termination={
                     "kind": "confirmed_worker_termination",
                     "workload_id": str(workload.workload_id),
-                    "execution_ids": [
-                        attempt["execution_id"] for attempt in attempts if attempt["execution_id"]
-                    ],
-                    "evidence": {"local_execution_returned": str(workload.workload_id)},
+                    "execution_ids": (
+                        [finished_execution]
+                        if finished_execution is not None
+                        else [attempt["execution_id"] for attempt in attempts if attempt["execution_id"]]
+                    ),
+                    "evidence": {"executor_completed_imports": str(workload.workload_id)},
                 },
                 start_deadline=datetime.now(timezone.utc) + timedelta(seconds=1),
                 stop_deadline=datetime.now(timezone.utc) + timedelta(seconds=2),
             )
             del self._submitted[workload_id]
-            self._terminal.remove(workload_id)
+            del self._terminal[workload_id]
 
     def close(self) -> None:
         if self._started:

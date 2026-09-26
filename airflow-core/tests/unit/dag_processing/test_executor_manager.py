@@ -362,7 +362,7 @@ def test_api_startup_crash_fails_promptly(processes):
         executor_manager._wait_for_api("http://127.0.0.1:1", processes[0])
 
 
-@mock.patch("airflow.dag_processing.executor_manager.LocalParsingRunner", autospec=True)
+@mock.patch("airflow.dag_processing.executor_manager.ParsingExecutorRunner", autospec=True)
 @mock.patch("airflow.dag_processing.executor_manager.LocalExecutor", autospec=True)
 @mock.patch.dict(os.environ)
 @time_machine.travel(NOW, tick=False)
@@ -444,8 +444,13 @@ def test_loop_checks_children_and_shutdown(database, processes):
 
 
 @mock.patch("airflow.dag_processing.executor_manager.time.sleep", autospec=True)
+@mock.patch.object(
+    OrchestrationStore, "get_sources", autospec=True, side_effect=OrchestrationStore.get_sources
+)
 @pytest.mark.parametrize("max_runs", [1, 2, -1])
-def test_loop_waits_for_current_invocation_outcomes_and_releases(sleep, database, processes, max_runs):
+def test_loop_waits_for_current_invocation_outcomes_and_releases(
+    get_sources, sleep, database, processes, max_runs
+):
     source = database.parent / "dags"
     source.mkdir()
     (source / "dag.py").write_text("from airflow.sdk import DAG\ndag = DAG('example', schedule=None)\n")
@@ -494,6 +499,7 @@ def test_loop_waits_for_current_invocation_outcomes_and_releases(sleep, database
 
         sleep.side_effect = finish_batch
         processor._run_loop(store, [bundle], 1, processes)
+        assert bool(get_sources.call_count) is (max_runs != -1)
         assert store.get_sources(ROUTE, bundle.name)[0]["accepted_count"] == max(1, max_runs)
         assert store.get_admissions(ROUTE) == []
         processor.heartbeat.assert_called()

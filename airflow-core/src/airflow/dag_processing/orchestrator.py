@@ -162,8 +162,8 @@ class ParseOrchestrator:
     """
     Admit at most one batch and reconcile at most limit definitions per step.
 
-    The host supplies complete trusted snapshots separately. SQLite lock waits are not
-    a scheduler latency guarantee; this remains a standalone, single-owner prototype.
+    The host supplies complete trusted snapshots separately. Scheduler hosting must
+    supply a store with bounded transactions; the default store permits lock waits.
     """
 
     def __init__(

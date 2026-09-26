@@ -98,6 +98,50 @@ No separate API process, signing keys, queue setup or development driver is need
 To try the command interactively, use ``breeze shell``, configure a disposable SQLite
 database and local bundles, run ``airflow db migrate``, then run the command above.
 
+Experimental scheduler hosting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The same ``ParseOrchestrator`` can run in the scheduler against an inventory registered
+by a separate discovery process:
+
+.. code-block:: bash
+
+    airflow scheduler --parsing-config /path/to/parsing.json
+
+The JSON file selects one bundle and a dedicated parsing route:
+
+.. code-block:: json
+
+    {"route": "scheduler-parsing", "bundle": "poc", "capacity": 2, "batch_size": 1}
+
+This command only hosts orchestration. A separate ``ParsingExecutorRunner`` must run the
+parsing executor, with a parsing API and workers configured for that route. The scheduler
+does not discover files, prepare bundles or call the parsing provider. Each periodic step
+uses a bounded batch, a cooperative SQL budget (25 ms by default), and no database lock
+wait. Contention defers the step; filesystem or kernel stalls cannot be preempted.
+
+This experiment supports one scheduler, one bundle, single-team configuration, and a
+disposable migrated SQLite database. It excludes another executor parsing host using
+the same database. It does not implement remote discovery, HA adoption or automatic
+recovery of uncertain remote execution. Do not run the regular Dag processor for its
+bundle. Normal deployments still need the Dag processor.
+
+An end-to-end Breeze driver provisions the inventory, API, separate Celery runner,
+isolated worker, and real scheduler. It checks parsing and scheduling during slow imports,
+a broker pause and database contention. It uses the current Breeze image, Docker access,
+and Redis, and removes its own containers on exit:
+
+.. code-block:: bash
+
+    breeze run -- uv run --no-project --python /usr/python/bin/python python \
+      dev/dag_parsing_poc/run_scheduler_parsing.py \
+      --output /files/dag-parsing-aip/poc-runs/scheduler-hosting --phase-seconds 10
+
+Choose a new output directory for each run. It contains metrics, logs, container mount
+evidence and a summary. The scheduler has no Dag source mount, and the parsing worker
+has no metadata database mount or signing key. The scheduling probe uses EmptyOperator;
+it does not measure task-worker execution throughput.
+
 Fine-tuning your Dag processor performance
 ------------------------------------------
 

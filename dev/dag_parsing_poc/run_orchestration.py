@@ -46,7 +46,7 @@ from airflow.api_fastapi.execution_api.parsing import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.discovery import discover_python_bundle
-from airflow.dag_processing.executor_runner import LocalParsingRunner
+from airflow.dag_processing.executor_runner import ParsingExecutorRunner
 from airflow.dag_processing.orchestrator import OrchestrationStore, ParseOrchestrator
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import BundleInfo, WorkloadType
@@ -98,7 +98,7 @@ def run_provider(store_path: str, key_bytes: bytes, stop) -> None:
 
     executor = LocalExecutor(parallelism=1)
     executor.supported_workload_types = frozenset({WorkloadType.PARSE_DAG_DEFINITIONS})
-    runner = LocalParsingRunner(
+    runner = ParsingExecutorRunner(
         OrchestrationStore(store_path), executor, route=ROUTE, token_issuer=issue_token
     )
     runner.start()

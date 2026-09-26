@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 from uuid import uuid4
 from zipfile import ZipFile
 
+import httpx
 import pytest
 import time_machine
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -32,9 +34,15 @@ from fastapi.testclient import TestClient
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.execution_api.parsing import create_app
 from airflow.dag_processing.discovery import discover_python_bundle
-from airflow.dag_processing.executor_runner import LocalParsingRunner
+from airflow.dag_processing.executor_runner import ParsingExecutorRunner
+from airflow.dag_processing.executor_worker import (
+    ParsingAPIClient,
+    ParsingPublicationError,
+    supervise_dag_parse,
+)
 from airflow.dag_processing.orchestrator import DiscoveredDefinition, OrchestrationStore, ParseOrchestrator
 from airflow.dag_processing.parsing_state import ReceiptConflictError
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import BundleInfo, WorkloadType
 from airflow.executors.workloads.parsing import (
@@ -340,9 +348,41 @@ def local_runner(store):
     executor.parallelism = 1
     executor.supported_workload_types = frozenset({WorkloadType.PARSE_DAG_DEFINITIONS})
     executor.get_event_buffer.return_value = {}
-    runner = LocalParsingRunner(store, executor, route=ROUTE, token_issuer=lambda _: "in-memory-token")
+    runner = ParsingExecutorRunner(store, executor, route=ROUTE, token_issuer=lambda _: "in-memory-token")
     runner.start()
     return runner
+
+
+@pytest.mark.parametrize(
+    ("state", "outcome", "release"),
+    [
+        (ParseDagDefinitionsState.SUCCESS, "success", True),
+        (ParseDagDefinitionsState.SUCCESS, "import_error", True),
+        (ParseDagDefinitionsState.SUCCESS, "timeout", False),
+        (ParseDagDefinitionsState.SUCCESS, None, False),
+        (ParseDagDefinitionsState.FAILED, "success", False),
+        (ParseDagDefinitionsState.FAILED, None, False),
+    ],
+)
+def test_remote_runner_requires_success_and_complete_importer_receipts(store, state, outcome, release):
+    executor = mock.create_autospec(BaseExecutor, instance=True)
+    executor.parallelism = 1
+    executor.supported_workload_types = frozenset({WorkloadType.PARSE_DAG_DEFINITIONS})
+    executor.get_event_buffer.return_value = {}
+    runner = ParsingExecutorRunner(store, executor, route=ROUTE, token_issuer=lambda _: "fixture")
+    orchestrator = create_orchestrator(store)
+    orchestrator.update_inventory(BUNDLE, inventory("a.py"))
+    workload = get_workload(store, orchestrator.step().workload_id)
+    runner.start()
+    runner.tick()
+    if outcome is not None:
+        accept(store, workload, outcome=outcome)
+    executor.get_event_buffer.return_value = {
+        workload.key: (state, ParsingPublicationError("remote evidence is insufficient", str(uuid4())))
+    }
+    runner.tick()
+    assert (store.get_admissions(ROUTE) == []) is release
+    runner.close()
 
 
 def test_runner_dispatches_reserved_work_after_orchestrator_restart(store, local_runner):
@@ -399,6 +439,95 @@ def test_restarted_runner_does_not_republish_or_release_old_submissions(store, l
     local_runner.tick()
     assert len(store.get_admissions(ROUTE)) == 1
     local_runner.executor.queue_workload.assert_not_called()
+
+
+@mock.patch("airflow.dag_processing.executor_worker.get_bundle_root", autospec=True)
+@mock.patch("airflow.dag_processing.executor_worker.ParsingAPIClient", autospec=True)
+@mock.patch("airflow.dag_processing.executor_worker.parse_definition", autospec=True)
+@pytest.mark.parametrize("accepted_before_disconnect", [False, True])
+@pytest.mark.parametrize("failed_definition", [0, 1])
+def test_local_publication_failure_retires_only_unaccepted_attempts(
+    parse, factory, root, store, local_runner, clock, tmp_path, accepted_before_disconnect, failed_definition
+):
+    orchestrator = create_orchestrator(store)
+    orchestrator.update_inventory(BUNDLE, inventory("a.py", "b.py"))
+    workload = get_workload(store, orchestrator.step().workload_id)
+    local_runner.tick()
+    root.return_value = tmp_path
+    results = [
+        DagDefinitionResult(
+            attempt_id=d.attempt_id,
+            relative_path=d.relative_path,
+            source_revision=d.source_revision,
+            outcome="success",
+            duration_seconds=0,
+        )
+        for d in workload.definitions
+    ]
+    parse.side_effect = results
+
+    def handle(request):
+        payload = json.loads(request.content)
+        attempt = request.url.path.split("/")[-2]
+        if request.url.path.endswith("/claim"):
+            response = store.claim(workload.workload_id, attempt, payload["execution_id"])
+            return httpx.Response(200, json=response)
+        fails = attempt == str(workload.definitions[failed_definition].attempt_id)
+        if not fails or accepted_before_disconnect:
+            store.accept_result(
+                workload.workload_id,
+                attempt,
+                payload["execution_id"],
+                DagDefinitionResult.model_validate(payload["result"]),
+            )
+        return httpx.Response(503 if fails else 200, json={"status": "accepted"})
+
+    factory.return_value = ParsingAPIClient(
+        base_url="http://poc.invalid/execution/", token="fixture", transport=httpx.MockTransport(handle)
+    )
+    with pytest.raises(ParsingPublicationError) as captured:
+        supervise_dag_parse(workload, server="http://poc.invalid/execution/")
+    assert parse.call_count == failed_definition + 1
+    local_runner.executor.get_event_buffer.return_value = {
+        workload.key: (ParseDagDefinitionsState.FAILED, captured.value)
+    }
+    local_runner.tick()
+    assert store.get_admissions(ROUTE) == []
+    accepted = failed_definition + int(accepted_before_disconnect)
+    assert [a["status"] for a in store.get_attempts(workload.workload_id)] == (
+        ["accepted"] * accepted + ["retired"] * (2 - accepted)
+    )
+    assert orchestrator.step().workload_id is None
+    clock.move_to(NOW + timedelta(seconds=6))
+    retry = orchestrator.step().workload_id
+    if accepted == len(workload.definitions):
+        assert retry is None
+    else:
+        assert [d.relative_path for d in get_workload(store, retry).definitions] == ["a.py", "b.py"][
+            accepted:
+        ]
+    if not accepted_before_disconnect:
+        with pytest.raises(ReceiptConflictError, match="removed or superseded"):
+            store.accept_result(
+                workload.workload_id,
+                results[failed_definition].attempt_id,
+                captured.value.execution_id,
+                results[failed_definition],
+            )
+
+
+def test_publication_evidence_cannot_retire_another_execution(store, local_runner):
+    orchestrator = create_orchestrator(store)
+    orchestrator.update_inventory(BUNDLE, inventory("a.py"))
+    workload = get_workload(store, orchestrator.step().workload_id)
+    local_runner.tick()
+    store.claim(workload.workload_id, workload.definitions[0].attempt_id, uuid4())
+    local_runner.executor.get_event_buffer.return_value = {
+        workload.key: (ParseDagDefinitionsState.FAILED, ParsingPublicationError("unavailable", str(uuid4())))
+    }
+    local_runner.tick()
+    assert store.get_attempts(workload.workload_id)[0]["status"] == "claimed"
+    assert store.get_admissions(ROUTE)[0]["state"] == "submitted"
 
 
 def test_unsent_expiry_is_retired_and_backed_off(store, local_runner, clock):
@@ -492,7 +621,7 @@ def test_runner_rejects_unsupported_configuration(store, local_runner, invalid):
     else:
         executor.parallelism = 0
     with pytest.raises(ValueError, match="dedicated|explicit"):
-        LocalParsingRunner(store, executor, route=route, token_issuer=lambda _: "token")
+        ParsingExecutorRunner(store, executor, route=route, token_issuer=lambda _: "token")
 
 
 def test_runner_start_and_graceful_drain(store, local_runner):
@@ -618,5 +747,5 @@ def test_uncertain_importer_termination_requires_external_recovery(store, local_
     local_runner.executor.get_event_buffer.return_value = {}
     local_runner.tick()
     assert local_runner._submitted == {}
-    assert local_runner._terminal == set()
+    assert local_runner._terminal == {}
     assert orchestrator.step().workload_id is not None

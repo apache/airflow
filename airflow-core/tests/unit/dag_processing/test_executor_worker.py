@@ -33,6 +33,7 @@ from airflow._shared.timezones import timezone
 from airflow.dag_processing.executor_worker import (
     ParsingAPIClient,
     ParsingAttemptAlreadyClaimedError,
+    ParsingPublicationError,
     ParsingRequestTooLargeError,
     ParsingWorkerError,
     _post_with_retry,
@@ -484,6 +485,57 @@ def test_http_failure_survives_executor_queue_and_releases_capacity(workload, fa
     if failure in {"413", "uncertain 413"}:
         assert isinstance(error, ParsingRequestTooLargeError)
         assert error.uncertain is (failure == "uncertain 413")
+
+
+@patch("airflow.dag_processing.executor_worker.ParsingAPIClient", autospec=True)
+@patch("airflow.dag_processing.executor_worker.parse_definition", autospec=True)
+@pytest.mark.parametrize(
+    "outcomes", [("success",), ("import_error",), ("timeout",), ("worker_error",), ("timeout", "success")]
+)
+def test_publication_failure_attests_only_observed_importer_exits(parse, factory, workload, outcomes):
+    workload.definitions = tuple(
+        workload.definitions[0].model_copy(update={"attempt_id": uuid4()}) for _ in outcomes
+    )
+    execution_ids = []
+    publications = 0
+
+    def handle(request):
+        nonlocal publications
+        if request.url.path.endswith("/claim"):
+            execution_ids.append(json.loads(request.content)["execution_id"])
+            return httpx.Response(200, json={"status": "claimed"})
+        publications += 1
+        return httpx.Response(200 if publications < len(outcomes) else 503, json={"status": "accepted"})
+
+    factory.return_value = ParsingAPIClient(
+        base_url="http://poc.invalid/execution/",
+        token=workload.token,
+        transport=httpx.MockTransport(handle),
+    )
+    parse.side_effect = [
+        DagDefinitionResult(
+            attempt_id=definition.attempt_id,
+            relative_path=definition.relative_path,
+            source_revision=definition.source_revision,
+            outcome=outcome,
+            duration_seconds=0,
+        )
+        for definition, outcome in zip(workload.definitions, outcomes)
+    ]
+    with pytest.raises(ParsingWorkerError) as captured:
+        supervise_dag_parse(workload, server="http://poc.invalid/execution/")
+    confirmed = all(outcome in {"success", "import_error"} for outcome in outcomes)
+    assert isinstance(captured.value, ParsingPublicationError) is confirmed
+    if confirmed:
+        queue = Queue()
+        try:
+            queue.put(captured.value)
+            received = queue.get(timeout=5)
+        finally:
+            queue.close()
+            queue.join_thread()
+        assert received.execution_id == execution_ids[0]
+        assert str(received) == "Parsing API request failed: HTTP 503"
 
 
 @patch("airflow.dag_processing.executor_worker.ParsingAPIClient", autospec=True)
