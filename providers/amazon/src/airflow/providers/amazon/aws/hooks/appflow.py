@@ -24,6 +24,10 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient  # noqa: F401
 
+# DescribeFlowExecutionRecords returns 20 records per page by default, 100 at most.
+# Ask for the maximum so the waiter and the lookup below need as few calls as possible.
+MAX_EXECUTION_RECORDS_PER_PAGE = 100
+
 
 class AppflowHook(AwsGenericHook["AppflowClient"]):
     """
@@ -68,7 +72,7 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
                 waiter=self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}),
                 waiter_delay=poll_interval,
                 waiter_max_attempts=max_attempts,
-                args={"flowName": flow_name},
+                args={"flowName": flow_name, "maxResults": MAX_EXECUTION_RECORDS_PER_PAGE},
                 failure_message="error while waiting for flow to complete",
                 status_message="waiting for flow completion, status",
                 status_args=[
@@ -80,11 +84,30 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
 
         return execution_id
 
-    def _log_execution_description(self, flow_name: str, execution_id: str):
-        response_desc = self.conn.describe_flow_execution_records(flowName=flow_name)
-        last_execs = {fe["executionId"]: fe for fe in response_desc["flowExecutions"]}
-        exec_details = last_execs[execution_id]
-        self.log.info("Run complete, execution details: %s", exec_details)
+    def _log_execution_description(self, flow_name: str, execution_id: str) -> None:
+        args = {"flowName": flow_name, "maxResults": MAX_EXECUTION_RECORDS_PER_PAGE}
+        next_token: str | None = None
+
+        while True:
+            if next_token:
+                response_desc = self.conn.describe_flow_execution_records(nextToken=next_token, **args)
+            else:
+                response_desc = self.conn.describe_flow_execution_records(**args)
+
+            for execution in response_desc["flowExecutions"]:
+                if execution["executionId"] == execution_id:
+                    self.log.info("Run complete, execution details: %s", execution)
+                    return
+
+            next_token = response_desc.get("nextToken")
+            if not next_token:
+                break
+
+        self.log.warning(
+            "Run complete, but no execution record was found for execution %s of flow %s",
+            execution_id,
+            flow_name,
+        )
 
     def update_flow_filter(self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False) -> None:
         """
