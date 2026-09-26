@@ -354,6 +354,11 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     # only return string representation
     if not full:
         return _stringify(classname, version, value)
+    if _match_denied(classname):
+        raise ImportError(
+            f"{classname} matches denied_deserialization_classes in the configuration "
+            f"and cannot be deserialized"
+        )
     if not _match(classname) and classname not in _extra_allowed:
         raise ImportError(
             f"{classname} was not found in allow list for deserialization imports. "
@@ -435,6 +440,12 @@ def _match_regexp(classname: str):
     return any(p.fullmatch(classname) is not None for p in patterns)
 
 
+@functools.cache
+def _match_denied(classname: str) -> bool:
+    """Check if the given classname matches a glob pattern from denied_deserialization_classes."""
+    return any(fnmatch(classname, pattern) for pattern in _get_denied_patterns())
+
+
 def _stringify(classname: str, version: int, value: T | None) -> str:
     """
     Convert a previously serialized object in a somewhat human-readable format.
@@ -497,7 +508,8 @@ def _register():
                         f"duplicate {d_qualname} for deserialization in {module} and {_deserializers[d_qualname]}"
                     )
                 _deserializers[d_qualname] = module
-                _extra_allowed.add(d_qualname)
+                if getattr(module, "allow_by_default", True):
+                    _extra_allowed.add(d_qualname)
             for stringifiers in getattr(module, "stringifiers", ()):
                 c_qualname = stringifiers if isinstance(stringifiers, str) else qualname(stringifiers)
                 if c_qualname in _deserializers and _deserializers[c_qualname] != module:
@@ -523,6 +535,11 @@ def _get_patterns() -> list[Pattern]:
 @functools.cache
 def _get_regexp_patterns() -> list[Pattern]:
     return [re.compile(p) for p in conf.get("core", "allowed_deserialization_classes_regexp").split()]
+
+
+@functools.cache
+def _get_denied_patterns() -> list[str]:
+    return conf.get("core", "denied_deserialization_classes", fallback="").split()
 
 
 _register()

@@ -24,6 +24,9 @@ from airflow.sdk.module_loading import qualname
 serializers = ["pyiceberg.table.Table"]
 deserializers = serializers
 stringifiers = serializers
+# Deserializing loads the catalog from the serialized properties, so the class must be
+# listed in ``[core] allowed_deserialization_classes`` rather than allowed implicitly.
+allow_by_default = False
 
 if TYPE_CHECKING:
     from airflow.sdk.serde import U
