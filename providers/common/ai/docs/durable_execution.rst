@@ -102,20 +102,23 @@ cache:
    never replays responses that belong to a different conversation.
 4. After successful completion, the cached steps are deleted.
 
-Fingerprints are computed from each value's canonical form, so ordinary types that
-are not JSON -- a ``datetime`` or ``Decimal`` tool argument, a dataclass in
-``tool_choice``, a ``set`` whose members are ordered before hashing -- fingerprint
-normally and still match on a later attempt. If a value has no canonical form,
-that step is not cached, and on retry it runs live rather than replaying an
-unverified entry. A parameter annotated ``Iterable[...]`` is one such case:
+Fingerprints are computed from pydantic's JSON rendering of each value, the same
+rendering a json-mode dump produces, so ordinary types that are not JSON -- a
+``datetime`` or ``Decimal`` tool argument, a dataclass in ``tool_choice``, the
+bytes in a ``BinaryContent``, a dict keyed by date -- fingerprint normally, and
+entries cached by an earlier version still match. The one adjustment is that the
+members of a ``set`` are ordered before hashing, so a set matches on a later
+attempt too. If a value cannot be rendered at all, that step is not cached, and on
+retry it runs live rather than replaying an unverified entry. A parameter annotated ``Iterable[...]`` is one such case:
 pydantic validates it lazily, and reading it in order to hash it would consume
 the input the tool itself has not read yet, so the step runs live instead of
 being cached.
 
 On the model path this is rarely confined to a single step: the causes are such a
-value in ``model_settings``, which is attached to every request, or in the message
-history, which every later request carries forward. Either one degrades all
-subsequent model steps the same way, leaving durable execution with nothing to
+value in ``model_settings``, which is attached to every request, in the tool
+definitions the request carries, or in the message history, which every later
+request carries forward. Any one of them degrades all subsequent model steps the
+same way, leaving durable execution with nothing to
 replay, so the retry re-runs the agent at full cost. The
 ``could not fingerprint model request`` warning names the step where this began.
 
@@ -173,7 +176,9 @@ use database constraints to prevent duplicate writes.
 Tool results must be JSON-serializable to be cached. If a tool returns a
 non-serializable value (e.g. ``BinaryContent`` from MCP tools), that step is
 skipped with a warning and will re-execute on retry instead of replaying from
-cache. The task itself still succeeds.
+cache. If the re-run returns something different, the model steps after it re-run
+too, because the result is part of the message history they fingerprint. The task
+itself still succeeds.
 
 See also
 --------
