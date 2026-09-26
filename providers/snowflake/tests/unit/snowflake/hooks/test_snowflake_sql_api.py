@@ -300,6 +300,22 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook("mock_conn_id")
         query_ids = hook.execute_query(sql, statement_count)
         assert query_ids == expected_query_ids
+        assert hook.sql == sql
+
+    @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}.get_headers")
+    def test_execute_query_overwrites_stored_sql(self, mock_get_header, mock_conn_param, mock_make_api_call):
+        mock_make_api_call.side_effect = [
+            (200, {"statementHandle": "first"}),
+            (200, {"statementHandle": "second"}),
+        ]
+        hook = SnowflakeSqlApiHook("mock_conn_id")
+
+        hook.execute_query("SELECT 1", 1)
+        hook.execute_query("SELECT 2", 1)
+
+        assert hook.sql == "SELECT 2"
 
     @pytest.mark.parametrize(
         ("sql", "statement_count", "expected_response", "expected_query_ids"),
@@ -360,6 +376,7 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook("mock_conn_id")
         query_ids = hook.execute_query(sql, statement_count)
         assert query_ids == expected_query_ids
+        assert hook.sql == sql
 
         sql, statement_count, expected_response, expected_query_ids = (
             SINGLE_STMT,
@@ -752,7 +769,11 @@ class TestSnowflakeSqlApiHook:
                 },
             ),
             (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"message": "test"}, {"status": "error", "message": "test"}),
+            (
+                422,
+                {"message": "test"},
+                {"status": "error", "message": "test", "sql_preview": "N/A"},
+            ),
             (
                 422,
                 {
@@ -764,9 +785,14 @@ class TestSnowflakeSqlApiHook:
                 {
                     "status": "error",
                     "message": "SQL compilation error (Code: 000904, SQL State: 42000, Statement Handle: handle123)",
+                    "sql_preview": "N/A",
                 },
             ),
-            (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (
+                404,
+                {"status": "error", "message": "test"},
+                {"status": "error", "message": "test", "sql_preview": "N/A"},
+            ),
         ],
     )
     @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
@@ -793,6 +819,24 @@ class TestSnowflakeSqlApiHook:
         mock_requests.request.return_value = MockResponse(status_code, response)
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         assert hook.get_sql_api_query_status("uuid") == expected_response
+
+    @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
+    @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
+    def test_get_sql_api_query_status_includes_truncated_sql_preview(
+        self, mock_geturl_header_params, mock_make_api_call
+    ):
+        sql = "SELECT " + "x, " * 150 + "1"
+        mock_geturl_header_params.return_value = HEADERS, {"requestId": "uuid"}, "/test/airflow/"
+        mock_make_api_call.return_value = (422, {"message": "SQL compilation error"})
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        hook.sql = sql
+
+        assert hook.get_sql_api_query_status("uuid") == {
+            "status": "error",
+            "message": "SQL compilation error",
+            "sql_preview": sql[:300] + "...",
+        }
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -825,8 +869,16 @@ class TestSnowflakeSqlApiHook:
                 },
             ),
             (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"message": "test"}, {"status": "error", "message": "test"}),
-            (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (
+                422,
+                {"message": "test"},
+                {"status": "error", "message": "test", "sql_preview": "N/A"},
+            ),
+            (
+                404,
+                {"status": "error", "message": "test"},
+                {"status": "error", "message": "test", "sql_preview": "N/A"},
+            ),
         ],
     )
     @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
