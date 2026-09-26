@@ -39,6 +39,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.models.dag import DagModel
+from airflow.models.dagwarning import DagWarningType
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
@@ -249,11 +250,20 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
+    # Dag warnings reference the dag table, so only Dags that serialized can carry one.
+    serialized_dag_ids = {dag.dag_id for dag in serialized_dags}
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
+        warnings=[
+            *stability_check_result.get_formatted_warnings(bag.dag_ids),
+            *(
+                {"dag_id": dag_id, "warning_type": DagWarningType.TASK_GROUP_CYCLE.value, "message": message}
+                for dag_id, message in bag.task_group_cycle_warnings.items()
+                if dag_id in serialized_dag_ids
+            ),
+        ],
     )
     return result
 

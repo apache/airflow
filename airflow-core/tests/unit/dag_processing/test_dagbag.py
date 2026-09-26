@@ -48,7 +48,8 @@ from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk import DAG, BaseOperator
+from airflow.sdk import DAG, BaseOperator, TaskGroup
+from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
@@ -1263,6 +1264,35 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder="", collect_dags=False, known_pools=known_pools)
         dagbag.bag_dag(dag)
         assert dagbag.dag_warnings == expected
+
+    @staticmethod
+    def _make_task_group_cycle_dag(*, cyclic: bool) -> DAG:
+        with DAG(dag_id="test") as dag:
+            with TaskGroup("group"):
+                a = BaseOperator(task_id="a")
+                b = BaseOperator(task_id="b")
+                if not cyclic:
+                    a >> b
+            a >> BaseOperator(task_id="bridge") >> b
+        return dag
+
+    def test_dag_warnings_task_group_cycle(self):
+        dagbag = DagBag(dag_folder="", collect_dags=False)
+
+        # Python ignores DeprecationWarning outside __main__, as in the Dag processor.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=True))
+
+        (warning,) = dagbag.dag_warnings
+        assert (warning.dag_id, warning.warning_type) == ("test", DagWarningType.TASK_GROUP_CYCLE)
+        assert "group and bridge depend on each other in a cycle." in warning.message
+
+        with pytest.warns(TaskGroupCycleDeprecationWarning):
+            dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=True))
+
+        dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=False))
+        assert dagbag.dag_warnings == set()
 
     def test_sigsegv_handling(self, tmp_path, caplog):
         """

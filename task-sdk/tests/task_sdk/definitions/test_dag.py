@@ -38,7 +38,12 @@ from airflow.sdk import (
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.param import DagParam, ParamsDict
-from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
+    DuplicateTaskIdFound,
+    RemovedInAirflow4Warning,
+    TaskGroupCycleDeprecationWarning,
+)
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
@@ -858,6 +863,55 @@ class DoNothingOperator(BaseOperator):
         pass
 
 
+def _add_sibling_groups_cycle():
+    with TaskGroup("group1"):
+        a1 = DoNothingOperator(task_id="a1")
+        a2 = DoNothingOperator(task_id="a2")
+    with TaskGroup("group2"):
+        b1 = DoNothingOperator(task_id="b1")
+        b2 = DoNothingOperator(task_id="b2")
+    a1 >> b1
+    b2 >> a2
+    return [a1, b2], [a2, b1]
+
+
+def _make_sibling_groups_cycle_dag():
+    with DAG("dag", schedule=None) as dag:
+        firsts, lasts = _add_sibling_groups_cycle()
+        DoNothingOperator(task_id="start") >> firsts
+        lasts >> DoNothingOperator(task_id="end")
+    return dag
+
+
+def _make_group_bridged_by_outside_task_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group"):
+            a = DoNothingOperator(task_id="a")
+            b = DoNothingOperator(task_id="b")
+        a >> DoNothingOperator(task_id="bridge") >> b
+    return dag
+
+
+def _make_three_group_ring_dag():
+    with DAG("dag", schedule=None) as dag:
+        tasks = {}
+        for group_id in ("g0", "g1", "g2"):
+            with TaskGroup(group_id):
+                tasks[group_id] = (DoNothingOperator(task_id="first"), DoNothingOperator(task_id="second"))
+        tasks["g1"][0] >> tasks["g0"][1]
+        tasks["g2"][0] >> tasks["g1"][1]
+        tasks["g0"][0] >> tasks["g2"][1]
+    return dag
+
+
+def _make_two_cycles_dag():
+    with DAG("dag", schedule=None) as dag:
+        _add_sibling_groups_cycle()
+        with TaskGroup("outer"):
+            _add_sibling_groups_cycle()
+    return dag
+
+
 class TestCycleTester:
     def test_cycle_empty(self):
         # test empty
@@ -996,6 +1050,30 @@ class TestCycleTester:
                 op1 >> Label("label") >> op2
 
         assert not dag.check_cycle()
+
+    @pytest.mark.parametrize(
+        ("make_dag", "expected_cycles"),
+        [
+            pytest.param(_make_sibling_groups_cycle_dag, "group1 and group2", id="sibling-groups"),
+            pytest.param(_make_group_bridged_by_outside_task_dag, "group and bridge", id="bridged-group"),
+            pytest.param(_make_three_group_ring_dag, "g0, g1 and g2", id="three-group-ring"),
+            pytest.param(
+                _make_two_cycles_dag,
+                "group1 and group2; outer.group1 and outer.group2",
+                id="root-and-nested-cycles",
+            ),
+        ],
+    )
+    def test_task_group_cycle_warns(self, make_dag, expected_cycles):
+        dag = make_dag()
+
+        with pytest.warns(TaskGroupCycleDeprecationWarning) as record:
+            dag.check_cycle()
+
+        assert len(record) == 1
+        assert str(record[0].message).startswith(
+            f"Dag 'dag': {expected_cycles} depend on each other in a cycle. "
+        )
 
 
 class TestDagGetItem:

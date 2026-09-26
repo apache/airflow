@@ -487,6 +487,7 @@ def update_dag_parsing_results_in_db(
         DagWarningType.DUPLICATE_DAG_ID,
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
+        DagWarningType.TASK_GROUP_CYCLE,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
 ):
