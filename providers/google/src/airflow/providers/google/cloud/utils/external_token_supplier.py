@@ -143,6 +143,7 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
                     "client_secret": self.client_secret,
                     **self.extra_params_kwargs,
                 },
+                timeout=30,
             )
             response.raise_for_status()
         except requests.HTTPError as e:

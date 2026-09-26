@@ -115,7 +115,9 @@ def s3v4_rest_signer(properties: Properties, request: AWSRequest, **_: Any) -> A
         "headers": {key: [val] for key, val in request.headers.items()},
     }
 
-    response = requests.post(f"{signer_url}/v1/aws/s3/sign", headers=signer_headers, json=signer_body)
+    response = requests.post(
+        f"{signer_url}/v1/aws/s3/sign", headers=signer_headers, json=signer_body, timeout=30
+    )
     try:
         response.raise_for_status()
         response_json = response.json()

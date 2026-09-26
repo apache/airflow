@@ -245,10 +245,9 @@ class StandaloneCommand:
         Used to tell if the API server is alive.
         """
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            sock.connect(("127.0.0.1", port))
-            sock.close()
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(1)
+                sock.connect(("127.0.0.1", port))
         except (OSError, ValueError):
             # Any exception means the socket is not available
             return False
