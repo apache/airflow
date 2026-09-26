@@ -385,7 +385,7 @@ providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::6
 providers/standard/src/airflow/providers/standard/sensors/filesystem.py::1
 providers/standard/src/airflow/providers/standard/utils/skipmixin.py::3
 providers/standard/tests/unit/standard/operators/test_python.py::1
-providers/standard/tests/unit/standard/sensors/test_external_task_sensor.py::1
+providers/standard/tests/unit/standard/sensors/test_external_task.py::1
 providers/tableau/src/airflow/providers/tableau/hooks/tableau.py::1
 providers/tableau/src/airflow/providers/tableau/operators/tableau.py::3
 providers/telegram/src/airflow/providers/telegram/hooks/telegram.py::6
