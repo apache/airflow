@@ -64,6 +64,7 @@ export type {
   GetXCom,
   SetXCom,
   GetConnection,
+  SkipDownstreamTasks,
 } from "../generated/supervisor.js";
 
 // -------- Frames from supervisor --------
