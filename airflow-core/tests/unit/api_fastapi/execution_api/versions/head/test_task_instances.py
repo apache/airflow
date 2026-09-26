@@ -361,6 +361,82 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
+    def test_ti_run_emits_queued_duration_metric(self, client, session, create_task_instance, time_machine):
+        """PATCH /run should emit the task.queued_duration metric server side."""
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        queued_dttm = timezone.parse("2024-09-30T11:00:00Z")
+        ti = create_task_instance(
+            task_id="test_ti_run_queued_duration",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_dttm
+        ti.end_date = None
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats"
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once()
+        args, kwargs = mock_stats.timing.call_args
+        assert args[0] == "task.queued_duration"
+        expected = instant - queued_dttm
+        assert args[1] == expected
+        assert kwargs["tags"]["task_id"] == "test_ti_run_queued_duration"
+
+    def test_ti_run_does_not_emit_queued_duration_on_duplicate(self, client, session, create_task_instance, time_machine):
+        """A duplicate start request must not emit the metric a second time."""
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        queued_dttm = timezone.parse("2024-09-30T11:00:00Z")
+        ti = create_task_instance(
+            task_id="test_ti_run_dup",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_dttm
+        ti.end_date = None
+        session.commit()
+
+        payload = {
+            "state": "running",
+            "hostname": "h",
+            "unixname": "u",
+            "pid": 1,
+            "start_date": "2024-09-30T12:00:00Z",
+        }
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats"
+        ) as mock_stats:
+            r1 = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+            assert r1.status_code == 200
+            r2 = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+            assert r2.status_code == 200
+
+        assert mock_stats.timing.call_count == 1
+
     def test_ti_run_returns_execution_token(
         self, client, exec_app, session, create_task_instance, time_machine
     ):
