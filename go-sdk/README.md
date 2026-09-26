@@ -161,9 +161,17 @@ An exported field binds the argument matching its own Go name, folding case and 
 tag when the names genuinely differ, as `Region` does above. Declaration order is irrelevant on both
 sides, and embedded structs contribute their fields just as they do to `encoding/json`.
 
-A field no argument matches is left at its Go zero value, like an unpassed keyword argument. The
-reverse is an error: every argument the Dag author explicitly passed must land in some field, so a
-typo'd tag fails the task instead of silently dropping the value.
+Taking **more or fewer arguments** than the Python side passes does not fail the task. The runtime
+logs a warning before the task runs and carries on, one message per direction, so a call that does
+both at once says so twice:
+
+- `Dag's call passed argument(s) the task handler does not declare`
+- `Task handler declares argument(s) the Dag's call did not pass`
+
+Name-based struct binding is what keeps a mixed-language task working while the two sides drift:
+adding a parameter to the stub, or dropping a field from the struct, is a warning rather than a
+broken Dag. A field nothing matches keeps its Go zero value. Arguments the call left at their stub
+default are not reported.
 
 A struct that is **not** the sole data parameter is decoded whole from its one positional argument
 instead, so `arg:` tags only apply to the sole-parameter form; pairing a tagged struct with other

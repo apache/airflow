@@ -26,6 +26,7 @@ the tests here check the run outcome and the summary XCom it pushes.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -35,6 +36,9 @@ from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 # Allow time for coordinator startup.
 _GO_TASK_TIMEOUT = 300
+
+# Task logs land shortly after the run finishes.
+_LOG_FETCH_TIMEOUT = 60
 
 _DAG_ID = "taskflow_binding_dag"
 
@@ -52,6 +56,18 @@ class _CompletedRun:
         return self.client.get_xcom_value(dag_id=_DAG_ID, task_id=task_id, run_id=self.run_id, key=key).get(
             "value"
         )
+
+    def logs(self, task_id: str, try_number: int = 1) -> str:
+        """Return the concatenated task-log records for *task_id*, retrying until present."""
+        deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
+        while True:
+            resp = self.client.get_task_logs(
+                dag_id=_DAG_ID, run_id=self.run_id, task_id=task_id, try_number=try_number
+            )
+            text = "\n".join(str(entry) for entry in resp.get("content", []) if isinstance(entry, dict))
+            if text.strip() or time.monotonic() > deadline:
+                return text
+            time.sleep(3)
 
 
 @pytest.fixture(scope="module")
@@ -79,7 +95,9 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
         "via_flat_args",
         "via_struct_no_tags",
         "via_struct_arg_tag",
-        "via_struct_unmatched_arg",
+        "via_struct_default_arg",
+        "via_struct_more_args",
+        "via_struct_fewer_args",
         "via_flat_map",
         "via_struct_map",
         "via_plain_map",
@@ -137,17 +155,37 @@ def test_via_struct_arg_tag_reflects_bound_arguments(completed_run: _CompletedRu
     }
 
 
-def test_via_struct_unmatched_arg_reflects_zero_valued_field(completed_run: _CompletedRun):
-    """``via_struct_unmatched_arg`` demonstrates mismatch tolerance in both directions:
-    a struct field whose name has no corresponding TaskFlow call argument stays at its
-    Go zero value instead of failing the task (kwarg-style, an unpassed name simply
-    isn't bound), and the stub's defaulted ``sample_rate`` -- captured into the spec as
-    ``from_default`` -- needs no matching struct field. The task succeeding at all
-    proves the second half."""
-    assert completed_run.xcom("via_struct_unmatched_arg") == {
+def test_via_struct_default_arg_tolerates_unclaimed_default(completed_run: _CompletedRun):
+    """``via_struct_default_arg`` proves a captured stub default needs no struct field:
+    ``sample_rate`` is unpassed, so the spec carries it as ``from_default`` and no Go
+    field claims it. The task succeeding at all is the assertion."""
+    assert completed_run.xcom("via_struct_default_arg") == {"region": "eu-west-1"}
+
+
+def test_via_struct_more_args_warns_and_runs(completed_run: _CompletedRun):
+    """The call passes ``unused_label``, which the Go struct does not declare. Name
+    binding cannot shift, so the extra argument is warned about rather than failing
+    the task, and everything the struct does declare still binds."""
+    assert completed_run.xcom("via_struct_more_args") == {"region": "eu-west-1"}
+    logs = completed_run.logs("via_struct_more_args")
+    assert "Dag's call passed argument(s) the task handler does not declare" in logs, logs
+    assert "unused_label" in logs, logs
+
+
+def test_via_struct_fewer_args_warns_and_runs(completed_run: _CompletedRun):
+    """The Go struct declares ``not_in_dag``, which the stub has no parameter for. The
+    field keeps its Go zero value and the mismatch is warned about rather than failing
+    the task, so the two sides can drift without breaking the Dag.
+
+    The warning is the assertion that matters: the zero-valued field alone would look
+    the same as the older behaviour that filled it silently."""
+    assert completed_run.xcom("via_struct_fewer_args") == {
         "region": "eu-west-1",
-        "missing_was_empty": True,
+        "not_in_dag_was_empty": True,
     }
+    logs = completed_run.logs("via_struct_fewer_args")
+    assert "Task handler declares argument(s) the Dag's call did not pass" in logs, logs
+    assert "not_in_dag" in logs, logs
 
 
 def test_via_flat_map_decodes_single_dict_whole(completed_run: _CompletedRun):
