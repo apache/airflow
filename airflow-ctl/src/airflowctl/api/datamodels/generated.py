@@ -489,6 +489,7 @@ class DAGSourceResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     version_number: Annotated[int | None, Field(title="Version Number")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    language: Annotated[str | None, Field(title="Language")] = None
 
 
 class DAGTagCollectionResponse(BaseModel):
@@ -498,6 +499,12 @@ class DAGTagCollectionResponse(BaseModel):
 
     tags: Annotated[list[str], Field(title="Tags")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class WarningType(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=50, pattern="^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$", title="Warning Type")
+    ]
 
 
 class DagBundleDetailResponse(BaseModel):
@@ -925,6 +932,7 @@ class ImportErrorResponse(BaseModel):
     import_error_id: Annotated[int, Field(title="Import Error Id")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     filename: Annotated[str, Field(title="Filename")]
+    source_reference: Annotated[str | None, Field(title="Source Reference")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")]
     stack_trace: Annotated[str, Field(title="Stack Trace")]
     file_token: Annotated[
@@ -2110,7 +2118,7 @@ class DAGWarningResponse(BaseModel):
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
-    warning_type: DagWarningType
+    warning_type: Annotated[DagWarningType | WarningType, Field(title="Warning Type")]
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]

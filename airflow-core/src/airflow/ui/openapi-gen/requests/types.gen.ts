@@ -1110,6 +1110,7 @@ export type DAGSourceResponse = {
     dag_id: string;
     version_number: number | null;
     dag_display_name: string;
+    language?: string | null;
 };
 
 /**
@@ -1141,7 +1142,7 @@ export type DAGWarningCollectionResponse = {
  */
 export type DAGWarningResponse = {
     dag_id: string;
-    warning_type: DagWarningType;
+    warning_type: DagWarningType | string;
     message: string;
     timestamp: string;
     dag_display_name: string;
@@ -1609,6 +1610,7 @@ export type ImportErrorResponse = {
     import_error_id: number;
     timestamp: string;
     filename: string;
+    source_reference?: string | null;
     bundle_name: string | null;
     stack_trace: string;
     /**
@@ -3665,7 +3667,7 @@ export type ListDagWarningsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      */
     orderBy?: Array<(string)>;
-    warningType?: DagWarningType | null;
+    warningType?: DagWarningType | string | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
@@ -4461,7 +4463,7 @@ export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
      */
     orderBy?: Array<(string)>;
 };

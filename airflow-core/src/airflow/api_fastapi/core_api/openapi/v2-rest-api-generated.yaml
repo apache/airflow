@@ -3805,6 +3805,9 @@ paths:
         schema:
           anyOf:
           - $ref: '#/components/schemas/DagWarningType'
+          - type: string
+            maxLength: 50
+            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
           - type: 'null'
           title: Warning Type
       - name: limit
@@ -5215,13 +5218,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            filename, bundle_name, stacktrace, import_error_id`'
+            filename, source_reference, bundle_name, stacktrace, import_error_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, timestamp, filename,
-          bundle_name, stacktrace, import_error_id`'
+          source_reference, bundle_name, stacktrace, import_error_id`'
       - name: filename_pattern
         in: query
         required: false
@@ -14129,6 +14132,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Language
       type: object
       required:
       - content
@@ -14191,7 +14199,12 @@ components:
           type: string
           title: Dag Id
         warning_type:
-          $ref: '#/components/schemas/DagWarningType'
+          anyOf:
+          - $ref: '#/components/schemas/DagWarningType'
+          - type: string
+            maxLength: 50
+            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
+          title: Warning Type
         message:
           type: string
           title: Message
@@ -15296,6 +15309,11 @@ components:
         filename:
           type: string
           title: Filename
+        source_reference:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Reference
         bundle_name:
           anyOf:
           - type: string

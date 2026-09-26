@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,18 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Add source_reference to import_error.
+
+Revision ID: ca8499dc1004
+Revises: c9f4b3e7a218
+Create Date: 2026-08-27 12:45:02.276898
+
+"""
+
 from __future__ import annotations
 
-from pydantic import AliasPath, Field
+import sqlalchemy as sa
+from alembic import op
 
-from airflow.api_fastapi.core_api.base import BaseModel
+# revision identifiers, used by Alembic.
+revision = "ca8499dc1004"
+down_revision = "c9f4b3e7a218"
+branch_labels = None
+depends_on = None
+airflow_version = "3.4.0"
 
 
-class DAGSourceResponse(BaseModel):
-    """Dag Source serializer for responses."""
+def upgrade():
+    """Apply add source_reference to import_error."""
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("source_reference", sa.String(length=2000), nullable=True))
 
-    content: str | None
-    dag_id: str
-    version_number: int | None
-    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
-    language: str | None = None
+
+def downgrade():
+    """Unapply add source_reference to import_error."""
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.drop_column("source_reference")

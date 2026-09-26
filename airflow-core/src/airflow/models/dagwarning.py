@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
+from pydantic import StringConstraints, TypeAdapter
 from sqlalchemy import ForeignKeyConstraint, Index, String, Text, delete, select, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +35,8 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+WARNING_TYPE_MAX_LENGTH = 50
+
 
 class DagWarning(Base):
     """
@@ -45,7 +48,7 @@ class DagWarning(Base):
     """
 
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    warning_type: Mapped[str] = mapped_column(String(50), primary_key=True)
+    warning_type: Mapped[str] = mapped_column(String(WARNING_TYPE_MAX_LENGTH), primary_key=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
@@ -65,7 +68,7 @@ class DagWarning(Base):
     def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
-        self.warning_type = DagWarningType(warning_type).value  # make sure valid type
+        self.warning_type = get_warning_type_value(warning_type)
         self.message = message
 
     def __eq__(self, other) -> bool:
@@ -105,3 +108,25 @@ class DagWarningType(str, Enum):
     DUPLICATE_DAG_ID = "duplicate dag id"
     NONEXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+
+
+ImporterWarningType = Annotated[
+    str,
+    StringConstraints(pattern=r"^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$", max_length=WARNING_TYPE_MAX_LENGTH),
+]
+"""Warning type reported by a Dag importer, prefixed with its namespace (e.g. ``yaml:deprecated_field``)."""
+
+DagWarningTypeValue = DagWarningType | ImporterWarningType
+"""Any valid ``warning_type``: a built-in :class:`DagWarningType` or an :data:`ImporterWarningType`."""
+
+_warning_type_adapter: TypeAdapter[DagWarningType | str] = TypeAdapter(DagWarningTypeValue)
+
+
+def get_warning_type_value(warning_type: str) -> str:
+    """
+    Return the value to store for ``warning_type``.
+
+    :raises ValueError: if it is neither a :class:`DagWarningType` nor an :data:`ImporterWarningType`.
+    """
+    validated = _warning_type_adapter.validate_python(warning_type)
+    return validated.value if isinstance(validated, DagWarningType) else validated

@@ -66,6 +66,9 @@ class DagCode(Base):
     )
     source_code: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
     source_code_hash: Mapped[str] = mapped_column(String(32), nullable=False)
+    language: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="python", server_default="python"
+    )
     dag_version_id: Mapped[UUID] = mapped_column(
         sa.Uuid(), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )

@@ -24,7 +24,10 @@ from sqlalchemy import func, select
 
 from airflow.api.common.delete_dag import delete_dag
 from airflow.models import DagModel
+from airflow.models.errors import ParseImportError
 from airflow.providers.standard.operators.empty import EmptyOperator
+
+from tests_common.test_utils.db import clear_db_import_errors
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -34,6 +37,13 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 DAG_ID = "dag_to_delete"
+
+
+@pytest.fixture
+def clean_import_errors():
+    clear_db_import_errors()
+    yield
+    clear_db_import_errors()
 
 
 def test_delete_dag_does_not_read_back_deleted_row_keys(dag_maker: DagMaker[SerializedDAG], session):
@@ -76,3 +86,42 @@ def test_delete_dag_does_not_read_back_deleted_row_keys(dag_maker: DagMaker[Seri
     )
 
     assert session.scalar(select(func.count()).select_from(DagModel).where(DagModel.dag_id == DAG_ID)) == 0
+
+
+@pytest.mark.parametrize(
+    "matching_column",
+    [
+        pytest.param("source_reference", id="by-source-reference"),
+        pytest.param("filename", id="by-relative-filename"),
+    ],
+)
+@pytest.mark.usefixtures("clean_import_errors")
+def test_delete_dag_removes_import_errors_for_its_file(
+    dag_maker: DagMaker[SerializedDAG], session, matching_column
+):
+    with dag_maker(DAG_ID, session=session):
+        EmptyOperator(task_id="task")
+    session.commit()
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID))
+
+    session.add_all(
+        [
+            ParseImportError(
+                bundle_name=dag_model.bundle_name,
+                stacktrace="matching",
+                **{matching_column: dag_model.relative_fileloc},
+            ),
+            ParseImportError(
+                bundle_name=dag_model.bundle_name,
+                filename="unrelated.py",
+                source_reference="unrelated.py",
+                stacktrace="unrelated",
+            ),
+        ]
+    )
+    session.commit()
+
+    delete_dag(DAG_ID, session=session)
+    session.commit()
+
+    assert session.scalars(select(ParseImportError.stacktrace)).all() == ["unrelated"]

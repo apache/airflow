@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,18 +15,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Add language column to dag_code.
+
+Revision ID: e5a91c7f42b3
+Revises: ca8499dc1004
+Create Date: 2026-09-10 12:00:00.000000
+
+"""
+
 from __future__ import annotations
 
-from pydantic import AliasPath, Field
+import sqlalchemy as sa
+from alembic import op
 
-from airflow.api_fastapi.core_api.base import BaseModel
+# revision identifiers, used by Alembic.
+revision = "e5a91c7f42b3"
+down_revision = "ca8499dc1004"
+branch_labels = None
+depends_on = None
+airflow_version = "3.4.0"
 
 
-class DAGSourceResponse(BaseModel):
-    """Dag Source serializer for responses."""
+def upgrade():
+    """Apply add language column to dag_code."""
+    with op.batch_alter_table("dag_code", schema=None) as batch_op:
+        batch_op.add_column(
+            sa.Column("language", sa.String(length=64), nullable=False, server_default="python")
+        )
 
-    content: str | None
-    dag_id: str
-    version_number: int | None
-    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
-    language: str | None = None
+
+def downgrade():
+    """Unapply add language column to dag_code."""
+    with op.batch_alter_table("dag_code", schema=None) as batch_op:
+        batch_op.drop_column("language")
