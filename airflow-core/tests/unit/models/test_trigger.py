@@ -518,6 +518,56 @@ def test_submit_event_task_end_failed_respects_retries(
         assert ti.id == old_ti_id
 
 
+@pytest.mark.parametrize(
+    ("retries", "expected_email_type"),
+    [
+        (1, "retry"),
+        (0, "failure"),
+    ],
+)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_failed_sends_email(
+    mock_send,
+    session,
+    create_task_instance,
+    retries,
+    expected_email_type,
+):
+    """A trigger-emitted TaskFailedEvent must send an email the same way the scheduler's
+    executor-event and state-mismatch paths do: one EmailRequest alongside the
+    TaskCallbackRequest, whenever the task has ``email`` configured and the matching
+    ``email_on_failure``/``email_on_retry`` flag is set.
+    """
+    from airflow.callbacks.callback_requests import EmailRequest
+
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        default_args={"retries": retries},
+        email="ops@example.com",
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.try_number = 1
+    task_instance.max_tries = retries
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
+    session.flush()
+
+    email_requests = [
+        call.kwargs["callback"]
+        for call in mock_send.call_args_list
+        if isinstance(call.kwargs["callback"], EmailRequest)
+    ]
+    assert len(email_requests) == 1, (
+        f"expected exactly one EmailRequest to be sent, got calls={mock_send.call_args_list}"
+    )
+    assert email_requests[0].email_type == expected_email_type
+
+
 @pytest.fixture
 def create_triggerer():
     """Fixture factory which creates individual test Triggerer instances."""
