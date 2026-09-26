@@ -42,6 +42,8 @@ class Bundle(
   /** Dags the Python file owns, holding the task handlers registered for them. */
   internal val taskHandlers = linkedMapOf<String, DagDef>()
 
+  // This only guards the serve boundary, not registers racing each other. This is fine since
+  // we only encourage one sync register() chain; single-threaded by contract.
   @Volatile
   private var served = false
 
@@ -160,7 +162,9 @@ class Bundle(
   private fun checkOpen() = check(!served) { "Server.serve has already been called; register everything before serve" }
 }
 
-// before and after can express a cycle, so reject one at registration time.
+// Reject cycles produced by before and after at registration time. This is (non-tailrec-eligible)
+// recursive and could blow up with deep dependency chains. I kept the recursive implementation
+// for readability since the scenario is unlikely; feel free to rewrite if it blows up for you.
 private fun checkNoCycle(dag: DagDef) {
   val visiting = mutableSetOf<String>()
   val done = mutableSetOf<String>()
