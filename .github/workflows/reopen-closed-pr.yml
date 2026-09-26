@@ -1,0 +1,106 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Temporary: authors without write access cannot reopen a Pull Request closed by a maintainer, so this
+# lets them reopen the ones closed by dev/close_prs_over_open_pr_limit.py. Remove once that one-time
+# closure has settled.
+---
+name: Reopen PR closed by open PR limit
+on:  # yamllint disable-line rule:truthy
+  issue_comment:
+    types: [created]
+
+permissions:
+  pull-requests: write
+
+concurrency:
+  group: reopen-${{ github.event.issue.user.login }}
+  queue: max
+
+jobs:
+  reopen:
+    name: "Reopen PR"
+    runs-on: ubuntu-slim
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.issue.state == 'closed' &&
+      !github.event.issue.pull_request.merged_at &&
+      github.event.comment.user.type != 'Bot' &&
+      github.event.comment.user.login == github.event.issue.user.login &&
+      startsWith(github.event.comment.body, '/reopen')
+    steps:
+      - name: Reopen PR if the author is under the limit
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            const LABEL = 'closed because of open PR limit';
+            const LIMIT = 5;
+            const POLICY = 'https://github.com/apache/airflow/blob/main/contributing-docs/' +
+              '32_open_pull_request_limit.rst';
+            const LIMIT_LINK = `[open Pull Request limit](${POLICY})`;
+            const { issue } = context.payload;
+            const author = issue.user.login;
+            const target = { ...context.repo, issue_number: issue.number };
+            const reply = (...parts) =>
+              github.rest.issues.createComment({ ...target, body: parts.join(' ') });
+
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: issue.number });
+            if (pr.state === 'open') {
+              return;
+            }
+            if (!pr.labels.some((label) => label.name === LABEL)) {
+              await reply(
+                'This Pull Request was not reopened.',
+                '`/reopen` only works for Pull Requests closed in the one-time closure',
+                `for the ${LIMIT_LINK}, which carry the \`${LABEL}\` label.`,
+                'This one does not have it.',
+              );
+              return;
+            }
+            const { data: search } = await github.rest.search.issuesAndPullRequests({
+              q: `is:pr is:open author:${author} repo:${context.repo.owner}/${context.repo.repo} draft:false`,
+            });
+            if (search.total_count >= LIMIT) {
+              await reply(
+                'This Pull Request was not reopened.',
+                `According to the ${LIMIT_LINK}, contributors without write access`,
+                `can have at most ${LIMIT} open Pull Requests at a time (drafts do not count),`,
+                `and you have ${search.total_count} open now.`,
+                'Close or finish one of them, then comment `/reopen` here again.',
+              );
+              return;
+            }
+            try {
+              await github.rest.pulls.update({ ...context.repo, pull_number: issue.number, state: 'open' });
+            } catch (error) {
+              core.warning(`Could not reopen #${issue.number}: ${error.message}`);
+              await reply(
+                'This Pull Request could not be reopened.',
+                'GitHub does not reopen a Pull Request whose branch was deleted or force-pushed',
+                'after it was closed, which is the most likely reason here.',
+                'You can push the branch again if needed, open a new Pull Request from it,',
+                'and link this one in the description.',
+                `See [Reopening a closed Pull Request](${POLICY}#reopening-a-closed-pull-request)`,
+                'for the steps.',
+              );
+              return;
+            }
+            await github.rest.issues.removeLabel({ ...target, name: LABEL });
+            await reply(
+              `This Pull Request was closed in the one-time closure for the ${LIMIT_LINK},`,
+              `and your \`/reopen\` comment reopened it. The \`${LABEL}\` label is removed.`,
+            );
