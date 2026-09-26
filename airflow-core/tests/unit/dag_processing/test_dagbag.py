@@ -98,47 +98,32 @@ class TestValidateExecutorFields:
     """Comprehensive tests for _validate_executor_fields function."""
 
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-    def test_multi_team_disabled_ignores_bundle_name(self, mock_lookup):
-        """Test that when multi_team is disabled, bundle_name is ignored and no team lookup occurs."""
+    def test_multi_team_disabled_ignores_team_name(self, mock_lookup):
+        """Test that team information is ignored when multi-team mode is disabled."""
         with DAG("test-dag", schedule=None) as dag:
             BaseOperator(task_id="t1", executor="test.executor")
 
         # multi_team disabled by default, no need to add conf_vars
-        _validate_executor_fields(dag, bundle_name="some_bundle")
+        _validate_executor_fields(dag, bundle_name="some_bundle", team_name="test_team")
 
         # Should call ExecutorLoader without team_name (defaults to None)
         mock_lookup.assert_called_once_with("test.executor", team_name=None, validate_teams=False)
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-    def test_multi_team_enabled_bundle_exists_with_team(self, mock_lookup, mock_manager_class):
-        """Test successful team lookup when bundle exists and has team_name."""
-        # Setup mock bundle manager
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
-
-        mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
-
+    def test_multi_team_enabled_bundle_exists_with_team(self, mock_lookup):
+        """Test successful executor validation with a resolved team name."""
         with DAG("test-dag", schedule=None) as dag:
             BaseOperator(task_id="t1", executor="team.executor")
 
         with conf_vars({("core", "multi_team"): "True"}):
-            _validate_executor_fields(dag, bundle_name="test_bundle")
+            _validate_executor_fields(dag, bundle_name="test_bundle", team_name="test_team")
 
         # Should call ExecutorLoader with team from bundle config
         mock_lookup.assert_called_once_with("team.executor", team_name="test_team", validate_teams=False)
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-    def test_multi_team_enabled_bundle_exists_no_team(self, mock_lookup, mock_manager_class):
+    def test_multi_team_enabled_bundle_exists_no_team(self, mock_lookup):
         """Test when bundle exists but has no team_name (None or empty)."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = None  # No team associated
-
-        mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
-
         with DAG("test-dag", schedule=None) as dag:
             BaseOperator(task_id="t1", executor="test.executor")
 
@@ -163,16 +148,9 @@ class TestValidateExecutorFields:
         mock_lookup.assert_any_call("executor1", team_name=None, validate_teams=False)
         mock_lookup.assert_any_call("executor2", team_name=None, validate_teams=False)
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-    def test_executor_validation_failure_with_team(self, mock_lookup, mock_manager_class):
+    def test_executor_validation_failure_with_team(self, mock_lookup):
         """Test executor validation failure when team is associated (team-specific error)."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
-
-        mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
-
         # ExecutorLoader raises exception
         mock_lookup.side_effect = UnknownExecutorException("Executor not found")
 
@@ -190,7 +168,7 @@ class TestValidateExecutorFields:
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
-                _validate_executor_fields(dag, bundle_name="test_bundle")
+                _validate_executor_fields(dag, bundle_name="test_bundle", team_name="test_team")
 
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_executor_validation_failure_no_team(self, mock_lookup):
@@ -211,16 +189,9 @@ class TestValidateExecutorFields:
             ):
                 _validate_executor_fields(dag)  # No bundle_name
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-    def test_global_executor_fallback_success(self, mock_lookup, mock_manager_class):
+    def test_global_executor_fallback_success(self, mock_lookup):
         """Test that team-specific executor failure falls back to global executor successfully."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
-
-        mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
-
         # First call (team-specific) fails, second call (global) succeeds
         mock_lookup.side_effect = [UnknownExecutorException("Team executor not found"), None]
 
@@ -229,23 +200,16 @@ class TestValidateExecutorFields:
 
         with conf_vars({("core", "multi_team"): "True"}):
             # Should not raise exception due to global fallback
-            _validate_executor_fields(dag, bundle_name="test_bundle")
+            _validate_executor_fields(dag, bundle_name="test_bundle", team_name="test_team")
 
         # Should call lookup twice: first for team, then for global
         assert mock_lookup.call_count == 2
         mock_lookup.assert_any_call("global.executor", team_name="test_team", validate_teams=False)
         mock_lookup.assert_any_call("global.executor", team_name=None, validate_teams=False)
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-    def test_global_executor_fallback_failure(self, mock_lookup, mock_manager_class):
+    def test_global_executor_fallback_failure(self, mock_lookup):
         """Test that when both team-specific and global executors fail, appropriate error is raised."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
-
-        mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
-
         # Both calls fail
         mock_lookup.side_effect = UnknownExecutorException("Executor not found")
 
@@ -263,23 +227,16 @@ class TestValidateExecutorFields:
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
-                _validate_executor_fields(dag, bundle_name="test_bundle")
+                _validate_executor_fields(dag, bundle_name="test_bundle", team_name="test_team")
 
         # Should call lookup twice: first for team, then for global fallback
         assert mock_lookup.call_count == 2
         mock_lookup.assert_any_call("unknown.executor", team_name="test_team", validate_teams=False)
         mock_lookup.assert_any_call("unknown.executor", team_name=None, validate_teams=False)
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-    def test_team_specific_executor_success_no_fallback(self, mock_lookup, mock_manager_class):
+    def test_team_specific_executor_success_no_fallback(self, mock_lookup):
         """Test that when team-specific executor succeeds, global fallback is not attempted."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
-
-        mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
-
         # First call (team-specific) succeeds
         mock_lookup.return_value = None
 
@@ -287,7 +244,7 @@ class TestValidateExecutorFields:
             BaseOperator(task_id="task1", executor="team.executor")
 
         with conf_vars({("core", "multi_team"): "True"}):
-            _validate_executor_fields(dag, bundle_name="test_bundle")
+            _validate_executor_fields(dag, bundle_name="test_bundle", team_name="test_team")
 
         # Should only call lookup once for team-specific executor
         mock_lookup.assert_called_once_with("team.executor", team_name="test_team", validate_teams=False)
@@ -407,21 +364,13 @@ class TestDagBag:
             ),
         ],
     )
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     def test_default_pool_replaced_with_team_pool(
         self,
-        mock_manager,
         tmp_path,
         team_name,
         operator_args,
         expected_pool,
     ):
-        mock_bundle = mock.MagicMock()
-        mock_bundle.team_name = team_name
-        mock_manager.return_value._bundle_config = {
-            "test_bundle": mock_bundle,
-        }
-
         dag_file = tmp_path / "test_dag.py"
         dag_file.write_text(
             textwrap.dedent(
@@ -443,6 +392,7 @@ class TestDagBag:
             dagbag = DagBag(
                 dag_folder=os.fspath(tmp_path),
                 bundle_name="test_bundle",
+                team_name=team_name,
             )
 
         dag = dagbag.get_dag("my_dag")

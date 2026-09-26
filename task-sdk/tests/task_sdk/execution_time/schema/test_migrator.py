@@ -501,3 +501,22 @@ class TestRealBundleRetryReason:
         body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
         out = real_migrator.upgrade(body, TaskState, "2026-06-16")
         assert out["retry_reason"] is None
+
+
+class TestRealBundleDagFileParseRequestDowngrade:
+    def test_downgrade_strips_team_name_for_previous_version(self):
+        from pathlib import Path
+
+        from airflow.dag_processing.processor import DagFileParseRequest
+
+        request = DagFileParseRequest(
+            file="/bundle/dags/example.py",
+            bundle_path=Path("/bundle/dags"),
+            bundle_name="test-bundle",
+            team_name="test-team",
+            callback_requests=[],
+        )
+
+        out = get_schema_version_migrator().downgrade(request, "2026-06-16").model_dump()
+
+        assert "team_name" not in out

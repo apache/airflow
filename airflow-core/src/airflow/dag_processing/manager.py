@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.bundles.provider import DagBundleMetadata
     from airflow.sdk.api.client import Client
 
 
@@ -256,6 +257,8 @@ class DagFileProcessorManager(LoggingMixin):
     )
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
+    _dag_bundles_manager: DagBundlesManager | None = attrs.field(default=None, init=False)
+    _bundle_metadata: dict[str, DagBundleMetadata] = attrs.field(factory=dict, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
@@ -331,9 +334,14 @@ class DagFileProcessorManager(LoggingMixin):
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
         # When this processor only parses a subset of bundles, it does not see the full
-        # bundle configuration and must not deactivate bundles owned by other processors.
-        dag_bundle_manager = DagBundlesManager()
-        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        # bundle list and must not deactivate bundles owned by other processors.
+        dag_bundle_manager = self._get_dag_bundles_manager()
+        bundle_metadata = dag_bundle_manager.get_active_bundle_metadata()
+        dag_bundle_manager.sync_bundles_to_db(
+            bundle_metadata=bundle_metadata,
+            deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager),
+        )
+        self._bundle_metadata = {metadata.name: metadata for metadata in bundle_metadata}
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
         try:
@@ -343,7 +351,15 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        return list(DagBundlesManager().get_all_dag_bundles())
+        return list(self._get_dag_bundles_manager().get_all_dag_bundles())
+
+    def _get_dag_bundles_manager(self) -> DagBundlesManager:
+        if self._dag_bundles_manager is None:
+            self._dag_bundles_manager = DagBundlesManager()
+        return self._dag_bundles_manager
+
+    def _can_deactivate_missing_bundles(self, dag_bundle_manager: DagBundlesManager) -> bool:
+        return not self.bundle_names_to_parse or dag_bundle_manager.provides_complete_bundle_list
 
     def run(self):
         """
@@ -543,7 +559,7 @@ class DagFileProcessorManager(LoggingMixin):
         if stuck_legacy_rows:
             # Surface how many legacy rows the startup repair could not route;
             # each one keeps raising "Requested bundle is not configured." until
-            # a matching bundle is added to dag_bundle_config_list.
+            # the configured Dag bundle provider returns a matching bundle.
             self.log.info(
                 "Skipped stale check for %d legacy Dag(s) with NULL relative_fileloc.",
                 stuck_legacy_rows,
@@ -862,6 +878,7 @@ class DagFileProcessorManager(LoggingMixin):
             return
 
         self._bundles_last_refreshed = now_seconds
+        self._reconcile_bundles(known_files=known_files)
 
         any_refreshed = False
         for bundle in self._dag_bundles:
@@ -969,6 +986,81 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
+
+    def _reconcile_bundles(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        dag_bundle_manager = self._get_dag_bundles_manager()
+        try:
+            bundle_metadata = dag_bundle_manager.get_active_bundle_metadata()
+        except Exception:
+            self.log.exception("Error reading active Dag bundle metadata")
+            return
+
+        current_bundle_metadata = {metadata.name: metadata for metadata in bundle_metadata}
+        metadata_changed = current_bundle_metadata != self._bundle_metadata
+
+        if self.bundle_names_to_parse:
+            bundle_metadata = tuple(
+                metadata for metadata in bundle_metadata if metadata.name in self.bundle_names_to_parse
+            )
+
+        loaded_bundles_by_name = {bundle.name: bundle for bundle in self._dag_bundles}
+        loaded_bundle_names = set(loaded_bundles_by_name)
+        active_bundle_names = {metadata.name for metadata in bundle_metadata}
+        runtime_bundles_changed = active_bundle_names != loaded_bundle_names
+        # Bundle construction settings are immutable for a name; changes require a new name.
+        removed_bundle_names = loaded_bundle_names - active_bundle_names
+        for bundle_name in removed_bundle_names:
+            del loaded_bundles_by_name[bundle_name]
+
+        added_bundle_names: set[str] = set()
+        for metadata in bundle_metadata:
+            if metadata.name in loaded_bundles_by_name:
+                continue
+            try:
+                bundle = dag_bundle_manager.get_bundle(metadata.name)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", metadata.name, e)
+                continue
+            loaded_bundles_by_name[metadata.name] = bundle
+            added_bundle_names.add(metadata.name)
+
+        try:
+            dag_bundle_manager.sync_bundles_to_db(
+                bundle_metadata=tuple(current_bundle_metadata.values()),
+                bundle_instances={name: loaded_bundles_by_name[name] for name in added_bundle_names},
+                deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager),
+            )
+        except Exception:
+            self.log.exception("Error reconciling Dag bundles")
+        else:
+            self._bundle_metadata = current_bundle_metadata
+            if metadata_changed:
+                self._bundle_name_to_team_name.clear()
+
+        if not runtime_bundles_changed:
+            return
+
+        self._dag_bundles = [
+            loaded_bundles_by_name[metadata.name]
+            for metadata in bundle_metadata
+            if metadata.name in loaded_bundles_by_name
+        ]
+        self._force_refresh_bundles.update(added_bundle_names)
+
+        for bundle_name in removed_bundle_names:
+            self._bundle_versions.pop(bundle_name, None)
+            self._bundle_version_data.pop(bundle_name, None)
+            known_files.pop(bundle_name, None)
+            self._force_refresh_bundles.discard(bundle_name)
+
+        if removed_bundle_names:
+            self.handle_removed_files(known_files=known_files)
+
+        self.log.info(
+            "Reconciled Dag bundles: added=%s, removed=%s",
+            sorted(added_bundle_names),
+            sorted(removed_bundle_names),
+        )
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
@@ -1441,7 +1533,7 @@ class DagFileProcessorManager(LoggingMixin):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
+    def _create_process(self, dag_file: DagFileInfo, team_name: str | None = None) -> DagFileProcessorProcess:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
@@ -1452,6 +1544,7 @@ class DagFileProcessorManager(LoggingMixin):
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
             bundle_name=dag_file.bundle_name,
+            team_name=team_name,
             dag_file_rel_path=str(dag_file.rel_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
@@ -1471,7 +1564,7 @@ class DagFileProcessorManager(LoggingMixin):
             if file in self._processors:
                 continue
 
-            processor = self._create_process(file)
+            processor = self._create_process(file, team_name=bundle_to_team.get(file.bundle_name))
             stats.incr(
                 "dag_processing.processes",
                 tags=prune_dict(
