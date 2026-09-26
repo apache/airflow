@@ -53,6 +53,13 @@ def update_orm_from_pydantic(
     :raises HTTPException: If attempting to update restricted fields (e.g., ``key``).
     """
     if update_mask:
+        valid_update_fields = set(VariableBody.model_fields) - {"key"}
+        unknown_fields = set(update_mask) - valid_update_fields - {"key"}
+        if unknown_fields:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Unknown update_mask field(s): {sorted(unknown_fields)}",
+            )
         fields_to_update = patch_body.model_fields_set & set(update_mask)
         try:
             VariableBodyPartial(**patch_body.model_dump(include=fields_to_update))
