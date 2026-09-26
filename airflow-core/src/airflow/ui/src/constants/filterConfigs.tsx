@@ -101,6 +101,15 @@ export const useFilterConfigs = () => {
   }));
 
   const filterConfigMap = {
+    [SearchParamsKeys.ACTIVE]: {
+      icon: <MdCheckCircle />,
+      label: translate("components:backfill.status"),
+      options: [
+        { label: translate("components:backfill.statusOptions.active"), value: "true" },
+        { label: translate("components:backfill.statusOptions.completed"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
       icon: <MdDateRange />,
