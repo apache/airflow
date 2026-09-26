@@ -58,6 +58,7 @@ from airflow.sdk.exceptions import (
     NodeNotFound,
     ParamValidationError,
     RemovedInAirflow4Warning,
+    TaskGroupCycleDeprecationWarning,
     TaskNotFound,
 )
 
@@ -1140,6 +1141,9 @@ class DAG:
         """
         Check to see if there are any cycles in the Dag.
 
+        Also warns with ``TaskGroupCycleDeprecationWarning`` when TaskGroups depend on each
+        other in a cycle, which is deprecated.
+
         :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
         # default of int is 0 which corresponds to CYCLE_NEW
@@ -1176,6 +1180,30 @@ class DAG:
                     path_stack.pop()
                 else:
                     path_stack.append(child_to_check)
+
+        self._warn_task_group_cycles()
+
+    def _warn_task_group_cycles(self) -> None:
+        task_group_dict = self.task_group.get_task_group_dict()
+        # With only the root group, the projection is the task graph, which is acyclic here.
+        if len(task_group_dict) == 1:
+            return
+        cycles = [
+            f"{', '.join(cycle[:-1])} and {cycle[-1]}"
+            for task_group in task_group_dict.values()
+            for cycle in task_group._find_dependency_cycles(group_dict=task_group_dict)
+        ]
+        if not cycles:
+            return
+        # Airflow 3.5 raises AirflowDagCycleException here instead; tracked at
+        # https://github.com/apache/airflow/issues/73678
+        warnings.warn(
+            f"Dag '{self.dag_id}': {'; '.join(cycles)} depend on each other in a cycle. Cyclic TaskGroup "
+            "dependencies are deprecated and will fail Dag parsing in Airflow 3.5. See "
+            '"Cyclic TaskGroup dependencies" in the docs.',
+            TaskGroupCycleDeprecationWarning,
+            stacklevel=3,
+        )
 
     def cli(self):
         """Exposes a CLI specific to this Dag."""

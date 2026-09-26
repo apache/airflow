@@ -85,6 +85,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -765,6 +766,43 @@ def test_parse_file_static_check_with_default_warning():
         warning.get("dag_id") and warning.get("warning_type") and warning.get("message")
         for warning in result.warnings
     )
+
+
+TASK_GROUP_CYCLE_DAGS = """
+from airflow.sdk import DAG, BaseOperator, TaskGroup
+
+for dag_id in ("cyclic", "acyclic", "unserializable"):
+    with DAG(dag_id, schedule=None):
+        with TaskGroup("group"):
+            a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+            if dag_id == "acyclic":
+                a >> b
+        a >> BaseOperator(task_id="bridge") >> b
+"""
+
+
+def test_parse_file_task_group_cycle_warning(tmp_path):
+    dag_file = tmp_path / "task_group_cycle_dags.py"
+    dag_file.write_text(TASK_GROUP_CYCLE_DAGS)
+    to_dict = DagSerialization.to_dict
+
+    def fail_to_serialize_unserializable(dag):
+        if dag.dag_id == "unserializable":
+            raise ValueError("serialization failed")
+        return to_dict(dag)
+
+    with patch.object(
+        DagSerialization, "to_dict", autospec=True, side_effect=fail_to_serialize_unserializable
+    ):
+        result = _parse_file(
+            DagFileParseRequest(file=str(dag_file), bundle_path=tmp_path, bundle_name="testing"),
+            log=structlog.get_logger(),
+        )
+
+    assert [(warning["dag_id"], warning["warning_type"]) for warning in result.warnings] == [
+        ("cyclic", "task group cycle")
+    ]
 
 
 def test_callback_processing_does_not_update_timestamps():
