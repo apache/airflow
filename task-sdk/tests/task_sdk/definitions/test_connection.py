@@ -549,3 +549,70 @@ class TestConnectionFromUri:
             original_extra = json.loads(conn_from_original.extra)
             roundtrip_extra = json.loads(conn_from_roundtrip.extra)
             assert original_extra == roundtrip_extra
+
+
+class TestConnectionPortValidation:
+    """Tests for TCP/UDP port range validation in Task SDK Connection (issue #68382)."""
+
+    @pytest.mark.parametrize(
+        "port",
+        [
+            1,
+            80,
+            443,
+            8080,
+            5432,
+            65535,
+        ],
+    )
+    def test_accepts_valid_ports(self, port):
+        """Valid TCP/UDP ports (1-65535) should be accepted."""
+        conn = Connection(conn_id="test", conn_type="http", port=port)
+        assert conn.port == port
+
+    def test_accepts_none_port(self):
+        """None (representing an unconfigured port) should be accepted."""
+        conn = Connection(conn_id="test", conn_type="http", port=None)
+        assert conn.port is None
+
+    @pytest.mark.parametrize(
+        "port",
+        [
+            0,
+            -1,
+            -100,
+            65536,
+            99999,
+        ],
+    )
+    def test_rejects_invalid_ports(self, port):
+        """Ports outside 1-65535 (including 0) should be rejected with ValueError."""
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            Connection(conn_id="test", conn_type="http", port=port)
+
+    def test_from_json_accepts_valid_port(self):
+        """Connection.from_json() should accept valid integer port."""
+        conn_json = json.dumps({"conn_type": "http", "port": 8080})
+        conn = Connection.from_json(conn_json, conn_id="test")
+        assert conn.port == 8080
+
+    def test_from_json_accepts_none_port(self):
+        """Connection.from_json() should accept omitted port."""
+        conn_json = json.dumps({"conn_type": "http"})
+        conn = Connection.from_json(conn_json, conn_id="test")
+        assert conn.port is None
+
+    @pytest.mark.parametrize(
+        "port",
+        [
+            0,
+            -1,
+            65536,
+            99999,
+        ],
+    )
+    def test_from_json_rejects_invalid_port(self, port):
+        """Connection.from_json() should reject ports outside 1-65535."""
+        conn_json = json.dumps({"conn_type": "http", "port": port})
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            Connection.from_json(conn_json, conn_id="test")

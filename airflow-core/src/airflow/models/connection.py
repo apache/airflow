@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, mapped_column, reconstructor
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
@@ -88,6 +88,22 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
 
     # if we reach here, then we matched something, return the first match
     return res.group(0)
+
+
+def validate_port(port: int | None) -> int | None:
+    """
+    Validate that a port number is within the valid TCP/UDP range (1-65535).
+
+    Port 0 is reserved and invalid for establishing external connections; None represents
+    an unconfigured or default port.
+
+    :param port: The port number to validate, or None.
+    :return: The validated port number, or None if port was None.
+    :raises ValueError: If port is outside the range 1 to 65535.
+    """
+    if port is not None and not (1 <= port <= 65535):
+        raise ValueError(f"Port must be between 1 and 65535, got {port}")
+    return port
 
 
 def _parse_netloc_to_hostname(uri_parts):
@@ -201,6 +217,18 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             mask_secret(self.password)
             mask_secret(quote(self.password))
         self.team_name = team_name
+
+    @validates("port")
+    def _validate_port(self, _key: str, value: int | None) -> int | None:
+        """
+        Validate port assignment on Connection instances.
+
+        SQLAlchemy's @validates decorator intercepts attribute assignments (such as
+        in __init__ and when setting conn.port = ...), ensuring invalid ports are
+        rejected on write without breaking existing rows loaded from the database
+        (which bypass @validates unless modified).
+        """
+        return validate_port(value)
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
@@ -615,11 +643,12 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         if conn_type:
             kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
         port = kwargs.pop("port", None)
-        if port:
+        if port is not None:
             try:
                 kwargs["port"] = int(port)
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+            validate_port(kwargs["port"])
         return Connection(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:

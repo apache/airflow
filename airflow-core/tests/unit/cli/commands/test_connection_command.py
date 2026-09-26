@@ -817,6 +817,22 @@ class TestCliAddConnections:
             "alphanumeric characters, dashes, dots and underscores exclusively"
         )
 
+    def test_cli_connections_add_invalid_port_type(self):
+        """CLI should reject non-integer --conn-port via argparse."""
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(
+                ["connections", "add", "new_conn", "--conn-type=http", "--conn-port=not_a_number"]
+            )
+
+    @pytest.mark.parametrize("invalid_port", [0, -1, 65536, 70000])
+    def test_cli_connections_add_invalid_port_range(self, invalid_port):
+        """CLI should reject port numbers outside 1-65535 when adding connection."""
+        args = self.parser.parse_args(
+            ["connections", "add", "new_conn", "--conn-type=http", f"--conn-port={invalid_port}"]
+        )
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            connection_command.connections_add(args)
+
 
 class TestCliDeleteConnections:
     parser = cli_parser.get_parser()
