@@ -113,6 +113,18 @@ class TestHelpers:
         merged = merge_dicts(dict1, dict2)
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
+    @pytest.mark.parametrize("dict1_value", [1, "text", None, ["x"]], ids=["int", "str", "none", "list"])
+    def test_merge_dicts_right_dict_overwrites_left_non_dict(self, dict1_value):
+        dict1 = {"a": dict1_value, "b": 2}
+        dict2 = {"a": {"c": 3}}
+        merged = merge_dicts(dict1, dict2)
+        assert merged == {"a": {"c": 3}, "b": 2}
+        assert dict1 == {"a": dict1_value, "b": 2}
+
+    def test_merge_dicts_right_non_dict_overwrites_left_dict(self):
+        merged = merge_dicts({"a": {"c": 3}}, {"a": 1})
+        assert merged == {"a": 1}
+
     def test_build_airflow_dagrun_url(self):
         expected_url = "/dags/somedag/runs/abc123"
         assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url
