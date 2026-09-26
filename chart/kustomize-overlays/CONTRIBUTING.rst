@@ -251,7 +251,16 @@ under ``chart/kustomize-overlays/`` with a ``verify:`` block:
    any of those appears the runner aborts with the offending reason and
    a ``kubectl describe`` dump, rather than waiting out the full
    ``timeout_seconds``.
-5. **Run the optional per-overlay pytest module.** If
+5. **Check the Airflow deployment's pod health.** Pods in the target namespace
+   with the chart's ``release=<release-name>`` label must be ``Running``
+   and ``Ready``, or ``Succeeded`` for completed work such as Helm hook Jobs.
+   There must be at least one active pod; an empty selection or only completed
+   pods does not establish a healthy deployment. The runner rechecks the pod
+   list while pods start or terminate, up to ``verify.timeout_seconds``
+   (default 300), and dumps pod status and descriptions on timeout.
+   This baseline runs even with ``--no-pytest``. It checks pod readiness,
+   not application-level behaviour or end-to-end Dag execution.
+6. **Run the optional per-overlay pytest module.** If
    ``chart/tests/overlay_tests/test_<name>.py``
    exists and ``--no-pytest`` was not passed, it is executed with
    ``OVERLAY_UNDER_TEST``, ``OVERLAY_NAMESPACE``, and
@@ -259,7 +268,7 @@ under ``chart/kustomize-overlays/`` with a ``verify:`` block:
    up an ad-hoc client pod (for example to exercise the overlay's data
    plane) should prefer reusing an image already declared by the
    overlay so they inherit the auto-preload for free.
-6. **Clean up.** The same substituted manifest is fed to
+7. **Clean up.** The same substituted manifest is fed to
    ``kubectl delete -f -`` (with ``--ignore-not-found``) unless
    ``--skip-cleanup`` was passed.
 
