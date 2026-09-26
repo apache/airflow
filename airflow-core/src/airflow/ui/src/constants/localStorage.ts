@@ -21,8 +21,6 @@
 export const TIMEZONE_KEY = "timezone";
 export const DEFAULT_DAG_VIEW_KEY = "default_dag_view";
 export const DAGS_LIST_DISPLAY_KEY = "dags_list_display";
-export const CALENDAR_GRANULARITY_KEY = "calendar-granularity";
-export const CALENDAR_VIEW_MODE_KEY = "calendar-view-mode";
 export const LOG_WRAP_KEY = "log_wrap";
 export const LOG_SHOW_TIMESTAMP_KEY = "log_show_timestamp";
 export const LOG_SHOW_SOURCE_KEY = "log_show_source";
