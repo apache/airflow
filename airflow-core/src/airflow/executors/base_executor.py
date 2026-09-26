@@ -288,10 +288,16 @@ class BaseExecutor(LoggingMixin):
         log.warning(message)
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
-        stats.initialize(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-        )
+        try:
+            stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            )
+        except Exception:
+            self.log.warning(
+                "Failed to initialize Stats in the executor; metrics will not be recorded.",
+                exc_info=True,
+            )
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
