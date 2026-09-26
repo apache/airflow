@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import shutil
 from datetime import timedelta
+from unittest import mock
 
 import time_machine
 
@@ -88,6 +89,24 @@ class TestFileProcessorHandler:
             assert os.path.islink(link)
             assert os.path.basename(os.path.realpath(link)) == date2
             assert os.path.exists(os.path.join(link, "log2"))
+
+    @mock.patch.object(FileProcessorHandler, "_symlink_latest_log_directory", autospec=True)
+    def test_symlink_not_refreshed_within_same_day(self, mock_symlink):
+        with time_machine.travel("2026-01-01 10:00:00+00:00", tick=False):
+            handler = FileProcessorHandler(
+                base_log_folder=self.base_log_folder, filename_template=self.filename
+            )
+            handler.dag_dir = self.dag_dir
+            mock_symlink.reset_mock()
+
+        with time_machine.travel("2026-01-01 23:59:59+00:00", tick=False):
+            handler.set_context(filename=os.path.join(self.dag_dir, "log1"))
+            handler.set_context(filename=os.path.join(self.dag_dir, "log2"))
+        mock_symlink.assert_not_called()
+
+        with time_machine.travel("2026-01-02 00:00:01+00:00", tick=False):
+            handler.set_context(filename=os.path.join(self.dag_dir, "log3"))
+        mock_symlink.assert_called_once()
 
     def test_symlink_latest_log_directory_exists(self):
         handler = FileProcessorHandler(base_log_folder=self.base_log_folder, filename_template=self.filename)
