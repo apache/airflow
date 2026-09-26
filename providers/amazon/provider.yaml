@@ -1527,6 +1527,21 @@ config:
         type: string
         example: ~
         default: ~
+      allow_idp_initiated_login:
+        description: |
+          Whether to accept SAML assertions that no login started from Airflow asked for, such as
+          the ones produced by clicking the Airflow tile in the AWS Identity Center access portal
+          (IdP-initiated SSO).
+
+          When this is disabled, a SAML response is only accepted if it answers an AuthnRequest that
+          the same browser started. That binding is what stops an assertion obtained elsewhere from
+          being accepted in another user's browser, which would sign that user in as the assertion's
+          subject. Enable it only where the access portal flow is required and that trade-off is
+          accepted.
+        version_added: 9.37.0
+        type: boolean
+        example: "True"
+        default: "False"
 
 executors:
   - airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor
