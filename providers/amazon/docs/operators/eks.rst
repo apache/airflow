@@ -205,6 +205,26 @@ Note: An Amazon EKS Cluster with underlying compute infrastructure is required.
     :start-after: [START howto_operator_eks_pod_operator]
     :end-before: [END howto_operator_eks_pod_operator]
 
+.. _howto/decorator:eks_pod:
+
+Run a Python task on an Amazon EKS Cluster from TaskFlow
+========================================================
+
+The ``@task.eks_pod`` decorator runs a decorated Python function inside a pod on an existing Amazon
+EKS Cluster, using the TaskFlow style. It wraps
+:class:`~airflow.providers.amazon.aws.operators.eks.EksPodOperator`, which builds the cluster
+kubeconfig and a short-lived token from the AWS connection (``aws_conn_id``) at run time. This means
+the worker does not need the ``aws`` CLI or a pre-built kubeconfig, which is what running
+``@task.kubernetes`` against EKS would otherwise require.
+
+An Amazon EKS Cluster with underlying compute infrastructure is required.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_pod_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_decorator_eks_pod]
+    :end-before: [END howto_decorator_eks_pod]
+
 Sensors
 -------
 
