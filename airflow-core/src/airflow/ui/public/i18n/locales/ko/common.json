@@ -40,6 +40,8 @@
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 번들",
+  "dagBundle_other": "Dag 번들",
   "dagDetails": {
     "activeRuns": "활성 실행 수",
     "catchup": "캐치업",
@@ -166,6 +168,11 @@
   "generateToken": "토큰 생성",
   "includedIn": "포함됨",
   "key": "키",
+  "logLevel": {
+    "hide": "로그 레벨 숨기기",
+    "hotkey": "l",
+    "show": "로그 레벨 보기"
+  },
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
   "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
@@ -295,6 +302,10 @@
         "helper": "개별적으로 설정하지 않은 Dag 및 에셋 그래프의 레이아웃 방향입니다.",
         "label": "기본 그래프 방향"
       },
+      "taskGroupsExpanded": {
+        "helper": "그룹 선택을 저장하지 않은 Dag에서 태스크 그룹을 펼칩니다. 기존 선택은 유지됩니다.",
+        "label": "기본으로 태스크 그룹 펼치기"
+      },
       "title": "그래프"
     },
     "marking": {
@@ -346,6 +357,7 @@
       "toggleExpand": "모든 그룹 펼치기/접기",
       "toggleFullscreen": "전체 화면 전환",
       "toggleGraphGrid": "그래프 / 그리드 뷰 전환",
+      "toggleLogLevel": "로그 레벨 보기/숨기기",
       "toggleSource": "소스 보기/숨기기",
       "toggleTaskGroup": "$t(taskGroup_one) 펼치기/접기",
       "toggleTimestamp": "타임스탬프 보기/숨기기",
