@@ -162,7 +162,7 @@ def get_asset_state_store(
 @asset_state_store_router.put(
     "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="PUT"))],
 )
 def set_asset_state_store(
@@ -172,16 +172,13 @@ def set_asset_state_store(
     session: SessionDep,
 ) -> None:
     """Set an asset state store value. Creates or overwrites the key."""
-    try:
-        _get_db_backend().set_asset_state_store(
-            AssetScope(asset_id=asset_id),
-            key,
-            json.dumps(body.value),
-            kind=AssetStateStoreWriterKind.API,
-            session=session,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    _get_db_backend().set_asset_state_store(
+        AssetScope(asset_id=asset_id),
+        key,
+        json.dumps(body.value),
+        kind=AssetStateStoreWriterKind.API,
+        session=session,
+    )
 
 
 @asset_state_store_router.delete(
