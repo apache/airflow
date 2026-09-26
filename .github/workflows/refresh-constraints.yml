@@ -53,6 +53,7 @@ on:  # yamllint disable-line rule:truthy
         type: boolean
         default: true
 permissions:
+  actions: read
   contents: read
 concurrency:
   # Two refreshes of the same ref would race each other onto the same `constraints-X-Y` branch.
@@ -63,6 +64,7 @@ jobs:
     name: "Refresh constraints"
     uses: ./.github/workflows/update-constraints-on-push.yml
     permissions:
+      actions: read
       contents: write
       packages: write
     with:
