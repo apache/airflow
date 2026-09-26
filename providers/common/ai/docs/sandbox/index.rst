@@ -50,10 +50,11 @@ model a disposable workspace for that code instead. It exposes four tools:
 
 The sandbox is provisioned by a
 :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` on the model's first
-tool call and torn down when the agent run ends. Two backends ship: a hosted one on
-`Modal <https://modal.com/docs/guide/sandbox>`__ for production and Kubernetes,
-and a local microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__
-for development. The four tool names and shapes match pydantic-ai's own sandbox
+tool call and torn down when the agent run ends. Three backends ship: a hosted one on
+`Modal <https://modal.com/docs/guide/sandbox>`__ and a self-hosted one on
+`OpenSandbox <https://open-sandbox.ai/>`__ for production and Kubernetes, and a local
+microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ for
+development. The four tool names and shapes match pydantic-ai's own sandbox
 capabilities, so a model that has seen one already knows this one.
 
 **Adding this toolset gives the agent shell and file operations in a separate
@@ -275,11 +276,16 @@ sandbox, and every other toolset stays on the worker.
      - Modal's container runtime, which Modal documents as gVisor.
      - Modal's infrastructure, off the worker.
      - Ended by Modal at ``sandbox_timeout``, or ``idle_timeout`` if set.
+   * - ``OpenSandboxBackend``
+     - The container runtime your OpenSandbox deployment configures, on Docker or
+       Kubernetes.
+     - Your OpenSandbox server's Docker host or Kubernetes cluster, off the worker.
+     - Ended by the OpenSandbox server at ``sandbox_timeout``.
 
 When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
-removal command and waits up to two minutes for it; Modal sends a termination
-request and returns without waiting for the sandbox to stop. Either can return with
-the sandbox still present, and neither case fails the task. A SIGKILL, an
+removal command and waits up to two minutes for it; Modal and OpenSandbox each send a
+termination request and return without waiting for the sandbox to stop. Any of them
+can return with the sandbox still present, and none of those cases fails the task. A SIGKILL, an
 out-of-memory kill or a lost node skips that teardown entirely, and then only the
 last column applies.
 
@@ -357,16 +363,19 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
 
 **What it cannot do**
 
-- Only one of its two backends runs on Kubernetes. ``SbxSandboxBackend`` drives
+- One of its three backends does not run on Kubernetes. ``SbxSandboxBackend`` drives
   Docker Sandboxes on the worker host, and its own documentation says to use it
   for local development: it wants the ``sbx`` binary on the host, an
   authenticated Docker account, a one-time ``sbx policy init``, and on Linux KVM
   or nested virtualization, which an unprivileged container cannot provide.
-  Production and Kubernetes use
-  :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend`, a
-  hosted backend behind the ``modal`` extra that installs nothing on the worker
-  and reclaims a sandbox at its own lifetime if the worker dies. Both implement
-  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and a third
+  Production and Kubernetes use a remote backend instead, either
+  :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` behind
+  the ``modal`` extra for a managed service, or
+  :class:`~airflow.providers.common.ai.sandbox.opensandbox.OpenSandboxBackend`
+  behind ``opensandbox`` for a self-hosted one. Neither installs anything on the
+  worker, and each reclaims a sandbox at its own server-side lifetime if the
+  worker dies. All three implement
+  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and another
   vendor can too.
 - It does not contain the agent. Only what these tools do runs in the sandbox;
   the agent loop, the model calls, and every other toolset on the same agent stay
@@ -384,7 +393,10 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
   under the default ``host_network_policy="unknown"``. On Modal the same default
   maps onto the sandbox's own ``block_network`` and is enforced exactly; a
   hostname allowlist there is matched on the TLS handshake name and has to be
-  opted into, for the reasons set out on :doc:`backends`.
+  opted into, for the reasons set out on :doc:`backends`. OpenSandbox enforces
+  hostname allowlists with its egress sidecar, but refuses
+  ``allow_egress_to_cidrs`` because the SDK cannot prove the sidecar is in the
+  ``dns+nft`` mode required for CIDR enforcement.
 - Reclamation depends on the backend. A failed teardown is logged as a warning
   rather than raised, deliberately, so that a teardown blip cannot fail a
   finished run. On ``sbx`` nothing else picks up the slack: there is no

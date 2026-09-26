@@ -76,6 +76,11 @@ def get_provider_info():
                 "external-doc-url": "https://modal.com/docs/guide/sandbox",
                 "tags": ["service"],
             },
+            {
+                "integration-name": "OpenSandbox",
+                "external-doc-url": "https://open-sandbox.ai/",
+                "tags": ["software"],
+            },
         ],
         "hooks": [
             {
