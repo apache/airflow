@@ -136,7 +136,7 @@ where they were, and the Pull Request keeps its whole review history.
 * Once you have a free slot, comment ``/reopen`` on the Pull Request. GitHub does not let you reopen a
   Pull Request that a maintainer closed, so a workflow reopens it for you and removes the
   ``closed because of open PR limit`` label - as long as you are its author and have fewer than 5 open
-  Pull Requests. Rebase and push afterwards, because reopening does not re-run CI.
+  Pull Requests.
 
 * If the Pull Request cannot be reopened - for example because you force-pushed to or deleted its
   branch after it was closed - push the branch again (under a new name if needed) and open a new Pull

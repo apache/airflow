@@ -103,6 +103,4 @@ jobs:
             await reply(
               `This Pull Request was closed in the one-time closure for the ${LIMIT_LINK},`,
               `and your \`/reopen\` comment reopened it. The \`${LABEL}\` label is removed.`,
-              'CI does not run again on reopen,',
-              'so please rebase on the latest `main` and push to run the checks.',
             );
