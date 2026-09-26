@@ -23,7 +23,7 @@ import math
 import shlex
 import time
 from contextlib import contextmanager, suppress
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
 from airflow.providers.common.ai.hooks.islo import IsloHook
 from airflow.providers.common.ai.sandbox.base import (
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from islo import Islo
-    from islo.errors import NotFoundError
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
 
@@ -65,6 +64,11 @@ _POLL_BACKOFF = 1.5
 # task failure instead of the timeout result.
 _POLL_HTTP_TIMEOUT_MIN = 5.0
 _FILE_OP_TIMEOUT = 120.0
+# File-transfer responses that say nothing the model can act on: bad credentials,
+# a rate limit, or an overloaded API. Every other status is checked against the
+# sandbox before it is handed to the model; see ``_raise_file_op_error``.
+_TERMINAL_FILE_OP_STATUSES = frozenset({401, 403, 429})
+_API_MESSAGE_MAX_CHARS = 200
 # Measured against the compute API: each stream is capped at exactly this many
 # bytes with the tail kept, and one ``truncated`` flag covers both streams. The
 # wrapper never asks for more than this per stream, so the server's cap is not
@@ -111,12 +115,24 @@ def _translate_islo_errors(operation: str) -> Iterator[None]:
             from islo.core.api_error import ApiError
         except ImportError:
             raise SandboxTerminalError(
-                'The Islo SDK is not installed. Install "apache-airflow-providers-common-ai[sandbox-islo]".'
+                'The Islo SDK is not installed. Install "apache-airflow-providers-common-ai[islo]".'
             ) from e
         if isinstance(e, ApiError):
             status = f" (HTTP {e.status_code})" if e.status_code is not None else ""
             raise SandboxTerminalError(f"Islo could not {operation}{status}.") from e
         raise SandboxTerminalError(f"Islo could not {operation}: {type(e).__name__}.") from e
+
+
+def _api_error_message(error: Exception) -> str:
+    """Return the ``message`` of an Islo error body, trimmed for a prompt, or ``""``."""
+    body = getattr(error, "body", None)
+    message = body.get("message") if isinstance(body, dict) else None
+    if not isinstance(message, str):
+        return ""
+    message = message.strip().rstrip(".")
+    if len(message) > _API_MESSAGE_MAX_CHARS:
+        message = message[:_API_MESSAGE_MAX_CHARS] + "..."
+    return message
 
 
 def _is_transient_error(error: Exception) -> bool:
@@ -199,7 +215,7 @@ class IsloSandboxBackend(SandboxBackend):
         vcpus: int | None = None,
         memory_mb: int | None = None,
         pause_after_idle: int | None = 600,
-        auto_resume: str = "on_activity",
+        auto_resume: Literal["never", "on_activity"] = "on_activity",
         delete_after: int | None = 86400,
     ) -> None:
         if pause_after_idle is not None:
@@ -269,6 +285,12 @@ class IsloSandboxBackend(SandboxBackend):
                 "The Islo backend cannot apply a per-domain egress allowlist; it can only turn "
                 "outbound access on or off. Drop allow_egress_to, or use a backend with "
                 "per-domain network rules."
+            )
+        if spec is not None and spec.allow_egress_to_cidrs:
+            raise SandboxTerminalError(
+                "SandboxSpec names allow_egress_to_cidrs, which the Islo backend cannot enforce: "
+                "it can only turn outbound access on or off. Drop allow_egress_to_cidrs, or use "
+                "a backend with an address-layer allowlist."
             )
         if spec is not None and spec.env and "PATH" in spec.env:
             raise SandboxTerminalError(
@@ -354,13 +376,18 @@ class IsloSandboxBackend(SandboxBackend):
             self.destroy(sandbox)
         except SandboxError:
             # Warn rather than fail the task: the command merely ran long, and
-            # the lifecycle policy reclaims the microVM whether or not this call
-            # landed. Failing here would turn a timeout the model can react to
-            # into a task failure over a transient error.
+            # failing here would turn a timeout the model can react to into a
+            # task failure over a transient error. The warning says whether the
+            # lifecycle policy will reclaim the microVM, since with
+            # ``delete_after=None`` nothing will.
+            if self._delete_after is not None:
+                reclaim = f"its delete_after policy removes it {self._delete_after}s after creation"
+            else:
+                reclaim = "delete_after is disabled, so it persists until deleted by hand"
             log.warning(
-                "Timed out running a command in Islo sandbox %s and could not confirm its deletion; "
-                "the server-side lifecycle policy will reclaim it.",
+                "Timed out running a command in Islo sandbox %s and could not confirm its deletion; %s.",
                 sandbox,
+                reclaim,
                 exc_info=True,
             )
 
@@ -433,13 +460,43 @@ class IsloSandboxBackend(SandboxBackend):
             raise SandboxError(result.stderr.strip() or f"Could not {operation}.")
         return result
 
-    def _raise_file_not_found(self, sandbox: str, path: str, error: NotFoundError) -> None:
-        with _translate_islo_errors("check a sandbox after a missing file response"):
+    def _raise_file_op_error(
+        self, sandbox: str, path: str, error: Exception, *, operation: str, hint: str = ""
+    ) -> NoReturn:
+        """
+        Raise a failed file transfer as a prompt for the model when the sandbox explains it.
+
+        Measured against the file APIs: a missing file and a directory are both a
+        404, a relative path is a 400 whose message names the problem, and writing
+        onto a directory or into a read-only mount is a bare 500. Each of those is
+        the model's to fix. A gone or stopped sandbox fails file calls too, and no
+        tool call can fix that, so the sandbox is checked before anything reaches
+        the model. No response at all, bad credentials, a rate limit and a 5xx
+        above 500 say nothing about the path and fail the task.
+        """
+        from islo.core.api_error import ApiError
+
+        status = error.status_code if isinstance(error, ApiError) else None
+        if status is None or status in _TERMINAL_FILE_OP_STATUSES or status > 500:
+            with _translate_islo_errors(f"{operation} a sandbox file"):
+                raise error
+        with _translate_islo_errors(f"check a sandbox after a failed file {operation}"):
             info = self._get_client().sandboxes.get_sandbox(
                 sandbox, request_options=self._request_options(timeout=_FILE_OP_TIMEOUT)
             )
         self._ensure_sandbox_usable(info)
-        raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.") from error
+        if status == 404:
+            raise SandboxError(
+                f"{path!r} does not exist in the sandbox, or is not a regular file."
+            ) from error
+        message = f"Could not {operation} {path!r} (HTTP {status})"
+        detail = _api_error_message(error) if status < 500 else ""
+        if detail:
+            message += f": {detail}"
+        message += "."
+        if hint and status >= 500:
+            message += f" {hint}"
+        raise SandboxError(message) from error
 
     def _get_file_size(self, sandbox: str, path: str) -> int | None:
         """Ask the guest for the file's size; ``None`` when it cannot say."""
@@ -456,8 +513,6 @@ class IsloSandboxBackend(SandboxBackend):
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         _validate_positive_finite(max_bytes, "max_bytes")
         client = self._get_client()
-        from islo.errors import NotFoundError
-
         chunks = None
         data = bytearray()
         over_budget = False
@@ -474,11 +529,8 @@ class IsloSandboxBackend(SandboxBackend):
                 if len(data) > max_bytes:
                     over_budget = True
                     break
-        except NotFoundError as e:
-            self._raise_file_not_found(sandbox, path, e)
-        except Exception:
-            with _translate_islo_errors("download a sandbox file"):
-                raise
+        except Exception as e:
+            self._raise_file_op_error(sandbox, path, e, operation="read")
         finally:
             close = getattr(chunks, "close", None)
             if close is not None:
@@ -504,12 +556,21 @@ class IsloSandboxBackend(SandboxBackend):
             f'mkdir -p -- "$(dirname -- {quoted})"',
             operation=f"create the parent directory for {path!r}",
         )
-        with _translate_islo_errors("upload a sandbox file"):
-            self._get_client().sandboxes.upload_file(
+        client = self._get_client()
+        try:
+            client.sandboxes.upload_file(
                 sandbox,
                 path=path,
                 file=("upload", content, "application/octet-stream"),
                 request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
+            )
+        except Exception as e:
+            self._raise_file_op_error(
+                sandbox,
+                path,
+                e,
+                operation="write",
+                hint="Islo answers this way when the path is a directory or on a read-only filesystem.",
             )
 
     def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:

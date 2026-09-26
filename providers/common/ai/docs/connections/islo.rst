@@ -47,8 +47,10 @@ API URL (Extra field)
     is ``https://api.islo.dev``. Stored in ``extra["base_url"]``.
 
 Request Timeout (Extra field)
-    Optional. HTTP request timeout in seconds, applied to every SDK call.
-    Stored in ``extra["timeout"]``.
+    Optional. Default HTTP timeout in seconds for the SDK client the hook
+    returns. Stored in ``extra["timeout"]``. It only affects direct use of the
+    client: ``IsloSandboxBackend`` sets a timeout on every call itself, bounded by
+    the command deadline, and 120 seconds for file transfers.
 
 The ``schema``, ``port`` and ``login`` fields are hidden in the connection
 form; they are not used by this connection type.
@@ -80,6 +82,6 @@ Examples
     {
         "conn_type": "islo",
         "password": "<api-key>",
-        "host": "https://eu.compute.islo.dev",
+        "host": "https://<region>.compute.islo.dev",
         "extra": "{\"timeout\": 60}"
     }

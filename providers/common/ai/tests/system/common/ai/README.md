@@ -57,7 +57,7 @@ pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_tools
 Install the Islo extra and export a short-lived API key into the task process:
 
 ```console
-pip install "apache-airflow-providers-common-ai[sandbox-islo]"
+pip install "apache-airflow-providers-common-ai[islo]"
 export ISLO_API_KEY="..."
 pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_islo.py
 ```

@@ -174,7 +174,7 @@ Install the SDK extra:
 
 .. code-block:: bash
 
-    pip install "apache-airflow-providers-common-ai[sandbox-islo]"
+    pip install "apache-airflow-providers-common-ai[islo]"
 
 .. code-block:: python
 
@@ -213,10 +213,11 @@ Constructor parameters:
   sandbox is busy, so keep it longer than the longest run you expect.
 
 ``SandboxSpec.env`` becomes the process environment of every command, and
-``block_network`` maps to the API's ``internet_enabled``. Two things Islo cannot
-do are refused at ``create`` rather than silently dropped: a per-domain
-``allow_egress_to`` (the API turns outbound access on or off, not per host) and a
-``PATH`` entry in ``env`` (the runner sets ``PATH`` for every command itself).
+``block_network`` maps to the API's ``internet_enabled``. Three things Islo cannot
+do are refused at ``create`` rather than silently dropped: ``allow_egress_to`` and
+``allow_egress_to_cidrs`` (the API turns outbound access on or off, with no
+per-host or per-address rule) and a ``PATH`` entry in ``env`` (the runner sets
+``PATH`` for every command itself).
 
 File reads and writes use Islo's native streaming APIs; directory listings and
 command-output bounding run ``sh``, ``tail``, ``stat`` and GNU ``find`` in the
@@ -232,8 +233,13 @@ The backend enforces the command deadline itself, because the API's
 errors until the deadline. If no terminal state arrives by then, the backend
 deletes the microVM and reports the command as timed out with
 ``sandbox_terminated`` set, so the toolset provisions a fresh sandbox for the next
-call; a deletion the API refused is logged and left to the lifecycle policy to
-reclaim rather than failing the task.
+call. A deletion the API refused is logged rather than failing the task, and
+``delete_after`` reclaims the microVM later; with ``delete_after=None`` nothing
+does, and the warning says so.
+
+A missing file, a directory passed as a file, a relative path, and a write onto a
+directory or a read-only mount come back to the model as a recoverable error it
+can correct, once the backend has confirmed the sandbox itself is still usable.
 
 sbx (Docker Sandboxes, local)
 -----------------------------
@@ -292,8 +298,8 @@ behaves identically everywhere:
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into; Islo has no per-host form at all and refuses the spec rather than
   provisioning something weaker. ``allow_egress_to_cidrs`` is enforced at the
-  address layer on Modal and refused on ``sbx``, which has no per-sandbox address
-  rule.
+  address layer on Modal and refused on ``sbx`` and Islo, which have no
+  per-sandbox address rule.
 - **Command timeouts.** A timeout destroys an ``sbx`` or Islo sandbox and its
   files; a Modal sandbox survives with its files intact.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and

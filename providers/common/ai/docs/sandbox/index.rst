@@ -369,8 +369,9 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
   :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` behind
   the ``modal`` extra or
   :class:`~airflow.providers.common.ai.sandbox.islo.IsloSandboxBackend` behind
-  ``sandbox-islo``; neither installs anything on the worker, and both reclaim a
-  sandbox at its own lifetime if the worker dies. All implement
+  the ``islo`` extra; neither installs anything on the worker, and both reclaim a
+  sandbox at a server-side lifetime if the worker dies (for Islo, unless
+  ``delete_after=None``). All implement
   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and another vendor
   can too.
 - It does not contain the agent. Only what these tools do runs in the sandbox;

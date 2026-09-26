@@ -68,6 +68,6 @@ Parameters
 Dependencies
 ------------
 
-Install the ``sandbox-islo`` extra to use this hook::
+Install the ``islo`` extra to use this hook::
 
-    pip install "apache-airflow-providers-common-ai[sandbox-islo]"
+    pip install "apache-airflow-providers-common-ai[islo]"

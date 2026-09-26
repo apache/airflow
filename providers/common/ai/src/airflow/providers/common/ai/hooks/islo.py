@@ -41,7 +41,10 @@ class IsloHook(BaseHook):
     * **host**: optional compute URL, passed as ``compute_url=`` -- the regional
       API the microVMs run on. The SDK default is ``https://ca.compute.islo.dev``.
     * **extra** JSON: optional ``base_url`` (control-plane URL, SDK default
-      ``https://api.islo.dev``) and ``timeout`` (request timeout in seconds).
+      ``https://api.islo.dev``) and ``timeout`` (default HTTP timeout in seconds
+      for the returned client). :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend`
+      sets its own timeout on every call, so ``timeout`` only affects direct use of
+      the client.
 
     :param islo_conn_id: Airflow connection ID. Falls back to
         :attr:`default_conn_name` (``"islo_default"``) if not provided.
