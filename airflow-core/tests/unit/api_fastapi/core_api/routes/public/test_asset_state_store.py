@@ -291,6 +291,18 @@ class TestSetAssetState(TestAssetStateEndpoint):
         assert response.status_code == 204
         assert test_client.get(f"{self._base_url}/partition/date").json()["key"] == "partition/date"
 
+    def test_set_asset_state_store_domain_error_returns_400(self, test_client):
+        """Domain-level ValueError raised by the backend translates to HTTP 400."""
+        with patch(
+            "airflow.api_fastapi.core_api.routes.public.asset_state_store._get_db_backend"
+        ) as mock_backend:
+            mock_backend.return_value.set_asset_state_store.side_effect = ValueError(
+                "Invalid payload for asset scope"
+            )
+            response = test_client.put(f"{self._base_url}/watermark", json={"value": "v"})
+            assert response.status_code == 400
+            assert response.json()["detail"] == "Invalid payload for asset scope"
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert (
             unauthenticated_test_client.put(f"{self._base_url}/watermark", json={"value": "v"}).status_code
