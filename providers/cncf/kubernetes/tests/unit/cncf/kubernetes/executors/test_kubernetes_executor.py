@@ -2078,6 +2078,32 @@ class TestKubernetesExecutor:
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_ignores_duplicate_completion_event(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        """A repeated completion event for one TaskInstanceKey must not delete the pod twice."""
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
+            executor.running = {key}
+            results = KubernetesResults(key, State.SUCCESS, "pod_name", "default", "resource_version", None)
+            executor._change_state(results)
+            # The watcher can deliver the same completion event more than once.
+            executor._change_state(results)
+            executor._change_state(results)
+            assert executor.event_buffer[key][0] == State.SUCCESS
+            assert executor.running == set()
+            mock_delete_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler"
     )
     def test_change_state_failed_no_deletion(
@@ -2420,6 +2446,53 @@ class TestKubernetesExecutor:
             executor._change_state(_failed("pod_b"))
             assert executor.pod_launch_attempts[key].attempts == 2
             assert executor.pod_launch_attempts[key].requeued_for_pod == "pod_b"
+            assert key in executor.running
+            assert key not in executor.event_buffer
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_pre_execution_failure_duplicate_does_not_redelete_pod(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher, create_task_instance
+    ):
+        """Repeated Failed events for one pod delete it once; a new pod is deleted once more."""
+        executor = self.kubernetes_executor
+        executor.pod_launch_failure_max_retries = 5
+        executor.kube_config.delete_worker_pods_on_failure = True
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            key = ti.key
+            job = KubernetesJob(key, ["airflow", "tasks", "run"], None, None)
+            executor.running = {key}
+            executor.pod_launch_attempts = {key: _PodLaunchAttempt(job=job)}
+
+            def _failed(pod_name):
+                return KubernetesResults(
+                    key,
+                    State.FAILED,
+                    pod_name,
+                    "default",
+                    "rv",
+                    {"container_reason": "ContainerStatusUnknown"},
+                )
+
+            executor._change_state(_failed("pod_a"))
+            executor._change_state(_failed("pod_a"))
+            executor._change_state(_failed("pod_a"))
+            executor._change_state(_failed("pod_b"))
+            assert mock_delete_pod.call_count == 2
+            mock_delete_pod.assert_has_calls(
+                [
+                    mock.call(pod_name="pod_a", namespace="default"),
+                    mock.call(pod_name="pod_b", namespace="default"),
+                ]
+            )
             assert key in executor.running
             assert key not in executor.event_buffer
         finally:
@@ -2985,7 +3058,7 @@ class TestKubernetesExecutor:
     def test_sync_processes_completed_pods_once(
         self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
-        """Adopted completed pods must not be re-deleted for every result-queue item."""
+        """Adopted completed pods are deleted once; untracked duplicate queue items are ignored."""
         executor = self.kubernetes_executor
         executor.start()
         try:
@@ -3006,7 +3079,7 @@ class TestKubernetesExecutor:
 
             executor.sync()
 
-            assert mock_delete_pod.call_count == 3
+            mock_delete_pod.assert_called_once_with(pod_name="completed-pod", namespace="default")
             assert executor.completed == {}
         finally:
             executor.end()
@@ -3020,7 +3093,7 @@ class TestKubernetesExecutor:
     def test_sync_processes_completed_pods_once_without_deletion(
         self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
-        """Adopted completed pods must not be re-patched for every result-queue item."""
+        """Adopted completed pods are patched once; untracked duplicate queue items are ignored."""
         mock_delete_pod = mock_kubescheduler.return_value.delete_pod
         mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
@@ -3045,15 +3118,7 @@ class TestKubernetesExecutor:
             executor.sync()
 
             mock_delete_pod.assert_not_called()
-            assert mock_patch_pod.call_count == 3
-            mock_patch_pod.assert_has_calls(
-                [
-                    mock.call(pod_name="completed-pod", namespace="default"),
-                    mock.call(pod_name="queue-pod", namespace="default"),
-                    mock.call(pod_name="queue-pod-2", namespace="default"),
-                ],
-                any_order=True,
-            )
+            mock_patch_pod.assert_called_once_with(pod_name="completed-pod", namespace="default")
             assert executor.completed == {}
         finally:
             executor.end()

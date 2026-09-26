@@ -840,6 +840,35 @@ class KubernetesExecutor(BaseExecutor):
             self.event_buffer[key] = state, None
             return
 
+        # Only pods this executor launched and is still tracking can be requeued; checking the
+        # in-memory attempt first avoids a metadata-db lookup for adopted or already-finalized pods.
+        attempt = self.pod_launch_attempts.get(key)
+        if attempt is not None and state == TaskInstanceState.FAILED and attempt.requeued_for_pod == pod_name:
+            # Kubernetes can emit several Failed events for one pod; we already requeued
+            # for this one, so ignore the duplicate before any pod API calls.
+            self.log.debug(
+                "Ignoring duplicate pre-execution failure for already-requeued pod %s/%s",
+                namespace,
+                pod_name,
+            )
+            return
+
+        # Completed pods adopted from a scheduler that is no longer alive are never tracked in
+        # self.running; their delete_pod call below is the intended cleanup (not a duplicate),
+        # and nothing is reported to the scheduler for them.
+        adopted_completed_pod = state == "completed"
+        if not adopted_completed_pod:
+            # The watcher can deliver the same completion event more than once for a
+            # TaskInstanceKey (e.g. mapped tasks). The first pass removes the key from
+            # self.running, so a repeat is a duplicate whose pod API calls already ran:
+            # drop it here, before issuing another delete_pod that would only 404
+            # against the API server.
+            try:
+                self.running.remove(key)
+            except KeyError:
+                self.log.debug("TI key not in running, ignoring duplicate completion event: %s", key)
+                return
+
         if self.kube_config.delete_worker_pods:
             if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
@@ -853,9 +882,6 @@ class KubernetesExecutor(BaseExecutor):
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
 
-        # Only pods this executor launched and is still tracking can be requeued; checking the
-        # in-memory attempt first avoids a metadata-db lookup for adopted or already-finalized pods.
-        attempt = self.pod_launch_attempts.get(key)
         if (
             attempt is not None
             and state == TaskInstanceState.FAILED
@@ -867,15 +893,6 @@ class KubernetesExecutor(BaseExecutor):
                 self.pod_launch_failure_excluded_container_reasons,
             )
         ):
-            if attempt.requeued_for_pod == pod_name:
-                # Kubernetes can emit several Failed events for one pod; we already requeued
-                # for this one, so ignore the duplicates instead of requeuing again.
-                self.log.debug(
-                    "Ignoring duplicate pre-execution failure for already-requeued pod %s/%s",
-                    namespace,
-                    pod_name,
-                )
-                return
             if (
                 self.pod_launch_failure_max_retries == -1
                 or attempt.attempts < self.pod_launch_failure_max_retries
@@ -892,8 +909,10 @@ class KubernetesExecutor(BaseExecutor):
                     key,
                     failure_details.get("container_reason") if failure_details else None,
                 )
-                # Leave the key in self.running and do not write to event_buffer: the scheduler
-                # never observes this failure, so no task-level retry is consumed.
+                # Re-add the key to self.running (removed by the duplicate-event dedup above)
+                # and do not write to event_buffer: the scheduler never observes this failure,
+                # so no task-level retry is consumed.
+                self.running.add(key)
                 if TYPE_CHECKING:
                     assert self.task_queue
                 self.task_queue.put(attempt.job)
@@ -901,10 +920,9 @@ class KubernetesExecutor(BaseExecutor):
 
         self.pod_launch_attempts.pop(key, None)
 
-        try:
-            self.running.remove(key)
-        except KeyError:
-            self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
+        if adopted_completed_pod:
+            # Adopted completed pod cleaned up above; the task instance already
+            # completed elsewhere, so report nothing to the scheduler.
             return
 
         # If we don't have a TI state, look it up from the db. event_buffer expects the TI state
