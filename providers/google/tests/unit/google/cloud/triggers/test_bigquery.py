@@ -641,14 +641,14 @@ class TestBigQueryIntervalCheckTrigger:
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.aget_records")
     async def test_interval_check_trigger_success(
-        self, mock_get_records, mock_get_job_output, mock_job_status, mock_sync_hook, interval_check_trigger
+        self, mock_aget_records, mock_get_job_output, mock_job_status, mock_sync_hook, interval_check_trigger
     ):
         """
         Tests the BigQueryIntervalCheckTrigger only fires once the query execution reaches a successful state.
         """
-        mock_get_records.return_value = {}
+        mock_aget_records.return_value = []
         mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         mock_get_job_output.return_value = ["0"]
 
@@ -791,18 +791,18 @@ class TestBigQueryValueCheckTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.aget_records")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_value_check_op_trigger_success(
-        self, mock_job_status, get_job_output, get_records, value_check_trigger
+        self, mock_job_status, get_job_output, aget_records, value_check_trigger
     ):
         """
         Tests BigQueryValueCheckTrigger only fires once the query execution reaches a successful state.
         """
         mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         get_job_output.return_value = {}
-        get_records.return_value = [[2], [4]]
+        aget_records.return_value = [[2], [4]]
 
         await value_check_trigger.run().__anext__()
         await asyncio.sleep(0.5)
