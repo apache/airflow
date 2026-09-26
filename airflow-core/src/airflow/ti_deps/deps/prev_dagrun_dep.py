@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, literal, or_, select
 
 from airflow.models.backfill import BackfillDagRun
 from airflow.models.dagrun import DagRun
@@ -75,12 +75,30 @@ class PrevDagrunDep(BaseTIDep):
 
         This function exists for easy mocking in tests.
         """
-        query = exists_query(
-            TI.dag_id == ti.dag_id,
-            TI.task_id == ti.task_id,
-            TI.logical_date < ti.logical_date,
-            session=session,
-        )
+        if ti.logical_date is not None:
+            query = exists_query(
+                TI.dag_id == ti.dag_id,
+                TI.task_id == ti.task_id,
+                TI.logical_date < ti.logical_date,
+                session=session,
+            )
+        else:
+            # Fallback to run_after for manual/asset runs (AIP-39)
+            dr = ti.get_dagrun(session=session)
+            query = (
+                session.scalar(
+                    select(literal(1))
+                    .select_from(TI)
+                    .join(DagRun, TI.run_id == DagRun.run_id)
+                    .where(
+                        TI.dag_id == ti.dag_id,
+                        TI.task_id == ti.task_id,
+                        DagRun.run_after < dr.run_after,
+                    )
+                    .limit(1)
+                )
+                is not None
+            )
         return query
 
     @staticmethod
