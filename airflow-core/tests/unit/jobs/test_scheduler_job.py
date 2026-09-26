@@ -1401,6 +1401,38 @@ class TestSchedulerJob:
         assert ti1.state == TaskInstanceState.QUEUED
         session.rollback()
 
+    @mock.patch("airflow.dag_processing.scheduler_parsing.SchedulerParsingHost", autospec=True)
+    @mock.patch("airflow.jobs.scheduler_job_runner.EventScheduler", autospec=True)
+    @pytest.mark.parametrize("enabled", [False, True])
+    def test_parsing_host_lifecycle_and_timer(self, timers, host, mock_executors, enabled):
+        host.return_value.interval = 0.1
+        timers.return_value.run.return_value = 0.1
+        runner = SchedulerJobRunner(job=Job(), num_runs=1, parsing_config="parsing.json" if enabled else None)
+        runner._execute()
+        if enabled:
+            host.assert_called_once_with("parsing.json")
+            host.return_value.start.assert_called_once()
+            host.return_value.close.assert_called_once()
+            timers.return_value.call_regular_interval.assert_any_call(
+                0.1, host.return_value.tick, non_fatal=True
+            )
+        else:
+            host.assert_not_called()
+        assert runner._parsing_host is None
+        for executor in mock_executors:
+            executor.heartbeat.assert_called_once()
+
+    @mock.patch("airflow.dag_processing.scheduler_parsing.SchedulerParsingHost", autospec=True)
+    def test_parsing_host_start_failure_releases_resources(self, host, mock_executors):
+        host.return_value.start.side_effect = RuntimeError("another host")
+        runner = SchedulerJobRunner(job=Job(), num_runs=1, parsing_config="parsing.json")
+        with pytest.raises(RuntimeError, match="another host"):
+            runner._execute()
+        host.return_value.close.assert_called_once()
+        assert runner._parsing_host is None
+        for executor in mock_executors:
+            executor.end.assert_called_once()
+
     def test_setup_callback_sink_standalone_dag_processor(self, mock_executors):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)

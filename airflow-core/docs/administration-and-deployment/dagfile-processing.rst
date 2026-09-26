@@ -45,6 +45,103 @@ The ``DagFileProcessorManager`` coordinates this work but never runs user code i
 4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
 
 
+Experimental executor parsing
+-----------------------------
+
+The executor parsing prototype can be run through the normal Dag processor command:
+
+.. code-block:: bash
+
+    airflow dag-processor --executor-parsing --num-runs 1
+
+This opt-in mode uses a dedicated ``LocalExecutor``, an authenticated loopback parsing
+API, and a periodic ``ParseOrchestrator``. The command starts and stops these components
+automatically. It discovers Python files and ZIP members in configured ``LocalDagBundle``
+bundles, imports them through the SDK, and writes serialized Dags, source code and import
+errors to the Airflow metadata database. ``--bundle-name`` restricts the bundles to parse.
+Without ``--num-runs``, it continues parsing periodically.
+
+Use a disposable, migrated SQLite development database and existing local bundle directories.
+The prototype creates auxiliary receipt and scheduling tables in that database; these do
+not yet have production migrations. Do not run the regular Dag processor for the same
+bundles at the same time. This local route shares the host's trust and credentials.
+
+``[dag_processor] parsing_processes`` sets the route capacity independently of task
+parallelism. ``min_file_process_interval`` controls repeat parsing and
+``dag_file_processor_timeout`` limits each definition. A workload contains up to ten
+definitions. Logs use ``[logging] dag_processor_child_process_log_directory``.
+Bundles take turns when sharing the route's capacity.
+``--num-runs 1`` waits for one accepted outcome per discovered definition in this invocation
+and for the runner to release its reservations; an import error is an accepted outcome.
+
+The route preserves unresolved reservations after a crash or uncertain termination.
+A restart refuses to redispatch submitted work that has not been reconciled. It requires
+confirmed termination and recovery; neither a missing worker nor an elapsed deadline
+releases capacity. Automatic recovery across runner restarts is not implemented.
+Unclaimed reservations that never entered submission are retired at startup, so
+fresh discovery determines what the new invocation dispatches.
+This mode also does not yet implement callbacks, priority requests, stale-Dag deactivation,
+remote bundles, or scheduler hosting.
+
+Contributors can verify the complete command with normal Breeze tests:
+
+.. code-block:: bash
+
+    breeze run pytest airflow-core/tests/integration/dag_processing/test_executor_parsing.py -v
+    breeze run pytest airflow-core/tests/unit/dag_processing/test_executor_manager.py \
+      airflow-core/tests/unit/dag_processing/test_orchestrator.py \
+      airflow-core/tests/unit/dag_processing/test_parsing_metadata.py -v
+
+The integration test creates and migrates its own temporary SQLite database and local
+bundles, runs the command twice, and checks parsing, publication, logs and source changes.
+No separate API process, signing keys, queue setup or development driver is needed.
+To try the command interactively, use ``breeze shell``, configure a disposable SQLite
+database and local bundles, run ``airflow db migrate``, then run the command above.
+
+Experimental scheduler hosting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The same ``ParseOrchestrator`` can run in the scheduler against an inventory registered
+by a separate discovery process:
+
+.. code-block:: bash
+
+    airflow scheduler --parsing-config /path/to/parsing.json
+
+The JSON file selects one bundle and a dedicated parsing route:
+
+.. code-block:: json
+
+    {"route": "scheduler-parsing", "bundle": "poc", "capacity": 2, "batch_size": 1}
+
+This command only hosts orchestration. A separate ``ParsingExecutorRunner`` must run the
+parsing executor, with a parsing API and workers configured for that route. The scheduler
+does not discover files, prepare bundles or call the parsing provider. Each periodic step
+uses a bounded batch, a cooperative SQL budget (25 ms by default), and no database lock
+wait. Contention defers the step; filesystem or kernel stalls cannot be preempted.
+
+This experiment supports one scheduler, one bundle, single-team configuration, and a
+disposable migrated SQLite database. It excludes another executor parsing host using
+the same database. It does not implement remote discovery, HA adoption or automatic
+recovery of uncertain remote execution. Do not run the regular Dag processor for its
+bundle. Normal deployments still need the Dag processor.
+
+An end-to-end Breeze driver provisions the inventory, API, separate Celery runner,
+isolated worker, and real scheduler. It checks parsing and scheduling during slow imports,
+a broker pause and database contention. It uses the current Breeze image, Docker access,
+and Redis, and removes its own containers on exit:
+
+.. code-block:: bash
+
+    breeze run -- uv run --no-project --python /usr/python/bin/python python \
+      dev/dag_parsing_poc/run_scheduler_parsing.py \
+      --output /files/dag-parsing-aip/poc-runs/scheduler-hosting --phase-seconds 10
+
+Choose a new output directory for each run. It contains metrics, logs, container mount
+evidence and a summary. The scheduler has no Dag source mount, and the parsing worker
+has no metadata database mount or signing key. The scheduling probe uses EmptyOperator;
+it does not measure task-worker execution throughput.
+
 Fine-tuning your Dag processor performance
 ------------------------------------------
 

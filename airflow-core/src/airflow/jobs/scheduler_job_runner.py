@@ -144,6 +144,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.selectable import Select, Subquery
 
     from airflow._shared.logging.types import Logger
+    from airflow.dag_processing.scheduler_parsing import SchedulerParsingHost
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads.types import SchedulerWorkload
@@ -343,10 +344,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         log: Logger | None = None,
         executors: list[BaseExecutor] | None = None,
+        parsing_config: str | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
         self.only_idle = only_idle
+        self._parsing_config = parsing_config
+        self._parsing_host: SchedulerParsingHost | None = None
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
 
         # Note:
@@ -1803,6 +1807,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
             )
 
+            if self._parsing_config is not None:
+                from airflow.dag_processing.scheduler_parsing import SchedulerParsingHost
+
+                self._parsing_host = SchedulerParsingHost(self._parsing_config)
+                self._parsing_host.start()
+
             self._run_scheduler_loop()
 
             if settings.Session is not None:
@@ -1812,6 +1822,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
+            if self._parsing_host is not None:
+                self._parsing_host.close()
+                self._parsing_host = None
             for executor in self.executors:
                 try:
                     executor.end()
@@ -1908,6 +1921,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         is_unit_test: bool = conf.getboolean("core", "unit_test_mode")
 
         timers = EventScheduler()
+
+        if self._parsing_host is not None:
+            timers.call_regular_interval(self._parsing_host.interval, self._parsing_host.tick, non_fatal=True)
 
         # Check on start up, then every configured interval
         self.adopt_or_reset_orphaned_tasks()

@@ -194,3 +194,15 @@ class TestSchedulerCommand:
         call_kwargs = mock_scheduler_job.call_args[1]
         assert call_kwargs["only_idle"] is True
         assert call_kwargs["num_runs"] == 5
+
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner", autospec=True)
+    @mock.patch("airflow.cli.commands.scheduler_command.run_job", autospec=True)
+    @mock.patch("airflow.cli.commands.scheduler_command.Process", autospec=True)
+    @pytest.mark.parametrize("config", [None, "/control/parsing.json"])
+    def test_parsing_configuration_reaches_job_runner(self, process, run_job, runner, config):
+        runner.return_value.job = mock.sentinel.job
+        arguments = ["scheduler", "--skip-serve-logs"]
+        if config is not None:
+            arguments.extend(["--parsing-config", config])
+        scheduler_command._run_scheduler_job(self.parser.parse_args(arguments))
+        assert runner.call_args.kwargs["parsing_config"] == config

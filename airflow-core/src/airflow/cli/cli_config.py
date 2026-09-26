@@ -812,6 +812,15 @@ ARG_SSL_CIPHERS = Arg(
     help="(Optional) OpenSSL cipher list to use when SSL is enabled.",
 )
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
+ARG_EXECUTOR_PARSING = Arg(
+    ("--executor-parsing",),
+    help="Run the experimental LocalExecutor parsing route (local bundles and SQLite development databases)",
+    action="store_true",
+)
+ARG_PARSING_CONFIG = Arg(
+    ("--parsing-config",),
+    help="Host the experimental parsing orchestrator using this JSON configuration (SQLite, one scheduler)",
+)
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -2244,6 +2253,7 @@ core_commands: list[CLICommand] = [
         help="Start a scheduler instance",
         func=lazy_load_command("airflow.cli.commands.scheduler_command.scheduler"),
         args=(
+            ARG_PARSING_CONFIG,
             ARG_NUM_RUNS,
             ARG_ONLY_IDLE,
             ARG_PID,
@@ -2291,6 +2301,7 @@ core_commands: list[CLICommand] = [
             ARG_DAEMON,
             ARG_BUNDLE_NAME,
             ARG_NUM_RUNS,
+            ARG_EXECUTOR_PARSING,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,

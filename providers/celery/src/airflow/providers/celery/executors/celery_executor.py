@@ -40,7 +40,7 @@ from deprecated import deprecated
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors import (
-    celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
+    celery_executor_utils as _celery_executor_utils,  # Needed to register Celery tasks at worker startup, see #63043.
 )
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
@@ -194,6 +194,12 @@ class CeleryExecutor(BaseExecutor):
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
                 workloads_to_be_sent.append((workload.callback.key, workload, queue, self.team_name))
+            elif _celery_executor_utils._is_parsing_workload(workload):
+                if workload.type not in self.supported_workload_types:
+                    raise ValueError("Parsing must be enabled on a dedicated prototype executor instance")
+                if not workload.queue or not workload.queue.strip():
+                    raise ValueError("Parsing workloads require an explicit Celery queue")
+                workloads_to_be_sent.append((workload.key, workload, workload.queue, self.team_name))
             else:
                 raise ValueError(f"{type(self)}._process_workloads cannot handle {type(workload)}")
 
@@ -209,6 +215,17 @@ class CeleryExecutor(BaseExecutor):
         from airflow.providers.celery.executors.celery_executor_utils import ExceptionWithTraceback
 
         for key, _, result in key_and_async_results:
+            is_parsing = _celery_executor_utils._is_parsing_workload_key(key)
+            queued_state: WorkloadState
+            failure_state: WorkloadState
+            if is_parsing:
+                from airflow.executors.workloads.parsing import ParseDagDefinitionsState
+
+                queued_state = ParseDagDefinitionsState.QUEUED
+                failure_state = ParseDagDefinitionsState.FAILED
+            else:
+                queued_state = TaskInstanceState.QUEUED
+                failure_state = TaskInstanceState.FAILED
             if isinstance(result, ExceptionWithTraceback) and isinstance(
                 result.exception, AirflowTaskTimeout
             ):
@@ -219,12 +236,14 @@ class CeleryExecutor(BaseExecutor):
                         "[Try %s of %s] Celery Task Timeout Error for Workload: (%s).",
                         self.workload_publish_retries[key] + 1,
                         self.workload_publish_max_retries,
-                        tuple(key),
+                        key,
                     )
                     self.workload_publish_retries[key] = retries + 1
                     continue
             if AIRFLOW_V_3_4_PLUS:
-                if key in self.executor_queues.get(WorkloadType.EXECUTE_TASK, {}):
+                if is_parsing:
+                    self.executor_queues[WorkloadType.PARSE_DAG_DEFINITIONS].pop(key, None)
+                elif key in self.executor_queues.get(WorkloadType.EXECUTE_TASK, {}):
                     self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key)
                 else:
                     self.executor_queues[WorkloadType.EXECUTE_CALLBACK].pop(key, None)
@@ -236,16 +255,16 @@ class CeleryExecutor(BaseExecutor):
             self.workload_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
-                self.event_buffer[key] = (TaskInstanceState.FAILED, None)
+                self.event_buffer[key] = (failure_state, None)
             elif result is not None:
                 result.backend = cached_celery_backend
                 self.running.add(key)
                 self.workloads[key] = result
 
-                # Store the Celery task_id (workload execution ID) in the event buffer. This will get "overwritten" if the task
+                # Store the Celery submission ID in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
                 # which point we don't need the ID anymore anyway.
-                self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
+                self.event_buffer[key] = (queued_state, result.task_id)
 
     def _send_workloads_to_celery(self, workload_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_workload_to_executor

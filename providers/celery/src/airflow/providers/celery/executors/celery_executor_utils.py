@@ -34,7 +34,7 @@ from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import cache
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -48,6 +48,7 @@ from airflow.providers.celery.version_compat import (
     AIRFLOW_V_3_1_9_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, conf, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -61,6 +62,27 @@ except ImportError:
 
 
 log = logging.getLogger(__name__)
+
+_PARSING_WORKLOAD_TYPES: tuple[type, ...] = ()
+_PARSING_WORKLOAD_KEY_TYPES: tuple[type, ...] = ()
+if AIRFLOW_V_3_4_PLUS:
+    try:
+        from airflow.executors.workloads.parsing import ParseDagDefinitions, ParseDagDefinitionsKey
+    except ModuleNotFoundError as error:
+        if error.name != "airflow.executors.workloads.parsing":
+            raise
+    else:
+        _PARSING_WORKLOAD_TYPES = (ParseDagDefinitions,)
+        _PARSING_WORKLOAD_KEY_TYPES = (ParseDagDefinitionsKey,)
+
+
+def _is_parsing_workload(workload: object) -> TypeGuard[ParseDagDefinitions]:
+    return isinstance(workload, _PARSING_WORKLOAD_TYPES)
+
+
+def _is_parsing_workload_key(key: object) -> TypeGuard[ParseDagDefinitionsKey]:
+    return isinstance(key, _PARSING_WORKLOAD_KEY_TYPES)
+
 
 if sys.platform == "darwin":
     setproctitle = lambda title: log.debug("Mac OS detected, skipping setproctitle")
@@ -244,6 +266,23 @@ def execute_workload(input: str) -> None:
     except Exception as e:
         from airflow.sdk.exceptions import TaskAlreadyRunningError
 
+        if _is_parsing_workload(workload):
+            from airflow.dag_processing.executor_worker import (
+                ParsingAttemptAlreadyClaimedError,
+                ParsingClaimDispositionUnknownError,
+            )
+
+            if isinstance(e, ParsingAttemptAlreadyClaimedError):
+                log.info(
+                    "[%s] Parsing attempt is active elsewhere, ignoring duplicate delivery", celery_task_id
+                )
+                raise Ignore() from None
+            if isinstance(e, ParsingClaimDispositionUnknownError):
+                log.warning(
+                    "[%s] Parsing claim is unresolved, preserving shared workload status for reconciliation",
+                    celery_task_id,
+                )
+                raise Ignore() from None
         if isinstance(e, TaskAlreadyRunningError):
             log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
             # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
@@ -420,6 +459,7 @@ def send_workload_to_executor(
     celery_app = _get_celery_app_for_workload(team_name)
 
     celery_task_id = None
+    publish_options = {}
     if AIRFLOW_V_3_0_PLUS:
         # Get the task from the app.
         celery_task = celery_app.tasks["execute_workload"]
@@ -431,7 +471,11 @@ def send_workload_to_executor(
         # makes the Celery task ID deterministic from DB state, closing the race window where a
         # scheduler crash between apply_async() and event processing left external_executor_id
         # unset and the task unadoptable.
-        if executor_id := getattr(getattr(args, "ti", None), "external_executor_id", None):
+        if _is_parsing_workload(args):
+            # Broker retries share an ID; each worker still obtains its own execution claim.
+            celery_task_id = str(args.workload_id)
+            publish_options["argsrepr"] = "(<redacted parsing workload>,)"
+        elif executor_id := getattr(getattr(args, "ti", None), "external_executor_id", None):
             celery_task_id = executor_id
         args = (args.model_dump_json(),)
     else:
@@ -449,7 +493,9 @@ def send_workload_to_executor(
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            result = celery_task.apply_async(args=args, queue=queue, task_id=celery_task_id)
+            result = celery_task.apply_async(
+                args=args, queue=queue, task_id=celery_task_id, **publish_options
+            )
     except (Exception, AirflowTaskTimeout) as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
