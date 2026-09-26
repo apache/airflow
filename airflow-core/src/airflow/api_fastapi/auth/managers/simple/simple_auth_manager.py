@@ -33,6 +33,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
 from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -41,8 +42,11 @@ from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
+from airflow.models.asset import AssetModel
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -308,6 +312,29 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             allow_role=SimpleAuthManagerRole.OP,
             user=user,
         )
+
+    @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: SimpleAuthManagerUser,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        Simple auth manager authorizes assets at the role level: ``is_authorized_asset`` ignores the
+        asset details, so one check decides the whole listing. The default per-asset loop would
+        re-evaluate that same decision once per row.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        if not self.is_authorized_asset(method=method, user=user):
+            return set()
+        return set(session.execute(select(AssetModel.id)).scalars().all())
 
     def is_authorized_pool(
         self,
