@@ -289,6 +289,81 @@ class TestS3RemoteLogIO:
         assert rec.levelno == logging.ERROR
         assert rec.exc_info is not None
 
+    def test_stream_returns_no_streams_when_there_are_no_logs(self):
+        messages, log_streams = self.subject.stream("1.log", self.ti)
+
+        assert messages == []
+        assert log_streams == []
+
+    def test_read_returns_none_when_there_are_no_logs(self):
+        messages, logs = self.subject.read("1.log", self.ti)
+
+        assert messages == []
+        assert logs is None
+
+    def test_stream_yields_lines_without_the_trailing_newline(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\nLine 2\n")
+
+        messages, log_streams = self.subject.stream("1.log", self.ti)
+
+        assert messages == [self.remote_log_location]
+        assert list(log_streams[0]) == ["Log line", "Line 2"]
+
+    def test_stream_sorts_the_keys_of_the_task_instance(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key + ".trigger.log", Body=b"Line 3\n")
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Line 1\n")
+
+        messages, log_streams = self.subject.stream("1.log", self.ti)
+
+        assert messages == [self.remote_log_location, self.remote_log_location + ".trigger.log"]
+        assert [list(log_stream) for log_stream in log_streams] == [["Line 1"], ["Line 3"]]
+
+    def test_stream_does_not_fetch_the_object_until_it_is_consumed(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
+
+        with mock.patch.object(S3Hook, "get_key", wraps=self.subject.hook.get_key) as get_key:
+            _, log_streams = self.subject.stream("1.log", self.ti)
+            get_key.assert_not_called()
+
+            assert list(log_streams[0]) == ["Log line"]
+            get_key.assert_called_once()
+
+    def test_read_does_not_load_the_object_as_a_single_string(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\nLine 2\n")
+
+        with mock.patch.object(S3RemoteLogIO, "s3_read") as s3_read:
+            messages, logs = self.subject.read("1.log", self.ti)
+
+        s3_read.assert_not_called()
+        assert messages == [self.remote_log_location]
+        assert logs == ["Log line\nLine 2\n"]
+
+    def test_stream_keeps_multibyte_characters_intact_across_chunks(self):
+        self.conn.put_object(
+            Bucket="bucket", Key=self.remote_log_key, Body="첫 번째 줄\n두 번째 줄\n".encode()
+        )
+
+        # A chunk size that is guaranteed to split multi-byte characters in half.
+        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.CHUNK_SIZE", 3):
+            _, log_streams = self.subject.stream("1.log", self.ti)
+
+            assert list(log_streams[0]) == ["첫 번째 줄", "두 번째 줄"]
+
+    def test_stream_yields_an_error_line_when_the_object_cannot_be_read(self, caplog):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
+        error = ClientError({"Error": {"Code": "403", "Message": "Forbidden"}}, "GetObject")
+
+        with mock.patch.object(S3Hook, "get_key", side_effect=error):
+            _, log_streams = self.subject.stream("1.log", self.ti)
+            with caplog.at_level(logging.ERROR):
+                lines = list(log_streams[0])
+
+        assert len(lines) == 1
+        assert lines[0].startswith(f"Could not read logs from {self.remote_log_location} with error:")
+        errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+        assert len(errors) == 1
+        assert errors[0].exc_info is not None
+
     def test_write(self):
         with mock.patch.object(self.subject.log, "error") as mock_error:
             self.subject.write("text", self.remote_log_location)
