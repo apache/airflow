@@ -23,7 +23,10 @@ import { foldArgName, resolveArgs, type BoundArgs } from "../../src/coordinator/
 import type { CoordinatorClient, XComEntry } from "../../src/coordinator/client.js";
 import type { LogChannel } from "../../src/coordinator/log-channel.js";
 import type { ArgBindings } from "../../src/generated/supervisor.js";
+import { Bundle } from "../../src/sdk/bundle.js";
 import type { GetXComOpts } from "../../src/sdk/client-types.js";
+import { Dag } from "../../src/sdk/dag.js";
+import { withArgList } from "../../src/sdk/arg-list.js";
 
 function literal(name: string, value: unknown, extra: Record<string, unknown> = {}) {
   return { name, kind: "literal" as const, value, ...extra };
@@ -75,6 +78,43 @@ async function bind(
   });
   return { ...bound, warning, pulls };
 }
+
+describe("a listed task's bound arguments", () => {
+  it("reach the handler under the names the call recorded", async () => {
+    // A listed call is zipped with the keys the handler destructures, so the
+    // bindings name the same arguments a named call would.
+    const dag = new Dag("d");
+    const seen: unknown[] = [];
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => {
+        seen.push(rows, region);
+      },
+    );
+    transform(withArgList(1, "us"));
+    const handler = new Bundle(dag).getTaskHandler("d", "transform")!;
+
+    const { args } = await bind([literal("rows", 7), literal("region", "eu")]);
+    await handler(args as never);
+
+    expect(seen).toEqual([7, "eu"]);
+  });
+
+  it("reach a named handler as the object it destructures", async () => {
+    const dag = new Dag("d");
+    const seen: unknown[] = [];
+    const store = dag.task("store", async ({ rows }: { rows: number }) => {
+      seen.push(rows);
+    });
+    store({ rows: 1 });
+    const handler = new Bundle(dag).getTaskHandler("d", "store")!;
+
+    const { args } = await bind([literal("rows", 7)]);
+    await handler(args as never);
+
+    expect(seen).toEqual([7]);
+  });
+});
 
 describe("foldArgName", () => {
   it.each([
