@@ -211,7 +211,7 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDataTransferServiceCreateJobOperator`
 
-    :param body: (Required) The request body, as described in
+    :param body: (Required) The request body (templated), as described in
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#TransferJob
         With three additional improvements:
 
@@ -219,6 +219,9 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         * times can be given in the form :class:`datetime.time`
         * credentials to Amazon Web Service should be stored in the connection and indicated by the
           aws_conn_id parameter
+
+        If the whole body is passed as a Jinja expression, set ``render_template_as_native_obj=True``
+        on the Dag; a default Jinja render would produce a string instead of a mapping.
 
     :param aws_conn_id: The connection ID used to retrieve credentials to
         Amazon Web Service.
@@ -257,26 +260,23 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.body = body
-        if isinstance(self.body, dict):
-            self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.project_id = project_id
         self.google_impersonation_chain = google_impersonation_chain
-        self._validate_inputs()
-
-    def _validate_inputs(self) -> None:
-        TransferJobValidator(body=self.body).validate_body()
 
     def execute(self, context: Context) -> dict:
-        TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
+        # TransferJobPreprocessor mutates the body in place, so copy it to avoid mutating the caller's dict.
+        body = deepcopy(self.body) if isinstance(self.body, dict) else self.body
+        TransferJobValidator(body=body).validate_body()
+        TransferJobPreprocessor(body=body, aws_conn_id=self.aws_conn_id).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        result = hook.create_transfer_job(body=self.body)
+        result = hook.create_transfer_job(body=body)
 
         project_id = self.project_id or hook.project_id
         if project_id:

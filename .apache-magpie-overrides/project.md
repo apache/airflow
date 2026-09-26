@@ -78,4 +78,6 @@ Only URLs on publicly archived lists may appear in a CVE record's
 - [`pr-management-triage-ci-check-map.md`](pr-management-triage-ci-check-map.md) — CI-check pattern → category + doc URL.
 - [`pr-management-triage-comment-templates.md`](pr-management-triage-comment-templates.md) — contributor-facing comment templates.
 - [`setup-isolated-setup-install.md`](setup-isolated-setup-install.md) — Airflow-specific steps for the secure-agent setup.
+- [`release-management-config.md`](release-management-config.md) and [`release-build.md`](release-build.md) — providers-train configuration for the release-management skills.
+- [`release-verify-rc.md`](release-verify-rc.md) — optional contributor check of your own changes in a providers wave.
 - [`README.md`](README.md) — what this directory is and the rule that framework changes go via PR to `apache/magpie`.

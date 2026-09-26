@@ -20,6 +20,19 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+.. warning::
+    ``OpenAIHook.create_embeddings`` -- and therefore the XCom pushed by
+    ``OpenAIEmbeddingOperator`` -- now returns one embedding per input when it is
+    given a list: ``list[list[float]]`` instead of the single ``list[float]`` that
+    up to 1.8.2 was taken from the first element only. Every embedding past the
+    first was silently discarded. A task that passes a single string is unchanged,
+    but a downstream task that consumed the XCom of a batched call now receives a
+    list of vectors rather than one vector, with no error to signal it. Take
+    ``result[0]`` to keep the old value, or index the list per input.
+
 .. note::
     ``OpenAIResponseOperator.response_kwargs`` is now a template field. If an
     existing Dag passes a ``response_kwargs`` dict containing a literal
@@ -37,6 +50,31 @@ Changelog
     any tool schema — are written to ``rendered_task_instance_fields`` in the
     metadata DB on every run, regardless of the operator's ``do_xcom_push``
     setting.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Return all embeddings for batched OpenAI inputs (#71989)``
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add 'OpenAIAgentSessionOperator' for OpenAI Managed Agents (#73447)``
+* ``Record OpenAI Responses token usage and response id in XCom (#72151)``
+* ``Make OpenAI batch options reachable from OpenAITriggerBatchOperator (#72051)``
+* ``Make OpenAI Responses token ceilings templated and surface truncation (#72150)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the Responses API options OpenAIResponseOperator can pass through (#72049)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
 
 1.8.2
 .....

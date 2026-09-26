@@ -53,7 +53,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.dag import DagModel
 from airflow.models.log import Log
 from airflow.models.task_state_store import TaskStateStoreModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
@@ -608,7 +608,7 @@ class TestTIRunState:
 
     def test_dynamic_task_mapping_with_xcom(self, client: Client, dag_maker: DagMaker, session: Session):
         """Test that dynamic task mapping works correctly with XCom values."""
-        from airflow.models.taskmap import TaskMap
+        from tests_common.test_utils.mapping import push_mapped_length
 
         with dag_maker(session=session, serialized=True):
 
@@ -634,10 +634,10 @@ class TestTIRunState:
 
         decision = dr.task_instance_scheduling_decisions(session=session)
 
-        # Simulate task_1 execution to produce TaskMap.
+        # Simulate task_1 execution to produce the mapped length.
         (ti_1,) = decision.schedulable_tis
         ti_1.state = TaskInstanceState.SUCCESS
-        session.add(TaskMap.from_task_instance_xcom(ti_1, [0, 1]))
+        push_mapped_length(ti_1, [0, 1], session=session)
         session.flush()
 
         # Now task_2 in mapped tagk group is expanded.
@@ -1317,6 +1317,38 @@ class TestTIRunState:
 
 
 class TestTIUpdateState:
+    @pytest.mark.parametrize(
+        ("interruption", "expected_state", "expected_status"),
+        [("clear", State.RESTARTING, 404), ("failed", State.FAILED, 409)],
+    )
+    def test_delayed_retry_report_preserves_external_state(
+        self, client, session, create_task_instance, interruption, expected_state, expected_status
+    ):
+        ti = create_task_instance(state=State.RUNNING, start_date=DEFAULT_START_DATE, session=session)
+        session.commit()
+        old_id = ti.id
+
+        if interruption == "clear":
+            clear_task_instances([ti], session=session)
+        else:
+            ti.set_state(State.FAILED, session=session)
+        session.commit()
+        expected_id = ti.id
+        expected_end_date = ti.end_date
+
+        response = client.patch(
+            f"/execution/task-instances/{old_id}/state",
+            json={"state": State.UP_FOR_RETRY, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == expected_status
+        session.refresh(ti)
+        assert ti.id == expected_id
+        assert ti.state == expected_state
+        assert ti.end_date == expected_end_date
+        if interruption == "clear":
+            assert ti.id != old_id
+
     def setup_method(self):
         clear_db_assets()
         clear_db_logs()
@@ -2489,6 +2521,72 @@ class TestTIUpdateState:
         assert ti.next_method is None
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
+
+    def test_ti_update_state_to_failed_persists_retry_reason(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_persists_retry_reason",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "retry_reason": "auth error, do not retry",
+            },
+        )
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+        assert ti.retry_reason == "auth error, do not retry"
+
+    def test_ti_update_state_to_failed_truncates_retry_reason(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_truncates_retry_reason",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "retry_reason": "x" * 600,
+            },
+        )
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.retry_reason == "x" * 500
+
+    def test_ti_update_state_to_failed_without_retry_reason(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_without_retry_reason",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.retry_reason is None
 
     def test_ti_update_state_not_running(self, client, session, create_task_instance):
         """Test that a 409 error is returned when attempting to update a TI that is not in RUNNING state."""

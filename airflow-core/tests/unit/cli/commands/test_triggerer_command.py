@@ -52,7 +52,7 @@ class TestTriggererCommand:
         mock_serve.return_value.__enter__.assert_called_once()
         mock_serve.return_value.__exit__.assert_called_once()
         mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=42, queues=None)
-        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_name is None
+        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_names == []
 
     @conf_vars({("triggerer", "queues_enabled"): "True"})
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
@@ -67,7 +67,7 @@ class TestTriggererCommand:
         mock_triggerer_job_runner.assert_called_once_with(
             job=mock.ANY, capacity=4, queues=set(["my_queue", "other_queue"])
         )
-        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_name is None
+        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_names == []
 
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
     @mock.patch("airflow.cli.commands.triggerer_command.run_job")
@@ -120,20 +120,20 @@ class TestTriggererCommand:
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
     @mock.patch("airflow.cli.commands.triggerer_command._serve_logs")
     def test_team_name_passed_through(self, mock_serve, mock_triggerer_job_runner, mock_get_team):
-        """--team-name should be set on the Job when valid"""
+        """--team-name should be the Job's only team when valid"""
         mock_triggerer_job_runner.return_value.job_type = "TriggererJob"
         args = self.parser.parse_args(["triggerer", "--team-name", "team_a"])
         triggerer_command.triggerer(args)
         mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=mock.ANY, queues=None)
-        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_name == "team_a"
+        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_names == ["team_a"]
 
     @conf_vars({("core", "multi_team"): "False"})
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
     @mock.patch("airflow.cli.commands.triggerer_command._serve_logs")
-    def test_no_team_name_passes_none(self, mock_serve, mock_triggerer_job_runner):
-        """Without --team-name, Job.team_name is None"""
+    def test_no_team_name_leaves_job_unscoped(self, mock_serve, mock_triggerer_job_runner):
+        """Without --team-name, Job.team_names is empty"""
         mock_triggerer_job_runner.return_value.job_type = "TriggererJob"
         args = self.parser.parse_args(["triggerer"])
         triggerer_command.triggerer(args)
         mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=mock.ANY, queues=None)
-        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_name is None
+        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_names == []

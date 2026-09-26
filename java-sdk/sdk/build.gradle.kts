@@ -276,9 +276,15 @@ dokka {
         // Dokka rejects the file unless "# Module sdk" is its very first line, so module.md carries
         // the ASF license header just below the heading instead of above it.
         includes.from("module.md")
-        // Suppress everything in 'execution' since it's implementation detail.
+        // Suppress everything in 'execution' and 'internal' since they're
+        // implementation detail: generated task classes call into them, so they
+        // are public on the JVM, but no Dag author writes against them.
         perPackageOption {
             matchingRegex = """org\.apache\.airflow\.sdk\.execution.*"""
+            suppress.set(true)
+        }
+        perPackageOption {
+            matchingRegex = """org\.apache\.airflow\.sdk\.internal.*"""
             suppress.set(true)
         }
     }

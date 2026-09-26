@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
-from airflow.providers.influxdb.utils import _convert_dataframe_to_records
+from airflow.providers.influxdb.utils import _convert_dataframe_to_records, _first_cell_is_truthy
 
 
 def test_convert_dataframe_to_records_serializes_rows_and_timestamps():
@@ -33,3 +34,29 @@ def test_convert_dataframe_to_records_serializes_rows_and_timestamps():
         {"col1": 1, "timestamp": "2024-01-01T00:00:00.000Z"},
         {"col1": 2, "timestamp": "2024-01-02T03:04:05.000Z"},
     ]
+
+
+@pytest.mark.parametrize(
+    ("dataframe", "expected"),
+    [
+        pytest.param(pd.DataFrame({"literal": [1]}), True, id="numeric-one"),
+        pytest.param(pd.DataFrame({"count": [42]}), True, id="positive-count"),
+        pytest.param(pd.DataFrame({"flag": ["ready"]}), True, id="non-empty-string"),
+        pytest.param(pd.DataFrame({"literal": []}), False, id="no-rows"),
+        pytest.param(pd.DataFrame(), False, id="no-columns"),
+        pytest.param(pd.DataFrame({"count": [0]}), False, id="numeric-zero"),
+        pytest.param(pd.DataFrame({"count": ["0"]}), False, id="string-zero"),
+        pytest.param(pd.DataFrame({"value": [float("nan")]}), False, id="nan"),
+        pytest.param(pd.DataFrame({"value": [None]}), False, id="none"),
+        pytest.param(pd.DataFrame({"first": [0, 1], "second": [1, 1]}), False, id="first-cell-only"),
+    ],
+)
+def test_first_cell_is_truthy(dataframe, expected):
+    assert _first_cell_is_truthy(dataframe) is expected
+
+
+def test_first_cell_is_truthy_rejects_non_scalar_value():
+    dataframe = pd.DataFrame({"value": [[1, 2]]})
+
+    with pytest.raises(TypeError, match="must be a scalar"):
+        _first_cell_is_truthy(dataframe)

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from unittest import mock
 
 import boto3
 import pytest
@@ -215,6 +216,39 @@ class TestSFTPToS3Operator:
 
 class TestSFTPToS3OperatorInit:
     """Unit tests for SFTPToS3Operator.__init__ that do not require an SSH server."""
+
+    @mock.patch.object(SFTPToS3Operator, "_upload_to_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.sftp_to_s3.SSHHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.sftp_to_s3.S3Hook")
+    def test_execute_prefix_matches_and_replaces_only_leading_prefix(
+        self, mock_s3_hook_class, mock_ssh_hook_class, mock_upload_to_s3
+    ):
+        mock_s3_hook = mock_s3_hook_class.return_value
+        sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
+        sftp_client.listdir.return_value = ["pre_one.txt", "xpre_two.txt", "pre_again_pre_.txt"]
+        operator = SFTPToS3Operator(
+            task_id="test_prefix",
+            s3_bucket=BUCKET,
+            s3_key="destination/",
+            sftp_path="/source",
+            sftp_conn_id=SFTP_CONN_ID,
+            sftp_filenames="pre_",
+            s3_filenames="new_",
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
+
+        assert mock_upload_to_s3.call_args_list == [
+            mock.call(sftp_client, mock_s3_hook, "/source/pre_one.txt", "destination/new_one.txt"),
+            mock.call(
+                sftp_client,
+                mock_s3_hook,
+                "/source/pre_again_pre_.txt",
+                "destination/new_again_pre_.txt",
+            ),
+        ]
+        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"], "")
 
     def test_s3_conn_id_deprecated(self):
         """s3_conn_id is a deprecated alias for aws_conn_id and must raise DeprecationWarning."""

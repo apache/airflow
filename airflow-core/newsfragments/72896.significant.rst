@@ -1,0 +1,16 @@
+Reparsing a file with no registered Dag now requires the ``REPARSE_ALL`` view
+
+A file that failed to import before defining any Dag has no per-Dag key to authorize a reparse
+against, so ``PUT /parseDagFile/{file_token}`` previously returned ``404`` for it. Reparsing such a
+file is now gated on a dedicated ``AccessView.REPARSE_ALL`` -- a write action of its own, distinct
+from the permission to view import errors -- and the Dag import errors modal gains a reparse action
+for these files.
+
+**Behaviour changes:**
+
+- ``PUT /parseDagFile/{file_token}`` for a file with no registered Dag authorizes against
+  ``REPARSE_ALL`` and returns ``403`` when the caller lacks it, instead of ``404``. A file that has a
+  registered Dag keeps its existing per-Dag ``can_edit`` check.
+- With the simple auth manager the view is granted to the ``ADMIN`` role only. With the FAB auth
+  manager it maps to a new ``All Reparses`` resource, which ships in the ``Admin`` role; custom roles
+  that need to reparse such files must be granted ``All Reparses.can_read`` explicitly.

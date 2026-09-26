@@ -4213,6 +4213,18 @@
           ],
           "default": null,
           "title": "Rendered Map Index"
+        },
+        "retry_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry Reason"
         }
       },
       "required": [

@@ -106,7 +106,7 @@ example_llm_batch_operator()
 def example_llm_batch_decorator():
     @task.llm_batch(
         llm_conn_id="pydanticai_default",
-        model_id="anthropic:claude-sonnet-4-5",
+        model_id="anthropic:claude-sonnet-5",
         result_path=f"{RESULT_ROOT}/classify",
         system_prompt="Classify the sentiment of this product review.",
         output_type=Sentiment,
@@ -149,7 +149,7 @@ def example_llm_batch_provider_params():
         requests=[f"Review: {review!r}" for review in REVIEWS],
         result_path=f"{RESULT_ROOT}/keywords-anthropic",
         llm_conn_id="pydanticai_default",
-        model_id="anthropic:claude-sonnet-4-5",
+        model_id="anthropic:claude-sonnet-5",
         system_prompt="Extract up to three keywords from the review.",
         output_type=list[str],
         request_params={"temperature": 0.2, "metadata": {"user_id": "reviews-pipeline"}},

@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.Deps.Flow
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -94,4 +95,78 @@ internal class DagDefTest {
 
     Assertions.assertEquals("Task 'extract' already belongs to Dag 'dag'", error.message)
   }
+
+  @Test
+  @DisplayName("Should register a task and hand back its handle")
+  fun shouldRegisterTaskFromFactory() {
+    val dag = DagDef("dag")
+
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+
+    Assertions.assertEquals(listOf("extract"), dag.tasks.keys.toList())
+    Assertions.assertEquals(listOf(dag.tasks.getValue("extract")), extract.nodes())
+  }
+
+  @Test
+  @DisplayName("Should fan out ordering-only edges with before")
+  fun shouldFanOutOrderingEdgesWithBefore() {
+    val dag = DagDef("dag")
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+
+    extract.before(left, right)
+
+    Assertions.assertEquals(setOf("extract"), upstreamsOf(dag, "left"))
+    Assertions.assertEquals(setOf("extract"), upstreamsOf(dag, "right"))
+  }
+
+  @Test
+  @DisplayName("Should fan in ordering-only edges with after")
+  fun shouldFanInOrderingEdgesWithAfter() {
+    val dag = DagDef("dag")
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+    val join = dag.task<Unit>("join", NoOp::class.java)
+
+    join.after(left, right)
+
+    Assertions.assertEquals(setOf("left", "right"), upstreamsOf(dag, "join"))
+  }
+
+  @Test
+  @DisplayName("Should return the receiver so before and after chain on one task")
+  fun shouldChainBeforeAndAfterOnOneTask() {
+    val dag = DagDef("dag")
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+    val transform = dag.task<Long>("transform", NoOp::class.java)
+    val load = dag.task<Unit>("load", NoOp::class.java)
+
+    transform.after(extract).before(load)
+
+    Assertions.assertEquals(setOf("extract"), upstreamsOf(dag, "transform"))
+    Assertions.assertEquals(setOf("transform"), upstreamsOf(dag, "load"))
+  }
+
+  @Test
+  @DisplayName("Should draw every edge between two sets with Flow.of")
+  fun shouldDrawEdgesBetweenSetsWithFlowOf() {
+    val dag = DagDef("dag")
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+    val join = dag.task<Unit>("join", NoOp::class.java)
+
+    Flow.of(left, right).before(join)
+
+    Assertions.assertEquals(setOf("left", "right"), upstreamsOf(dag, "join"))
+  }
+
+  private fun upstreamsOf(
+    dag: DagDef,
+    taskId: String,
+  ): Set<String> =
+    dag.tasks
+      .getValue(taskId)
+      .upstreams
+      .mapTo(mutableSetOf()) { it.id }
 }

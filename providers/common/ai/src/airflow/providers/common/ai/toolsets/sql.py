@@ -50,6 +50,8 @@ from airflow.providers.common.ai.utils.tool_definition import build_args_validat
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pydantic_ai._run_context import RunContext
 
 # Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
@@ -176,7 +178,9 @@ class SQLToolset(AbstractToolset[Any]):
     failure -- exhausts the retries and fails the task for Airflow to retry. The
     toolset does not inspect the error type or message.
 
-    :param db_conn_id: Airflow connection ID for the database.
+    :param db_conn_id: Airflow connection ID for the database. Templated when the
+        toolset is passed to ``AgentOperator`` / ``@task.agent``, so each task
+        instance can reach its own database, e.g. one connection per customer.
     :param allowed_tables: Restrict the agent to a fixed set of tables. Omit the
         argument (the default) to expose every table in ``schema``. No *value* means
         allow-all: ``None`` and an empty list both raise ``ValueError``, so an allow-list
@@ -245,6 +249,10 @@ class SQLToolset(AbstractToolset[Any]):
         result ends it. The result reports which limit it hit so the agent can narrow
         its projection rather than page through the table.
     """
+
+    # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
+    # Airflow's templater would render in place wherever the toolset is nested.
+    agent_template_fields: Sequence[str] = ("_db_conn_id",)
 
     def __init__(
         self,

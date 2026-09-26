@@ -77,6 +77,10 @@ Pull Request guidelines
 Before you submit a Pull Request (PR) from your forked repo, check that it meets
 these guidelines:
 
+-   Mind the **limit on open PRs**: contributors without write access can have at most 5 open PRs
+    at a time. See `Limit on open Pull Requests <32_open_pull_request_limit.rst>`__ for why, and what
+    to do when you reach it.
+
 -   Start with **Draft**: Until you are sure that your PR passes all the quality checks and tests, keep it
     in **Draft** status. This will signal to maintainers that the PR is not yet ready
     for review and it will prevent maintainers from accidentally merging it before
@@ -218,6 +222,13 @@ contains suspicious changes (e.g. attempts to exfiltrate secrets, modify CI pipe
 maliciously, or inject harmful code), **all open PRs by the same author** will be closed
 and labeled ``suspicious changes detected``. A comment is posted on each PR explaining that
 the closure was triggered by suspicious changes found in the flagged PR.
+
+**What happens when a PR is closed because of the open PR limit?**
+
+When the `limit on open PRs <32_open_pull_request_limit.rst>`__ was introduced, maintainers ran a
+one-time closure of the PRs of contributors who had more than 5 open PRs, except PRs where a
+maintainer had already engaged. Those PRs are labeled ``closed because of open PR limit`` and can be
+reopened once you have a free slot.
 
 If a contributor believes any closure described above was applied in error, the appeal channel
 is the PMC private list — see the

@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.exceptions import AirflowFailException, AirflowSkipException
@@ -29,6 +28,8 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.mapping import push_mapped_length
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -224,8 +225,7 @@ def test_step_by_step(
 
     # Simulate running the first schedulable task: t1 returns [0]
     schedulable_tis["t1"].state = SUCCESS
-    schedulable_tis["t1"].xcom_push(XCOM_RETURN_KEY, [0], session=session)
-    session.add(TaskMap.from_task_instance_xcom(schedulable_tis["t1"], [0]))
+    push_mapped_length(schedulable_tis["t1"], [0], session=session)
     session.flush()
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
     assert sorted(schedulable_tis) == ["t2_a", "t3", "t4"]
@@ -242,8 +242,7 @@ def test_step_by_step(
         schedulable_tis, _ = _one_scheduling_decision_iteration(dr, session)
         if not failure_mode:
             schedulable_tis["t2_b"].state = SUCCESS
-            schedulable_tis["t2_b"].xcom_push(XCOM_RETURN_KEY, [1, 2], session=session)
-            session.add(TaskMap.from_task_instance_xcom(schedulable_tis["t2_b"], [1, 2]))
+            push_mapped_length(schedulable_tis["t2_b"], [1, 2], session=session)
         else:
             schedulable_tis["t2_b"].state = FAILED
         session.flush()
@@ -251,8 +250,7 @@ def test_step_by_step(
         schedulable_tis["t3"].state = SKIPPED
     else:
         schedulable_tis["t3"].state = SUCCESS
-        schedulable_tis["t3"].xcom_push(XCOM_RETURN_KEY, [3, 4], session=session)
-        session.add(TaskMap.from_task_instance_xcom(schedulable_tis["t3"], [3, 4]))
+        push_mapped_length(schedulable_tis["t3"], [3, 4], session=session)
     schedulable_tis["t4"].state = SUCCESS
     session.flush()
     _one_scheduling_decision_iteration(dr, session)

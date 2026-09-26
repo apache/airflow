@@ -50,6 +50,18 @@ describe("getLogLineText", () => {
     );
   });
 
+  it("omits the level when showLogLevel is false", () => {
+    const logMessage = {
+      event: "task done",
+      level: "info",
+      timestamp: "2026-01-01T00:00:00Z",
+    } as StructuredLogMessage;
+
+    expect(
+      getLogLineText({ logMessage, showLogLevel: false, showSource: false, showTimestamp: true, translate }),
+    ).toBe("[2026-01-01T00:00:00Z] task done");
+  });
+
   it("strips ANSI codes from plain string lines", () => {
     expect(getLogLineText({ logMessage: "plain \u001B[32mok\u001B[0m line", translate })).toBe(
       "plain ok line",

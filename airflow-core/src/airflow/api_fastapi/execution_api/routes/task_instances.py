@@ -672,6 +672,8 @@ def _create_ti_state_update_query_and_update_state(
 
         if updated_state == TaskInstanceState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload
+            if isinstance(ti_patch_payload, TITerminalStatePayload) and ti_patch_payload.retry_reason:
+                query = query.values(retry_reason=ti_patch_payload.retry_reason[:500])
             if ti is not None:
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):

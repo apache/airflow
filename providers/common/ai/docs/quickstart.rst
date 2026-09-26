@@ -48,12 +48,12 @@ connection change, not a Dag change. The Dag below uses the default connection i
 ``pydanticai_default``.
 
 The quickest way to create it is an environment variable on the machine that runs the
-scheduler and the workers. Replace ``sk-...`` with your key and ``openai:gpt-5.6-sol`` with
+scheduler and the workers. Replace ``sk-...`` with your key and ``openai:gpt-5`` with
 a model you have access to:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5.6-sol"}}'
+    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5"}}'
 
 You can also create it in the UI under **Admin > Connections**: choose the connection type
 **Pydantic AI**, set the connection id to ``pydanticai_default``, put the API key in
@@ -121,3 +121,5 @@ Where to go next
   files, generating SQL, batch processing.
 - :doc:`operators/agent` gives the model tools built from Airflow hooks, SQL databases or
   MCP servers, so it can act instead of only answering.
+- :doc:`local_development` shows how to iterate on an agent in a notebook and test the
+  Dag without an API key.
