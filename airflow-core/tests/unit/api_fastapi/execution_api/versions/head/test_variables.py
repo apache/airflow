@@ -24,6 +24,7 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.routing import Mount
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.models.variable import Variable
 
@@ -245,6 +246,27 @@ class TestPutVariable:
 
 
 class TestGetVariableKeys:
+    @pytest.fixture(autouse=True)
+    def reconfigure_async_db_engine(self, client):
+        from airflow import settings
+
+        settings._configure_async_session()
+        yield
+        assert settings.async_engine is not None
+        client.portal.call(settings.async_engine.dispose)
+
+    @mock.patch.object(AsyncSession, "scalars", autospec=True)
+    @mock.patch.object(AsyncSession, "scalar", autospec=True, return_value=0)
+    def test_awaits_async_queries(self, mock_scalar, mock_scalars, client):
+        mock_scalars.return_value.all = mock.Mock(return_value=[])
+
+        response = client.get("/execution/variables/keys")
+
+        assert response.status_code == 200
+        assert response.json() == {"keys": [], "total_entries": 0}
+        mock_scalar.assert_awaited_once()
+        mock_scalars.assert_awaited_once()
+
     @pytest.mark.parametrize(
         ("prefix", "expected_keys"),
         [
