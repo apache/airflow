@@ -47,7 +47,9 @@ class CachingToolset(WrapperToolset[Any]):
     If so, returns the cached result without executing the tool. Otherwise,
     executes the tool and caches the result. A fingerprint mismatch means the
     conversation diverged from the previous attempt; the stale entry is
-    discarded and the tool runs live.
+    discarded and the tool runs live. A call that cannot be fingerprinted is
+    neither replayed nor cached: an entry stored without a fingerprint could
+    never be verified on a later attempt.
 
     The step index is grabbed before the first ``await``, so parallel tool
     calls via ``asyncio.gather`` get deterministic indices (tasks start
@@ -68,11 +70,11 @@ class CachingToolset(WrapperToolset[Any]):
         # even when multiple tool calls run concurrently via asyncio.gather.
         step = self.counter.next_step()
         key = f"{DURABLE_KEY_PREFIX}tool_step_{step}"
-        fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id)
+        fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id, step=step)
 
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)
         if found:
-            if cached_fingerprint == fingerprint:
+            if fingerprint is not None and cached_fingerprint == fingerprint:
                 self.counter.replayed_tool += 1
                 log.debug("Durable: replayed cached tool result", step=step, tool=name)
                 return cached
@@ -89,7 +91,19 @@ class CachingToolset(WrapperToolset[Any]):
             )
 
         result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
-        self.storage.save_tool_result(key, result, fingerprint=fingerprint)
+        # Counts the live tool call, not the write: the run summary reports this as
+        # steps executed fresh, and the tool ran either way. ``save_tool_result``
+        # also returns without writing when the result itself is not serializable.
         self.counter.cached_tool += 1
+        if fingerprint is None:
+            # An entry stored without a fingerprint can never satisfy the guard
+            # above, so writing one only adds a dead entry per step.
+            log.debug(
+                "Durable: not caching tool result that cannot be verified on replay",
+                step=step,
+                tool=name,
+            )
+            return result
+        self.storage.save_tool_result(key, result, fingerprint=fingerprint)
         log.debug("Durable: cached tool result", step=step, tool=name)
         return result
