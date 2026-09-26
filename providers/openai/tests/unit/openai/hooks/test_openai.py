@@ -36,6 +36,7 @@ from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from pydantic import BaseModel
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -319,6 +320,39 @@ def test_create_response(mock_openai_hook):
     result = mock_openai_hook.create_response(input="Hello", model=MODEL)
     mock_openai_hook.conn.responses.create.assert_called_once_with(model=MODEL, input="Hello")
     assert result is expected
+
+
+def test_parse_response(mock_openai_hook):
+    class Person(BaseModel):
+        name: str
+
+    expected = mock_openai_hook.conn.responses.parse.return_value
+    result = mock_openai_hook.parse_response(
+        input="Extract: Alice",
+        text_format=Person,
+        model=MODEL,
+        instructions="Be precise.",
+    )
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL,
+        input="Extract: Alice",
+        text_format=Person,
+        instructions="Be precise.",
+    )
+    assert result is expected
+
+
+def test_parse_response_matches_create_response_positional_order(mock_openai_hook):
+    class Person(BaseModel):
+        name: str
+
+    # model is the second positional argument, as in create_response; text_format is keyword-only.
+    mock_openai_hook.parse_response("Extract: Alice", MODEL, text_format=Person)
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL, input="Extract: Alice", text_format=Person
+    )
+    with pytest.raises(TypeError, match="text_format"):
+        mock_openai_hook.parse_response("Extract: Alice", Person)
 
 
 def test_get_response(mock_openai_hook):

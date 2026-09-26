@@ -21,13 +21,41 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from pydantic import BaseModel, ValidationError
+
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_complete_event
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
+    from openai.types.responses import ParsedResponse, Response
+
     from airflow.providers.common.compat.sdk import Context
+
+
+def _get_structured_response_details(response: ParsedResponse[BaseModel]) -> str:
+    """Return API-reported context for a structured-response failure."""
+    details = [f"status={response.status!r}"]
+    if response.error is not None:
+        details.append(f"error={response.error!r}")
+    if response.incomplete_details is not None:
+        details.append(f"incomplete_details={response.incomplete_details!r}")
+
+    refusals = [
+        content.refusal
+        for output in response.output
+        if output.type == "message"
+        for content in output.content
+        if content.type == "refusal"
+    ]
+    if refusals:
+        details.append(f"refusal={'; '.join(refusals)!r}")
+    else:
+        output_types = [output.type for output in response.output]
+        if output_types:
+            details.append(f"output_types={output_types!r}")
+    return ", ".join(details)
 
 
 class OpenAIEmbeddingOperator(BaseOperator):
@@ -88,10 +116,11 @@ class OpenAIResponseOperator(BaseOperator):
     """
     Operator that generates a model response using the OpenAI Responses API.
 
-    The operator is synchronous and returns the response's aggregated output text; the
-    response id is also pushed to XCom (see below), so a downstream task can pick it up
-    for ``previous_response_id`` chaining without going through the hook. For
-    ``background=True`` responses, or access to the full structured response, use
+    The operator is synchronous and returns the response's aggregated output text, or, when
+    ``text_format`` is set, the structured output parsed into that Pydantic model (see
+    ``text_format`` below). The response id is also pushed to XCom (see below), so a downstream
+    task can pick it up for ``previous_response_id`` chaining without going through the hook. For
+    ``background=True`` responses, or access to the full response object, use
     :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
     ``max_output_tokens`` caps the number of tokens generated for the response; ``max_tool_calls``
@@ -111,10 +140,13 @@ class OpenAIResponseOperator(BaseOperator):
         input items.
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
-        method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
-        Templated, so values (e.g. ``previous_response_id``) may reference upstream XCom.
+        method, or ``parse_response`` when ``text_format`` is set (for example ``instructions``,
+        ``tools``, ``conversation`` or ``previous_response_id``). Templated, so values (e.g.
+        ``previous_response_id``) may reference upstream XCom.
         Do not set ``background`` or ``stream`` here: ``background=True`` returns before the response
-        completes, so this operator logs a warning and the returned output text may be empty, while
+        completes, so this operator logs a warning and the returned output text may be empty (with
+        ``text_format`` set, the parsed response comes back ``queued`` or ``in_progress``, so the task
+        raises ``ValueError`` and the background response is left running on OpenAI's side), while
         ``stream=True`` returns an object without ``status`` or ``output_text``, so the task raises
         ``AttributeError``. See :ref:`howto/operator:OpenAIResponseOperator` for these and other
         options this operator can pass through, such as ``truncation`` and ``metadata``. ``max_output_tokens``
@@ -144,6 +176,13 @@ class OpenAIResponseOperator(BaseOperator):
     :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
         make while generating the response. Same templating, type, validation, blank-as-unset, and
         mutual-exclusion rules as ``max_output_tokens``.
+    :param text_format: Optional Pydantic ``BaseModel`` subclass describing the expected structured
+        output. When set, the operator calls ``parse_response`` instead of ``create_response`` and
+        returns the parsed model's ``model_dump(mode="json")``, so enums, dates and other non-JSON
+        field types reach XCom as their JSON representations. The task fails with ``ValueError``
+        rather than returning partial data when the response did not complete (for example because
+        ``max_output_tokens`` was reached), when it carries no parsed output (for example a
+        refusal), or when the SDK cannot validate the output against the model.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -157,7 +196,9 @@ class OpenAIResponseOperator(BaseOperator):
     not ``None`` it also carries a ``try_number`` key recording which attempt produced it --
     XCom is cleared at the start of every attempt, so this makes it visible that the value
     only reflects the current attempt rather than a silently under-reported total across
-    retries. Both XCom pushes are skipped when ``do_xcom_push=False``.
+    retries. With ``text_format`` set, both keys are pushed before the structured output is
+    checked, so a response that then fails the task still records its id and token usage.
+    Both XCom pushes are skipped when ``do_xcom_push=False``.
     """
 
     template_fields: Sequence[str] = (
@@ -179,6 +220,7 @@ class OpenAIResponseOperator(BaseOperator):
         *,
         max_output_tokens: int | str | None = None,
         max_tool_calls: int | str | None = None,
+        text_format: type[BaseModel] | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -188,11 +230,29 @@ class OpenAIResponseOperator(BaseOperator):
         self.response_kwargs = response_kwargs or {}
         self.max_output_tokens = max_output_tokens
         self.max_tool_calls = max_tool_calls
+        self.text_format = text_format
         self._supplied_ceilings: frozenset[str] = frozenset(
             name for name in self._TOKEN_CEILING_PARAM_NAMES if getattr(self, name) is not None
         )
         self._validate_no_response_kwargs_conflict()
         self._validate_literal_ceiling_values()
+        self._validate_text_format()
+
+    def _validate_text_format(self) -> None:
+        """
+        Reject a ``text_format`` that is not a Pydantic ``BaseModel`` subclass.
+
+        The SDK also accepts other Pydantic-compatible types, such as a ``pydantic.dataclasses``
+        class, but those have no ``model_dump``: they would complete the billed API call and only
+        then fail. Checking when the operator is constructed rejects them before any request.
+        """
+        if self.text_format is not None and not (
+            isinstance(self.text_format, type) and issubclass(self.text_format, BaseModel)
+        ):
+            raise TypeError(
+                f"Task {self.task_id!r}: 'text_format' must be a Pydantic BaseModel subclass, "
+                f"got {self.text_format!r}."
+            )
 
     def _validate_no_response_kwargs_conflict(self) -> None:
         """Reject a ceiling set both as an operator argument and in ``response_kwargs``."""
@@ -293,10 +353,56 @@ class OpenAIResponseOperator(BaseOperator):
             response_kwargs[param_name] = self._coerce_token_ceiling(param_name, value)
         return response_kwargs
 
-    def execute(self, context: Context) -> str:
-        response = self.hook.create_response(
-            input=self.input_text, model=self.model, **self._build_response_kwargs()
-        )
+    def _push_response_metadata(self, context: Context, response: Response) -> None:
+        """Push the response id and token usage to XCom when ``do_xcom_push`` is enabled."""
+        if self.do_xcom_push:
+            context["ti"].xcom_push(key="response_id", value=response.id)
+            # model_dump (not a hand-picked field list) keeps a token-usage dimension
+            # the API adds later from being silently dropped; mode="json" keeps the
+            # value XCom-serializable.
+            #
+            # XCom is cleared at the start of every attempt, so this key only ever holds
+            # the last one. Stamping the attempt makes that visible rather than silently
+            # under-reporting total spend across retries. Built as a new dict rather than
+            # mutating what model_dump() returned.
+            usage = (
+                {**response.usage.model_dump(mode="json"), "try_number": context["ti"].try_number}
+                if response.usage is not None
+                else None
+            )
+            context["ti"].xcom_push(key="usage", value=usage)
+
+    def execute(self, context: Context) -> str | dict[str, Any]:
+        response_kwargs = self._build_response_kwargs()
+        if self.text_format is not None:
+            try:
+                parsed = self.hook.parse_response(
+                    input=self.input_text,
+                    model=self.model,
+                    text_format=self.text_format,
+                    **response_kwargs,
+                )
+            except ValidationError as exc:
+                # ``responses.parse`` raises ``ValidationError`` when the model's JSON output
+                # can't be coerced into ``text_format`` — most commonly because the response
+                # was truncated (e.g. ``max_output_tokens`` hit) mid-JSON. Convert to a clean
+                # ``ValueError`` so callers see a consistent shape across all parse failures.
+                raise ValueError(
+                    f"OpenAI Responses API returned a payload that does not match "
+                    f"{self.text_format.__name__!r}. The response may have been truncated because "
+                    f"max_output_tokens was reached: {exc}"
+                ) from exc
+
+            self.log.info("Generated response %s", parsed.id)
+            # Pushed before the checks below: a response they reject was still billed.
+            self._push_response_metadata(context, parsed)
+            details = _get_structured_response_details(parsed)
+            if parsed.status != "completed":
+                raise ValueError(f"Response {parsed.id} did not complete ({details}).")
+            if parsed.output_parsed is None:
+                raise ValueError(f"Response {parsed.id} did not return a structured output ({details}).")
+            return parsed.output_parsed.model_dump(mode="json")
+        response = self.hook.create_response(input=self.input_text, model=self.model, **response_kwargs)
         if response.status == "incomplete":
             reason = response.incomplete_details.reason if response.incomplete_details else None
             if reason and response.output_text:
@@ -329,22 +435,7 @@ class OpenAIResponseOperator(BaseOperator):
                 response.status,
             )
         self.log.info("Generated response %s", response.id)
-        if self.do_xcom_push:
-            context["ti"].xcom_push(key="response_id", value=response.id)
-            # model_dump (not a hand-picked field list) keeps a token-usage dimension
-            # the API adds later from being silently dropped; mode="json" keeps the
-            # value XCom-serializable.
-            #
-            # XCom is cleared at the start of every attempt, so this key only ever holds
-            # the last one. Stamping the attempt makes that visible rather than silently
-            # under-reporting total spend across retries. Built as a new dict rather than
-            # mutating what model_dump() returned.
-            usage = (
-                {**response.usage.model_dump(mode="json"), "try_number": context["ti"].try_number}
-                if response.usage is not None
-                else None
-            )
-            context["ti"].xcom_push(key="usage", value=usage)
+        self._push_response_metadata(context, response)
         return response.output_text
 
 

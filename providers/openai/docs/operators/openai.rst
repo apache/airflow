@@ -47,7 +47,8 @@ OpenAIResponseOperator
 
 Use the :class:`~airflow.providers.openai.operators.openai.OpenAIResponseOperator` to generate a
 model response with the OpenAI Responses API, OpenAI's recommended interface for text generation and
-tool use. The operator returns the response's aggregated output text. When ``do_xcom_push`` is
+tool use. By default, the operator returns the response's aggregated output text; it can also return
+Pydantic-validated structured output as a JSON-compatible value (see below). When ``do_xcom_push`` is
 enabled (the default), ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID,
 usable as a downstream task's ``previous_response_id`` for chaining) and ``usage`` (the response's
 token usage, or ``None`` when the API omits it). ``usage`` is the nested dict returned by
@@ -172,9 +173,41 @@ know about yet. Options worth knowing about:
     before the response finishes. ``OpenAIResponseOperator`` is synchronous: it makes one
     ``create_response`` call and returns ``response.output_text`` immediately, so a response
     started with ``background=True`` comes back incomplete, and the operator logs its own warning
-    because ``response.status`` is not yet ``"completed"``. Do not set ``background=True`` on
+    because ``response.status`` is not yet ``"completed"``. With ``text_format`` set, the task
+    raises ``ValueError`` instead, and the background response is left running on OpenAI's side.
+    Do not set ``background=True`` on
     ``OpenAIResponseOperator``. If you need a background response, create it from a ``@task``
     using :class:`~airflow.providers.openai.hooks.openai.OpenAIHook`'s ``create_response`` directly.
+
+Structured outputs (Pydantic models)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To request a structured response, pass a Pydantic ``BaseModel`` subclass as ``text_format``. The
+operator then calls the Responses API's structured-output path (``responses.parse``) and returns
+the parsed model's JSON-mode dump (via ``model_dump(mode="json")``). This renders supported field
+types such as enums and dates as JSON-compatible values before the result is pushed to XCom. Most
+models produce a ``dict``; a Pydantic custom model serializer may produce another JSON shape such
+as a list or scalar.
+
+``response_kwargs``, ``max_output_tokens`` and ``max_tool_calls`` are validated and passed through
+for structured requests exactly as for plain-text ones, and the ``response_id`` and ``usage`` XCom
+keys are pushed the same way -- before the checks below, so a rejected response still records its
+id and token usage.
+
+The operator rejects any response that did not complete -- incomplete, failed, or still in
+progress -- even if the partial output happens to match the Pydantic model, so unlike the
+plain-text path, reaching ``max_output_tokens`` fails the task instead of returning truncated
+output. The resulting ``ValueError`` includes the response id and
+available API details, such as ``status``, ``error``, ``incomplete_details``, refusal text, or
+output item types. If the SDK cannot parse the model output, it raises ``ValidationError`` before
+returning a response object; the operator converts that to ``ValueError`` naming the requested
+model and notes that reaching ``max_output_tokens`` is a likely cause. In that case, a response id
+and API details are unavailable, and neither XCom key is pushed.
+
+.. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
+    :language: python
+    :start-after: [START howto_operator_openai_response_structured]
+    :end-before: [END howto_operator_openai_response_structured]
 
 Using the OpenAIHook for Responses and Conversations
 =====================================================
@@ -182,7 +215,8 @@ Using the OpenAIHook for Responses and Conversations
 The :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` exposes the Responses and
 Conversations APIs directly for use inside ``@task`` functions or custom operators:
 
-- Responses: ``create_response``, ``get_response``, ``delete_response`` and ``cancel_response``
+- Responses: ``create_response``, ``parse_response`` (structured-output wrapper),
+  ``get_response``, ``delete_response`` and ``cancel_response``
   (the last cancels a response created with ``background=True``).
 - Conversations: ``create_conversation``, ``get_conversation``, ``update_conversation`` and
   ``delete_conversation``. Pass the conversation id to ``create_response`` (via the operator's
