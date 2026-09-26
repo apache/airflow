@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.sdk._shared.timezones.timezone import parse_timezone
+from airflow.sdk._shared.timezones.timezone import make_aware, make_naive, parse_timezone
 from airflow.sdk.module_loading import qualname
 from airflow.sdk.serde.serializers.timezone import (
     deserialize as deserialize_timezone,
@@ -52,9 +52,19 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if isinstance(o, datetime):
         qn = qualname(o)
 
-        tz = serialize_timezone(o.tzinfo) if o.tzinfo else None
+        if o.tzinfo is None:
+            # A naive datetime carries no timezone information, so anchor it to
+            # the configured default timezone (``core.default_timezone``) rather
+            # than the OS local timezone of the serializing process. Otherwise
+            # the stored epoch silently depends on which machine writes the value.
+            # The payload keeps ``tz`` empty so it still deserializes as naive.
+            ts = make_aware(o).timestamp()
+            tz = None
+        else:
+            ts = o.timestamp()
+            tz = serialize_timezone(o.tzinfo)
 
-        return {TIMESTAMP: o.timestamp(), TIMEZONE: tz}, qn, __version__, True
+        return {TIMESTAMP: ts, TIMEZONE: tz}, qn, __version__, True
 
     if isinstance(o, date):
         return o.isoformat(), qualname(o), __version__, True
@@ -93,6 +103,12 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
             )
 
     if cls is datetime.datetime and isinstance(data, dict):
+        if tz is None:
+            # No timezone was stored, so this was a naive datetime. Interpret the
+            # epoch in the configured default timezone (mirroring ``serialize``)
+            # and return a naive datetime, so the round-trip compares equal to
+            # what was pushed regardless of the deserializing process's OS timezone.
+            return make_naive(datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=datetime.timezone.utc))
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
     if cls is datetime.datetime and isinstance(data, int | float):
