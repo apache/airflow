@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 from kubernetes.client import Configuration, models as k8s
 from sqlalchemy import text
-from sqlalchemy.exc import StatementError
+from sqlalchemy.exc import OperationalError, StatementError
 
 from airflow import settings
 from airflow.sdk import DAG
@@ -38,6 +38,7 @@ from airflow.utils.sqlalchemy import (
     apply_regex_query_timeout,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
+    is_serialization_error,
     prohibit_commit,
     with_row_locks,
 )
@@ -443,3 +444,32 @@ class TestApplyRegexQueryTimeout:
             with apply_regex_query_timeout(session):
                 pass
         session.execute.assert_not_called()
+
+
+class _FakePsycopg2Error(Exception):
+    def __init__(self, pgcode=None):
+        super().__init__(pgcode)
+        self.pgcode = pgcode
+
+
+class _FakePsycopg3Error(Exception):
+    def __init__(self, sqlstate=None):
+        super().__init__(sqlstate)
+        self.sqlstate = sqlstate
+
+
+class TestIsSerializationError:
+    @pytest.mark.parametrize("code", ["40001", "40P01"])
+    def test_detects_psycopg2_codes(self, code):
+        error = OperationalError("stmt", None, _FakePsycopg2Error(code))
+        assert is_serialization_error(error) is True
+
+    @pytest.mark.parametrize("code", ["40001", "40P01"])
+    def test_detects_psycopg3_codes(self, code):
+        error = OperationalError("stmt", None, _FakePsycopg3Error(code))
+        assert is_serialization_error(error) is True
+
+    @pytest.mark.parametrize("code", ["55P03", "23505", None])
+    def test_ignores_other_codes(self, code):
+        error = OperationalError("stmt", None, _FakePsycopg2Error(code))
+        assert is_serialization_error(error) is False
