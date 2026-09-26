@@ -685,6 +685,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         "labels",
         "gcp_conn_id",
         "impersonation_chain",
+        "_legacy_cluster_kwargs",
     )
     template_fields_renderers = {"cluster_config": "json", "virtual_cluster_config": "json"}
 
@@ -712,7 +713,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
-        # TODO: remove one day
         if cluster_config is None and virtual_cluster_config is None:
             warnings.warn(
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
@@ -722,23 +722,21 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # Remove result of apply defaults
-            if "params" in kwargs:
-                del kwargs["params"]
-
-            # Create cluster object from kwargs
             if project_id is None:
                 raise AirflowException(
                     "project_id argument is required when building cluster from keywords parameters"
                 )
-            kwargs["project_id"] = project_id
-            cluster_config = ClusterGenerator(**kwargs).make()
+
+            # Defer building cluster_config until execute(), after templated fields render.
+            self._legacy_cluster_kwargs: dict | None = dict(kwargs)
 
             # Remove from kwargs cluster params passed for backward compatibility
             cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
             for arg in cluster_params:
                 if arg in kwargs:
                     del kwargs[arg]
+        else:
+            self._legacy_cluster_kwargs = None
 
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
@@ -760,6 +758,19 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.polling_interval_seconds = polling_interval_seconds
         self.num_retries_if_resource_is_not_ready = num_retries_if_resource_is_not_ready
+
+    def _build_cluster_config_from_legacy_kwargs(self) -> dict:
+        """Build cluster_config from legacy keyword args, called post-render in execute()."""
+        if self._legacy_cluster_kwargs is None:
+            raise RuntimeError(
+                "_legacy_cluster_kwargs was not populated in __init__; cluster_config can only "
+                "be built from legacy kwargs when the operator is constructed with the deprecated "
+                "keyword parameters (cluster_config/virtual_cluster_config both unset)."
+            )
+        cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
+        legacy_kwargs = {k: v for k, v in self._legacy_cluster_kwargs.items() if k in cluster_params}
+        legacy_kwargs["project_id"] = self.project_id  # rendered template field
+        return ClusterGenerator(**legacy_kwargs).make()
 
     def _create_cluster(self, hook: DataprocHook):
         return hook.create_cluster(
@@ -897,6 +908,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return cluster
 
     def execute(self, context: Context) -> dict:
+        if self.cluster_config is None and self.virtual_cluster_config is None:
+            self.cluster_config = self._build_cluster_config_from_legacy_kwargs()
 
         self.log.info("Attempting to create cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
