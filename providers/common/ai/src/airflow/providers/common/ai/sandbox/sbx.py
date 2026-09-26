@@ -78,8 +78,8 @@ class SbxSandboxBackend(SandboxBackend):
     (``sbx login``), a one-time ``sbx policy init``, and on Linux, KVM or nested
     virtualization -- which an unprivileged container cannot provide. If you need
     Kubernetes, use a hosted backend --
-    :class:`~airflow.providers.common.ai.sandbox.ModalSandboxBackend` or
-    :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend`, both of
+    :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` or
+    :class:`~airflow.providers.common.ai.sandbox.islo.IsloSandboxBackend`, both of
     which only talk to an API -- or add your own behind :class:`SandboxBackend`.
 
     **Network policy is layered on a host-level setting, not independent of

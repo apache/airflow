@@ -428,7 +428,7 @@ def get_provider_info():
                     },
                     "timeout": {
                         "label": "Request Timeout (s)",
-                        "description": "HTTP request timeout in seconds for every SDK call (optional).",
+                        "description": "Default HTTP timeout in seconds for the SDK client (optional).",
                         "schema": {"type": ["number", "null"]},
                     },
                 },
