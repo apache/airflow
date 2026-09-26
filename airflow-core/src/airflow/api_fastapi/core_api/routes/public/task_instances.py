@@ -918,13 +918,17 @@ def post_clear_task_instances(
         mapped_tasks_tuples = {t for t in task_markers_to_clear if isinstance(t, tuple)}
         # Unmapped tasks are expressed in their task_ids (without map_indexes)
         normal_task_ids = {t for t in task_markers_to_clear if not isinstance(t, tuple)}
+        # Relatives are collected from the selected tasks only. The collected ones are added to the
+        # sets above, so passing those would make the downstream pass start from upstream relatives too.
+        selected_task_ids = frozenset(normal_task_ids)
+        selected_mapped_tasks = frozenset(mapped_tasks_tuples)
 
         def _collect_relatives(run_id: str, direction: Literal["upstream", "downstream"]) -> None:
             from airflow.models.taskinstance import find_relevant_relatives
 
             relevant_relatives = find_relevant_relatives(
-                normal_task_ids,
-                mapped_tasks_tuples,
+                selected_task_ids,
+                selected_mapped_tasks,
                 dag=dag,
                 run_id=run_id,
                 direction=direction,

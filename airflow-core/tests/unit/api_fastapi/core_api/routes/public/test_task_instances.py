@@ -4366,6 +4366,51 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["total_entries"] == group_size
 
+    @pytest.mark.parametrize(
+        ("include_upstream", "include_downstream", "expected_task_ids"),
+        [
+            pytest.param(True, False, ["a", "root"], id="upstream"),
+            pytest.param(False, True, ["a", "b"], id="downstream"),
+            pytest.param(True, True, ["a", "b", "root"], id="upstream-and-downstream"),
+        ],
+    )
+    def test_clear_with_dag_run_id_collects_relatives_of_selected_tasks_only(
+        self, test_client, dag_maker, session, include_upstream, include_downstream, expected_task_ids
+    ):
+        """Downstream relatives are not collected from upstream relatives (regression for #73710)."""
+        dag_id = "clear_relatives_dag"
+        with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True):
+            root = BaseOperator(task_id="root")
+            a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+            other = BaseOperator(task_id="other")
+            root >> a >> b
+            root >> other
+        dr = dag_maker.create_dagrun(
+            run_id="run_clear_relatives",
+            logical_date=DEFAULT_DATETIME_1,
+            data_interval=(DEFAULT_DATETIME_1, DEFAULT_DATETIME_2),
+        )
+        DagBundlesManager().sync_bundles_to_db()
+        dagbag = DagBag(os.devnull)
+        dagbag.dags = {dag_id: dag_maker.dag}
+        sync_bag_to_db(dagbag, "dags-folder", None)
+        session.flush()
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": dr.run_id,
+                "task_ids": ["a"],
+                "include_upstream": include_upstream,
+                "include_downstream": include_downstream,
+            },
+        )
+        assert response.status_code == 200
+        assert sorted(ti["task_id"] for ti in response.json()["task_instances"]) == expected_task_ids
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, test_client, session):
