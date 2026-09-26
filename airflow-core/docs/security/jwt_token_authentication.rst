@@ -72,21 +72,21 @@ Signing and Cryptography
 Airflow supports two mutually exclusive signing modes:
 
 **Symmetric (shared secret)**
-   Uses a pre-shared secret key (``[api_auth] jwt_secret``) with the **HS512** algorithm.
+   Uses a pre-shared secret key (:ref:`[api_auth] jwt_secret <config:api_auth__jwt_secret>`) with the **HS512** algorithm.
    All components that generate or validate tokens must share the same secret. If no secret
    is configured, Airflow auto-generates a random 16-byte key at startup — but this key is
    ephemeral and different across processes, which will cause authentication failures in
    multi-component deployments. Deployment Managers must explicitly configure this value.
 
 **Asymmetric (public/private key pair)**
-   Uses a PEM-encoded private key (``[api_auth] jwt_private_key_path``) for signing and
+   Uses a PEM-encoded private key (:ref:`[api_auth] jwt_private_key_path <config:api_auth__jwt_private_key_path>`) for signing and
    the corresponding public key for validation. Supported algorithms: **RS256** (``RSA``) and
    **EdDSA** (``Ed25519``). The algorithm is auto-detected from the key type when
-   ``[api_auth] jwt_algorithm`` is set to ``GUESS`` (the default).
+   :ref:`[api_auth] jwt_algorithm <config:api_auth__jwt_algorithm>` is set to ``GUESS`` (the default).
 
    Validation can use either:
 
-   - A JWKS (JSON Web Key Set) endpoint configured via ``[api_auth] trusted_jwks_url``
+   - A JWKS (JSON Web Key Set) endpoint configured via :ref:`[api_auth] trusted_jwks_url <config:api_auth__trusted_jwks_url>`
      (local file or remote HTTP/HTTPS URL, polled periodically for updates).
    - The public key derived from the configured private key (automatic fallback when
      ``trusted_jwks_url`` is not set).
@@ -154,9 +154,9 @@ Token structure (REST API)
    * - ``jti``
      - Unique token identifier (UUID4 hex). Used for token revocation.
    * - ``iss``
-     - Issuer (from ``[api_auth] jwt_issuer``).
+     - Issuer (from :ref:`[api_auth] jwt_issuer <config:api_auth__jwt_issuer>`).
    * - ``aud``
-     - Audience (from ``[api_auth] jwt_audience``).
+     - Audience (from :ref:`[api_auth] jwt_audience <config:api_auth__jwt_audience>`).
    * - ``sub``
      - User identifier (serialized by the auth manager).
    * - ``iat``
@@ -177,7 +177,7 @@ On each API request, the token is extracted in this order of precedence:
 
 The ``JWTValidator`` verifies the signature, expiry (``exp``), not-before (``nbf``),
 issued-at (``iat``), audience, and issuer claims. A configurable leeway
-(``[api_auth] jwt_leeway``, default 10 seconds) accounts for clock skew.
+(:ref:`[api_auth] jwt_leeway <config:api_auth__jwt_leeway>`, default 10 seconds) accounts for clock skew.
 
 Token revocation (REST API only)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -213,11 +213,11 @@ Default timings (REST API)
 
    * - Setting
      - Default
-   * - ``[api_auth] jwt_expiration_time``
+   * - :ref:`[api_auth] jwt_expiration_time <config:api_auth__jwt_expiration_time>`
      - 86400 seconds (24 hours)
-   * - ``[api_auth] jwt_cli_expiration_time``
+   * - :ref:`[api_auth] jwt_cli_expiration_time <config:api_auth__jwt_cli_expiration_time>`
      - 3600 seconds (1 hour)
-   * - ``[api_auth] jwt_leeway``
+   * - :ref:`[api_auth] jwt_leeway <config:api_auth__jwt_leeway>`
      - 10 seconds
 
 
@@ -233,7 +233,7 @@ Token generation (Execution API)
 
 1. The **Scheduler** generates a JWT for each task instance before
    dispatching it (via the executor) to a worker. The executor's
-   ``jwt_generator`` property creates a ``JWTGenerator`` configured with the ``[execution_api]`` settings.
+   ``jwt_generator`` property creates a ``JWTGenerator`` configured with the :ref:`[execution_api] <config:execution_api>` settings.
 2. The token's ``sub`` (subject) claim is set to the **task instance UUID**.
 3. The token is embedded in the workload JSON payload (``BaseWorkloadSchema.token`` field)
    that is sent to the worker process.
@@ -250,9 +250,9 @@ Token structure (Execution API)
    * - ``jti``
      - Unique token identifier (UUID4 hex).
    * - ``iss``
-     - Issuer (from ``[api_auth] jwt_issuer``).
+     - Issuer (from :ref:`[api_auth] jwt_issuer <config:api_auth__jwt_issuer>`).
    * - ``aud``
-     - Audience (from ``[execution_api] jwt_audience``, default: ``urn:airflow.apache.org:task``).
+     - Audience (from :ref:`[execution_api] jwt_audience <config:execution_api__jwt_audience>`, default: ``urn:airflow.apache.org:task``).
    * - ``sub``
      - Task instance UUID — the identity of the workload.
    * - ``scope``
@@ -275,7 +275,7 @@ The Execution API defines two token scopes with different lifetimes:
    allows tasks to remain valid while waiting in executor queues before execution
    begins. When a worker calls the ``/run`` endpoint with a ``workload`` token, the
    server issues a fresh ``execution``-scoped token in the ``Refreshed-API-Token``
-   response header. Lifetime equals ``[scheduler] task_queued_timeout`` (default
+   response header. Lifetime equals :ref:`[scheduler] task_queued_timeout <config:scheduler__task_queued_timeout>` (default
    600 seconds) — the same timeout the scheduler uses to reap queue-starved tasks —
    so tuning ``task_queued_timeout`` also widens the window a task can wait in a
    backed-up queue before its workload token expires.
@@ -295,7 +295,7 @@ Token delivery to workers
 The token flows through the execution stack as follows:
 
 1. **Scheduler** generates a ``workload``-scoped token (lifetime equals
-   ``[scheduler] task_queued_timeout``, default 600 seconds) and embeds it in the workload
+   :ref:`[scheduler] task_queued_timeout <config:scheduler__task_queued_timeout>`, default 600 seconds) and embeds it in the workload
    JSON payload that it passes to **Executor**.
 2. The workload JSON is passed to the worker process (via the executor-specific mechanism:
    Celery message, Kubernetes Pod spec, local subprocess arguments, etc.).
@@ -417,7 +417,7 @@ No token revocation (Execution API)
 
 Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
 (default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware``.
-``workload``-scoped tokens (tracking ``[scheduler] task_queued_timeout``) are not refreshed —
+``workload``-scoped tokens (tracking :ref:`[scheduler] task_queued_timeout <config:scheduler__task_queued_timeout>`) are not refreshed —
 they expire naturally after their validity period. Revocation is not part of the Execution API
 security model.
 
@@ -432,11 +432,11 @@ Default timings (Execution API)
 
    * - Setting
      - Default
-   * - ``[execution_api] jwt_expiration_time``
+   * - :ref:`[execution_api] jwt_expiration_time <config:execution_api__jwt_expiration_time>`
      - 600 seconds (10 minutes)
    * - Workload token lifetime (derived)
-     - ``[scheduler] task_queued_timeout`` (default 600 seconds)
-   * - ``[execution_api] jwt_audience``
+     - :ref:`[scheduler] task_queued_timeout <config:scheduler__task_queued_timeout>` (default 600 seconds)
+   * - :ref:`[execution_api] jwt_audience <config:execution_api__jwt_audience>`
      - ``urn:airflow.apache.org:task``
    * - Token refresh threshold
      - 20% of validity remaining (minimum 30 seconds)
@@ -505,43 +505,43 @@ All JWT-related configuration parameters:
    * - Parameter
      - Default
      - Description
-   * - ``[api_auth] jwt_secret``
+   * - :ref:`[api_auth] jwt_secret <config:api_auth__jwt_secret>`
      - Auto-generated if missing
      - Symmetric secret key for signing tokens. Must be the same across all components. Mutually exclusive with ``jwt_private_key_path``.
-   * - ``[api_auth] jwt_private_key_path``
+   * - :ref:`[api_auth] jwt_private_key_path <config:api_auth__jwt_private_key_path>`
      - None
      - Path to PEM-encoded private key (``RSA`` or ``Ed25519``). Mutually exclusive with ``jwt_secret``.
-   * - ``[api_auth] jwt_algorithm``
+   * - :ref:`[api_auth] jwt_algorithm <config:api_auth__jwt_algorithm>`
      - ``GUESS``
      - Signing algorithm. Auto-detected from key type: ``HS512`` for symmetric, ``RS256`` for ``RSA``, ``EdDSA`` for ``Ed25519``.
-   * - ``[api_auth] jwt_kid``
+   * - :ref:`[api_auth] jwt_kid <config:api_auth__jwt_kid>`
      - Auto (``RFC 7638`` thumbprint)
      - Key ID placed in token header. Ignored for symmetric keys.
-   * - ``[api_auth] jwt_issuer``
+   * - :ref:`[api_auth] jwt_issuer <config:api_auth__jwt_issuer>`
      - None
      - Issuer claim (``iss``). Recommended to be unique per deployment.
-   * - ``[api_auth] jwt_audience``
+   * - :ref:`[api_auth] jwt_audience <config:api_auth__jwt_audience>`
      - None
      - Audience claim (``aud``) for REST API tokens.
-   * - ``[api_auth] jwt_expiration_time``
+   * - :ref:`[api_auth] jwt_expiration_time <config:api_auth__jwt_expiration_time>`
      - 86400 (24h)
      - REST API token lifetime in seconds.
-   * - ``[api_auth] jwt_cli_expiration_time``
+   * - :ref:`[api_auth] jwt_cli_expiration_time <config:api_auth__jwt_cli_expiration_time>`
      - 3600 (1h)
      - CLI token lifetime in seconds.
-   * - ``[api_auth] jwt_leeway``
+   * - :ref:`[api_auth] jwt_leeway <config:api_auth__jwt_leeway>`
      - 10
      - Clock skew tolerance in seconds for token validation.
-   * - ``[api_auth] trusted_jwks_url``
+   * - :ref:`[api_auth] trusted_jwks_url <config:api_auth__trusted_jwks_url>`
      - None
      - JWKS endpoint URL or local file path for token validation. Mutually exclusive with ``jwt_secret``.
-   * - ``[execution_api] jwt_expiration_time``
+   * - :ref:`[execution_api] jwt_expiration_time <config:execution_api__jwt_expiration_time>`
      - 600 (10 min)
      - Execution API ``execution``-scoped token lifetime in seconds.
-   * - ``[scheduler] task_queued_timeout``
+   * - :ref:`[scheduler] task_queued_timeout <config:scheduler__task_queued_timeout>`
      - 600.0 (10 min)
      - Queue-starvation timeout. Also sets the ``workload``-scoped token lifetime to the same value.
-   * - ``[execution_api] jwt_audience``
+   * - :ref:`[execution_api] jwt_audience <config:execution_api__jwt_audience>`
      - ``urn:airflow.apache.org:task``
      - Audience claim for Execution API tokens.
 

@@ -29,7 +29,7 @@ This backend is especially useful in the following use cases:
   `a shared volume <https://kubernetes.io/docs/tasks/access-application-cluster/communicate-containers-same-pod-shared-volume/>`__
 
 To use variable and connection from local file, specify :py:class:`~airflow.secrets.local_filesystem.LocalFilesystemBackend`
-as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
+as the :ref:`backend <config:secrets__backend>` in  :ref:`[secrets] <config:secrets>` section of ``airflow.cfg``.
 
 Available parameters to ``backend_kwargs``:
 

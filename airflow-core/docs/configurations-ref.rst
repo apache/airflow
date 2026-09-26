@@ -25,8 +25,8 @@ can set in ``airflow.cfg`` file or using environment variables.
 Different Airflow components may require different configuration parameters, and for
 improved security, you should restrict sensitive configuration to only the components that
 need it. Some configuration values must be shared across specific components to work
-correctly — for example, the JWT signing key (``[api_auth] jwt_secret`` or
-``[api_auth] jwt_private_key_path``) must be consistent across all components that generate
+correctly — for example, the JWT signing key (:ref:`[api_auth] jwt_secret <config:api_auth__jwt_secret>` or
+:ref:`[api_auth] jwt_private_key_path <config:api_auth__jwt_private_key_path>`) must be consistent across all components that generate
 or validate JWT tokens (Scheduler, API Server). However, other sensitive parameters such as
 database connection strings or Fernet keys should only be provided to components that need them.
 

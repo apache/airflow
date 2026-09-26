@@ -94,12 +94,12 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
   * ``detailed_status``: whether every part of that component's work is being covered by a live instance.
     What counts as "every part" differs per component, because only some of them divide their work up:
 
-    * **Dag processor** — the parts are the Dag bundles in ``[dag_processor] dag_bundle_config_list``.
+    * **Dag processor** — the parts are the Dag bundles in :ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>`.
       A processor started without ``--bundle-name`` covers every configured bundle;
       one started with it covers only the bundles it was given.
       ``"healthy"`` when every configured bundle has a live processor, ``"degraded"`` when only some do,
       ``"down"`` when none do.
-    * **Triggerer** — with ``[core] multi_team`` enabled, the parts are the teams those bundles are scoped to
+    * **Triggerer** — with :ref:`[core] multi_team <config:core__multi_team>` enabled, the parts are the teams those bundles are scoped to
       (plus the unscoped bundles), because a triggerer only picks up triggers for its own team.
       ``"healthy"`` when every team scope has a live triggerer, ``"degraded"`` when only some do,
       ``"down"`` when none do. With multi-team disabled, no team filtering applies, so any live triggerer
@@ -117,9 +117,9 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
   * ``latest_*_heartbeat``: the most recent heartbeat among running jobs of that type (ordered by heartbeat descending),
     or ``null`` when there are none.
     An instance is considered alive when its latest heartbeat is within the component health-check threshold
-    (defaults and config options: ``[scheduler] scheduler_health_check_threshold``,
-    ``[triggerer] triggerer_health_check_threshold``,
-    ``[dag_processor] health_check_threshold``).
+    (defaults and config options: :ref:`[scheduler] scheduler_health_check_threshold <config:scheduler__scheduler_health_check_threshold>`,
+    :ref:`[triggerer] triggerer_health_check_threshold <config:triggerer__triggerer_health_check_threshold>`,
+    :ref:`[dag_processor] health_check_threshold <config:dag_processor__health_check_threshold>`).
 
   * ``instances``: one entry per **live** instance of that type — ``null`` when none is live. Airflow cannot
     mark a job as finished when its process is killed abruptly (``SIGKILL``, an out-of-memory kill, a node
@@ -159,8 +159,8 @@ Scheduler Health Check Server
 In order to check scheduler health independent of the web server, Airflow optionally starts a small HTTP server
 in each scheduler to serve a scheduler ``/health`` endpoint. It returns status code ``200`` when the scheduler
 is healthy and status code ``503`` when the scheduler is unhealthy. To run this server in each scheduler, set
-``[scheduler]enable_health_check`` to ``True``. By default, it is ``False``. The server is running on the port
-specified by the ``[scheduler]scheduler_health_check_server_port`` option. By default, it is ``8974``. We are
+:ref:`[scheduler] enable_health_check <config:scheduler__enable_health_check>` to ``True``. By default, it is ``False``. The server is running on the port
+specified by the :ref:`[scheduler] scheduler_health_check_server_port <config:scheduler__scheduler_health_check_server_port>` option. By default, it is ``8974``. We are
 using `http.server.BaseHTTPRequestHandler <https://docs.python.org/3/library/http.server.html#http.server.BaseHTTPRequestHandler>`__ as a small server.
 
 .. _check-health/cli-checks-for-scheduler:

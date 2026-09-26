@@ -25,7 +25,7 @@ configuration and the variable configuration. It guarantees that a password encr
 Fernet is an implementation of symmetric (also known as "secret key") authenticated cryptography.
 
 The first time Airflow is started, the ``airflow.cfg`` file is generated with the default configuration and the unique Fernet
-key. The key is saved to option ``fernet_key`` of section ``[core]``.
+key. The key is saved to option :ref:`fernet_key <config:core__fernet_key>` of section :ref:`[core] <config:core>`.
 
 You can also configure a fernet key using environment variables. This will overwrite the value from the
 ``airflow.cfg`` file

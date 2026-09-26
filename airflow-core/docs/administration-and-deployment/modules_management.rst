@@ -137,9 +137,9 @@ Built-in ``PYTHONPATH`` entries in Airflow
 
 Airflow, when running dynamically adds three directories to the ``sys.path``:
 
-- The ``dags`` folder: It is configured with option ``dags_folder`` in section ``[core]``.
+- The ``dags`` folder: It is configured with option :ref:`dags_folder <config:core__dags_folder>` in section :ref:`[core] <config:core>`.
 - The ``config`` folder: It is configured by setting ``AIRFLOW_HOME`` variable (``{AIRFLOW_HOME}/config``) by default.
-- The ``plugins`` Folder: It is configured with option ``plugins_folder`` in section ``[core]``.
+- The ``plugins`` Folder: It is configured with option :ref:`plugins_folder <config:core__plugins_folder>` in section :ref:`[core] <config:core>`.
 
 .. _plugins-auto-import:
 

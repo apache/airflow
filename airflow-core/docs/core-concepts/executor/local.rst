@@ -41,7 +41,7 @@ The worker spawning behavior differs based on the multiprocessing start method:
 
 .. note::
 
-   The ``parallelism`` parameter can be configured via the ``[core] parallelism`` option in ``airflow.cfg``.
+   The ``parallelism`` parameter can be configured via the :ref:`[core] parallelism <config:core__parallelism>` option in ``airflow.cfg``.
    The default value is ``32``.
 
 .. warning::
@@ -53,7 +53,7 @@ The worker spawning behavior differs based on the multiprocessing start method:
 
 .. note::
 
-   When multiple Schedulers are configured with ``executor=LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each
+   When multiple Schedulers are configured with ``executor=LocalExecutor`` in the :ref:`[core] <config:core>` section of your ``airflow.cfg``, each
    Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the
    Schedulers.
 

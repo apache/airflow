@@ -225,7 +225,7 @@ per-Dag authorization: a task holding a valid token can call state-mutating Exec
 for **any** Dag in the installation. The ``ti:self`` token scope restricts cross-task-instance state
 mutation only; it is not a per-Dag access control.
 
-There is an **experimental** multi-team feature in Airflow (``[core] multi_team``) that provides UI-level and
+There is an **experimental** multi-team feature in Airflow (:ref:`[core] multi_team <config:core__multi_team>`) that provides UI-level and
 REST API-level RBAC isolation between teams. In multi-team mode, the team-scoped resources reachable through
 the Task Execution API are also isolated by team: a task may only access **Variables** and **Connections**
 belonging to its own team (falling back to global values), and may only access **XComs** of Dags in its own
@@ -529,7 +529,7 @@ potentially still executes with direct database access in the Dag File Processor
      ``sub`` is not a valid UUID is rejected before any route handler runs.
 
 **Token signing key might be a shared secret**
-   In symmetric key mode (``[api_auth] jwt_secret``), the same secret key is used to both generate and
+   In symmetric key mode (:ref:`[api_auth] jwt_secret <config:api_auth__jwt_secret>`), the same secret key is used to both generate and
    validate tokens. Any component that has access to this secret can forge tokens with arbitrary claims,
    including tokens for other task instances or with elevated scopes. This does not impact the security
    of the system though if the secret is only available to api-server and scheduler via deployment
@@ -563,13 +563,13 @@ model — Airflow does not enforce these natively.
 **Restrict sensitive configuration to components that need them**
    Do not share all configuration parameters across all components. In particular:
 
-   * The JWT signing key (``[api_auth] jwt_secret`` or ``[api_auth] jwt_private_key_path``) should only
+   * The JWT signing key (:ref:`[api_auth] jwt_secret <config:api_auth__jwt_secret>` or :ref:`[api_auth] jwt_private_key_path <config:api_auth__jwt_private_key_path>`) should only
      be available to components that need to generate tokens (Scheduler/Executor, API Server) and
      components that need to validate tokens (API Server). Workers should not have access to the signing
      key — they only need the tokens provided to them.
 
      **Exception — remote edge workers.** The ``edge3`` provider's worker signs its own API requests, so
-     every host running an edge worker must be provisioned with ``[api_auth] jwt_secret``. There is no
+     every host running an edge worker must be provisioned with :ref:`[api_auth] jwt_secret <config:api_auth__jwt_secret>`. There is no
      asymmetric alternative on that path, and no arrangement in which the worker is issued a token by
      the API server instead: the worker has to authenticate to the Edge API before it can be given
      any workload, so it must already hold a credential at that point. Provisioning the signing key on
@@ -809,7 +809,7 @@ model — Airflow does not enforce these natively.
    parameters that contain credentials or secrets relevant to their specific deployment.
 
 **Use asymmetric keys for JWT signing**
-   Using asymmetric keys (``[api_auth] jwt_private_key_path`` with a JWKS endpoint) provides better
+   Using asymmetric keys (:ref:`[api_auth] jwt_private_key_path <config:api_auth__jwt_private_key_path>` with a JWKS endpoint) provides better
    security than symmetric keys because:
 
    * The private key (used for signing) can be restricted to the Scheduler/Executor.
@@ -925,7 +925,7 @@ providing tighter control and ensuring that users have access only to the necess
 functionalities based on their roles and responsibilities. However, fine-grained access control does not
 yet provide full isolation and separation of access between different groups of users.
 
-The experimental multi-team feature (``[core] multi_team``) is a step towards cross-team isolation, but it
+The experimental multi-team feature (:ref:`[core] multi_team <config:core__multi_team>`) is a step towards cross-team isolation, but it
 currently only enforces team-based isolation at the UI and REST API level. **Task-level isolation is not yet
 guaranteed** — workloads from different teams share the same Execution API, JWT signing keys, and access to
 connections, variables, and XComs. In deployments where additional hardening measures (described in
@@ -1309,7 +1309,7 @@ Values outside the secret-masking contract
 
 Secret masking covers values Airflow has been told are secret: a connection's password and its
 ``extra``, and values whose field name matches the sensitive-field list that
-``[core] sensitive_var_conn_names`` extends. It reduces accidental disclosure in logs and the UI.
+:ref:`[core] sensitive_var_conn_names <config:core__sensitive_var_conn_names>` extends. It reduces accidental disclosure in logs and the UI.
 It is not a boundary that contains a Dag author, who can always read and print the values their
 tasks are given.
 

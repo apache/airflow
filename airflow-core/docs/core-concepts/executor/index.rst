@@ -20,7 +20,7 @@ Executor
 
 Executors are the mechanism by which :doc:`task instances </core-concepts/tasks>` get run. They have a common API and are "pluggable", meaning you can swap executors based on your installation needs.
 
-Executors are set by the ``executor`` option in the ``[core]`` section of :doc:`the configuration file </howto/set-config>`.
+Executors are set by the :ref:`executor <config:core__executor>` option in the :ref:`[core] <config:core>` section of :doc:`the configuration file </howto/set-config>`.
 
 .. _executor-basic-configuration:
 

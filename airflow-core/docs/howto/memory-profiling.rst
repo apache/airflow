@@ -56,7 +56,7 @@ Configuring Memory Profiling
 -----------------------------
 
 Memory profiling is controlled through Airflow's configuration. You can enable it for specific
-components by setting the ``memray_trace_components`` option in the ``[profiling]`` section of your
+components by setting the :ref:`memray_trace_components <config:profiling__memray_trace_components>` option in the :ref:`[profiling] <config:profiling>` section of your
 ``airflow.cfg`` file or through environment variables.
 
 Configuration Options

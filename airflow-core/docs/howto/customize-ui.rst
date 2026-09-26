@@ -32,7 +32,7 @@ distinguish between various installations of Airflow or simply amend the page te
 
 To make this change, simply:
 
-1.  Add the configuration option of ``instance_name`` under the ``[api]`` section inside ``airflow.cfg``:
+1.  Add the configuration option of :ref:`instance_name <config:api__instance_name>` under the :ref:`[api] <config:api>` section inside ``airflow.cfg``:
 
 .. code-block::
 
@@ -86,7 +86,7 @@ We can provide a JSON configuration to customize the UI.
 
 To customize the UI, simply:
 
-1.  Add the configuration option of ``theme`` under the ``[api]`` section inside ``airflow.cfg``:
+1.  Add the configuration option of :ref:`theme <config:api__theme>` under the :ref:`[api] <config:api>` section inside ``airflow.cfg``:
 
 .. code-block::
 

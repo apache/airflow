@@ -56,7 +56,7 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 
       add_header Content-Security-Policy "frame-ancestors 'self';";
 
-- The API server runs on one of two application servers, selected with the ``[api] server_type``
+- The API server runs on one of two application servers, selected with the :ref:`[api] server_type <config:api__server_type>`
   option: `Uvicorn <https://www.uvicorn.org>`_, the default, or `Gunicorn <https://gunicorn.org>`_
   with Uvicorn workers. Both read the settings below.
 

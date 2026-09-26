@@ -20,7 +20,7 @@ Email Configuration
 
 You can configure the email that is being sent in your ``airflow.cfg``
 by setting a ``subject_template`` and/or a ``html_content_template``
-in the ``[email]`` section.
+in the :ref:`[email] <config:email>` section.
 
 .. code-block:: ini
 
@@ -37,7 +37,7 @@ Equivalent environment variables look like:
   AIRFLOW__EMAIL__SUBJECT_TEMPLATE=/path/to/my_subject_template_file
   AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE=/path/to/my_html_content_template_file
 
-You can configure a sender's email address by setting ``from_email`` in the ``[email]`` section like:
+You can configure a sender's email address by setting :ref:`from_email <config:email__from_email>` in the :ref:`[email] <config:email>` section like:
 
 .. code-block:: ini
 

@@ -178,7 +178,7 @@ to pass on with ``bundle.Register(reports.Handlers()...)``.
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Register the coordinator and route the queue to it under ``[sdk]`` in ``airflow.cfg`` (or the equivalent
+Register the coordinator and route the queue to it under :ref:`[sdk] <config:sdk>` in ``airflow.cfg`` (or the equivalent
 ``AIRFLOW__SDK__*`` environment variables):
 
 .. code-block:: ini
@@ -200,7 +200,7 @@ There is no separate Go worker to run: the Airflow worker forks the bundle binar
 
 .. note::
 
-  The coordinator is part of the Airflow worker, so the ``[sdk]`` config (and the bundle files in
+  The coordinator is part of the Airflow worker, so the :ref:`[sdk] <config:sdk>` config (and the bundle files in
   ``executables_root``) only need to be present wherever tasks actually execute. With ``CeleryExecutor``,
   setting it on the Celery workers is sufficient. With ``LocalExecutor``, tasks run inside the scheduler
   process, so it must be set where the scheduler can read it. The API server and Dag processor do not need

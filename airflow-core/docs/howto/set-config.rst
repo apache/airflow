@@ -98,14 +98,14 @@ This will retrieve config option from Secret Backends e.g Hashicorp Vault. See
 
 The following config options support this ``_cmd`` and ``_secret`` version:
 
-* ``sql_alchemy_conn`` in ``[database]`` section
-* ``fernet_key`` in ``[core]`` section
+* :ref:`sql_alchemy_conn <config:database__sql_alchemy_conn>` in :ref:`[database] <config:database>` section
+* :ref:`fernet_key <config:core__fernet_key>` in :ref:`[core] <config:core>` section
 * ``broker_url`` in ``[celery]`` section
 * ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
-* ``smtp_password`` in ``[smtp]`` section
-* ``secret_key`` in ``[api]`` section
-* ``jwt_secret`` in ``[api_auth]`` section
+* ``smtp_password`` in :ref:`[smtp] <config:smtp>` section
+* :ref:`secret_key <config:api__secret_key>` in :ref:`[api] <config:api>` section
+* :ref:`jwt_secret <config:api_auth__jwt_secret>` in :ref:`[api_auth] <config:api_auth>` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable
 the same way the usual config options can. For example:
