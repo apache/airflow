@@ -4719,7 +4719,7 @@ requires-dist = [
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.8" },
-    { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.0" },
+    { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },

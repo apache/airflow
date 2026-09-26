@@ -19,16 +19,19 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.sandbox.base import (
+    AttachableSandboxBackend,
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxSpec,
     SandboxTerminalError,
+    dag_run_owner,
 )
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "AttachableSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",
@@ -37,6 +40,7 @@ __all__ = [
     "SandboxSpec",
     "SandboxTerminalError",
     "SbxSandboxBackend",
+    "dag_run_owner",
 ]
 
 

@@ -136,8 +136,8 @@ carrying them through the model's context.
 **Migrate forty dbt models between warehouse dialects.** The model files go into
 the workspace, the image carries ``sqlglot`` and ``sqlfluff``, and the loop of
 convert, lint, read errors, fix runs for as long as it takes, fully offline. The
-rewritten files are the deliverable, and getting forty files out is the gap
-described under :ref:`Getting a result out <sandbox-results>`.
+rewritten files are the deliverable, so the sandbox is one a task provisions and
+reads out afterwards (:ref:`sandbox-attach`).
 
 **A failing task's traceback, handed to an agent to propose a fix.** The agent
 reproduces the crash against a sample, tries a fix, reruns, and posts a diff for a
@@ -222,9 +222,10 @@ actual isolation. Choose the smallest boundary that fits, then configure it.
        a package, or fix its own failing script by reading the traceback
      - ``SandboxToolset``
    * - Produce a large artifact for a downstream task
-     - Today, a ``@task`` driving a backend directly, not the agent. That is a
-       missing seam in the toolset rather than a recommendation; see
-       :ref:`Getting a result out <sandbox-results>`.
+     - A ``@task`` driving a backend directly when the Dag knows the job. When
+       the agent has to produce it, a ``@task`` provisions the sandbox, the agent
+       attaches, and a ``@task`` reads the file out; see
+       :ref:`A sandbox another task owns <sandbox-attach>`.
    * - A whole task's worth of untrusted work isolated, with no agent involved
      - ``KubernetesPodOperator``
    * - Airflow's own credentials kept away from the agent
@@ -392,15 +393,18 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
   workspace directory behind, named ``airflow-sandbox-*`` so an operator can find
   and remove them. On Modal the sandbox ends at its own ``sandbox_timeout``
   whatever became of the worker.
-- Nothing survives the run, and a file the agent built can leave only through
-  the model's context, which is text-only and capped. Producing an artifact for a
-  downstream task is a ``@task`` driving a backend directly today, not the agent;
-  :doc:`configuration` has the example.
+- A sandbox the toolset provisions itself lives for one run, and a file the
+  agent built in it can leave only through the model's context, which is text-only
+  and capped. When a file has to come out, or a credential has to come from a
+  connection, a ``@task`` provisions the sandbox and the agent attaches to it;
+  :ref:`sandbox-attach` has the example. When the Dag already knows the job, a
+  ``@task`` drives the backend and no agent is involved.
 
 **A real example.** ``example_sandbox_toolset.py`` in this provider's example
 Dags has an agent investigating a revenue anomaly on the Modal backend beside a
-``SQLToolset``, the same agent shape on ``sbx`` for a laptop, and a ``@task``
-producing a file through a sandbox; all three are on this page and :doc:`configuration`. The two
+``SQLToolset``, the same agent shape on ``sbx`` for a laptop, a ``@task``
+producing a file through a sandbox, and a task-owned sandbox that an agent attaches
+to; all four are on this page and :doc:`configuration`. The two
 system tests, ``example_sandbox_toolset_sbx.py`` and
 ``example_sandbox_toolset_modal.py``, run against a real backend and are
 reachable from the System Tests entry in the sidebar.
@@ -425,15 +429,19 @@ Limitations
 These apply to every backend. Each is explained in the section it belongs to; this
 is the list to read before designing a Dag around an agent with a sandbox.
 
-- **Nothing survives the run**, including across task retries.
+- **Nothing survives the run** in a sandbox the toolset provisions itself,
+  including across task retries. A sandbox a task provisions and the agent
+  attaches to does. :ref:`Lifecycle <sandbox-lifecycle>`,
+  :ref:`A sandbox another task owns <sandbox-attach>`.
+- **A file the agent built leaves only through a task**, never through the
+  model's context, which is text-only and capped.
+  :ref:`Getting a result out <sandbox-results>`.
+- **A credential comes from a connection only when a task provisions the
+  sandbox**; the toolset's own spec is fixed at parse time, and anything injected
+  is readable by the model. :ref:`Credentials <sandbox-credentials>`.
+- **Cannot be combined with** ``durable=True``, and with ``enable_hitl_review=True``
+  only when the sandbox is task-owned; ``AgentOperator`` raises otherwise.
   :ref:`Lifecycle <sandbox-lifecycle>`.
-- **A file the agent built cannot leave** except through the model's context,
-  which is text-only and capped. :ref:`Getting a result out <sandbox-results>`.
-- **A credential cannot come from a connection or a secrets backend**; the spec is
-  fixed at parse time, and anything injected is readable by the model.
-  :ref:`Credentials <sandbox-credentials>`.
-- **Cannot be combined with** ``durable=True`` **or** ``enable_hitl_review=True``;
-  ``AgentOperator`` raises. :ref:`Lifecycle <sandbox-lifecycle>`.
 - **A run that outlives** ``sandbox_timeout`` **fails the task.**
   :ref:`Lifecycle <sandbox-lifecycle>`.
 - **The hostname allowlist is a weak control** and refused unless opted into. The

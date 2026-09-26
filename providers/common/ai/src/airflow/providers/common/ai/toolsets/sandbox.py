@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import time
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.exceptions import ModelRetry
@@ -29,11 +30,14 @@ from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from typing_extensions import Self
 
 from airflow.providers.common.ai.sandbox.base import (
+    AttachableSandboxBackend,
     SandboxError,
     SandboxFileTooLargeError,
     SandboxSpec,
     SandboxTerminalError,
     _validate_positive_finite,
+    dag_run_owner,
+    is_sandbox_handle,
 )
 from airflow.providers.common.ai.sandbox.output import (
     format_size,
@@ -45,13 +49,21 @@ from airflow.providers.common.ai.utils.tool_definition import (
     code_arg_kwargs,
     return_schema_kwargs,
 )
+from airflow.providers.common.compat.sdk import get_current_context
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pydantic_ai._run_context import RunContext
 
     from airflow.providers.common.ai.sandbox.base import SandboxBackend
 
 log = logging.getLogger(__name__)
+
+# Releasing a claim on an attached sandbox is retried this many times, this far apart,
+# before the run gives up and logs: a claim left behind blocks other tasks from the sandbox.
+_RELEASE_ATTEMPTS = 3
+_RELEASE_RETRY_DELAY = 1.0
 
 RUN_COMMAND = "run_command"
 READ_FILE = "read_file"
@@ -140,6 +152,18 @@ class SandboxToolset(AbstractToolset[Any]):
     calls a tool never provisions one. Files persist between calls in a run;
     each ``run_command`` is a fresh shell, so shell variables do not.
 
+    **Or the sandbox is someone else's.** With ``attach_to`` set to the handle
+    another task provisioned, the toolset uses that sandbox for the run and does
+    not destroy it: the task that created it decides its environment, its network
+    policy and its lifetime, and reads out whatever the agent left behind. The
+    handle alone is not enough. The sandbox has to carry the owner the toolset
+    presents, by default the current Dag run, so a wrong handle from an upstream
+    XCom is refused rather than used, and one agent run holds a sandbox at a time.
+    ``attach_to`` is templated when the toolset is passed through
+    ``AgentOperator(toolsets=...)``, wherever it sits in that list, which is how
+    the handle travels from the provisioning task:
+    ``attach_to="{{ ti.xcom_pull('provision') }}"``.
+
     A non-zero exit or a timeout is normal tool output -- the model reads it and
     corrects itself. A recoverable sandbox failure becomes a bounded retry. Only
     a terminal failure (credentials rejected, daemon unreachable) fails the task,
@@ -161,7 +185,22 @@ class SandboxToolset(AbstractToolset[Any]):
     :param tool_prefix: Prefix for the four tool names, e.g. ``"local"`` gives
         ``local_run_command``. Set this when one agent has more than one
         ``SandboxToolset``, since duplicate tool names are rejected.
+    :param attach_to: Handle of a sandbox another task provisioned, to use instead
+        of creating one. Needs a backend that can find a sandbox from another
+        process (an :class:`~airflow.providers.common.ai.sandbox.AttachableSandboxBackend`,
+        which ``ModalSandboxBackend`` is and ``SbxSandboxBackend`` is not), and
+        cannot be combined with ``spec``, since the sandbox is already provisioned.
+        The toolset never destroys an attached sandbox.
+    :param owner: The owner the attached sandbox must carry. Defaults to the Dag
+        run the task is part of, which is what a provisioning task in the same run
+        stamps with ``SandboxSpec(owner=dag_run_owner(context))``. Set it only when
+        the sandbox was provisioned under another name, or when the toolset runs
+        outside an Airflow task. Only meaningful with ``attach_to``.
     """
+
+    # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
+    # Airflow's templater would render in place wherever the toolset is nested.
+    agent_template_fields: Sequence[str] = ("attach_to",)
 
     def __init__(
         self,
@@ -174,6 +213,8 @@ class SandboxToolset(AbstractToolset[Any]):
         max_output_bytes: int = 50 * 1024,
         max_read_bytes: int = 5 * 1024 * 1024,
         tool_prefix: str = "",
+        attach_to: str | None = None,
+        owner: str | None = None,
     ) -> None:
         _validate_positive_finite(default_command_timeout, "default_command_timeout")
         _validate_positive_finite(max_command_timeout, "max_command_timeout")
@@ -189,7 +230,40 @@ class SandboxToolset(AbstractToolset[Any]):
             # The prefixed names are rendered as Python function signatures under
             # code mode, so a name that is not an identifier breaks there.
             raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        if attach_to is not None:
+            if not isinstance(backend, AttachableSandboxBackend):
+                raise ValueError(
+                    f"attach_to needs a backend that can find a sandbox from another task, and "
+                    f"{backend.name!r} cannot: it is not an AttachableSandboxBackend. Drop attach_to and "
+                    "let the toolset provision its own sandbox, or provision on a backend that can be "
+                    "attached to, such as ModalSandboxBackend."
+                )
+            if spec is not None:
+                raise ValueError(
+                    "spec cannot be combined with attach_to: the sandbox is already provisioned, so its "
+                    "environment and network policy belong to the task that created it."
+                )
+            if not attach_to:
+                raise ValueError("attach_to must be a sandbox handle, not an empty string.")
+        elif owner is not None:
+            raise ValueError("owner only applies together with attach_to.")
+        elif spec is not None and spec.owner is not None:
+            # An owner exists so that a later task can attach; a sandbox this toolset
+            # provisions is destroyed when the run ends, so nothing ever could.
+            raise ValueError(
+                "SandboxSpec.owner is for a sandbox another task attaches to. The toolset destroys the "
+                "sandbox it provisions itself when the run ends, so an owner on it would mean nothing; "
+                "provision the sandbox in a task and pass its handle as attach_to instead."
+            )
         self._backend = backend
+        self.attach_to = attach_to
+        # Fixed here, not re-derived from ``attach_to`` later: the templater rewrites
+        # that attribute at run time, and a handle that renders to nothing must fail
+        # the run rather than turn this into a toolset that provisions its own sandbox.
+        self._attach_mode = attach_to is not None
+        # The same object as ``_backend``, narrowed once for the attach and release paths.
+        self._attachable = backend if isinstance(backend, AttachableSandboxBackend) else None
+        self._owner = owner
         # Never None: the documented default is "no environment, no egress", and a
         # backend reads None as "no requirements stated". Passing None through would
         # silently skip the contract check and hand back an unrestricted sandbox,
@@ -203,6 +277,13 @@ class SandboxToolset(AbstractToolset[Any]):
         self._tool_prefix = tool_prefix
         self._sandbox: str | None = None
         self._create_task: asyncio.Task[str] | None = None
+        # Set while attached: who this run claimed the sandbox as, when the sandbox ends
+        # on this process's clock (None when the creator recorded no lifetime), and what
+        # the tool description says about it, fixed at attach so it is the same on every
+        # step and provider prompt caching keeps working.
+        self._holder: str | None = None
+        self._expires_at: float | None = None
+        self._attach_note: str | None = None
 
     @property
     def id(self) -> str:
@@ -230,26 +311,146 @@ class SandboxToolset(AbstractToolset[Any]):
         # not silently degrade to this class on every run.
         return type(self)(
             self._backend,
-            spec=self._spec,
+            # Attach mode refuses a spec, and the default one filled in above is
+            # not the author's, so it is not handed back.
+            spec=None if self._attach_mode else self._spec,
             default_command_timeout=self._default_command_timeout,
             max_command_timeout=self._max_command_timeout,
             max_output_lines=self._max_output_lines,
             max_output_bytes=self._max_output_bytes,
             max_read_bytes=self._max_read_bytes,
             tool_prefix=self._tool_prefix,
+            attach_to=self._attached_handle() if self._attach_mode else None,
+            owner=self._owner,
         )
 
+    def _attached_handle(self) -> str:
+        """
+        Return the rendered handle, checked, because the templater bypasses the constructor.
+
+        ``attach_to`` is templated so the handle can come from an upstream XCom, and
+        an XCom that was never pushed renders to ``None`` under native rendering or to
+        the string ``"None"`` otherwise. Neither is a sandbox, and silently falling back
+        to provisioning one would run the agent in an empty workspace with no error.
+        """
+        handle = self.attach_to
+        if not is_sandbox_handle(handle):
+            raise SandboxTerminalError(
+                f"attach_to rendered to {handle!r}, which is not a sandbox handle. The task that "
+                "provisions the sandbox pushed nothing, or this task does not depend on it and ran "
+                "first; check the upstream task and the XCom it returns."
+            )
+        return handle
+
     async def __aenter__(self) -> Self:
-        # The sandbox is provisioned lazily on first use, not here: a durable
+        # An owned sandbox is provisioned lazily on first use, not here: a durable
         # replay that only serves cached tool results must not provision one, and
-        # nothing leaks if the run fails before any tool executes.
+        # nothing leaks if the run fails before any tool executes. An attached one is
+        # claimed now, so a wrong handle or a held sandbox fails the run before the
+        # model has spent anything, and the tool descriptions can state the lifetime.
+        if self._attach_mode:
+            await self._attach(self._attached_handle())
         return self
+
+    async def _attach(self, handle: str) -> None:
+        owner, holder = self._identity()
+        backend = self._attachable_backend()
+        try:
+            attached = await asyncio.to_thread(backend.attach, handle, owner=owner, holder=holder)
+        except SandboxTerminalError:
+            raise
+        except SandboxError as e:
+            # Nothing the model does can change whether this sandbox can be attached
+            # to, so a recoverable label here is one it could not act on.
+            raise SandboxTerminalError(
+                f"Could not attach to sandbox {handle!r} on backend {backend.name!r}: {e}"
+            ) from e
+        self._sandbox = handle
+        self._holder = holder
+        remaining = attached.remaining_lifetime
+        self._expires_at = None if remaining is None else time.monotonic() + remaining
+        self._attach_note = self._describe_attached(attached.network, remaining)
+        log.info(
+            "Attached to sandbox %s on backend %s as %s; %s of its lifetime remain",
+            handle,
+            backend.name,
+            holder,
+            "an unknown number of seconds" if remaining is None else f"{remaining:.0f}s",
+        )
+
+    @classmethod
+    def _describe_attached(cls, network: SandboxSpec | None, remaining_lifetime: float | None) -> str:
+        whose = (
+            "This sandbox was set up by an earlier task, and your files stay in it after this run "
+            "for a later task to collect."
+        )
+        policy = (
+            cls._describe_network(network)
+            if network is not None
+            else "Its network access is whatever the task that set it up allowed; test before relying on it."
+        )
+        if remaining_lifetime is None:
+            clock = "How long it has left is not known."
+        elif remaining_lifetime < 60:
+            clock = "Under a minute of its lifetime remained when this run began, so finish up."
+        else:
+            minutes = round(remaining_lifetime / 60)
+            unit = "minute" if minutes == 1 else "minutes"
+            clock = f"About {minutes} {unit} of its lifetime remained when this run began."
+        return f"{whose} {policy} {clock}"
+
+    def _attachable_backend(self) -> AttachableSandboxBackend:
+        if self._attachable is None:
+            # The constructor refuses attach_to on any other backend, so this is a
+            # programming error, not a run-time condition.
+            raise RuntimeError("attach mode on a backend that cannot attach")
+        return self._attachable
+
+    def _identity(self) -> tuple[str, str]:
+        """
+        Who this run presents as: ``(owner, holder)``.
+
+        Inside an Airflow task the owner defaults to the Dag run and the holder is the
+        task instance without its try number, so a retry counts as the same holder and
+        finds the files of an attempt that died without releasing, while a different
+        task, another Dag run of the same task under a shared owner, or another map
+        index is refused. Outside a task there is nothing to derive either from, so the
+        owner has to be given and stands for both.
+        """
+        try:
+            context = get_current_context()
+        except RuntimeError:
+            context = None
+        if context is None:
+            if self._owner is None:
+                raise SandboxTerminalError(
+                    "attach_to needs an owner. Inside an Airflow task the Dag run is the owner by "
+                    "default; outside one, pass owner=... matching the SandboxSpec.owner the sandbox "
+                    "was provisioned with."
+                )
+            return self._owner, self._owner
+        ti = context["ti"]
+        run = dag_run_owner(context)
+        holder = f"{run}/{ti.task_id}"
+        if ti.map_index is not None and ti.map_index >= 0:
+            holder = f"{holder}[{ti.map_index}]"
+        return self._owner if self._owner is not None else run, holder
 
     async def __aexit__(self, *args: Any) -> bool | None:
         sandbox = self._sandbox
-        # Clear first: re-entering the same instance (HITL regenerate_with_feedback
-        # does) must never reuse a sandbox whose cleanup was attempted.
+        holder = self._holder
+        # Clear first: an instance entered again must never reuse a sandbox whose
+        # cleanup was attempted.
         self._sandbox = None
+        self._holder = None
+        self._expires_at = None
+        self._attach_note = None
+        if self._attach_mode:
+            # Not ours to destroy. Give up the claim so the next run, or the task that
+            # created the sandbox, finds it free.
+            if holder is not None:
+                await self._release(self._attached_handle(), holder)
+            return None
         if sandbox is None:
             return None
         try:
@@ -267,9 +468,46 @@ class SandboxToolset(AbstractToolset[Any]):
             )
         return None
 
+    async def _release(self, handle: str, holder: str) -> None:
+        backend = self._attachable_backend()
+        # A claim left behind blocks every other task from the sandbox until its lifetime
+        # ends, so a blip in the tag service is worth a few more tries before giving up.
+        for attempt in range(1, _RELEASE_ATTEMPTS + 1):
+            try:
+                await asyncio.to_thread(backend.release, handle, holder=holder)
+                return
+            except SandboxTerminalError:
+                # The sandbox is gone, and the claim went with it.
+                log.info("Sandbox %s on backend %s has ended; nothing to release", handle, backend.name)
+                return
+            except Exception:
+                if attempt == _RELEASE_ATTEMPTS:
+                    # The run is finished and paid for, so this cannot fail the task. Name
+                    # the holder, which is what a later refusal will name too.
+                    log.warning(
+                        "Failed to release sandbox %s on backend %s after %d attempts; it stays marked "
+                        "as held by %s, and only that holder, or the task that created the sandbox, "
+                        "can use it",
+                        handle,
+                        backend.name,
+                        _RELEASE_ATTEMPTS,
+                        holder,
+                        exc_info=True,
+                    )
+                    return
+            await asyncio.sleep(_RELEASE_RETRY_DELAY)
+
     async def _ensure_sandbox(self) -> str:
         if self._sandbox is not None:
             return self._sandbox
+        if self._attach_mode:
+            # Reached only when a tool is called on a toolset that was never entered, or
+            # after the attached sandbox ended: either way there is nothing to provision,
+            # because the sandbox was never this toolset's to create.
+            raise SandboxTerminalError(
+                f"Not attached to sandbox {self.attach_to!r}: the toolset was not entered, or the sandbox "
+                "ended. The toolset does not provision a replacement for a sandbox another task owns."
+            )
         if self._create_task is None:
             self._create_task = asyncio.create_task(asyncio.to_thread(self._backend.create, spec=self._spec))
         create_task = self._create_task
@@ -306,11 +544,21 @@ class SandboxToolset(AbstractToolset[Any]):
         error, and under an allowlist a reach for plain HTTP burns the whole command
         budget and returns only a timeout, which reads as "my command was slow". The
         spec is known here, so say it instead.
+
+        An attached sandbox was provisioned by someone else, so the note is built once at
+        attach from what the backend recorded about it: whose it is, the network policy
+        it was created with, and the clock it is on.
         """
-        if not self._spec.block_network:
+        if self._attach_mode:
+            return self._attach_note or "This sandbox was set up by an earlier task."
+        return self._describe_network(self._spec)
+
+    @staticmethod
+    def _describe_network(spec: SandboxSpec) -> str:
+        if not spec.block_network:
             return "This sandbox has outbound network access."
-        hosts = list(self._spec.allow_egress_to or ())
-        cidrs = list(self._spec.allow_egress_to_cidrs or ())
+        hosts = list(spec.allow_egress_to or ())
+        cidrs = list(spec.allow_egress_to_cidrs or ())
         if not hosts and not cidrs:
             return (
                 "This sandbox has NO network access, including DNS, so installing packages "
@@ -399,12 +647,20 @@ class SandboxToolset(AbstractToolset[Any]):
 
     def _command_timeout(self, requested: float | None) -> float:
         if requested is None:
-            return self._default_command_timeout
-        if not math.isfinite(requested) or requested <= 0:
+            budget = self._default_command_timeout
+        elif not math.isfinite(requested) or requested <= 0:
             # Reject rather than silently clamping: a surprise "[timed out after
             # 1s]" would hide the model's own mistake from it.
             raise ModelRetry(f"timeout_seconds must be greater than 0, got {requested}.")
-        return min(requested, self._max_command_timeout)
+        else:
+            budget = min(requested, self._max_command_timeout)
+        if self._expires_at is not None:
+            # An attached sandbox ends on its creator's clock, whatever backend it is on.
+            # A command that could not finish inside that is shortened to what is left,
+            # so it runs the work that fits instead of dying half way through; the
+            # result then reports the budget it really had.
+            budget = min(budget, max(1.0, self._expires_at - time.monotonic()))
+        return budget
 
     async def _run_command(self, sandbox: str, tool_args: dict[str, Any]) -> str:
         timeout = self._command_timeout(tool_args.get("timeout_seconds"))
@@ -417,6 +673,14 @@ class SandboxToolset(AbstractToolset[Any]):
         )
         if result.sandbox_terminated:
             self._sandbox = None
+            if self._attach_mode:
+                # An owned sandbox is replaced on the next call; an attached one cannot be,
+                # and the model would be told its files are gone while nothing can follow.
+                raise SandboxTerminalError(
+                    f"The sandbox this task attached to, {self.attach_to!r}, stopped while running a "
+                    "command. The task that created it decides its lifetime, so nothing can be "
+                    "provisioned in its place."
+                )
         # Truncate each stream separately and attach its label afterwards, so the
         # markers always survive and a large stderr cannot crowd out stdout.
         parts: list[str] = []

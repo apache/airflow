@@ -48,7 +48,13 @@ from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
-from airflow.providers.common.ai.sandbox.base import SandboxBackend
+from airflow.providers.common.ai.sandbox.base import (
+    HOLDER_TAG,
+    OWNER_TAG,
+    AttachableSandboxBackend,
+    SandboxBackend,
+    SandboxExecResult,
+)
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
@@ -59,6 +65,7 @@ from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureEx
 from airflow.sdk import DAG, task
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -312,7 +319,7 @@ class TestAgentOperatorToolsetTemplating:
         assert MCPToolset.agent_template_fields == ("_mcp_conn_id",)
         assert HookToolset.agent_template_fields == ("conn_id",)
 
-    @pytest.mark.parametrize("toolset_cls", [SQLToolset, MCPToolset, HookToolset])
+    @pytest.mark.parametrize("toolset_cls", [SQLToolset, MCPToolset, HookToolset, SandboxToolset])
     def test_toolsets_do_not_opt_in_through_template_fields(self, toolset_cls):
         """Airflow's templater renders any object with ``template_fields`` in place wherever it is
         nested in a template field, which would leak one task instance's connection to the next."""
@@ -1506,8 +1513,51 @@ class _NoopBackend(SandboxBackend):
         pass
 
 
+class _AttachableNoopBackend(_NoopBackend, AttachableSandboxBackend):
+    name = "noop-attachable"
+
+    def read_tags(self, sandbox):
+        raise AssertionError("constructor guards must not read tags")
+
+    def write_tags(self, sandbox, tags):
+        raise AssertionError("constructor guards must not write tags")
+
+
 def _sandbox_toolset():
     return SandboxToolset(_NoopBackend())
+
+
+def _attached_sandbox_toolset(handle="sb-1"):
+    return SandboxToolset(_AttachableNoopBackend(), attach_to=handle)
+
+
+class _AttachedRunBackend(TaggedBackend):
+    """Runs commands against the handle it was given; create and destroy still raise."""
+
+    name = "attached-run"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.commands: list[tuple[str, str]] = []
+
+    def run_command(self, sandbox, command, *, timeout, max_output_bytes):
+        self.commands.append((sandbox, command))
+        return SandboxExecResult(exit_code=0, stdout="ok\n", stderr="")
+
+
+class _TaskInstanceWithHandle:
+    """A plain object rather than a mock: Jinja's sandbox refuses to call a Mock."""
+
+    def __init__(self, handle: str) -> None:
+        self.handle = handle
+        self.pulled: list[str] = []
+
+    def xcom_pull(self, task_ids: str) -> str:
+        self.pulled.append(task_ids)
+        return self.handle
+
+
+TEMPLATE = "{{ ti.xcom_pull(task_ids='provision') }}"
 
 
 class TestAgentOperatorSandboxContinuityGuards:
@@ -1591,6 +1641,107 @@ class TestAgentOperatorSandboxContinuityGuards:
     def test_a_sandbox_toolset_without_either_flag_is_fine(self):
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", toolsets=[_sandbox_toolset()])
         assert isinstance(op.toolsets[0], SandboxToolset)
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    def test_hitl_review_is_allowed_with_an_attached_sandbox(self):
+        """The sandbox outlives the run, so the regenerated run finds the first run's files."""
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            enable_hitl_review=True,
+            toolsets=[_attached_sandbox_toolset().prefixed("box")],
+        )
+        # The guard found the toolset inside the wrapper and let it through untouched.
+        assert op.toolsets[0].wrapped.attach_to == "sb-1"
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    def test_hitl_review_is_refused_while_any_sandbox_toolset_provisions_its_own(self):
+        with pytest.raises(ValueError, match="attach_to"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                enable_hitl_review=True,
+                toolsets=[_attached_sandbox_toolset(), _sandbox_toolset().prefixed("own")],
+            )
+
+    def test_durable_is_refused_even_with_an_attached_sandbox(self):
+        # Replay does not re-execute the tool, so the workspace would not move with the
+        # transcript; a cached write_file on a retry leaves no file behind.
+        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+            AgentOperator(
+                task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[_attached_sandbox_toolset()]
+            )
+
+
+class TestAgentOperatorSandboxHandleTemplating:
+    """
+    The handle travels from the provisioning task by XCom, so ``attach_to`` rides the
+    same per-task-instance rendering as a toolset's connection ID.
+    """
+
+    def test_attach_to_is_rendered_through_toolsets(self):
+        op = AgentOperator(
+            task_id="t", prompt="p", llm_conn_id="c", toolsets=[_attached_sandbox_toolset(TEMPLATE)]
+        )
+        ti = _TaskInstanceWithHandle("sb-42")
+
+        op.render_template_fields({"ti": ti})
+
+        assert op.toolsets[0].attach_to == "sb-42"
+        assert ti.pulled == ["provision"]
+
+    def test_a_handle_inside_a_wrapper_is_rendered_too(self):
+        # ``.prefixed()`` is what the docs recommend for two sandboxes on one agent, and
+        # pydantic-ai's wrapper declares no template_fields of its own.
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            toolsets=[
+                CombinedToolset([FunctionToolset(), _attached_sandbox_toolset(TEMPLATE).prefixed("box")])
+            ],
+        )
+
+        op.render_template_fields({"ti": _TaskInstanceWithHandle("sb-42")})
+
+        assert op.toolsets[0].toolsets[1].wrapped.attach_to == "sb-42"
+
+    def test_execute_runs_against_the_rendered_handle(self):
+        """
+        The whole seam: render, wrap in LoggingToolset, pydantic-ai's for_run copy,
+        attach on enter, the command on the given handle, release on exit.
+        """
+
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            if any(part.part_kind == "tool-return" for message in messages for part in message.parts):
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(
+                parts=[ToolCallPart(tool_name="run_command", args={"command": "ls"}, tool_call_id="c1")]
+            )
+
+        backend = _AttachedRunBackend(tags={"sb-42": {OWNER_TAG: "me"}})
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            toolsets=[SandboxToolset(backend, attach_to=TEMPLATE, owner="me")],
+        )
+        hook = MagicMock(spec=["create_agent"])
+        hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+        op.llm_hook = hook
+        op.render_template_fields({"ti": _TaskInstanceWithHandle("sb-42")})
+
+        result = op.execute(context=_make_context())
+
+        assert result == "done"
+        assert backend.commands == [("sb-42", "ls")]
+        assert HOLDER_TAG not in backend.tags["sb-42"], "the run must release its claim"
 
 
 class TestAgentOperatorRunIdentity:

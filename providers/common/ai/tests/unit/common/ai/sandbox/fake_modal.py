@@ -199,6 +199,11 @@ class FakeSandbox:
         self.object_id = object_id
         self.create_kwargs = create_kwargs
         self.calls: list[tuple] = []
+        # What ``Sandbox.create(tags=...)`` stamped, then whatever ``set_tags`` replaced it
+        # with: the real API replaces the whole set rather than merging.
+        self.tags: dict[str, str] = dict(create_kwargs.get("tags") or {})
+        self.get_tags_error: Exception | None = None
+        self.set_tags_error: Exception | None = None
         self.files: dict[str, bytes] = {}
         self.listing: list[FileInfo] = []
         self.terminated = False
@@ -234,6 +239,18 @@ class FakeSandbox:
 
     def poll(self) -> int | None:
         return self.poll_result
+
+    def get_tags(self) -> dict[str, str]:
+        self.calls.append(("get_tags",))
+        if self.get_tags_error is not None:
+            raise self.get_tags_error
+        return dict(self.tags)
+
+    def set_tags(self, tags: dict[str, str]) -> None:
+        self.calls.append(("set_tags", dict(tags)))
+        if self.set_tags_error is not None:
+            raise self.set_tags_error
+        self.tags = dict(tags)
 
 
 class FakeSandboxFactory:
