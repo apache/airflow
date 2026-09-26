@@ -51,6 +51,7 @@ class KubernetesResults(NamedTuple):
     namespace: str
     resource_version: str
     failure_details: FailureDetails | None
+    pod_uid: str | None = None
 
 
 class KubernetesWatch(NamedTuple):
@@ -62,6 +63,7 @@ class KubernetesWatch(NamedTuple):
     annotations: dict[str, str]
     resource_version: str
     failure_details: FailureDetails | None
+    pod_uid: str | None = None
 
 
 # TODO: Remove after Airflow 2 support is removed
