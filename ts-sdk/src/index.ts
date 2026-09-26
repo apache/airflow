@@ -20,16 +20,22 @@
 export { Dag } from "./sdk/dag.js";
 export { Bundle } from "./sdk/bundle.js";
 export { TaskHandler } from "./sdk/task-handler.js";
+export { withArgList } from "./sdk/arg-list.js";
 export { withArgNames } from "./sdk/arg-names.js";
 export { getClient, getContext } from "./sdk/task.js";
 export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
 export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
+export type { ArgList } from "./sdk/arg-list.js";
 export type { ArgNameMap } from "./sdk/arg-names.js";
 export type { Registerable } from "./sdk/bundle.js";
 export type {
+  Branch,
+  Condition,
+  ConditionElse,
   DagSpec,
-  PositionalInputs,
+  Node,
   TaskFactory,
+  TaskGroupRef,
   TaskInput,
   TaskInputs,
   TaskOptions,
