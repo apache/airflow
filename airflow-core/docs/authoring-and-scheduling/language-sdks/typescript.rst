@@ -247,8 +247,8 @@ A ``Dag`` is declared on this side rather than in Python: its schedule, its task
 the edges between them are all written in TypeScript. The surface is still growing, so a Dag declared
 this way is not served to Airflow yet.
 
-``dag.task(taskId, handler)`` returns a *factory*. Calling it places the task in the Dag and supplies the
-handler's arguments, so the call graph is the task graph:
+``dag.task(taskId, handler)`` returns a *factory*. A handler takes one object of named arguments, and
+calling the factory names each input, so the call graph is the task graph:
 
 .. code-block:: typescript
 
@@ -257,25 +257,49 @@ handler's arguments, so the call graph is the task graph:
     const dag = new Dag("ts_etl");
 
     const extract = dag.task("extract", async (): Promise<number> => 42);
-    const transform = dag.task("transform", async (rows: number, region: string) => rows * 2);
-    const load = dag.task("load", async (total: number) => {});
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => rows * 2,
+    );
+    const load = dag.task("load", async ({ total }: { total: number }) => {});
 
-    load(transform(extract(), "us"));
+    const extracted = extract();
+    const total = transform({ rows: extracted, region: "us" });
+    load({ total });
 
-Arguments are passed in the order the handler declares them. A handler that declares a single object of
-named arguments can also be called with that object, which names each input instead of ordering it:
+Naming the inputs is how a task is called. A handler that takes no arguments is called with none, and
+a single argument is named like any other, ``load({ total })``.
+
+``withArgList`` supplies the same inputs in order, for a call that reads better that way:
 
 .. code-block:: typescript
 
-    const store = dag.task("store", async ({ total }: { total: number }) => {});
+    import { withArgList } from "apache-airflow-ts-sdk";
 
-    store({ total: extract() });
+    transform(withArgList(extracted, "us"));
+
+Each value binds to the argument in that position, and the order is the one the handler destructures
+its argument in, so the handler has to take a plain object pattern. A named call is the one the
+compiler checks in full: it reports an argument left out, a misspelled one, and a literal of the
+wrong type.
 
 Each argument takes either an upstream reference or a literal JSON value. A reference has to be the
 argument itself: one buried inside an array or an object is a literal, and draws no edge.
 
 Every task has to be called exactly once. An uncalled task fails when the Dag is read, so none can be
 left out of the graph by accident.
+
+The task id may be omitted, in which case it is the handler's function name:
+
+.. code-block:: typescript
+
+    const extract = dag.task(async function extract(): Promise<number> {
+      return 42;
+    });
+
+``airflow-ts-pack`` keeps function names intact, so bundling cannot rename a task. A handler with no
+name of its own, such as an arrow function passed inline, has nothing to take an id from and needs
+one: either positionally or as ``taskId`` in its spec. Give it in one place only, not both.
 
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
@@ -398,9 +422,8 @@ layout header. The layout records the byte ranges and SHA-256 digests of the man
 so there is one file to deploy, with no separate manifest or ``node_modules``.
 
 The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
-read or edit in place. The ``/*! */`` license banners of bundled dependencies are kept. Nothing is identified by
-a function name, so minified names are safe: a Dag and a task are named by the string ids their registration
-states, and a handler is dispatched by reference.
+read or edit in place. Function names are kept through minification, since a task id defaults to its
+handler's name. The ``/*! */`` license banners of bundled dependencies are kept.
 
 Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim in a
 ``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something readable to
