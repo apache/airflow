@@ -29,7 +29,9 @@ import org.apache.airflow.sdk.internal.registrarName
  * the running task.
  *
  * @property dags Dags declared in Java, keyed by [DagDef.id].
- * @throws IllegalArgumentException if any two Dags share the same ID.
+ * @throws IllegalArgumentException if any two Dags share the same ID, if a
+ *    task depends on an upstream that is not registered in its own Dag, or if
+ *    the dependencies of a Dag contain a cycle.
  */
 class Bundle(
   dags: Iterable<DagDef>,
@@ -40,6 +42,8 @@ class Bundle(
   /** Dags the Python file owns, holding the task handlers registered for them. */
   internal val taskHandlers = linkedMapOf<String, DagDef>()
 
+  // This only guards the serve boundary, not registers racing each other. This is fine since
+  // we only encourage one sync register() chain; single-threaded by contract.
   @Volatile
   private var served = false
 
@@ -53,9 +57,14 @@ class Bundle(
   /**
    * Registers a Dag.
    *
+   * The Dag is checked as it is registered, so a bad edge fails here rather
+   * than at the first task run.
+   *
    * @return This bundle, for chaining.
-   * @throws IllegalArgumentException if another Dag shares its ID, or task
-   *    handlers are already registered against it.
+   * @throws IllegalArgumentException if another Dag shares its ID, task
+   *    handlers are already registered against it, a task depends on an
+   *    upstream not registered in the same Dag, or the dependencies contain a
+   *    cycle.
    * @throws IllegalStateException if [Server.serve] has already been called.
    */
   fun register(dag: DagDef): Bundle {
@@ -64,6 +73,15 @@ class Bundle(
       "Dag '${dag.id}' already has registered task handlers; a Dag declared in Java owns its " +
         "own tasks, so one Dag ID cannot have both"
     }
+    for ((taskId, def) in dag.tasks) {
+      for (upstream in def.upstreams) {
+        require(dag.tasks[upstream.id] === upstream) {
+          "Task '$taskId' in Dag '${dag.id}' depends on task '${upstream.id}' " +
+            "that is not registered in the same Dag"
+        }
+      }
+    }
+    checkNoCycle(dag)
     require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
@@ -101,8 +119,8 @@ class Bundle(
    * Registers one task implementation against a Dag the Python file owns, for
    * a task with no annotation to read the ids from.
    *
-   * The Dag is created on first use: a stub-backed Dag exists only so the
-   * runtime can find the task, and its graph lives in the Python Dag file.
+   * The Dag is created on first use and holds only the tasks registered
+   * here; its graph lives in the Python Dag file.
    *
    * @param dagId Dag ID as declared in the Python Dag file.
    * @param taskId Task ID as declared by the `@task.stub` function.
@@ -142,6 +160,25 @@ class Bundle(
   }
 
   private fun checkOpen() = check(!served) { "Server.serve has already been called; register everything before serve" }
+}
+
+// Reject cycles produced by before and after at registration time. This is (non-tailrec-eligible)
+// recursive and could blow up with deep dependency chains. I kept the recursive implementation
+// for readability since the scenario is unlikely; feel free to rewrite if it blows up for you.
+private fun checkNoCycle(dag: DagDef) {
+  val visiting = mutableSetOf<String>()
+  val done = mutableSetOf<String>()
+
+  fun visit(def: TaskDef) {
+    if (def.id in done) return
+    require(visiting.add(def.id)) {
+      "Task dependencies in Dag '${dag.id}' contain a cycle involving task '${def.id}'"
+    }
+    def.upstreams.forEach(::visit)
+    visiting -= def.id
+    done += def.id
+  }
+  dag.tasks.values.forEach(::visit)
 }
 
 /**
