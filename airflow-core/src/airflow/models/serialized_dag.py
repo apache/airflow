@@ -826,7 +826,7 @@ class SerializedDagModel(Base):
                 .order_by(DagVersion.version_number.desc())
                 .limit(1)
             )
-            return select(cls).where(cls.id == latest_item_id)
+            return select(cls).where(cls.id == latest_item_id.scalar_subquery())
         return (
             select(cls)
             .join(DagVersion, cls.dag_version_id == DagVersion.id)
