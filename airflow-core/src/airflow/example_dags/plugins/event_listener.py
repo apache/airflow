@@ -135,6 +135,45 @@ def on_task_instance_failed(
 # [END howto_listen_ti_failure_task]
 
 
+# [START howto_listen_ti_up_for_retry_task]
+@hookimpl
+def on_task_instance_up_for_retry(
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    error: None | str | BaseException,
+):
+    """
+    Called when a task instance is set to UP_FOR_RETRY after a failure.
+
+    This fires in addition to on_task_instance_failed (which still fires for both the
+    retry and terminal-failure cases, unchanged) -- use this hook if you only care about
+    a task's automatic retries, e.g. to avoid paging on transient failures.
+    """
+    print("Task instance is up for retry")
+
+    if isinstance(task_instance, TaskInstance):
+        print("Task instance's state was changed through the API.")
+
+        print(f"Task operator:{task_instance.operator}")
+        if error:
+            print(f"Retry caused by {error}")
+        return
+
+    context = task_instance.get_template_context()
+    task = context["task"]
+
+    if TYPE_CHECKING:
+        assert task
+
+    print("Task start")
+    print(f"Task:{task}")
+    if error:
+        print(f"Retry caused by {error}")
+
+
+# [END howto_listen_ti_up_for_retry_task]
+
+
 # [START howto_listen_ti_skipped_task]
 @hookimpl
 def on_task_instance_skipped(
