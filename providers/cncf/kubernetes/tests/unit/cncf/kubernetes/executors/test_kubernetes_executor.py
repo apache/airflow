@@ -2077,6 +2077,25 @@ class TestKubernetesExecutor:
     @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_change_state_duplicate_result_deletes_pod_once(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        executor = self.kubernetes_executor
+        executor.kube_scheduler = mock.MagicMock()
+        key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
+        executor.running = {key}
+        results = KubernetesResults(key, State.SUCCESS, "pod_name", "default", "resource_version", None)
+
+        executor._change_state(results)
+        executor._change_state(results)
+
+        assert executor.event_buffer[key][0] == State.SUCCESS
+        assert executor.running == set()
+        executor.kube_scheduler.delete_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler"
     )
