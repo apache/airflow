@@ -19,7 +19,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,7 @@ import {
   EMBEDDED_LAYOUT_PREFIX,
   EMBEDDED_METADATA_PREFIX,
   EMBEDDED_SOURCE_CLOSE,
-  EMBEDDED_SOURCE_OPEN,
+  EMBEDDED_SOURCE_MARKER,
   encodeBundle,
 } from "../../src/cli/bundle-encoder.js";
 import { parsePackArgs, runPack } from "../../src/cli/pack.js";
@@ -80,11 +80,15 @@ const SDK_VERSION = (
 interface TestBundleHeader {
   code: { end: string; sha256: string; start: string };
   metadata: { end: string; sha256: string; start: string };
-  source: { end: string; sha256: string; start: string };
+  sources: Array<{ end: string; path: string; sha256: string; start: string }>;
 }
 
 function parseHeader(line: string): TestBundleHeader {
   return JSON.parse(line.slice(EMBEDDED_LAYOUT_PREFIX.length)) as TestBundleHeader;
+}
+
+function openMarkerFor(path: string): string {
+  return `${EMBEDDED_SOURCE_MARKER}${path}\n`;
 }
 
 describe("parsePackArgs", () => {
@@ -92,15 +96,13 @@ describe("parsePackArgs", () => {
     expect(parsePackArgs(["src/main.ts"])).toEqual({
       entry: "src/main.ts",
       outfile: path.join("dist", "bundle.min.mjs"),
-      source: "main.ts",
     });
   });
 
-  it("parses --outdir and --source overrides", () => {
-    expect(parsePackArgs(["src/main.ts", "--outdir", "build", "--source", "pipeline.ts"])).toEqual({
+  it("parses --outdir override", () => {
+    expect(parsePackArgs(["src/main.ts", "--outdir", "build"])).toEqual({
       entry: "src/main.ts",
       outfile: path.join("build", "bundle.min.mjs"),
-      source: "pipeline.ts",
     });
   });
 
@@ -108,7 +110,6 @@ describe("parsePackArgs", () => {
     expect(parsePackArgs(["src/main.ts", "--outfile", "out/sales.min.mjs"])).toEqual({
       entry: "src/main.ts",
       outfile: "out/sales.min.mjs",
-      source: "main.ts",
     });
   });
 
@@ -134,14 +135,15 @@ describe("parsePackArgs", () => {
 describe("encodeBundle", () => {
   it("assembles header, metadata, and executable in physical order", () => {
     const executable = Buffer.from('console.log("hello");\n');
+    const source = "const x = 1;\nconsole.log(x);\n";
     const bundle = encodeBundle({
       bundleManifest: {
         supervisor_schema_version: "2026-06-16",
         task_handlers: { my_dag: { tasks: ["a", 'b"c'] } },
+        dag_source_paths: { my_dag: "src/my_dag.ts" },
       },
       sdkVersion: "0.1.0",
-      entrypointName: 'we"ird.ts',
-      entrypointSource: "const x = 1;\nconsole.log(x);\n",
+      sourceFiles: { "src/my_dag.ts": source },
       executable,
     });
 
@@ -150,26 +152,93 @@ describe("encodeBundle", () => {
     const offset = (value: string): number => Number.parseInt(value, 16);
     const metadataStart = offset(header.metadata.start);
     const metadataEnd = offset(header.metadata.end);
-    const sourceStart = offset(header.source.start);
-    const sourceEnd = offset(header.source.end);
+    expect(header.sources).toHaveLength(1);
+    const sourceRegion = header.sources[0]!;
+    const sourceStart = offset(sourceRegion.start);
+    const sourceEnd = offset(sourceRegion.end);
     const executableStart = offset(header.code.start);
     const executableEnd = offset(header.code.end);
 
     expect(metadataStart).toBe(firstNewline + 1 + Buffer.byteLength(EMBEDDED_METADATA_PREFIX));
-    expect(sourceStart).toBe(metadataEnd + 1 + Buffer.byteLength(EMBEDDED_SOURCE_OPEN));
+    expect(sourceRegion.path).toBe("src/my_dag.ts");
+    expect(sourceStart).toBe(metadataEnd + 1 + Buffer.byteLength(openMarkerFor("src/my_dag.ts")));
     expect(executableStart).toBe(sourceEnd + Buffer.byteLength(EMBEDDED_SOURCE_CLOSE));
     expect(executableEnd).toBe(bundle.length);
     expect(bundle.subarray(executableStart, executableEnd)).toEqual(executable);
-    expect(bundle.subarray(sourceStart, sourceEnd).toString("utf-8")).toBe(
-      "const x = 1;\nconsole.log(x);\n",
-    );
+    expect(bundle.subarray(sourceStart, sourceEnd).toString("utf-8")).toBe(source);
 
     const metadata = bundle.subarray(metadataStart, metadataEnd).toString("utf-8");
     expect(metadata).toBe(
-      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"source":"we\\"ird.ts","task_handlers":{"my_dag":{"tasks":["a","b\\"c"]}}}',
+      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"dag_source_paths":{"my_dag":"src/my_dag.ts"},"task_handlers":{"my_dag":{"tasks":["a","b\\"c"]}}}',
     );
 
     expect(header).not.toHaveProperty("version");
+    expect(header).not.toHaveProperty("source");
+  });
+
+  it("embeds one source region per author-owned Dag file, each with its path", () => {
+    const bundle = encodeBundle({
+      bundleManifest: {
+        supervisor_schema_version: "2026-06-16",
+        task_handlers: {
+          orders_dag: { tasks: ["record"] },
+          reports_dag: { tasks: ["generate"] },
+        },
+        dag_source_paths: {
+          orders_dag: "src/main.ts",
+          reports_dag: "src/dags/reports.ts",
+        },
+      },
+      sdkVersion: "0.1.0",
+      sourceFiles: {
+        "src/main.ts": "// orders\nconst orders = 1;\n",
+        "src/dags/reports.ts": "// reports\nconst reports = 2;\n",
+      },
+      executable: Buffer.from("export {};\n"),
+    });
+
+    const header = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("ascii"));
+    expect(header.sources.map((region) => region.path)).toEqual([
+      "src/main.ts",
+      "src/dags/reports.ts",
+    ]);
+    const offset = (value: string): number => Number.parseInt(value, 16);
+    for (const region of header.sources) {
+      const contents = bundle.subarray(offset(region.start), offset(region.end)).toString("utf-8");
+      // Each region carries its own file byte-for-byte, and its open marker
+      // ends with the region's path — a human scanning the bundle can find it
+      // without cross-referencing the header.
+      expect(bundle.slice(0, offset(region.start)).toString("utf-8")).toContain(
+        openMarkerFor(region.path),
+      );
+      if (region.path === "src/main.ts") {
+        expect(contents).toBe("// orders\nconst orders = 1;\n");
+      } else {
+        expect(contents).toBe("// reports\nconst reports = 2;\n");
+      }
+    }
+  });
+
+  it("carries no source region when a bundle serves only task handlers", () => {
+    const bundle = encodeBundle({
+      bundleManifest: {
+        supervisor_schema_version: "2026-06-16",
+        task_handlers: { py_dag: { tasks: ["stub"] } },
+        // Mixed-language: the Dag lives in Python, so no TS source to embed.
+        dag_source_paths: {},
+      },
+      sdkVersion: "0.1.0",
+      sourceFiles: {},
+      executable: Buffer.from("export {};\n"),
+    });
+    const header = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("ascii"));
+
+    expect(header.sources).toEqual([]);
+    // Executable starts immediately after metadata; no bytes between them.
+    const metadataEnd = Number.parseInt(header.metadata.end, 16);
+    const codeStart = Number.parseInt(header.code.start, 16);
+    // One newline between the metadata payload and the executable.
+    expect(codeStart).toBe(metadataEnd + 1);
   });
 
   it.each([
@@ -178,15 +247,19 @@ describe("encodeBundle", () => {
     { label: "a double backslash after a star", source: 'const s = "*\\\\\\\\";\n' },
   ])("escapes $label so the source region cannot close early", ({ source }) => {
     const bundle = encodeBundle({
-      bundleManifest: { supervisor_schema_version: "2026-06-16", task_handlers: {} },
+      bundleManifest: {
+        supervisor_schema_version: "2026-06-16",
+        task_handlers: {},
+        dag_source_paths: { d: "entry.ts" },
+      },
       sdkVersion: "0.1.0",
-      entrypointName: "entry.ts",
-      entrypointSource: source,
+      sourceFiles: { "entry.ts": source },
       executable: Buffer.from("export {};\n"),
     });
     const header = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("ascii"));
+    const region = header.sources[0]!;
     const payload = bundle
-      .subarray(Number.parseInt(header.source.start, 16), Number.parseInt(header.source.end, 16))
+      .subarray(Number.parseInt(region.start, 16), Number.parseInt(region.end, 16))
       .toString("utf-8");
 
     // Anything else would end the comment where Node reads the file.
@@ -195,13 +268,16 @@ describe("encodeBundle", () => {
     expect(payload.replaceAll(/\*\\([\\/])/g, "*$1")).toBe(source);
   });
 
-  it("rejects an entrypoint source over the embedded size limit", () => {
+  it("rejects a single source region over the per-file size limit", () => {
     expect(() =>
       encodeBundle({
-        bundleManifest: { supervisor_schema_version: "2026-06-16", task_handlers: {} },
+        bundleManifest: {
+          supervisor_schema_version: "2026-06-16",
+          task_handlers: {},
+          dag_source_paths: { d: "entry.ts" },
+        },
         sdkVersion: "0.1.0",
-        entrypointName: "entry.ts",
-        entrypointSource: "x".repeat(1024 * 1024 + 1),
+        sourceFiles: { "entry.ts": "x".repeat(1024 * 1024 + 1) },
         executable: Buffer.from("export {};\n"),
       }),
     ).toThrow("over the 1048576 byte limit");
@@ -212,10 +288,10 @@ describe("encodeBundle", () => {
       bundleManifest: {
         supervisor_schema_version: "2026-06-16",
         task_handlers: { test_dag: { tasks: ["test_task"] } },
+        dag_source_paths: { test_dag: "entry.ts" },
       },
       sdkVersion: "0.1.0",
-      entrypointName: "entry.ts",
-      entrypointSource: GOLDEN_SOURCE,
+      sourceFiles: { "entry.ts": GOLDEN_SOURCE },
       executable: GOLDEN_CODE,
     });
 
@@ -223,7 +299,8 @@ describe("encodeBundle", () => {
     const firstNewline = bundle.indexOf("\n");
     const header = parseHeader(bundle.subarray(0, firstNewline).toString("ascii"));
     const offset = (value: string): number => Number.parseInt(value, 16);
-    const source = bundle.subarray(offset(header.source.start), offset(header.source.end));
+    const region = header.sources[0]!;
+    const source = bundle.subarray(offset(region.start), offset(region.end));
     // Stored escaped and reversible: the byte-level agreement the Python reader is checked against.
     expect(source.toString("utf-8")).not.toContain("*/");
     expect(source.toString("utf-8")).not.toBe(GOLDEN_SOURCE);
@@ -233,7 +310,7 @@ describe("encodeBundle", () => {
       bundle.subarray(offset(header.code.start), offset(header.code.end)).toString("utf-8"),
     ).toContain("*/");
 
-    for (const section of [header.metadata, header.source, header.code]) {
+    for (const section of [header.metadata, region, header.code]) {
       expect(section.start).toMatch(/^[0-9a-f]{16}$/);
       expect(section.end).toMatch(/^[0-9a-f]{16}$/);
     }
@@ -244,10 +321,10 @@ describe("encodeBundle", () => {
       bundleManifest: {
         supervisor_schema_version: "2026-06-16",
         task_handlers: { "line\u2028separator": { tasks: ["paragraph\u2029separator"] } },
+        dag_source_paths: {},
       },
       sdkVersion: "0.1.0",
-      entrypointName: "entry.ts",
-      entrypointSource: "export {};\n",
+      sourceFiles: {},
       executable: Buffer.from("export {};\n"),
     });
     const metadataLine = bundle.toString("utf-8").split("\n")[1]!;
@@ -309,7 +386,12 @@ describe("runPack", () => {
         version: SDK_VERSION,
         supervisor_schema_version: SUPERVISOR_API_VERSION,
       },
-      source: "entry.ts",
+      // The one native Dag declared in the entry file gets its source path
+      // recorded. Task-handler-only Dags (`fixture_dag`) live in Python and are
+      // absent here.
+      dag_source_paths: {
+        other_dag: expect.stringMatching(/entry\.ts$/) as unknown as string,
+      },
       task_handlers: {
         fixture_dag: { tasks: ["extract", "transform"] },
         other_dag: { tasks: ["solo"] },
@@ -350,8 +432,14 @@ describe("runPack", () => {
       "task_handlers.fixture_dag",
     );
 
-    const source = bundle.subarray(offset(layout.source.start), offset(layout.source.end));
-    expect(createHash("sha256").update(source).digest("hex")).toBe(layout.source.sha256);
+    // One source region per author-owned Dag file. The fixture declares one
+    // native Dag (`other_dag`) in the entry, so exactly one region ships and
+    // its path ends in `entry.ts`.
+    expect(layout.sources).toHaveLength(1);
+    const region = layout.sources[0]!;
+    expect(region.path).toMatch(/entry\.ts$/);
+    const source = bundle.subarray(offset(region.start), offset(region.end));
+    expect(createHash("sha256").update(source).digest("hex")).toBe(region.sha256);
     // Stored escaped, because the fixture's own license header ends in a comment terminator.
     expect(source.toString("utf-8").replaceAll(/\*\\([\\/])/g, "*$1")).toBe(
       readFileSync(FIXTURE_ENTRY, "utf-8"),
@@ -502,23 +590,44 @@ describe("runPack", () => {
 
   // A bundle can print the sentinel itself, so nothing on that line is trusted.
   it.each([
-    ['{ supervisor_schema_version: "1", task_handlers: { broken_dag: {} } }', "malformed entry"],
     [
-      '{ supervisor_schema_version: "1", task_handlers: { broken_dag: { tasks: ["ok", 7] } } }',
+      '{ supervisor_schema_version: "1", task_handlers: { broken_dag: {} }, dag_source_paths: {} }',
       "malformed entry",
     ],
     [
-      '{ supervisor_schema_version: "1", task_handlers: { broken_dag: { tasks: [""] } } }',
+      '{ supervisor_schema_version: "1", task_handlers: { broken_dag: { tasks: ["ok", 7] } }, dag_source_paths: {} }',
       "malformed entry",
     ],
-    ['{ supervisor_schema_version: "1", task_handlers: [{ tasks: ["a"] }] }', "incomplete"],
+    [
+      '{ supervisor_schema_version: "1", task_handlers: { broken_dag: { tasks: [""] } }, dag_source_paths: {} }',
+      "malformed entry",
+    ],
+    [
+      '{ supervisor_schema_version: "1", task_handlers: [{ tasks: ["a"] }], dag_source_paths: {} }',
+      "incomplete",
+    ],
+    // Missing dag_source_paths entirely.
+    ['{ supervisor_schema_version: "1", task_handlers: { d: { tasks: ["a"] } } }', "incomplete"],
+    // dag_source_paths is not an object — an array passes typeof but should not.
+    [
+      '{ supervisor_schema_version: "1", task_handlers: { d: { tasks: ["a"] } }, dag_source_paths: [] }',
+      "incomplete",
+    ],
+    // A source path that is empty leaves nothing to read.
+    [
+      '{ supervisor_schema_version: "1", task_handlers: { d: { tasks: ["a"] } }, dag_source_paths: { d: "" } }',
+      "incomplete",
+    ],
     // Was read off before the document itself was checked, so it surfaced as a
     // raw TypeError.
     ["null", "incomplete"],
     // Truthy, but not the non-empty string the schema requires.
-    ['{ supervisor_schema_version: true, task_handlers: { d: { tasks: ["a"] } } }', "incomplete"],
     [
-      '{ supervisor_schema_version: 20260616, task_handlers: { d: { tasks: ["a"] } } }',
+      '{ supervisor_schema_version: true, task_handlers: { d: { tasks: ["a"] } }, dag_source_paths: {} }',
+      "incomplete",
+    ],
+    [
+      '{ supervisor_schema_version: 20260616, task_handlers: { d: { tasks: ["a"] } }, dag_source_paths: {} }',
       "incomplete",
     ],
   ])("rejects the metadata line %s", async (manifest, message) => {
@@ -577,5 +686,76 @@ describe("runPack", () => {
     const metadata = JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")));
     expect(metadata).toHaveProperty("task_handlers.sales_dag");
     expect(metadata).not.toHaveProperty("task_handlers.billing_dag");
+  });
+
+  it("embeds one source region per Dag file when Dags are spread across imports", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const dagsDir = path.join(outdir, "src", "dags");
+    const entry = path.join(outdir, "src", "main.ts");
+    const reports = path.join(dagsDir, "reports.ts");
+    mkdirSync(dagsDir, { recursive: true });
+    // Layout: `src/main.ts` declares one Dag inline, `src/dags/reports.ts`
+    // declares the other. Under the old encoder shape, only the entry file
+    // survived in the source region; here both should. Paths use the pack
+    // step's cwd (this test's cwd) rather than chdir, so parallel tests do
+    // not race on process.cwd().
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'import { reportsDag } from "./dags/reports.js";',
+        "",
+        'const ordersDag = new Dag("orders_dag");',
+        'ordersDag.task("record_order", async () => undefined)();',
+        "",
+        "await new Bundle(ordersDag, reportsDag).serve();",
+      ].join("\n"),
+    );
+    writeFileSync(
+      reports,
+      [
+        `import { Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        "",
+        'export const reportsDag = new Dag("reports_dag");',
+        'reportsDag.task("generate", async () => undefined)();',
+      ].join("\n"),
+    );
+
+    await runPack([entry, "--outdir", path.join(outdir, "dist")]);
+
+    const bundlePath = path.join(outdir, "dist", "bundle.min.mjs");
+    const bundle = readFileSync(bundlePath);
+    const layout = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("utf-8"));
+
+    // Paths in the header come out relative to the pack step's cwd. Assert on
+    // the segments the layout imposes rather than a full path prefix so the
+    // test does not depend on where vitest runs.
+    const paths = layout.sources.map((region) => region.path);
+    expect(paths).toHaveLength(2);
+    const mainPath = paths.find((p) => p.endsWith("src/main.ts"))!;
+    const reportsPath = paths.find((p) => p.endsWith("src/dags/reports.ts"))!;
+    expect(mainPath).toBeDefined();
+    expect(reportsPath).toBeDefined();
+
+    // Metadata carries the dag-to-source map, so the reader can pick the
+    // right source per Dag without guessing.
+    const metadata = JSON.parse(readEmbeddedMetadata(bundlePath));
+    expect(metadata.dag_source_paths).toEqual({
+      orders_dag: mainPath,
+      reports_dag: reportsPath,
+    });
+
+    // Each region carries the file's original text — a reader with just the
+    // bundle can present a Code tab per Dag.
+    for (const region of layout.sources) {
+      const start = Number.parseInt(region.start, 16);
+      const end = Number.parseInt(region.end, 16);
+      const content = bundle.subarray(start, end).toString("utf-8");
+      if (region.path === mainPath) {
+        expect(content).toContain('new Dag("orders_dag")');
+      } else {
+        expect(content).toContain('new Dag("reports_dag")');
+      }
+    }
   });
 });

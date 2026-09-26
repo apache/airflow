@@ -26,6 +26,7 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFile as readFileAsync } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -33,6 +34,7 @@ import {
   AIRFLOW_METADATA_SENTINEL,
   type BundleManifest,
 } from "../coordinator/manifest.js";
+import { MODULE_SOURCE_SLOT_KEY } from "../sdk/module-source.js";
 import { encodeBundle } from "./bundle-encoder.js";
 import { warnOnSuspiciousIds } from "./validate.js";
 
@@ -44,16 +46,15 @@ const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
-const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>] [--source <name>]
+const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>]
 
 Bundles <entry> into a minified ${BUNDLE_FILENAME} with esbuild and embeds the
-airflow metadata generated from the bundle's served Dags, plus <entry> itself as
-the readable source Airflow displays for the bundle.
+airflow metadata generated from the bundle's served Dags, plus each Dag-defining
+source file verbatim so Airflow has readable text to display per Dag.
 
 Options:
   --outdir <dir>    Output directory, holding ${BUNDLE_FILENAME} (default: dist)
   --outfile <path>  Exact output path; its name must end in .min.mjs
-  --source <name>   Display name of the primary source file (default: <entry> basename)
 `;
 
 /** A bundle written without this suffix is invisible to NodeCoordinator. */
@@ -62,7 +63,6 @@ const REQUIRED_OUTFILE_SUFFIX = ".min.mjs";
 export interface PackArgs {
   entry: string;
   outfile: string;
-  source: string;
 }
 
 function usageError(message: string): Error {
@@ -73,15 +73,13 @@ export function parsePackArgs(argv: readonly string[]): PackArgs {
   let entry: string | null = null;
   let outdir: string | null = null;
   let outfile: string | null = null;
-  let source: string | null = null;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
-    if (arg === "--outdir" || arg === "--outfile" || arg === "--source") {
+    if (arg === "--outdir" || arg === "--outfile") {
       const value = argv[i + 1];
       if (!value) throw usageError(`${arg} requires a value`);
       if (arg === "--outdir") outdir = value;
-      else if (arg === "--outfile") outfile = value;
-      else source = value;
+      else outfile = value;
       i += 1;
     } else if (arg.startsWith("-")) {
       throw usageError(`Unknown option ${arg}`);
@@ -104,7 +102,6 @@ export function parsePackArgs(argv: readonly string[]): PackArgs {
   return {
     entry,
     outfile: outfile ?? path.join(outdir ?? "dist", BUNDLE_FILENAME),
-    source: source ?? path.basename(entry),
   };
 }
 
@@ -173,8 +170,11 @@ function readBundleManifest(bundlePath: string): BundleManifest {
 // raw TypeError rather than a report about the bundle.
 function isBundleManifest(value: unknown): value is BundleManifest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const { supervisor_schema_version: version, task_handlers: taskHandlers } =
-    value as Partial<BundleManifest>;
+  const {
+    supervisor_schema_version: version,
+    task_handlers: taskHandlers,
+    dag_source_paths: dagSourcePaths,
+  } = value as Partial<BundleManifest>;
   return (
     // Rendered into the manifest verbatim, where the schema requires a non-empty
     // string, so a truthy number or boolean would travel to Airflow as-is.
@@ -183,8 +183,17 @@ function isBundleManifest(value: unknown): value is BundleManifest {
     typeof taskHandlers === "object" &&
     taskHandlers !== null &&
     // An array would pass the typeof check and yield Dags named "0", "1", ...
-    !Array.isArray(taskHandlers)
+    !Array.isArray(taskHandlers) &&
+    isSourcePathMap(dagSourcePaths)
   );
+}
+
+function isSourcePathMap(value: unknown): value is Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  for (const entry of Object.values(value)) {
+    if (typeof entry !== "string" || entry.length === 0) return false;
+  }
+  return true;
 }
 
 function isTaskIdList(value: unknown): value is string[] {
@@ -202,11 +211,99 @@ async function loadEsbuild(): Promise<typeof import("esbuild")> {
   }
 }
 
+/** Author source files esbuild's onLoad tags with their path. Same filter set the previous
+ *  task-id plugin used, which matched every language a Dag can be declared in. */
+const AUTHOR_SOURCE_FILTER = /\.[cm]?[jt]sx?$/;
+
+/** Skip anything under node_modules: an installed dependency is not a Dag file, and tagging it
+ *  would only cost bundle bytes while overwriting the slot with the wrong path. */
+const DEPENDENCY_PATH = /[\\/]node_modules[\\/]/;
+
+/**
+ * esbuild plugin: prepend a single line to each author-owned source file that
+ * writes the file's path into the SDK's module-source slot. `Dag`'s
+ * constructor reads that slot, so a Dag declared in `src/dags/reports.ts`
+ * carries that path even though esbuild will soon inline every module into
+ * one bundle.
+ *
+ * The prepend is text-only — no parsing, no AST — so it can never mis-identify
+ * a construction site. ES modules hoist imports above non-import statements
+ * at execution, so the tag runs *after* imported modules have written their
+ * own slots and *before* this module's own top-level statements, which is
+ * exactly when its `new Dag(...)` calls fire.
+ */
+function moduleSourceTagPlugin(cwd: string): import("esbuild").Plugin {
+  const slotKey = JSON.stringify(MODULE_SOURCE_SLOT_KEY);
+  return {
+    name: "airflow-module-source-tag",
+    setup(build) {
+      build.onLoad({ filter: AUTHOR_SOURCE_FILTER }, async ({ path: file, namespace }) => {
+        // Only the `file` namespace has a path on disk to attribute a Dag to;
+        // a virtual module from another plugin has nothing to tag.
+        if (namespace !== "file" || DEPENDENCY_PATH.test(file)) return undefined;
+        const source = await readFileAsync(file, "utf-8");
+        // Project-relative so the bundle is portable and readable (no host
+        // filesystem prefix), matching how esbuild's own metafile keys sources.
+        const relative = path.relative(cwd, file);
+        // Save the previous slot value, set ours, restore at the end of the
+        // module. Nested imports (this module imports another that also gets
+        // tagged) then leave the slot back on this module's path after the
+        // import returns, so a `new Dag(...)` after the import still sees this
+        // file — not whichever was imported last.
+        const slot = `globalThis[Symbol.for(${slotKey})]`;
+        const localVar = `__airflow_prev_source_${randomLocalSuffix()}`;
+        const openTag = `const ${localVar}=${slot};${slot}=${JSON.stringify(relative)};\n`;
+        const closeTag = `\n;${slot}=${localVar};`;
+        return {
+          contents: withOpenAndCloseTags(source, openTag, closeTag),
+          loader: loaderFor(file),
+        };
+      });
+    },
+  };
+}
+
+/** Distinguish nested tags in the bundled output — a redeclared `const`
+ *  would be a fatal SyntaxError when esbuild inlines several modules. */
+function randomLocalSuffix(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+/** A shebang has to be the file's first bytes; the open tag goes after it. */
+function withOpenAndCloseTags(source: string, openTag: string, closeTag: string): string {
+  if (!source.startsWith("#!")) return `${openTag}${source}${closeTag}`;
+  const newline = source.indexOf("\n");
+  if (newline === -1) return `${source}\n${openTag}${closeTag}`;
+  return `${source.slice(0, newline + 1)}${openTag}${source.slice(newline + 1)}${closeTag}`;
+}
+
+function loaderFor(file: string): "ts" | "tsx" | "js" | "jsx" {
+  if (/\.[cm]?tsx$/.test(file)) return "tsx";
+  if (/\.[cm]?ts$/.test(file)) return "ts";
+  if (/\.[cm]?jsx$/.test(file)) return "jsx";
+  return "js";
+}
+
+/** Reads every unique source path the manifest names into a map the encoder embeds. Files
+ *  imported by these but declaring no Dag stay out — the Code tab shows what defines each Dag,
+ *  not what it depends on. */
+function readDagSources(
+  dagSourcePaths: BundleManifest["dag_source_paths"],
+  cwd: string,
+): Record<string, string> {
+  const sources: Record<string, string> = {};
+  for (const relative of new Set(Object.values(dagSourcePaths))) {
+    sources[relative] = readFileSync(path.resolve(cwd, relative), "utf-8");
+  }
+  return sources;
+}
+
 export async function runPack(argv: readonly string[]): Promise<void> {
   const args = parsePackArgs(argv);
   const bundlePath = args.outfile;
   const stagingPath = path.join(path.dirname(bundlePath), STAGING_FILENAME);
   const { build } = await loadEsbuild();
+  const cwd = process.cwd();
 
   try {
     await build({
@@ -217,6 +314,10 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       target: "node22",
       // A digest is only worth taking over an artifact nobody reads or edits in place.
       minify: true,
+      // Tags each author-owned file with its own path before its `new Dag(...)`
+      // constructor runs, so the encoder gets one Dag-defining file per source
+      // region.
+      plugins: [moduleSourceTagPlugin(cwd)],
       // The manifest is read by running the staged bundle, so the metadata describes what ships.
       outfile: stagingPath,
     });
@@ -240,9 +341,9 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     const bundle = encodeBundle({
       bundleManifest: manifest,
       sdkVersion: readSdkVersion(),
-      entrypointName: args.source,
-      // Only the entrypoint, like the Java SDK's Airflow-Java-SDK-Dag-Code attribute.
-      entrypointSource: readFileSync(args.entry, "utf-8"),
+      // One source file per native Dag. A bundle with mixed-lang Dags only
+      // (owned by Python) has none, and this stays empty.
+      sourceFiles: readDagSources(manifest.dag_source_paths, cwd),
       executable: readFileSync(stagingPath),
     });
     writeFileSync(bundlePath, bundle);
