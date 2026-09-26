@@ -557,6 +557,104 @@ describe("runPack", () => {
     );
   });
 
+  it("takes an omitted task id from the handler name, through minification", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "named-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        "salesDag.task(async function extractRows() {})();",
+        "async function loadRows() {}",
+        "salesDag.task(loadRows, { retries: 2 })();",
+        "await new Bundle(salesDag).serve();",
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await runPack([entry, "--outdir", outdir]);
+
+    // Read back off the packed artifact, so this asserts what minification
+    // left behind rather than what the source said.
+    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
+      "task_handlers.sales_dag.tasks",
+      ["extractRows", "loadRows"],
+    );
+    expect(stderr()).toBe("");
+  });
+
+  it("keeps a handler's argument names, through minification", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "listed-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag, withArgList } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        "type Args = { rows: number; region: string };",
+        "const transform = salesDag.task(async function transformRows({ rows, region }: Args) {",
+        "  return `${region}:${rows}`;",
+        "});",
+        'transform(withArgList(1, "us"));',
+        "await new Bundle(salesDag).serve();",
+      ].join("\n"),
+    );
+
+    await runPack([entry, "--outdir", outdir]);
+
+    // A listed call reads the keys off the handler's argument pattern, so they
+    // have to survive packing. They are property names, which minification
+    // leaves alone even as it renames the bindings beside them.
+    const bundle = readFileSync(path.join(outdir, "bundle.min.mjs"), "utf8");
+    expect(bundle).toMatch(/\{\s*rows\s*(?::\s*\w+)?\s*,\s*region/);
+    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
+      "task_handlers.sales_dag.tasks",
+      ["transformRows"],
+    );
+  });
+
+  it("fails the pack when a handler is anonymous and names no task", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "anonymous-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        "salesDag.task(async () => undefined)();",
+        "await new Bundle(salesDag).serve();",
+      ].join("\n"),
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
+      /has no id: its handler has no name/,
+    );
+  });
+
+  it("takes a computed task id as the id it evaluates to", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "computed-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        'const region = "north";',
+        "salesDag.task(`extract_${region}`, async () => undefined)();",
+        'salesDag.task("load_".concat(region), async () => undefined)();',
+        "await new Bundle(salesDag).serve();",
+      ].join("\n"),
+    );
+
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
+      "task_handlers.sales_dag.tasks",
+      ["extract_north", "load_north"],
+    );
+  });
+
   it("packs only the Dags the served bundle holds", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "forgotten-entry.ts");
