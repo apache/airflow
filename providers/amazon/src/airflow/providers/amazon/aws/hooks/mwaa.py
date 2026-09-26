@@ -152,7 +152,14 @@ class MwaaHook(AwsBaseHook):
             response.raise_for_status()
 
         except requests.HTTPError as e:
-            self.log.error(e.response.json())
+            # The web server can answer with a non-JSON body, for example an
+            # HTML error page from a proxy on a 502. Parsing it unguarded
+            # would raise JSONDecodeError here and replace the HTTPError.
+            try:
+                error_body = e.response.json()
+            except ValueError:
+                error_body = e.response.text
+            self.log.error(error_body)
             raise
 
         return {
