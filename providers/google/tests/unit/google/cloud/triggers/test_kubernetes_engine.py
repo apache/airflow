@@ -52,7 +52,6 @@ NAMESPACE = "default"
 POLL_INTERVAL = 2
 CLUSTER_CONTEXT = "test-context"
 IN_CLUSTER = False
-SHOULD_DELETE_POD = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
 SCHEDULE_TIMEOUT_SECS = 60
@@ -139,13 +138,29 @@ class TestGKEStartPodTrigger:
             "ssl_ca_cert": SSL_CA_CERT,
             "base_container_name": BASE_CONTAINER_NAME,
             "on_finish_action": ON_FINISH_ACTION,
-            "should_delete_pod": SHOULD_DELETE_POD,
+            "should_delete_pod": None,
             "gcp_conn_id": GCP_CONN_ID,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "last_log_time": None,
             "logging_interval": None,
             "use_dns_endpoint": False,
         }
+
+    def test_serialize_round_trip_preserves_on_finish_action(self):
+        trigger = GKEStartPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            trigger_start_time=TRIGGER_START_TIME,
+            cluster_url=CLUSTER_URL,
+            ssl_ca_cert=SSL_CA_CERT,
+            base_container_name=BASE_CONTAINER_NAME,
+            on_finish_action="delete_succeeded_pod",
+        )
+
+        _, kwargs_dict = trigger.serialize()
+        reconstructed_trigger = GKEStartPodTrigger(**kwargs_dict)
+
+        assert reconstructed_trigger.on_finish_action.value == "delete_succeeded_pod"
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_POD_PATH}._wait_for_pod_start")
