@@ -60,8 +60,19 @@ export const TaskInstance = () => {
   const logsTabValue = getDefaultTaskInstanceTabPath(defaultTab) === "" ? "" : "logs";
 
   const tabs = [
-    { icon: <MdReorder />, label: translate("tabs.logs"), matchPaths: ["logs"], value: logsTabValue },
-    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
+    {
+      icon: <MdReorder />,
+      label: translate("tabs.logs"),
+      matchPaths: ["logs"],
+      search: trySearch,
+      value: logsTabValue,
+    },
+    {
+      icon: <FiUser />,
+      label: translate("tabs.requiredActions"),
+      search: trySearch,
+      value: "required_actions",
+    },
     {
       icon: <PiBracketsCurlyBold />,
       label: translate("tabs.renderedTemplates"),
@@ -76,7 +87,7 @@ export const TaskInstance = () => {
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
-    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    { icon: <MdDetails />, label: translate("tabs.details"), search: trySearch, value: "details" },
     ...externalTabs,
   ];
 
@@ -136,11 +147,7 @@ export const TaskInstance = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout
-        error={error}
-        isLoading={isLoading}
-        tabs={displayTabs.map((tab) => ({ ...tab, search: trySearch }))}
-      >
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {taskInstance === undefined ? (
           <Heading p={2} size="lg">
             {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}

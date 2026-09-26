@@ -961,6 +961,87 @@ class TestWatchedSubprocess:
             },
         ]
 
+    @pytest.mark.parametrize(
+        "msg",
+        [
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            TaskState(state=TaskInstanceState.FAILED),
+            TaskState(state=TaskInstanceState.SKIPPED),
+            RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            DeferTask(next_method="execute_complete", classpath="test.Trigger", trigger_kwargs={}),
+            RescheduleTask(
+                end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                reschedule_date=timezone.parse("2024-10-31T12:01:00Z"),
+            ),
+            AwaitInputTask(next_method="execute_complete"),
+        ],
+        ids=["success", "failure", "skipped", "retry", "defer", "reschedule", "await_input"],
+    )
+    @pytest.mark.parametrize(
+        "detail",
+        [
+            {"reason": "invalid_state", "previous_state": "restarting"},
+            {"reason": "invalid_state", "previous_state": "success"},
+            {"reason": "running_elsewhere", "previous_state": "restarting"},
+            "conflict",
+        ],
+        ids=["restarting", "success", "running_elsewhere", "unstructured"],
+    )
+    def test_conflicting_report_acknowledges_after_finalization(
+        self, msg, detail, tmp_path, mocker, make_ti_context_dict
+    ):
+        """A rejected outcome must wait for finalization before acknowledging termination to the server."""
+        finalized = tmp_path / "finalized"
+        reports = []
+        mocker.patch.object(supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
+        upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs", autospec=True)
+
+        def subprocess_main():
+            comms = CommsDecoder()
+            comms._get_response()
+            comms.send(msg)
+            finalized.touch()
+
+        def handle_request(request):
+            if request.url.path.endswith("/run"):
+                return httpx.Response(200, json=make_ti_context_dict())
+            if request.url.path.endswith("/heartbeat"):
+                return httpx.Response(204)
+            assert request.url.path.endswith("/state")
+            payload = json.loads(request.content)
+            reports.append(payload["state"])
+            if payload["state"] != SERVER_TERMINATED:
+                return httpx.Response(409, json={"detail": detail})
+            assert proc._process.wait(timeout=0) == 0
+            assert finalized.exists()
+            assert payload["hostname"] == sdk_client.get_hostname()
+            assert payload["pid"] == proc.pid
+            return httpx.Response(204)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="task",
+                dag_id="dag",
+                run_id="run",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=make_client(transport=httpx.MockTransport(handle_request)),
+            target=subprocess_main,
+            bundle_info=FAKE_BUNDLE,
+        )
+
+        assert proc.wait() == 0
+        assert proc.final_state == SERVER_TERMINATED
+        assert proc._pending_terminal_state_msg is None
+        assert reports == [msg.state, SERVER_TERMINATED]
+        assert proc.wait() == 0
+        assert reports == [msg.state, SERVER_TERMINATED]
+        upload_logs.assert_called_once_with(proc)
+
     @pytest.mark.parametrize("ack_status", [204, 404])
     def test_restarting_start_reports_stop_after_reaping(self, mocker, ack_status, captured_logs):
         ti_id = uuid7()
@@ -3386,6 +3467,54 @@ REQUEST_TEST_CASES = [
 
 
 class TestHandleRequest:
+    @pytest.mark.parametrize("status", [404, 410, 422, 500])
+    def test_terminal_report_propagates_errors_other_than_conflict(self, watched_subprocess, status):
+        process, _ = watched_subprocess
+        msg = TaskState(state=TaskInstanceState.FAILED)
+        error = ServerResponseError.from_response(
+            httpx.Response(
+                status,
+                json={"detail": {"reason": "invalid_state", "previous_state": "restarting"}},
+                request=httpx.Request("PATCH", "http://server/state"),
+            )
+        )
+        process.client.task_instances.finish.side_effect = error
+        process._handle_request(msg, structlog.get_logger(), req_id=1)
+        process._exit_code = 0
+
+        with pytest.raises(ServerResponseError) as raised:
+            process.update_task_state_if_needed()
+
+        assert raised.value is error
+        assert process._pending_terminal_state_msg is msg
+        assert process.final_state == TaskInstanceState.FAILED
+
+    def test_restarting_during_success_replay_acknowledges_in_same_update(self, watched_subprocess):
+        process, _ = watched_subprocess
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        process.client.task_instances.succeed.side_effect = [
+            httpx.ConnectError("response lost"),
+            ServerResponseError.from_response(
+                httpx.Response(
+                    409,
+                    json={"detail": {"reason": "invalid_state", "previous_state": "restarting"}},
+                    request=httpx.Request("PATCH", "http://server/state"),
+                )
+            ),
+        ]
+        with pytest.raises(httpx.ConnectError):
+            process._handle_request(msg, structlog.get_logger(), req_id=1)
+        process.client.task_instances.finish.assert_not_called()
+        process._exit_code = 0
+
+        process.update_task_state_if_needed()
+
+        assert process.final_state == SERVER_TERMINATED
+        assert process._pending_terminal_state_msg is None
+        process.client.task_instances.finish.assert_called_once()
+        assert process.client.task_instances.finish.call_args.kwargs["state"] == SERVER_TERMINATED
+        assert process.client.task_instances.finish.call_args.kwargs["pid"] == process.pid
+
     @pytest.mark.parametrize("arrival", ["during_kill", "after_kill"])
     @pytest.mark.parametrize(
         ("msg", "api_method"),

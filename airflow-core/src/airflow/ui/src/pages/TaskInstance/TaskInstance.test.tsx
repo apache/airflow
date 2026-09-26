@@ -156,6 +156,40 @@ describe("TaskInstance", () => {
     },
   );
 
+  it.each([
+    ["tabs.auditLog", "events"],
+    ["tabs.mappedTaskInstances_other", "task_instances"],
+    ["tabs.renderedTemplates", "rendered_templates"],
+    ["tabs.storage", "xcom"],
+    ["tabs.assetEvents", "asset_events"],
+    ["tabs.code", "code"],
+  ])("does not carry try selection into %s", async (label, destination) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 3),
+      map_index: 1,
+    });
+    const path = `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/mapped/1`;
+
+    render(
+      <MemoryRouter initialEntries={[`${path}/logs?try_number=2`]}>
+        <Location />
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+    expect(await screen.findByText(`${TASK_A}:success:3`)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("link", { name: label }));
+
+    expect(screen.getByTestId("location").textContent).toBe(`${path}/${destination}`);
+  });
+
   it("refetches a cached task instance immediately when switching tasks", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {

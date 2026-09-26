@@ -1741,6 +1741,14 @@ class ActivitySubprocess(WatchedSubprocess):
         return self._exit_code
 
     def update_task_state_if_needed(self):
+        if self._terminal_state != SERVER_TERMINATED and self._pending_terminal_state_msg is not None:
+            if isinstance(self._pending_terminal_state_msg, (TaskState, RetryTask)):
+                self._send_terminal_state_msg(self._pending_terminal_state_msg)
+            else:
+                self._replay_pending_terminal_state_msg()
+            if self._terminal_state != SERVER_TERMINATED:
+                return
+
         if self._terminal_state == SERVER_TERMINATED:
             self._pending_terminal_state_msg = None
             try:
@@ -1759,13 +1767,6 @@ class ActivitySubprocess(WatchedSubprocess):
                 )
             return
 
-        if self._pending_terminal_state_msg is not None:
-            if isinstance(self._pending_terminal_state_msg, (TaskState, RetryTask)):
-                self._send_terminal_state_msg(self._pending_terminal_state_msg)
-            else:
-                self._replay_pending_terminal_state_msg()
-            return
-
         # Without a worker outcome, only report inferred states that finish() accepts.
         if self.final_state not in STATES_SENT_DIRECTLY:
             self.client.task_instances.finish(
@@ -1782,36 +1783,42 @@ class ActivitySubprocess(WatchedSubprocess):
             return
         self._terminal_state = msg.state
         self._pending_terminal_state_msg = msg
-        if isinstance(msg, TaskState):
-            self.client.task_instances.finish(
-                id=self.id,
-                state=msg.state,
-                when=msg.end_date or datetime.now(tz=timezone.utc),
-                rendered_map_index=self._rendered_map_index,
-                retry_reason=msg.retry_reason,
-            )
-        elif isinstance(msg, SucceedTask):
-            self.client.task_instances.succeed(
-                id=self.id,
-                when=msg.end_date,
-                task_outlets=msg.task_outlets,
-                outlet_events=msg.outlet_events,
-                rendered_map_index=self._rendered_map_index,
-            )
-        elif isinstance(msg, RetryTask):
-            self.client.task_instances.retry(
-                id=self.id,
-                end_date=msg.end_date,
-                rendered_map_index=self._rendered_map_index,
-                retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
-                retry_reason=getattr(msg, "retry_reason", None),
-            )
-        elif isinstance(msg, DeferTask):
-            self.client.task_instances.defer(self.id, msg)
-        elif isinstance(msg, RescheduleTask):
-            self.client.task_instances.reschedule(self.id, msg)
-        elif isinstance(msg, AwaitInputTask):
-            self.client.task_instances.await_input(self.id, msg)
+        try:
+            if isinstance(msg, TaskState):
+                self.client.task_instances.finish(
+                    id=self.id,
+                    state=msg.state,
+                    when=msg.end_date or datetime.now(tz=timezone.utc),
+                    rendered_map_index=self._rendered_map_index,
+                    retry_reason=msg.retry_reason,
+                )
+            elif isinstance(msg, SucceedTask):
+                self.client.task_instances.succeed(
+                    id=self.id,
+                    when=msg.end_date,
+                    task_outlets=msg.task_outlets,
+                    outlet_events=msg.outlet_events,
+                    rendered_map_index=self._rendered_map_index,
+                )
+            elif isinstance(msg, RetryTask):
+                self.client.task_instances.retry(
+                    id=self.id,
+                    end_date=msg.end_date,
+                    rendered_map_index=self._rendered_map_index,
+                    retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
+                    retry_reason=getattr(msg, "retry_reason", None),
+                )
+            elif isinstance(msg, DeferTask):
+                self.client.task_instances.defer(self.id, msg)
+            elif isinstance(msg, RescheduleTask):
+                self.client.task_instances.reschedule(self.id, msg)
+            elif isinstance(msg, AwaitInputTask):
+                self.client.task_instances.await_input(self.id, msg)
+        except ServerResponseError as error:
+            if error.response.status_code != HTTPStatus.CONFLICT:
+                raise
+            self._terminal_state = SERVER_TERMINATED
+            self.process_log.info("Server rejected task outcome with a conflict. Discarding task outcome.")
         self._pending_terminal_state_msg = None
 
     def _replay_pending_terminal_state_msg(self) -> None:
