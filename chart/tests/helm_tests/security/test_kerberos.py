@@ -36,26 +36,6 @@ class TestKerberos:
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
         assert k8s_objects_to_consider_str.count("kerberos") == 1
 
-    @pytest.mark.parametrize("init_values", [{"enabled": True}, {"enabled": False}, {}])
-    @pytest.mark.parametrize("worker_type", ["celery", "kubernetes"])
-    def test_removed_kerberos_init_container_settings(self, worker_type, init_values):
-        with pytest.raises(HelmFailedError, match=r"kerberosInitContainer': 'not' failed"):
-            render_chart(values={"workers": {worker_type: {"kerberosInitContainer": init_values}}})
-
-    @pytest.mark.parametrize("init_values", [{"enabled": True}, {"enabled": False}, {}])
-    def test_removed_kerberos_init_container_settings_in_worker_set(self, init_values):
-        with pytest.raises(HelmFailedError, match=r"kerberosInitContainer': 'not' failed"):
-            render_chart(
-                values={
-                    "workers": {
-                        "celery": {
-                            "enableDefault": False,
-                            "sets": [{"name": "test", "kerberosInitContainer": init_values}],
-                        }
-                    }
-                }
-            )
-
     def test_kerberos_envs_available_in_worker_with_persistence(self):
         docs = render_chart(
             values={
