@@ -93,6 +93,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--push",
                 "--prepare-buildx-cache",
+                "--require-frozen-dependencies",
             ],
         },
         {
