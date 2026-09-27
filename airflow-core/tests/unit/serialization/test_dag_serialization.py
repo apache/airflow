@@ -76,7 +76,7 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
-from airflow.serialization.definitions.param import SerializedParam
+from airflow.serialization.definitions.param import SerializedDagParam, SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes, Encoding
@@ -3535,6 +3535,28 @@ def test_dag_param_in_partial_kwargs_is_serialized_without_object_address():
     serialized = BaseSerialization.serialize(dag.get_task("add"))
     op_kwargs = serialized["__var"]["partial_kwargs"]["op_kwargs"]
     assert "object at 0x" not in json.dumps(op_kwargs)
+
+
+@pytest.mark.parametrize(
+    "param_kwargs",
+    [pytest.param({"default": 10}, id="with-default"), pytest.param({}, id="without-default")],
+)
+def test_dag_param_in_partial_kwargs_round_trips(param_kwargs):
+    from airflow.sdk import task
+
+    with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+        @task
+        def add(value, offset):
+            return value + offset
+
+        add.partial(offset=dag.param("offset", **param_kwargs)).expand(value=[1, 2, 3])
+
+    serialized = OperatorSerialization.serialize_mapped_operator(dag.get_task("add"))
+    deserialized = OperatorSerialization.deserialize_operator(serialized)
+    assert deserialized.partial_kwargs["op_kwargs"]["offset"] == SerializedDagParam(
+        dag_id="test-dag", name="offset", default=param_kwargs.get("default", NOTSET)
+    )
 
 
 def test_python_callable_name_uses_qualname_exclude_module():
