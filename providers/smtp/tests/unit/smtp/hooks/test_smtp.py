@@ -374,6 +374,28 @@ class TestSmtpHook:
         assert not mock_smtp_ssl.called
         mock_smtp.assert_called_once_with(host=SMTP_HOST, port=NONSSL_PORT, timeout=DEFAULT_TIMEOUT)
 
+    @pytest.mark.parametrize(
+        ("query", "expected_ssl", "expected_starttls"),
+        [
+            ("", True, True),
+            ("disable_ssl=true&disable_tls=true", False, False),
+            ("disable_ssl=false&disable_tls=false", True, True),
+            ("disable_ssl=False&disable_tls=0", True, True),
+            ("disable_ssl=1&disable_tls=false", False, True),
+        ],
+    )
+    def test_ssl_and_tls_extras_from_uri(
+        self, query, expected_ssl, expected_starttls, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(conn_id="smtp_uri", uri=f"smtp://user:pass@{SMTP_HOST}:587?{query}")
+        )
+        hook = SmtpHook(smtp_conn_id="smtp_uri")
+        hook.smtp_connection = hook.get_connection("smtp_uri")
+
+        assert hook.use_ssl is expected_ssl
+        assert hook.smtp_starttls is expected_starttls
+
     @patch("smtplib.SMTP")
     def test_send_mime_noauth(self, mock_smtp, create_connection_without_db):
         mock_smtp.return_value = Mock()
