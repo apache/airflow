@@ -55,6 +55,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComByKeys,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -150,6 +151,7 @@ ToManager = Annotated[
     | GetXCom
     | GetXComCount
     | GetXComSequenceItem
+    | GetXComByKeys
     | GetXComSequenceSlice
     | MaskSecret,
     Field(discriminator="type"),
@@ -636,6 +638,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         GetVariable,
         GetVariableKeys,
         GetXCom,
+        GetXComByKeys,
         GetXComCount,
         GetXComSequenceItem,
         GetXComSequenceSlice,

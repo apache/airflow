@@ -186,11 +186,15 @@ def mock_context(task, run_id: str | None = None) -> Iterator[Context]:
         value = context["ti"].xcom_pull(task_ids=task_id, dag_id=dag_id, key=key)
         return None if value is None else [value]
 
+    def _get_by_keys(cls, *, keys, dag_id, task_id, run_id, map_index=None):
+        return [_get_one(cls, key=key, dag_id=dag_id, task_id=task_id, run_id=run_id) for key in keys]
+
     with (
         patch.object(XCom, "set", classmethod(_set)),
         patch.object(XCom, "aset", classmethod(_aset)),
         patch.object(XCom, "get_one", classmethod(_get_one)),
         patch.object(XCom, "get_all", classmethod(_get_all)),
+        patch.object(XCom, "get_by_keys", classmethod(_get_by_keys)),
         patch.object(RuntimeTaskInstance, "task_state_store", property(lambda self: task_state_store)),
     ):
         yield context

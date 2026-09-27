@@ -26,6 +26,7 @@ import structlog
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
+    GetXComByKeys,
     GetXComSequenceSlice,
     SetXCom,
     XComResult,
@@ -34,6 +35,9 @@ from airflow.sdk.execution_time.comms import (
 
 # Lightweight wrapper for XCom values
 _XComValueWrapper = collections.namedtuple("_XComValueWrapper", "value")
+
+# Wraps a raw API value the way ``XCom.deserialize_value`` expects it; see ``LazyXComSequence``.
+_XComWrapper = collections.namedtuple("_XComWrapper", "value")
 
 log = structlog.get_logger(logger_name="task")
 
@@ -281,6 +285,45 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         return msg
+
+    @classmethod
+    def get_by_keys(
+        cls,
+        *,
+        keys: list[str],
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+    ) -> list[Any]:
+        """
+        Retrieve several XCom values of one task instance by key, in one round trip.
+
+        The values come back in the order of ``keys``, ``None`` for a key that has no XCom. This is
+        what :class:`XComIterable` iterates and slices with, since its values live under distinct
+        keys (``return_value_<index>``) of the same task instance.
+
+        :param keys: The XCom keys to read.
+        :param dag_id: Dag ID to pull the XComs from.
+        :param task_id: Task ID to pull the XComs from.
+        :param run_id: Dag run ID for the task.
+        :param map_index: Map index of the task instance. *None* (default) reads the XComs of a
+            non-mapped task, which has map index ``-1``.
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = SUPERVISOR_COMMS.send(
+            GetXComByKeys(
+                keys=keys,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=-1 if map_index is None else map_index,
+            ),
+        )
+        if not isinstance(msg, XComSequenceSliceResult):
+            raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
+        return [cls.deserialize_value(_XComWrapper(value)) for value in msg.root]
 
     @classmethod
     def get_one(
@@ -592,9 +635,9 @@ class XComIterable(Sequence):
     returned ``None`` pushed nothing either but keeps its position: reading it gives ``None``,
     where ``.expand()`` would not count such a mapped task instance at all.
 
-    Every element is a remote fetch, so random access costs one XCom read per element, and so do
-    iterating and slicing: N elements are N requests. Reading several in one request needs an
-    Execution API endpoint that takes a list of keys, which does not exist yet.
+    A single index is one XCom read; iterating or slicing fetches all the values wanted with one
+    ``GetXComByKeys`` request, since the values live under distinct keys that the slice endpoint for
+    a mapped task's XComs cannot address.
     """
 
     def __init__(
@@ -623,7 +666,8 @@ class XComIterable(Sequence):
         return index
 
     def __iter__(self) -> Iterator[Any]:
-        return _XComIterator(self)
+        """Fetch every value with one request."""
+        return iter(self._get_by_keys(range(len(self))))
 
     def __len__(self) -> int:
         return self.length - len(self.skipped)
@@ -637,17 +681,24 @@ class XComIterable(Sequence):
         from airflow.sdk.execution_time.xcom import XCom
 
         if isinstance(key, slice):
-            # TODO: This issues one XCom.get_one call per element — N round-trips for a full slice.
-            # XComIterable stores results under distinct keys (return_value_0, return_value_1, …)
-            # with the same map_index, so the existing GetXComSequenceSlice endpoint (which ranges
-            # over map_index for a single key) cannot be reused.  A new POST endpoint that accepts
-            # a list of keys and returns values in a single query is needed; once that lands, replace
-            # this loop with a single batched fetch.
-            start, stop, step = key.indices(len(self))
-            return [self[i] for i in range(start, stop, step)]
+            return self._get_by_keys(range(*key.indices(len(self))))
 
         return XCom.get_one(
             key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(key)}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    def _get_by_keys(self, positions: range) -> list[Any]:
+        """Read the values at ``positions`` with one ``XCom.get_by_keys`` call; nothing for an empty range."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if not positions:
+            return []
+        return XCom.get_by_keys(
+            keys=[f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(position)}" for position in positions],
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
@@ -707,24 +758,5 @@ class _AsyncXComIterator:
             raise StopAsyncIteration
 
         value = await self._iterable.aget(self._index)
-        self._index += 1
-        return value
-
-
-class _XComIterator:
-    """Iterator for XComIterable."""
-
-    def __init__(self, iterable: XComIterable):
-        self._iterable = iterable
-        self._index = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self._index >= len(self._iterable):
-            raise StopIteration
-
-        value = self._iterable[self._index]
         self._index += 1
         return value
