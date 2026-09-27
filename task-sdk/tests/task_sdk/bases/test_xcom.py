@@ -37,9 +37,11 @@ from airflow.sdk.bases.xcom import (
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
+    GetXComByKeys,
     GetXComSequenceSlice,
     SetXCom,
     XComResult,
+    XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.xcom import XCom
@@ -308,6 +310,65 @@ class TestXComIterable:
     def make_iterable(self, length: int = 0, map_index: int | None = None) -> XComIterable:
         return XComIterable(task_id="task", dag_id="dag", run_id="run", map_index=map_index, length=length)
 
+    def test_iter_fetches_every_value_with_one_request(self, mock_supervisor_comms):
+        iterable = self.make_iterable(length=3, map_index=5)
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "b", "c"])
+
+        assert list(iterable) == ["a", "b", "c"]
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetXComByKeys(
+                keys=[f"{BaseXCom.XCOM_RETURN_KEY}_{i}" for i in range(3)],
+                dag_id="dag",
+                run_id="run",
+                task_id="task",
+                map_index=5,
+            )
+        )
+
+    def test_iter_on_an_unmapped_producer_asks_for_map_index_minus_one(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a"])
+        assert list(self.make_iterable(length=1)) == ["a"]
+        assert mock_supervisor_comms.send.call_args.args[0].map_index == -1
+
+    def test_iter_on_an_empty_iterable_sends_nothing(self, mock_supervisor_comms):
+        assert list(self.make_iterable(length=0)) == []
+        mock_supervisor_comms.send.assert_not_called()
+
+    def test_iter_makes_one_request_however_far_it_is_consumed(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "b", "c"])
+        it = iter(self.make_iterable(length=3))
+        assert next(it) == "a"
+        mock_supervisor_comms.send.assert_called_once()
+
+    def test_iter_rejects_an_unexpected_response(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = XComSequenceIndexResult(root="oops")
+        with pytest.raises(TypeError, match="Expected XComSequenceSliceResult"):
+            list(self.make_iterable(length=2))
+
+    def test_getitem_slice_fetches_the_wanted_values_with_one_request(self, mock_supervisor_comms):
+        iterable = self.make_iterable(length=3)
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "c"])
+
+        assert iterable[::2] == ["a", "c"]
+
+        assert mock_supervisor_comms.send.call_args.args[0].keys == [
+            f"{BaseXCom.XCOM_RETURN_KEY}_0",
+            f"{BaseXCom.XCOM_RETURN_KEY}_2",
+        ]
+
+    def test_getitem_empty_slice_sends_nothing(self, mock_supervisor_comms):
+        assert self.make_iterable(length=3)[5:2] == []
+        mock_supervisor_comms.send.assert_not_called()
+
+    @patch.object(XCom, "get_one", return_value="val")
+    def test_getitem_single_index_is_one_read(self, mock_get_one, mock_supervisor_comms):
+        assert self.make_iterable(length=3)[1] == "val"
+        mock_get_one.assert_called_once_with(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_1", dag_id="dag", task_id="task", run_id="run", map_index=None
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
     def test_has_no_append(self):
         """The consumer-facing Sequence is read-only: nothing on it mutates the underlying XComs."""
         iterable = self.make_iterable(length=1)
@@ -481,9 +542,14 @@ class TestXComIterable:
         """Five input items, of which indices 0, 2 and 3 were skipped: only 1 and 4 hold a value."""
         return XComIterable(task_id="task", dag_id="dag", run_id="run", length=5, skipped=[0, 2, 3])
 
+    @patch.object(XCom, "get_by_keys")
     @patch.object(XCom, "get_one")
-    def test_skipped_indices_are_left_out(self, mock_get_one):
-        mock_get_one.side_effect = self._values_by_index({1: "one", 4: "four"})
+    def test_skipped_indices_are_left_out(self, mock_get_one, mock_get_by_keys):
+        values = {1: "one", 4: "four"}
+        mock_get_one.side_effect = self._values_by_index(values)
+        mock_get_by_keys.side_effect = lambda *, keys, **kwargs: [
+            values[int(key.rsplit("_", 1)[-1])] for key in keys
+        ]
         iterable = self.make_skipping_iterable()
 
         assert len(iterable) == 2
@@ -497,10 +563,21 @@ class TestXComIterable:
             iterable[2]
         with pytest.raises(IndexError):
             iterable[-3]
-        assert sorted({call.kwargs["key"] for call in mock_get_one.call_args_list}) == [
-            f"{BaseXCom.XCOM_RETURN_KEY}_1",
-            f"{BaseXCom.XCOM_RETURN_KEY}_4",
-        ]
+        requested = {call.kwargs["key"] for call in mock_get_one.call_args_list} | {
+            key for call in mock_get_by_keys.call_args_list for key in call.kwargs["keys"]
+        }
+        assert sorted(requested) == [f"{BaseXCom.XCOM_RETURN_KEY}_1", f"{BaseXCom.XCOM_RETURN_KEY}_4"]
+
+    @patch.object(XCom, "get_by_keys")
+    def test_a_previous_iteration_reads_its_keys_from_that_iteration(self, mock_get_by_keys):
+        """Iterating and slicing ``loop.previous`` send the flag with the batched read, as single reads do."""
+        mock_get_by_keys.side_effect = lambda *, keys, **kwargs: list(keys)
+        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=2)
+        iterable.previous_iteration = True
+
+        assert list(iterable) == [f"{BaseXCom.XCOM_RETURN_KEY}_0", f"{BaseXCom.XCOM_RETURN_KEY}_1"]
+        assert iterable[1:] == [f"{BaseXCom.XCOM_RETURN_KEY}_1"]
+        assert all(call.kwargs["_previous_iteration"] for call in mock_get_by_keys.call_args_list)
 
     @pytest.mark.asyncio
     @patch.object(XCom, "aget_one", new_callable=AsyncMock)
@@ -815,6 +892,34 @@ class TestStoreAndLoadValue:
             result = backend.get_all(**coordinates)
 
         assert result == [f"{prefix} a", f"{prefix} b"]
+
+    @pytest.mark.parametrize(
+        ("backend", "prefix"),
+        [
+            pytest.param(StoreXCom, "loaded", id="load_value"),
+            pytest.param(SubclassOverridingOldHooks, "deserialized", id="deserialize-overridden-below-load"),
+        ],
+    )
+    def test_get_by_keys_loads_each_stored_value(self, backend, prefix, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "b"])
+
+        result = backend.get_by_keys(keys=["k0", "k1"], dag_id="dag", task_id="task", run_id="run")
+
+        assert result == [f"{prefix} a", f"{prefix} b"]
+
+    @pytest.mark.parametrize("previous_iteration", [False, True])
+    def test_get_by_keys_tells_an_iterable_which_iteration_it_was_read_from(
+        self, previous_iteration, mock_supervisor_comms
+    ):
+        stored = BaseXCom.serialize_value(XComIterable(task_id="t", dag_id="dag", run_id="run", length=1))
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[stored])
+
+        (item,) = XCom.get_by_keys(
+            keys=["k0"], dag_id="dag", task_id="task", run_id="run", _previous_iteration=previous_iteration
+        )
+
+        assert isinstance(item, XComIterable)
+        assert item.previous_iteration is previous_iteration
 
 
 class TestXComCoordinate:

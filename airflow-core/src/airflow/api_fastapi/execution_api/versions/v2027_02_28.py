@@ -31,3 +31,13 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs/{job_id}/complete", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/parse-token", ["POST"]).didnt_exist,
     )
+
+
+class AddXComKeysEndpoint(VersionChange):
+    """Add the ``POST xcoms/{dag_id}/{run_id}/{task_id}`` endpoint that fetches several XCom values by key in one query."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/xcoms/{dag_id}/{run_id}/{task_id}", ["POST"]).didnt_exist,
+    )
