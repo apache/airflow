@@ -84,6 +84,19 @@ run_id = DagRun.generate_run_id(
 )
 
 
+def _last_audit_extra(session: Session, event: str) -> dict:
+    from airflow.models import Log
+
+    extra = session.scalar(
+        select(Log.extra)
+        .where(Log.dag_id == TEST_DAG_ID, Log.event == event)
+        .order_by(Log.dttm.desc())
+        .limit(1)
+    )
+    assert extra is not None
+    return json.loads(extra)
+
+
 @provide_session
 def _create_xcom(key, value, backend, *, session: Session = NEW_SESSION) -> None:
     XComModel.set(
@@ -774,6 +787,19 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["map_index"] == request_body.map_index
         check_last_log(session, dag_id=TEST_DAG_ID, event="create_xcom_entry", logical_date=None)
 
+    def test_create_xcom_entry_audit_log_masks_value(self, test_client, session):
+        """The audit log records that an XCom was written, not its value, whatever the key name."""
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json=XComCreateBody(key="report_rows", value="xcom-payload-canary").model_dump(),
+        )
+
+        assert response.status_code == 201
+        extra = _last_audit_extra(session, "create_xcom_entry")
+        assert extra["value"] == "***"
+        assert extra["key"] == "report_rows"
+        assert "xcom-payload-canary" not in json.dumps(extra)
+
     def test_create_xcom_entry_duplicate_check_is_bounded(self, test_client):
         """Checking for an existing XCom before inserting must ask the database for one row."""
         with capture_orm_selects("xcom") as statements:
@@ -995,6 +1021,20 @@ class TestPatchXComEntry(TestXComEndpoint):
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_patch_xcom_entry_audit_log_masks_value(self, test_client, session):
+        """An XCom update is audited without its new value."""
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            json={"value": {"nested": "xcom-payload-canary"}},
+        )
+
+        assert response.status_code == 200
+        extra = _last_audit_extra(session, "update_xcom_entry")
+        assert extra["value"] == "***"
+        assert "xcom-payload-canary" not in json.dumps(extra)
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_patch_xcom_entry_with_team_name(self, test_client):
