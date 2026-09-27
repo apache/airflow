@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias
+from uuid import UUID
 
 from airflow.models.callback import CallbackKey, ExecutorCallback
 from airflow.models.connection_test import ConnectionTestKey, ConnectionTestRequest, ConnectionTestState
@@ -27,7 +28,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 # Type aliases for workload keys and states (used by executor layer)
-WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey | ConnectionTestKey
+WorkloadKey: TypeAlias = UUID | TaskInstanceKey | CallbackKey | ConnectionTestKey
 WorkloadState: TypeAlias = TaskInstanceState | CallbackState | ConnectionTestState
 
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ SchedulerWorkload: TypeAlias = TaskInstance | ExecutorCallback | ConnectionTestR
 def state_class_for_key(
     key: WorkloadKey,
 ) -> type[TaskInstanceState] | type[CallbackState] | type[ConnectionTestState]:
-    if isinstance(key, TaskInstanceKey):
+    if isinstance(key, (UUID, TaskInstanceKey)):
         return TaskInstanceState
     if isinstance(key, ConnectionTestKey):
         return ConnectionTestState

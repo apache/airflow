@@ -1497,7 +1497,7 @@ class TestTIUpdateState:
         )
         ti.hostname, ti.pid = "worker", 123
         ti.try_number, ti.max_tries = 3, 0
-        old_id, old_key = ti.id, ti.key
+        old_id = ti.id
         session.commit()
         if definition == "missing_dag":
             mocker.patch.object(DBDagBag, "get_dag_for_run", autospec=True, return_value=None)
@@ -1525,7 +1525,7 @@ class TestTIUpdateState:
                     )
                     assert response.status_code == 204
                 else:
-                    executor.event_buffer[old_key] = executor_state, None
+                    executor.event_buffer[old_id] = executor_state, None
                     SchedulerJobRunner.process_executor_events(executor, None, DBDagBag(), session)
                     session.commit()
             session.expunge_all()

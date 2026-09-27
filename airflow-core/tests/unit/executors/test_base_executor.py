@@ -102,9 +102,11 @@ def test_get_event_buffer():
 
     date = timezone.utcnow()
     try_number = 1
-    key1 = TaskInstanceKey("my_dag1", "my_task1", date, try_number)
-    key2 = TaskInstanceKey("my_dag2", "my_task1", date, try_number)
-    key3 = TaskInstanceKey("my_dag2", "my_task2", date, try_number)
+    key1, key2, key3 = uuid4(), uuid4(), uuid4()
+    for key, dag_id in ((key1, "my_dag1"), (key2, "my_dag2"), (key3, "my_dag2")):
+        executor.register_task(
+            mock.Mock(spec=TaskInstance, id=key, key=TaskInstanceKey(dag_id, "task", date, try_number))
+        )
     state = State.SUCCESS
     executor.event_buffer[key1] = state, None
     executor.event_buffer[key2] = state, None
@@ -120,7 +122,10 @@ def test_get_event_buffer_always_includes_callback_keys():
     executor = BaseExecutor()
 
     date = timezone.utcnow()
-    ti_key = TaskInstanceKey("my_dag1", "my_task1", date, 1)
+    ti_key = uuid4()
+    executor.register_task(
+        mock.Mock(spec=TaskInstance, id=ti_key, key=TaskInstanceKey("my_dag1", "my_task1", date, 1))
+    )
     callback_key = CallbackKey(id="00000000-0000-0000-0000-000000000042")
 
     executor.event_buffer[ti_key] = State.SUCCESS, None
@@ -132,12 +137,44 @@ def test_get_event_buffer_always_includes_callback_keys():
     assert ti_key not in result
 
 
+def test_get_event_buffer_retains_unregistered_task_until_unfiltered_drain():
+    executor = BaseExecutor()
+    retired_id = uuid4()
+    executor.event_buffer[retired_id] = TaskInstanceState.SUCCESS, None
+
+    assert executor.get_event_buffer(("some_dag",)) == {}
+    assert executor.get_event_buffer() == {retired_id: (TaskInstanceState.SUCCESS, None)}
+
+
+def test_get_event_buffer_releases_metadata_for_discarded_tasks():
+    executor = BaseExecutor()
+    ti = mock.Mock(spec=TaskInstance, id=uuid4(), key=TaskInstanceKey("dag", "task", "run", 1))
+    executor.register_task(ti)
+    executor.running.add(ti.id)
+    executor.get_event_buffer()
+    assert ti.id in executor._task_coordinates
+
+    executor.running.remove(ti.id)
+    executor.get_event_buffer()
+
+    assert executor._task_coordinates == {}
+
+
 def test_log_task_event_branches_on_key_type():
     executor = BaseExecutor()
-    ti_key = TaskInstanceKey("my_dag", "my_task", timezone.utcnow(), 1)
+    ti_key = uuid4()
+    executor.register_task(
+        mock.Mock(
+            spec=TaskInstance,
+            id=ti_key,
+            key=TaskInstanceKey("my_dag", "my_task", "run", 1),
+        )
+    )
 
     executor.log_task_event(event="task_event", extra="extra", ti_key=ti_key)
     assert len(executor._task_event_logs) == 1
+    log = executor._task_event_logs[0]
+    assert (log.dag_id, log.task_id, log.run_id, log.try_number) == ("my_dag", "my_task", "run", 1)
 
     callback_key = CallbackKey(id=str(UUID("00000000-0000-0000-0000-000000000001")))
     executor.log_task_event(event="callback_event", extra="extra", ti_key=callback_key)
@@ -169,13 +206,9 @@ def test_state_methods_pick_callback_state_for_callback_key(method_name, expecte
 def test_fail_and_success():
     executor = BaseExecutor()
 
-    date = timezone.utcnow()
-    try_number = 1
     success_state = State.SUCCESS
     fail_state = State.FAILED
-    key1 = TaskInstanceKey("my_dag1", "my_task1", date, try_number)
-    key2 = TaskInstanceKey("my_dag2", "my_task1", date, try_number)
-    key3 = TaskInstanceKey("my_dag2", "my_task2", date, try_number)
+    key1, key2, key3 = uuid4(), uuid4(), uuid4()
     executor.fail(key1, fail_state)
     executor.fail(key2, fail_state)
     executor.success(key3, success_state)
@@ -183,6 +216,161 @@ def test_fail_and_success():
     assert len(executor.running) == 0
     assert executor.slots_occupied == 0
     assert len(executor.get_event_buffer()) == 3
+
+
+@pytest.fixture
+def task_workload():
+    return workloads.ExecuteTask(
+        ti=workloads.TaskInstanceDTO(
+            id=uuid4(),
+            dag_version_id=uuid4(),
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            try_number=1,
+            pool_slots=1,
+            priority_weight=1,
+            queue="default",
+        ),
+        dag_rel_path="dag.py",
+        bundle_info=BundleInfo(name="bundle"),
+        token="",
+        log_path=None,
+    )
+
+
+@pytest.mark.parametrize("override_queue", [False, True])
+@pytest.mark.parametrize("terminal_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED])
+@pytest.mark.parametrize("next_try_number", [1, 2])
+def test_legacy_executor_dispatch_and_completion_keep_submitted_identity(
+    task_workload, override_queue, terminal_state, next_try_number
+):
+    class LegacyExecutor(BaseExecutor):
+        def _process_workloads(self, items):
+            for workload in items:
+                key = workload.ti.key
+                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                self.running.add(key)
+                self.event_buffer[key] = (TaskInstanceState.QUEUED, "remote-id")
+
+    class OverrideExecutor(LegacyExecutor):
+        def queue_workload(self, workload, session):
+            self.executor_queues[workload.type][workload.key] = workload
+
+    executor = (OverrideExecutor if override_queue else LegacyExecutor)()
+    submitted_id, submitted_key = task_workload.ti.id, task_workload.ti.key
+    executor.queue_workload(task_workload, session=None)
+    assert executor.has_task(task_workload.ti)
+    executor.heartbeat()
+    assert executor.get_event_buffer_with_task_ids() == {
+        submitted_id: (TaskInstanceState.QUEUED, "remote-id")
+    }
+    assert executor.has_task(task_workload.ti)
+
+    task_workload.ti.id = uuid4()
+    task_workload.ti.try_number = next_try_number
+    assert not executor.has_task(task_workload.ti)
+    getattr(executor, "success" if terminal_state == TaskInstanceState.SUCCESS else "fail")(submitted_key)
+
+    assert executor.get_event_buffer_with_task_ids() == {submitted_id: (terminal_state, None)}
+    assert not executor.running
+    assert not executor._task_coordinates
+
+
+def test_legacy_adoption_captures_identity_before_provider_emits_event(task_workload):
+    class AdoptingExecutor(BaseExecutor):
+        def try_adopt_task_instances(self, tis):
+            for ti in tis:
+                self.success(ti.key)
+            return []
+
+    executor = AdoptingExecutor()
+    adopted_id = task_workload.ti.id
+    assert executor.try_adopt_task_instances([task_workload.ti]) == []
+    task_workload.ti.id = uuid4()
+    assert executor.get_event_buffer_with_task_ids() == {adopted_id: (TaskInstanceState.SUCCESS, None)}
+    assert not executor.running
+
+
+@pytest.mark.parametrize("accepted", [False, True])
+def test_adoption_with_private_provider_tracking_survives_empty_event_drain(task_workload, accepted):
+    class AdoptingExecutor(BaseExecutor):
+        def try_adopt_task_instances(self, tis):
+            return [] if accepted else tis
+
+    executor = AdoptingExecutor()
+    executor.try_adopt_task_instances([task_workload.ti])
+    assert executor.get_event_buffer_with_task_ids() == {}
+    if not accepted:
+        assert not executor.running
+        assert not executor._task_coordinates
+        return
+
+    assert executor.has_task(task_workload.ti)
+    executor.success(task_workload.ti.key)
+    assert executor.get_event_buffer_with_task_ids() == {
+        task_workload.ti.id: (TaskInstanceState.SUCCESS, None)
+    }
+    assert not executor.running
+    assert not executor._task_coordinates
+
+
+@pytest.mark.parametrize("ambiguous", [False, True])
+def test_legacy_events_without_unique_captured_identity_are_dropped(task_workload, ambiguous):
+    executor = BaseExecutor()
+    if ambiguous:
+        executor.register_task(task_workload.ti)
+        executor.register_task(task_workload.ti.model_copy(update={"id": uuid4()}))
+    executor.success(task_workload.ti.key)
+    assert executor.get_event_buffer_with_task_ids() == {}
+
+
+def test_legacy_event_dag_filter_retains_identity_until_consumed(task_workload):
+    executor = BaseExecutor()
+    executor.queue_workload(task_workload, session=None)
+    executor.executor_queues[WorkloadType.EXECUTE_TASK].clear()
+    executor.success(task_workload.ti.key)
+    assert executor.get_event_buffer_with_task_ids(["other_dag"]) == {}
+    assert executor.get_event_buffer_with_task_ids(["dag"]) == {
+        task_workload.ti.id: (TaskInstanceState.SUCCESS, None)
+    }
+
+
+@pytest.mark.parametrize("next_try_number", [1, 2])
+def test_task_workloads_with_matching_coordinates_keep_distinct_attempts(next_try_number):
+    executor = LocalExecutor()
+    first = workloads.ExecuteTask(
+        ti=workloads.TaskInstanceDTO(
+            id=uuid4(),
+            dag_version_id=uuid4(),
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            try_number=1,
+            pool_slots=1,
+            priority_weight=1,
+            queue="default",
+        ),
+        dag_rel_path="dag.py",
+        bundle_info=BundleInfo(name="bundle"),
+        token="",
+        log_path=None,
+    )
+    second = first.model_copy(
+        update={"ti": first.ti.model_copy(update={"id": uuid4(), "try_number": next_try_number})}
+    )
+
+    executor.queue_workload(first, session=None)
+    executor.queue_workload(second, session=None)
+
+    assert set(executor.executor_queues[WorkloadType.EXECUTE_TASK]) == {first.ti.id, second.ti.id}
+    executor.running.update((first.ti.id, second.ti.id))
+    executor.success(first.ti.id)
+    assert executor.running == {second.ti.id}
+    assert executor.get_event_buffer() == {first.ti.id: (TaskInstanceState.SUCCESS, None)}
+    executor.executor_queues[WorkloadType.EXECUTE_TASK].clear()
+    assert not executor.has_task(first.ti)
+    assert executor.has_task(second.ti)
 
 
 @pytest.mark.parametrize(
@@ -317,7 +505,7 @@ def setup_trigger_workloads(dag_maker, parallelism=None):
 
     for task_instance in dagrun.task_instances:
         workload = workloads.ExecuteTask.make(task_instance)
-        executor.executor_queues[WorkloadType.EXECUTE_TASK][task_instance.key] = workload
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][task_instance.id] = workload
 
     return executor, dagrun
 
@@ -355,7 +543,7 @@ def test_trigger_running_tasks(dag_maker):
     ti = dagrun.task_instances[0]
 
     workload = workloads.ExecuteTask.make(ti)
-    executor.executor_queues[WorkloadType.EXECUTE_TASK][ti.key] = workload
+    executor.executor_queues[WorkloadType.EXECUTE_TASK][ti.id] = workload
 
     executor.trigger_workloads(open_slots=10)
 
@@ -379,7 +567,7 @@ def test_trigger_workloads_schedules_highest_priority_first(dag_maker):
     executor._process_workloads = mock.Mock(spec=lambda workloads: None)
     for task_instance in dagrun.task_instances:
         task_queue = executor.executor_queues[WorkloadType.EXECUTE_TASK]
-        task_queue[task_instance.key] = workloads.ExecuteTask.make(task_instance)
+        task_queue[task_instance.id] = workloads.ExecuteTask.make(task_instance)
 
     executor.trigger_workloads(open_slots=2)
 
@@ -403,7 +591,7 @@ def test_debug_dump_with_populated_queues(caplog, dag_maker):
 
     for ti in dagrun.task_instances:
         workload = workloads.ExecuteTask.make(ti)
-        executor.executor_queues[WorkloadType.EXECUTE_TASK][ti.key] = workload
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][ti.id] = workload
 
     with caplog.at_level(logging.INFO):
         executor.debug_dump()
@@ -492,7 +680,7 @@ def test_has_task_does_not_vivify_executor_queue():
 
 def test_unknown_workload_type_sorts_last_without_crashing():
     executor = BaseExecutor()
-    known_key = TaskInstanceKey("d", "t", "r", 1, -1)
+    known_key = uuid4()
     known_workload = mock.Mock()
     known_workload.type = WorkloadType.EXECUTE_TASK
     known_workload.sort_key = 0
@@ -559,7 +747,7 @@ def test_running_retry_attempt_type(loop_duration, total_tries):
 
 def test_state_fail():
     executor = BaseExecutor()
-    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    key = uuid4()
     executor.running.add(key)
     info = "info"
     executor.fail(key, info=info)
@@ -569,7 +757,7 @@ def test_state_fail():
 
 def test_state_success():
     executor = BaseExecutor()
-    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    key = uuid4()
     executor.running.add(key)
     info = "info"
     executor.success(key, info=info)
@@ -579,7 +767,7 @@ def test_state_success():
 
 def test_state_queued():
     executor = BaseExecutor()
-    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    key = uuid4()
     executor.running.add(key)
     info = "info"
     executor.queued(key, info=info)
@@ -589,7 +777,7 @@ def test_state_queued():
 
 def test_state_running():
     executor = BaseExecutor()
-    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    key = uuid4()
     executor.running.add(key)
     info = "info"
     executor.running_state(key, info=info)
@@ -655,13 +843,11 @@ def test_queued_connection_test_dispatched_to_process_workloads():
 def test_connection_tests_prioritized_ahead_of_task_backlog():
     """A task backlog must not starve short, user-interactive connection tests."""
     executor = BaseExecutor()
-    for i in range(3):
+    for _ in range(3):
         task_workload = mock.Mock()
         task_workload.type = WorkloadType.EXECUTE_TASK
         task_workload.sort_key = 0
-        executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceKey("d", f"t{i}", "r", 1, -1)] = (
-            task_workload
-        )
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][uuid4()] = task_workload
     conn_test = mock.Mock()
     conn_test.type = WorkloadType.TEST_CONNECTION
     conn_test.sort_key = 0

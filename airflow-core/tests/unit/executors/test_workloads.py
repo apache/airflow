@@ -20,7 +20,7 @@ from __future__ import annotations
 import dataclasses
 from pathlib import PurePosixPath
 from typing import get_args
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import jwt
 import pytest
@@ -76,7 +76,7 @@ def test_workload_families_track_every_workload_type():
     assert {schema.model_fields["type"].default for schema in schemas} == set(WorkloadType)
     assert _union_members(workloads.ExecutorWorkload) == schemas
     assert _union_members(workloads.All) == schemas | {RunTrigger}
-    assert _union_members(WorkloadKey) == keys
+    assert _union_members(WorkloadKey) == keys | {UUID}
     assert _union_members(WorkloadState) == states
     assert _union_members(SchedulerWorkload) == models
 

@@ -336,6 +336,18 @@ The ``BaseExecutor`` class interface contains a set of attributes that Airflow c
 * ``is_single_threaded``: Whether or not the executor is single threaded. This is particularly relevant to what database backends are supported. Single threaded executors can run with any backend, including SQLite.
 * ``is_production``: Whether or not the executor should be used for production purposes. A UI message is displayed to users when they are using a non-production ready executor.
 * ``serve_logs``: Whether or not the executor supports serving logs, see :doc:`/administration-and-deployment/logging-monitoring/logging-tasks`.
+* ``supports_task_instance_uuid``: Whether task submission, adoption, result decoding and cleanup all use task-instance UUIDs. Defaults to ``False`` to support existing provider releases. ``LocalExecutor`` enables this capability.
+
+UUID-capable executors use ``get_workload_key(workload)`` and ``get_task_key(ti)`` for executor bookkeeping.
+``ExecuteTask.key`` retains its coordinate-based value for existing providers. Providers supporting older
+Airflow releases must retain their older-core paths when adopting these helpers.
+
+The scheduler translates legacy coordinate events using UUIDs captured during submission or adoption;
+it never resolves them against the current database row. Unknown or ambiguous identities are discarded.
+Legacy executors cannot distinguish a delayed event from a new attempt that reuses the entire coordinate
+key, including the try number. Features requiring isolation across such reuse must require
+``supports_task_instance_uuid``. Updating dispatch keys alone does not satisfy this capability: remote
+results and adopted tasks must retain the UUID of the submitted attempt.
 
 CLI
 ^^^
