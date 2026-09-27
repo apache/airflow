@@ -1091,6 +1091,12 @@ repos:
         language: python
         files: ^.*/example_dags/.*\.py$
         pass_filenames: true
+      - id: check-example-dag-shell-commands
+        name: Check example DAGs do not build shell commands from runtime values
+        entry: ./scripts/ci/prek/check_example_dag_shell_commands.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/prek/check_license.py
