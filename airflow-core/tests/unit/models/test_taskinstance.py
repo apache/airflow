@@ -4599,7 +4599,9 @@ def test_failure_listener_receives_failed_try_before_rotation(
     original_id = ti.id
     received = []
 
-    def record_failure(previous_state, task_instance, error):
+    def record_failure(previous_state, task_instance, error, failure_kind=None, reason=None):
+        assert failure_kind is None
+        assert reason is None
         received.append(
             (task_instance.id, task_instance.try_number, task_instance.state, previous_state, error)
         )
