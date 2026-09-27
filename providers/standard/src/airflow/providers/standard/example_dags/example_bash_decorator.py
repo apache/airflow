@@ -131,11 +131,15 @@ def example_bash_decorator():
     dag_stats = describe_dag_folder()
 
     @task.bash
-    def show_dag_folder_stats(folder: str, count: int) -> str:
-        return f'echo "found {count} Dag file(s) under {folder}"'
+    def show_dag_folder_stats() -> str:
+        return 'echo "found $FILE_COUNT Dag file(s) under $DAG_FOLDER"'
 
-    # Each key of the returned dict is available as its own XCom.
-    show_dag_folder_stats(folder=dag_stats["dag_folder"], count=dag_stats["file_count"])
+    # Each key of the returned dict is available as its own XCom. Values produced by another task
+    # reach the command through the environment, so the shell never parses them as command text.
+    show_dag_folder_stats.override(
+        env={"DAG_FOLDER": dag_stats["dag_folder"], "FILE_COUNT": dag_stats["file_count"]},
+        append_env=True,
+    )()
     # [END howto_decorator_bash_multiple_outputs]
 
     chain(run_me_loop, run_this)
