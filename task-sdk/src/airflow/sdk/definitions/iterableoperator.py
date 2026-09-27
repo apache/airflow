@@ -36,7 +36,7 @@ except NameError:
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
-from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.bases.xcom import XComIterable, flattened_count
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
 from airflow.sdk.definitions.retry_policy import RetryAction
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -559,8 +559,10 @@ class IterableOperator(BaseOperator):
         # Runners of the sub-tasks that failed in this run: their failure or retry callback waits
         # for the whole task's fate (see _report_failed_items).
         self._failed_runners: list[IndexedTaskRunner] = []
-        # Per-run state of execute: the input resolved for this task instance.
+        # Per-run state of execute: the input resolved for this task instance, and the flattened
+        # item count of the results pushed so far (tallied by axcom_push).
         self._resolved: Resolved | None = None
+        self._flattened_length = 0
 
     def __deepcopy__(self, memo: dict[int, Any]) -> IterableOperator:
         # A copy (deepcopy, dag.partial_subset) is another task with no sub-tasks in flight: it gets
@@ -637,6 +639,9 @@ class IterableOperator(BaseOperator):
 
     async def axcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
         await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+        # Tallied here, while the value is in memory, so the returned XComIterable's flattened view
+        # knows its length without reading the pages back (see FlattenedXComIterable).
+        self._flattened_length += flattened_count(value)
 
     def _run_tasks(
         self,
@@ -1013,6 +1018,7 @@ class IterableOperator(BaseOperator):
 
     def execute(self, context: Context):
         jinja_env = self.get_template_env(dag=self.dag)
+        self._flattened_length = 0
 
         async def tasks() -> AsyncIterator[IndexedTaskInstance]:
             # Resolved and read by the executor on the running event loop, so the input's XCom
@@ -1039,6 +1045,7 @@ class IterableOperator(BaseOperator):
                 dag_id=self.dag_id,
                 run_id=context["run_id"],
                 length=self._resolved.length,
+                flattened_length=self._flattened_length,
                 map_index=context["ti"].map_index,
                 skipped=skipped,
             )

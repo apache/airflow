@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import collections
-from collections.abc import AsyncIterator, Iterator, Sequence
+from collections.abc import AsyncIterator, Iterable, Iterator, Sequence
 from typing import Any, Protocol
 
 import structlog
@@ -576,6 +576,19 @@ def _normalize_index(index: int, length: int) -> int:
     return index
 
 
+def _flatten(item: Any) -> Iterator[Any]:
+    if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+        for sub in item:
+            yield from _flatten(sub)
+    else:
+        yield item
+
+
+def flattened_count(value: Any) -> int:
+    """How many items ``value`` adds to a :class:`FlattenedXComIterable`; counted when it is pushed."""
+    return sum(1 for _ in _flatten(value))
+
+
 class XComIterable(Sequence):
     """
     An iterable that lazily fetches XCom values one by one instead of loading all at once.
@@ -593,6 +606,10 @@ class XComIterable(Sequence):
     Every element is a remote fetch, so random access costs one XCom read per element, and so do
     iterating and slicing: N elements are N requests. Reading several in one request needs an
     Execution API endpoint that takes a list of keys, which does not exist yet.
+
+    ``flattened_length`` is the item count of :meth:`flatten`, tallied by the producer as it pushes
+    each value (see :func:`flattened_count`) so the flattened view knows its length without reading
+    a page; ``None`` when the producer did not tally it.
     """
 
     def __init__(
@@ -603,6 +620,7 @@ class XComIterable(Sequence):
         map_index: int | None = None,
         length: int | None = None,
         skipped: Sequence[int] = (),
+        flattened_length: int | None = None,
     ):
         self.task_id = task_id
         self.dag_id = dag_id
@@ -610,10 +628,12 @@ class XComIterable(Sequence):
         self.map_index = map_index
         self.length = length or 0
         self.skipped: list[int] = sorted(skipped)
+        self.flattened_length = flattened_length
 
     def _index_of(self, position: int) -> int:
         """Map ``position`` in the sequence to its input index, stepping over the skipped indices."""
-        index = _normalize_index(position, len(self))
+        # XComIterable's own length: a FlattenedXComIterable's len() counts items, not positions.
+        index = _normalize_index(position, XComIterable.__len__(self))
         for skipped_index in self.skipped:
             if skipped_index > index:
                 break
@@ -627,7 +647,7 @@ class XComIterable(Sequence):
         return self.length - len(self.skipped)
 
     async def alen(self) -> int:
-        """Async twin of ``len(self)``, for readers on the event loop that take a length before each read."""
+        """Async twin of ``len(self)``, for a length that may take a read (see :class:`FlattenedXComIterable`)."""
         return len(self)
 
     def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
@@ -673,6 +693,10 @@ class XComIterable(Sequence):
     def __aiter__(self) -> AsyncIterator[Any]:
         return _AsyncXComIterator(self)
 
+    def flatten(self) -> XComIterable:
+        """Return a FlattenedXComIterable that recursively expands nested iterables (except str/bytes)."""
+        return FlattenedXComIterable(**self.serialize())
+
     def serialize(self) -> dict:
         """Ensure the object is JSON serializable."""
         return {
@@ -682,12 +706,78 @@ class XComIterable(Sequence):
             "map_index": self.map_index,
             "length": self.length,
             "skipped": self.skipped,
+            "flattened_length": self.flattened_length,
         }
 
     @classmethod
     def deserialize(cls, data: dict, version: int):
         """Ensure the object is JSON deserializable."""
         return XComIterable(**data)
+
+
+class FlattenedXComIterable(XComIterable):
+    """
+    An XComIterable read as the items of its pages, nested iterables (except str/bytes) expanded.
+
+    ``__len__``/``__getitem__`` speak in flattened positions, not the pages ``XComIterable`` stores.
+    The length is the ``flattened_length`` the producer tallied while pushing; an iterable pushed
+    without one is counted by reading its pages once. Reads hold the last page fetched, flattened,
+    and nothing more, so a sequential read (iteration, a slice, an iterated task consuming this as
+    its input) fetches every page exactly once, and a jump backwards restarts from the first page.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._page, self._offset = -1, 0
+        self._items: list[Any] = []
+
+    def __len__(self) -> int:
+        if self.flattened_length is None:
+            self.flattened_length = sum(
+                flattened_count(XComIterable.__getitem__(self, page))
+                for page in range(XComIterable.__len__(self))
+            )
+        return self.flattened_length
+
+    async def alen(self) -> int:
+        if self.flattened_length is None:
+            # Counted one page at a time, like __len__, so no more than one page is held.
+            count = 0
+            for page in range(XComIterable.__len__(self)):
+                count += flattened_count(await XComIterable.aget(self, page))
+            self.flattened_length = count
+        return self.flattened_length
+
+    def _page_for(self, index: int) -> int | None:
+        """Return the next page to fetch on the way to flattened position ``index``, or None if held."""
+        if index < self._offset:
+            self._page, self._offset, self._items = -1, 0, []
+        if index < self._offset + len(self._items):
+            return None
+        return self._page + 1
+
+    def _hold(self, page: int, value: Any) -> None:
+        self._offset += len(self._items)
+        self._page, self._items = page, list(_flatten(value))
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        if isinstance(key, slice):
+            return [self[index] for index in range(*key.indices(len(self)))]
+        index = _normalize_index(key, len(self))
+        while (page := self._page_for(index)) is not None:
+            self._hold(page, XComIterable.__getitem__(self, page))
+        return self._items[index - self._offset]
+
+    async def aget(self, index: int) -> Any:
+        """Async counterpart of ``self[index]``, reading pages through :meth:`XComIterable.aget`."""
+        index = _normalize_index(index, await self.alen())
+        while (page := self._page_for(index)) is not None:
+            self._hold(page, await XComIterable.aget(self, page))
+        return self._items[index - self._offset]
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        return FlattenedXComIterable(**data)
 
 
 class _AsyncXComIterator:

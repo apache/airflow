@@ -251,6 +251,20 @@ concurrent approach is dramatically faster — see the
     combines more than once. With ``expand()`` each task instance runs in its own process and
     gets its own copy. Treat inputs as read-only, or copy what the task changes in place.
 
+When every iteration returns a page of items, for example one list of rows per API call,
+``.flatten()`` on the task's output reads those pages as one sequence of items:
+
+.. code-block:: python
+
+    pages = fetch_page.iterate(page=range(10))  # each iteration returns a list of rows
+    load_rows(pages.output.flatten())  # one sequence of rows, page boundaries gone
+
+The flattened view expands nested lists, tuples and sets recursively and leaves strings,
+bytes and scalars as single items. It knows its length without reading a page, because the
+iterated task tallies the item count of each value as it pushes it, and it keeps only the
+page it is reading, so a downstream task can iterate it, index it or slice it while holding
+one page in memory at a time.
+
 Why Iterable Tasks?
 ---------------------------
 
