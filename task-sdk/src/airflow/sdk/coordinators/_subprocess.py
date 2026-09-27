@@ -41,7 +41,7 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, ClassVar, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
@@ -435,6 +435,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     not lost.
     """
 
+    _supports_large_ints: ClassVar[bool] = False
     _comm_server: socket.socket
     _logs_server: socket.socket
 
