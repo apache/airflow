@@ -319,6 +319,13 @@ concurrent approach is dramatically faster — see the
     ``asyncio.to_thread()`` or ``contextvars.copy_context().run()``, which carry the iteration's
     context over.
 
+.. note::
+
+    When the input of ``iterate()`` is the output of a mapped task, its items are fetched from the
+    API server in chunks of ``[core] xcom_sequence_chunk_size`` items (32 by default), one request
+    per chunk shared by the indexed tasks reading it at the same time, with at most two chunks held
+    in memory: the one the indexed tasks use now and the one they move on to.
+
 Why Iterable Tasks?
 ---------------------------
 
