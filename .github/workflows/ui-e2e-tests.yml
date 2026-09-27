@@ -144,23 +144,16 @@ jobs:
           cd ../api_fastapi/auth/managers/simple/ui
           pnpm install --frozen-lockfile
           pnpm build
-      # Install only the tested engine. A separate browser archive duplicates network transfers;
-      # Playwright still needs to install the runner's OS dependencies on every job.
+      # `breeze testing ui-e2e-tests` installs the browser itself but without `--with-deps`,
+      # so the runner's OS packages have to be installed here.
       - name: "Install selected Playwright browser and dependencies"
         working-directory: airflow-core/src/airflow/ui
         run: |
-          case "${BROWSER}" in
-            all)
-              pnpm exec playwright install --with-deps
-              ;;
-            chromium|firefox|webkit)
-              pnpm exec playwright install --with-deps "${BROWSER}"
-              ;;
-            *)
-              echo "Unsupported browser: ${BROWSER}. Expected chromium, firefox, webkit, or all." >&2
-              exit 1
-              ;;
-          esac
+          if [ "${BROWSER}" = "all" ]; then
+            pnpm exec playwright install --with-deps
+          else
+            pnpm exec playwright install --with-deps "${BROWSER}"
+          fi
       - name: "Test UI e2e tests"
         run: breeze testing ui-e2e-tests --browser "$BROWSER"
         env:
