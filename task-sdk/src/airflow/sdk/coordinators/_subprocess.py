@@ -35,7 +35,7 @@ import signal
 import socket
 import subprocess
 import time
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, ClassVar, TypeVar, cast
 
 import attrs
 import psutil
@@ -282,6 +282,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     not lost.
     """
 
+    _supports_large_ints: ClassVar[bool] = False
     _comm_server: socket.socket
     _logs_server: socket.socket
 

@@ -721,11 +721,19 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
-    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
+    @pytest.mark.parametrize(
+        "conf_value",
+        [-(2**63), 2**64 - 1, -(2**63) - 1, 2**64, str(2**64)],
+        ids=["min-int64", "max-uint64", "below-int64", "above-uint64", "large-number-string"],
+    )
+    def test_run_simple_dag(
+        self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start, conf_value
+    ):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
+        client_with_ti_start.task_instances.start.return_value.dag_run.conf = {"large_integer": conf_value}
 
         dagfile_path = test_dags_dir
         ti = TaskInstance(
@@ -3469,6 +3477,21 @@ REQUEST_TEST_CASES = [
 
 
 class TestHandleRequest:
+    @pytest.mark.parametrize("schema_version", [None, "2026-06-16"])
+    def test_send_large_integer_to_python_only(self, watched_subprocess, schema_version):
+        process, reader = watched_subprocess
+        process._subprocess_schema_version = schema_version
+        message = XComResult(key="large", value=2**64)
+
+        if schema_version is not None:
+            with pytest.raises(OverflowError, match="can't serialize ints"):
+                process.send_msg(message, request_id=0)
+        else:
+            process.send_msg(message, request_id=0)
+            received = CommsDecoder(socket=reader)._get_response()
+            assert received == message
+            assert type(received.value) is int
+
     @pytest.mark.parametrize("status", [404, 410, 422, 500])
     def test_terminal_report_propagates_errors_other_than_conflict(self, watched_subprocess, status):
         process, _ = watched_subprocess
@@ -5748,6 +5771,27 @@ class TestMakeBufferedSocketReader:
 
 
 class TestLengthPrefixedFrameReader:
+    @pytest.mark.parametrize(
+        "value",
+        [-(2**63) - 1, 2**64, -(2**4096), 2**4096],
+        ids=["negative", "positive", "huge-negative", "huge-positive"],
+    )
+    def test_receives_large_integers(self, socket_pair, value):
+        received = []
+
+        def collect_frames():
+            while True:
+                received.append((yield))
+
+        reader, writer = socket_pair
+        frame = _RequestFrame(id=42, body={"nested": [value, {"value": value}]})
+        writer.sendall(frame.as_bytes())
+        callback, _ = supervisor.length_prefixed_frame_reader(collect_frames(), on_close=lambda _: None)
+        callback(reader)
+
+        assert received == [frame]
+        assert type(received[0].body["nested"][0]) is int
+
     def test_recovers_from_short_read_on_header(self):
         received: list[_RequestFrame] = []
 
