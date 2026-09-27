@@ -256,6 +256,12 @@ concurrent approach is dramatically faster — see the
     combines more than once. With ``expand()`` each task instance runs in its own process and
     gets its own copy. Treat inputs as read-only, or copy what the task changes in place.
 
+.. note::
+
+    When the input of ``iterate()`` is the output of a mapped task, its items are fetched from the
+    API server in chunks of ``[core] xcom_sequence_chunk_size`` items (32 by default), one request
+    per chunk, with one chunk held in memory at a time.
+
 Why Iterable Tasks?
 ---------------------------
 
