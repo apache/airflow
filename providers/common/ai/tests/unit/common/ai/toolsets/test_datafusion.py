@@ -65,7 +65,7 @@ def _make_mock_engine(
     for tname in tables:
         mock.session_context.table(tname).schema.return_value = arrow_fields
 
-    mock.execute_query.return_value = (
+    mock.session_context.sql.return_value.limit.return_value.to_pydict.return_value = (
         query_result
         if query_result is not None
         else {
@@ -187,7 +187,8 @@ class TestDataFusionToolsetQuery:
     def test_truncates_at_max_rows(self):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg], max_rows=1)
-        ts._engine = _make_mock_engine(query_result={"id": [1, 2, 3], "name": ["a", "b", "c"]})
+        engine = _make_mock_engine(query_result={"id": [1, 2], "name": ["a", "b"]})
+        ts._engine = engine
 
         result = asyncio.run(
             ts.call_tool(
@@ -198,10 +199,11 @@ class TestDataFusionToolsetQuery:
             )
         )
         data = json.loads(result)
+        engine.session_context.sql.assert_called_once_with("SELECT id, name FROM sales_data")
+        engine.session_context.sql.return_value.limit.assert_called_once_with(2)
         assert data["rows"] == [[1, "a"]]
         assert data["truncated"] is True
         assert data["truncated_by"] == "max_rows"
-        assert data["total_rows"] == 3
 
     def test_handles_empty_result(self):
         cfg = _make_mock_datasource_config()
@@ -324,12 +326,10 @@ class TestDataFusionToolsetQueryErrors:
         assert matches is expected
 
     def test_query_execution_exception_returns_error_json(self):
-        from airflow.providers.common.sql.datafusion.exceptions import QueryExecutionException
-
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
         engine = _make_mock_engine()
-        engine.execute_query.side_effect = QueryExecutionException("execution failed")
+        engine.session_context.sql.side_effect = RuntimeError("execution failed")
         ts._engine = engine
 
         result = asyncio.run(
@@ -382,12 +382,14 @@ class TestDataFusionToolsetQueryErrors:
         assert "get_schema" in exc_info.value.message
         assert "list_tables" in exc_info.value.message
 
-    def test_unexpected_exception_propagates(self):
+    @patch(
+        "airflow.providers.common.ai.toolsets.datafusion.build_query_result",
+        side_effect=TypeError("unexpected error"),
+    )
+    def test_unexpected_exception_propagates(self, _):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
-        engine = _make_mock_engine()
-        engine.execute_query.side_effect = TypeError("unexpected error")
-        ts._engine = engine
+        ts._engine = _make_mock_engine()
 
         with pytest.raises(TypeError, match="unexpected error"):
             asyncio.run(

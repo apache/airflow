@@ -49,9 +49,6 @@ from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clea
 
 pytestmark = pytest.mark.db_test
 
-# Valid JSON nested past the interpreter's recursion limit, so json.loads raises RecursionError.
-_DEEPLY_NESTED_JSON = "[" * 20_000 + "]" * 20_000
-
 
 async def _handle_deadline(context, **kwargs):
     pass
@@ -168,6 +165,30 @@ class TestDagVersion:
         assert version.version_number == 1
         assert version.dag_id == dag1_id
         assert version.version == f"{dag1_id}-1"
+
+    @pytest.mark.need_serialized_dag
+    def test_get_version_eager_loads_dag_code(self, dag_maker, session):
+        """``load_dag_code`` fetches DagCode in the same query, so accessing it costs no round trip."""
+        dag_id = "test_eager_dag_code"
+        with dag_maker(dag_id):
+            EmptyOperator(task_id="task1")
+
+        session.expunge_all()
+        version = DagVersion.get_version(dag_id, load_dag_code=True, session=session)
+        with assert_queries_count(0):
+            assert version.dag_code.source_code is not None
+
+    @pytest.mark.need_serialized_dag
+    def test_get_version_lazy_loads_dag_code_by_default(self, dag_maker, session):
+        """Without ``load_dag_code`` the relationship stays lazy and is fetched on first access."""
+        dag_id = "test_lazy_dag_code"
+        with dag_maker(dag_id):
+            EmptyOperator(task_id="task1")
+
+        session.expunge_all()
+        version = DagVersion.get_version(dag_id, session=session)
+        with assert_queries_count(1):
+            assert version.dag_code.source_code is not None
 
     @pytest.mark.need_serialized_dag
     def test_version_property(self, dag_maker):
@@ -479,14 +500,6 @@ class TestDagVersionGetDiff:
                 {"_data": None, "_data_compressed": b"not a zlib stream"},
                 id="compressed-undecompressable",
             ),
-            pytest.param(
-                {"_data": None, "_data_compressed": zlib.compress(_DEEPLY_NESTED_JSON.encode())},
-                id="compressed-deeply-nested",
-            ),
-            pytest.param(
-                {"_data": _DEEPLY_NESTED_JSON, "_data_compressed": None},
-                id="uncompressed-deeply-nested",
-            ),
         ],
     )
     @mock.patch("airflow.serialization.dag_version_diff.build_serialized_dag_diff", autospec=True)
@@ -501,6 +514,43 @@ class TestDagVersionGetDiff:
         session.expunge_all()
 
         result = DagVersion.get_diff(dag_id, 1, 2, values_status="available", session=session)
+
+        mock_build_diff.assert_not_called()
+        assert result["mode"] == "unavailable"
+        assert result["unavailable_reason"] == "serialized_dag_decode_failed"
+        assert result["changes"] == []
+        assert result["values"] == {"status": "unavailable"}
+
+    @pytest.mark.parametrize("compressed", [True, False], ids=["compressed", "uncompressed"])
+    @mock.patch("airflow.serialization.dag_version_diff.build_serialized_dag_diff", autospec=True)
+    def test_marks_diff_unavailable_when_decoding_exceeds_recursion_limit(
+        self, mock_build_diff, compressed, dag_id, session
+    ):
+        # A payload nested deeply enough to exhaust the recursion limit is not portable: Python 3.14
+        # bounds C recursion by stack size, and its json decoder handles depths that raise on 3.13.
+        # Raise the RecursionError for this one payload instead; every other json.loads call is real.
+        payload = '{"dag": "nested too deeply to decode"}'
+        real_loads = json.loads
+
+        def loads(s, *args, **kwargs):
+            if s in (payload, payload.encode()):
+                raise RecursionError("maximum recursion depth exceeded while decoding a JSON array")
+            return real_loads(s, *args, **kwargs)
+
+        stored_columns = (
+            {"_data": None, "_data_compressed": zlib.compress(payload.encode())}
+            if compressed
+            else {"_data": payload, "_data_compressed": None}
+        )
+        base = DagVersion.get_version(dag_id, 1, session=session).serialized_dag
+        session.execute(
+            update(SerializedDagModel).where(SerializedDagModel.id == base.id).values(**stored_columns)
+        )
+        session.commit()
+        session.expunge_all()
+
+        with mock.patch("json.loads", side_effect=loads):
+            result = DagVersion.get_diff(dag_id, 1, 2, values_status="available", session=session)
 
         mock_build_diff.assert_not_called()
         assert result["mode"] == "unavailable"

@@ -218,6 +218,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags``
      - ``DAG``
      - ``PUT``
+   * - ``PATCH``
+     - ``/api/v2/dags/bulk``
+     - ``DAG``
+     - ``multi``
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}``
      - ``DAG``

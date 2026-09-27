@@ -240,7 +240,7 @@ describe("Health", () => {
     expect(screen.getByText("health.instances.unknownHostname")).toBeInTheDocument();
   });
 
-  it("shows the owning team of each triggerer only when multi-team is enabled", async () => {
+  it("shows every owning team of each triggerer only when multi-team is enabled", async () => {
     mockConfig.multi_team = true;
     renderHealth(
       health({
@@ -250,7 +250,7 @@ describe("Health", () => {
             {
               hostname: "triggerer-1.example.com",
               latest_triggerer_heartbeat: "2026-09-11T10:00:00Z",
-              team_name: "team-a",
+              team_names: ["team-a", "team-b"],
             },
           ],
           latest_triggerer_heartbeat: "2026-09-11T10:00:00Z",
@@ -263,6 +263,7 @@ describe("Health", () => {
 
     expect(screen.getByText("health.instances.team")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "team-a" })).toHaveAttribute("href", "/dags?teams=team-a");
+    expect(screen.getByRole("link", { name: "team-b" })).toHaveAttribute("href", "/dags?teams=team-b");
   });
 
   it("hides the team column when multi-team is disabled", async () => {
@@ -274,7 +275,7 @@ describe("Health", () => {
             {
               hostname: "triggerer-1.example.com",
               latest_triggerer_heartbeat: "2026-09-11T10:00:00Z",
-              team_name: "team-a",
+              team_names: ["team-a"],
             },
           ],
           latest_triggerer_heartbeat: "2026-09-11T10:00:00Z",
@@ -299,7 +300,7 @@ describe("Health", () => {
             {
               hostname: "triggerer-1.example.com",
               latest_triggerer_heartbeat: "2026-09-11T10:00:00Z",
-              team_name: null,
+              team_names: [],
             },
           ],
           latest_triggerer_heartbeat: "2026-09-11T10:00:00Z",
