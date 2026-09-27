@@ -2904,6 +2904,7 @@ export type NextRunAssetEventResponse = {
 export type NextRunAssetsResponse = {
     asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     events: Array<NextRunAssetEventResponse>;
+    scheduling_asset_count?: number;
     pending_partition_count?: number | null;
 };
 

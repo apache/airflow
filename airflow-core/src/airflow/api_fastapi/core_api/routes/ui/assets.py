@@ -225,6 +225,16 @@ def next_run_assets(
     )
     query = readable_assets_filter.to_orm(query)
 
+    # Counted before the readable filter narrows ``query``: the UI derives the
+    # schedule's shape (total, and whether to render the multi-asset popover) from
+    # this, so that shape stays the same for every caller regardless of which
+    # assets they may read.
+    scheduling_asset_count = session.scalar(
+        select(func.count())
+        .select_from(DagScheduleAssetReference)
+        .where(DagScheduleAssetReference.dag_id == dag_id)
+    )
+
     if not is_partitioned:
         query = query.join(
             AssetDagRunQueue,
@@ -248,7 +258,11 @@ def next_run_assets(
             )
             for row in raw_rows
         ]
-        model_data: dict[str, Any] = {"asset_expression": asset_expression, "events": events}
+        model_data: dict[str, Any] = {
+            "asset_expression": asset_expression,
+            "events": events,
+            "scheduling_asset_count": scheduling_asset_count,
+        }
         return NextRunAssetsResponse.model_validate(model_data)
 
     # Partitioned Dags: enrich with per-asset received/required counts and rollup flag.
@@ -285,6 +299,7 @@ def next_run_assets(
         model_data = {
             "asset_expression": asset_expression,
             "events": events,
+            "scheduling_asset_count": scheduling_asset_count,
             "pending_partition_count": pending_partition_count,
         }
         return NextRunAssetsResponse.model_validate(model_data)
@@ -359,6 +374,7 @@ def next_run_assets(
     model_data = {
         "asset_expression": asset_expression,
         "events": events,
+        "scheduling_asset_count": scheduling_asset_count,
         "pending_partition_count": pending_partition_count,
     }
     return NextRunAssetsResponse.model_validate(model_data)

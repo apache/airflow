@@ -11379,6 +11379,11 @@ export const $NextRunAssetsResponse = {
             type: 'array',
             title: 'Events'
         },
+        scheduling_asset_count: {
+            type: 'integer',
+            title: 'Scheduling Asset Count',
+            default: 0
+        },
         pending_partition_count: {
             anyOf: [
                 {
