@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
-from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.bases.xcom import XComIterable, flattened_count
 from airflow.sdk.definitions._internal.fingerprint import InputFingerprint
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
@@ -910,8 +910,9 @@ class IndexedTaskLifecycle:
             await self._executor.run_sync(report)
 
     async def _push_result(self, value: Any) -> None:
-        """Push ``value`` as the indexed task's return value."""
+        """Push ``value`` as the indexed task's return value, and count it for the flattened view."""
         await self.task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+        self._run.count_pushed(value)
 
 
 class IterationRun:
@@ -920,8 +921,8 @@ class IterationRun:
 
     Made by :meth:`IterableOperator.execute` and dropped with the run. It holds what the run shares
     between its indexed tasks, which the operator, a Dag node, has no use for between runs: the
-    context, the :class:`Checkpoints`, the :class:`IndexedTaskOutcomes` and the resolved input. Its
-    collaborators do the rest: the :class:`IndexedTaskUnmapper` builds each index's indexed task, an
+    context, the :class:`Checkpoints`, the :class:`IndexedTaskOutcomes`, the resolved input and the
+    flattened length of what was pushed. Its collaborators do the rest: the :class:`IndexedTaskUnmapper` builds each index's indexed task, an
     :class:`IndexedTaskLifecycle` takes that task to its outcome, and the operator's
     :class:`IterationState`, handed in as it exists before the run, is what a kill reaches.
     """
@@ -946,6 +947,10 @@ class IterationRun:
         self.outcomes = IndexedTaskOutcomes(operator, state, context)
         #: The input resolved for this task instance, once ``aresolve`` returned.
         self.resolved: Resolved | None = None
+        # Tallied as each result is pushed, while the value is in memory, so the returned
+        # XComIterable's flattened view knows its length without reading the pages back (see
+        # FlattenedXComIterable).
+        self._flattened_length = 0
 
     @property
     def log(self) -> Logger:
@@ -957,6 +962,10 @@ class IterationRun:
         """How many indexed tasks the resolved input gives, or None while it is still being resolved."""
         return self.resolved.length if self.resolved is not None else None
 
+    def count_pushed(self, value: Any) -> None:
+        """Count a pushed result's items for the flattened view of the run's result."""
+        self._flattened_length += flattened_count(value)
+
     def run(self) -> tuple[XComIterable | None, list[int]]:
         """Run every index to completion; return the task's result and the skipped indices."""
         skipped = self._run_indexed_tasks()
@@ -966,6 +975,7 @@ class IterationRun:
                 dag_id=self._operator.dag_id,
                 run_id=self.context["run_id"],
                 length=self.length,
+                flattened_length=self._flattened_length,
                 map_index=self.context["ti"].map_index,
                 skipped=skipped,
             )
