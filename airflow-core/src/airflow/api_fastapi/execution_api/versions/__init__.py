@@ -73,6 +73,7 @@ from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
     AddDagProcessorJobEndpoints,
     AddExecutionTimeoutToTIRunContext,
     AddExternalClearTargetField,
+    AddXComKeysEndpoint,
     MakeVariableValueNonNullable,
 )
 from airflow.api_fastapi.execution_api.versions.v2027_02_28_xcom_params import AddRegionToXComFilterParams
@@ -87,6 +88,7 @@ bundle = VersionBundle(
         MakeVariableValueNonNullable,
         AddCallbackStateEndpoint,
         AddRegionToXComFilterParams,
+        AddXComKeysEndpoint,
     ),
     Version(
         "2026-10-30",
