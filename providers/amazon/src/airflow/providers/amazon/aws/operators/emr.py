@@ -25,7 +25,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from botocore.exceptions import WaiterError
+from botocore.exceptions import ClientError, WaiterError
 
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
@@ -1493,8 +1493,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
         validated_event = validate_execute_complete_event(event)
 
-        # On resume execute() has not run, so self.job_id is unset; read the run details the trigger
-        # sends in the event (present on both success and failure) and fall back to self as a guard.
+        # After deferral, self.job_id may be unavailable; use the run details supplied by the trigger
+        # event (sent on both success and failure), falling back to self as a guard.
         job_details = validated_event.get("job_details") or {}
         job_id = job_details.get("job_id") or self.job_id
         application_id = job_details.get("application_id") or self.application_id
@@ -1502,18 +1502,20 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         if validated_event["status"] == "success":
             self.log.info("Serverless job completed")
             return job_id
-        if job_id:
-            # The waiter fails on both a job failure and a poll timeout; on timeout the run may still
-            # be active, so try to cancel it to avoid an orphan. Guard it so a cancel error (e.g. an
-            # already-terminal run) does not mask the real failure reason surfaced below.
-            self.log.info("Cancelling EMR Serverless job %s after failure or timeout", job_id)
-            try:
-                self.hook.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
-            except Exception:
-                self.log.exception("Failed to cancel EMR Serverless job %s", job_id)
-        raise AirflowException(
-            f"EMR Serverless job failed or timed out in deferrable mode: {validated_event.get('message', '')}"
-        )
+
+        message = validated_event.get("message", "")
+        if validated_event.get("failure_type") == "timeout":
+            # Polling ran out of attempts, so the run may still be active -- cancel it to avoid an
+            # orphan. Guard the cancel so an error (e.g. the run just reached a terminal state) does
+            # not mask the real reason surfaced below.
+            if job_id:
+                self.log.info("Cancelling EMR Serverless job %s after the poll timed out", job_id)
+                try:
+                    self.hook.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+                except ClientError:
+                    self.log.exception("Failed to cancel EMR Serverless job %s", job_id)
+            raise RuntimeError(f"EMR Serverless job {job_id} timed out in deferrable mode: {message}")
+        raise RuntimeError(f"EMR Serverless job {job_id} failed in deferrable mode: {message}")
 
     def on_kill(self) -> None:
         """

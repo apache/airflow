@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
@@ -696,8 +697,35 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
                         self.job_id,
                     )
             raise
+        except WaiterTerminalFailure as e:
+            # The job itself reached a terminal failure state -- it is not running any more.
+            yield TriggerEvent(
+                {
+                    "status": "failure",
+                    "failure_type": "terminal",
+                    "message": str(e),
+                    self.return_key: self.return_value,
+                }
+            )
+        except WaiterMaxAttemptsError as e:
+            # Polling ran out of attempts; the job may still be running and need cancelling.
+            yield TriggerEvent(
+                {
+                    "status": "failure",
+                    "failure_type": "timeout",
+                    "message": str(e),
+                    self.return_key: self.return_value,
+                }
+            )
         except Exception as e:
-            yield TriggerEvent({"status": "failure", "message": str(e), self.return_key: self.return_value})
+            yield TriggerEvent(
+                {
+                    "status": "failure",
+                    "failure_type": "error",
+                    "message": str(e),
+                    self.return_key: self.return_value,
+                }
+            )
 
     async def on_kill(self) -> None:
         """

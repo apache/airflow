@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
@@ -437,10 +438,20 @@ class TestEmrServerlessStartJobTrigger:
         assert kwargs["cancel_on_kill"] is False
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("waiter_error", "expected_failure_type"),
+        [
+            (WaiterTerminalFailure("Serverless Job failed", last_response={}), "terminal"),
+            (WaiterMaxAttemptsError("Waiter error: max attempts reached"), "timeout"),
+            (Exception("something unexpected"), "error"),
+        ],
+    )
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
-    async def test_run_failure_event_includes_job_details(self, mock_async_wait):
-        """A failure/timeout event must carry job_details so execute_complete can act on the run."""
-        mock_async_wait.side_effect = Exception("Serverless Job failed")
+    async def test_run_failure_event_classifies_and_includes_job_details(
+        self, mock_async_wait, waiter_error, expected_failure_type
+    ):
+        """A failure event must carry job_details and a failure_type so execute_complete can act."""
+        mock_async_wait.side_effect = waiter_error
 
         trigger = EmrServerlessStartJobTrigger(
             application_id="test_app",
@@ -464,8 +475,9 @@ class TestEmrServerlessStartJobTrigger:
         assert len(events) == 1
         payload = events[0].payload
         assert payload["status"] == "failure"
+        assert payload["failure_type"] == expected_failure_type
         assert payload["job_details"] == {"application_id": "test_app", "job_id": "test_job"}
-        assert "Serverless Job failed" in payload["message"]
+        assert payload["message"]
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
