@@ -475,6 +475,8 @@ func TestResolveDefaultExpiry(t *testing.T) {
 		// Python's config parser accepts a whole-number float spelling.
 		{name: "whole float accepted", env: "7.0", want: now.UTC().AddDate(0, 0, 7)},
 		{name: "unparsable is an error", env: "abc", wantErr: "failed to convert value to int"},
+		// conf.get returns "" for an empty setting, so the fallback never sees it.
+		{name: "empty is an error", env: "", wantErr: "failed to convert value to int"},
 		{name: "fractional is an error", env: "7.5", wantErr: "failed to convert value to int"},
 		{name: "negative is an error", env: "-1", wantErr: "must be >= 0, got -1"},
 	}

@@ -92,7 +92,7 @@ func NewCoordinatorClient(comm *CoordinatorComm, tiID string) *CoordinatorClient
 // retaining keys for a different period.
 func resolveDefaultExpiry(now time.Time) (any, error) {
 	days := fallbackRetentionDays
-	if raw := os.Getenv(defaultRetentionDaysEnv); raw != "" {
+	if raw, ok := os.LookupEnv(defaultRetentionDaysEnv); ok {
 		parsed, err := parseRetentionDays(raw)
 		if err != nil {
 			return nil, err
