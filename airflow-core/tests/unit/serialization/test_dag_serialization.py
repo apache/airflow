@@ -3521,6 +3521,22 @@ def test_python_callable_in_partial_kwargs():
     assert deserialized.partial_kwargs["python_callable_name"] == "empty_function"
 
 
+def test_dag_param_in_partial_kwargs_is_serialized_without_object_address():
+    from airflow.sdk import task
+
+    with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+        @task
+        def add(value, offset):
+            return value + offset
+
+        add.partial(offset=dag.param("offset", 10)).expand(value=[1, 2, 3])
+
+    serialized = BaseSerialization.serialize(dag.get_task("add"))
+    op_kwargs = serialized["__var"]["partial_kwargs"]["op_kwargs"]
+    assert "object at 0x" not in json.dumps(op_kwargs)
+
+
 def test_python_callable_name_uses_qualname_exclude_module():
     """Test python_callable_name is stable across bundle version changes."""
     from airflow.providers.standard.operators.python import PythonOperator
