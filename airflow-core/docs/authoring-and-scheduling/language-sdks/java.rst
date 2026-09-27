@@ -537,16 +537,15 @@ calls with no arguments.
 Native Java Dags
 ----------------
 
-A Dag can also be authored entirely in Java, with no Python stub file: the ``DagDef`` and
-``TaskDef`` objects hold the tasks, and Java declares the graph.
+A Dag can also be authored entirely in Java: the ``DagDef`` and ``TaskDef`` objects hold the
+tasks, and Java declares the graph.
 
 Building the Dag in Java
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``dag.task(...)`` registers a task as it creates it and hands back a handle, so there is no second
-``addTask`` call to forget.  ``before`` and ``after`` draw every edge on this surface — Python's
-``a >> b`` and ``b << a`` — and the task body moves the data itself, by reading the upstream's XCom
-through ``Client``:
+``addTask`` call to forget.  ``before`` and ``after`` draw every edge on this surface, and the
+task body moves the data itself, by reading the upstream's XCom through ``Client``:
 
 .. code-block:: java
 

@@ -24,9 +24,8 @@ import static java.lang.System.Logger.Level.INFO;
 
 import org.apache.airflow.sdk.*;
 
-// A Dag defined entirely in Java, interface-style: no Python stub file
-// describes it. dag.task registers a task as it creates it and hands back the
-// handle, and `before`/`after` wire the graph -- Java's spelling of `>>` and `<<`.
+// A Dag defined entirely in Java, interface-style. dag.task registers a task as
+// it creates it and hands back the handle, and `before`/`after` wire the graph.
 public class InterfaceExample {
   private static final System.Logger log = System.getLogger(InterfaceExample.class.getName());
 
