@@ -39,17 +39,15 @@ class S3DagBundle(BaseDagBundle):
     :param aws_conn_id: Airflow connection ID for AWS.  Defaults to AwsBaseHook.default_conn_name.
     :param bucket_name: The name of the S3 bucket containing the Dag files.
     :param prefix:  Optional subdirectory within the S3 bucket where the Dags are stored.
-                    If None, Dags are assumed to be at the root of the bucket (Optional).
-    :param archive_key: Optional S3 key of a ``.tar.gz`` archive containing the same files as
-                    ``prefix``. When set, the bundle is staged by downloading this single object and
-                    unpacking it locally, instead of downloading the prefix one object at a time.
-                    Staging falls back to the per-object sync of ``prefix`` if the archive cannot be
-                    fetched or unpacked, unless ``prefix`` holds no object other than the archive
-                    itself: that sync would delete the already staged Dags rather than replace them,
-                    so the error is raised instead and the staged bundle is left untouched.
-                    The archive members must be laid out exactly as the objects
-                    under ``prefix`` (e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .``) so
-                    both staging strategies produce the same tree (Optional).
+                    If None, Dags are assumed to be at the root of the bucket. Mutually exclusive
+                    with ``archive_key`` (Optional).
+    :param archive_key: Optional S3 key of a ``.tar.gz`` archive holding the Dag files. When set,
+                    the bundle is staged by downloading this single object and unpacking it
+                    locally, instead of downloading every object under a prefix one at a time.
+                    The archive is then the only source of the Dags: ``archive_key`` is mutually
+                    exclusive with ``prefix``, so there is no second copy to keep in sync and no
+                    fallback to a per-object sync. Members are extracted relative to the bundle
+                    root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .`` (Optional).
     """
 
     supports_versioning = False
@@ -66,6 +64,11 @@ class S3DagBundle(BaseDagBundle):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if prefix and archive_key:
+            raise AirflowException(
+                "S3DagBundle accepts either 'prefix' or 'archive_key', not both. When "
+                "'archive_key' is set the archive is the only staging source."
+            )
         self.aws_conn_id = aws_conn_id
         self.bucket_name = bucket_name
         self.prefix = prefix
@@ -96,20 +99,13 @@ class S3DagBundle(BaseDagBundle):
             if not self.s3_hook.check_for_bucket(bucket_name=self.bucket_name):
                 raise AirflowException(f"S3 bucket '{self.bucket_name}' does not exist.")
 
-            archive_exists = self.archive_key is not None and self.s3_hook.check_for_key(
-                key=self.archive_key, bucket_name=self.bucket_name
-            )
-            if self.archive_key and not archive_exists:
-                self._log.warning(
-                    "S3 archive 's3://%s/%s' does not exist. Falling back to syncing "
-                    "'s3://%s/%s' object by object.",
-                    self.bucket_name,
-                    self.archive_key,
-                    self.bucket_name,
-                    self.prefix,
-                )
-            if self.prefix and not archive_exists:
-                # don't check when prefix is "", or when staging will use the archive anyway
+            if self.archive_key:
+                if not self.s3_hook.check_for_key(key=self.archive_key, bucket_name=self.bucket_name):
+                    raise AirflowException(
+                        f"S3 archive 's3://{self.bucket_name}/{self.archive_key}' does not exist."
+                    )
+            elif self.prefix:
+                # don't check when prefix is ""
                 if not self.s3_hook.check_for_prefix(
                     bucket_name=self.bucket_name, prefix=self.prefix, delimiter="/"
                 ):
@@ -158,30 +154,8 @@ class S3DagBundle(BaseDagBundle):
 
         with self.lock():
             if self.archive_key:
-                try:
-                    self._refresh_from_archive()
-                    return
-                except Exception:
-                    if not self._has_fallback_objects():
-                        self._log.error(
-                            "Staging the Dag bundle from archive 's3://%s/%s' failed and "
-                            "'s3://%s/%s' holds no object to fall back to. Keeping the currently "
-                            "staged bundle.",
-                            self.bucket_name,
-                            self.archive_key,
-                            self.bucket_name,
-                            self.prefix,
-                        )
-                        raise
-                    self._log.warning(
-                        "Downloading Dag bundle archive 's3://%s/%s' failed. Falling back to "
-                        "syncing 's3://%s/%s' object by object.",
-                        self.bucket_name,
-                        self.archive_key,
-                        self.bucket_name,
-                        self.prefix,
-                        exc_info=True,
-                    )
+                self._refresh_from_archive()
+                return
             self._log.debug(
                 "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
             )
@@ -191,26 +165,6 @@ class S3DagBundle(BaseDagBundle):
                 local_dir=self.s3_dags_dir,
                 delete_stale=True,
             )
-
-    def _has_fallback_objects(self) -> bool:
-        """
-        Whether ``prefix`` holds objects the per-object sync could stage.
-
-        The archive object itself does not count: syncing a prefix that holds nothing else
-        deletes the staged Dags (``delete_stale=True``) instead of replacing them, which would
-        leave an archive-only bucket with an empty bundle after any archive failure.
-        """
-        try:
-            keys = self.s3_hook.list_keys(bucket_name=self.bucket_name, prefix=self.prefix, max_items=2)
-        except Exception:
-            self._log.warning(
-                "Could not list 's3://%s/%s' to check for a fallback source.",
-                self.bucket_name,
-                self.prefix,
-                exc_info=True,
-            )
-            return False
-        return any(key != self.archive_key for key in keys or [])
 
     def _refresh_from_archive(self) -> None:
         """Stage the Dag bundle by downloading and unpacking the single archive object."""

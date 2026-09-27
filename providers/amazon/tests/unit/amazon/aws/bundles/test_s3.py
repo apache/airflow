@@ -243,10 +243,19 @@ class TestS3DagBundle:
         return S3DagBundle(
             name="test",
             aws_conn_id=AWS_CONN_ID_WITH_REGION,
-            prefix=S3_BUCKET_PREFIX,
             archive_key=S3_ARCHIVE_KEY,
             bucket_name=S3_BUCKET_NAME,
         )
+
+    def test_archive_key_and_prefix_are_mutually_exclusive(self):
+        with pytest.raises(AirflowException, match="either 'prefix' or 'archive_key'"):
+            S3DagBundle(
+                name="test",
+                aws_conn_id=AWS_CONN_ID_DEFAULT,
+                bucket_name=S3_BUCKET_NAME,
+                prefix=S3_BUCKET_PREFIX,
+                archive_key=S3_ARCHIVE_KEY,
+            )
 
     def test_refresh_from_archive(self, s3_bucket, s3_client):
         archive = _make_archive({"dag_01.py": b"test data", "subproject1/dag_a.py": b"test data"})
@@ -258,8 +267,9 @@ class TestS3DagBundle:
         assert (bundle.path / "dag_01.py").is_file()
         assert (bundle.path / "subproject1" / "dag_a.py").is_file()
         assert (bundle.path / bundle.archive_etag_marker).is_file()
-        # dag_02.py exists under the prefix but not in the archive: staging used
-        # the archive, not the per-object sync
+        # the bucket also holds objects under S3_BUCKET_PREFIX that the archive does not
+        # contain: staging used the archive alone, never a per-object sync
+        assert not (bundle.path / S3_BUCKET_PREFIX / "dag_02.py").exists()
         assert not (bundle.path / "dag_02.py").exists()
 
     def test_refresh_from_archive_skips_staging_when_etag_unchanged(self, s3_bucket, s3_client):
@@ -284,42 +294,14 @@ class TestS3DagBundle:
         assert not (bundle.path / "dag_01.py").exists()
         assert not sentinel.exists()
 
-    def test_refresh_from_archive_without_prefix_objects(self, mocked_s3_resource, s3_client):
-        # Bucket contains only the archive - no objects under the prefix at all
-        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
-        archive = _make_archive({"dag_01.py": b"test data"})
-        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
-
+    def test_initialize_fails_when_archive_is_missing(self, s3_bucket, s3_client):
+        # there is no fallback to a per-object sync, so a missing archive is fatal even
+        # though this bucket does hold Dag objects under a prefix
         bundle = self._archive_bundle()
-        # succeeds: the prefix-existence check does not apply when staging from the archive
-        bundle.initialize()
-        assert (bundle.path / "dag_01.py").is_file()
+        with pytest.raises(AirflowException, match="does not exist"):
+            bundle.initialize()
 
-    def test_refresh_falls_back_to_sync_when_archive_corrupt(self, s3_bucket, s3_client):
-        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=b"this is not a tarball")
-
-        bundle = self._archive_bundle()
-        bundle.initialize()
-
-        # per-object sync of the prefix staged the Dags instead
-        assert (bundle.path / "dag_01.py").is_file()
-        assert (bundle.path / "dag_02.py").is_file()
-        assert (bundle.path / "subproject1" / "dag_a.py").is_file()
-        assert not (bundle.path / bundle.archive_etag_marker).exists()
-
-    def test_refresh_falls_back_to_sync_when_archive_missing(self, s3_bucket, s3_client):
-        bundle = self._archive_bundle()
-        bundle.initialize()
-
-        assert (bundle.path / "dag_01.py").is_file()
-        assert (bundle.path / "dag_02.py").is_file()
-        assert not (bundle.path / bundle.archive_etag_marker).exists()
-
-    def test_archive_failure_keeps_bundle_when_prefix_has_nothing_to_sync(
-        self, mocked_s3_resource, s3_client
-    ):
-        # Bucket holds only the archive: the per-object sync has nothing to stage and would
-        # delete the already staged Dags, so the archive failure must be raised instead.
+    def test_refresh_raises_and_keeps_bundle_when_archive_is_corrupt(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
         s3_client.put_object(
             Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
@@ -333,8 +315,9 @@ class TestS3DagBundle:
         with pytest.raises(tarfile.ReadError):
             bundle.refresh()
 
-        # the previously staged bundle survived the failed refresh
+        # the bundle staged by the previous refresh is left untouched
         assert (bundle.path / "dag_01.py").is_file()
+        assert not list(bundle.path.parent.glob(".s3-archive-*"))
 
     def test_archive_staging_restores_previous_bundle_when_swap_fails(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
@@ -369,19 +352,3 @@ class TestS3DagBundle:
         # staging directory was left behind
         assert (bundle.path / "dag_01.py").read_text() == "old"
         assert not list(bundle.path.parent.glob(".s3-archive-*"))
-
-    def test_fallback_sync_clears_etag_marker(self, s3_bucket, s3_client):
-        archive = _make_archive({"dag_01.py": b"test data"})
-        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
-
-        bundle = self._archive_bundle()
-        bundle.initialize()
-        assert (bundle.path / bundle.archive_etag_marker).is_file()
-
-        # Archive disappears: refresh falls back to the per-object sync, which
-        # must remove the marker so a re-published identical archive is not
-        # wrongly skipped later
-        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY)
-        bundle.refresh()
-        assert (bundle.path / "dag_02.py").is_file()
-        assert not (bundle.path / bundle.archive_etag_marker).exists()
