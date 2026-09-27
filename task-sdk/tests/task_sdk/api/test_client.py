@@ -372,7 +372,11 @@ class TestTaskInstanceOperations:
             assert resp == ti_context
             assert call_count == 3
 
-    def test_task_instance_start_already_running(self):
+    @pytest.mark.parametrize(
+        ("reason", "previous_state"),
+        [("invalid_state", "running"), ("running_elsewhere", "restarting")],
+    )
+    def test_task_instance_start_already_running(self, reason, previous_state):
         """Test that start() raises TaskAlreadyRunningError when TI is already running."""
         ti_id = uuid6.uuid7()
 
@@ -382,9 +386,9 @@ class TestTaskInstanceOperations:
                     409,
                     json={
                         "detail": {
-                            "reason": "invalid_state",
+                            "reason": reason,
                             "message": "TI was not in a state where it could be marked as running",
-                            "previous_state": "running",
+                            "previous_state": previous_state,
                         }
                     },
                 )

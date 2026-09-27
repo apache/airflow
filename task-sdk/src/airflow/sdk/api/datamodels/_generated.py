@@ -441,6 +441,7 @@ class TerminalStateNonSuccess(str, Enum):
     SKIPPED = "skipped"
     REMOVED = "removed"
     UPSTREAM_FAILED = "upstream_failed"
+    SERVER_TERMINATED = "server_terminated"
 
 
 class TriggerDAGRunPayload(BaseModel):
@@ -715,7 +716,7 @@ class LiteralArgBinding(BaseModel):
 
 class TITerminalStatePayload(BaseModel):
     """
-    Schema for updating TaskInstance to a terminal state except SUCCESS state.
+    Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination.
     """
 
     model_config = ConfigDict(
@@ -725,6 +726,8 @@ class TITerminalStatePayload(BaseModel):
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
     retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class XComArgBinding(BaseModel):
