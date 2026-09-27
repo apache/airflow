@@ -3,12 +3,15 @@
     "description": "説明",
     "key": "キー",
     "name": "名前",
+    "team": "チーム",
     "value": "値"
   },
   "config": {
     "columns": {
       "section": "セクション"
-    }
+    },
+    "config_one": "設定",
+    "config_other": "設定"
   },
   "connections": {
     "add": "接続を追加",
@@ -48,6 +51,12 @@
     "searchPlaceholder": "接続を検索",
     "test": "接続をテストする",
     "testDisabled": "接続をテストする機能は無効化されています。有効化するには管理者に問い合わせてください",
+    "testError": {
+      "title": "テスト接続が失敗しました"
+    },
+    "testSuccess": {
+      "title": "テスト接続が成功しました"
+    },
     "typeMeta": {
       "error": "接続タイプの取得に失敗しました",
       "standardFields": {
@@ -73,12 +82,33 @@
   "formActions": {
     "save": "保存"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "エクゼキュータクラス",
+      "hostname": "ホストネーム",
+      "id": "ID",
+      "jobType": "ジョブタイプ",
+      "latestHeartbeat": "最新のハートビート",
+      "unixname": "Unix 名"
+    },
+    "filters": {
+      "allStates": "全状態",
+      "allTypes": "全タイプ",
+      "dagProcessorJob": "Dag プロセッサジョブ",
+      "schedulerJob": "スケジューラジョブ",
+      "triggererJob": "Triggerer ジョブ"
+    },
+    "job_one": "ジョブ",
+    "job_other": "ジョブ"
+  },
   "plugins": {
     "columns": {
       "source": "ソース"
     },
     "importError_one": "プラグインのインポートエラー",
     "importError_other": "プラグインのインポートエラー",
+    "plugin_one": "プラグイン",
+    "plugin_other": "プラグイン",
     "searchPlaceholder": "ファイルで検索"
   },
   "pools": {
@@ -95,7 +125,8 @@
       "includeDeferred": "遅延も含める",
       "nameMaxLength": "名前の最大長は 256 文字です",
       "nameRequired": "名前は必須です",
-      "slots": "スロット"
+      "slots": "スロット",
+      "slotsHelperText": "無制限にするには -1 を使用してください"
     },
     "noPoolsFound": "プールが見つかりません",
     "pool_one": "プール",
@@ -111,7 +142,9 @@
     "columns": {
       "packageName": "パッケージ名",
       "version": "バージョン"
-    }
+    },
+    "provider_one": "プロバイダー",
+    "provider_other": "プロバイダー"
   },
   "variables": {
     "add": "変数を追加",
@@ -151,6 +184,7 @@
           "title": "スキップ"
         }
       },
+      "parsingFile": "ファイルをパース中です...",
       "title": "変数をインポート",
       "upload": "JSON ファイルをアップロード",
       "uploadPlaceholder": "変数を含む JSON ファイルをアップロード (例: {\"key\": \"value\", ...})"

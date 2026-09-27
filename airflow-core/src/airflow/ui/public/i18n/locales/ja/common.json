@@ -8,6 +8,7 @@
     "Variables": "変数"
   },
   "allOperators": "全オペレータ",
+  "allTeams": "全チーム",
   "appearance": {
     "appearance": "外観モード",
     "darkMode": "ダークモード",
@@ -18,20 +19,31 @@
   "asset_other": "アセット",
   "assetEvent_one": "アセットのイベント",
   "assetEvent_other": "アセットのイベント",
+  "assetInactive": {
+    "tooltip": "上流リソースが無効化されました。スケジューラは、そのリソースが再有効化されるまで、パーティションの評価を一時停止します"
+  },
   "backfill_one": "過去分の再実行",
   "backfill_other": "過去分の再実行",
+  "breadcrumb": "Breadcrumb",
   "browse": {
     "auditLog": "監査ログ",
+    "dagBundles": "Dag バンドル",
+    "deadlines": "期限",
+    "jobs": "ジョブ",
     "requiredActions": "要対応項目",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "追加情報の JSON を閉じる",
   "collapseDetailsPanel": "詳細パネルを閉じる",
+  "consumingAsset": "Consuming Asset",
   "createdAssetEvent_one": "作成したアセットイベント",
   "createdAssetEvent_other": "作成したアセットイベント",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag バンドル",
+  "dagBundle_other": "Dag バンドル",
   "dagDetails": {
+    "activeRuns": "アクティブ実行",
     "catchup": "遅延分の追跡実行",
     "dagRunTimeout": "Dag 実行タイムアウト",
     "defaultArgs": "デフォルトパラメータ",
@@ -51,7 +63,8 @@
     "owner": "オーナー",
     "params": "パラメータ",
     "schedule": "スケジュール",
-    "tags": "タグ"
+    "tags": "タグ",
+    "team": "チーム"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -65,6 +78,8 @@
     },
     "expectedDuration": "予想所要時間",
     "lastSchedulingDecision": "最終スケジューリング決定時刻",
+    "mappedPartitionKey": "マッピング済みパーティションキー",
+    "partitionDate": "パーティション日付",
     "partitionKey": "パーティションキー",
     "queuedAt": "キュー登録時刻",
     "runAfter": "最早実行可能時間",
@@ -76,12 +91,13 @@
   "dagRun_one": "Dag 実行",
   "dagRun_other": "Dag 実行",
   "dagRunId": "Dag 実行 ID",
+  "dagRunState": "Dag 実行状態",
   "dagWarnings": "Dag 実行警告/エラー",
-  "defaultToGraphView": "グラフ表示を既定にします",
-  "defaultToGridView": "グリッド表示を既定にします",
+  "delete": "削除する",
   "diff": "差分",
   "diffCompareWith": "比較する",
   "diffExit": "差分表示終了",
+  "diffSelectVersionToCompare": "比較するバージョンを選択してください",
   "direction": "方向",
   "docs": {
     "documentation": "ドキュメント",
@@ -94,6 +110,7 @@
     "tooltip": "ログをダウンロードするには {{hotkey}} キーを押してください"
   },
   "duration": "実行時間",
+  "edit": "編集",
   "endDate": "終了日",
   "error": {
     "back": "戻る",
@@ -103,6 +120,14 @@
     "notFound": "ページが見つかりません",
     "title": "エラー"
   },
+  "errors": {
+    "forbidden": {
+      "description": "この操作をする権限がありません",
+      "title": "アクセス権限がありません"
+    }
+  },
+  "event_one": "イベント",
+  "event_other": "イベント",
   "expand": {
     "collapse": "閉じる",
     "expand": "展開する",
@@ -118,33 +143,56 @@
   },
   "filter": "フィルタ",
   "filters": {
+    "addFilter": "フィルタ条件を追加する",
+    "completedAt": "完了時刻",
+    "date": "日付",
     "durationFrom": "開始時刻",
     "durationTo": "終了時刻",
     "endTime": "終了時刻",
     "logicalDateFrom": "論理開始日",
     "logicalDateTo": "論理終了日",
+    "maxActiveRunsFrom": "アクティブな実行数の上限（最小値）",
+    "maxActiveRunsTo": "アクティブな実行数の上限（最大値）",
+    "removeFilter": "フィルタ条件を解除する",
     "runAfterFrom": "実行開始日時の指定",
     "runAfterTo": "実行終了日時の指定",
+    "searchAsset": "アセットを検索する",
     "selectDateRange": "日付範囲を選択",
-    "startTime": "開始時刻"
+    "selectDateTime": "日付と時刻を選択してください",
+    "startTime": "開始時刻",
+    "time": "時刻"
   },
+  "fullscreen": {
+    "tooltip": "全画面表示には {{hotkey}} を押してください"
+  },
+  "generateToken": "トークンを発行する",
+  "includedIn": "含まれている",
+  "key": "キー",
   "logicalDate": "論理日付",
+  "logLevel": {
+    "hide": "ログレベルを隠す",
+    "hotkey": "l",
+    "show": "ログレベルを表示する"
+  },
   "logout": "ログアウト",
   "logoutConfirmation": "ログアウトしてもよろしいですか",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "追加",
     "cancel": "キャンセル",
     "confirm": "確認",
     "delete": {
       "button": "削除",
       "confirmation": "{{resourceName}} を削除してもよろしいですか。この操作は元に戻せません"
-    }
+    },
+    "save": "保存"
   },
   "nav": {
     "admin": "管理",
     "assets": "アセット",
     "browse": "閲覧",
     "dags": "Dags",
+    "dashboard": "ダッシュボード",
     "docs": "ヘルプ",
     "home": "ホーム",
     "legacyFabViews": "旧式ビュー",
@@ -155,22 +203,45 @@
   "note": {
     "add": "ノートの追加",
     "dagRun": "Dag 実行ノート",
+    "edit": "ノートの編集",
     "label": "ノート",
     "placeholder": "ノートの追加...",
-    "taskInstance": "タスクインスタンスノート"
+    "preview": "プレビュー",
+    "taskInstance": "タスクインスタンスノート",
+    "write": "書き込む"
   },
-  "pools": {
-    "deferred": "延期済",
-    "open": "開く",
-    "pools_one": "プール",
-    "pools_other": "プール",
-    "queued": "待機中",
-    "running": "実行中",
-    "scheduled": "スケジュール済"
+  "overallStatus": "全体のステータス",
+  "partition_one": "パーティション",
+  "partition_other": "パーティション",
+  "partitionedDagRun_one": "パーティション済 Dag 実行",
+  "partitionedDagRun_other": "パーティション済 Dag 実行",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "アセットイベントの受信履歴"
+  },
+  "pause": "一時停止",
+  "pendingDagRun_one": "{{count}} 件の実行待ち Dag を実行する",
+  "pendingDagRun_other": "{{count}} 件の実行待ち Dag を実行する",
+  "presetFilters": {
+    "deleteTitle": "プリセットのフィルタ条件を削除する",
+    "deleteWarning": "プリセットのフィルタ条件は、このブラウザにのみ保存されます",
+    "duplicate": "プリセットのフィルタ条件 \"{{name}}\" には、まったく同じ設定が保存されています",
+    "empty": "デフォルトのフィルタ条件はまだ設定されていません",
+    "info": {
+      "default": "プリセットのフィルタ条件をデフォルトに設定すると、フィルタ条件を適用していない状態でこのページにアクセスした際に、そのフィルタ条件が自動的に適用されます",
+      "save": "現在のフィルタ条件と並べ替え設定に名前を付けてプリセットとして保存すれば、いつでも簡単に切替えることができます",
+      "storage": "プリセットのフィルタ条件は、このブラウザに保存されます"
+    },
+    "namePlaceholder": "プリセットフィルタ条件名",
+    "nothingToSave": "保存できる内容がありません。プリセットフィルタを保存するには、フィルタ条件や並べ替え条件を設定してください",
+    "save": "保存する",
+    "setDefault": "デフォルトとして設定する",
+    "title": "プリセットフィルタ条件",
+    "unsetDefault": "デフォルトを削除する"
   },
   "reset": "リセット",
   "runId": "実行 ID",
   "runTypes": {
+    "asset_materialization": "アセットの生成",
     "asset_triggered": "トリガー済アセット",
     "backfill": "過去分の再実行",
     "manual": "手動",
@@ -183,6 +254,12 @@
     },
     "tooltip": "{{direction}} に動かすには {{hotkey}} を押してください"
   },
+  "search": {
+    "advanced": {
+      "description": "部分文字列検索を実施します。大規模な環境では、デフォルトの B-tree インデックスを使用できないため、処理速度が低下します。詳細については、ドキュメントのカスタムメタデータインデックススを参照してください",
+      "title": "部分一致"
+    }
+  },
   "security": {
     "actions": "アクション",
     "permissions": "権限",
@@ -190,9 +267,110 @@
     "roles": "ロール",
     "users": "ユーザ"
   },
+  "selected": "選択済み",
   "selectLanguage": "言語を選択",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "タスクインスタンスを消去する際に、現在実行中のタスクをスキップする",
+        "label": "実行中のタスクの消去を防ぐ"
+      },
+      "runSelection": {
+        "helper": "Dag の実行を削除する際に、デフォルトで選択されるオプション",
+        "label": "実行時のデフォルトオプションをクリアする"
+      },
+      "taskSelection": {
+        "helper": "タスクインスタンスを削除する際に、デフォルトで選択されるオプション",
+        "label": "タスクのデフォルトオプションをクリアする"
+      },
+      "title": "削除"
+    },
+    "description": "これらの設定は、このブラウザにのみ保存され、アプリケーション全体に適用されます",
+    "general": {
+      "landingPage": {
+        "helper": "Airflow を起動した際に表示されるページ",
+        "label": "トップページ",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "ダッシュボード"
+        }
+      },
+      "title": "共通"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "レイアウト方向が個別に設定されていない Dag とアセットで使用される方向",
+        "label": "デフォルトグラフ方向"
+      },
+      "taskGroupsExpanded": {
+        "helper": "グループ選択を保存していない Dag のタスクグループを展開します。既存の選択は保持されます",
+        "label": "タスクグループをデフォルトで展開する"
+      },
+      "title": "グラフ"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "タスクインスタンスの状態を指定する際にデフォルトで選択されるオプション",
+        "label": "状態のデフォルト設定"
+      },
+      "title": "ステータス表示"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "タスクインスタンスを開いたときに最初に表示されるタブです。特定のタブへのリンクをクリックすると、そのタブが開きます",
+        "label": "タスクインスタンスタブのデフォルト"
+      },
+      "title": "タスクインスタンス"
+    },
+    "title": "設定"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "コード",
+      "dagView": "Dag ビュー",
+      "filters": "フィルタ",
+      "global": "グローバル",
+      "logs": "ログ",
+      "navigation": "ナビゲーション",
+      "runActions": "実行とタスク操作",
+      "search": "検索"
+    },
+    "descriptions": {
+      "clearRun": "$t(dagRun_one) のリセット",
+      "clearTaskInstance": "$t(taskInstance_one) のリセット",
+      "downloadLogs": "ログのダウンロード",
+      "focusFilterSearch": "検索ボックスにフォーカスを合わせる",
+      "focusLogSearch": "ログの検索",
+      "focusSearch": "検索ボックスにフォーカスを合わせる",
+      "markRunFailed": "$t(dagRun_one) を失敗として記録する",
+      "markRunSuccess": "$t(dagRun_one) を成功として記録する",
+      "markTaskFailed": "$t(task_one) を失敗として記録する",
+      "markTaskGroupFailed": "$t(taskGroup_one) を失敗として記録する",
+      "markTaskGroupSuccess": "$t(taskGroup_one) を成功として記録する",
+      "markTaskSuccess": "$t(task_one) を成功として記録する",
+      "navigateTasks": "$t(task_other) へ移動する",
+      "openGraphFilters": "グラフフィルタ条件を開く",
+      "scrollBottom": "一番下まで移動する",
+      "scrollTop": "一番上まで移動する",
+      "searchDags": "$t(dag_other) を検索する",
+      "showHelp": "$t(shortcuts.title) を表示する",
+      "toggleExpand": "すべてのグループを展開または折りたたむ",
+      "toggleFullscreen": "全画面表示に切替える",
+      "toggleGraphGrid": "グラフ・グリッド表示を切り替える",
+      "toggleLogLevel": "ログレベルを切替える",
+      "toggleSource": "ソースコードを切替える",
+      "toggleTaskGroup": "$t(taskGroup_one) を展開または折りたたむ",
+      "toggleTimestamp": "タイムスタンプを切替える",
+      "toggleWrap": "$t(wrap.wrap) を切替える"
+    },
+    "empty": "このページで利用可能なキーボードショートカットはありません",
+    "title": "キーボードショートカット"
+  },
   "showDetailsPanel": "詳細パネル表示",
   "signedInAs": "サインインしているユーザ",
+  "slot": "スロット",
+  "slot_one": "スロット",
+  "slot_other": "スロット",
   "source": {
     "hide": "ソースを隠す",
     "hotkey": "s",
@@ -203,10 +381,12 @@
   "startDate": "開始日",
   "state": "状態",
   "states": {
+    "awaiting_input": "入力待ち",
     "deferred": "延期済",
     "failed": "失敗した",
     "no_status": "ステータスなし",
     "none": "ステータスなし",
+    "open": "開く",
     "planned": "計画済",
     "queued": "待機中",
     "removed": "削除済",
@@ -219,37 +399,52 @@
     "up_for_retry": "再試行待ち",
     "upstream_failed": "上流が失敗しました"
   },
+  "switchDag": "$t(dag_one) の切替え",
   "table": {
     "completedAt": "完了時刻",
     "createdAt": "作成時刻",
     "filterByTag": "タグでフィルタします",
     "filterColumns": "テーブルの列をフィルタします",
-    "filterReset_one": "フィルタのリセット",
-    "filterReset_other": "フィルタのリセット",
+    "filterReset_one": "フィルタ条件のリセット",
+    "filterReset_other": "フィルタ条件のリセット",
     "from": "開始時間",
     "maxActiveRuns": "最大アクティブ実行",
+    "noResultsFound": "検索結果が見つかりません",
     "noTagsFound": "タグが見つかりません",
+    "noTeamsFound": "チームが見つかりません",
+    "ownerPlaceholder": "オーナーでフィルタします",
     "tagMode": {
       "all": "すべて",
       "any": "いずれか"
     },
     "tagPlaceholder": "タグでフィルタします",
-    "to": "終了時間"
+    "to": "終了時間",
+    "updatedAt": "更新日時"
   },
   "task": {
+    "dependsOnPast": "過去に依存する",
     "documentation": "タスクドキュメント",
     "lastInstance": "最終インスタンス",
     "operator": "オペレータ",
-    "triggerRule": "トリガールール"
+    "retries": "再試行",
+    "triggerRule": "トリガールール",
+    "waitForDownstream": "下流工程の完了を待つ"
   },
   "task_one": "タスク",
   "task_other": "タスク",
+  "taskGroup": {
+    "documentation": "タスクグループドキュメント"
+  },
+  "taskGroup_one": "タスクグループ",
+  "taskGroup_other": "タスクグループ",
   "taskId": "タスク ID",
   "taskInstance": {
+    "additionalAttributes": "タスクインスタンスの付加属性",
     "dagVersion": "Dag バージョン",
     "executor": "エクゼキュータ",
     "executorConfig": "エクゼキュータ設定",
     "hostname": "ホスト名",
+    "id": "ID",
     "maxTries": "最大試行回数",
     "pid": "PID",
     "pool": "プール",
@@ -257,12 +452,15 @@
     "priorityWeight": "優先度",
     "queue": "キュー",
     "queuedWhen": "キューイング時刻",
+    "renderedMapIndex": "レンダリング済マップインデックス",
     "scheduledWhen": "スケジュールされた時刻",
+    "trigger": "トリガー",
     "triggerer": {
       "assigned": "割り当てられた Triggerer",
       "class": "トリガーカテゴリ",
       "createdAt": "トリガー作成時刻",
       "id": "トリガー ID",
+      "job": "Triggerer ジョブ",
       "latestHeartbeat": "最新の Triggerer ハートビート",
       "title": "Triggerer 情報"
     },
@@ -270,6 +468,12 @@
   },
   "taskInstance_one": "タスクインスタンス",
   "taskInstance_other": "タスクインスタンス",
+  "teams": {
+    "more_one": "その他 {{count}} 個",
+    "more_other": "その他 {{count}} 個",
+    "none": "チームなし",
+    "title": "チーム"
+  },
   "timeRange": {
     "last12Hours": "直近12時間",
     "last24Hours": "直近24時間",
@@ -289,46 +493,78 @@
     "utc": "UTC"
   },
   "toaster": {
-    "bulkDelete": {
-      "error": "{{resourceName}} の一括削除が失敗しました",
+    "bulkClear": {
+      "error": "{{resourceName}} の一括リセットリクエストが失敗しました",
       "success": {
-        "description": "{{count}} {{resourceName}} が削除済。 キー: {{keys}}",
-        "title": "{{resourceName}} 一括削除リクエストが送信済"
+        "description": "{{count}} 件の {{resourceName}} リセットが完了しました。キー: {{keys}}",
+        "title": "{{resourceName}} の一括リセットリクエストが送信されました"
+      }
+    },
+    "bulkDelete": {
+      "error": "{{resourceName}} の一括削除リクエストが失敗しました",
+      "success": {
+        "description": "{{count}} 件の {{resourceName}} 削除が完了しました。キー: {{keys}}",
+        "title": "{{resourceName}} の一括削除リクエストが送信されました"
+      }
+    },
+    "bulkUpdate": {
+      "error": "{{resourceName}} の一括更新リクエストが失敗しました",
+      "success": {
+        "description": "{{count}} 件の {{resourceName}} 更新が完了しました。キー: {{keys}}",
+        "title": "{{resourceName}} の一括更新リクエストが送信されました"
       }
     },
     "create": {
-      "error": "{{resourceName}} の作成リクエストが失敗しました",
+      "error": "{{resourceName}} 作成リクエストが失敗しました",
       "success": {
         "description": "{{resourceName}} 作成が完了しました",
-        "title": "{{resourceName}} 作成リクエスト送信済み"
+        "title": "{{resourceName}} 作成リクエストが送信されました"
       }
     },
     "delete": {
       "error": "{{resourceName}} 削除リクエストが失敗しました",
       "success": {
-        "description": "{{resourceName}} が削除済",
-        "title": "{{resourceName}} の削除リクエスト送信済み"
+        "description": "{{resourceName}} 削除が完了しました",
+        "title": "{{resourceName}} 削除リクエストが送信されました"
       }
     },
     "import": {
-      "error": "{{resourceName}} のインポートに失敗しました",
+      "error": "{{resourceName}} インポートリクエストが失敗しました",
       "success": {
-        "description": "{{count}} {{resourceName}} のインポートが成功しました",
-        "title": "{{resourceName}} インポートリクエスト送信済み"
+        "description": "{{count}} 件の {{resourceName}} インポートが完了しました",
+        "title": "{{resourceName}} インポートリクエストが送信されました"
       }
     },
     "update": {
-      "error": "{{resourceName}} の更新処理が失敗しました",
+      "error": "{{resourceName}} 更新リクエストが失敗しました",
       "success": {
-        "description": "{{resourceName}} の更新が成功しました",
-        "title": "{{resourceName}} の更新リクエスト送信済み"
+        "description": "{{resourceName}} 更新が完了しました",
+        "title": "{{resourceName}} 更新リクエストが送信されました"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "API トークン",
+    "cliToken": "CLI トークン",
+    "errorDescription": "トークンの生成中にエラーが発生しました。再試行してください",
+    "errorTitle": "トークン生成が失敗しました",
+    "generate": "生成",
+    "selectType": "生成するトークンの種類を選択してください",
+    "title": "トークンを生成する",
+    "tokenExpiresIn": "このトークは {{duration}} 後に失効します",
+    "tokenGenerated": "トークンが生成されました",
+    "tokenShownOnce": "このトークンは 1 回しか表示されません。すぐにコピーしてください"
   },
   "total": "合計 {{state}}",
   "triggered": "トリガー済",
   "tryNumber": "試行回数",
+  "unpause": "一時停止を解除します",
   "user": "ユーザ",
+  "validation": {
+    "mustBeAtLeast": "{{min}} 未満にはできません",
+    "mustBeValidNumber": "有効な数値でなければなりません"
+  },
+  "value": "値",
   "wrap": {
     "hotkey": "w",
     "tooltip": "折り返し表示を切替えるには {{hotkey}} を押してください",

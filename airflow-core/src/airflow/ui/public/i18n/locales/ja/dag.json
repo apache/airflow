@@ -40,17 +40,50 @@
     "parseDuration": "パース時間:",
     "parsedAt": "パース日時:"
   },
+  "deadlineAlerts": {
+    "completionRule": "{{reference}} から {{interval}} 以内に完了する必要があります",
+    "completionRuleDynamic": "{{reference}} から測定される可変期間内に完了する必要があります",
+    "count_one": "{{count}} 件の期限",
+    "count_other": "{{count}} 件の期限",
+    "referenceType": {
+      "AverageRuntimeDeadline": "平均実行時間",
+      "DagRunLogicalDateDeadline": "論理日付",
+      "DagRunQueuedAtDeadline": "キュー登録時刻"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "実際",
+    "expected": "見込み",
+    "finishedEarly": "期限の {{duration}} 前に完了",
+    "finishedLate": "期限の {{duration}} 後に完了",
+    "label": "期限",
+    "met": "達成した",
+    "missed": "過ぎた",
+    "missedCount_one": "{{count}} 件が期限切れ",
+    "missedCount_other": "{{count}} 件が期限切れ",
+    "mixedCount": "{{missedCount}} 件が期限切れになっています。 {{upcomingCount}} 件がまもなく期限期限切れになります",
+    "stillRunning": "実行中",
+    "upcoming": "まもなく期限切れ",
+    "upcomingCount_one": "{{count}} 件が期限切れ間近",
+    "upcomingCount_other": "{{count}} 件が期限切れ間近"
+  },
   "extraLinks": "追加リンク",
   "grid": {
     "buttons": {
-      "resetToLatest": "Reset to latest",
+      "newerRuns": "直近の実行",
+      "olderRuns": "過去の実行",
+      "resetToLatest": "最新の状態にリセット",
       "toggleGroup": "グループを切り替え"
-    }
+    },
+    "runTypeLegend": "実行タイプの凡例"
   },
   "header": {
     "buttons": {
       "advanced": "Advanced",
       "dagDocs": "Dag ドキュメント"
+    },
+    "status": {
+      "deactivated": "無効化済み"
     }
   },
   "logs": {
@@ -59,19 +92,26 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "全画面",
-      "tooltip": "全画面で表示するには {{hotkey}} を押してください"
-    },
     "info": "INFO",
     "noTryNumber": "試行回数なし",
+    "search": {
+      "matchCount": "{{current}} / {{total}}",
+      "noMatches": "一致する項目はありません",
+      "placeholder": "ログを検索..."
+    },
     "settings": "ログ設定",
+    "tryNotStarted": "この試行はまだ始まっていません",
+    "viewFailedTry": "失敗した試行 {{tryNumber}} のログを見る",
     "viewInExternal": "{{name}} でログを見る ({{attempt}} 試行目)",
+    "viewPreviousTry": "{{tryNumber}} 試行のログを見る",
+    "waitingToRetry": "{{tryNumber}} 回目の試行が実行待ちです",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "Navigation: Shift+{{arrow}}",
-    "toggleGroup": "Toggle group: Space"
+  "notFound": {
+    "back": "戻る",
+    "backToDags": "Dags に戻る",
+    "message": "\"Dag {{dagId}}\" は存在しません",
+    "title": "Dag が見つかりません"
   },
   "overview": {
     "buttons": {
@@ -85,6 +125,10 @@
     "charts": {
       "assetEvent_one": "作成されたアセットイベント",
       "assetEvent_other": "作成されたアセットイベント"
+    },
+    "deadlines": {
+      "showAll": "すべて表示",
+      "title": "期限"
     },
     "failedLogs": {
       "hideLogs": "ログを隠す",
@@ -104,22 +148,43 @@
       "label": "Dag 実行数"
     },
     "dependencies": {
-      "label": "依存関係",
-      "options": {
-        "allDagDependencies": "すべての Dag 依存関係",
-        "externalConditions": "外部条件",
-        "onlyTasks": "タスクのみ"
-      },
-      "placeholder": "依存関係"
+      "allDagDependencies": "すべての Dag の依存関係"
     },
     "graphDirection": {
       "label": "グラフの向き"
+    },
+    "graphFilters": {
+      "clearFilters": "フィルタのリセット",
+      "durationGte": "最短継続時間（秒）",
+      "durationGteHint": "マッピング済みのタスクについて、すべてのインスタンスの合計時間を計算してください",
+      "mapIndex": "最小マッピングインデックス",
+      "mapIndexHint": "マッピング済みのタスクを展開し、少なくともこのインデックスまで表示します",
+      "selectStatus": "ステータスの選択",
+      "selectTaskGroup": "タスクグループの選択",
+      "title": "タスクフィルタ"
+    },
+    "showVersionIndicator": {
+      "label": "バージョンを表示する",
+      "options": {
+        "hideAll": "すべて隠す",
+        "showAll": "すべて表示",
+        "showBundleVersion": "バンドルのバージョンを表示する",
+        "showDagVersion": "Dag のバージョンを表示する"
+      }
     },
     "taskStreamFilter": {
       "activeFilter": "アクティブフィルタ",
       "clearFilter": "フィルタのリセット",
       "clickTask": "フィルタルートとして選択するにはタスクを選択します",
+      "depth": "深さ",
+      "direction": "方向",
       "label": "フィルタ",
+      "mode": "モード",
+      "modes": {
+        "static": "固定",
+        "traverse": "順次処理"
+      },
+      "modeTooltip": "固定モードではタスクを切替えても現在のビューは変更されず、順次処理モードではタスクをクリックするとフィルタ条件が自動的に更新されるため、Dag 構造を閲覧しやすくなります",
       "options": {
         "both": "上流と下流の両方",
         "downstream": "下流",
@@ -155,12 +220,36 @@
     "renderedTemplates": "生成されたテンプレート",
     "requiredActions": "要対応項目",
     "runs": "実行",
+    "storage": "ストレージ",
     "taskInstances": "タスクインスタンス",
+    "taskStateStore": "タスク状態ストア",
     "tasks": "タスク",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "タスクグループをすべて閉じる",
     "expandAll": "タスクグループをすべて展開"
+  },
+  "taskStateStore": {
+    "add": "タスク状態ストアを追加する",
+    "clearAll": {
+      "resource": "すべてのタスク状態ストア",
+      "title": "すべてのタスク状態ストア消去する",
+      "warning": "すべてのタスク状態ストアが削除されます。このストアを使用して外部ジョブを追跡しているタスクは復元できず、最初から再実行する必要があります"
+    },
+    "delete": "タスク状態ストアを消去する",
+    "deleteWarning": "このタスクでは当該の永続化データが失われます。タスクがこのキーを使用して外部の作業（外部ジョブ ID など）を追跡している場合、その作業を復元することはできなくなります",
+    "edit": "タスク状態ストアを編集する",
+    "emptyStore": "タスク状態ストアは、再試行の間に永続化される足立が保存されます。ワーカーノードは、Task SDK を使用してタスク状態ストアに書き込むことができます",
+    "entry_one": "項目",
+    "entry_other": "項目",
+    "expiresAt": {
+      "column": "有効期限",
+      "custom": "ユーザー定義",
+      "default": "デフォルト ({{interval}})",
+      "label": "期限切れ",
+      "never": "永遠に"
+    },
+    "title": "タスク状態ストア"
   }
 }

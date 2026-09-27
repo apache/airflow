@@ -1,4 +1,24 @@
 {
+  "alerts": {
+    "seeLessContext": "表示を減らす",
+    "seeMoreContext": "もっと見る",
+    "showMoreAlerts_one": "その他に {{count}} 件の警告があります",
+    "showMoreAlerts_other": "その他に {{count}} 件の警告があります"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "直近に追った期限はありません",
+      "title": "まもなく期限切れ"
+    },
+    "recentlyMissed": {
+      "empty": "未対応の期限はありません",
+      "title": "未対応の期限"
+    },
+    "showMore": "さらに表示",
+    "title": "期限"
+  },
+  "deferredSlotsNotCounted": "スロットにカウントされていない遅延タスク： {{count}}",
+  "deferredSlotsNotCountedTooltip": "バーに表示されている遅延タスクは、プールスロットとしてカウントされます。バーの下部に表示されている遅延タスクは、遅延タスクをスロット数にカウントしないプールに属しています",
   "favorite": {
     "favoriteDags_one": "先頭 {{count}} 件のお気に入り Dag",
     "favoriteDags_other": "先頭 {{count}} 件のお気に入り Dag",
@@ -8,14 +28,29 @@
   "group": "グループ",
   "health": {
     "dagProcessor": "Dag プロセッサ",
+    "degraded": "機能低下",
+    "degradedHint": {
+      "dagProcessor": "設定された Dag バンドルの一部に、パースを実行する Dag プロセッサが存在しません",
+      "triggerer": "一部のチームで、遅延タスクを実行するための Triggerer が稼働していません"
+    },
+    "down": "停止中",
     "health": "健康状態",
     "healthy": "正常",
+    "instances": {
+      "bundles": "バンドル",
+      "hostname": "ホスト名",
+      "team": "チーム",
+      "title_one": "{{title}} — {{status}} ({{count}} インスタンス)",
+      "title_other": "{{title}} — {{status}} ({{count}} インスタンス)",
+      "unknownHostname": "不明なホスト名"
+    },
     "lastHeartbeat": "最終ハートビート",
     "metaDatabase": "メタデータベース",
     "scheduler": "スケジューラ",
     "status": "状態",
     "triggerer": "Triggerer",
-    "unhealthy": "異常"
+    "unhealthy": "異常",
+    "unknownStatus": "不明な状態"
   },
   "history": "履歴",
   "importErrors": {
@@ -29,7 +64,8 @@
   "poolSlots": "プールスロット",
   "sortBy": {
     "newestFirst": "新しい順",
-    "oldestFirst": "古い順"
+    "oldestFirst": "古い順",
+    "placeholder": "並べ替え"
   },
   "source": "ソース",
   "stats": {
