@@ -400,11 +400,10 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         self._session.commit()
 
         with patch(
-            "airflow.api_fastapi.core_api.routes.public.task_state_store._get_db_backend"
-        ) as mock_backend:
-            mock_backend.return_value.set.side_effect = ValueError(
-                f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
-            )
+            "airflow.state.metastore.MetastoreBackend.set",
+            autospec=True,
+            side_effect=ValueError(f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"),
+        ):
             response = test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"})
             assert response.status_code == 404
             assert response.json()["detail"] == f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
