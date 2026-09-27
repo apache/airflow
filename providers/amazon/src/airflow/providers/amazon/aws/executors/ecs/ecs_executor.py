@@ -64,6 +64,7 @@ if AIRFLOW_V_3_4_PLUS:
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow._shared.state import TaskFailureKind
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -83,6 +84,23 @@ INVALID_CREDENTIALS_EXCEPTIONS = [
     "InvalidClientTokenId",
     "UnrecognizedClientException",
 ]
+
+# https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Task.html
+# https://docs.aws.amazon.com/AmazonECS/latest/developerguide/spot-interruption-errors.html
+STOP_CODE_SPOT_INTERRUPTION = "SpotInterruption"
+
+
+def classify_ecs_failure(stop_code: str | None) -> tuple[TaskFailureKind | None, str | None]:
+    """Map an ECS stop code to the shared failure contract."""
+    if not AIRFLOW_V_3_4_PLUS:
+        return None, None
+
+    from airflow._shared.state import TaskFailureKind
+
+    if stop_code == STOP_CODE_SPOT_INTERRUPTION:
+        return TaskFailureKind.INFRA, STOP_CODE_SPOT_INTERRUPTION
+
+    return None, stop_code
 
 
 class AwsEcsExecutor(BaseExecutor):
@@ -331,7 +349,7 @@ class AwsEcsExecutor(BaseExecutor):
         # Mark finished tasks as either a success/failure.
         if task_state == State.FAILED or task_state == State.REMOVED:
             self.__log_container_failures(task_arn=task.task_arn)
-            self.__handle_failed_workload(task.task_arn, task.stopped_reason)
+            self.__handle_failed_workload(task.task_arn, task.stopped_reason, task.stop_code)
         elif task_state == State.SUCCESS:
             self.log.debug(
                 "Airflow workload %s marked as %s after running on ECS Task (arn) %s",
@@ -371,7 +389,12 @@ class AwsEcsExecutor(BaseExecutor):
                 "The ECS task failed due to the following containers failing:\n%s", "\n".join(reasons)
             )
 
-    def __handle_failed_workload(self, task_arn: str, reason: str):
+    def __handle_failed_workload(
+        self,
+        task_arn: str,
+        reason: str | None,
+        stop_code: str | None = None,
+    ) -> None:
         """
         If an API failure occurs, the workload is rescheduled.
 
@@ -406,12 +429,28 @@ class AwsEcsExecutor(BaseExecutor):
                 )
             )
         else:
+            failure_kind: TaskFailureKind | None = None
+            failure_reason: str | None = None
+            is_task_instance = False
+            if AIRFLOW_V_3_4_PLUS:
+                # The provider still imports on Airflow versions without the cause contract.
+                from airflow.models.taskinstancekey import TaskInstanceKey
+
+                is_task_instance = isinstance(task_key, TaskInstanceKey)
+            if is_task_instance:
+                failure_kind, failure_reason = classify_ecs_failure(stop_code)
             self.log.error(
-                "Airflow workload %s has failed a maximum of %s times. Marking as failed",
+                "Airflow workload %s has failed a maximum of %s times. Marking as failed. "
+                "stop_code=%s failure_kind=%s",
                 task_key,
                 failure_count,
+                stop_code,
+                failure_kind,
             )
-            self.fail(task_key)
+            if is_task_instance:
+                self.fail(task_key, failure_kind=failure_kind, reason=failure_reason)
+            else:
+                self.fail(task_key)
         self.active_workers.pop_by_key(task_key)
 
     def attempt_workload_runs(self):
