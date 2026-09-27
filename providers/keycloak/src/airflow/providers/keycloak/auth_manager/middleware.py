@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, cast
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from jwt import ExpiredSignatureError, InvalidTokenError
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -32,7 +31,11 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_REFRESH_TOKEN,
 )
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_8_PLUS
+from airflow.providers.keycloak.version_compat import (
+    AIRFLOW_V_3_1_8_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 try:
     from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
@@ -58,8 +61,19 @@ if TYPE_CHECKING:
     from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
     from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware # pyright: ignore[reportAssignmentType]
+else:
+    from starlette.middleware.base import BaseHTTPMiddleware
 
-class KeycloakJWTMiddleware(BaseHTTPMiddleware):
+    class JWTRefreshMiddleware(BaseHTTPMiddleware):
+        """Backport shim for JWTRefreshMiddleware."""
+
+        async def dispatch(self, request: Request, call_next):
+            raise NotImplementedError("keycloak JWTRefreshMiddleware should not be dispatched this way.")
+
+
+class KeycloakJWTMiddleware(JWTRefreshMiddleware):
     """
     Attach the Keycloak JWT tokens to the user.
 
@@ -69,6 +83,11 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
+        if AIRFLOW_V_3_4_PLUS:
+            return await super().dispatch(request, call_next)
+        return await self._dispatch(request, call_next)
+
+    async def _dispatch(self, request: Request, call_next):
         user = None
         new_token = None
         new_user = None
@@ -242,10 +261,15 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not logged into Keycloak."
             )
         auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+        args: tuple[str] | tuple[str, str | None, str | None] = (jwt_token,) if AIRFLOW_V_3_4_PLUS else (jwt_token, access_token, refresh_token)
+
         try:
-            user = await auth_manager.get_user_from_token(jwt_token, access_token, refresh_token)
+            user = cast("KeycloakAuthManagerUser", await auth_manager.get_user_from_token(*args))
         except ExpiredSignatureError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
         except InvalidTokenError:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
+        if AIRFLOW_V_3_4_PLUS:
+            user.access_token = access_token
+            user.refresh_token = refresh_token
         return get_auth_manager().refresh_user(user=user), user
