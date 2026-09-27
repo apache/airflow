@@ -46,6 +46,19 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
 
 
+def _get_bool_extra(extra: dict[str, Any], key: str) -> bool:
+    """
+    Read a boolean connection extra that defaults to ``False``.
+
+    Extras parsed from a connection URI (e.g. ``smtp://host?disable_tls=false``) are strings,
+    and a non-empty string such as ``"false"`` is truthy.
+    """
+    value = extra.get(key, False)
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes", "on")
+    return bool(value)
+
+
 def build_xoauth2_string(username: str, token: str) -> str:
     """Local fallback for older Airflow cores (≤2.11)."""
     return f"user={username}\x01auth=Bearer {token}\x01\x01"
@@ -670,7 +683,7 @@ class SmtpHook(BaseHook):
 
     @property
     def smtp_starttls(self) -> bool:
-        return not bool(self.conn.extra_dejson.get("disable_tls", False))
+        return not _get_bool_extra(self.conn.extra_dejson, "disable_tls")
 
     @property
     def host(self) -> str:
@@ -686,7 +699,7 @@ class SmtpHook(BaseHook):
 
     @property
     def use_ssl(self) -> bool:
-        return not bool(self.conn.extra_dejson.get("disable_ssl", False))
+        return not _get_bool_extra(self.conn.extra_dejson, "disable_ssl")
 
     @property
     def subject_template(self) -> str | None:
