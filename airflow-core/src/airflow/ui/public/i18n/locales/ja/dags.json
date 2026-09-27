@@ -29,7 +29,7 @@
     },
     "pausedPlaceholder": "一時停止状態を選択します…",
     "pausedState": "一時停止状態",
-    "requiresHitlAction": "手動対応が必要です",
+    "requiresHitlAction": "要手動対応",
     "runIdPatternFilter": "Dag 実行を検索",
     "timetableType": "スケジュールタイプ"
   },
