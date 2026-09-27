@@ -29,6 +29,7 @@ from airflow.providers.common.ai.sandbox.base import (
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",
     "SandboxExecResult",
@@ -37,3 +38,16 @@ __all__ = [
     "SandboxTerminalError",
     "SbxSandboxBackend",
 ]
+
+
+def __getattr__(name: str):
+    # Imported on demand so the package stays importable without the 'modal' extra:
+    # everything above needs no third-party dependency at all.
+    if name == "ModalSandboxBackend":
+        # The module raises AirflowOptionalProviderFeatureException itself when the extra
+        # is absent, so it is not re-wrapped here: catching ImportError around this would
+        # also swallow a genuine one raised from inside the module.
+        from airflow.providers.common.ai.sandbox.modal import ModalSandboxBackend
+
+        return ModalSandboxBackend
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

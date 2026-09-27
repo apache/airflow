@@ -45,7 +45,10 @@ class AirbyteJobSensor(BaseSensorOperator):
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
     """
 
-    template_fields: Sequence[str] = ("airbyte_job_id",)
+    template_fields: Sequence[str] = (
+        "airbyte_job_id",
+        "airbyte_conn_id",
+    )
     ui_color = "#6C51FD"
 
     def __init__(

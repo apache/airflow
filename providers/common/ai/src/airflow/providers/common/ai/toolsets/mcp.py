@@ -24,7 +24,7 @@ from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from pydantic_ai._run_context import RunContext
 
@@ -61,7 +61,8 @@ class MCPToolset(AbstractToolset[Any]):
     merged over the connection's static ``Extra.env`` (``env_provider`` wins on
     key conflicts).
 
-    :param mcp_conn_id: Airflow connection ID for the MCP server.
+    :param mcp_conn_id: Airflow connection ID for the MCP server. Templated when
+        the toolset is passed to ``AgentOperator`` / ``@task.agent``.
     :param tool_prefix: Optional prefix prepended to tool names
         (e.g. ``"weather"`` → ``"weather_get_forecast"``).
     :param token_provider: Optional zero-argument callable returning a bearer
@@ -72,6 +73,10 @@ class MCPToolset(AbstractToolset[Any]):
         key conflicts) for the ``stdio`` subprocess environment. Called once, the
         first time this toolset establishes a connection.
     """
+
+    # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
+    # Airflow's templater would render in place wherever the toolset is nested.
+    agent_template_fields: Sequence[str] = ("_mcp_conn_id",)
 
     def __init__(
         self,

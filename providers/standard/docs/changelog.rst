@@ -35,6 +35,35 @@
 Changelog
 ---------
 
+1.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid parsing templated DateTimeSensorAsync targets at Dag parse time (#72659)``
+* ``Fix exception messages rendering as a tuple instead of the value (#73296)``
+* ``Stop FileSensor deferring when deferrable is not set (#73297)``
+* ``Fix HITLTrigger failing on a human-in-the-loop response recorded from a timeout default, which has no responder (#72155)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix broken class xrefs in standard provider docs (#73360)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Stop running duplicate virtualenv operator tests (#73500)``
+   * ``Stop provider tests leaking AF2 global TI session (#73272)``
+   * ``Align standard operator test modules with the source layout (#73229)``
+
 1.19.0
 ......
 

@@ -51,7 +51,7 @@ class WorkflowExecutionSensor(BaseSensorOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id", "gcp_conn_id")
 
     def __init__(
         self,

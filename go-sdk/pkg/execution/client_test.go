@@ -161,6 +161,119 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 }
 
+// TestCoordinatorClientSetVariable verifies the PutVariable frame always
+// carries description, sending null when none is given: the supervisor
+// validates PutVariable with a required description field.
+func TestCoordinatorClientSetVariable(t *testing.T) {
+	tests := []struct {
+		name            string
+		description     string
+		wantDescription any
+	}{
+		{
+			name:            "description is sent",
+			description:     "row threshold",
+			wantDescription: "row threshold",
+		},
+		{name: "empty description is sent as null", description: "", wantDescription: nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, nil, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm)
+
+			require.NoError(
+				t,
+				client.SetVariable(context.Background(), "my_key", "42", tc.description),
+			)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":        "PutVariable",
+				"key":         "my_key",
+				"value":       "42",
+				"description": tc.wantDescription,
+			}, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+// TestCoordinatorClientDeleteVariable verifies the DeleteVariable frame sent
+// to the supervisor.
+func TestCoordinatorClientDeleteVariable(t *testing.T) {
+	responsePayload := encodeResponseFrame(
+		t,
+		0,
+		map[string]any{"type": "OKResponse", "ok": true},
+		nil,
+	)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	client := NewCoordinatorClient(comm)
+
+	require.NoError(t, client.DeleteVariable(context.Background(), "my_key"))
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"type": "DeleteVariable",
+		"key":  "my_key",
+	}, rawToMap(t, sent.Body))
+}
+
+// TestCoordinatorClientVariableWriteErrors verifies SetVariable and
+// DeleteVariable surface a supervisor ErrorResponse to the task.
+func TestCoordinatorClientVariableWriteErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		call func(client *CoordinatorClient) error
+	}{
+		{
+			name: "SetVariable",
+			call: func(client *CoordinatorClient) error {
+				return client.SetVariable(context.Background(), "my_key", "v", "")
+			},
+		},
+		{
+			name: "DeleteVariable",
+			call: func(client *CoordinatorClient) error {
+				return client.DeleteVariable(context.Background(), "my_key")
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 403},
+			})
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+			client := NewCoordinatorClient(comm)
+
+			var apiErr *ApiError
+			require.ErrorAs(t, tc.call(client), &apiErr)
+			assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+		})
+	}
+}
+
 // TestCoordinatorClientGetConnectionPreservesEmptyCredentials verifies the
 // coordinator client forwards an explicitly empty login/password as a
 // pointer-to-"" on sdk.Connection rather than nil. Connections that use

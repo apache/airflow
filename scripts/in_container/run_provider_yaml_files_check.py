@@ -64,6 +64,8 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
+    "airflow.providers.google.cloud.hooks.stackdriver",
+    "airflow.providers.google.cloud.operators.stackdriver",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [

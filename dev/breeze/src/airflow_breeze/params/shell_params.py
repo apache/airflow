@@ -65,6 +65,7 @@ from airflow_breeze.global_constants import (
     MYSQL_HOST_PORT,
     POSTGRES_BACKEND,
     POSTGRES_HOST_PORT,
+    PYCACHE_PREFIX_IN_CONTAINER,
     RABBITMQ_HOST_PORT,
     REDIS_HOST_PORT,
     SIMPLE_AUTH_MANAGER,
@@ -100,9 +101,11 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
     get_main_git_dir_for_worktree,
@@ -198,6 +201,7 @@ class ShellParams:
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
     include_mypy_volume: bool = False
+    include_pycache_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
     install_airflow_with_constraints: bool = False
@@ -416,8 +420,18 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DEBUG_PORTS_PATH)
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH)
+            if not self.force_lowest_dependencies:
+                compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH)
         elif self.mount_sources == MOUNT_ALL:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH)
+            if self.force_lowest_dependencies:
+                # The whole worktree is bound here, so uv.lock cannot be left out of the mount.
+                console_print(
+                    "\n[warning]--force-lowest-dependencies with --mount-sources all will rewrite "
+                    "your uv.lock: the lowest-direct `uv sync` writes its re-resolved lock through "
+                    "the mounted worktree. Use the default --mount-sources selected to keep it "
+                    "untouched, or restore it afterwards with `git checkout -- uv.lock`.[/]\n"
+                )
         elif self.mount_sources == MOUNT_TESTS:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH)
         elif self.mount_sources == MOUNT_PROVIDERS_AND_TESTS:
@@ -430,6 +444,8 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH)
         if self.include_mypy_volume:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH)
+        if self.include_pycache_volume:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH)
         if self.tty == "enabled":
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_ENABLE_TTY_PATH)
         if "all-testable" in self.integration:
@@ -706,7 +722,15 @@ services:
         _set_var(_env, "PROVIDERS_CONSTRAINTS_MODE", self.providers_constraints_mode)
         _set_var(_env, "PROVIDERS_CONSTRAINTS_REFERENCE", self.providers_constraints_reference)
         _set_var(_env, "PROVIDERS_SKIP_CONSTRAINTS", self.providers_skip_constraints)
-        _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
+        # Both keys are always emitted (empty string == unset for Python) so the generated
+        # compose env file keeps a stable key set across invocations. The bytecode cache is only
+        # enabled together with the volume that persists it; other containers stay pyc-free.
+        if self.include_pycache_volume:
+            _set_var(_env, "PYTHONDONTWRITEBYTECODE", "")
+            _set_var(_env, "PYTHONPYCACHEPREFIX", PYCACHE_PREFIX_IN_CONTAINER)
+        else:
+            _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
+            _set_var(_env, "PYTHONPYCACHEPREFIX", "")
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)

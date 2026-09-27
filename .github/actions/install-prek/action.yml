@@ -55,7 +55,7 @@ runs:
         PREK_CONFIG_HASH: ${{ hashFiles('**/.pre-commit-config.yaml') }}
       run: |
         PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
-        KEY="cache-prek-v9-${PLATFORM}-python${PYTHON_VERSION}-uv${UV_VERSION}-${PREK_CONFIG_HASH}"
+        KEY="cache-prek-v10-${PLATFORM}-python${PYTHON_VERSION}-uv${UV_VERSION}-${PREK_CONFIG_HASH}"
         echo "Prek cache key: ${KEY}"
         echo "key=${KEY}" >> "${GITHUB_OUTPUT}"
     - name: "Install uv"
@@ -123,10 +123,16 @@ runs:
       shell: bash
       # prek downloads the toolchains its hooks need and does not retry, so a transient 5xx
       # from a download host fails the job before it does any work.
+      #
+      # The skill-eval hooks are manual-stage only and never run in CI, but `prek install-hooks`
+      # still builds their node environments (promptfoo plus the agent SDKs, ~3.5 GB of the ~7 GB
+      # cache). Skipping them keeps that out of every download, extract, tar and upload. `--skip`
+      # only avoids building an environment and never removes a restored one, so the cache key
+      # namespace was bumped alongside this to start from a cache that never had them.
       run: |
         max_attempts=4
         for attempt in $(seq 1 "${max_attempts}"); do
-          if prek install-hooks; then
+          if prek install-hooks --skip run-skill-eval --skip run-skill-eval-codex --skip view-skill-eval; then
             exit 0
           fi
           if [[ "${attempt}" -eq "${max_attempts}" ]]; then
@@ -143,11 +149,21 @@ runs:
       shell: bash
       run: cat ~/.cache/prek/prek.log || true
       if: always()
+    # A pull request that restored the cache has nothing new to save: the stash it got (usually the
+    # one from the base branch) is what it would upload again, and re-compressing and uploading
+    # ~7 GB costs about five minutes per run. Save on a miss, and on non-PR runs (the canary on
+    # the default branch) so the base-branch stash stays fresh within its retention window.
     - name: "Prepare .tar file from prek cache"
       run: |
-        tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
+        if command -v pigz > /dev/null 2>&1; then
+          tar -C ~ -cf - .cache/prek | pigz > /tmp/cache-prek.tar.gz
+        else
+          tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
+        fi
       shell: bash
-      if: inputs.save-cache == 'true'
+      if: >
+        inputs.save-cache == 'true'
+        && (steps.restore-prek-tar.outputs.tar-restored != 'true' || github.event_name != 'pull_request')
     - name: "Save prek cache"
       uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
@@ -155,4 +171,8 @@ runs:
         path: /tmp/cache-prek.tar.gz
         if-no-files-found: 'error'
         retention-days: '2'
-      if: inputs.save-cache == 'true'
+        # The payload is already gzipped; the default level 6 would compress it a second time.
+        compression-level: '0'
+      if: >
+        inputs.save-cache == 'true'
+        && (steps.restore-prek-tar.outputs.tar-restored != 'true' || github.event_name != 'pull_request')

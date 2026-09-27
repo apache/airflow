@@ -58,6 +58,15 @@ repos:
         entry: ../scripts/ci/prek/validate_operators_init.py
         pass_filenames: true
         files: ^.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
+      - id: check-conn-id-templated
+        name: Check connection ids accepted by operators are in template_fields
+        description: Every *conn_id argument an operator, sensor or notifier accepts must be templated
+        language: python
+        entry: ../scripts/ci/prek/check_conn_id_templated.py
+        pass_filenames: true
+        files: ^.*/src/airflow/providers/.*\.py$
+        additional_dependencies: [rich>=13.6.0]
+        require_serial: true
       - id: update-providers-build-files
         name: Update providers build files
         entry: ../scripts/ci/prek/update_providers_build_files.py
@@ -281,7 +290,7 @@ repos:
         files: ^.*/src/airflow/providers/.*\.py$
         require_serial: true
   - repo: https://github.com/boidolr/ast-grep-pre-commit
-    rev: 0.45.2
+    rev: 7bae9c67e1a003cd5ef629c64f0466dc46556b3b  # frozen: 0.45.3
     hooks:
       - id: ast-grep
         name: Check providers import httpx2 rather than httpx

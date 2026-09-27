@@ -112,7 +112,7 @@ class PythonDagImporter(AbstractDagImporter):
             path = Path(file_path)
             try:
                 if path.is_file() and (path.suffix.lower() == ".py" or zipfile.is_zipfile(path)):
-                    if might_contain_dag(file_path, safe_mode):
+                    if might_contain_dag(file_path, safe_mode, conf=conf):
                         yield file_path
             except Exception:
                 log.exception("Error while examining %s", file_path)
@@ -216,7 +216,7 @@ class PythonDagImporter(AbstractDagImporter):
         except ValueError:
             log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
 
-        if not might_contain_dag(filepath, safe_mode):
+        if not might_contain_dag(filepath, safe_mode, conf=conf):
             log.debug("File %s assumed to contain no DAGs. Skipping.", filepath)
             result.skipped_files.append(filepath)
             return []
@@ -295,7 +295,7 @@ class PythonDagImporter(AbstractDagImporter):
 
                 log.debug("Reading %s from %s", zip_info.filename, filepath)
 
-                if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
+                if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file, conf=conf):
                     result.skipped_files.append(f"{filepath}:{zip_info.filename}")
                     continue
 

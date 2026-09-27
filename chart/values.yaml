@@ -64,14 +64,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.3.1"
+defaultAirflowTag: "3.3.2"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 3.1.0 and above is supported.
-airflowVersion: "3.3.1"
+airflowVersion: "3.3.2"
 
 images:
   airflow:
@@ -1134,7 +1134,7 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-    # Should the kerberos-ccache mount be readonly for Celery Workers
+    # Should the kerberos-ccache mount be readonly for Kubernetes Workers
     readonlyKerberosCache: true
 
     # Resource configuration for pods created with pod-template-file
@@ -2259,6 +2259,8 @@ dagProcessor:
   # when it wants to scale a node down.
   safeToEvict: true
 
+  hostAliases: []
+
   # Launch additional containers into dag processor (templated).
   extraContainers: []
 
@@ -2343,6 +2345,8 @@ dagProcessor:
 
     securityContexts:
       container: {}
+
+    containerLifecycleHooks: {}
 
     env: []
 

@@ -745,8 +745,20 @@ class TestKiotaRequestAdapterHook:
             credential.close.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_send_request_invalidates_cache_and_raises_on_unauthorized(self):
-        """send_request evicts the cached adapter, closes it, and re-raises when Microsoft Graph returns 401."""
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param("401 Unauthorized", id="unauthorized"),
+            pytest.param("403 Forbidden: TokenExpired", id="forbidden-token-expired"),
+        ],
+    )
+    async def test_send_request_invalidates_cache_and_raises_on_permission_error(self, error: str):
+        """
+        send_request evicts the cached adapter, closes it, and re-raises when the API rejects the token.
+
+        Microsoft Graph reports an expired token as 401, Power BI as 403 with error code TokenExpired;
+        the response handler maps both to PermissionError.
+        """
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
@@ -754,15 +766,13 @@ class TestKiotaRequestAdapterHook:
             adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
             adapter._authentication_provider = mock_authentication_provider(closed=False)
             adapter.base_url = "https://graph.microsoft.com/v1.0"
-            adapter.send_no_response_content_async = AsyncMock(
-                side_effect=PermissionError("401 Unauthorized")
-            )
-            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+            adapter.send_no_response_content_async = AsyncMock(side_effect=PermissionError(error))
+            hook.cached_request_adapters[hook.conn_id] = ("v1.0", adapter)
 
             access_token_provider = adapter._authentication_provider.access_token_provider
             credential = access_token_provider._credentials._credential
 
-            with pytest.raises(PermissionError, match="401 Unauthorized"):
+            with pytest.raises(PermissionError, match=error):
                 await hook.run(url="users")
 
             adapter.send_no_response_content_async.assert_called_once()
@@ -951,6 +961,21 @@ class TestResponseHandler:
 
         with pytest.raises(PermissionError):
             asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+    def test_handle_response_async_when_forbidden(self):
+        """Power BI reports an expired access token as 403 Forbidden with error code TokenExpired."""
+        body = {
+            "error": {
+                "code": "TokenExpired",
+                "message": "Access token has expired, resubmit with a new access token",
+            }
+        }
+        response = mock_json_response(403, body)
+
+        with pytest.raises(PermissionError) as exc_info:
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert exc_info.value.args == (body,)
 
     def test_handle_response_async_when_not_found(self):
         response = mock_json_response(404, {})

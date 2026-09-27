@@ -409,6 +409,11 @@ authored in the target language. An SDK declares each one independently.
     The SDK can execute a task declared in a Python Dag with the ``@task.stub``
     decorator. This is the primary execution path for every Language SDK.
 
+``taskflow-binding`` (MUST)
+    Arguments bound to a ``@task.stub`` target in the Python TaskFlow Dag — literal values
+    and upstream XCom results alike — are delivered to the task function's parameters at
+    runtime.
+
 ``task-logging`` (MUST)
     The SDK forwards the task's log output — stdout / stderr and any structured log
     records — to the supervisor over the ``--logs`` socket, so it surfaces in the task

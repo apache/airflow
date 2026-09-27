@@ -50,7 +50,16 @@ from airflow.providers.common.ai.utils.tool_definition import build_args_validat
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pydantic_ai._run_context import RunContext
+
+# Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
+# table) from an explicit value. Every explicit falsy value -- ``None`` as much as
+# ``[]`` -- is rejected, so an allow-list a Dag builds at runtime can never widen to
+# allow-all by resolving to nothing. Allow-all is reachable only by omitting the
+# argument, which is a static, visible decision in the Dag file.
+_UNSET: Any = object()
 
 # JSON Schemas for the four SQL tools.
 _LIST_TABLES_SCHEMA: dict[str, Any] = {
@@ -169,11 +178,17 @@ class SQLToolset(AbstractToolset[Any]):
     failure -- exhausts the retries and fails the task for Airflow to retry. The
     toolset does not inspect the error type or message.
 
-    :param db_conn_id: Airflow connection ID for the database.
-    :param allowed_tables: Restrict the agent to a fixed set of tables. ``None``
-        (default) exposes every table in ``schema``. Entries may be schema-qualified
-        (``"SCHEMA.TABLE"``) to span multiple schemas in one database -- common on
-        warehouses such as Snowflake. ``list_tables`` introspects each referenced
+    :param db_conn_id: Airflow connection ID for the database. Templated when the
+        toolset is passed to ``AgentOperator`` / ``@task.agent``, so each task
+        instance can reach its own database, e.g. one connection per customer.
+    :param allowed_tables: Restrict the agent to a fixed set of tables. Omit the
+        argument (the default) to expose every table in ``schema``. No *value* means
+        allow-all: ``None`` and an empty list both raise ``ValueError``, so an allow-list
+        built at runtime (a ``Variable.get`` with a ``None`` default, a config lookup, a
+        filtered comprehension) that resolves to nothing fails at import instead of
+        silently handing the agent the whole schema. Entries may be
+        schema-qualified (``"SCHEMA.TABLE"``) to span multiple schemas in one database
+        -- common on warehouses such as Snowflake. ``list_tables`` introspects each referenced
         schema and returns the matching tables fully qualified, and ``get_schema``
         routes to the table's own schema. Unqualified entries use ``schema``.
         Matching is case-insensitive, since databases reflect identifiers in their
@@ -235,19 +250,34 @@ class SQLToolset(AbstractToolset[Any]):
         its projection rather than page through the table.
     """
 
+    # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
+    # Airflow's templater would render in place wherever the toolset is nested.
+    agent_template_fields: Sequence[str] = ("_db_conn_id",)
+
     def __init__(
         self,
         db_conn_id: str,
         *,
-        allowed_tables: list[str] | None = None,
+        allowed_tables: list[str] = _UNSET,
         allowed_functions: list[str] | None = None,
         schema: str | None = None,
         allow_writes: bool = False,
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
     ) -> None:
+        self._allowed_tables: frozenset[str] | None
+        if allowed_tables is _UNSET:
+            self._allowed_tables = None
+        elif not allowed_tables:
+            raise ValueError(
+                f"allowed_tables must name at least one table, got {allowed_tables!r}. Omit the "
+                "argument to expose every table in the schema. An empty or missing value is "
+                "rejected rather than read as 'no restriction' so that an allow-list built at "
+                "runtime cannot silently widen to every table."
+            )
+        else:
+            self._allowed_tables = frozenset(allowed_tables)
         self._db_conn_id = db_conn_id
-        self._allowed_tables: frozenset[str] | None = frozenset(allowed_tables) if allowed_tables else None
         # Case-folded so matching a query's function names (also case-folded) is
         # case-insensitive, mirroring how allowed_tables is compared.
         self._allowed_functions: frozenset[str] = (
