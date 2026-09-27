@@ -1161,6 +1161,36 @@ type GetXCom struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Fetch multiple XCom values by key list in a single round-trip.
+type GetXComByKeys struct {
+	// DagID corresponds to the JSON schema field "dag_id".
+	DagID string `msgpack:"dag_id"`
+
+	// Keys corresponds to the JSON schema field "keys".
+	Keys []string `msgpack:"keys"`
+
+	// MapIndex corresponds to the JSON schema field "map_index".
+	MapIndex *int `msgpack:"map_index,omitempty"`
+
+	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
+	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
+
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
+	// RunID corresponds to the JSON schema field "run_id".
+	RunID string `msgpack:"run_id"`
+
+	// TaskID corresponds to the JSON schema field "task_id".
+	TaskID string `msgpack:"task_id"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Get the number of (mapped) XCom values available.
 type GetXComCount struct {
 	// DagID corresponds to the JSON schema field "dag_id".
