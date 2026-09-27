@@ -121,3 +121,13 @@ class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
     instructions_to_migrate_to_previous_version = (
         schema(GetXcomFilterParams).field("map_index").had(type=int, default=-1),
     )
+
+
+class AddXComKeysEndpoint(VersionChange):
+    """Add the ``POST xcoms/{dag_id}/{run_id}/{task_id}`` endpoint that fetches several XCom values by key in one query."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/xcoms/{dag_id}/{run_id}/{task_id}", ["POST"]).didnt_exist,
+    )

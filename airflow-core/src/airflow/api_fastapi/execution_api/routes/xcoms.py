@@ -41,6 +41,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, Ex
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     GetXcomFilterParams,
     GetXComSliceFilterParams,
+    XComKeysRequest,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -52,6 +53,8 @@ from airflow.api_fastapi.execution_api.security import (
     DagInGrantedBundle,
     ExecutionAPIRoute,
     ExecutionOrDagParseToken,
+    is_write_request,
+    reads_only,
     require_task_token,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
@@ -87,7 +90,6 @@ def has_xcom_access(
     dag_id: str,
     run_id: str,
     task_id: str,
-    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     session: SessionDep,
     token: ExecutionToken = CurrentExecutionToken,
@@ -98,7 +100,7 @@ def has_xcom_access(
     In multi-team mode, XCom access is scoped by team ownership (resolved via the
     ``dag -> bundle -> team`` chain). There is no cross-team XCom sharing:
 
-    * reads (``GET``/``HEAD``) are allowed for the requester's own team or for
+    * reads (``GET``/``HEAD``, or a ``reads_only`` route) are allowed for the requester's own team or for
       global (teamless) dags;
     * writes and deletes are allowed only for the requester's own team; a team
       task may not mutate a global dag's XCom, mirroring how team-scoped
@@ -112,7 +114,8 @@ def has_xcom_access(
     """
     from airflow.configuration import conf
 
-    write = request.method not in {"GET", "HEAD", "OPTIONS"}
+    write = is_write_request(request)
+    xcom_key = request.path_params.get("key")
 
     log.debug(
         "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
@@ -166,6 +169,7 @@ router = APIRouter(
     dependencies=[Depends(has_xcom_access)],
 )
 
+
 log = logging.getLogger(__name__)
 
 _ResolverDep = Annotated[TaskCoordinateResolver, Depends(_get_resolver)]
@@ -200,7 +204,7 @@ def _build_xcom_read(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: str | None,
     resolver: TaskCoordinateResolver,
     token: ExecutionToken,
     map_index: int | None = None,
@@ -220,6 +224,8 @@ def _build_xcom_read(
     ``region_id`` and ``region_index`` name the producer's region and pass explicitly, whatever the
     caller's own: a value that points at other XComs of its producer (an iterated task's result) reads
     them from the pass it was pushed in, by a reader outside the loop or in a later pass alike.
+
+    ``key`` None selects the rows of every key, for a caller that filters keys itself.
     """
     read = partial(
         XComModel.get_many,
@@ -756,6 +762,67 @@ def get_xcom(
         )
 
     return XComResponse(key=key, value=result.value)
+
+
+@router.post(
+    "/{dag_id}/{run_id}/{task_id}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
+            (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
+        ]
+    ),
+    summary="Get multiple XCom values by keys",
+    description=(
+        "Fetch multiple XCom values by key list in a single database query. "
+        "Optimised for XComIterable iteration, reducing N round-trips to one."
+    ),
+)
+@reads_only
+def get_xcom_by_keys(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    request_body: XComKeysRequest,
+    session: SessionDep,
+    resolver: _ResolverDep,
+    map_index: Annotated[int, Query()] = -1,
+    previous_iteration: bool = False,
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query()] = None,
+    token: ExecutionToken = CurrentExecutionToken,
+) -> XComSequenceSliceResponse:
+    """
+    Fetch multiple XCom values by different keys in a single database query.
+
+    The producer is resolved as for a single-key read: inside a loop the keys are read from the
+    caller's iteration, from the previous one with ``previous_iteration``, or from the region and
+    pass ``region_id`` and ``region_index`` name, as an iterated task's result does.
+    """
+    key_list = request_body.keys
+    if not key_list:
+        return XComSequenceSliceResponse([])
+
+    xcom_read = _build_xcom_read(
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        key=None,
+        session=session,
+        resolver=resolver,
+        token=token,
+        map_index=map_index,
+        previous_iteration=previous_iteration,
+        region_id=region_id,
+        region_index=region_index,
+    ).statement
+    entity = xcom_entity(xcom_read)
+    query = (
+        xcom_read.with_only_columns(entity.key, entity.value).where(entity.key.in_(key_list)).order_by(None)
+    )
+    rows = {row.key: row.value for row in session.execute(query)}
+    return XComSequenceSliceResponse([rows.get(key) for key in key_list])
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in

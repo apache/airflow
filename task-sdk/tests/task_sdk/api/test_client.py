@@ -1306,6 +1306,22 @@ class TestXCOMOperations:
         assert dict(requests[0].url.params) == expected_params
         assert result == XComResponse(key="key", value=["a", "b"])
 
+    @pytest.mark.parametrize("map_index", [pytest.param(-1, id="minus-one"), pytest.param(2, id="index")])
+    def test_xcom_get_by_keys_sends_map_index_as_given(self, map_index):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            return httpx2.Response(status_code=200, json=["a", "b"])
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get_by_keys(
+            dag_id="dag_id", run_id="run_id", task_id="task_id", keys=["k0", "k1"], map_index=map_index
+        )
+
+        assert dict(requests[0].url.params) == {"map_index": str(map_index)}
+        assert result == XComSequenceSliceResponse(["a", "b"])
+
     @pytest.mark.parametrize(
         ("slice_values", "expected"),
         [
