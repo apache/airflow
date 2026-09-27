@@ -65,6 +65,7 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1794,6 +1795,32 @@ class TestDag:
         dag.test()
         mock_object.assert_called_once()
 
+    @pytest.mark.parametrize("succeed_on_last_try", [False, True])
+    def test_dag_test_retries_use_consecutive_attempts(self, testing_dag_bundle, succeed_on_last_try):
+        attempts = []
+        dag = DAG(dag_id="test_dag_test_retry_attempts", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator(retries=2, retry_delay=timedelta(0))
+        def retry_task(ti):
+            attempts.append((ti.id, ti.try_number))
+            if not succeed_on_last_try or ti.try_number < 3:
+                raise RuntimeError("Retry this attempt")
+
+        with dag:
+            retry_task()
+        sync_dag_to_db(dag)
+
+        dr = dag.test()
+
+        ti = dr.get_task_instance("retry_task")
+        assert ti is not None
+        assert [try_number for _, try_number in attempts] == [1, 2, 3]
+        assert len({attempt_id for attempt_id, _ in attempts}) == 3
+        assert (ti.id, ti.try_number) == attempts[-1]
+        assert ti.max_tries == 2
+        assert ti.state == (TaskInstanceState.SUCCESS if succeed_on_last_try else TaskInstanceState.FAILED)
+        assert dr.state == (DagRunState.SUCCESS if succeed_on_last_try else DagRunState.FAILED)
+
     def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
         sync_dag_to_db(dag)
@@ -1814,6 +1841,47 @@ class TestDag:
 
         dag.test()
         mock_object.assert_called_with("output of first task")
+
+    @pytest.mark.parametrize("callback_error", [None, RuntimeError])
+    def test_dag_test_retry_callback_keeps_attempt_live(self, testing_dag_bundle, callback_error):
+        observed = []
+
+        def on_retry(context):
+            ti = context["ti"]
+            ti.xcom_push(key="retry_callback", value="written")
+            value = ti.xcom_pull(task_ids=ti.task_id, key="retry_callback")
+            with create_session() as session:
+                stored_ti = session.get(TI, ti.id)
+                observed.append((ti.id, stored_ti.state if stored_ti else None, ti.end_date, value))
+            if callback_error:
+                raise callback_error("callback failed")
+
+        with DAG(dag_id="test_retry_callback_live_attempt", schedule=None, start_date=DEFAULT_DATE) as dag:
+
+            @task_decorator(retries=1, retry_delay=timedelta(0), on_retry_callback=on_retry)
+            def fail_once(**context):
+                if context["ti"].try_number == 1:
+                    raise RuntimeError("retry this attempt")
+
+            fail_once()
+        sync_dag_to_db(dag)
+
+        dr = dag.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        assert len(observed) == 1
+        old_id, state_during_callback, end_date, value = observed[0]
+        assert state_during_callback == TaskInstanceState.RUNNING
+        assert value == "written"
+        with create_session() as session:
+            history = session.scalar(
+                select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+            )
+            assert history is not None
+            assert history.end_date == end_date
+            ti = dr.get_task_instance("fail_once", session=session)
+            assert ti.id != old_id
+            assert ti.try_number == 2
 
     def test_dag_test_with_fail_handler(self, testing_dag_bundle):
         mock_handle_object_1 = mock.MagicMock()
@@ -2017,8 +2085,13 @@ my_postgres_conn:
     @pytest.mark.parametrize(
         ("ti_state_begin", "ti_state_end"),
         [
-            *((state, None) for state in State.task_states if state != TaskInstanceState.RUNNING),
+            *(
+                (state, None)
+                for state in State.task_states
+                if state not in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)
+            ),
             (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING),
+            (TaskInstanceState.RESTARTING, TaskInstanceState.RESTARTING),
         ],
     )
     def test_clear_dag(

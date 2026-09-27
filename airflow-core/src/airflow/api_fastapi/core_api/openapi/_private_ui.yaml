@@ -4107,11 +4107,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
-        team_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
+        team_names:
+          items:
+            type: string
+          type: array
+          title: Team Names
         bundle_names:
           anyOf:
           - items:

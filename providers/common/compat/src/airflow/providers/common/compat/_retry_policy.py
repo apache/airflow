@@ -74,7 +74,8 @@ class ChainRetryPolicy(RetryPolicy):
 
     The winning decision's reason names the policy that decided, then what every earlier policy
     said: ``HTTPStatusRetryPolicy: HTTP 404 (after ExceptionRetryPolicy: no decision)``. The
-    worker stores it as ``retry_reason`` on a RETRY and logs it otherwise.
+    worker stores it as ``retry_reason`` on a RETRY, and on a FAIL from Airflow 3.4; when no
+    policy decided it is only logged.
 
     :param policies: The policies to consult, in order. At least one.
     """
@@ -123,5 +124,6 @@ class ChainRetryPolicy(RetryPolicy):
             if trail:
                 reason = f"{reason} (after {'; '.join(trail)})"
             return RetryDecision(action=decision.action, retry_delay=decision.retry_delay, reason=reason)
-        # The worker logs this reason as the policy decision; it is not stored, since nothing is retried by it.
+        # The worker logs this reason as the policy decision; it is not stored, since no policy
+        # took a position.
         return RetryDecision(action=RetryAction.DEFAULT, reason=f"no policy decided ({'; '.join(trail)})")

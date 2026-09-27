@@ -43,10 +43,49 @@ For each listed method, the introspection engine:
 3. Enriches parameter descriptions from Sphinx ``:param:`` or Google
    ``Args:`` blocks.
 
+.. _hook-toolset-templated-connection:
+
+Templated connection IDs
+------------------------
+
+The hook's connection ID is a Jinja template, rendered for each task instance just
+before it runs, so one toolset can reach a different system depending on the run:
+``PostgresHook(postgres_conn_id="warehouse_{{ var.value.environment }}")`` switches
+between staging and production, and a mapped task can give each map index its own
+connection:
+
+.. code-block:: python
+
+    @task.agent(
+        llm_conn_id="pydanticai_default",
+        toolsets=[
+            HookToolset(
+                PostgresHook(postgres_conn_id="analytics_{{ task.op_kwargs.customer }}"),
+                allowed_methods=["get_records"],
+            )
+        ],
+    )
+    def report(customer: str) -> str:
+        return f"Summarize this month's orders for {customer}."
+
+
+    report.expand(customer=customers())
+
+Each task instance runs against a copy of the hook with its rendered connection
+ID; the hook in the Dag file keeps the template. ``HookToolset`` reads the ID
+from the attribute ``conn_name_attr`` names, or from ``conn_id`` for hooks such as
+``WasbHook`` that keep it there; a hook that stores it anywhere else is not
+templated. This works for hooks that read their connection when a method is
+called, which is what Airflow hooks are expected to do: a hook that looks the
+connection up in its constructor fails at Dag parse time, because the template
+is not a connection ID yet. The same warning as for ``SQLToolset`` applies: build
+the ID from values the Dag controls, not from ``params`` or ``dag_run.conf`` (see
+:ref:`sql-toolset-templated-connection`).
+
 Parameters
 ----------
 
-- ``hook``: An instantiated Airflow Hook.
+- ``hook``: An instantiated Airflow Hook. Its connection ID is templated.
 - ``allowed_methods``: Method names to expose as tools. Required. Methods
   are validated with ``hasattr`` + ``callable`` at instantiation time.
 - ``tool_name_prefix``: Optional prefix prepended to each tool name

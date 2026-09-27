@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+0.10.0
+......
+
 .. note::
   ``LLMBranchOperator`` and ``LLMOperator`` now push a ``decision`` XCom on every run, next to
   ``return_value``, with the model's pick, the action taken, the confidence and probabilities
@@ -64,6 +67,84 @@ Changelog
   every table is still the default, but only by omitting the argument: no value you can
   pass requests it, so a runtime lookup can never widen the allow-list by accident. Dags
   that passed ``allowed_tables=None`` explicitly should drop the argument.
+
+.. note::
+  The PydanticAI vendor connection types are renamed from ``pydanticai-azure``,
+  ``pydanticai-bedrock`` and ``pydanticai-vertex`` to ``pydanticai_azure``,
+  ``pydanticai_bedrock`` and ``pydanticai_vertex``. The hyphenated names could never be
+  expressed as a connection URI scheme, so a connection stored in a secrets backend or in
+  ``AIRFLOW_CONN_*`` never resolved. An existing connection created with a hyphenated
+  ``conn_type`` no longer matches its hook and the task fails to find it: re-create it with
+  the underscored type (in the UI, pick the same vendor again and save).
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Reject allowed_tables=None and allowed_tables=[] in SQLToolset so only omitting it allows every table (#73381, #73452)``
+* ``Add a decision policy so an LLM operator asks a person when the model is unsure (#73368)``
+* ``Fix PydanticAI vendor connections not resolving from secrets backends (#72853)``
+
+Features
+~~~~~~~~
+
+* ``Allow templated connection IDs in agent toolsets (#73578)``
+* ``Cancel the agent run when a common.ai LLM or agent task is killed (#73495)``
+* ``Add JSON Lines support for DocumentLoaderOperator (#72246)``
+* ``Add an address-layer egress allowlist for hosted sandboxes (#73534)``
+* ``Add ClassifierRetryPolicy for classifier models and keep LLMRetryPolicy as the text-model policy (#73450, #73501)``
+* ``Add a deferrable batch execution mode to common.ai (#72938)``
+* ``Add a Modal backend for the sandbox toolset (#72910)``
+* ``Add support for TypeSafe Jev classifier models (#73363)``
+* ``Add branch_descriptions to LLMBranchOperator so the model reads what each branch means (#73367)``
+* ``Add connection-driven provider failover for common.ai LLM calls (#72156)``
+* ``Support assigned reviewers in LLM approval reviews (#72157)``
+* ``Stamp Airflow run identity onto agent runs and traces (#73275)``
+* ``Support notifiers in LLM approval reviews (#72159)``
+* ``Support timeout defaults in LLM approval reviews (#72155)``
+* ``Support per-run cost limits in common.ai LLM and Agent operators (#71403)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reject non-string prompts in LLMFileAnalysisOperator before reading files (#71734)``
+* ``Reject durable replay and human-in-the-loop review when an agent holds a SandboxToolset (#73529)``
+* ``Fix LLMBranchOperator sending branch options in a different order on each worker (#73366)``
+* ``Fail LLMOperator approval at parse time on Airflow cores older than 3.1 (#73261)``
+* ``Fix 'DocumentLoaderOperator' validation errors naming the wrong argument (#73053)``
+* ``Report the Airflow version error first when human-in-the-loop review needs Airflow 3.1 or newer (#73052)``
+* ``Restore Dag-parse-time validation for common.ai operator arguments (#70628)``
+
+Misc
+~~~~
+
+* ``Require pydantic-ai-slim 2.33.0 or newer so Anthropic models work with the anthropic 1.x SDK (#73511)``
+* ``Replace the retired gemini-2.0-flash example model in the Vertex connection placeholders and docs (#73516)``
+* ``Update the Azure OpenAI connection placeholders and document when api_version must be omitted (#73024)``
+* ``Add TypedDict type hints for AirflowPlugin list fields (#69761)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document sandbox enforcement, teardown and cost-limit scope for agents (#73589)``
+* ``Add a guide to developing and testing Common AI tasks locally (#73602)``
+* ``Fix stale and duplicated content in the 'common.ai' provider docs (#73567)``
+* ``Lead the common.ai docs with a runnable quick start and a verifiable result (#73556)``
+* ``Nest the 'common.ai' docs sidebar and lead with features and providers (#73548)``
+* ``Add use-case pages to the common.ai provider docs (#73542)``
+* ``Rename the common.ai retry policies page to cover both policies (#73526)``
+* ``Reorganize 'common.ai' provider docs into topic-based navigation (#73523)``
+* ``Add a decision guide for choosing between common.ai toolsets (#72936)``
+* ``Document GCS data sources in the common.ai SQL toolset guides (#73370)``
+* ``Update the LLM schema-compare guide and example for plain database tables (#73273)``
+* ``Document how retry policies and durable execution work together (#73160)``
+* ``Document usage_limits on all common.ai LLM operators (#73283)``
+* ``Make LLM retry policy failure model documentation more accurate (#73158)``
+* ``Document what the LLM can and cannot do in retry policies (#72947)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
 
 0.9.0
 .....

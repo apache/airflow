@@ -129,9 +129,9 @@ When a task fails, either policy:
    it is the picked category's ``retry`` and ``delay``, unless the policy has a
    confidence bar and the answer is under it, in which case the answer is
    discarded (see `Confidence`_ below).
-4. The decision is logged in the task logs and, on a RETRY, written to the task
-   instance's ``retry_reason``: ``<category>: <reasoning>`` from
-   ``LLMRetryPolicy``, or one line such as
+4. The decision is logged in the task logs and written to the task instance's
+   ``retry_reason``, on a FAIL as well as a RETRY: ``<category>: <reasoning>``
+   from ``LLMRetryPolicy``, or one line such as
    ``category=network confidence=0.91 threshold=0.60 action=retry delay=10s``
    from ``ClassifierRetryPolicy``.
 
@@ -403,8 +403,14 @@ Under ``LLMRetryPolicy`` it answers four fields: ``category``, ``should_retry``,
 ``suggested_delay_seconds`` and ``reasoning``, and the first two after
 ``category`` decide the run. A positive delay is used as returned, with no
 upper limit; zero or negative means no override, so the task's own
-``retry_delay`` and backoff apply. ``category`` and ``reasoning`` become the
-``retry_reason``.
+``retry_delay`` and backoff apply.
+
+``category`` and ``reasoning`` become the ``retry_reason`` (truncated to 500
+characters), recorded on both outcomes. On a RETRY the value is cleared once the next attempt starts running;
+a FAIL is terminal, so there is no next attempt to clear it and the reason stays
+on the row. Only the model's own words are stored -- attempt counts are left to
+whatever displays the reason. Recording on a FAIL requires Airflow 3.4.0; on
+earlier versions only the RETRY outcome is recorded.
 
 Under ``ClassifierRetryPolicy`` it answers the category name and nothing else. It does not
 decide whether to retry, it does not choose the delay, and it does not explain
@@ -413,11 +419,6 @@ the generated line in the task log, which says what mattered (the category,
 the confidence, the bar, the action). A model cannot return a category the
 policy does not recognize, and it cannot return a category paired with an
 action that contradicts it.
-
-The ``retry_reason`` is only recorded on a RETRY. It is written to the task
-instance (truncated to 500 characters), then cleared once the next attempt
-starts running. On a FAIL it is not written anywhere -- it only shows up in the
-task log.
 
 RETRY cannot give a task more attempts than ``retries`` allows. FAIL ends the
 task straight away even when attempts were left, so a wrong classification into

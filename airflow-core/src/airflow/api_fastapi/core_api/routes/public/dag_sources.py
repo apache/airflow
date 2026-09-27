@@ -63,7 +63,7 @@ def get_dag_source(
     version_number: int | None = None,
 ):
     """Get source code using file token."""
-    dag_version = DagVersion.get_version(dag_id, version_number, session=session)
+    dag_version = DagVersion.get_version(dag_id, version_number, load_dag_code=True, session=session)
     if not dag_version:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
