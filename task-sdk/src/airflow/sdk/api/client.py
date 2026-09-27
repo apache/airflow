@@ -797,6 +797,30 @@ class XComOperations:
         resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice", params=params)
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
+    def get_by_keys(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        keys: list[str],
+        map_index: int = -1,
+        *,
+        previous_iteration: bool = False,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
+    ) -> XComSequenceSliceResponse:
+        """Fetch multiple XCom values by key list in a single round-trip."""
+        params: dict[str, str | int | bool] = {"map_index": map_index} if map_index >= 0 else {}
+        if previous_iteration:
+            params["previous_iteration"] = True
+        # Sent only when set, as for a single read.
+        if region_id is not None:
+            params["region_id"] = str(region_id)
+        if region_index is not None:
+            params["region_index"] = region_index
+        resp = self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}", params=params, json={"keys": keys})
+        return XComSequenceSliceResponse.model_validate_json(resp.read())
+
 
 class TaskStateStoreOperations:
     __slots__ = ("client",)

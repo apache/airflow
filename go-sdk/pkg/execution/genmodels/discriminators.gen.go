@@ -73,6 +73,7 @@ const (
 	TypeGetVariable                 = "GetVariable"
 	TypeGetVariableKeys             = "GetVariableKeys"
 	TypeGetXCom                     = "GetXCom"
+	TypeGetXComByKeys               = "GetXComByKeys"
 	TypeGetXComCount                = "GetXComCount"
 	TypeGetXComSequenceItem         = "GetXComSequenceItem"
 	TypeGetXComSequenceSlice        = "GetXComSequenceSlice"
@@ -269,6 +270,9 @@ func EnsureType(m any) any {
 		return b
 	case GetXCom:
 		b.Type = TypeGetXCom
+		return b
+	case GetXComByKeys:
+		b.Type = TypeGetXComByKeys
 		return b
 	case GetXComCount:
 		b.Type = TypeGetXComCount

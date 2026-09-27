@@ -145,6 +145,7 @@ _REQUEST_SCOPE_JOB_KEY = "dag_processor_job_id"
 _IN_PROCESS_NON_TI_CALLER = "airflow_in_process_non_ti_caller"
 _IN_PROCESS_TRIGGERER_ID = "airflow_in_process_triggerer_id"
 _SKIP_AUTO_TI_ATTEMPT_LIVE = "skip_auto_ti_attempt_live"
+_READS_ONLY = "reads_only"
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
@@ -155,6 +156,19 @@ def skip_auto_ti_attempt_live(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
     """Mark a route that checks attempt liveness itself, so ``require_auth`` skips its automatic check."""
     setattr(endpoint, _SKIP_AUTO_TI_ATTEMPT_LIVE, True)
     return endpoint
+
+
+def reads_only(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
+    """Mark a route whose method is not ``GET`` but that only reads, such as a read taking its arguments as a body."""
+    setattr(endpoint, _READS_ONLY, True)
+    return endpoint
+
+
+def is_write_request(request: Request) -> bool:
+    """Whether a request may change state: any method but ``GET``, ``HEAD`` and ``OPTIONS``, unless its route reads only."""
+    return request.method not in {"GET", "HEAD", "OPTIONS"} and not getattr(
+        request.scope.get("route"), "reads_only", False
+    )
 
 
 class JWTBearer(HTTPBearer):
@@ -282,7 +296,7 @@ async def require_auth(
             )
 
     if (
-        request.method not in {"GET", "HEAD", "OPTIONS"}
+        is_write_request(request)
         and token_scope in {"execution", "workload"}
         and "connection_test_id" not in request.path_params
         and not request.scope.get(_IN_PROCESS_NON_TI_CALLER)
@@ -477,12 +491,14 @@ class ExecutionAPIRoute(APIRoute):
 
     allowed_token_types: frozenset[str]
     skip_auto_ti_attempt_live: bool
+    reads_only: bool
 
     requires_open_job: bool
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.skip_auto_ti_attempt_live = bool(getattr(self.endpoint, _SKIP_AUTO_TI_ATTEMPT_LIVE, False))
+        self.reads_only = bool(getattr(self.endpoint, _READS_ONLY, False))
 
         all_scopes: set[str] = set()
         for dep in self.dependencies:
