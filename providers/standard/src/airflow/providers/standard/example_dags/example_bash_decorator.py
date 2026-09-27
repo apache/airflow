@@ -125,7 +125,7 @@ def example_bash_decorator():
             set -e
             dag_folder="$AIRFLOW_HOME/dags"
             file_count=$(find "$dag_folder" -type f -name '*.py' 2>/dev/null | wc -l)
-            printf '{"dag_folder": "%s", "file_count": %s}\\n' "$dag_folder" "$file_count"
+            printf '{"dag_folder": "%s", "file_count": "%s"}\\n' "$dag_folder" "$file_count"
         """
 
     dag_stats = describe_dag_folder()
@@ -136,6 +136,7 @@ def example_bash_decorator():
 
     # Each key of the returned dict is available as its own XCom. Values produced by another task
     # reach the command through the environment, so the shell never parses them as command text.
+    # Environment values must be strings, which is why describe_dag_folder emits file_count as one.
     show_dag_folder_stats.override(
         env={"DAG_FOLDER": dag_stats["dag_folder"], "FILE_COUNT": dag_stats["file_count"]},
         append_env=True,
