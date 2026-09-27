@@ -21,27 +21,26 @@ from sqlalchemy import select
 
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.serialization.definitions.xcom_arg import prefetch_map_lengths
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.mapping import expand_mapped_task_instances, push_mapped_length
 
 pytestmark = pytest.mark.db_test
 
 
-def _add_task_map(session, dag_run, task_id, length):
-    session.add(
-        TaskMap(
-            dag_id=dag_run.dag_id,
-            task_id=task_id,
-            run_id=dag_run.run_id,
-            map_index=-1,
-            length=length,
-            keys=None,
+def _push_length(session, dag_run, task_id, length):
+    ti = session.scalars(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == dag_run.dag_id,
+            TaskInstance.task_id == task_id,
+            TaskInstance.run_id == dag_run.run_id,
+            TaskInstance.map_index == -1,
         )
-    )
+    ).one()
+    push_mapped_length(ti, list(range(length)), session=session)
 
 
 def _get_expand_input(dag_maker, task_id="show"):
@@ -67,7 +66,7 @@ def test_map_lengths_over_unmapped_upstreams_use_a_single_query(dag_maker, sessi
 
     dag_run = dag_maker.create_dagrun()
     for task_id, length in (("emit_a", 2), ("emit_b", 3), ("emit_c", 4)):
-        _add_task_map(session, dag_run, task_id, length)
+        _push_length(session, dag_run, task_id, length)
     session.commit()
 
     expand_input = _get_expand_input(dag_maker)
@@ -92,7 +91,7 @@ def test_map_lengths_resolve_nested_zip_leaves_in_one_batch(dag_maker, session):
 
     dag_run = dag_maker.create_dagrun()
     for task_id, length in (("emit_a", 2), ("emit_b", 3)):
-        _add_task_map(session, dag_run, task_id, length)
+        _push_length(session, dag_run, task_id, length)
     session.commit()
 
     expand_input = _get_expand_input(dag_maker)
@@ -117,7 +116,7 @@ def test_expand_kwargs_resolves_concatenated_upstreams_in_one_batch(dag_maker, s
 
     dag_run = dag_maker.create_dagrun()
     for task_id, length in (("emit_a", 2), ("emit_b", 3)):
-        _add_task_map(session, dag_run, task_id, length)
+        _push_length(session, dag_run, task_id, length)
     session.commit()
 
     expand_input = _get_expand_input(dag_maker)
@@ -144,10 +143,10 @@ def _make_mapped_upstream_dag(dag_maker, session):
         show.expand(a=double.expand(x=emit()), b=emit_other())
 
     dag_run = dag_maker.create_dagrun()
-    _add_task_map(session, dag_run, "emit", 2)
-    _add_task_map(session, dag_run, "emit_other", 4)
+    _push_length(session, dag_run, "emit", 2)
+    _push_length(session, dag_run, "emit_other", 4)
     session.flush()
-    TaskMap.expand_mapped_task(dag_maker.serialized_dag.get_task("double"), dag_run.run_id, session=session)
+    expand_mapped_task_instances(dag_maker.serialized_dag.get_task("double"), dag_run.run_id, session=session)
     session.flush()
     return dag_run
 

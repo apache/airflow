@@ -27,7 +27,6 @@ from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
@@ -178,14 +177,18 @@ def prefetch_map_lengths(
 
     lengths: dict[tuple[str, str], int] = {}
     if unmapped:
+        # Not the argument keys: the SDK records the length of the whole return value,
+        # never per key. A NULL length means the value cannot expand anything, which is
+        # as unresolved as a missing row.
         rows = session.execute(
-            select(TaskMap.dag_id, TaskMap.task_id, TaskMap.length).where(
-                TaskMap.run_id == run_id,
-                TaskMap.map_index < 0,
-                tuple_(TaskMap.dag_id, TaskMap.task_id).in_(sorted(unmapped)),
+            select(XComModel.dag_id, XComModel.task_id, XComModel.mapped_length).where(
+                XComModel.run_id == run_id,
+                XComModel.map_index == -1,
+                XComModel.key == XCOM_RETURN_KEY,
+                tuple_(XComModel.dag_id, XComModel.task_id).in_(sorted(unmapped)),
             )
         )
-        lengths.update(((dag_id, task_id), length) for dag_id, task_id, length in rows)
+        lengths.update(((dag_id, task_id), length) for dag_id, task_id, length in rows if length is not None)
     if mapped:
         unfinished = set(
             session.execute(
