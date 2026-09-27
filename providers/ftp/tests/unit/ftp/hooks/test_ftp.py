@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ftplib
 from io import StringIO
 from unittest import mock
 
@@ -261,6 +262,26 @@ class TestIntegrationFTPHook:
         conn.connect.assert_called_once_with("localhost", 10000)
         conn.login.assert_called_once_with("user", "pass123")
         conn.set_pasv.assert_called_once_with(True)
+
+    @mock.patch("ftplib.FTP_TLS.connect")
+    @mock.patch("ftplib.FTP_TLS.login")
+    @mock.patch("ftplib.FTP_TLS.set_pasv")
+    @mock.patch("ftplib.FTP_TLS.prot_p")
+    def test_ftps_custom_port_and_login(self, mock_prot_p, mock_set_pasv, mock_login, mock_connect):
+        from airflow.providers.ftp.hooks.ftp import FTPSHook
+
+        FTPSHook("ftp_custom_port_and_login").get_conn()
+
+        mock_connect.assert_called_once_with("localhost", 10000)
+        mock_login.assert_called_once_with("user", "pass123")
+        # The port must not leak into the default port of other FTP_TLS connections
+        assert ftplib.FTP_TLS.port == ftplib.FTP_PORT
+
+        mock_connect.reset_mock()
+        FTPSHook("ftp_passive").get_conn()
+
+        mock_connect.assert_called_once_with("localhost", 0)
+        mock_login.assert_called_once()
 
     @mock.patch("ftplib.FTP_TLS")
     def test_ftps_passive_mode(self, mock_ftp):
