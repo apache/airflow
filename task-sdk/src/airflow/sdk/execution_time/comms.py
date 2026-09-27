@@ -22,6 +22,8 @@ Communication protocol between the Supervisor and the task process
 * All communication is done over the subprocesses stdin in the form of a binary length-prefixed msgpack frame
   (4 byte, big-endian length, followed by the msgpack-encoded _RequestFrame.) Each side uses this same
   encoding
+* Python subprocess channels encode integer values outside MessagePack's native range using extension 0,
+  with a signed, big-endian byte payload. External language-SDK channels do not enable this extension.
 * Log Messages from the subprocess are sent over the dedicated logs socket (which is line-based JSON)
 * No messages are sent to task process except in response to a request. (This is because the task process will
   be running user's code, so we can't read from stdin until we enter our code, such as when requesting an XCom
@@ -175,14 +177,42 @@ def _new_encoder() -> msgspec.msgpack.Encoder:
     return msgspec.msgpack.Encoder(enc_hook=_msgpack_enc_hook)
 
 
+def _encode_large_ints(value: Any) -> Any:
+    if isinstance(value, int) and not -(2**63) <= value < 2**64:
+        return msgspec.msgpack.Ext(0, value.to_bytes((value.bit_length() + 8) // 8, "big", signed=True))
+    if isinstance(value, dict):
+        return {key: _encode_large_ints(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_encode_large_ints(item) for item in value]
+    if isinstance(value, msgspec.Struct):
+        return msgspec.structs.replace(
+            value, **{name: _encode_large_ints(getattr(value, name)) for name in value.__struct_fields__}
+        )
+    if isinstance(value, BaseModel):
+        return _encode_large_ints(value.model_dump(exclude_unset=True))
+    return value
+
+
+def _decode_msgpack_ext(code: int, data: memoryview) -> Any:
+    if code == 0:
+        return int.from_bytes(data, "big", signed=True)
+    return msgspec.msgpack.Ext(code, data)
+
+
 class _FrameMixin:
     _encoder: ClassVar[msgspec.msgpack.Encoder] = _new_encoder()
 
-    def as_bytes(self) -> bytearray:
+    def as_bytes(self, *, allow_large_ints: bool = True) -> bytearray:
         # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
         buffer = bytearray(256)
 
-        self._encoder.encode_into(self, buffer, 4)  # type: ignore[arg-type]
+        try:
+            self._encoder.encode_into(self, buffer, 4)  # type: ignore[arg-type]
+        except OverflowError:
+            if not allow_large_ints:
+                raise
+            # Keep the usual path free of a Python traversal of every message.
+            self._encoder.encode_into(_encode_large_ints(self), buffer, 4)
 
         n = len(buffer) - 4
         if n >= 2**32:
@@ -227,7 +257,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     socket: socket = attrs.field(factory=lambda: socket(fileno=0))
 
     resp_decoder: msgspec.msgpack.Decoder[_ResponseFrame] = attrs.field(
-        factory=lambda: msgspec.msgpack.Decoder(_ResponseFrame), repr=False
+        factory=lambda: msgspec.msgpack.Decoder(_ResponseFrame, ext_hook=_decode_msgpack_ext), repr=False
     )
 
     id_counter: Iterator[int] = attrs.field(factory=itertools.count)
