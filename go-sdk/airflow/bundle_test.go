@@ -117,16 +117,48 @@ func TestRegisterRejectsDuplicateTask(t *testing.T) {
 	)
 }
 
+func TestRegisterTakesTaskHandlersAndDagsTogether(t *testing.T) {
+	etl := Dag("etl", DagSpec{})
+	etl.Task(extract)
+
+	b := Bundle()
+	b.Register(TaskHandler("py_etl", "transform", noop), etl)
+
+	_, ok := b.taskHandlers.LookupTask("py_etl", "transform")
+	assert.True(t, ok)
+	assert.Same(t, etl, b.dags.dags["etl"])
+	assert.True(t, etl.registered)
+}
+
+func TestRegisterRejectsDuplicateDag(t *testing.T) {
+	etl := Dag("etl", DagSpec{})
+	b := Bundle()
+	b.Register(etl)
+
+	want := `airflow.BundleRef.Register: Dag "etl" is already registered`
+	assert.PanicsWithValue(t, want, func() { b.Register(etl) })
+	second := Dag("etl", DagSpec{})
+	assert.PanicsWithValue(t, want, func() { b.Register(second) })
+	assert.Same(t, etl, b.dags.dags["etl"])
+	assert.False(t, second.registered, "a Dag that Register rejects can still take tasks")
+}
+
+func TestRegisterRejectsNilDag(t *testing.T) {
+	var dag *DagRef
+	assert.PanicsWithValue(t, "airflow.BundleRef.Register: cannot register a nil *airflow.DagRef",
+		func() { Bundle().Register(dag) },
+	)
+}
+
 func TestRegisterAfterServePanics(t *testing.T) {
 	b := Bundle()
 	b.Register(TaskHandler("py_etl", "transform", noop))
 	require.NoError(t, b.serve([]string{"--airflow-metadata"}, io.Discard))
 
-	assert.PanicsWithValue(
-		t,
-		"airflow.BundleRef.Register: Serve has already been called; register everything before Serve",
-		func() { b.Register(TaskHandler("py_etl", "load", noop)) },
-	)
+	want := "airflow.BundleRef.Register: Serve has already been called; " +
+		"register everything before Serve"
+	assert.PanicsWithValue(t, want, func() { b.Register(TaskHandler("py_etl", "load", noop)) })
+	assert.PanicsWithValue(t, want, func() { b.Register(Dag("etl", DagSpec{})) })
 }
 
 // The flag lives on the bundle, not on the task-handler map, so a kind of item added to
@@ -160,6 +192,7 @@ func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
 			defer wg.Done()
 			for i := range perWorker {
 				b.Register(TaskHandler("py_etl", fmt.Sprintf("task_%d_%d", worker, i), noop))
+				b.Register(Dag(fmt.Sprintf("dag_%d_%d", worker, i), DagSpec{}))
 				b.taskHandlers.LookupTask("py_etl", "task_0_0")
 				b.taskHandlers.ListTaskHandlers()
 			}
@@ -168,6 +201,7 @@ func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
 	wg.Wait()
 
 	assert.Len(t, b.taskHandlers.ListTaskHandlers(), workers*perWorker)
+	assert.Len(t, b.dags.dags, workers*perWorker)
 }
 
 func TestRegisterRejectsNilItem(t *testing.T) {
