@@ -2149,7 +2149,7 @@ def _send_error_email_notification(
         subject = Path(subject_template_file).read_text()
     else:
         # Fallback to default
-        subject = "[Airflow] {{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
+        subject = "{{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
 
     html_content_template_file = conf.get("email", "html_content_template", fallback=None)
 
@@ -2183,7 +2183,7 @@ def _send_error_email_notification(
         "try_number": ti.try_number,
         "max_tries": ti.max_tries,
         # Pass the value, not the enum: str() on it renders as "TaskInstanceState.FAILED".
-        "task_state": ti.state.value if ti.state else "unknown",
+        "task_state": ti.state.value if ti.state else None,
     }
     email_context = {**context, **additional_context}
     to_emails = task.email

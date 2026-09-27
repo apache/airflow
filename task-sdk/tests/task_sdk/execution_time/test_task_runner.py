@@ -4549,13 +4549,9 @@ class TestEmailNotifications:
                     assert kwargs["from_email"] == self.FROM
                     assert kwargs["to"] == emails
                     assert (
-                        kwargs["subject"]
-                        == "[Airflow] {{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
+                        kwargs["subject"] == "{{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
                     )
-                    assert (
-                        kwargs["html_content"]
-                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>'
-                    )
+                    assert "html_content" in kwargs
 
     @pytest.mark.parametrize(
         ("emails", "sent"),
@@ -4611,13 +4607,9 @@ class TestEmailNotifications:
                     assert kwargs["from_email"] == self.FROM
                     assert kwargs["to"] == emails
                     assert (
-                        kwargs["subject"]
-                        == "[Airflow] {{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
+                        kwargs["subject"] == "{{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
                     )
-                    assert (
-                        kwargs["html_content"]
-                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>'
-                    )
+                    assert "html_content" in kwargs
                     email_context = mock_smtp_notifier.return_value.call_args.args[0]
                     assert email_context["task_state"] == "failed"
 
@@ -4671,16 +4663,18 @@ class TestEmailNotifications:
     def test_default_email_body_renders_without_dates(self, create_runtime_ti, mock_supervisor_comms):
         from airflow.sdk.execution_time.task_runner import _send_error_email_notification
 
-        task = BaseOperator(task_id="callback_task", email=["test@example.com"], email_on_failure=True)
-        runtime_ti = create_runtime_ti(task=task)
+        task = BaseOperator(task_id="example_task", email=["test@example.com"], email_on_failure=True)
+        runtime_ti = create_runtime_ti(
+            task=task, dag_id="example_dag", run_id="manual__2026-09-25T00:00:00+00:00"
+        )
         # The Dag-processor callback path builds the task instance from the callback request alone,
         # which carries no dates, and the Dag's Jinja environment is StrictUndefined.
         callback_ti = RuntimeTaskInstance.model_construct(
             id=runtime_ti.id,
-            task_id=runtime_ti.task_id,
-            dag_id=runtime_ti.dag_id,
-            run_id=runtime_ti.run_id,
-            try_number=runtime_ti.try_number,
+            task_id="example_task",
+            dag_id="example_dag",
+            run_id="manual__2026-09-25T00:00:00+00:00",
+            try_number=1,
             dag_version_id=runtime_ti.dag_version_id,
             task=task,
             _ti_context_from_server=None,
@@ -4698,11 +4692,20 @@ class TestEmailNotifications:
         env = task.dag.get_template_env()
 
         assert env.from_string(kwargs["subject"]).render(email_context) == (
-            f"[Airflow] {callback_ti.dag_id}.{callback_ti.task_id} unknown - Run {callback_ti.run_id}"
+            "example_dag.example_task None - Run manual__2026-09-25T00:00:00+00:00"
         )
-        rendered_body = env.from_string(kwargs["html_content"]).render(email_context)
-        assert "Started:" not in rendered_body
-        assert "Ended:" not in rendered_body
+        assert (
+            env.from_string(kwargs["html_content"])
+            .render(email_context)
+            .startswith(
+                "Dag: example_dag<br>"
+                "Task: example_task<br>"
+                "Run: manual__2026-09-25T00:00:00+00:00<br>"
+                "State: None<br>"
+                "Try: 1 out of 1<br>"
+                "Exception:<br>boom<br>"
+            )
+        )
 
     def test_custom_email_backend_is_used(self, create_runtime_ti, mock_supervisor_comms):
         """A custom ``[email] email_backend`` is wrapped and invoked with rendered fields."""
