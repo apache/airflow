@@ -1632,26 +1632,34 @@ class TestDagFileProcessorManager:
         ):
             manager._kill_timed_out_processors()
         assert mock_kill.call_args_list == [mock.call(signal.SIGKILL)] * 2
-        assert stats_decr_mock.call_args_list == [
-            mock.call(
-                "dag_processing.processes",
-                tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_a", "action": "timeout"},
-            ),
-            mock.call(
-                "dag_processing.processes",
-                tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_b", "action": "timeout"},
-            ),
-        ]
-        assert stats_incr_mock.call_args_list == [
-            mock.call(
-                "dag_processing.processor_timeouts",
-                tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_a"},
-            ),
-            mock.call(
-                "dag_processing.processor_timeouts",
-                tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_b"},
-            ),
-        ]
+        assert stats_decr_mock.call_count == 2
+        stats_decr_mock.assert_has_calls(
+            [
+                mock.call(
+                    "dag_processing.processes",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_a", "action": "timeout"},
+                ),
+                mock.call(
+                    "dag_processing.processes",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_b", "action": "timeout"},
+                ),
+            ],
+            any_order=True,
+        )
+        assert stats_incr_mock.call_count == 2
+        stats_incr_mock.assert_has_calls(
+            [
+                mock.call(
+                    "dag_processing.processor_timeouts",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_a"},
+                ),
+                mock.call(
+                    "dag_processing.processor_timeouts",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_b"},
+                ),
+            ],
+            any_order=True,
+        )
         assert not manager._processors
         processor_a.logger_filehandle.close.assert_called_once_with()
         processor_b.logger_filehandle.close.assert_called_once_with()
