@@ -1,0 +1,1 @@
+Mask connection ``extra`` fields that the connection type's provider declares sensitive. The connections API now masks every ``extra`` field a provider marks as a password for that connection type, in addition to fields whose names match the global sensitive-name list.
