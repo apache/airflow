@@ -609,3 +609,59 @@ class TestRetryConfigurationEnvVars:
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == "0"
         assert result.stderr == ""
+
+
+class TestGetClientEnvironment:
+    """Regression coverage for GH#70519.
+
+    ``get_client`` (and therefore every ``@provide_api_client``-decorated
+    command) must resolve the config file for the requested environment
+    instead of silently using production credentials for every command except
+    ``auth login``.
+    """
+
+    @staticmethod
+    def _write_environment_config(airflow_home, environment: str, api_url: str) -> None:
+        (airflow_home / f"{environment}.json").write_text(json.dumps({"api_url": api_url}), encoding="utf-8")
+
+    @pytest.fixture(autouse=True)
+    def environments(self, tmp_path):
+        """The module fixture already clears the environment; pin AIRFLOW_HOME to tmp_path."""
+        os.environ["AIRFLOW_HOME"] = str(tmp_path)
+        self._write_environment_config(tmp_path, "production", "https://prod.example.com")
+        self._write_environment_config(tmp_path, "staging", "https://staging.example.com")
+        yield tmp_path
+        del os.environ["AIRFLOW_HOME"]
+
+    def test_defaults_to_production(self):
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN") as client:
+            assert "prod.example.com" in str(client.base_url)
+
+    def test_uses_the_requested_environment(self):
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="staging") as client:
+            assert "staging.example.com" in str(client.base_url)
+
+    def test_no_auth_uses_the_requested_environment(self):
+        with get_client(kind=ClientKind.NO_AUTH, api_environment="staging") as client:
+            assert "staging.example.com" in str(client.base_url)
+
+    def test_environment_variable_beats_the_explicit_argument(self, monkeypatch):
+        """AIRFLOW_CLI_ENVIRONMENT keeps precedence, matching Credentials' own contract."""
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "staging")
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="production") as client:
+            assert "staging.example.com" in str(client.base_url)
+
+    def test_decorator_forwards_the_env_argument(self):
+        """``@provide_api_client`` reads ``--env`` off the parsed args namespace."""
+        from types import SimpleNamespace
+
+        from airflowctl.api.client import provide_api_client
+
+        @provide_api_client(kind=ClientKind.CLI)
+        def command_under_test(args, api_client=None):
+            # Inspect the client inside the command: the wrapper closes it
+            # before returning.
+            return "staging.example.com" in str(api_client.base_url)
+
+        args = SimpleNamespace(env="staging", api_token="TOKEN")
+        assert command_under_test(args) is True
