@@ -32,6 +32,7 @@ from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.logging.decorators import (
     _mask_connection_fields,
     _mask_variable_fields,
+    _mask_xcom_fields,
     _sanitize_for_stdlib_log,
     action_logging,
 )
@@ -147,6 +148,20 @@ class TestMaskVariableFields:
     def test_value_without_key_is_still_masked(self):
         result = _mask_variable_fields({"value": "secretval"})
         assert result == {"value": "***"}
+
+
+class TestMaskXComFields:
+    """The XCom value is masked unconditionally in the audit log; the key and map index are kept."""
+
+    def test_masks_value(self):
+        result = _mask_xcom_fields({"key": "report_rows", "value": "payload", "map_index": -1})
+        assert result == {"key": "report_rows", "value": "***", "map_index": -1}
+
+    def test_masks_structured_value(self):
+        assert _mask_xcom_fields({"value": {"nested": ["payload"]}}) == {"value": "***"}
+
+    def test_body_without_value_is_unchanged(self):
+        assert _mask_xcom_fields({"xcom_key": "k", "map_index": 0}) == {"xcom_key": "k", "map_index": 0}
 
 
 class TestMaskBulkFields:
