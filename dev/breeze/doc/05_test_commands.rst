@@ -108,6 +108,15 @@ For example this will run API and WWW tests in parallel:
 
     breeze testing core-tests --parallel-test-types "API WWW" --run-in-parallel
 
+When testing separate worktrees concurrently, give each invocation a different
+``--project-name``. This isolates its containers, networks, and database volumes.
+The option also applies to ``breeze testing providers-tests``.
+
+.. code-block:: bash
+
+    breeze testing core-tests --project-name breeze-history --backend postgres
+    breeze testing core-tests --project-name breeze-clearing --backend postgres
+
 Here is the detailed set of options for the ``breeze testing core-tests`` command.
 
 .. image:: ./images/output_testing_core-tests.svg

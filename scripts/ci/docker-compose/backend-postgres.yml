@@ -44,4 +44,4 @@ services:
     restart: "on-failure"
 volumes:
   postgres-data-volume:
-    name: "postgres${POSTGRES_VERSION}-db-volume"
+    name: "${COMPOSE_PROJECT_NAME}-postgres${POSTGRES_VERSION}-db-volume"
