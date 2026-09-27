@@ -30,7 +30,7 @@ from moto import mock_aws
 import airflow.version
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -248,7 +248,7 @@ class TestS3DagBundle:
         )
 
     def test_archive_key_and_prefix_are_mutually_exclusive(self):
-        with pytest.raises(AirflowException, match="either 'prefix' or 'archive_key'"):
+        with pytest.raises(ValueError, match="either 'prefix' or 'archive_key'"):
             S3DagBundle(
                 name="test",
                 aws_conn_id=AWS_CONN_ID_DEFAULT,
@@ -298,7 +298,7 @@ class TestS3DagBundle:
         # there is no fallback to a per-object sync, so a missing archive is fatal even
         # though this bucket does hold Dag objects under a prefix
         bundle = self._archive_bundle()
-        with pytest.raises(AirflowException, match="does not exist"):
+        with pytest.raises(AirflowNotFoundException, match="does not exist"):
             bundle.initialize()
 
     def test_refresh_raises_and_keeps_bundle_when_archive_is_corrupt(self, mocked_s3_resource, s3_client):

@@ -27,7 +27,7 @@ import structlog
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 
 class S3DagBundle(BaseDagBundle):
@@ -65,7 +65,7 @@ class S3DagBundle(BaseDagBundle):
     ) -> None:
         super().__init__(**kwargs)
         if prefix and archive_key:
-            raise AirflowException(
+            raise ValueError(
                 "S3DagBundle accepts either 'prefix' or 'archive_key', not both. When "
                 "'archive_key' is set the archive is the only staging source."
             )
@@ -101,7 +101,7 @@ class S3DagBundle(BaseDagBundle):
 
             if self.archive_key:
                 if not self.s3_hook.check_for_key(key=self.archive_key, bucket_name=self.bucket_name):
-                    raise AirflowException(
+                    raise AirflowNotFoundException(
                         f"S3 archive 's3://{self.bucket_name}/{self.archive_key}' does not exist."
                     )
             elif self.prefix:
