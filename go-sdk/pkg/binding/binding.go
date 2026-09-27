@@ -38,7 +38,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -163,7 +162,7 @@ func (p *Plan) Resolve(
 	out := make([]reflect.Value, len(p.params))
 	// Bound to the live task context, so actx.Done() fires on supervisor shutdown.
 	ti, dagRun := storedRunMetadata(ctx)
-	out[0] = reflect.ValueOf(airflow.NewContext(ctx, logger, client, ti, dagRun))
+	out[0] = newAirflowContext(ctx, logger, client, ti, dagRun)
 	if p.loneStruct {
 		return p.resolveLoneStructParam(ctx, client, args, out)
 	}
@@ -487,7 +486,7 @@ func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error)
 		if in == airflowContextType {
 			return paramPlan{kind: paramAirflowContext, index: index}, nil
 		}
-		if in == reflect.PointerTo(airflowContextType) {
+		if in == airflowContextPtrType {
 			return paramPlan{}, fmt.Errorf(
 				"task function %s: parameter 0 is %s, but airflow.Context is taken by value",
 				fnName, in,
@@ -837,8 +836,7 @@ func implementsUnmarshaler(t reflect.Type) bool {
 }
 
 var (
-	airflowContextType = reflect.TypeFor[airflow.Context]()
-	slogLoggerType     = reflect.TypeFor[*slog.Logger]()
+	slogLoggerType = reflect.TypeFor[*slog.Logger]()
 
 	jsonUnmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()

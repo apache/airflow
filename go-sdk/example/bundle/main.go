@@ -25,51 +25,57 @@ import (
 	"time"
 
 	"github.com/apache/airflow/go-sdk/airflow"
-	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
 	"github.com/apache/airflow/go-sdk/example/bundle/concurrentxcom"
 	"github.com/apache/airflow/go-sdk/example/bundle/taskflowbinding"
 	"github.com/apache/airflow/go-sdk/example/bundle/variablewrite"
 )
 
-type myBundle struct{}
+func main() {
+	bundle := airflow.Bundle()
 
-// myBundle must implement v1.BundleProvider
-var _ v1.BundleProvider = (*myBundle)(nil)
+	bundle.Register(
+		airflow.TaskHandler("simple_dag", "extract", extract),
+		airflow.TaskHandler("simple_dag", "transform", transform),
+		airflow.TaskHandler("simple_dag", "load", load),
 
-func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-	simpleDag := dagbag.AddDag("simple_dag")
-	simpleDag.AddTask(extract)
-	simpleDag.AddTask(transform)
-	simpleDag.AddTask(load)
+		// Task handlers defined in other packages register the same way.
+		airflow.TaskHandler(
+			"concurrent_xcom_dag",
+			"pull_xcoms_concurrently",
+			concurrentxcom.PullXComsConcurrently,
+		),
 
-	// Tasks defined in other packages register through the same dagbag.
-	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
-	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently)
+		airflow.TaskHandler("taskflow_binding_dag", "make_config", taskflowbinding.MakeConfig),
+		airflow.TaskHandler("taskflow_binding_dag", "make_numbers", taskflowbinding.MakeNumbers),
+		airflow.TaskHandler("taskflow_binding_dag", "make_region", taskflowbinding.MakeRegion),
+		airflow.TaskHandler("taskflow_binding_dag", "via_flat_args", taskflowbinding.ViaFlatArgs),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_no_tags",
+			taskflowbinding.ViaStructNoTags,
+		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_arg_tag",
+			taskflowbinding.ViaStructArgTag,
+		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_unmatched_arg",
+			taskflowbinding.ViaStructUnmatchedArg,
+		),
+		airflow.TaskHandler("taskflow_binding_dag", "via_flat_map", taskflowbinding.ViaFlatMap),
+		airflow.TaskHandler("taskflow_binding_dag", "via_struct_map", taskflowbinding.ViaStructMap),
+		airflow.TaskHandler("taskflow_binding_dag", "via_plain_map", taskflowbinding.ViaPlainMap),
 
-	bindingDag := dagbag.AddDag("taskflow_binding_dag")
-	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
-	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
-	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion)
-	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs)
-	bindingDag.AddTaskWithName("via_struct_no_tags", taskflowbinding.ViaStructNoTags)
-	bindingDag.AddTaskWithName("via_struct_arg_tag", taskflowbinding.ViaStructArgTag)
-	bindingDag.AddTaskWithName("via_struct_unmatched_arg", taskflowbinding.ViaStructUnmatchedArg)
-	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
-	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
-	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
-
-	variableWriteDag := dagbag.AddDag("variable_write_dag")
-	variableWriteDag.AddTaskWithName(
-		"write_and_delete_variable",
-		variablewrite.WriteAndDeleteVariable,
+		airflow.TaskHandler(
+			"variable_write_dag",
+			"write_and_delete_variable",
+			variablewrite.WriteAndDeleteVariable,
+		),
 	)
 
-	return nil
-}
-
-func main() {
-	if err := bundlev1server.Serve(&myBundle{}); err != nil {
+	if err := bundle.Serve(); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -341,6 +341,10 @@ export type BulkActionResponse = {
     }>;
 };
 
+export type BulkBody_BulkDAGBody_ = {
+    actions: Array<(BulkCreateAction_BulkDAGBody_ | BulkUpdateAction_BulkDAGBody_ | BulkDeleteAction_BulkDAGBody_)>;
+};
+
 export type BulkBody_BulkDAGRunBody_ = {
     actions: Array<(BulkCreateAction_BulkDAGRunBody_ | BulkUpdateAction_BulkDAGRunBody_ | BulkDeleteAction_BulkDAGRunBody_)>;
 };
@@ -359,6 +363,18 @@ export type BulkBody_PoolBody_ = {
 
 export type BulkBody_VariableBody_ = {
     actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
+};
+
+export type BulkCreateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<BulkDAGBody>;
+    action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_BulkDAGRunBody_ = {
@@ -422,6 +438,15 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
+ * Request body for bulk update of Dags.
+ */
+export type BulkDAGBody = {
+    is_paused?: boolean | null;
+    scheduling_state?: DagSchedulingState | null;
+    dag_id: string;
+};
+
+/**
  * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
@@ -459,6 +484,18 @@ export type BulkDAGRunClearBody = {
     run_on_latest_version?: boolean | null;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
+};
+
+export type BulkDeleteAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | BulkDAGBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -557,6 +594,22 @@ export type BulkTaskInstanceBody = {
     map_index?: number | null;
     dag_id?: string | null;
     dag_run_id?: string | null;
+};
+
+export type BulkUpdateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<BulkDAGBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkUpdateAction_BulkDAGRunBody_ = {
@@ -703,6 +756,10 @@ export type ClearTaskInstancesBody = {
     string,
     number
 ])> | null;
+    /**
+     * Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.
+     */
+    task_group_id?: string | null;
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -1607,6 +1664,10 @@ export type ImportErrorResponse = {
     filename: string;
     bundle_name: string | null;
     stack_trace: string;
+    /**
+     * Return a signed token identifying the file, used to request its reparse.
+     */
+    readonly file_token: string;
 };
 
 /**
@@ -1631,7 +1692,7 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
-    team_name?: string | null;
+    team_names?: Array<(string)>;
     bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
@@ -2231,7 +2292,7 @@ export type TriggererInfoResponse = {
 export type TriggererInstanceInfoResponse = {
     hostname: string | null;
     latest_triggerer_heartbeat: string | null;
-    team_name: string | null;
+    team_names: Array<(string)>;
 };
 
 /**
@@ -3135,7 +3196,7 @@ export type CreateAssetEventResponse = AssetEventResponse;
 
 export type MaterializeAssetData = {
     assetId: number;
-    requestBody?: MaterializeAssetBody | null;
+    requestBody: MaterializeAssetBody;
 };
 
 export type MaterializeAssetResponse = DAGRunResponse;
@@ -3771,6 +3832,12 @@ export type GetDagDetailsData = {
 };
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
+
+export type BulkDagsData = {
+    requestBody: BulkBody_BulkDAGBody_;
+};
+
+export type BulkDagsResponse = BulkResponse;
 
 export type FavoriteDagData = {
     dagId: string;
@@ -6752,6 +6819,29 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/bulk': {
+        patch: {
+            req: BulkDagsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BulkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/favorite': {
         post: {
             req: FavoriteDagData;
@@ -6772,6 +6862,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

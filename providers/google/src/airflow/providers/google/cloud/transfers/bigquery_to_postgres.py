@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -57,6 +58,8 @@ class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
     :param replace_index: the column or list of column names to act as
         index for the ON CONFLICT clause. Must be specified if `replace` is True
     """
+
+    template_fields: Sequence[str] = (*BigQueryToSqlBaseOperator.template_fields, "postgres_conn_id")
 
     def __init__(
         self,

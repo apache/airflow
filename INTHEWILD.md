@@ -186,6 +186,7 @@ Currently, **officially** using Airflow:
 1. [Datumo](https://datumo.io) [[@michalmisiewicz](https://github.com/michalmisiewicz)]
 1. [Dcard](https://www.dcard.tw/) [[@damon09273](https://github.com/damon09273) & [@bruce3557](https://github.com/bruce3557) & [@kevin1kevin1k](http://github.com/kevin1kevin1k)]
 1. [Delft University of Technology](https://www.tudelft.nl/en/) [[@saveriogzz](https://github.com/saveriogzz)]
+1. [Delivery Hero](https://www.deliveryhero.com/) [[@waqas-shahid](https://github.com/waqas-shahid) & [@daniyarndh](https://github.com/daniyarndh)]
 1. [Dentsu Inc.](http://www.dentsu.com/) [[@bryan831](https://github.com/bryan831) & [@loozhengyuan](https://github.com/loozhengyuan)]
 1. [Deseret Digital Media](http://deseretdigital.com/) [[@formigone](https://github.com/formigone)]
 1. [DevITJobs.com](https://devitjobs.com/)

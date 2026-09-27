@@ -28,7 +28,7 @@
 // No Python, no Airflow install, but exercises the same wire format
 // the real coordinator speaks.
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer, Socket as NetSocket, type Server, type Socket } from "node:net";
 import { encode, decode } from "@msgpack/msgpack";
 import {
@@ -49,13 +49,22 @@ interface BoundTransformArgs {
   dryRun: boolean;
 }
 
-const testDag = new Dag("test_dag");
-const otherDag = new Dag("other_dag");
 // The bundle the runtime dispatches through. startCoordinator() is driven
 // directly rather than through bundle.serve(), so these tests can supply mock
 // socket addresses. Both authoring kinds are registered in one call, since the
 // runtime dispatches through one lookup regardless of which put a task there.
-const bundle = new Bundle(testDag, otherDag);
+//
+// Rebuilt per test: dispatching reads the bundle, which finalizes every native
+// Dag in it against further tasks, so one Dag cannot collect a task per test.
+let testDag: Dag;
+let otherDag: Dag;
+let bundle: Bundle;
+
+beforeEach(() => {
+  testDag = new Dag("test_dag");
+  otherDag = new Dag("other_dag");
+  bundle = new Bundle(testDag, otherDag);
+});
 
 interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;
@@ -254,7 +263,7 @@ describe("coordinator runtime integration", () => {
     testDag.task("say_hello", async () => {
       observedCtx = getContext();
       return "ok";
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("say_hello"));
 
@@ -307,7 +316,7 @@ describe("coordinator runtime integration", () => {
     const commAccept = acceptOne(comm.server);
     const logsAccept = acceptOne(logs.server);
 
-    testDag.task("terminal_timeout", async () => undefined);
+    testDag.task("terminal_timeout", async () => undefined)();
     const runtimeDone = startCoordinator(bundle, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
@@ -339,7 +348,7 @@ describe("coordinator runtime integration", () => {
   it("returns TaskState=failed when the handler throws", async () => {
     testDag.task("boom", async () => {
       throw new Error("boom");
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("boom"));
 
@@ -352,7 +361,7 @@ describe("coordinator runtime integration", () => {
   it("returns RetryTask when the handler throws and Airflow says the failure is retryable", async () => {
     testDag.task("boom_retry", async () => {
       throw new Error("boom");
-    });
+    })();
 
     const result = await driveSupervisor(
       makeStartupDetails("boom_retry", "test_dag", "r1", {
@@ -608,7 +617,7 @@ describe("coordinator runtime integration", () => {
       process.emit("SIGTERM");
       sawAbort = getContext().signal.aborted;
       throw new Error("interrupted");
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("aborted_then_failed"));
 
@@ -626,7 +635,7 @@ describe("coordinator runtime integration", () => {
       process.emit("SIGTERM");
       sawAbort = getContext().signal.aborted;
       throw new Error("interrupted");
-    });
+    })();
 
     const result = await driveSupervisor(
       makeStartupDetails("aborted_then_failed_retry", "test_dag", "r1", {
@@ -649,7 +658,7 @@ describe("coordinator runtime integration", () => {
       process.emit("SIGTERM");
       sawAbort = getContext().signal.aborted;
       return "completed";
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("completed_after_sigterm"));
 
@@ -703,7 +712,7 @@ describe("coordinator runtime integration", () => {
       if (back !== `node says: ${observedGreeting}`) {
         throw new Error(`xcom round-trip mismatch: ${back}`);
       }
-    });
+    })();
 
     const responder: Responder = (msgType, body) => {
       if (msgType === "GetVariable") {
@@ -753,7 +762,7 @@ describe("coordinator runtime integration", () => {
     let observed: string | null = "<unset>";
     testDag.task("missing_variable", async () => {
       observed = await getClient().getVariable("missing_key");
-    });
+    })();
 
     const responder: Responder = (msgType) => {
       if (msgType === "GetVariable") {
@@ -778,10 +787,10 @@ describe("coordinator runtime integration", () => {
     let calledSecondDag = false;
     testDag.task("shared_task", async () => {
       calledFirstDag = true;
-    });
+    })();
     otherDag.task("shared_task", async () => {
       calledSecondDag = true;
-    });
+    })();
 
     await driveSupervisor(makeStartupDetails("shared_task"));
 
@@ -804,7 +813,7 @@ describe("coordinator runtime integration", () => {
   });
 
   it("auto-pushes return_value XCom when handler returns a value", async () => {
-    testDag.task("pusher", async () => "my-result");
+    testDag.task("pusher", async () => "my-result")();
 
     const responder: Responder = (msgType, _body) => {
       if (msgType === "SetXCom") return { body: null };
@@ -826,7 +835,7 @@ describe("coordinator runtime integration", () => {
   it("does NOT push return_value XCom when handler returns undefined", async () => {
     testDag.task("void_task", async () => {
       // no return value
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("void_task"));
 

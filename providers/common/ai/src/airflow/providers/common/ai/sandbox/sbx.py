@@ -169,6 +169,14 @@ class SbxSandboxBackend(SandboxBackend):
             # "No requirements stated" -- see SandboxBackend.create. The toolset
             # always sends a concrete spec, so this is the direct-caller path.
             return
+        if spec.allow_egress_to_cidrs:
+            # ``sbx policy allow network`` takes hostnames. There is no per-sandbox
+            # address-range rule to map this onto, so it cannot be enforced here.
+            raise SandboxTerminalError(
+                "SandboxSpec names allow_egress_to_cidrs, which this backend cannot enforce: "
+                "sbx has no per-sandbox address-range rule. Use allow_egress_to with hostnames "
+                "on a deny-all host policy, or use a backend with an address-layer allowlist."
+            )
         if spec.allow_egress_to and self._host_network_policy != "deny-all":
             # A per-sandbox allow rule only means anything on top of a deny-all
             # global policy; against an open host policy it grants nothing and

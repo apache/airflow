@@ -99,6 +99,20 @@ _ALLOWED_HOSTNAME = re.compile(
 EgressEnforcement = Literal["strict", "sni"]
 
 
+def _reject_bare_string(value: object, *, field: str, items: str) -> None:
+    """
+    Refuse a ``str`` where a ``Sequence[str]`` was meant.
+
+    A str is a Sequence[str], so it would otherwise be read one character at a time: a
+    name without dots would pass every character check and then allow nothing at all.
+    """
+    if isinstance(value, str):
+        raise SandboxTerminalError(
+            f"SandboxSpec.{field} must be a sequence of {items}, not one string: "
+            f"{value!r} would be read a character at a time. Wrap it in a list."
+        )
+
+
 def _is_tls_hostname(value: object) -> bool:
     """Whether ``value`` is a name a TLS handshake could actually present."""
     if not isinstance(value, str) or not _ALLOWED_HOSTNAME.match(value):
@@ -152,6 +166,19 @@ class ModalSandboxBackend(SandboxBackend):
     data out through DNS queries. Pass ``egress_enforcement="sni"`` to accept that and
     have the allowlist applied.
 
+    ``allow_egress_to_cidrs`` needs no opt-in. It maps onto Modal's
+    ``outbound_cidr_allowlist``, which is enforced at the address layer for any port and
+    protocol: a listed address connects, anything else is dropped (measured: a
+    connection to an unlisted address times out rather than being refused). Name
+    resolution still works through Modal's own resolver, so hostnames resolve but only
+    listed addresses are reachable; DNS itself therefore remains a channel, as under the
+    hostname list. It is IPv4 only, since Modal rejects IPv6 ranges. Private ranges
+    (RFC 1918, link-local) are unreachable from a Modal sandbox whatever the allowlist
+    says, so the destination has to have a public address. The two lists apply
+    together, traffic matching either passes, and adding hostnames reopens TCP on port
+    443 to every address, gated by the handshake name alone; the backend logs a
+    warning at create when both are set.
+
     **A timeout does not cost you the sandbox.** Modal stops the command server-side and
     the sandbox stays usable, so files written by earlier calls survive and the model can
     inspect them. That differs from ``sbx``, which has to destroy the sandbox to be sure
@@ -204,7 +231,8 @@ class ModalSandboxBackend(SandboxBackend):
     :param egress_enforcement: ``"strict"`` (default) refuses a ``SandboxSpec`` that
         names ``allow_egress_to``, because Modal cannot enforce a hostname allowlist
         below TLS. ``"sni"`` accepts it and applies Modal's SNI-matched allowlist, with
-        the limits described above.
+        the limits described above. ``allow_egress_to_cidrs`` is accepted under either
+        setting.
     """
 
     name = "modal"
@@ -652,31 +680,98 @@ class ModalSandboxBackend(SandboxBackend):
             # "No requirements stated" -- see SandboxBackend.create. The toolset always
             # sends a concrete spec, so this is the direct-caller path.
             return {}
+        if not spec.allow_egress_to and not spec.allow_egress_to_cidrs:
+            return {"block_network": True} if spec.block_network else {}
+        if not spec.block_network:
+            raise SandboxTerminalError(
+                "SandboxSpec names an egress allowlist but leaves block_network False, "
+                "which asks for an open network and an allowlist at the same time. Set "
+                "block_network=True to restrict egress to the allowlist, or drop the "
+                "allowlist to leave the network open."
+            )
+        # block_network is deliberately not set alongside either list: Modal rejects the
+        # combination outright, and an allowlist on its own already blocks every
+        # destination that is not on it.
+        kwargs: dict[str, object] = {}
+        if spec.allow_egress_to_cidrs:
+            # Enforced at the address layer for any port and protocol, so there is
+            # nothing here for the author to accept; no opt-in is required.
+            kwargs["outbound_cidr_allowlist"] = self._cidrs(spec.allow_egress_to_cidrs)
         if spec.allow_egress_to:
-            if not spec.block_network:
-                raise SandboxTerminalError(
-                    "SandboxSpec names an egress allowlist but leaves block_network False, "
-                    "which asks for an open network and an allowlist at the same time. Set "
-                    "block_network=True to restrict egress to allow_egress_to, or drop "
-                    "allow_egress_to to leave the network open."
-                )
             if self._egress_enforcement != "sni":
                 raise SandboxTerminalError(
-                    "SandboxSpec names an egress allowlist, which Modal can only enforce by "
+                    "SandboxSpec names a hostname allowlist, which Modal can only enforce by "
                     "matching the TLS SNI: it allows TLS on port 443 to those hosts, but "
                     "leaves DNS open for every hostname and cannot stop a host that shares a "
                     "TLS endpoint with an allowed one from being reached. Pass "
-                    "ModalSandboxBackend(egress_enforcement='sni') to accept that, or use "
-                    "SandboxSpec(block_network=True) with no allowlist, which Modal enforces "
-                    "exactly and which also blocks DNS."
+                    "ModalSandboxBackend(egress_enforcement='sni') to accept that, use "
+                    "allow_egress_to_cidrs for a destination with a fixed address, which Modal "
+                    "enforces at the address layer, or use SandboxSpec(block_network=True) with "
+                    "no allowlist, which Modal enforces exactly and which also blocks DNS."
                 )
-            # block_network is deliberately not set alongside this: Modal rejects the
-            # combination outright, and an allowlist on its own already blocks every
-            # host that is not on it.
-            return {"outbound_domain_allowlist": self._hostnames(spec.allow_egress_to)}
-        if spec.block_network:
-            return {"block_network": True}
-        return {}
+            kwargs["outbound_domain_allowlist"] = self._hostnames(spec.allow_egress_to)
+            if spec.allow_egress_to_cidrs:
+                # Modal passes traffic that matches either list, and the hostname list
+                # admits TLS on 443 to every address as long as the handshake names a
+                # listed host. So the address list's guarantee holds on every port except
+                # 443 the moment a hostname is added. Measured: with 1.1.1.1/32 alone,
+                # 8.8.8.8:443 timed out; with pypi.org beside it, 8.8.8.8:443 connected.
+                log.warning(
+                    "SandboxSpec combines allow_egress_to_cidrs with allow_egress_to. Modal applies "
+                    "the two together, so TCP on port 443 is admitted to ANY address whenever the "
+                    "TLS handshake names one of %s; the address allowlist %s is only enforced on "
+                    "the other ports. Drop the hostnames if the address list is meant to be exact.",
+                    kwargs["outbound_domain_allowlist"],
+                    kwargs["outbound_cidr_allowlist"],
+                )
+        return kwargs
+
+    @staticmethod
+    def _cidrs(allow_egress_to_cidrs: Sequence[str]) -> list[str]:
+        """
+        Check that every entry is an address range Modal can match, or refuse the spec.
+
+        Modal passes these strings to its API without validating them. A hostname or a
+        URL would be accepted and match nothing, so the author would be told egress is
+        restricted to an address that nothing can ever match. Entries are normalised to
+        canonical CIDR form: a bare address becomes a ``/32``, and a range with host bits
+        set, such as ``10.0.0.1/8``, is refused rather than silently widened to the network
+        it sits in, since that is not what was written. IPv6 is refused because Modal's
+        allowlist rejects it at create and the sandbox has no IPv6 route anyway.
+        """
+        _reject_bare_string(allow_egress_to_cidrs, field="allow_egress_to_cidrs", items="CIDR ranges")
+        normalised: list[str] = []
+        rejected: list[object] = []
+        for entry in allow_egress_to_cidrs:
+            try:
+                network = ipaddress.ip_network(entry.strip(), strict=True) if isinstance(entry, str) else None
+            except ValueError:
+                network = None
+            # Modal refuses IPv6 at create ("Network access allowlist does not support IPv6
+            # CIDRs", measured 2026-09-22) and its sandboxes have no IPv6 route, so an IPv6
+            # entry could only ever fail the task later and less legibly.
+            if network is None or network.version == 6:
+                rejected.append(entry)
+                continue
+            if network.prefixlen == 0:
+                # 0.0.0.0/0 allows every address, which is an open network wearing an
+                # allowlist's clothes. Say so rather than provisioning one.
+                raise SandboxTerminalError(
+                    f"SandboxSpec.allow_egress_to_cidrs contains {entry!r}, which matches every "
+                    "address and so restricts nothing. Pass SandboxSpec(block_network=False) to "
+                    "ask for an open network explicitly, or list the ranges you mean."
+                )
+            normalised.append(str(network))
+        if rejected:
+            raise SandboxTerminalError(
+                "SandboxSpec.allow_egress_to_cidrs must contain IPv4 address ranges in CIDR "
+                "notation, such as '203.0.113.0/24' or '203.0.113.7/32', because Modal matches them "
+                f"against the destination address without checking them. These entries are not: "
+                f"{rejected}. A hostname belongs in allow_egress_to; a range with host bits set, "
+                "such as '203.0.113.1/24', must be written as the network it means; and Modal's "
+                "allowlist does not support IPv6."
+            )
+        return normalised
 
     @staticmethod
     def _hostnames(allow_egress_to: Sequence[str]) -> list[str]:
@@ -690,14 +785,7 @@ class ModalSandboxBackend(SandboxBackend):
         restricted while it is not restricted the way they wrote it, which is the belief
         the contract exists to protect.
         """
-        if isinstance(allow_egress_to, str):
-            # A str is a Sequence[str], so this would otherwise be read one character at a
-            # time, and a name without dots would pass every character check and then
-            # allow nothing at all.
-            raise SandboxTerminalError(
-                "SandboxSpec.allow_egress_to must be a sequence of hostnames, not one string: "
-                f"{allow_egress_to!r} would be read a character at a time. Wrap it in a list."
-            )
+        _reject_bare_string(allow_egress_to, field="allow_egress_to", items="hostnames")
         rejected = [host for host in allow_egress_to if not _is_tls_hostname(host)]
         if rejected:
             raise SandboxTerminalError(

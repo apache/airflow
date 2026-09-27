@@ -25,7 +25,8 @@ filesystem, that a non-zero exit is output rather than a failure, that a command
 hitting its deadline leaves the sandbox and its files intact (which is where Modal
 differs from ``sbx``), that the default spec really does deny egress, that none of
 Airflow's own environment crosses the boundary, and that teardown terminates the
-sandbox.
+sandbox. A second task checks the address allowlist: a listed address connects on
+any port, an unlisted one is dropped, and hostnames still resolve.
 """
 
 from __future__ import annotations
@@ -247,7 +248,75 @@ def example_sandbox_toolset_modal():
 
         return result.output
 
+    @task
+    def run_address_allowlist_agent() -> str:
+        """
+        The address allowlist does what the docs say, on a live sandbox.
+
+        A listed address connects on a port the hostname list could never cover, an
+        unlisted one is dropped rather than refused (so the client times out), and a
+        hostname still resolves while its addresses stay unreachable.
+        """
+        from pydantic_ai import Agent
+        from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
+        from pydantic_ai.models.function import AgentInfo, FunctionModel
+
+        from airflow.providers.common.ai.sandbox import ModalSandboxBackend, SandboxSpec
+        from airflow.providers.common.ai.toolsets import SandboxToolset
+
+        probe = (
+            'python3 -c "import socket\n'
+            "def tcp(h, p):\n"
+            "    try:\n"
+            "        socket.create_connection((h, p), timeout=6).close(); return 'open'\n"
+            "    except OSError as e:\n"
+            "        return type(e).__name__\n"
+            "print('listed-443', tcp('1.1.1.1', 443))\n"
+            "print('listed-53', tcp('1.1.1.1', 53))\n"
+            "print('unlisted-443', tcp('8.8.8.8', 443))\n"
+            "print('resolves', bool(socket.getaddrinfo('pypi.org', 443)))\""
+        )
+
+        def model_function(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+            returns = [
+                str(part.content)
+                for message in messages
+                for part in message.parts
+                if part.part_kind in ("tool-return", "retry-prompt")
+            ]
+            if not returns:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart(tool_name="run_command", args={"command": probe}, tool_call_id="probe")
+                    ]
+                )
+            out = returns[0]
+            expected = ("listed-443 open", "listed-53 open", "unlisted-443 TimeoutError", "resolves True")
+            missing = [line for line in expected if line not in out]
+            if missing:
+                raise RuntimeError(
+                    f"Address allowlist did not behave as documented; missing {missing}: {out!r}"
+                )
+            return ModelResponse(parts=[TextPart(content="address allowlist e2e passed")])
+
+        agent = Agent(
+            FunctionModel(model_function),
+            instructions="Use the sandbox tools as requested.",
+            toolsets=[
+                SandboxToolset(
+                    ModalSandboxBackend(app_name="airflow-sandbox-system-test", sandbox_timeout=300),
+                    spec=SandboxSpec(block_network=True, allow_egress_to_cidrs=["1.1.1.1/32"]),
+                    max_command_timeout=60.0,
+                )
+            ],
+        )
+        result = agent.run_sync("Probe the network policy.")
+        if result.output != "address allowlist e2e passed":
+            raise RuntimeError(f"Unexpected agent output: {result.output!r}")
+        return result.output
+
     run_sandbox_agent()
+    run_address_allowlist_agent()
 
 
 dag = example_sandbox_toolset_modal()
