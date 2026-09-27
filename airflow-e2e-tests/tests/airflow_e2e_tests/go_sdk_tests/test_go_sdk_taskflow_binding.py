@@ -61,13 +61,25 @@ class _CompletedRun:
         """Return the concatenated task-log records for *task_id*, retrying until present."""
         deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
         while True:
-            resp = self.client.get_task_logs(
-                dag_id=_DAG_ID, run_id=self.run_id, task_id=task_id, try_number=try_number
-            )
-            text = "\n".join(str(entry) for entry in resp.get("content", []) if isinstance(entry, dict))
+            text = "\n".join(str(entry) for entry in self.log_records(task_id, try_number))
             if text.strip() or time.monotonic() > deadline:
                 return text
             time.sleep(3)
+
+    def log_records(self, task_id: str, try_number: int = 1) -> list[dict]:
+        """Return the structured task-log records (parsed JSON dicts) for *task_id*."""
+        resp = self.client.get_task_logs(
+            dag_id=_DAG_ID, run_id=self.run_id, task_id=task_id, try_number=try_number
+        )
+        return [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
+
+    def warning(self, task_id: str, event: str) -> dict:
+        """Return the first log record of *task_id* whose event is *event*, failing if none."""
+        self.logs(task_id)
+        records = self.log_records(task_id)
+        found = next((r for r in records if r.get("event") == event), None)
+        assert found is not None, [r.get("event") for r in records]
+        return found
 
 
 @pytest.fixture(scope="module")
@@ -167,9 +179,10 @@ def test_via_struct_more_args_warns_and_runs(completed_run: _CompletedRun):
     binding cannot shift, so the extra argument is warned about rather than failing
     the task, and everything the struct does declare still binds."""
     assert completed_run.xcom("via_struct_more_args") == {"region": "eu-west-1"}
-    logs = completed_run.logs("via_struct_more_args")
-    assert "Dag's call passed argument(s) the task handler does not declare" in logs, logs
-    assert "unused_label" in logs, logs
+    warning = completed_run.warning(
+        "via_struct_more_args", "Dag's call passed argument(s) the task handler does not declare"
+    )
+    assert warning.get("passed_not_declared") == ["unused_label"], warning
 
 
 def test_via_struct_fewer_args_warns_and_runs(completed_run: _CompletedRun):
@@ -183,9 +196,10 @@ def test_via_struct_fewer_args_warns_and_runs(completed_run: _CompletedRun):
         "region": "eu-west-1",
         "not_in_dag_was_empty": True,
     }
-    logs = completed_run.logs("via_struct_fewer_args")
-    assert "Task handler declares argument(s) the Dag's call did not pass" in logs, logs
-    assert "not_in_dag" in logs, logs
+    warning = completed_run.warning(
+        "via_struct_fewer_args", "Task handler declares argument(s) the Dag's call did not pass"
+    )
+    assert warning.get("declared_not_passed") == ['NotInDag (argument "not_in_dag")'], warning
 
 
 def test_via_flat_map_decodes_single_dict_whole(completed_run: _CompletedRun):
