@@ -26,16 +26,15 @@
     <version>v-0.1</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <beam.version>2.63.0</beam.version>
-        <slf4j.version>2.0.16</slf4j.version>
-        <google.cloud.version>1.113.0</google.cloud.version>
+        <beam.version>2.75.0</beam.version>
+        <slf4j.version>2.0.18</slf4j.version>
+        <google.cloud.version>1.152.0</google.cloud.version>
         <secretmanager.version>2.45.0</secretmanager.version>
         <iamcredentials.version>2.45.0</iamcredentials.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>11</maven.compiler.release>
 
-        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
-        <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+        <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
     </properties>
     <dependencies>
         <!--        Beam Dependencies-->

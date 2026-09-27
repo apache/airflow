@@ -68,6 +68,16 @@ ARG_MIN_PENDING_MINUTES = Arg(
     ),
 )
 
+ARG_MIN_COMPLETED_MINUTES = Arg(
+    ("--min-completed-minutes",),
+    default=1,
+    type=positive_int(allow_zero=True),
+    help=(
+        "Minimum age in minutes of a completed (Succeeded/Failed/Evicted) pod before it is deleted. "
+        "Default is 1. Set to 0 to delete immediately."
+    ),
+)
+
 ARG_TEAM = Arg(
     ("--team",),
     default=None,
@@ -84,7 +94,7 @@ KUBERNETES_COMMANDS = (
             "in evicted/failed/succeeded/pending states"
         ),
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
-        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
+        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_MIN_COMPLETED_MINUTES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="generate-dag-yaml",

@@ -250,6 +250,45 @@ class TestEncodeTrigger:
         assert result == encode_trigger(trigger)
         _assert_fully_serialized(result["kwargs"])
 
+    def test_encode_omits_queue_when_unset(self):
+        """No ``queue`` key is added when the trigger was not assigned one."""
+        trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=10.0)
+        result = encode_trigger(trigger)
+
+        assert "queue" not in result
+
+    def test_encode_from_trigger_object_with_queue(self):
+        """A trigger's ``queue`` attribute is carried into the encoded dict."""
+        trigger = _CallableKwargsTrigger(topics=())
+        trigger.queue = "team_a"
+        result = encode_trigger(trigger)
+
+        assert result["queue"] == "team_a"
+        assert "queue" not in result["kwargs"]
+
+    def test_encode_from_dict_with_queue(self):
+        """``queue`` on an already-encoded dict is preserved, not dropped as a kwarg."""
+        already_encoded = {
+            "classpath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+            "kwargs": {"filepath": "/tmp/test.txt", "poke_interval": 10.0},
+            "queue": "team_a",
+        }
+        result = encode_trigger(already_encoded)
+
+        assert result["queue"] == "team_a"
+        assert "queue" not in result["kwargs"]
+
+    def test_re_encode_preserves_queue(self):
+        """Encoding the output of encode_trigger again does not lose ``queue``."""
+        trigger = _CallableKwargsTrigger(topics=())
+        trigger.queue = "team_a"
+
+        first = encode_trigger(trigger)
+        second = encode_trigger(first)
+
+        assert first == second
+        assert second["queue"] == "team_a"
+
 
 def test_assert_fully_serialized_rejects_non_json_values():
     """The guard rejects non-JSON-safe values left in encode_trigger output."""

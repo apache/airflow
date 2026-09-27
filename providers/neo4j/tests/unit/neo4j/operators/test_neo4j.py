@@ -66,15 +66,17 @@ class TestNeo4jOperator:
             op.execute(mock.MagicMock())
         mock_hook.return_value.run.assert_called_once_with(cypher, None)
 
-    def test_neo4j_operator_both_sql_and_cypher_raises_on_execute(self):
-        op = Neo4jOperator(task_id="basic_neo4j", sql="a", cypher="b")
+    def test_neo4j_operator_both_sql_and_cypher_raises(self):
+        with pytest.raises(ValueError, match="Cannot provide both `sql` and `cypher`"):
+            Neo4jOperator(task_id="basic_neo4j", sql="a", cypher="b")
 
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            with pytest.raises(ValueError, match="Cannot provide both `sql` and `cypher`"):
-                op.execute(mock.MagicMock())
+    def test_neo4j_operator_missing_cypher_raises(self):
+        with pytest.raises(ValueError, match="Parameter `cypher` is required."):
+            Neo4jOperator(task_id="basic_neo4j")
 
-    def test_neo4j_operator_missing_cypher_raises_on_execute(self):
-        op = Neo4jOperator(task_id="basic_neo4j")
+    def test_neo4j_operator_cypher_rendering_to_none_raises_on_execute(self):
+        op = Neo4jOperator(task_id="basic_neo4j", cypher="{{ missing }}")
+        op.cypher = None
 
         with pytest.raises(ValueError, match="Parameter `cypher` is required."):
             op.execute(mock.MagicMock())

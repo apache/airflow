@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 from openlineage.client.facet_v2 import parent_run
+from sqlalchemy.orm.exc import DetachedInstanceError
 from uuid6 import uuid7
 
 from airflow import DAG
@@ -232,6 +233,7 @@ def test_get_airflow_dag_run_facet():
             bundle_version="bundle_version",
             id="version_id",
             version_number="version_number",
+            version_data={"some": "data"},
         )
     ]
     dagrun_mock.deadlines = []
@@ -251,9 +253,14 @@ def test_get_airflow_dag_run_facet():
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"
-    note: str | None = None
+
+    optional_result = {}
     if AIRFLOW_V_3_2_PLUS:
-        note = "note"
+        optional_result["note"] = "note"
+
+    if AIRFLOW_V_3_3_PLUS:
+        optional_result["dag_version_data"] = {"some": "data"}
+
     assert result == {
         "airflowDagRun": AirflowDagRunFacet(
             dag=expected_dag_info,
@@ -282,7 +289,9 @@ def test_get_airflow_dag_run_facet():
                 "partition_key": "some_partition_key",
                 "partition_date": "2024-06-01T02:03:34+00:00",
                 "triggered_by": "something",
-                "note": note,
+                "note": None,
+                "dag_version_data": None,
+                **optional_result,
             },
         )
     }
@@ -318,6 +327,19 @@ def test_dag_run_version_no_versions():
 
 
 @pytest.mark.parametrize("key", ["bundle_name", "bundle_version", "version_id", "version_number"])
+def test_dag_run_version_detached_version_row(key):
+    """The DagVersion rows are lazy-loaded, so reading their columns can hit a detached session."""
+    version = MagicMock()
+    type(version).bundle_name = PropertyMock(side_effect=DetachedInstanceError)
+    type(version).bundle_version = PropertyMock(side_effect=DetachedInstanceError)
+    type(version).id = PropertyMock(side_effect=DetachedInstanceError)
+    type(version).version_number = PropertyMock(side_effect=DetachedInstanceError)
+    dag_run = MagicMock()
+    dag_run.dag_versions = [version]
+    assert DagRunInfo.dag_version_info(dag_run, key) is None
+
+
+@pytest.mark.parametrize("key", ["bundle_name", "bundle_version", "version_id", "version_number"])
 @pytest.mark.db_test
 def test_dag_run_version(key):
     dagrun_mock = MagicMock(DagRun)
@@ -334,42 +356,91 @@ def test_dag_run_version(key):
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
-@patch("airflow.models.dagbundle.DagBundleModel.get_team_name")
-@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
-def test_dag_run_team_name(
-    mock_getboolean,
-    mock_get_team_name,
-):
-
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="version_data requires Airflow 3.3+")
+def test_dag_run_version_data():
     dagrun_mock = MagicMock(DagRun)
-    dagrun_mock.dag_versions = [
-        MagicMock(
-            bundle_name="bundle_name",
-            bundle_version="bundle_version",
-            id="version_id",
-            version_number="version_number",
-        )
-    ]
+    dagrun_mock.dag_versions = [MagicMock(version_data={"schema": 1})]
+    assert DagRunInfo.dag_version_info(dagrun_mock, "version_data") == {"schema": 1}
 
-    mock_get_team_name.return_value = "team_a"
 
-    assert DagRunInfo.team_name(dagrun_mock) == "team_a"
+@pytest.mark.db_test
+@patch("airflow.providers.openlineage.utils.utils.AIRFLOW_V_3_3_PLUS", False)
+def test_dag_run_version_data_below_3_3():
+    dagrun_mock = MagicMock(DagRun)
+    dagrun_mock.dag_versions = [MagicMock(version_data={"schema": 1})]
+    assert DagRunInfo.dag_version_info(dagrun_mock, "version_data") is None
 
-    mock_get_team_name.assert_called_once_with("bundle_name")
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="version_data requires Airflow 3.3+")
+def test_dag_run_version_data_detached_version_row():
+    """version_data is lazy-loaded and can hit a detached session like the other columns."""
+    version = MagicMock()
+    type(version).version_data = PropertyMock(side_effect=DetachedInstanceError)
+    dag_run = MagicMock()
+    dag_run.dag_versions = [version]
+    assert DagRunInfo.dag_version_info(dag_run, "version_data") is None
 
 
 @pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
-@patch("airflow.models.dagbundle.DagBundleModel.get_team_name")
+@patch("airflow.models.dag.DagModel.get_team_name", return_value="team_a")
+@patch("sqlalchemy.orm.object_session")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
-def test_dag_run_team_name_no_bundle(mock_getboolean, mock_get_team_name):
-    dagrun_mock = MagicMock(DagRun)
-    del dagrun_mock.dag_versions
+def test_dag_run_team_name(mock_getboolean, mock_object_session, mock_get_team_name):
+    """DB fallback uses the dagrun's existing session — no new session opened, no HA lock risk."""
+    mock_session = MagicMock()
+    mock_object_session.return_value = mock_session
+
+    dagrun_mock = MagicMock(spec=DagRun)
+    dagrun_mock.dag_id = "test_dag"
+
+    assert DagRunInfo.team_name(dagrun_mock) == "team_a"
+    mock_get_team_name.assert_called_once_with("test_dag", session=mock_session)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@pytest.mark.parametrize("team_name", ["team_a", None])
+@patch("sqlalchemy.orm.object_session")
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name_from_execution_api_dag_run(mock_getboolean, mock_object_session, team_name):
+    """The task runner has no DB session, so a DagRun carrying `team_name` must be trusted as-is.
+
+    The cascade must stop at the first step — the DB lookup (object_session) must never be reached.
+    """
+    dagrun_mock = MagicMock(spec_set=["team_name"])
+    dagrun_mock.team_name = team_name
+
+    assert DagRunInfo.team_name(dagrun_mock) == team_name
+
+    mock_object_session.assert_not_called()
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@patch("airflow.models.dag.DagModel.get_team_name", side_effect=RuntimeError("db gone"))
+@patch("sqlalchemy.orm.object_session")
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name_lookup_failure_does_not_raise(
+    mock_getboolean, mock_object_session, mock_get_team_name
+):
+    """A failed lookup must degrade to None -- `_cast_fields` would otherwise lose the whole event."""
+    mock_object_session.return_value = MagicMock()
+    dagrun_mock = MagicMock(spec=DagRun)
+    dagrun_mock.dag_id = "test_dag"
 
     assert DagRunInfo.team_name(dagrun_mock) is None
 
-    mock_get_team_name.assert_not_called()
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@patch("sqlalchemy.orm.object_session", return_value=None)
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name_no_session(mock_getboolean, mock_object_session):
+    """When the dagrun has no attached session the lookup is skipped and None is returned."""
+    dagrun_mock = MagicMock(spec=DagRun)
+    dagrun_mock.dag_id = "test_dag"
+
+    assert DagRunInfo.team_name(dagrun_mock) is None
 
 
 @pytest.mark.db_test
@@ -383,6 +454,44 @@ def test_dag_run_team_name_multi_team_disabled(mock_getboolean, mock_get_team_na
     assert DagRunInfo.team_name(dagrun_mock) is None
 
     mock_get_team_name.assert_not_called()
+
+
+@pytest.mark.db_test
+@patch("airflow.providers.openlineage.utils.utils.AIRFLOW_V_3_3_PLUS", False)
+def test_dag_run_team_name_below_airflow_3_3():
+    """Airflow < 3.3 has no multi-team support — team_name must return None unconditionally."""
+    dagrun_mock = MagicMock(spec=DagRun)
+
+    assert DagRunInfo.team_name(dagrun_mock) is None
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@patch("sqlalchemy.orm.object_session")
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name_from_scheduler_stamp(mock_getboolean, mock_object_session):
+    """Scheduler stamps _team_name on ORM DagRun objects; the attribute is read back as-is.
+
+    The cascade must stop at `_team_name` — the DB lookup (object_session) must never be reached.
+    """
+    dagrun_mock = MagicMock(spec=DagRun)
+    dagrun_mock._team_name = "team_a"
+
+    assert DagRunInfo.team_name(dagrun_mock) == "team_a"
+
+    mock_object_session.assert_not_called()
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@patch("sqlalchemy.orm.object_session", return_value=None)
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name_from_scheduler_stamp_non_str(mock_getboolean, mock_object_session):
+    """Non-str _team_name (corrupted stamp) must not propagate — fall through returns None."""
+    dagrun_mock = MagicMock(spec=DagRun)
+    dagrun_mock._team_name = 42
+
+    assert DagRunInfo.team_name(dagrun_mock) is None
 
 
 def test_get_fully_qualified_class_name_serialized_operator():
@@ -2980,6 +3089,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
     dv2.version_number = "version_number"
     dv2.bundle_name = "bundle_name"
     dv2.bundle_version = "bundle_version"
+    dv2.version_data = {"some": "data"}
 
     optional_args = {}
     if AIRFLOW_V_3_2_PLUS:
@@ -3014,12 +3124,16 @@ def test_dagrun_info_af3(mocked_dag_versions):
         optional_result["partition_key"] = "some_partition_key"
         optional_result["partition_date"] = "2024-06-01T00:00:00+00:00"
 
+    if AIRFLOW_V_3_3_PLUS:
+        optional_result["dag_version_data"] = {"some": "data"}
+
     result = DagRunInfo(dagrun)
     assert dict(result) == {
         "conf": {"a": 1},
         "clear_number": 0,
         "dag_id": "dag_id",
         "dag_team_name": None,
+        "dag_version_data": None,
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
         "duration": 74.000546,
@@ -3082,6 +3196,7 @@ def test_dagrun_info_af2():
         "dag_bundle_version": None,
         "dag_version_id": None,
         "dag_version_number": None,
+        "dag_version_data": None,
         "note": None,
     }
 
@@ -3124,6 +3239,7 @@ def test_taskinstance_info_af3():
     assert dict(TaskInstanceInfo(runtime_ti)) == {
         "log_url": runtime_ti.log_url,
         "map_index": 2,
+        "note": None,
         "rendered_map_index": None,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",
@@ -3162,6 +3278,7 @@ def test_taskinstance_info_af2():
         "log_url": "some_log_url",
         "dag_bundle_name": None,
         "dag_bundle_version": None,
+        "note": None,
     }
 
     # Also tested manually that it works well on AF2, hard to test hybrid property so just mocking it here
@@ -3587,6 +3704,20 @@ class TestGetAirflowStateRunFacet:
         )
 
         assert result["airflowState"].tasksDuration["terminated_task"] == 0.0
+
+    @patch(
+        "airflow.providers.openlineage.utils.utils.DagRun.fetch_task_instances",
+        side_effect=Exception("db hiccup"),
+    )
+    def test_db_failure_returns_empty_facet(self, _mock_fetch):
+        """A DB error in the pool worker should drop only the facet, not the whole event."""
+        result = get_airflow_state_run_facet(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_ids=["test_task"],
+            dag_run_state=DagRunState.SUCCESS,
+        )
+        assert result == {}
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 specific test")

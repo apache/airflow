@@ -307,3 +307,56 @@ class TestKeysetPaginationNullableColumn:
             session.close()
 
         assert collected == [1, 2, 3, 4, 5]
+
+    @staticmethod
+    def _walk_backward(session, model, sort, page_size):
+        """Walk pages from the end to the start: ``_walk_forward`` with the direction flipped.
+
+        Backward paging is the documented mirror of forward paging (see ``apply_cursor_filter``):
+        reverse the ORDER BY and select rows *before* the cursor. Rows come back in reverse of
+        the forward order, so the returned list reversed should equal ``_walk_forward``.
+        """
+        collected: list[int] = []
+        token = None
+        for _ in range(50):  # guard against an infinite paging loop
+            stmt = sort.to_orm(select(model), reversed=True).limit(page_size)
+            if token is not None:
+                stmt = apply_cursor_filter(stmt, token, sort, "sqlite", is_backward=True)
+            rows = list(session.scalars(stmt))
+            if not rows:
+                break
+            collected.extend(r.id for r in rows)
+            token = encode_cursor(rows[-1], sort)
+        return collected
+
+    @pytest.mark.parametrize(
+        ("rows", "order_by", "page_size"),
+        [
+            pytest.param([(1, "0"), (2, "0")], ["val"], 1, id="equal-values-tie-broken-by-pk"),
+            pytest.param([(1, "5"), (2, None)], ["-val"], 1, id="null-sorts-last-descending"),
+            pytest.param(
+                [(1, None), (2, None), (3, "a"), (4, "b"), (5, "c")], ["val"], 2, id="nulls-first-asc"
+            ),
+            pytest.param(
+                [(1, None), (2, None), (3, "a"), (4, "b"), (5, "c")], ["-val"], 2, id="nulls-last-desc"
+            ),
+        ],
+    )
+    def test_backward_pagination_mirrors_forward(self, rows, order_by, page_size):
+        """Paging backward yields the same rows as paging forward, only reversed.
+
+        The backward path must exclude only the boundary row (the last sort key uses a strict
+        bound; earlier keys stay inclusive) and invert NULL placement; otherwise a page walked
+        back into is silently truncated.
+        """
+        model, session = self._seed_session(rows)
+        try:
+            sort = SortParam(["val"], model)
+            sort.set_value(order_by)
+            forward = self._walk_forward(session, model, sort, page_size)
+            backward = self._walk_backward(session, model, sort, page_size)
+        finally:
+            session.close()
+
+        assert list(reversed(backward)) == forward
+        assert sorted(forward) == sorted(row[0] for row in rows), "rows dropped"

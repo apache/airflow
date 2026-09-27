@@ -194,7 +194,7 @@ class GoogleAnalyticsAdminCreatePropertyOperator(GoogleCloudBaseOperator):
         self.log.info("The Google Analytics property %s was created successfully.", prop.name)
         GoogleAnalyticsPropertyLink.persist(
             context=context,
-            property_id=prop.name.lstrip("properties/"),
+            property_id=prop.name.removeprefix("properties/"),
         )
 
         return Property.to_dict(prop)

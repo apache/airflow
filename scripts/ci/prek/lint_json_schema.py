@@ -136,7 +136,7 @@ def _process_files(validator, file_paths: list[str]):
         print("Processing file: ", input_path)
         instance = load_file(input_path)
         for error in validator.iter_errors(instance):
-            print(error)
+            print(f"{error.message} of {'.'.join(error.path)!r} object")
             exit_code = 1
     return exit_code
 

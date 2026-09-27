@@ -115,7 +115,7 @@ There are several actions an issue triager might take:
 
 * Assigning the issue to a milestone, if the issue seems important enough that it should likely be looked
   at before the next release but there is not enough information or doubts on why and what can be fixed.
-  Usually we assign to the the next bugfix release - then, no matter what the issue will be looked at
+  Usually we assign to the next bugfix release - then, no matter what the issue will be looked at
   by the release manager and it might trigger additional actions during the release preparation.
   This is usually followed by one of the actions below.
 

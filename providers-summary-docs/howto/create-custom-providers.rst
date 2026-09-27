@@ -114,7 +114,7 @@ Exposing customized functionality to the Airflow's core:
 * ``sensors`` - this field should contain the list of all the sensor class names that the
   provider provides. See :doc:`apache-airflow:core-concepts/sensors` for description of the sensors.
 
-* ``task-decorators`` - this field should contain the list of dictionaries of name/path where the decorators
+* ``task-decorators`` - this field should contain the list of dictionaries of name/class-name where the decorators
   are available. See :doc:`apache-airflow:howto/create-custom-decorator` for description of how to add
   custom decorators.
 

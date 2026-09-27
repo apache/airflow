@@ -48,7 +48,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
     :param api_version: kubernetes api version of sparkApplication
     """
 
-    template_fields: Sequence[str] = ("application_name", "namespace")
+    template_fields: Sequence[str] = ("application_name", "namespace", "kubernetes_conn_id")
     FAILURE_STATES = ("FAILED", "UNKNOWN")
     SUCCESS_STATES = ("COMPLETED",)
 

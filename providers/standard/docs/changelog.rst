@@ -35,6 +35,110 @@
 Changelog
 ---------
 
+1.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid parsing templated DateTimeSensorAsync targets at Dag parse time (#72659)``
+* ``Fix exception messages rendering as a tuple instead of the value (#73296)``
+* ``Stop FileSensor deferring when deferrable is not set (#73297)``
+* ``Fix HITLTrigger failing on a human-in-the-loop response recorded from a timeout default, which has no responder (#72155)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix broken class xrefs in standard provider docs (#73360)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Stop running duplicate virtualenv operator tests (#73500)``
+   * ``Stop provider tests leaking AF2 global TI session (#73272)``
+   * ``Align standard operator test modules with the source layout (#73229)``
+
+1.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support multiple_outputs in @task.bash (#71808)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FileTrigger walking a stale path when globbing (#70640)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove TaskFlow recommendation in doc (#71315)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make the TimeDeltaSensor delta a template field (#71314)``
+   * ``Fix ExternalTaskSensor example Dag never finding its parent task (#72480)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support TaskFlow call syntax on stub tasks for the Lang SDK (#69757)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+1.17.0
+......
+
+.. note::
+    ``HITLOperator.hitl_summary`` is now a read-only property that builds a fresh snapshot on
+    each access, so mutating the returned dict has no effect. Subclasses and runtime code that
+    previously did ``self.hitl_summary["key"] = value`` must write to the new public
+    ``hitl_summary_extra`` dict instead -- ``self.hitl_summary_extra["key"] = value``. Reading
+    ``hitl_summary`` is unchanged: it still returns the merged summary including those entries.
+
+    ``ExternalTaskSensor``'s ``poll_interval`` is deprecated in favor of ``poke_interval``.
+    The old name still works, but the effective deferrable poll interval for users who set
+    neither now comes from ``BaseSensorOperator.poke_interval`` (60s) instead of the previous
+    hard-coded 2s. Set ``poke_interval`` explicitly to keep a faster cadence.
+
+Features
+~~~~~~~~
+
+* ``WaitSensor: make time_to_wait templated (#70480)``
+* ``Make the HITLOperator summary a lazily rendered read-only property with a public 'hitl_summary_extra' extension point (#70345, #70391)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Give each task its own start trigger arguments in standard sensors (#70888)``
+* ``Deprecating 'poll_interval' in 'ExternalTaskSensor' for 'poke_interval' (#68997)``
+* ``Fix BashOperator script detection after templating (#70369)``
+* ``Fix DateTimeSensor crash when target_time renders to a datetime (#70320)``
+
+Misc
+~~~~
+
+* ``Validate TriggerDagRunOperator logical_date after template rendering (#70490)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 1.16.0
 ......
 

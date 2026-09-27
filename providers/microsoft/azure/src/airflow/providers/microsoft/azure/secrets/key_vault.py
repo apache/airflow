@@ -33,6 +33,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -157,7 +158,8 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        if self._is_team_specific_accessed_as_global(conn_id, team_name):
+        if self._names_a_team_namespace(conn_id):
+            self._log_refusal("connection", conn_id)
             return None
 
         return self._get_secret(self.connections_prefix, conn_id, team_name=team_name)
@@ -173,7 +175,8 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         if self.variables_prefix is None:
             return None
 
-        if self._is_team_specific_accessed_as_global(key, team_name):
+        if self._names_a_team_namespace(key):
+            self._log_refusal("variable", key)
             return None
 
         return self._get_secret(self.variables_prefix, key, team_name=team_name)
@@ -186,6 +189,10 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :return: Configuration Option Value
         """
         if self.config_prefix is None:
+            return None
+
+        if self._names_a_team_namespace(key):
+            self._log_refusal("configuration option", key)
             return None
 
         return self._get_secret(self.config_prefix, key)
@@ -210,14 +217,54 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         return path.replace("_", sep)
 
     def _build_team_secret_name(self, path_prefix: str, team_name: str, secret_id: str) -> str:
-        """Build a team-scoped secret name using a dedicated separator before the secret id."""
+        """
+        Build a team-scoped secret name using a dedicated separator before the secret id.
+
+        The secret id is normalised the same way :meth:`build_path` normalises every other name
+        in this backend. On its own that would let ``b__c`` manufacture the team separator; ids
+        whose normalised form contains it are refused by the callers before they get here.
+        """
         team_prefix = self.build_path(path_prefix, team_name, self.sep)
         normalized_secret_id = secret_id.replace("_", self.sep)
         return f"{team_prefix}{TEAM_SEP}{normalized_secret_id}"
 
-    def _is_team_specific_accessed_as_global(self, secret_id: str, team_name: str | None = None) -> bool:
-        normalized_secret_id = self.build_path("", secret_id, self.sep)
-        return team_name is None and bool(re.fullmatch(rf".+{re.escape(TEAM_SEP)}.+", normalized_secret_id))
+    def _names_a_team_namespace(self, secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` spells out a team scoped secret name.
+
+        A team scoped secret is named ``<team>{TEAM_SEP}<secret id>``, so an id that itself
+        contains the team separator makes the built name ambiguous: team ``a`` with id ``b--c``
+        and team ``a--b`` with id ``c`` produce the same string. Such an id is refused by every
+        getter -- connections, variables and configuration options, team scoped as well as team
+        agnostic -- because the ambiguity exists in both directions and the caller's own
+        namespace is not a safe harbour for it.
+
+        The id is never parsed to work out *which* team it names, because it cannot be: nothing
+        in the string distinguishes the two readings above. Comparing the id against the prefix
+        the caller's own team builds looks equivalent and is not -- a caller in team ``a`` would
+        match ``a--b``'s namespace on the prefix and read its secrets. Only the caller's own
+        namespace is ever constructed, never parsed.
+
+        The id is normalised first because :meth:`build_path` maps ``_`` onto the separator
+        everywhere in this backend, so ``b__c`` reaches Key Vault as ``b--c`` and would
+        otherwise manufacture the team separator from an id that does not visibly contain it.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no
+        team scoped secret can exist to collide with.
+        """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
+        return TEAM_SEP in self.build_path("", secret_id, self.sep)
+
+    def _log_refusal(self, kind: str, secret_id: str) -> None:
+        self.log.warning(
+            "%s id %r resolves to a name containing %r, which separates the team name from the "
+            "secret id in a team scoped secret name. Such an id is ambiguous and is not looked "
+            "up. Returning None.",
+            kind.capitalize(),
+            secret_id,
+            TEAM_SEP,
+        )
 
     def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:
         """
@@ -225,7 +272,10 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
+        :param team_name: Team the lookup is scoped to (if any)
         """
+        # The team scoped name is tried first. Ids that would make it name a namespace other
+        # than the caller's own are refused by the callers before reaching here.
         if team_name:
             team_secret = self._get_secret_value(
                 path_prefix, self._build_team_secret_name("", team_name, secret_id)

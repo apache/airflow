@@ -467,6 +467,12 @@ class TestAwsBaseHook:
             mock_supervisor_comms.send.return_value = ConnectionResult(
                 conn_id="aws_default",
                 conn_type="aws",
+                host=None,
+                schema=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
             )
         with mock.patch.dict(os.environ, env_var, clear=True):
             dag_run_key = self.fetch_tags()["DagRunKey"]
@@ -1191,6 +1197,8 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
     for env_key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN"):
         # Delete aws credentials environment variables
         monkeypatch.delenv(env_key, raising=False)
+    # On an EC2 host the credential chain would otherwise reach the instance role via IMDS
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
 
     hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
     with pytest.raises(NoCredentialsError) as credential_error:

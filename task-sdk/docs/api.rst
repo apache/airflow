@@ -116,6 +116,10 @@ Deadline Alerts
 
 .. autoclass:: airflow.sdk.DeadlineReference
 
+.. autoclass:: airflow.sdk.BaseDeadlineReference
+
+.. autofunction:: airflow.sdk.deadline_reference
+
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection
@@ -151,6 +155,8 @@ Tasks page in the core docs for usage and design rationale.
 .. autoapiclass:: airflow.sdk.RetryPolicy
 
 .. autoapiclass:: airflow.sdk.ExceptionRetryPolicy
+
+.. autoapiclass:: airflow.sdk.ChainRetryPolicy
 
 .. autoapiclass:: airflow.sdk.RetryRule
 

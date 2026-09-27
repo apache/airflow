@@ -25,6 +25,7 @@ import pytest
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.abstract import ToolsetTool
+from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.datafusion import (
     _RETRYABLE_QUERY_ERROR_PATTERNS,
@@ -64,7 +65,7 @@ def _make_mock_engine(
     for tname in tables:
         mock.session_context.table(tname).schema.return_value = arrow_fields
 
-    mock.execute_query.return_value = (
+    mock.session_context.sql.return_value.limit.return_value.to_pydict.return_value = (
         query_result
         if query_result is not None
         else {
@@ -105,6 +106,24 @@ class TestDataFusionToolsetGetTools:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
         for tool in tools.values():
             assert tool.tool_def.description
+
+
+class TestDataFusionToolsetArgsValidation:
+    @pytest.mark.parametrize(
+        ("tool_name", "valid_args"),
+        [
+            ("get_schema", {"table_name": "sales_data"}),
+            ("query", {"sql": "SELECT 1"}),
+        ],
+    )
+    def test_enforces_required_args(self, tool_name, valid_args):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+        validator = tools[tool_name].args_validator
+        assert validator.validate_python(valid_args) == valid_args
+        with pytest.raises(ValidationError):
+            validator.validate_python({})
 
 
 class TestDataFusionToolsetListTables:
@@ -161,13 +180,15 @@ class TestDataFusionToolsetQuery:
             )
         )
         data = json.loads(result)
-        assert data["rows"] == [{"id": 1, "amount": 10.5}, {"id": 2, "amount": 20.0}]
-        assert data["count"] == 2
+        assert data["columns"] == ["id", "amount"]
+        assert data["rows"] == [[1, 10.5], [2, 20.0]]
+        assert data["row_count"] == 2
 
     def test_truncates_at_max_rows(self):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg], max_rows=1)
-        ts._engine = _make_mock_engine(query_result={"id": [1, 2, 3], "name": ["a", "b", "c"]})
+        engine = _make_mock_engine(query_result={"id": [1, 2], "name": ["a", "b"]})
+        ts._engine = engine
 
         result = asyncio.run(
             ts.call_tool(
@@ -178,9 +199,11 @@ class TestDataFusionToolsetQuery:
             )
         )
         data = json.loads(result)
-        assert len(data["rows"]) == 1
+        engine.session_context.sql.assert_called_once_with("SELECT id, name FROM sales_data")
+        engine.session_context.sql.return_value.limit.assert_called_once_with(2)
+        assert data["rows"] == [[1, "a"]]
         assert data["truncated"] is True
-        assert data["count"] == 3
+        assert data["truncated_by"] == "max_rows"
 
     def test_handles_empty_result(self):
         cfg = _make_mock_datasource_config()
@@ -197,14 +220,14 @@ class TestDataFusionToolsetQuery:
         )
         data = json.loads(result)
         assert data["rows"] == []
-        assert data["count"] == 0
+        assert data["row_count"] == 0
 
     def test_blocks_create_table_by_default(self):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
         ts._engine = _make_mock_engine()
 
-        with pytest.raises(SQLSafetyError, match="Statement type 'Create' is not allowed"):
+        with pytest.raises(ModelRetry, match="Statement type 'Create' is not allowed"):
             asyncio.run(
                 ts.call_tool(
                     "query",
@@ -213,6 +236,22 @@ class TestDataFusionToolsetQuery:
                     tool=MagicMock(spec=ToolsetTool),
                 )
             )
+
+    def test_sql_syntax_error_raises_model_retry(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine()
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT * FROM t WHERE"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
+        assert isinstance(exc_info.value.__cause__, SQLSafetyError)
 
     def test_allows_create_table_when_writes_enabled(self):
         cfg = _make_mock_datasource_config()
@@ -287,12 +326,10 @@ class TestDataFusionToolsetQueryErrors:
         assert matches is expected
 
     def test_query_execution_exception_returns_error_json(self):
-        from airflow.providers.common.sql.datafusion.exceptions import QueryExecutionException
-
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
         engine = _make_mock_engine()
-        engine.execute_query.side_effect = QueryExecutionException("execution failed")
+        engine.session_context.sql.side_effect = RuntimeError("execution failed")
         ts._engine = engine
 
         result = asyncio.run(
@@ -345,12 +382,14 @@ class TestDataFusionToolsetQueryErrors:
         assert "get_schema" in exc_info.value.message
         assert "list_tables" in exc_info.value.message
 
-    def test_unexpected_exception_propagates(self):
+    @patch(
+        "airflow.providers.common.ai.toolsets.datafusion.build_query_result",
+        side_effect=TypeError("unexpected error"),
+    )
+    def test_unexpected_exception_propagates(self, _):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
-        engine = _make_mock_engine()
-        engine.execute_query.side_effect = TypeError("unexpected error")
-        ts._engine = engine
+        ts._engine = _make_mock_engine()
 
         with pytest.raises(TypeError, match="unexpected error"):
             asyncio.run(

@@ -388,7 +388,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 ```
 
 - Install `breeze` command (recommended — installs a shim at `~/.local/bin/breeze` that runs
-  breeze via `uvx` from the current git worktree's `dev/breeze`; see
+  breeze via `uv run --locked` from the current git worktree's `dev/breeze`; see
   [ADR 0017](breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md)):
 
 ```shell script
@@ -588,6 +588,18 @@ still works but is no longer recommended.
         --sync-branch ${SYNC_BRANCH}
    ```
 
+   Note: when it reaches the constraints step, `start-rc-process` triggers the `Release
+   constraints` workflow and waits. The candidate resolves constraints of its own rather than
+   tagging the `constraints-X-Y` branch tip, and it resolves them **allowing pre-releases for the
+   providers** — the providers of the wave being voted on exist on PyPI only as `rcN` versions, so
+   constraints that refused them could not describe what a tester is asked to install. The
+   allowance is scoped to `apache-airflow-providers-*`; no other package can resolve to a
+   pre-release, so a beta of some third-party library cannot slip into what the candidate ships.
+
+   The result lands on a branch of its own (`constraints-${VERSION_RC}`) and is tagged
+   `constraints-${VERSION_RC}`. The shared `constraints-X-Y` branch is left where it was — only
+   the final release moves it.
+
    **Testing the start-rc-process command:**
    Before running the actual release command, you can safely test it using:
 
@@ -627,6 +639,29 @@ you need to run several workflows to publish the documentation. More details abo
 emergency cases.
 
 We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Sync staging with main (skip if another vote is in progress)
+
+Before publishing the staging docs, reset the `staging` branches of
+[`apache/airflow-site`](https://github.com/apache/airflow-site) and
+[`apache/airflow-site-archive`](https://github.com/apache/airflow-site-archive) to `main`, so the staging
+site starts from the current live site rather than from whatever an earlier release left there:
+
+```shell script
+breeze workflow-run sync-staging-to-main
+```
+
+It triggers the `Reset staging to main` workflow in
+[`airflow-site`](https://github.com/apache/airflow-site/actions/workflows/reset-staging.yml) and in
+[`airflow-site-archive`](https://github.com/apache/airflow-site-archive/actions/workflows/reset-staging.yml).
+Each force-updates its repository's `staging` branch to the current `main` commit (`main` itself is not
+changed); in `airflow-site` it also rebuilds the staging site.
+
+> [!WARNING]
+> **Skip this step if a vote for any other release (Airflow, Providers, Helm Chart, airflowctl, ...) is
+> in progress.** Its release candidate docs are on the `staging` branches, and resetting `staging` to `main`
+> would overwrite the staging docs prepared for that vote. The command asks for confirmation before it
+> does anything; answer `n` to skip it.
 
 ### Using breeze commands
 
@@ -1372,15 +1407,44 @@ breeze release-management start-release \
 
 Note: The `--task-sdk-version` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
-Note: When it reaches the constraints step, `start-release` asks whether to base the final
-`constraints-${VERSION}` tag on the latest `constraints-X-Y` branch tip instead of the RC
-constraints tag. The RC constraints are frozen when the RC is cut, so if any providers were
-released (or constraints were otherwise refreshed - see
+Note: When it reaches the constraints step, `start-release` resolves the constraints again rather
+than promoting the ones the RC was cut with. The RC constraints deliberately pin pre-releases -
+that wave's providers exist on PyPI only as `rcN` versions at candidate time - so they can never
+become the released constraints by retagging. The regeneration runs without pre-releases against
+the same providers now published as finals, commits the result onto the `constraints-X-Y` branch,
+pushes it, and tags it `constraints-${VERSION}`. That commit is what makes the released
+constraints the new baseline, so refreshing the branch beforehand (see
 [MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md](MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md))
-after the last RC and you want the released constraints to reflect that, answer **yes** to tag the
-`constraints-X-Y` branch tip. Otherwise (the default) the final tag matches the RC exactly. If you
-do refresh, run the `Update constraints` workflow from `main` with `ref` set to the ref you are
-releasing (typically `v3-*-stable`) **before** running `start-release`.
+is no longer necessary.
+
+The resolution runs on CI runners through the `Release constraints` workflow, so the release
+manager's machine does not need a CI image for every supported Python. `start-release` triggers it
+and waits. You can also run it on its own - to redo a candidate's constraints, or to produce them
+for a release cut before this existed:
+
+```shell script
+breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable
+```
+
+The workflow derives the stage from `--version` alone, so there is no separate switch that could
+disagree with the version:
+
+| `--version` | Provider pins | Lands on | Tagged |
+|---|---|---|---|
+| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3.3.1rc1`, branched off `constraints-3-3` | `constraints-3.3.1rc1` |
+| `3.3.1` | newest final in PyPI | `constraints-3-3` (commit) | `constraints-3.3.1` |
+
+The providers are pinned rather than resolved: every `apache-airflow-providers-*` is named with
+`==` at the newest version PyPI can install, so the constraints record what is actually published
+instead of whatever the resolver settles on. A candidate takes the wave's `rcN` versions along with
+it - a pre-release only wins by sorting above every final release, so a provider without a
+candidate in the wave keeps its release. A final ignores candidates entirely, which is what makes
+it impossible for a released constraints file to carry an `rc` pin. Nothing else in the dependency
+graph can resolve to a pre-release, since no other requirement mentions one.
+
+Re-running the workflow for the same candidate deletes and re-creates that candidate's branch and
+tag, so redoing a candidate's constraints just works. A final is never treated this way - it commits
+onto the shared `constraints-X-Y` branch, whose history everything downstream reads.
 
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in

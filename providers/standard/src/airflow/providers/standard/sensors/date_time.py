@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import datetime
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NoReturn
@@ -88,6 +89,8 @@ class DateTimeSensorAsync(DateTimeSensor):
 
     :param target_time: datetime after which the job succeeds. (templated)
     :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+        Ignored when ``target_time`` is a Jinja template: templates are only rendered on the worker, so the
+        task defers from the worker instead.
     :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
         during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
@@ -113,11 +116,26 @@ class DateTimeSensorAsync(DateTimeSensor):
         super().__init__(**kwargs)
         self.end_from_trigger = end_from_trigger
 
+        # A templated target is rendered after Dag parsing, so it cannot be used to
+        # construct the trigger arguments at task initialization time.
+        if (
+            start_from_trigger
+            and isinstance(self.target_time, str)
+            and any(delimiter in self.target_time for delimiter in ("{{", "{%", "{#"))
+        ):
+            start_from_trigger = False
+
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
-            self.start_trigger_args.trigger_kwargs = dict(
-                moment=self._moment,
-                end_from_trigger=self.end_from_trigger,
+            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
+            # assigning through it would overwrite the arguments of every other task built
+            # from this operator.
+            self.start_trigger_args = dataclasses.replace(
+                self.start_trigger_args,
+                trigger_kwargs=dict(
+                    moment=self._moment,
+                    end_from_trigger=self.end_from_trigger,
+                ),
             )
 
     def execute(self, context: Context) -> NoReturn:

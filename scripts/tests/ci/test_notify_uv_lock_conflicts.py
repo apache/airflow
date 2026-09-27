@@ -161,6 +161,35 @@ class TestClassify:
         assert entry["existing"] == {"id": "C1", "body": f"{mod.MARKER}\nolder notice for deadbee"}
 
 
+class TestAvoidBacklink:
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            (
+                "https://github.com/apache/airflow/pull/42",
+                "https://redirect.github.com/apache/airflow/pull/42",
+            ),
+            (
+                "https://github.com/apache/airflow/commit/deadbeef",
+                "https://redirect.github.com/apache/airflow/commit/deadbeef",
+            ),
+        ],
+    )
+    def test_rewrites_github_com(self, mod, url, expected):
+        assert mod.avoid_backlink(url) == expected
+
+    def test_leaves_non_github_url_untouched(self, mod):
+        url = "https://example.com/pull/42"
+        assert mod.avoid_backlink(url) == url
+
+    def test_only_rewrites_leading_occurrence(self, mod):
+        """Only the URL's own host is rewritten, not incidental later occurrences."""
+        url = "https://github.com/apache/airflow/pull/42#see-https://github.com/other"
+        assert mod.avoid_backlink(url) == (
+            "https://redirect.github.com/apache/airflow/pull/42#see-https://github.com/other"
+        )
+
+
 class TestBuildBody:
     def test_includes_marker_source_and_instructions(self, mod):
         body = mod.build_body("[#42](https://example/pr/42)")

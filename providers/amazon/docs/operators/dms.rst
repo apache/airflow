@@ -89,6 +89,38 @@ To start a replication task you can use
     :start-after: [START howto_operator_dms_start_task]
     :end-before: [END howto_operator_dms_start_task]
 
+.. _howto/operator:DmsReloadTablesOperator:
+
+Reload tables for a replication task
+====================================
+
+To reload selected target tables from their source data, use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsReloadTablesOperator`.
+The required parameters are ``replication_task_arn`` and ``tables_to_reload``. Each item in
+``tables_to_reload`` must contain ``SchemaName`` and ``TableName``. The optional ``reload_option``
+defaults to ``data-reload``, which reloads the data and runs validation again when it is enabled.
+Use ``validate-only`` to revalidate without reloading data; this option only applies when validation
+is enabled for the task.
+The replication task must be in the ``RUNNING`` state. By default, the operator waits until every
+requested operation completes. With ``data-reload``, it waits for ``TableState`` to reach
+``Table completed``. With ``validate-only``, it waits for ``ValidationState`` to reach ``Validated``
+and fails if DMS reports mismatched or suspended records, a table error, or another terminal
+validation failure. The first waiter poll runs immediately after the request returns. Set
+``deferrable=True`` to release the worker slot while waiting, or set ``wait_for_completion=False``
+to return the replication task ARN immediately. Use ``waiter_delay`` and ``waiter_max_attempts`` to
+control subsequent polls for each table.
+AWS DMS accepts up to 10 unique tables per request and supports tasks using the ``full-load`` or
+``full-load-and-cdc`` migration type. DMS applies the task's ``TargetTablePrepMode`` setting before
+reloading each table; when it is ``DO_NOTHING``, truncate the target table manually before reloading.
+See `Reloading tables during a task
+<https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Tasks.ReloadTables.html>`__ for details.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_reload_tables]
+    :end-before: [END howto_operator_dms_reload_tables]
+
 .. _howto/operator:DmsDescribeTasksOperator:
 
 Get details of replication tasks

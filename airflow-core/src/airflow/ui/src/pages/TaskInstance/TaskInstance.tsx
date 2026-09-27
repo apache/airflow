@@ -22,30 +22,57 @@ import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineStorage, MdOutlineTask, MdReorder } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
+import { getDefaultTaskInstanceTabPath } from "src/utils/links";
 
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
   const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const tryNumber = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const trySearch =
+    tryNumber === null
+      ? undefined
+      : new URLSearchParams({ [SearchParamsKeys.TRY_NUMBER]: tryNumber }).toString();
 
   useDocumentTitle(taskId);
 
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
+  // When another tab is the default, the index route redirects to it, so the Logs
+  // tab must point at the explicit /logs path to stay reachable.
+  const [defaultTab] = useDefaultTaskInstanceTab();
+  const logsTabValue = getDefaultTaskInstanceTabPath(defaultTab) === "" ? "" : "logs";
+
   const tabs = [
-    { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
-    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
+    {
+      icon: <MdReorder />,
+      label: translate("tabs.logs"),
+      matchPaths: ["logs"],
+      search: trySearch,
+      value: logsTabValue,
+    },
+    {
+      icon: <FiUser />,
+      label: translate("tabs.requiredActions"),
+      search: trySearch,
+      value: "required_actions",
+    },
     {
       icon: <PiBracketsCurlyBold />,
       label: translate("tabs.renderedTemplates"),
@@ -54,13 +81,13 @@ export const TaskInstance = () => {
     {
       icon: <MdOutlineStorage />,
       label: translate("tabs.storage"),
-      matchPaths: ["task-store", "xcom"],
-      value: "task-state-store",
+      matchPaths: ["task-state-store", "xcom"],
+      value: "xcom",
     },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
-    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    { icon: <MdDetails />, label: translate("tabs.details"), search: trySearch, value: "details" },
     ...externalTabs,
   ];
 
@@ -82,6 +109,7 @@ export const TaskInstance = () => {
     {
       enabled: !isNaN(parsedMapIndex),
       refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      staleTime: 0,
     },
   );
 

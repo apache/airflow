@@ -147,6 +147,8 @@ class S3ToGCSOperator(S3ListOperator):
         "delimiter",
         "dest_gcs",
         "google_impersonation_chain",
+        "gcp_conn_id",
+        "aws_conn_id",
     )
     ui_color = "#e09411"
     transfer_job_max_files_number = 1000

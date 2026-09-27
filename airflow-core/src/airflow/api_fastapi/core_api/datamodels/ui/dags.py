@@ -30,6 +30,7 @@ class DAGWithLatestDagRunsResponse(DAGResponse):
 
     asset_expression: MaybeAssetExpression
     latest_dag_runs: list[DAGRunLightResponse]
+    has_unfinished_runs: bool
     pending_actions: list[HITLDetail]
     is_favorite: bool
     team_name: str | None = None
@@ -40,6 +41,13 @@ class DAGWithLatestDagRunsCollectionResponse(BaseModel):
 
     total_entries: int
     dags: list[DAGWithLatestDagRunsResponse]
+
+
+class DagTimetableTypeCollectionResponse(BaseModel):
+    """Timetable types used by Dags."""
+
+    timetable_types: list[str]
+    total_entries: int
 
 
 class DAGRunStateCountsResponse(BaseModel):

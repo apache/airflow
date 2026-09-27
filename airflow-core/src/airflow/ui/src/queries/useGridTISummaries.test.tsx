@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
-import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import {
@@ -27,6 +28,7 @@ import {
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import type { TaskInstanceState } from "openapi/requests";
+
 import { useAutoRefresh } from "src/utils";
 
 import { useGridTiSummariesStream } from "./useGridTISummaries";
@@ -60,7 +62,7 @@ const createMockResponse = (chunks: Array<string>) => {
 
 const createWrapper =
   (queryClient: QueryClient) =>
-  ({ children }: { readonly children: React.ReactNode }) => (
+  ({ children }: { readonly children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
@@ -77,6 +79,8 @@ describe("useGridTiSummariesStream", () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.useRealTimers();
+    focusManager.setFocused(undefined);
+    (useAutoRefresh as Mock).mockReturnValue(false);
   });
 
   it("streams summaries correctly on mount", async () => {
@@ -349,5 +353,48 @@ describe("useGridTiSummariesStream", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-stream on the interval while the tab is hidden, and resumes when visible", async () => {
+    const interval = 30_000;
+
+    (useAutoRefresh as Mock).mockReturnValue(interval);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          gcTime: Infinity,
+          staleTime: Infinity,
+        },
+      },
+    });
+    const wrapper = createWrapper(queryClient);
+
+    // A pending run arms the interval effect.
+    renderHook(() => useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"], states: ["running"] }), {
+      wrapper,
+    });
+
+    // Flush the mount stream without advancing far enough to fire the interval.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      focusManager.setFocused(false);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(interval);
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      focusManager.setFocused(true);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(interval);
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });

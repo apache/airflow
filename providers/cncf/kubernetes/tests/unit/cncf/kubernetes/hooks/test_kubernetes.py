@@ -39,6 +39,7 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     AsyncKubernetesHook,
     KubernetesHook,
+    _split_log_bytes,
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
 )
@@ -93,7 +94,12 @@ class TestTimeoutK8sApiClient:
         ("kwargs", "expected_timeout"),
         [
             pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            # Generated kubernetes client methods always pass _request_timeout=None explicitly,
+            # so setdefault() is a no-op. The fix must coerce None to the default timeout.
+            pytest.param({"_request_timeout": None}, API_TIMEOUT, id="explicit-none-timeout"),
             pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            # Log-streaming path passes a (connection, read) tuple; it must not be clobbered.
+            pytest.param({"_request_timeout": (1800, 300)}, (1800, 300), id="explicit-tuple-preserved"),
             pytest.param(
                 {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
                 API_TIMEOUT,
@@ -127,7 +133,12 @@ class TestTimeoutAsyncK8sApiClient:
         ("kwargs", "expected_timeout"),
         [
             pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            # Generated kubernetes_asyncio client methods always pass _request_timeout=None explicitly,
+            # so setdefault() is a no-op. The fix must coerce None to the default timeout.
+            pytest.param({"_request_timeout": None}, API_TIMEOUT, id="explicit-none-timeout"),
             pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            # Log-streaming path passes a (connection, read) tuple; it must not be clobbered.
+            pytest.param({"_request_timeout": (1800, 300)}, (1800, 300), id="explicit-tuple-preserved"),
             pytest.param(
                 {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
                 API_TIMEOUT,
@@ -1337,6 +1348,107 @@ class TestAsyncKubernetesHook:
         assert hook._config_loaded is expected_cached
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kubeconfig_content", "extra_default_paths", "expected_cached"),
+        [
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    exec:\n      command: aws eks get-token\n"
+                ),
+                0,
+                False,
+                id="default_kubeconfig_with_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    token: static-token\n"
+                ),
+                0,
+                True,
+                id="default_kubeconfig_no_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    token: static-token\n"
+                ),
+                1,
+                False,
+                id="default_kubeconfig_merged_from_several_files",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_caching_behavior_default_kubeconfig(
+        self, mock_load_file, tmp_path, kubeconfig_content, extra_default_paths, expected_cached
+    ):
+        mock_load_file.return_value = None
+        kubeconfig_file = tmp_path / "config"
+        kubeconfig_file.write_text(kubeconfig_content)
+        extra_files = []
+        for index in range(extra_default_paths):
+            extra_file = tmp_path / f"extra{index}.yaml"
+            extra_file.write_text(kubeconfig_content)
+            extra_files.append(str(extra_file))
+        default_location = os.pathsep.join([str(kubeconfig_file), *extra_files])
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(return_value=None)
+        with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", default_location):
+            await hook._load_config()
+
+        mock_load_file.assert_awaited_once()
+        assert hook._config_loaded is expected_cached
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_default_kubeconfig_ignores_paths_that_do_not_exist(
+        self, mock_load_file, tmp_path
+    ):
+        mock_load_file.return_value = None
+        kubeconfig_file = tmp_path / "config"
+        kubeconfig_file.write_text(
+            "current-context: ctx1\n"
+            "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+            "users:\n- name: user1\n  user:\n    token: static-token\n"
+        )
+        default_location = os.pathsep.join([str(kubeconfig_file), str(tmp_path / "missing.yaml")])
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(return_value=None)
+        with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", default_location):
+            await hook._load_config()
+
+        assert hook._config_loaded is True
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_default_kubeconfig_expands_home_directory(
+        self, mock_load_file, tmp_path, monkeypatch
+    ):
+        mock_load_file.return_value = None
+        kube_dir = tmp_path / ".kube"
+        kube_dir.mkdir()
+        (kube_dir / "config").write_text(
+            "current-context: ctx1\n"
+            "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+            "users:\n- name: user1\n  user:\n    token: static-token\n"
+        )
+        monkeypatch.setenv("HOME", str(tmp_path))
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(return_value=None)
+        with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", "~/.kube/config"):
+            await hook._load_config()
+
+        assert hook._config_loaded is True
+
+    @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_get_pod_events_with_resource_version(
         self, mock_list_namespaced_event, kube_config_loader
@@ -1856,6 +1968,29 @@ class TestAsyncKubernetesHook:
         assert "\ufffd" in logs[1]
         lib_method.assert_called_once()
         assert lib_method.call_args.kwargs.get("_preload_content") is False
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.to_thread", new_callable=mock.AsyncMock)
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_read_logs_decodes_off_the_event_loop(self, lib_method, mock_to_thread, kube_config_loader):
+        """The CPU-bound decode/splitlines is offloaded to a worker thread, not run on the loop."""
+        raw_bytes = b"2023-01-11 Some string logs..."
+        mock_raw_resp = mock.AsyncMock()
+        mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
+        lib_method.return_value = self.mock_await_result(mock_raw_resp)
+        mock_to_thread.return_value = ["decoded line"]
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        logs = await hook.read_logs(name=POD_NAME, namespace=NAMESPACE, container_name=CONTAINER_NAME)
+
+        assert logs == ["decoded line"]
+        mock_to_thread.assert_awaited_once_with(_split_log_bytes, raw_bytes)
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))

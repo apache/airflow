@@ -68,7 +68,7 @@ def get_provider_min_airflow_version(provider_name: str) -> tuple[int, ...]:
 
 
 # Ignore module import errors for any suspended provider paths used in example dags
-IGNORE_MODULE_IMPORT_ERRORS: list[str] = ["airflow.providers.apache.beam"]
+IGNORE_MODULE_IMPORT_ERRORS: list[str] = []
 
 
 def get_suspended_providers_folders() -> list[str]:

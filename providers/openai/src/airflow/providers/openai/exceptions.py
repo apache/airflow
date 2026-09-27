@@ -26,3 +26,11 @@ class OpenAIBatchJobException(AirflowException):
 
 class OpenAIBatchTimeout(AirflowException):
     """Raise when OpenAI Batch Job times out."""
+
+
+class OpenAITriggerEventError(AirflowException):
+    """Raise when a deferred task resumes with a missing or malformed trigger event."""
+
+
+class OpenAIAgentSessionError(AirflowException):
+    """Raise when a Managed Agents session fails or cannot run."""

@@ -214,7 +214,7 @@ To configure mounting Dags from private GitHub repository, follow below steps:
       ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 3. Add the public key to your private repo under ``Settings > Deploy keys``.
-4. Convert the private ssh key to a base64 string and save it's value.
+4. Convert the private ssh key to a base64 string and save its value.
 
    .. note::
 

@@ -285,7 +285,12 @@ def serialize(o: object, depth: int = 0) -> U | None:
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
-    raise TypeError(f"cannot serialize object of type {cls}")
+    raise TypeError(
+        f"Cannot serialize object of type {cls}. Give it a `serialize()` method and a "
+        "`deserialize(data, version)` staticmethod, or decorate the class with @dataclass or "
+        "@attr.define. "
+        "See: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/serializers.html"
+    )
 
 
 def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
@@ -387,7 +392,11 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
         return cls(**deserialize_value)  # type: ignore[operator]
 
     # no deserializer available
-    raise TypeError(f"No deserializer found for {classname}")
+    raise TypeError(
+        f"No deserializer found for {classname}. It must provide a `deserialize(data, version)` "
+        "staticmethod (matching how it serializes), or be decorated with @dataclass or @attr.define. "
+        "See: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/serializers.html"
+    )
 
 
 def _convert(old: dict) -> dict:

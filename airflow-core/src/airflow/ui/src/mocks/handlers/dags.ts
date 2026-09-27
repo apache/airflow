@@ -18,7 +18,7 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
-const successDag = {
+export const successDag = {
   dag_display_name: "tutorial_taskflow_api_success",
   dag_id: "tutorial_taskflow_api_success",
   file_token:
@@ -26,6 +26,7 @@ const successDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: true,
   is_paused: false,
   is_stale: false,
@@ -49,9 +50,10 @@ const successDag = {
   pending_actions: [],
   tags: [{ dag_id: "tutorial_taskflow_api_success", name: "example" }],
   timetable_description: "Never, external triggers only",
+  timetable_type: "NullTimetable",
 };
 
-const failedDag = {
+export const failedDag = {
   dag_display_name: "tutorial_taskflow_api_failed",
   dag_id: "tutorial_taskflow_api_failed",
   file_token:
@@ -59,6 +61,7 @@ const failedDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: false,
   is_stale: false,
@@ -82,9 +85,10 @@ const failedDag = {
   pending_actions: [],
   tags: [{ dag_id: "tutorial_taskflow_api_failed", name: "example" }],
   timetable_description: "Never, external triggers only",
+  timetable_type: "CronTriggerTimetable",
 };
 
-const pausedDag = {
+export const pausedDag = {
   dag_display_name: "paused_dag",
   dag_id: "paused_dag",
   file_token:
@@ -92,6 +96,7 @@ const pausedDag = {
   fileloc: "/airflow/dags/paused_dag.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: true,
   is_stale: false,
@@ -104,10 +109,15 @@ const pausedDag = {
   pending_actions: [],
   tags: [{ dag_id: "paused_dag", name: "example" }],
   timetable_description: "Never, external triggers only",
+  timetable_type: "NullTimetable",
 };
 
-const filterDagsByPaused = (paused: string | null) => {
-  const allDags = [successDag, failedDag, pausedDag];
+const filterDags = ({ paused, timetableTypes }: { paused: string | null; timetableTypes: Array<string> }) => {
+  let allDags = [successDag, failedDag, pausedDag];
+
+  if (timetableTypes.length > 0) {
+    allDags = allDags.filter((dag) => timetableTypes.includes(dag.timetable_type));
+  }
 
   if (paused === "true") {
     return allDags.filter((dag) => dag.is_paused);
@@ -120,11 +130,24 @@ const filterDagsByPaused = (paused: string | null) => {
 };
 
 export const handlers: Array<HttpHandler> = [
+  http.get("/ui/dags/timetable_types", ({ request }) => {
+    const url = new URL(request.url);
+    const prefix = url.searchParams.get("timetable_type_prefix_pattern") ?? "";
+    const timetableTypes = ["CronTriggerTimetable", "NullTimetable"].filter((timetableType) =>
+      timetableType.startsWith(prefix),
+    );
+
+    return HttpResponse.json({
+      timetable_types: timetableTypes,
+      total_entries: timetableTypes.length,
+    });
+  }),
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
     const orderBy = url.searchParams.get("order_by");
     const paused = url.searchParams.get("paused");
+    const timetableTypes = url.searchParams.getAll("timetable_type");
 
     if (lastDagRunState === "success") {
       return HttpResponse.json({
@@ -138,7 +161,7 @@ export const handlers: Array<HttpHandler> = [
       });
     }
 
-    let dags = filterDagsByPaused(paused);
+    let dags = filterDags({ paused, timetableTypes });
 
     if (orderBy === "last_run_run_after" || orderBy === "-last_run_run_after") {
       dags = [failedDag, successDag, pausedDag].filter((dag) => dags.includes(dag));

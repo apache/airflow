@@ -549,6 +549,7 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
         retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        client: JobServiceAsyncClient | None = None,
     ) -> types.BatchPredictionJob:
         """
         Retrieve a batch prediction tuning job.
@@ -559,8 +560,11 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
         :param retry: Designation of what errors, if any, should be retried.
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
+        :param client: Optional. The JobServiceAsyncClient object. This is for avoiding the creation
+         of the client in an infinite loop.
         """
-        client: JobServiceAsyncClient = await self.get_job_service_client(region=location)
+        if client is None:
+            client = await self.get_job_service_client(region=location)
         job_name = client.batch_prediction_job_path(project_id, location, job_id)
 
         result = await client.get_batch_prediction_job(
@@ -589,6 +593,9 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
             JobState.JOB_STATE_PAUSED,
             JobState.JOB_STATE_SUCCEEDED,
         }
+
+        client = await self.get_job_service_client(region=location)
+
         while True:
             try:
                 self.log.info("Requesting batch prediction tuning job with id %s", job_id)
@@ -599,6 +606,7 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
                     retry=retry,
                     timeout=timeout,
                     metadata=metadata,
+                    client=client,
                 )
             except Exception as ex:
                 self.log.exception("Exception occurred while requesting job %s", job_id)

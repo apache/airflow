@@ -23,8 +23,9 @@ import sys
 
 import click
 
-from airflow_breeze.commands.common_options import argument_doc_packages
+from airflow_breeze.commands.common_options import argument_doc_packages, option_answer
 from airflow_breeze.utils.click_utils import BreezeGroup
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
@@ -34,7 +35,13 @@ WORKFLOW_NAME_MAPS = {
     "publish-docs": "publish-docs-to-s3.yml",
     "airflow-refresh-site": "build.yml",
     "sync-s3-to-github": "s3-to-github.yml",
+    "release-constraints": "release-constraints.yml",
+    "reset-staging": "reset-staging.yml",
 }
+
+# X.Y.Z or X.Y.ZrcN - the workflow derives the release stage from which of the two it is given,
+# so there is no separate switch that could disagree with the version.
+RELEASE_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+(rc\d+)?$")
 
 APACHE_AIRFLOW_REPO = "apache/airflow"
 APACHE_AIRFLOW_SITE_REPO = "apache/airflow-site"
@@ -272,3 +279,68 @@ def workflow_run_publish(
         **workflow_fields,
         monitor=False,
     )
+
+
+@workflow_run_group.command(
+    name="release-constraints",
+    help="Trigger the workflow that resolves, publishes and tags the constraints for a release.",
+)
+@click.option(
+    "--version",
+    help="Version the constraints belong to. A candidate (3.1.3rc1) resolves with pre-releases "
+    "allowed and lands on a branch of its own; a final (3.1.3) resolves without them and commits "
+    "onto constraints-X-Y. The stage is derived from this, so it cannot be set inconsistently.",
+    required=True,
+)
+@click.option(
+    "--ref",
+    help="Git ref the constraints are resolved from, e.g. 'v3-1-stable' or the release tag.",
+    required=True,
+)
+@click.option(
+    "--workflow-branch",
+    help="Git ref the workflow DEFINITION runs from. Defaults to 'main', which is normally what "
+    "you want: unlike the docs build, the constraints do not have to be produced by the workflow "
+    "as it stood at the ref being released.",
+    default="main",
+    show_default=True,
+)
+def workflow_run_release_constraints(version: str, ref: str, workflow_branch: str):
+    if not RELEASE_VERSION_PATTERN.match(version):
+        console_print(f"[red]Error: '{version}' is not a release version - expected X.Y.Z or X.Y.ZrcN.[/red]")
+        sys.exit(1)
+    stage = "candidate" if "rc" in version else "final"
+    console_print(f"[blue]Triggering constraints generation for the {stage} {version} from {ref}[/blue]")
+    trigger_workflow_and_monitor(
+        workflow_name=WORKFLOW_NAME_MAPS["release-constraints"],
+        repo=APACHE_AIRFLOW_REPO,
+        branch=workflow_branch,
+        version=version,
+        ref=ref,
+    )
+
+
+@workflow_run_group.command(
+    name="sync-staging-to-main",
+    help="Reset the staging branches of apache/airflow-site and apache/airflow-site-archive to main.",
+)
+@option_answer
+def workflow_run_sync_staging_to_main():
+    console_print(
+        f"[warning]This force-updates the `staging` branches of {APACHE_AIRFLOW_SITE_REPO} and "
+        f"{APACHE_AIRFLOW_SITE_ARCHIVE_REPO} to their current `main` commits, dropping everything that "
+        "is only on `staging`.[/warning]\n"
+        "[warning]If a vote for ANY other release is in progress, its staging docs live on those "
+        "branches - SKIP this step, or you will overwrite the docs prepared for that vote.[/warning]"
+    )
+    answer = user_confirm("Is no other release vote in progress, and should staging be reset to main?")
+    if answer != Answer.YES:
+        console_print("[info]Skipping the reset of staging to main.[/info]")
+        sys.exit(0 if answer == Answer.NO else 1)
+    for repo in (APACHE_AIRFLOW_SITE_REPO, APACHE_AIRFLOW_SITE_ARCHIVE_REPO):
+        console_print(f"[blue]Resetting staging to main in {repo}[/blue]")
+        trigger_workflow_and_monitor(
+            workflow_name=WORKFLOW_NAME_MAPS["reset-staging"],
+            repo=repo,
+            branch="main",
+        )

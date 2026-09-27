@@ -22,7 +22,9 @@ import pytest
 from registry_tools.types import (
     ALL_TYPE_IDS,
     BASE_CLASS_IMPORTS,
+    CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
+    DICT_SHAPED_CLASS_LEVEL_SECTIONS,
     FLAT_LEVEL_SECTIONS,
     MODULE_LEVEL_SECTIONS,
     MODULE_TYPES,
@@ -92,6 +94,30 @@ class TestDerivedLookups:
         for yaml_key, type_id in CLASS_LEVEL_SECTIONS.items():
             assert yaml_key in FLAT_LEVEL_SECTIONS
             assert FLAT_LEVEL_SECTIONS[yaml_key] == type_id
+
+    def test_class_level_category_overrides_are_subset_of_class_level_sections(self):
+        assert set(CLASS_LEVEL_CATEGORY_OVERRIDES.keys()) <= set(CLASS_LEVEL_SECTIONS.keys())
+
+    def test_dict_shaped_class_level_sections_are_subset_of_flat(self):
+        for yaml_key, (type_id, _field_name, _integration_field) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+            assert yaml_key in FLAT_LEVEL_SECTIONS
+            assert FLAT_LEVEL_SECTIONS[yaml_key] == type_id
+
+    def test_every_flat_section_is_consumed_by_a_class_level_table(self):
+        # "transfers" and "task-decorators" are deliberately exempt: they are
+        # consumed by their own dedicated extraction paths rather than by
+        # CLASS_LEVEL_SECTIONS or DICT_SHAPED_CLASS_LEVEL_SECTIONS.
+        dedicated_path_exemptions = {"transfers", "task-decorators"}
+        consumed = (
+            set(CLASS_LEVEL_SECTIONS) | set(DICT_SHAPED_CLASS_LEVEL_SECTIONS) | dedicated_path_exemptions
+        )
+        assert set(FLAT_LEVEL_SECTIONS) == consumed, (
+            f"set(FLAT_LEVEL_SECTIONS) {set(FLAT_LEVEL_SECTIONS)} != consumed {consumed}. "
+            "Every flat-level section must be consumed by CLASS_LEVEL_SECTIONS or "
+            "DICT_SHAPED_CLASS_LEVEL_SECTIONS, otherwise both extractors silently skip it. "
+            "Add the new section to whichever table matches its yaml shape, or, if it is "
+            "handled by a dedicated path, add it to dedicated_path_exemptions above."
+        )
 
 
 class TestBaseClassImports:

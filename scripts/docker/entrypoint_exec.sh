@@ -24,4 +24,10 @@
 # shellcheck source=scripts/in_container/run_init_script.sh
 . /opt/airflow/scripts/in_container/run_init_script.sh
 
+# Reuse the ssh-agent started by entrypoint_ci.sh so that ssh-ing to localhost also
+# works in shells entered with `breeze exec`.
+if [[ -S /root/.breeze-ssh/agent.sock ]]; then
+    export SSH_AUTH_SOCK="/root/.breeze-ssh/agent.sock"
+fi
+
 exec /bin/bash "${@}"

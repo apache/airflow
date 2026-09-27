@@ -33,8 +33,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.db import get_query_count
 
 
@@ -158,7 +157,7 @@ def get_mapped_xcom_by_index(
         xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - offset)
 
     result: tuple[XComModel] | None
-    if (result := session.scalars(xcom_query).first()) is None:
+    if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         message = (
             f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
         )
@@ -176,6 +175,12 @@ class GetXComSliceFilterParams(BaseModel):
     stop: int | None = None
     step: int | None = None
     include_prior_dates: bool = False
+
+
+def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
+    if high <= low:
+        return query.limit(0)
+    return query.slice(low, high)
 
 
 @router.get(
@@ -235,9 +240,9 @@ def get_mapped_xcom_by_slice(
             if stop < 0:
                 stop += get_query_count(query, session=session)
             if step >= 0:
-                query = query.slice(start, stop)
+                query = _get_sliced_query_or_empty(query, start, stop)
             else:
-                query = query.slice(stop + 1, start + 1)
+                query = _get_sliced_query_or_empty(query, stop + 1, start + 1)
     else:
         query = query.order_by(XComModel.map_index.desc())
         step = -step
@@ -250,9 +255,9 @@ def get_mapped_xcom_by_slice(
             if stop >= 0:
                 stop -= get_query_count(query, session=session)
             if step > 0:
-                query = query.slice(-1 - start, -1 - stop)
+                query = _get_sliced_query_or_empty(query, -1 - start, -1 - stop)
             else:
-                query = query.slice(-stop, -start)
+                query = _get_sliced_query_or_empty(query, -stop, -start)
 
     values = [row.value for row in session.execute(query.with_only_columns(XComModel.value)).all()]
     if step != 1:
@@ -337,7 +342,7 @@ def get_xcom(
     # (which automatically deserializes using the backend), we avoid potential
     # performance hits from retrieving large data files into the API server.
     result: tuple[XComModel] | None
-    if (result := session.scalars(xcom_query).first()) is None:
+    if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         if params.offset is None:
             message = (
                 f"XCom with {key=} map_index={params.map_index} not found for "
@@ -391,7 +396,7 @@ def set_xcom(
     map_index: Annotated[int, Query()] = -1,
     dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
-        int | None, Query(description="Number of mapped tasks this value expands into")
+        int | None, Query(ge=0, description="Number of mapped tasks this value expands into")
     ] = None,
 ):
     """Set an Airflow XCom."""
@@ -409,16 +414,17 @@ def set_xcom(
         )
 
     if mapped_length is not None:
-        task_map = TaskMap(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            length=mapped_length,
-            keys=None,
-        )
+        # The scheduler only ever reads a length off the return value, so any other key is write-only.
+        if key != XCOM_RETURN_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "invalid_mapped_length_key",
+                    "message": f"mapped_length is only valid for the {XCOM_RETURN_KEY!r} key.",
+                },
+            )
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
-        if task_map.length > max_map_length:
+        if mapped_length > max_map_length:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -426,7 +432,6 @@ def set_xcom(
                     "message": "pushed value is too large to map as a downstream's dependency",
                 },
             )
-        session.merge(task_map)
 
     # else:
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
@@ -443,6 +448,7 @@ def set_xcom(
             map_index=map_index,
             serialize=False,
             dag_result=dag_result,
+            mapped_length=mapped_length,
             session=session,
         )
     except ValueError as e:

@@ -50,6 +50,22 @@ class MockedMessage:
     def error(*args, **kwargs):
         return False
 
+    def value(*args, **kwargs):
+        return b"test_message"
+
+
+class MockedTombstoneMessage:
+    """A message with a null payload, e.g. a deletion marker from a log-compacted topic."""
+
+    def __init__(*args, **kwargs):
+        pass
+
+    def error(*args, **kwargs):
+        return False
+
+    def value(*args, **kwargs):
+        return None
+
 
 class MockedConsumer:
     def __init__(*args, **kwargs) -> None:
@@ -161,6 +177,62 @@ class TestTrigger:
         await asyncio.sleep(1.0)
         assert task.done() is False
         asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    async def test_trigger_run_tombstone_message_keeps_polling(self, mocker):
+        """
+        A tombstone (null-value) message must not crash the trigger when no apply_function is set.
+
+        Regression test: the trigger previously raised
+        ``AttributeError: 'NoneType' object has no attribute 'decode'`` on ``message.value()``
+        returning ``None``. A tombstone carries no payload to emit, so the trigger should
+        commit the offset (when ``commit_offset`` is enabled) and keep polling.
+        """
+        message = MockedTombstoneMessage()
+        consumer = MockedConsumer()
+        mocker.patch.object(consumer, "poll", return_value=message)
+        commit_mock = mocker.patch.object(consumer, "commit")
+        mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=consumer)
+
+        trigger = AwaitMessageTrigger(
+            kafka_config_id="kafka_d",
+            apply_function=None,
+            topics=["noop"],
+            poll_timeout=0.0001,
+            poll_interval=5,
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(1.0)
+        try:
+            # The task must neither raise nor yield an event: the tombstone is skipped
+            # and the trigger sleeps through poll_interval waiting for the next message.
+            assert task.done() is False
+            # The tombstone offset is still committed, like any other non-matching message.
+            assert commit_mock.mock_calls == [call(message=message, asynchronous=False)]
+        finally:
+            task.cancel()
+
+    @pytest.mark.asyncio
+    async def test_trigger_run_without_apply_function_yields_message_value(self, mocker):
+        """A regular message with no apply_function yields the decoded message value."""
+        consumer = MockedConsumer()
+        mocker.patch.object(consumer, "poll", return_value=MockedMessage())
+        mocker.patch.object(consumer, "commit")
+        mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=consumer)
+
+        trigger = AwaitMessageTrigger(
+            kafka_config_id="kafka_d",
+            apply_function=None,
+            topics=["noop"],
+            poll_timeout=0.0001,
+            poll_interval=5,
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(1.0)
+        assert task.done() is True
+        assert task.result().payload == "test_message"
 
     @pytest.mark.asyncio
     async def test_cleanup_closes_consumer(self, mocker):

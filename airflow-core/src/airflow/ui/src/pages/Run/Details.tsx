@@ -21,16 +21,22 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDagRunServiceGetDagRunStats } from "openapi/queries";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
-import { getDuration, isStatePending, renderDuration, useAutoRefresh } from "src/utils";
+
+import { useShowTeam } from "src/hooks/useShowTeam";
+import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "components"]);
+  const { formatElapsed, renderDuration } = useDurationFormat();
   const { dagId = "", runId = "" } = useParams();
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -45,6 +51,8 @@ export const Details = () => {
   );
 
   const { data: dagRunStats } = useDagRunServiceGetDagRunStats({ dagId, dagRunId: runId });
+
+  const showTeam = useShowTeam(dagRun?.team_name);
 
   if (!dagRun) {
     return undefined;
@@ -82,9 +90,17 @@ export const Details = () => {
             </HStack>
           </Table.Cell>
         </Table.Row>
+        {showTeam ? (
+          <Table.Row>
+            <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+            <Table.Cell>
+              <TeamName teamName={dagRun.team_name} />
+            </Table.Cell>
+          </Table.Row>
+        ) : undefined}
         <Table.Row>
           <Table.Cell>{translate("duration")}</Table.Cell>
-          <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>
+          <Table.Cell>{formatElapsed(dagRun.start_date, dagRun.end_date)}</Table.Cell>
         </Table.Row>
         {dagRunStats?.duration ? (
           <Table.Row>

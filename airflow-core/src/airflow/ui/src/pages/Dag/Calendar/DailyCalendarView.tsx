@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -38,6 +37,7 @@
 import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -63,6 +63,7 @@ export const DailyCalendarView = ({
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
+  const { dagId = "" } = useParams();
   const dailyData = generateDailyCalendarData(data, { deadlineMap, selectedYear, timezone });
 
   const weekdays = [
@@ -121,6 +122,7 @@ export const DailyCalendarView = ({
                     <CalendarCell
                       backgroundColor="transparent"
                       cellData={undefined}
+                      dagId={dagId}
                       key={day.date}
                       viewMode={viewMode}
                     />
@@ -131,6 +133,7 @@ export const DailyCalendarView = ({
                   <CalendarCell
                     backgroundColor={scale.getColor(day.counts)}
                     cellData={day}
+                    dagId={dagId}
                     key={day.date}
                     viewMode={viewMode}
                   />

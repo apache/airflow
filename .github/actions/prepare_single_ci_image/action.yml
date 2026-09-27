@@ -36,7 +36,8 @@ runs:
   using: "composite"
   steps:
     - name: "Restore CI docker images ${{ inputs.platform }}:${{ inputs.python }}"
-      uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
         key: ci-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
         path: "/mnt/"

@@ -36,14 +36,13 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
-from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 
@@ -384,8 +383,13 @@ def stop_worker(args):
 
     # Send SIGTERM
     if pid:
-        worker_process = psutil.Process(pid)
-        worker_process.terminate()
+        try:
+            worker_process = psutil.Process(pid)
+            worker_process.terminate()
+        except psutil.NoSuchProcess:
+            log.warning(
+                "Worker process with PID %s is not running, PID file %s is stale.", pid, pid_file_path
+            )
 
     # Remove pid file
     remove_existing_pidfile(pid_file_path)

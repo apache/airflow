@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -40,8 +40,13 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
     resolve_run_on_latest_version,
 )
-from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
-from airflow.api_fastapi.common.db.dags import attach_team_names
+from airflow.api_fastapi.common.db.common import (
+    SessionDep,
+    apply_filters_to_select,
+    bounded_total_entries,
+    paginated_select,
+)
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -102,6 +107,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _get_task_group_task_ids,
     _get_task_group_task_instances,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -144,6 +150,7 @@ def get_task_instance(
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_teams(TI.dag_run, DagRun.dag_model))
     )
     task_instance = session.scalar(query)
 
@@ -377,10 +384,7 @@ def get_task_instance_tries(
         ).options(joinedload(orm_object.hitl_detail))
         return query
 
-    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
-    tis = session.scalars(
-        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
-    ).all()
+    tis = session.scalars(_query(TI)).all()
     task_instances = list(session.scalars(_query(TIH)).all()) + list(tis)
 
     if not task_instances:
@@ -434,6 +438,7 @@ def get_mapped_task_instance(
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_teams(TI.dag_run, DagRun.dag_model))
     )
     task_instance = session.scalar(query)
 
@@ -545,9 +550,10 @@ def get_task_instances(
     **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 
     **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-    When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
-    ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
-    on the first page.
+    When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+    `total_entries_limit` (a value equal to that limit means at least that many task instances
+    match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is
+    ``null`` on the first page.
     """
     use_cursor = cursor is not None
     dag_run = None
@@ -640,10 +646,13 @@ def get_task_instances(
             has_prev = bool(cursor)
             has_next = has_more
 
-        attach_team_names(task_instances, session=session)
-
+        total_entries, total_entries_limit = bounded_total_entries(
+            statement=query, filters=filters, session=session
+        )
         return TaskInstanceCollectionResponse(
             task_instances=task_instances,
+            total_entries=total_entries,
+            total_entries_limit=total_entries_limit,
             next_cursor=(
                 encode_cursor(task_instances[-1], order_by) if has_next and task_instances else None
             ),
@@ -663,7 +672,6 @@ def get_task_instances(
         session=session,
     )
     task_instances = list(session.scalars(task_instance_select))
-    attach_team_names(task_instances, session=session)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
@@ -839,7 +847,13 @@ def get_mapped_task_instance_try_details(
 
 @task_instances_router.post(
     "/clearTaskInstances",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
     dependencies=[
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
@@ -888,6 +902,14 @@ def post_clear_task_instances(
 
     if future:
         body.end_date = None
+
+    # A task group has no per-task list at the call site; resolve every task in it from the dag
+    # structure so all are cleared, not just the first page the UI could enumerate.
+    if body.task_group_id is not None:
+        body.task_ids = cast(
+            "list[str | tuple[str, int]]",
+            _get_task_group_task_ids(dag_id, body.task_group_id, dag),
+        )
 
     if (task_markers_to_clear := body.task_ids) is not None:
         mapped_tasks_tuples = {t for t in task_markers_to_clear if isinstance(t, tuple)}

@@ -51,8 +51,10 @@ class DatabricksReposCreateOperator(BaseOperator):
         connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     """
 
     # Used in airflow.models.BaseOperator
@@ -97,6 +99,8 @@ class DatabricksReposCreateOperator(BaseOperator):
         else:
             self.git_provider = git_provider
         self.repo_path = repo_path
+        if branch is not None and tag is not None:
+            raise AirflowException("Only one of branch or tag should be provided, but not both")
         self.branch = branch
         self.tag = tag
 
@@ -129,8 +133,6 @@ class DatabricksReposCreateOperator(BaseOperator):
         :param context: context
         :return: Repo ID
         """
-        if self.branch is not None and self.tag is not None:
-            raise AirflowException("Only one of branch or tag should be provided, but not both")
         payload = {
             "url": self.git_url,
             "provider": self.git_provider,
@@ -201,8 +203,10 @@ class DatabricksReposUpdateOperator(BaseOperator):
         connection and create the key ``host`` and leave the ``host`` field empty.  (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     """
 
     # Used in airflow.models.BaseOperator
@@ -225,6 +229,14 @@ class DatabricksReposUpdateOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        if branch is not None and tag is not None:
+            raise AirflowException("Only one of branch or tag should be provided, but not both")
+        if branch is None and tag is None:
+            raise AirflowException("One of branch or tag should be provided")
+        if repo_id is not None and repo_path is not None:
+            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
+        if repo_id is None and repo_path is None:
+            raise AirflowException("One of repo_id or repo_path should be provided")
         self.repo_path = repo_path
         self.repo_id = repo_id
         self.branch = branch
@@ -240,14 +252,6 @@ class DatabricksReposUpdateOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        if self.branch is not None and self.tag is not None:
-            raise AirflowException("Only one of branch or tag should be provided, but not both")
-        if self.branch is None and self.tag is None:
-            raise AirflowException("One of branch or tag should be provided")
-        if self.repo_id is not None and self.repo_path is not None:
-            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
-        if self.repo_id is None and self.repo_path is None:
-            raise AirflowException("One of repo_id or repo_path should be provided")
         if self.repo_path is not None:
             self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:
@@ -275,8 +279,10 @@ class DatabricksReposDeleteOperator(BaseOperator):
         connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     """
 
     # Used in airflow.models.BaseOperator
@@ -297,6 +303,10 @@ class DatabricksReposDeleteOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        if repo_id is not None and repo_path is not None:
+            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
+        if repo_id is None and repo_path is None:
+            raise AirflowException("One of repo_id repo_path tag should be provided")
         self.repo_path = repo_path
         self.repo_id = repo_id
 
@@ -310,10 +320,6 @@ class DatabricksReposDeleteOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        if self.repo_id is not None and self.repo_path is not None:
-            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
-        if self.repo_id is None and self.repo_path is None:
-            raise AirflowException("One of repo_id repo_path tag should be provided")
         if self.repo_path is not None:
             self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:

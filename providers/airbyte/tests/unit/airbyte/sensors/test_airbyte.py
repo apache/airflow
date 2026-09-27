@@ -117,3 +117,37 @@ class TestAirbyteJobSensor:
         )
         assert sensor.poke_interval == 10
         assert sensor.timeout == 3600
+
+    @pytest.mark.parametrize(
+        ("status", "message"),
+        [
+            pytest.param("error", "Job run 1 has failed.", id="error"),
+            pytest.param("cancelled", "Job run 1 has been cancelled.", id="cancelled"),
+            pytest.param("unmapped_status", "Job run 1 did something unexpected.", id="fail-closed"),
+        ],
+    )
+    def test_execute_complete_fails_when_job_did_not_succeed(self, status, message):
+        """A deferred sensor must fail on a non-success event, matching the poke() behavior."""
+        sensor = AirbyteJobSensor(
+            task_id=self.task_id,
+            airbyte_job_id=self.job_id,
+            airbyte_conn_id=self.airbyte_conn_id,
+            deferrable=True,
+        )
+        with pytest.raises(RuntimeError, match=message):
+            sensor.execute_complete(context={}, event={"status": status, "message": message, "job_id": 1})
+
+    def test_execute_complete_succeeds_on_success_event(self):
+        sensor = AirbyteJobSensor(
+            task_id=self.task_id,
+            airbyte_job_id=self.job_id,
+            airbyte_conn_id=self.airbyte_conn_id,
+            deferrable=True,
+        )
+        assert (
+            sensor.execute_complete(
+                context={},
+                event={"status": "success", "message": "Job run 1 has completed successfully.", "job_id": 1},
+            )
+            is None
+        )

@@ -67,7 +67,6 @@ from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
     AirflowCtlException,
     AirflowCtlKeyringException,
-    AirflowCtlNotFoundException,
 )
 
 if TYPE_CHECKING:
@@ -230,10 +229,12 @@ class Credentials:
                 for candidate in candidates:
                     if hasattr(candidate, "_get_new_password"):
                         candidate._get_new_password = _bounded_get_new_password
+                if self.api_token is None:
+                    raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.")
                 keyring.set_password(
                     "airflowctl",
                     self.token_key_for_environment(self.api_environment),
-                    self.api_token,  # type: ignore[arg-type]
+                    self.api_token,
                 )
         except (NoKeyringError, NotImplementedError) as e:
             log.error(e)
@@ -244,10 +245,6 @@ class Credentials:
                 "the --api-token flag to any command.\n"
                 "Use `airflowctl auth login --skip-keyring ...` to dismiss this error."
             ) from e
-        except TypeError as e:
-            # This happens when the token is None, which is not allowed by keyring
-            if self.api_token is None and self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.") from e
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
@@ -326,10 +323,32 @@ def _should_retry_api_request(exception: BaseException) -> bool:
     return isinstance(exception, httpx.RequestError)
 
 
+def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
+    """Read an integer tuning knob, keeping a bad value from taking the whole CLI down at import."""
+    value = os.getenv(name)
+    # Docker and Kubernetes spell "not configured" as an empty value, not an absent one.
+    if not value:
+        return default
+
+    parsed: int | None
+    try:
+        parsed = int(value)
+    except ValueError:
+        parsed = None
+    if parsed is not None and parsed >= minimum:
+        return parsed
+
+    # stderr, not the logger: logging is unconfigured at import and structlog would use stdout.
+    sys.stderr.write(
+        f"Warning: ignoring {name}={value!r}, expected an integer >= {minimum}; using {default}.\n"
+    )
+    return default
+
+
 # API Client Retry Configuration
-API_RETRIES = int(os.getenv("AIRFLOW_CLI_API_RETRIES", "3"))
-API_RETRY_WAIT_MIN = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MIN", "1"))
-API_RETRY_WAIT_MAX = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MAX", "10"))
+API_RETRIES = _get_int_env("AIRFLOW_CLI_API_RETRIES", 3, minimum=1)
+API_RETRY_WAIT_MIN = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MIN", 1)
+API_RETRY_WAIT_MAX = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MAX", 10)
 
 
 class Client(httpx.Client):
@@ -517,8 +536,6 @@ def get_client(
             kind=kind,
         )
         yield api_client
-    except AirflowCtlNotFoundException as e:
-        raise e
     finally:
         if api_client:
             api_client.close()

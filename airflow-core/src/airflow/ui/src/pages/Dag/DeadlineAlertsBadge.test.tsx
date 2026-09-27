@@ -22,12 +22,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { DeadlineAlertsBadge } from "./DeadlineAlertsBadge";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { interval?: string; reference?: string }) => {
       if (options?.reference === undefined) {
@@ -53,7 +55,7 @@ vi.mock("openapi/queries", async (importOriginal) => {
 const { useDeadlinesServiceGetDagDeadlineAlerts } = await import("openapi/queries");
 
 // Defaults to a VariableInterval alert, whose interval only the scheduler resolves at evaluation
-// time. Without a rule of its own, dayjs humanizes that null interval as "a few seconds" and the
+// time. Without a rule of its own, a null interval would be named as some concrete length and the
 // popover claims the run must complete within a few seconds of its logical date.
 const baseAlert: DeadlineAlertResponse = {
   created_at: "2025-01-01T00:00:00Z",
@@ -65,7 +67,7 @@ const baseAlert: DeadlineAlertResponse = {
 
 const REFERENCE = "deadlineAlerts.referenceType.DagRunLogicalDateDeadline";
 const DYNAMIC_RULE = `deadlineAlerts.completionRuleDynamic:${REFERENCE}`;
-const FIXED_RULE = `deadlineAlerts.completionRule:an hour:${REFERENCE}`;
+const FIXED_RULE = `deadlineAlerts.completionRule:1 hour:${REFERENCE}`;
 
 describe("DeadlineAlertsBadge", () => {
   it.each([

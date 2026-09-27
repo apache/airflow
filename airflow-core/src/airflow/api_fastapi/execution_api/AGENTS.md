@@ -16,7 +16,7 @@ Workers and API servers deploy independently, so backward compatibility is criti
 3. Regenerate Task SDK models:
 
 ```bash
-cd task-sdk && python dev/generate_task_sdk_models.py
+uv run --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
 ```
 
 4. Add tests for both the new and previous API versions.
@@ -32,6 +32,17 @@ cd task-sdk && python dev/generate_task_sdk_models.py
 - Don't use keyword arguments with `endpoint()` — use positional: `endpoint("/path", ["GET"])`.
 - Don't add changes to already-released version files.
 - Don't forget response converters for new fields in nested objects.
+- Don't branch business logic by comparing the negotiated API version to a date/version string. For this case, subclass `VersionChangeWithSideEffects` for the version change and check its `is_applied` flag instead:
+
+  ```python
+  class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects): ...
+
+
+  def _client_supports_arg_bindings() -> bool:
+      return AddArgBindingsToTIRunContext.is_applied
+  ```
+
+  See [Cadwyn's docs](https://docs.cadwyn.dev/concepts/version_changes/#version-changes-with-side-effects).
 
 ### Adding a New Feature End-to-End
 
@@ -44,7 +55,7 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 5. **Task SDK client** — add the client method in `task-sdk/src/airflow/sdk/api/client.py`.
 6. **Supervisor** — handle the new message in `task-sdk/src/airflow/sdk/execution_time/supervisor.py`.
 7. **Dag processor & triggerer exclusions** — these use `InProcessExecutionAPI` and have explicit message type unions. Add new types to their handler or exclusion lists in `airflow/dag_processing/processor.py` and `airflow/jobs/triggerer_job_runner.py`.
-8. **Regenerate models** — `cd task-sdk && python dev/generate_task_sdk_models.py`.
+8. **Regenerate models** — `uv run --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py`.
 9. **Tests** — if the new message type requires an API endpoint, add tests in all of these:
    - `airflow-core/tests/unit/api_fastapi/execution_api/` — endpoint tests
    - `task-sdk/tests/task_sdk/api/test_client.py` — client method tests

@@ -29,15 +29,15 @@ from airflow.sdk import DAG, task
 
 
 @task.branch()
-def should_run(**kwargs) -> str:
+def should_run(logical_date=None) -> str:
     """
     Determine which empty_task should be run based on if the logical date minute is even or odd.
 
-    :param dict kwargs: Context
+    :param pendulum.DateTime logical_date: The logical date for the current execution
     :return: Id of the task to run
     """
-    print(f"------------- exec dttm = {kwargs['logical_date']} and minute = {kwargs['logical_date'].minute}")
-    if kwargs["logical_date"].minute % 2 == 0:
+    print(f"------------- exec dttm = {logical_date} and minute = {logical_date.minute}")
+    if logical_date.minute % 2 == 0:
         return "empty_task_1"
     return "empty_task_2"
 

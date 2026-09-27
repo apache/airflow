@@ -27,8 +27,183 @@
 Changelog
 ---------
 
+22.6.0
+......
+
+.. note::
+    ``PubSubPullOperator``, ``PubSubPullSensor`` and ``PubsubPullTrigger`` now emit a deprecation
+    warning when ``return_immediately`` is left unset -- including ``google+pubsub`` asset
+    watchers built with ``MessageQueueTrigger``, where the warning surfaces in Dag processor
+    logs rather than task logs. It currently defaults to ``True``, which relies on the deprecated
+    Pub/Sub ``returnImmediately`` Pull option and can return zero messages even when a backlog
+    exists. The default will change to ``False`` in the first Google provider major release after
+    March 31, 2027 -- pass ``return_immediately=True`` explicitly to keep the current behaviour.
+
+    Deferrable ``PubSubPullSensor`` now respects ``return_immediately`` as well. It previously
+    dropped the argument when handing off to ``PubsubPullTrigger``, so the trigger always behaved
+    as ``True``. A Dag already using ``PubSubPullSensor(deferrable=True, return_immediately=False)``
+    will see its triggerer start long-polling on each pull instead of returning immediately.
+
+Features
+~~~~~~~~
+
+* ``Rename Google Stackdriver task log handler to Cloud Logging (#73575)``
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Make Pub/Sub return_immediately configurable, deprecate its default (#73504)``
+* ``Rename Google Stackdriver operators and hook to Cloud Monitoring (#73354)``
+* ``Allow templating GCS and BigQuery URIs in Vertex AI batch prediction (#70679)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate GCP storage transfer job body after template rendering (#70529)``
+* ``Validate Cloud Function deploy body after template rendering (#70531)``
+* ``Move CloudComposerExternalTaskSensor task-id wrapping out of __init__ (#73103)``
+* ``Normalize BigQuery DTS sensor expected statuses after rendering (#70528)``
+* ``Fix Cloud Monitoring list operators with explicit output formats (#73434)``
+* ``Contain Gemini batch-job results file within results_folder (#71832)``
+* ``Log the HTTP response in HttpToGCSOperator when log_response is set (#72952)``
+* ``Resolve GCSFileTransformOperator destination fallbacks after rendering (#70488)``
+* ``Fix Google IdP credentials failing when project id cannot be resolved (#72799)``
+* ``Escape values interpolated into Google Drive q= queries (#72166)``
+* ``Fix duplicate Dataproc job submission after a triggerer restart (#72685)``
+* ``Make Google deprecation date parsing locale independent (#69405)``
+* ``Contain remote log upload paths within base_log_folder (#72162)``
+* ``Fix StackdriverHook.list_alert_policies raising AttributeError when format_ is json (#73148)``
+* ``Fix Dataflow sensors losing their XCom value when not deferred (#71086)``
+* ``Fix unformatted Google trigger error messages (#72697)``
+* ``Fix GCS operators emitting invalid OpenLineage events with no dataset name (#73246)``
+* ``Fix duplicated logs with memory usage issue in GCS log handler (#72322)``
+* ``Validate Google operator templated parameters after rendering (#70534)``
+* ``Report the missing secret id when Google get_secret raises NotFound (#73035)``
+* ``Keep polling DataFusion pipeline state when the run is not visible yet (#72406)``
+* ``Fix SalesforceToGcsOperator raising AttributeError when unwrap_single is not passed (#71530)``
+* ``Move AzureFileShareToGCSOperator directory_name alias out of __init__ (#70740)``
+* ``Emit GCSToBigQueryOperator deprecation warning after rendering (#70542)``
+* ``Handling 'NotFound' when file has already been deleted from GCS (#72275)``
+
+Misc
+~~~~
+
+* ``Drop duplicate build_raw copy from CloudBuildCreateBuildOperator (#73592)``
+* ``Make the BigQuery hook importable when google libraries are mocked during doc builds (#73615)``
+* ``Demote ADC credential log from info to debug (#73199)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+* ``Document proxy setup for Google provider using PySocks (#71941)``
+* ``Fix docstring mismatch in GenAIGenerativeModelHook (#72356)``
+* ``Fix the rollback transaction in the Datastore examples (#73194)``
+* ``Fix grammar in the Vertex AI hyperparameter tuning job docstrings (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Stabilize Dataproc deferrable batch system test (#72611)``
+   * ``Add unit tests for Google OperationHelper (#72791)``
+
+22.5.0
+......
+
+.. note::
+    This provider now depends on ``httpx2`` instead of ``httpx``, and ``httpx2`` verifies TLS
+    against the operating system trust store rather than the ``certifi`` bundle. If
+    ``CloudSqlProxyRunner`` downloads the ``cloud-sql-proxy`` binary through a proxy presenting
+    a private CA, install that CA into the OS trust store or point ``SSL_CERT_FILE`` (or
+    ``SSL_CERT_DIR``) at it -- adding it to ``certifi`` alone no longer has any effect.
+
+Features
+~~~~~~~~
+
+* ``Add reserved IP ranges to Vertex AI pipeline jobs (#72560)``
+* ``Add CreateCustomJobOperator for VertexAI service (#71875)``
+* ``Add destination_folder_id to GCSToGoogleDriveOperator template fields (#66930)``
+* ``Add drive_id to GoogleSheetsCreateSpreadsheetOperator for shared drives (#66929)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GoogleDriveHook.get_file_id parent query operand order (#72543)``
+* ``Keep Campaign Manager delete report provision check in __init__ (#70530)``
+* ``Honor gzip and mime_type on SFTPToGCS stream path (#72132)``
+* ``Fix multiple client creation inside of the deferrable operator for the google provider (#72143)``
+* ``Honor impersonation_chain in deferred Cloud Build tasks (#71644)``
+
+Misc
+~~~~
+
+* ``Depend on 'httpx2' instead of 'httpx' (#72111)``
+* ``Restore the apache.beam extra dropped while the Beam provider was suspended (#66952)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix the Cloud SQL IAM proxy connection documentation (#72141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix models selection in genai tests (#72323)``
+   * ``Remove redundant ML Engine system test (#72321)``
+   * ``Add Google system test resource cleanup script (#68930)``
+   * ``Shorten Managed Kafka cluster ID in system tests (#72084)``
+   * ``Enable ruff B023 (function-uses-loop-variable) and fix violations (#70640)``
+   * ``Refactor bigquery_async_query test (#72193)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``Prepare providers release 2026-08-25 (#72069)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Collect the test classes pytest silently skipped (#71643)``
+
+22.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support sovereign console links (#70001)``
+* ``Add synchronous Vertex AI Agent Engine query operator (#70933)``
+* ``Add Cloud Run job links during execution (#70179)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prepare Cloud Batch jobs before template rendering (#70835)``
+* ``Improve BigQuery-to-SQL column lineage rendering (#70816)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+* ``Use latest Google Ads API version by default (#71280)``
+
+Misc
+~~~~
+
+* ``Restore the evaluation extra of google-cloud-aiplatform (#71520)``
+* ``Add type annotations to sql hooks (#70815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace the ACL calls with IAM roles for the system tests + add new (#70978)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix Java Beam SDK example to target Java 11 (#71218)``
+
+
 22.3.0
 ......
+
+.. note::
+    ``CloudSecretManagerBackend`` now applies the team scope it is given. Previously
+    ``get_conn_value`` and ``get_variable`` accepted a ``team_name`` and dropped it, so every
+    lookup resolved the team-agnostic secret name regardless of the team.
+
+    In multi-team deployments a team-scoped secret must now be stored under
+    ``{prefix}{sep}{team_name}--{secret_id}``; the team-agnostic name is still used as a
+    fallback when no team-scoped secret exists. Secrets that were relied on to resolve for a
+    specific team have to be re-stored under the team-scoped name.
+
+    Connection ids and variable keys containing ``--`` are no longer resolved in either mode,
+    because a team name may itself contain ``--`` and the resulting name would be ambiguous.
+    See :doc:`/secrets-backends/google-cloud-secret-manager-backend` for the full convention.
 
 Features
 ~~~~~~~~
@@ -36,31 +211,56 @@ Features
 * ``Emit per-statement OpenLineage events for BigQuery script jobs (#69234)``
 * ``Add Vertex AI Agent Engine operators (Create, Get, Query, Update, Delete) (#68479)``
 * ``Adding durable execution to 'BigQueryInsertJobOperator' (#69542)``
+* ``Register Stackdriver remote task logging handler (#70549)``
+* ``Add CloudSQLNoOperationInProgressSensor for parallel admin ops (#68151)``
+* ``Enable provider-based GCS remote logging resolution (#70504)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Preserve Dataform workflow invocation config (#53843) (#69161)``
 * ``Make schema_fields templated in GCSToBigQueryOperator (#69108)``
 * ``Fix Google Links for TPC (Trusted Partner Cloud) (#69805)``
 * ``Fix Google Cloud Batch error messages to include job name (#69783)``
+* ``Validate Gemini batch results_folder in the worker that writes results (#70393)``
+* ``Fail deferred Cloud Composer tasks when the GCP operation errors (#70430)``
+* ``Apply the team scope in the Google Secret Manager backend (#70869)``
+* ``Delay BigQueryToMsSqlOperator source table parsing (#70493)``
+* ``Emit GCSToGCSOperator deprecation warnings after rendering (#70449)``
+* ``Emit GCSListObjectsOperator delimiter deprecation warning after rendering (#70533)``
+* ``Move Compute Engine validation out of constructors (#70454)``
+* ``Prevent premature validation in Gemini batch job operators (#70362)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 Misc
 ~~~~
 
 * ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
 * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+* ``Strip only the literal properties/ prefix from GA property link IDs (#70919)``
+* ``Update system test to the latest api version of google-ads (#69865)``
+* ``Use common.compat.sdk for timezone imports in providers (#70492)``
+* ``Drop redundant BigQueryInsertJobOperator job ID snapshot in __init__ (#70494)``
+* ``Install google-cloud-aiplatform without the 'evaluation' extra and require its dependencies directly, so the provider installs on Python 3.14 (#71273)``
 
 Doc-only
 ~~~~~~~~
 
 * ``Link task state store docs in durable execution across providers (#69851)``
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+* ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix the google provider dataform system test (#70136)``
    * ``Format Dataflow wordcount system-test resource with gofmt (#70174)``
-
+   * ``Preserve Dataform workflow invocation config (#53843) (#69161)``
+   * ``Revert Dataform workflow invocation dict normalization (#69161) (#70395)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
+   * ``Update changelog with better wording (#71161)``
+   * ``Prepare providers release 2026-08-06 (#71219)``
 
 22.2.2
 ......
@@ -1406,7 +1606,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 13.0.0
 ......

@@ -989,6 +989,17 @@ class TestHITLSummaryForListeners:
         assert op.hitl_summary["subject"] == "Review for 2020-01-01"
         assert op.hitl_summary["body"] == "Deploy 2020-01-01?"
 
+    def test_summary_extension_via_hitl_summary_extra(self) -> None:
+        """Subclasses and runtime code extend the summary through the public hitl_summary_extra dict."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["A", "B"],
+        )
+        op.hitl_summary_extra["team"] = "data-eng"
+
+        assert op.hitl_summary["team"] == "data-eng"
+
     def test_approval_operator_init_summary(self) -> None:
         """ApprovalOperator hitl_summary includes base + approval-specific fields."""
         op = ApprovalOperator(

@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 import validate_operators_init
+from rich.text import Text
 from validate_operators_init import (
     _check_constructor_field_logic,
     _check_constructor_template_fields,
@@ -126,10 +127,145 @@ class TestConstructorFieldLogic:
                 0,
                 id="provision-check-passed-to-a-helper",
             ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                0,
+                id="verbatim-copy-into-start-trigger-args",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = dataclasses.replace(self.start_trigger_args, trigger_kwargs=dict(foo=self.foo))",
+                0,
+                id="verbatim-copy-via-replace-of-start-trigger-args",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo.upper()})",
+                1,
+                id="transformation-inside-trigger-kwargs",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={'bar': self.foo})",
+                1,
+                id="trigger-kwargs-key-differs-from-field-name",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={**self.foo})",
+                1,
+                id="trigger-kwargs-unpacking",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={}, timeout=foo)",
+                1,
+                id="bare-field-name-in-a-non-rendered-start-trigger-args-field",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs={}, next_kwargs={'foo': self.foo})",
+                1,
+                id="other-start-trigger-args-fields-are-not-rendered",
+            ),
+            pytest.param(
+                "self.foo = foo\nunused = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-not-assigned-to-self",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.other = dataclasses.replace(self.other, foo=self.foo)",
+                1,
+                id="replace-of-another-object-is-not-sanctioned",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                0,
+                id="verbatim-copy-via-bare-replace",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = copy.replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                0,
+                id="verbatim-copy-via-copy-replace",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = factory.StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-constructor-must-be-a-bare-name",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = helper.replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-must-come-from-dataclasses-or-copy",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs=helper.dict(foo=self.foo))",
+                1,
+                id="trigger-kwargs-dict-must-be-the-builtin",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs('cls', {'foo': self.foo})",
+                1,
+                id="positional-trigger-kwargs-are-not-inspected",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = make_args(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="bare-start-trigger-args-constructor-name-must-match",
+            ),
+            pytest.param(
+                "self.foo = foo\nstart_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-must-be-assigned-to-an-attribute",
+            ),
+            pytest.param(
+                "self.foo = foo\nself._sta = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-attribute-name-must-match",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = dataclasses.replace(self.other, trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-must-copy-start-trigger-args-itself",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs=OrderedDict(foo=self.foo))",
+                1,
+                id="bare-trigger-kwargs-dict-name-must-match",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = replace(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-without-a-positional-argument",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = a.b.replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-with-a-nested-attribute-qualifier",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = BASE_ARGS[self.foo]",
+                1,
+                id="non-call-start-trigger-args-assignment",
+            ),
         ],
     )
     def test_flags_logic_but_not_sanctioned_patterns(self, ctor_body: str, expected: int):
         assert _logic_findings(_operator_code(ctor_body), ["foo"]) == expected
+
+    def test_failure_message_explains_provision_check_exception(self):
+        code = _operator_code("self._validate(foo)\nself.foo = foo")
+        with validate_operators_init.console.capture() as capture:
+            assert _logic_findings(code, ["foo"]) == 1
+
+        output = " ".join(Text.from_ansi(capture.get()).plain.split())
+        assert "value-dependent validation or transformation" in output
+        assert "whether an argument was passed" in output
+        assert "is None" in output
+        assert "is not None" in output
+        assert "https://github.com/apache/airflow/issues/70296#false-positives" in output
 
     def test_name_in_parameter_default_is_not_the_field(self):
         # A field named like a module (e.g. "conf") used in a parameter default evaluates at
@@ -142,6 +278,19 @@ class TestConstructorFieldLogic:
                 self.conf = conf
         """
         assert _logic_findings(code, ["conf"]) == 0
+
+    def test_trigger_kwargs_copy_of_another_template_field_is_flagged(self):
+        # "bar" is rendered under the key "bar", so the value copied here is the wrong field.
+        code = """
+        class MyOperator(BaseOperator):
+            template_fields = ("foo", "bar")
+
+            def __init__(self, foo=None, bar=None, **kwargs):
+                self.foo = foo
+                self.bar = bar
+                self.start_trigger_args = StartTriggerArgs(trigger_kwargs={"foo": self.bar})
+        """
+        assert _logic_findings(code, ["foo", "bar"]) == 1
 
     def test_unbound_module_name_matching_field_is_not_flagged(self):
         code = """

@@ -22,7 +22,7 @@ from shutil import copyfile, copytree
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import HelmFailedError, render_chart
 
 
 @pytest.fixture(scope="class")
@@ -829,6 +829,43 @@ class TestPodTemplateFile:
             "allowPrivilegeEscalation": False
         }
 
+    def test_pod_security_context_disable_defaults(self):
+        docs = render_chart(
+            values={"securityContexts": {"disableDefaults": True}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) is None
+
+    def test_container_security_context_disable_defaults(self):
+        docs = render_chart(
+            values={"securityContexts": {"disableDefaults": True}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContexts": {"disableDefaults": True, "pod": {"runAsUser": 10}}},
+            {
+                "securityContexts": {"disableDefaults": True},
+                "workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            },
+        ],
+    )
+    def test_pod_security_context_set_overrides_disable_defaults(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
     def test_should_add_gid_to_the_pod_template(self):
         docs = render_chart(
             values={"gid": 1},
@@ -1343,6 +1380,74 @@ class TestPodTemplateFile:
             "allowPrivilegeEscalation": False
         }
 
+    @pytest.mark.parametrize(
+        ("override", "expected"),
+        [
+            (
+                {},
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 5,
+                    "initialDelaySeconds": 0,
+                    "periodSeconds": 10,
+                    "failureThreshold": 6,
+                },
+            ),
+            (
+                {
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 12,
+                    "periodSeconds": 13,
+                    "failureThreshold": 14,
+                },
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 12,
+                    "periodSeconds": 13,
+                    "failureThreshold": 14,
+                },
+            ),
+            ({"enabled": False}, None),
+        ],
+        ids=["default", "custom", "disabled"],
+    )
+    def test_kerberos_sidecar_startup_probe(self, override, expected):
+        docs = render_chart(
+            values={
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True, "startupProbe": override}}}
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert (
+            jmespath.search("spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0])
+            == expected
+        )
+
+    @pytest.mark.parametrize(
+        "override",
+        [
+            {"timeoutSeconds": 0},
+            {"initialDelaySeconds": -1},
+            {"periodSeconds": 0},
+            {"failureThreshold": 0},
+        ],
+        ids=["timeout", "initial-delay", "period", "failure-threshold"],
+    )
+    def test_kerberos_sidecar_startup_probe_rejects_invalid_values(self, override):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={
+                    "workers": {
+                        "kubernetes": {"kerberosSidecar": {"enabled": True, "startupProbe": override}}
+                    }
+                },
+                show_only=["templates/pod-template-file.yaml"],
+                chart_dir=self.temp_chart_dir,
+            )
+
     def test_kerberos_init_container_default(self):
         docs = render_chart(
             show_only=["templates/pod-template-file.yaml"],
@@ -1385,6 +1490,30 @@ class TestPodTemplateFile:
 
         assert initContainers["name"] == "kerberos-init"
         assert initContainers["args"] == ["kerberos", "-o"]
+
+    @pytest.mark.parametrize("readonly_cache", [False, True])
+    def test_kerberos_readonly_cache(self, readonly_cache: bool):
+        docs = render_chart(
+            name="test-release",
+            values={
+                "workers": {
+                    "kubernetes": {
+                        "readonlyKerberosCache": readonly_cache,
+                    },
+                },
+                "kerberos": {"enabled": True},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert (
+            jmespath.search(
+                "spec.containers[?name=='base'].volumeMounts | [] | [?name=='kerberos-ccache'] | [0].readOnly",
+                docs[0],
+            )
+            == readonly_cache
+        )
 
     @pytest.mark.parametrize(
         ("workers_values", "expected"),

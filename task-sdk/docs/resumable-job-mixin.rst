@@ -111,6 +111,14 @@ to check the current state of the job:
    If the worker crashes in that gap, the next retry does not have the identifier and will
    submit a fresh job. For most workloads this window is negligible.
 
+.. note::
+
+   The stored identifier expires after ``[state_store] default_retention_days`` (30 days by
+   default), but nothing deletes it automatically, that only happens when someone runs
+   ``airflow state-store clean``. Do not run that command while a task's ``retry_delay`` is
+   longer than ``default_retention_days``, the identifier could be gone by the next retry,
+   causing the operator to submit a fresh job instead of reconnecting.
+
 Example
 -------
 

@@ -20,27 +20,30 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.hook import (
     HookToolset,
     _build_json_schema_from_signature,
     _extract_description,
     _parse_param_docs,
-    _serialize_for_llm,
 )
-from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
+from airflow.providers.common.ai.utils.tool_definition import (
+    _SUPPORTS_RETURN_SCHEMA,
+    serialize_for_llm,
+)
 
 
 class _FakeHook:
     """Fake hook for testing HookToolset introspection."""
 
-    def list_keys(self, bucket: str, prefix: str = "") -> list[str]:
+    def list_keys(self, bucket: str, prefix: str | None = None) -> list[str]:
         """List object keys in a bucket.
 
         :param bucket: Name of the S3 bucket.
         :param prefix: Key prefix to filter by.
         """
-        return [f"{prefix}file1.txt", f"{prefix}file2.txt"]
+        return [f"{prefix or ''}file1.txt", f"{prefix or ''}file2.txt"]
 
     def read_file(self, key: str) -> str:
         """Read a file from storage."""
@@ -48,6 +51,11 @@ class _FakeHook:
 
     def no_docstring(self, x: int) -> int:
         return x * 2
+
+    def request(
+        self, endpoint: str | None = None, data: dict[str, object] | str | None = None, **kwargs: object
+    ) -> dict[str, object]:
+        return {"endpoint": endpoint, "data": data, **kwargs}
 
 
 class TestHookToolsetInit:
@@ -75,6 +83,61 @@ class TestHookToolsetInit:
         hook = _FakeHook()
         ts = HookToolset(hook, allowed_methods=["list_keys"])
         assert "FakeHook" in ts.id
+
+
+class _FakeConnHook(_FakeHook):
+    """A hook that names its connection attribute, like every provider hook does."""
+
+    conn_name_attr = "fake_conn_id"
+
+    def __init__(self, fake_conn_id: str = "fake_default"):
+        self.fake_conn_id = fake_conn_id
+
+
+class TestHookToolsetConnId:
+    def test_conn_id_is_read_from_the_hooks_conn_name_attr(self):
+        ts = HookToolset(_FakeConnHook("warehouse"), allowed_methods=["list_keys"])
+
+        assert ts.conn_id == "warehouse"
+        assert ts.id == "hook-_FakeConnHook-warehouse"
+
+    def test_a_hook_without_conn_name_attr_has_no_conn_id(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+
+        assert ts.conn_id is None
+        assert ts.id == "hook-_FakeHook"
+
+    def test_setting_conn_id_copies_the_hook(self):
+        """The hook in the Dag file is shared by every task instance that uses the toolset."""
+        hook = _FakeConnHook("tenant_{{ customer }}")
+        ts = HookToolset(hook, allowed_methods=["list_keys"])
+
+        ts.conn_id = "tenant_acme"
+
+        assert ts.conn_id == "tenant_acme"
+        assert ts._hook is not hook
+        assert hook.fake_conn_id == "tenant_{{ customer }}"
+
+    def test_setting_conn_id_on_a_hook_without_one_raises(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+
+        with pytest.raises(AttributeError, match="keeps no connection ID"):
+            ts.conn_id = "x"
+
+    def test_falls_back_to_conn_id_when_conn_name_attr_is_not_set(self):
+        """WasbHook and KubernetesHook declare one attribute and keep the ID in ``conn_id``."""
+
+        class _WasbShapedHook(_FakeHook):
+            conn_name_attr = "wasb_conn_id"
+
+            def __init__(self, wasb_conn_id: str):
+                self.conn_id = wasb_conn_id
+
+        ts = HookToolset(_WasbShapedHook("blob_{{ customer }}"), allowed_methods=["list_keys"])
+        ts.conn_id = "blob_acme"
+
+        assert ts.conn_id == "blob_acme"
+        assert ts.id == "hook-_WasbShapedHook-blob_acme"
 
 
 class TestHookToolsetGetTools:
@@ -143,6 +206,32 @@ class TestHookToolsetGetTools:
         assert "S3 bucket" in props["bucket"]["description"]
 
 
+class TestHookToolsetArgsValidator:
+    @pytest.fixture
+    def list_keys_tool(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+        return asyncio.run(ts.get_tools(ctx=MagicMock()))["list_keys"]
+
+    def test_enforces_method_signature(self, list_keys_tool):
+        with pytest.raises(ValidationError, match="bucket"):
+            list_keys_tool.args_validator.validate_python({"prefix": "data/"})
+
+        assert list_keys_tool.args_validator.validate_python({"bucket": "my-bucket", "prefix": None}) == {
+            "bucket": "my-bucket",
+            "prefix": None,
+        }
+
+    def test_rejects_undeclared_args(self, list_keys_tool):
+        with pytest.raises(ValidationError, match="bogus"):
+            list_keys_tool.args_validator.validate_python({"bucket": "my-bucket", "bogus": 1})
+
+    def test_preserves_kwargs_accepted_by_method(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["request"])
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["request"]
+        args = {"endpoint": None, "data": {"key": "value"}, "timeout": 10}
+        assert tool.args_validator.validate_python(args) == args
+
+
 class TestHookToolsetCallTool:
     def test_dispatches_to_hook_method(self):
         hook = _FakeHook()
@@ -184,12 +273,20 @@ class TestBuildJsonSchemaFromSignature:
         assert schema["properties"]["active"] == {"type": "boolean"}
         assert set(schema["required"]) == {"name", "count", "rate", "active"}
 
-    def test_optional_params_not_required(self):
-        def fn(name: str, prefix: str = ""):
+    def test_optional_params_accept_null(self):
+        def fn(name: str, prefix: str | None = None):
             pass
 
         schema = _build_json_schema_from_signature(fn)
         assert schema["required"] == ["name"]
+        assert schema["properties"]["prefix"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+    def test_union_types(self):
+        def fn(data: dict[str, object] | str):
+            pass
+
+        schema = _build_json_schema_from_signature(fn)
+        assert schema["properties"]["data"] == {"anyOf": [{"type": "object"}, {"type": "string"}]}
 
     def test_list_type(self):
         def fn(items: list[str]):
@@ -198,12 +295,19 @@ class TestBuildJsonSchemaFromSignature:
         schema = _build_json_schema_from_signature(fn)
         assert schema["properties"]["items"] == {"type": "array", "items": {"type": "string"}}
 
-    def test_no_annotation_defaults_to_string(self):
+    def test_no_annotation_is_untyped(self):
         def fn(x):
             pass
 
         schema = _build_json_schema_from_signature(fn)
-        assert schema["properties"]["x"] == {"type": "string"}
+        assert schema["properties"]["x"] == {}
+
+    def test_kwargs_allow_additional_properties(self):
+        def fn(x: int, **kwargs):
+            pass
+
+        schema = _build_json_schema_from_signature(fn)
+        assert schema["additionalProperties"] is True
 
     def test_skips_self_and_cls(self):
         class Foo:
@@ -273,20 +377,20 @@ class TestParseParamDocs:
 
 class TestSerializeForLlm:
     def test_string_passthrough(self):
-        assert _serialize_for_llm("hello") == "hello"
+        assert serialize_for_llm("hello") == "hello"
 
     def test_none_returns_null(self):
-        assert _serialize_for_llm(None) == "null"
+        assert serialize_for_llm(None) == "null"
 
     def test_dict_to_json(self):
-        result = _serialize_for_llm({"key": "value"})
+        result = serialize_for_llm({"key": "value"})
         assert result == '{"key": "value"}'
 
     def test_list_to_json(self):
-        result = _serialize_for_llm([1, 2, 3])
+        result = serialize_for_llm([1, 2, 3])
         assert result == "[1, 2, 3]"
 
     def test_non_serializable_falls_back_to_str(self):
         obj = object()
-        result = _serialize_for_llm(obj)
+        result = serialize_for_llm(obj)
         assert "object" in result

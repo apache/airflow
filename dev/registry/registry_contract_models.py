@@ -52,6 +52,7 @@ class ConnectionTypeContract(BaseModel):
     conn_type: str
     hook_class: str = ""
     docs_url: str | None = None
+    external_services: list[str] = Field(default_factory=list)
 
 
 class ProviderContract(BaseModel):
@@ -111,6 +112,7 @@ class ModuleContract(BaseModel):
     provider_id: str | None = None
     provider_name: str | None = None
     supports_durable_execution: bool = False
+    supports_deferrable: bool = False
 
 
 class ModulesCatalogContract(BaseModel):

@@ -32,6 +32,9 @@ from airflowctl.api.datamodels.generated import (
     AssetCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    AssetStateStoreBody,
+    AssetStateStoreCollectionResponse,
+    AssetStateStoreResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
@@ -69,7 +72,9 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -91,7 +96,8 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def _serialize_query_param(value: Any) -> Any:
-    if isinstance(value, datetime.datetime):
+    # datetime.datetime subclasses datetime.date, so this covers both.
+    if isinstance(value, datetime.date):
         return value.isoformat()
     return value
 
@@ -112,18 +118,16 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.headers.get("content-type") != "application/json":
             return None
 
-        if 400 <= response.status_code < 500:
-            response.read()
-            return cls(
-                message=f"Client error message: {response.json()}",
-                request=response.request,
-                response=response,
-            )
+        # httpx runs response event hooks before it reads the body, so the body has to be
+        # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
+        response.read()
 
-        msg = response.json()
-
-        self = cls(message=msg, request=response.request, response=response)
-        return self
+        error_kind = "Client" if response.status_code < 500 else "Server"
+        return cls(
+            message=f"{error_kind} error message: {response.json()}",
+            request=response.request,
+            response=response,
+        )
 
 
 def _check_flag_and_exit_if_server_response_error(func):
@@ -219,7 +223,7 @@ class BaseOperations:
                 raw = fill_missing_fields(json.loads(content), data_model)
                 return data_model.model_validate(raw)  # type: ignore[union-attr]
 
-        self.response = self.client.get(path, params=shared_params)
+        self.response = self.client.get(path, params={**shared_params, "offset": offset})
         first_pass = safe_validate(self.response.content)
         total_entries = first_pass.total_entries  # type: ignore[attr-defined]
         if total_entries < limit:
@@ -236,8 +240,7 @@ class BaseOperations:
             entry = safe_validate(self.response.content)
             offset = offset + limit
             entry_list.extend(getattr(entry, found_key))
-        obj = data_model(**{found_key: entry_list, "total_entries": total_entries})
-        return data_model.model_validate(obj.model_dump())  # type: ignore[union-attr]
+        return data_model(**{found_key: entry_list, "total_entries": total_entries})
 
 
 # Login operations
@@ -263,9 +266,9 @@ class AssetsOperations(BaseOperations):
         self.response = self.client.get(f"assets/{asset_id}")
         return AssetResponse.model_validate_json(self.response.content)
 
-    def get_by_alias(self, alias: str) -> AssetAliasResponse | ServerResponseError:
-        """Get an asset by alias from the API server."""
-        self.response = self.client.get(f"assets/aliases/{alias}")
+    def get_alias(self, asset_alias_id: str) -> AssetAliasResponse | ServerResponseError:
+        """Get an asset alias by its ID from the API server."""
+        self.response = self.client.get(f"assets/aliases/{asset_alias_id}")
         return AssetAliasResponse.model_validate_json(self.response.content)
 
     def list(self) -> AssetCollectionResponse | ServerResponseError:
@@ -290,7 +293,7 @@ class AssetsOperations(BaseOperations):
 
     def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
         """Materialize an asset."""
-        self.response = self.client.post(f"assets/{asset_id}/materialize")
+        self.response = self.client.post(f"assets/{asset_id}/materialize", json={})
         return DAGRunResponse.model_validate_json(self.response.content)
 
     def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:
@@ -325,6 +328,39 @@ class AssetsOperations(BaseOperations):
         self.client.delete(f"dags/{dag_id}/assets/{asset_id}/queuedEvents")
         return asset_id
 
+    def list_state_store(self, asset_id: str) -> AssetStateStoreCollectionResponse | ServerResponseError:
+        """List all state store entries for an asset."""
+        return super().execute_list(
+            path=f"assets/{asset_id}/state-store", data_model=AssetStateStoreCollectionResponse
+        )
+
+    def get_state_store(self, asset_id: str, key: str) -> AssetStateStoreResponse | ServerResponseError:
+        """Get a single asset state store entry."""
+        self.response = self.client.get(f"assets/{asset_id}/state-store/{key}")
+        return AssetStateStoreResponse.model_validate_json(self.response.content)
+
+    def set_state_store(self, asset_id: str, key: str, value: str) -> str | ServerResponseError:
+        """Set an asset state store value. Creates or overwrites the key."""
+        try:
+            parsed_value = json.loads(value)
+        except (ValueError, TypeError):
+            parsed_value = value
+        self.client.put(
+            f"assets/{asset_id}/state-store/{key}",
+            json=AssetStateStoreBody(value=parsed_value).model_dump(mode="json"),
+        )
+        return key
+
+    def delete_state_store(self, asset_id: str, key: str) -> str | ServerResponseError:
+        """Delete a single asset state store key."""
+        self.client.delete(f"assets/{asset_id}/state-store/{key}")
+        return key
+
+    def clear_state_store(self, asset_id: str) -> str | ServerResponseError:
+        """Delete all state store keys for an asset."""
+        self.client.delete(f"assets/{asset_id}/state-store")
+        return asset_id
+
 
 class BackfillOperations(BaseOperations):
     """Backfill operations."""
@@ -355,17 +391,17 @@ class BackfillOperations(BaseOperations):
 
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/pause")
+        self.response = self.client.put(f"backfills/{backfill_id}/pause")
         return BackfillResponse.model_validate_json(self.response.content)
 
     def unpause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Unpause a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/unpause")
+        self.response = self.client.put(f"backfills/{backfill_id}/unpause")
         return BackfillResponse.model_validate_json(self.response.content)
 
     def cancel(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Cancel a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/cancel")
+        self.response = self.client.put(f"backfills/{backfill_id}/cancel")
         return BackfillResponse.model_validate_json(self.response.content)
 
 
@@ -429,7 +465,7 @@ class ConnectionsOperations(BaseOperations):
         """Update a connection."""
         self.response = self.client.patch(
             f"connections/{connection.connection_id}",
-            json=connection.model_dump(mode="json", by_alias=True),
+            json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
         return ConnectionResponse.model_validate_json(self.response.content)
 
@@ -439,7 +475,8 @@ class ConnectionsOperations(BaseOperations):
     ) -> ConnectionTestResponse | ServerResponseError:
         """Test a connection."""
         self.response = self.client.post(
-            "connections/test", json=connection.model_dump(mode="json", by_alias=True)
+            "connections/test",
+            json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
         return ConnectionTestResponse.model_validate_json(self.response.content)
 
@@ -525,12 +562,16 @@ class DagRunOperations(BaseOperations):
         self,
         state: str | None = None,
         limit: int = 100,
+        offset: int | None = None,
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
         logical_date_gte: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
+        partition_date_gte: datetime.date | None = None,
+        partition_date_lte: datetime.date | None = None,
         order_by: str | None = None,
+        partition_key_pattern: str | None = None,
         *,
         suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
@@ -542,10 +583,16 @@ class DagRunOperations(BaseOperations):
             start_date: Filter Dag runs by start date (optional)
             end_date: Filter Dag runs by end date (optional)
             limit: Limit the number of results returned
+            offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
             logical_date_gte: Filter Dag runs with a logical date greater than or equal to this value.
             logical_date_lte: Filter Dag runs with a logical date less than or equal to this value.
+            partition_date_gte: Inclusive lower bound of the partition_date window, as a local
+                calendar day in the Dag's timetable timezone.
+            partition_date_lte: Inclusive upper bound of the partition_date window, as a local
+                calendar day in the Dag's timetable timezone.
             order_by: Order the results by the specified field.
+            partition_key_pattern: Filter Dag runs by partition key pattern.
             suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all Dags if dag_id is not specified
@@ -554,12 +601,16 @@ class DagRunOperations(BaseOperations):
 
         params = _build_query_params(
             limit=limit,
+            offset=offset,
             state=str(state) if state is not None else None,
             start_date=start_date,
             end_date=end_date,
             logical_date_gte=logical_date_gte,
             logical_date_lte=logical_date_lte,
+            partition_date_gte=partition_date_gte,
+            partition_date_lte=partition_date_lte,
             order_by=order_by,
+            partition_key_pattern=partition_key_pattern,
         )
 
         self.response = self.client.get(
@@ -637,7 +688,9 @@ class PoolsOperations(BaseOperations):
 
     def update(self, pool_body: PoolPatchBody) -> PoolResponse | ServerResponseError:
         """Update a pool."""
-        self.response = self.client.patch(f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json"))
+        self.response = self.client.patch(
+            f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json", exclude_none=True)
+        )
         return PoolResponse.model_validate_json(self.response.content)
 
 
@@ -649,8 +702,54 @@ class ProvidersOperations(BaseOperations):
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
 
 
+def _build_task_instance_path(dag_id: str, dag_run_id: str, task_id: str, map_index: int | None) -> str:
+    """Build the task instance API path, addressing a mapped task instance when map_index is given."""
+    path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+    if map_index is not None and map_index >= 0:
+        path = f"{path}/{map_index}"
+    return path
+
+
 class TaskInstancesOperations(BaseOperations):
     """Task instance operations."""
+
+    def get(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        *,
+        suppress_error_log: bool = False,
+    ) -> TaskInstanceResponse | ServerResponseError:
+        """Get a task instance for a Dag run."""
+        path = _build_task_instance_path(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+        )
+        self.response = self.client.get(
+            path,
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        return TaskInstanceResponse.model_validate_json(self.response.content)
+
+    def get_dependencies(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        *,
+        suppress_error_log: bool = False,
+    ) -> TaskDependencyCollectionResponse | ServerResponseError:
+        """Get unmet scheduler dependencies for a task instance."""
+        path = _build_task_instance_path(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+        )
+        self.response = self.client.get(
+            f"{path}/dependencies",
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        return TaskDependencyCollectionResponse.model_validate_json(self.response.content)
 
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances for a Dag run."""
@@ -705,7 +804,9 @@ class VariablesOperations(BaseOperations):
 
     def update(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Update a variable."""
-        self.response = self.client.patch(f"variables/{variable.key}", json=variable.model_dump(mode="json"))
+        self.response = self.client.patch(
+            f"variables/{variable.key}", json=variable.model_dump(mode="json", exclude_none=True)
+        )
         return VariableResponse.model_validate_json(self.response.content)
 
 

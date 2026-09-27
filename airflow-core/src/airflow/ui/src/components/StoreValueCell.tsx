@@ -1,5 +1,4 @@
 /* eslint-disable react-refresh/only-export-components */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -21,6 +20,7 @@
 import { Text } from "@chakra-ui/react";
 
 import type { JsonValue } from "openapi/requests";
+
 import RenderedJsonField from "src/components/RenderedJsonField";
 
 export const resolveStoreValue = (value: JsonValue): { json: object } | { text: string } => {

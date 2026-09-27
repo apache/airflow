@@ -20,6 +20,142 @@
 Changelog
 ---------
 
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Reset Password button to Edit User view (#70243)``
+* ``Add REPARSE_ALL permission for reparsing files with no registered Dag (#73274)``
+* ``Gate the Dag Bundles menu entry on the FAB DAGs resource so it appears for FAB deployments (#72909)``
+* ``Add FAB option to log users out after a maximum session lifetime (#72825)``
+* ``Add declarative configuration for FAB custom roles (#72820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep sync-perm going when a Dag has bad access_control (#71798)``
+* ``Fix FAB migration failing on MySQL under the pymysql driver (#73220)``
+* ``Fix airflow roles import crash on a role without permissions (#72796)``
+* ``Fix FabAuthManager.get_url_login() dropping next_url (#73134)``
+* ``Fix FAB FastAPI PATCH users to respect FAB_PASSWORD_HASH_METHOD (#73110)``
+* ``Fix invalid command path in permissions-cleanup help examples (#73028)``
+* ``Close the session after the FAB permissions collection read (#72950)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.11.0 (#73630)``
+* ``Bump the @babel packages to 8.0.6, prettier to 3.9.8, webpack to 5.111.1, moment to 2.31.0 and moment-timezone to 0.6.4 (#73207, #73467, #73566)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the permissions for the Dag bundle detail and bundle files API endpoints (#73009)``
+* ``Render the database ERD as a searchable Mermaid diagram instead of an image (#72006)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add TypedDict type hints for AirflowPlugin list fields (#69761)``
+
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Scope asset API responses to the assets a user may read (#72682)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FAB ignoring create_metadata_engine from local settings (#71674)``
+* ``Close database sessions after users and roles collection reads (#72578)``
+* ``Validate id_token issuer and audience in the FAB Authentik provider (#72645)``
+* ``Invalidate a user's sessions when their password is changed through the API (#72657)``
+* ``Compare session and user identifiers consistently when resetting a password (#72198)``
+* ``Reject tokens naming a deactivated account in the FAB auth manager (#72199)``
+* ``Use secrets for fab users '--use-random-password' generation (#72092)``
+
+Misc
+~~~~
+
+* ``Bump FAB UI JavaScript dependencies (#72726)``
+* ``Remove unused FAB app-init helpers that could never run (#72610)``
+* ``Bump webpack in the FAB UI (#72653)``
+* ``Bump webpack in the FAB UI (#72490)``
+* ``Pin pnpm version for FAB and Edge3 UI so bumps keep security overrides (#72390)``
+* ``Bump FAB UI JavaScript dependencies (#72383)``
+* ``Bump eslint from 10.8.1 to 10.9.0 in the FAB UI (#72065)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate fab permission table (#72230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate issuer and audience of Azure AD id_tokens in FAB auth manager (#71735)``
+* ``Support Azure national clouds in FAB Azure AD id_token validation (#72010)``
+* ``Fix Azure AD tenant identifier canonicalization in FAB auth manager (#71920)``
+* ``Fix FAB SSO guide's non-working OAuth configuration instructions (#71852)``
+* ``Make the FAB roles PATCH endpoint replace permissions, not just add them (#71933)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.8.1 (#71508)``
+* ``Add pnpm overrides after audit review in fab provider (#71448)``
+* ``Bump webpack to 5.109.2 and webpack-cli to 7.2.2 (#71005)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix SSO docs pointing at the pre-Airflow 3 OAuth redirect path (#71624)``
+* ``Document API token response details (#71583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``[main] Upgrade important CI environment (#71590)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+
+
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Gate audit log rows not tied to a Dag on a dedicated AccessView (#70759)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+* ``Add 'get_display_name' to 'BaseUser' interface (#70583)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix asset state store writes forbidden under FAB auth manager (#70478)``
+* ``Stop dumping every Dag to stdout when syncing FAB permissions (#70939)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.8.0 (#70697)``
+* ``Bump prettier to 3.9.6, stylelint to 17.14.1, webpack to 5.109.0 (#70604)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.7.3
 .....
 

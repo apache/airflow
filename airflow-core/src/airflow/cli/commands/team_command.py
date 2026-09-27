@@ -20,21 +20,29 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.connection import Connection
 from airflow.models.pool import Pool
-from airflow.models.team import Team, dag_bundle_team_association_table
+from airflow.models.team import (
+    TEAM_NAME_PATTERN,
+    Team,
+    dag_bundle_team_association_table,
+    find_invalid_team_names,
+)
 from airflow.models.variable import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 
-NO_TEAMS_LIST_MSG = "No teams found."
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 def _show_teams(teams, output):
@@ -49,21 +57,43 @@ def _show_teams(teams, output):
 
 
 def _extract_team_name(args):
-    """Extract and validate team name from args."""
+    """
+    Extract a team name from args, without holding it to the name rule.
+
+    ``teams delete`` has to accept any name a row can hold, including one stored before the
+    current rule applied -- otherwise a team that violates it could never be removed.
+    """
     team_name = args.name.strip()
     if not team_name:
         raise SystemExit("Team name cannot be empty")
-    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", team_name):
-        raise SystemExit("Invalid team name: must match regex ^[a-zA-Z0-9_-]{3,50}$")
     return team_name
+
+
+def _extract_new_team_name(args):
+    """Extract a team name for a creation path, holding it to the name rule."""
+    team_name = _extract_team_name(args)
+    if not re.fullmatch(TEAM_NAME_PATTERN, team_name):
+        raise SystemExit(f"Invalid team name: must match regex {TEAM_NAME_PATTERN}")
+    return team_name
+
+
+def _create_default_team_pool(team_name: str, *, session: Session) -> None:
+    Pool.create_or_update_pool(
+        name=Pool.get_default_team_pool_name(team_name),
+        slots=conf.getint("core", "default_pool_task_slot_count"),
+        description=f"Default pool for team '{team_name}'",
+        include_deferred=False,
+        team_name=team_name,
+        session=session,
+    )
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
 def team_create(args, *, session=NEW_SESSION):
-    """Create a new team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores."""
-    team_name = _extract_team_name(args)
+    """Create a new team. Team names must be 3-50 characters long and contain only lower case alphanumeric characters, hyphens, and single underscores."""
+    team_name = _extract_new_team_name(args)
 
     # Check if team with this name already exists
     if session.scalar(select(Team).where(Team.name == team_name)):
@@ -74,8 +104,14 @@ def team_create(args, *, session=NEW_SESSION):
 
     try:
         session.add(new_team)
+        session.flush()
+
+        if conf.getboolean("core", "multi_team"):
+            _create_default_team_pool(team_name=team_name, session=session)
+
         session.commit()
         print(f"Team '{team_name}' created successfully.")
+
     except IntegrityError as e:
         session.rollback()
         raise SystemExit(f"Failed to create team '{team_name}': {e}")
@@ -118,7 +154,12 @@ def team_delete(args, *, session=NEW_SESSION):
         associations.append(f"{variable_count} variable(s)")
 
     # Check pool associations
-    if pool_count := session.scalar(select(func.count(Pool.id)).where(Pool.team_name == team.name)):
+    if pool_count := session.scalar(
+        select(func.count(Pool.id)).where(
+            Pool.team_name == team.name,
+            Pool.pool != Pool.get_default_team_pool_name(team.name),
+        )
+    ):
         associations.append(f"{pool_count} pool(s)")
 
     # If there are associations, prevent deletion
@@ -139,6 +180,17 @@ def team_delete(args, *, session=NEW_SESSION):
     # Delete the team
     try:
         session.delete(team)
+
+        default_pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == Pool.get_default_team_pool_name(team.name),
+                Pool.team_name == team.name,
+            )
+        )
+
+        if default_pool:
+            session.delete(default_pool)
+
         session.commit()
         print(f"Team '{team_name}' deleted successfully")
     except Exception as e:
@@ -152,10 +204,7 @@ def team_delete(args, *, session=NEW_SESSION):
 def team_list(args, *, session=NEW_SESSION):
     """List all teams."""
     teams = session.scalars(select(Team).order_by(Team.name)).all()
-    if not teams:
-        print(NO_TEAMS_LIST_MSG)
-    else:
-        _show_teams(teams=teams, output=args.output)
+    _show_teams(teams=teams, output=args.output)
 
 
 @cli_utils.action_cli
@@ -163,23 +212,162 @@ def team_list(args, *, session=NEW_SESSION):
 @provide_session
 def team_sync(args, *, session=NEW_SESSION):
     """Sync missing teams from the dag bundle config."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Warning: multi-team is not enabled; nothing to synchronize.")
+        return
+
     dag_bundle_teams = {
         bundle.team_name
         for bundle in DagBundlesManager()._bundle_config.values()
         if bundle.team_name is not None
     }
+    existing_teams = Team.get_all_team_names(session=session)
 
-    teams_added = 0
+    # The bundle config is a second creation path for teams, so it enforces the same rule as
+    # `teams create`. Stored names are checked too: `teams sync` shipped without any validation,
+    # so a deployment can hold a name the rule rejects, and checking only the incoming config
+    # would miss a team created by an earlier sync and since dropped from it.
+    if invalid := find_invalid_team_names(dag_bundle_teams | existing_teams):
+        raise SystemExit(
+            f"Invalid team name(s): {', '.join(invalid)}. "
+            f"Team names must match regex {TEAM_NAME_PATTERN}. "
+            "Names already stored must be corrected before syncing."
+        )
+
+    teams_to_add = sorted(dag_bundle_teams - existing_teams)
+    pools_to_add = []
+
+    for team_name in dag_bundle_teams:
+        pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == Pool.get_default_team_pool_name(team_name),
+                Pool.team_name == team_name,
+            )
+        )
+
+        if pool is None:
+            pools_to_add.append(Pool.get_default_team_pool_name(team_name))
+
+    if args.dry_run:
+        if not teams_to_add and not pools_to_add:
+            print("No changes to sync.")
+            return
+
+        if teams_to_add:
+            print("Teams to add:")
+            for team_name in teams_to_add:
+                print(f"  - {team_name}")
+
+        if pools_to_add:
+            print("Default team pools to add:")
+            for pool_name in sorted(pools_to_add):
+                print(f"  - {pool_name}")
+
+        return
 
     try:
-        for team_name in dag_bundle_teams - Team.get_all_team_names(session=session):
-            team = Team(name=team_name)
-            session.add(team)
-            teams_added += 1
+        for team_name in dag_bundle_teams:
+            if team_name in teams_to_add:
+                session.add(Team(name=team_name))
+                session.flush()
+
+            if Pool.get_default_team_pool_name(team_name) in pools_to_add:
+                _create_default_team_pool(team_name=team_name, session=session)
+
         session.commit()
     except Exception as e:
         session.rollback()
         raise SystemExit(f"Failed to sync teams: {e}")
 
-    if teams_added > 0:
-        print(f"{teams_added} teams added.")
+    if teams_to_add:
+        print(f"{len(teams_to_add)} teams added.")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def team_verify(args, *, session=NEW_SESSION):
+    """Verify that the multi-team configuration is consistent."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Multi-team is not enabled.")
+        return
+
+    issues: list[str] = []
+
+    teams = session.scalars(select(Team)).all()
+
+    for team in teams:
+        default_pool_name = Pool.get_default_team_pool_name(team.name)
+
+        default_pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == default_pool_name,
+                Pool.team_name == team.name,
+            )
+        )
+
+        if default_pool is None:
+            issues.append(f"Team '{team.name}' is missing default pool '{default_pool_name}'.")
+
+    existing_teams = {team.name for team in teams}
+
+    for bundle_name, bundle in DagBundlesManager()._bundle_config.items():
+        if bundle.team_name and bundle.team_name not in existing_teams:
+            issues.append(f"DAG bundle '{bundle_name}' references unknown team '{bundle.team_name}'.")
+
+    if issues:
+        print("Verification failed.\n")
+
+        for issue in issues:
+            print(f"✗ {issue}")
+
+        raise SystemExit(1)
+
+    print("Verification succeeded.")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def team_inspect(args, *, session=NEW_SESSION):
+    """Inspect resources belonging to a team."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Multi-team is not enabled.")
+        return
+
+    team_name = _extract_team_name(args)
+
+    team = session.scalar(select(Team).where(Team.name == team_name))
+    if team is None:
+        raise SystemExit(f"Team '{team_name}' does not exist")
+
+    bundle_names = session.scalars(
+        select(dag_bundle_team_association_table.c.dag_bundle_name)
+        .where(dag_bundle_team_association_table.c.team_name == team_name)
+        .order_by(dag_bundle_team_association_table.c.dag_bundle_name)
+    ).all()
+
+    pool_names = session.scalars(
+        select(Pool.pool).where(Pool.team_name == team_name).order_by(Pool.pool)
+    ).all()
+
+    connection_ids = session.scalars(
+        select(Connection.conn_id).where(Connection.team_name == team_name).order_by(Connection.conn_id)
+    ).all()
+
+    variable_keys = session.scalars(
+        select(Variable.key).where(Variable.team_name == team_name).order_by(Variable.key)
+    ).all()
+
+    AirflowConsole().print_as(
+        data=[
+            {
+                "name": team.name,
+                "dag_bundles": bundle_names,
+                "pools": pool_names,
+                "connections": connection_ids,
+                "variables": variable_keys,
+            }
+        ],
+        output=args.output,
+    )

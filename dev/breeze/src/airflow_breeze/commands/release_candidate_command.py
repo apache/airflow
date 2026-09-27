@@ -49,6 +49,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     OUT_PATH,
 )
+from airflow_breeze.utils.release_constraints import publish_constraints
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -442,28 +443,10 @@ def sign_the_release(repo_root):
         console_print("[success]Release signed")
 
 
-def tag_and_push_constraints(version, version_branch, remote_name):
-    if confirm_action("Do you want to tag and push constraints?"):
-        run_command(
-            ["git", "checkout", f"{remote_name}/constraints-{version_branch}"],
-            check=True,
-        )
-        run_command(
-            [
-                "git",
-                "tag",
-                "-s",
-                f"constraints-{version}",
-                "-m",
-                f"Constraints for Apache Airflow {version}",
-            ],
-            check=True,
-        )
-        run_command(
-            ["git", "push", remote_name, "tag", f"constraints-{version}"],
-            check=True,
-        )
-        console_print("[success]Constraints tagged and pushed")
+def generate_and_push_constraints(version, version_branch):
+    # Resolved from the stable branch the candidate was cut from, so the constraints describe the
+    # sources being voted on. The workflow reads "rcN" and allows pre-releases accordingly.
+    publish_constraints(version=version, ref=f"v{version_branch}-stable")
 
 
 def clone_asf_repo(version, repo_root):
@@ -845,8 +828,8 @@ def publish_release_candidate(
     test_airflow()
     # Sign the release
     sign_the_release(airflow_repo_root)
-    # Tag and push constraints
-    tag_and_push_constraints(version, version_branch, remote_name)
+    # Generate, publish and tag the constraints for this candidate
+    generate_and_push_constraints(version, version_branch)
     # Clone the asf repo
     clone_asf_repo(version, airflow_repo_root)
     # Move artifacts to SVN

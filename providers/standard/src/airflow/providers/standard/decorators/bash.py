@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -44,6 +43,9 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         in your function (templated).
     :param op_args: A list of positional arguments that will get unpacked when
         calling your callable (templated).
+    :param multiple_outputs: If True, the value returned by ``output_processor`` must be a
+        dict and each key is pushed as its own XCom, in addition to the whole dict being
+        pushed as the return value. Defaults to False.
     """
 
     template_fields: Sequence[str] = (*DecoratedOperator.template_fields, *BashOperator.template_fields)
@@ -63,19 +65,11 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         op_kwargs: Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.pop("multiple_outputs", None):
-            warnings.warn(
-                f"`multiple_outputs=True` is not supported in {self.custom_operator_name} tasks. Ignoring.",
-                UserWarning,
-                stacklevel=3,
-            )
-
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
             bash_command=SET_DURING_EXECUTION,
-            multiple_outputs=False,
             **kwargs,
         )
 
@@ -88,7 +82,6 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         if not isinstance(self.bash_command, str) or self.bash_command.strip() == "":
             raise TypeError("The returned value from the TaskFlow callable must be a non-empty string.")
 
-        self._is_inline_cmd = self._is_inline_command(bash_command=self.bash_command)
         self.render_template_fields(context)
         return super().execute(context)
 
