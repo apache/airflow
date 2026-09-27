@@ -1297,6 +1297,7 @@ class DagFileProcessorManager(LoggingMixin):
             is_callback_only=is_callback_only,
             relative_fileloc=str(file.rel_path),
             team_name=team_name,
+            last_finish_time=self._file_stats[file].last_finish_time,
         )
 
         if proc.parsing_result is not None:
@@ -1767,15 +1768,16 @@ def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
 
 
 def process_parse_results(
-    run_duration: float,
-    finish_time: datetime,
-    run_count: int,
-    bundle_name: str,
-    parsing_result: DagFileParsingResult | None,
-    *,
-    is_callback_only: bool = False,
-    relative_fileloc: str | None = None,
-    team_name: str | None = None,
+run_duration: float,
+finish_time: datetime,
+run_count: int,
+bundle_name: str,
+parsing_result: DagFileParsingResult | None,
+*,
+is_callback_only: bool = False,
+relative_fileloc: str | None = None,
+team_name: str | None = None,
+last_finish_time: datetime | None = None,
 ) -> DagFileStat:
     """
     Create a DagFileStat from parsing results and emit metrics.
@@ -1784,8 +1786,11 @@ def process_parse_results(
     is handled separately by ``DagFileProcessorManager.persist_parsing_result``.
     """
     if is_callback_only:
-        # Callback-only processing - don't update timestamps to avoid stale DAG detection issues
+        # Callback-only processing - don't update timestamps to avoid stale DAG detection issues.
+        # Preserve the existing last_finish_time so the file is not treated as never-parsed.
+        existing_finish = last_finish_time if last_finish_time is not None else finish_time
         stat = DagFileStat(
+            last_finish_time=existing_finish,
             last_duration=run_duration,
             run_count=run_count,  # Don't increment for callback-only processing
         )
