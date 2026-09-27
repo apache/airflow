@@ -493,6 +493,15 @@ core:
       type: integer
       example: ~
       default: "1024"
+    xcom_sequence_chunk_size:
+      description: |
+        Number of items fetched per request when a mapped task's XCom results are read as a sequence,
+        for example by a downstream ``.iterate()`` or a ``for`` loop over them. Larger values mean fewer
+        round trips to the API server; each fetched chunk is held in memory until the reader moves past it.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "32"
 
     allow_double_dot_in_ids:
       description: |
