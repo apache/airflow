@@ -90,6 +90,11 @@ Not all volume plugins have support for ``ReadWriteMany`` access mode.
 Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__
 for details.
 
+.. warning::
+   When upgrading a chart from 1.19.0 or older make sure to remove any non
+   airflow-chart managed gitSync processes or pods, having multiple gitSync
+   processes can and will cause sync conflicts when using a ReadWriteMany pvc
+
 .. code-block:: bash
 
    helm upgrade --install airflow apache-airflow/airflow \
