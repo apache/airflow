@@ -868,9 +868,7 @@ class DagRun(Base, LoggingMixin):
                 ),
             )
             .order_by(
-                nulls_first(
-                    cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session
-                ),
+                nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
                 nulls_first(available_dagruns_rn.c.num_running, session=session),
                 DagRun.run_after,
             )
