@@ -92,7 +92,7 @@ for details.
 
 .. warning::
 
-   When upgrading a chart from 1.19.0 or older make sure to remove any non airflow-chart managed gitSync processes or pods, having multiple gitSync processes can and will cause sync conflicts when using a ReadWriteMany pvc.
+   When upgrading a chart from 1.19.0 or older make sure to remove any non airflow-chart managed gitSync processes or pods, having multiple gitSync processes can and will cause sync conflicts when using a ReadWriteMany PVC.
 
 .. code-block:: bash
 
