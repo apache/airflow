@@ -87,7 +87,7 @@ For example a ``html_content_template`` file could look like this:
   Log: <a href="{{ti.log_url}}">Link</a><br>
   Host: {{ti.hostname}}<br>
 
-``task_state`` is the task instance state as a plain string (``failed``, ``up_for_retry``, or ``unknown``
+``task_state`` is the task instance state as a plain string (``failed``, ``up_for_retry``, or ``None``
 when the state is not known); ``{{ti.state}}`` renders the Python enum name instead.
 
 ``ti.mark_success_url`` is still available for templates carried over from Airflow 2, but it now returns

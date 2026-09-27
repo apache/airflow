@@ -195,7 +195,7 @@ class TestSmtpNotifier:
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email=TEST_SENDER,
             to=TEST_RECEIVER,
-            subject=f"[Airflow] {TEST_DAG_ID}.{TEST_TASK_ID} {TEST_TASK_STATE.value} - Run {TEST_RUN_ID}",
+            subject=f"{TEST_DAG_ID}.{TEST_TASK_ID} {TEST_TASK_STATE.value} - Run {TEST_RUN_ID}",
             html_content=mock.ANY,
             smtp_conn_id=SMTP_CONN_ID,
             **DEFAULT_EMAIL_PARAMS,
@@ -208,10 +208,10 @@ class TestSmtpNotifier:
         [
             pytest.param(TaskInstanceState.FAILED, "failed", "#dc2626", id="failed"),
             pytest.param(TaskInstanceState.SUCCESS, "success", "#334155", id="success"),
-            pytest.param(None, "unknown", "#334155", id="no-state"),
+            pytest.param(None, "None", "#334155", id="no-state"),
         ],
     )
-    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook", autospec=True)
     def test_default_templates_render_task_details(
         self,
         mock_smtphook_hook,
@@ -234,10 +234,7 @@ class TestSmtpNotifier:
         notifier({"dag": create_dag_without_db(TEST_DAG_ID), "ti": mock_ti})
 
         kwargs = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs
-        assert (
-            kwargs["subject"]
-            == f"[Airflow] {TEST_DAG_ID}.{TEST_TASK_ID} {expected_state} - Run {TEST_RUN_ID}"
-        )
+        assert kwargs["subject"] == f"{TEST_DAG_ID}.{TEST_TASK_ID} {expected_state} - Run {TEST_RUN_ID}"
         content = kwargs["html_content"]
         assert f"Airflow task {expected_state}" in content
         assert expected_banner in content
@@ -247,7 +244,7 @@ class TestSmtpNotifier:
         assert str(TEST_START_DATE) in content
         assert str(TEST_END_DATE) in content
 
-    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook", autospec=True)
     def test_default_template_omits_missing_timestamps(
         self, mock_smtphook_hook, create_dag_without_db, mock_task_instance
     ):
@@ -271,7 +268,7 @@ class TestSmtpNotifier:
             pytest.param("http://localhost:8080/confirm?state=success", True, id="dedicated-url"),
         ],
     )
-    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook", autospec=True)
     def test_default_template_shows_mark_success_only_when_the_url_differs(
         self,
         mock_smtphook_hook,
