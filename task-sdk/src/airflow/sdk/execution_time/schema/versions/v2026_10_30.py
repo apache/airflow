@@ -26,7 +26,7 @@ require a ``VersionChange`` entry below.
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import VersionChange, VersionChangeWithSideEffects, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
@@ -149,3 +149,16 @@ class AddExpandedTICountToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("expanded_ti_count").didnt_exist,
     )
+
+
+class AddGetXComByKeys(VersionChangeWithSideEffects):
+    """
+    Add ``GetXComByKeys``, the request that fetches several XCom values by key in one round trip.
+
+    A new body needs no migration instruction: its head shape is its schema, and older runtimes
+    never send it. Recorded here so the version history names when it appeared.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = ()
