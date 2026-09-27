@@ -58,7 +58,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
-from airflow.models.taskmap import TaskMap
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
@@ -91,7 +91,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mapping import expand_mapped_task, push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
@@ -1757,7 +1757,7 @@ def _registered_mutation_hook(hook):
     """Register hook as the real task_instance_mutation_hook on the policy plugin manager.
 
     Patching at the plugin-manager level (rather than airflow.settings) ensures both call sites
-    see it: TaskMap.expand_mapped_task resolves the wrapper lazily, while refresh_from_task
+    see it: TaskInstance.expand_mapped_task resolves the wrapper lazily, while refresh_from_task
     holds a module-level reference bound at import time.
     """
     with mock.patch.object(
@@ -1770,7 +1770,7 @@ def _registered_mutation_hook(hook):
 def test_mutation_hook_committing_session_crashes_under_prohibit_commit(dag_maker, session):
     """A mutation hook that opens a nested committing session crashes mapped expansion under the guard.
 
-    This pins the exact scheduler crash path: during mapped-task expansion (TaskMap.expand_mapped_task)
+    This pins the exact scheduler crash path: during mapped-task expansion (TaskInstance.expand_mapped_task)
     the hook is invoked while the outer session is wrapped in prohibit_commit. A hook that calls the
     @provide_session-decorated TaskInstance.get_dagrun() with no session argument reuses the
     guarded scoped session; the create_session() context manager then commits on exit, tripping the
@@ -1839,7 +1839,7 @@ def test_mutation_hook_safe_session_reuse_routes_mapped_tis_under_prohibit_commi
 def test_mutation_hook_deterministic_across_repeated_invocation_during_expansion(dag_maker, session):
     """A mutation hook may be invoked more than once per TI during expansion; the result must be stable.
 
-    TaskMap.expand_mapped_task invokes the hook on the transient TI and again via refresh_from_task
+    TaskInstance.expand_mapped_task invokes the hook on the transient TI and again via refresh_from_task
     after session.merge, so a given mapped index is mutated multiple times. This asserts both that the
     re-invocation really happens (at least one index sees >1 call) and that a deterministic hook -- one that
     sets queue as a pure function of TI identity -- yields the same persisted value regardless of how
@@ -1875,7 +1875,7 @@ def _make_literal_mapped_dagrun(dag_maker, session, *, dag_id, conf=None):
     """Build a literal-mapped DAG and its running DagRun, returning (dr, dag_version_id).
 
     Unlike _make_mapped_dag_for_expansion (which leaves an xcom-mapped task unexpanded so callers
-    can drive TaskMap.expand_mapped_task by hand), this builds a literal .expand([...]) so that
+    can drive TaskInstance.expand_mapped_task by hand), this builds a literal .expand([...]) so that
     create_dagrun materializes the mapped TIs immediately. Callers can then re-invoke the mutation
     hook on those persisted TIs by calling dr.verify_integrity(...) -- the real scheduler method --
     inside their own prohibit_commit guard.
@@ -1895,7 +1895,7 @@ def _make_literal_mapped_dagrun(dag_maker, session, *, dag_id, conf=None):
 def test_freshly_built_mapped_ti_exposes_dag_run_as_loaded_none(dag_maker, session):
     """A freshly-built mapped TaskInstance exposes dag_run as loaded-None, not a lazy-load or raise.
 
-    TaskMap.expand_mapped_task constructs each expanded TI with TaskInstance(task, run_id=..., ...)
+    TaskInstance.expand_mapped_task constructs each expanded TI with TaskInstance(task, run_id=..., ...)
     and invokes the mutation hook on it before it is merged into a session. A conf-routing hook that
     resolves the DagRun by attribute access (the _resolve_dagrun discipline) relies on ti.dag_run
     returning None here -- without hitting the DB and without raising DetachedInstanceError -- so it
@@ -2122,6 +2122,72 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
 
+@pytest.mark.parametrize("try_number", [0, 2])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_restoring_removed_task_allocates_attempt_once(dag_maker, session, try_number, mapped):
+    with dag_maker(session=session):
+        if mapped:
+            BashOperator.partial(task_id="task").expand(bash_command=["true"])
+        else:
+            BashOperator(task_id="task", bash_command="true")
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", map_index=0 if mapped else -1, session=session)
+    ti.state = TaskInstanceState.REMOVED
+    ti.try_number = try_number
+    old_id = ti.id
+    session.flush()
+
+    for _ in range(2):
+        dr.verify_integrity(dag_version_id=ti.dag_version_id, session=session)
+        session.flush()
+
+    history = session.scalar(
+        select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+    )
+    assert ti.state is None
+    if try_number:
+        assert ti.id != old_id
+        assert ti.try_number == try_number + 1
+        assert history.try_number == try_number
+        assert history.state == TaskInstanceState.REMOVED
+    else:
+        assert ti.id == old_id
+        assert ti.try_number == 0
+        assert history is None
+
+    ti.task = dag_maker.serialized_dag.get_task("task")
+    assert dr.schedule_tis([ti], session=session) == 1
+    session.refresh(ti)
+    assert ti.try_number == try_number + 1
+
+
+def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, session):
+    with dag_maker(session=session):
+        BashOperator.partial(task_id="task").expand(bash_command=["true", "true"])
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", map_index=1, session=session)
+    ti.try_number = 2
+    ti.state = TaskInstanceState.SUCCESS
+    old_id = ti.id
+    session.flush()
+
+    with dag_maker(session=session):
+        BashOperator.partial(task_id="task").expand(bash_command=["true"])
+    dr.dag = dag_maker.serialized_dag
+    dag_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+    for _ in range(3):
+        dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+        session.flush()
+
+    assert ti.state == TaskInstanceState.REMOVED
+    assert ti.id == old_id
+    assert ti.try_number == 2
+    assert (
+        session.scalar(select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id))
+        is None
+    )
+
+
 def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     """Test that when the length of mapped literal reduces, removed state is added"""
 
@@ -2185,7 +2251,7 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     assert ti
     ti.state = TaskInstanceState.SUCCESS
     # Behave as if TI ran after: Variable.set(key="arg1", value=[1, 2, 3])
-    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2, 3]))
+    push_mapped_length(ti, [1, 2, 3], session=session)
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions(session=session)
@@ -2199,7 +2265,7 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     ti = dr.get_task_instance(task_id="task_1", session=session)
     assert ti
     # Behave as if we did and re-ran the task: Variable.set(key="arg1", value=[1, 2, 3, 4])
-    session.merge(TaskMap.from_task_instance_xcom(ti, [1, 2, 3, 4]))
+    push_mapped_length(ti, [1, 2, 3, 4], session=session)
     ti.state = TaskInstanceState.SUCCESS
     session.flush()
 
@@ -2237,7 +2303,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     assert ti
     ti.state = TaskInstanceState.SUCCESS
     # Behave as if TI ran after: Variable.set(key="arg1", value=[1, 2, 3])
-    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2, 3]))
+    push_mapped_length(ti, [1, 2, 3], session=session)
     session.flush()
 
     dr.task_instance_scheduling_decisions(session=session)
@@ -2256,7 +2322,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     ti = dr.get_task_instance(task_id="task_1", session=session)
     assert ti
     # Behave as if we did and re-ran the task: Variable.set(key="arg1", value=[1, 2])
-    session.merge(TaskMap.from_task_instance_xcom(ti, [1, 2]))
+    push_mapped_length(ti, [1, 2], session=session)
     ti.state = TaskInstanceState.SUCCESS
     session.flush()
     dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
@@ -2326,7 +2392,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     # "Run" task_1
     ti.state = TaskInstanceState.SUCCESS
     # Behave as if TI ran after: Variable.set(key="arg1", value=[1, 2, 3])
-    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2, 3]))
+    push_mapped_length(ti, [1, 2, 3], session=session)
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions(session=session)
@@ -2346,7 +2412,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     # We don't execute task anymore, but this is what we are
     # simulating happened:
     # Variable.set(key="arg1", value=[])
-    session.merge(TaskMap.from_task_instance_xcom(ti, []))
+    push_mapped_length(ti, [], session=session)
     session.flush()
 
     # Run the first task again to get the new lengths
@@ -2477,9 +2543,7 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     dr: DagRun = dag_maker.create_dagrun()
     ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
     ti1.state = TaskInstanceState.SUCCESS
-    session.add(
-        TaskMap(dag_id=dr.dag_id, task_id=ti1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
-    )
+    push_mapped_length(ti1, [], session=session)
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions(session=session)
@@ -2566,7 +2630,7 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
     # After make_list is run, double is expanded.
     ti = decision.schedulable_tis[0]
     ti.state = TaskInstanceState.SUCCESS
-    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2]))
+    push_mapped_length(ti, [1, 2], session=session)
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions(session=session)
@@ -2716,6 +2780,26 @@ def test_schedule_tis_empty_operator_does_not_short_circuit_if_ti_already_queued
     assert refreshed_ti is not None
     assert refreshed_ti.state == TaskInstanceState.QUEUED
     assert refreshed_ti.try_number == 1
+
+
+@pytest.mark.parametrize("state", [None, TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RESCHEDULE])
+@pytest.mark.parametrize("try_number", [1, 3])
+def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try_number):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = state
+    ti.try_number = try_number
+    session.commit()
+    ti_id = ti.id
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.flush()
+    session.expire_all()
+
+    assert session.get(TI, ti_id).try_number == try_number
 
 
 def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
@@ -3245,11 +3329,11 @@ def test_mapped_task_group_expands(dag_maker, session):
         ("tg.task_2", -1, None),
     }
 
-    # Simulate task_1 execution to produce TaskMap.
+    # Simulate task_1 execution to produce the mapped length.
     (ti_1,) = decision.schedulable_tis
     assert ti_1.task_id == "task_1"
     ti_1.state = TaskInstanceState.SUCCESS
-    session.add(TaskMap.from_task_instance_xcom(ti_1, ["a", "b"]))
+    push_mapped_length(ti_1, ["a", "b"], session=session)
     session.flush()
 
     # Now task_2 in mapped tagk group is expanded.
@@ -3269,7 +3353,7 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     @task
     def generate_mapping_args():
         context = get_current_context()
-        if context["ti"].try_number == 0:
+        if context["ti"].try_number == 1:
             args = [i for i in range(2)]
         else:
             args = [i for i in range(rerun_length)]
@@ -3294,9 +3378,6 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     clear_task_instances(dr.get_task_instances(), session=session)
 
     # Second Run
-    ti = dr.get_task_instance(task_id="generate_mapping_args", session=session)
-    ti.try_number += 1
-    session.merge(ti)
     dag_maker.run_ti("generate_mapping_args", dr)
 
     # Check if the new mapped task instances are correctly scheduled
@@ -3321,7 +3402,7 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
     @task
     def producer():
         context = get_current_context()
-        if context["ti"].try_number == 0:
+        if context["ti"].try_number == 1:
             return [i for i in range(3)]
         return [i for i in range(2)]
 
@@ -3357,9 +3438,6 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
 
     # Clear and rerun with one fewer mapped task instance.
     clear_task_instances(dr.get_task_instances(session=session), session=session)
-    ti = dr.get_task_instance(task_id="producer", session=session)
-    ti.try_number += 1
-    session.merge(ti)
 
     dag_maker.run_ti("producer", dr)
     decision = dr.task_instance_scheduling_decisions(session=session)
@@ -3611,7 +3689,7 @@ def test_xcom_map_skip_raised(dag_maker, session):
     assert _task_ids(decision.schedulable_tis) == [("push", -1)]
     ti = decision.schedulable_tis[0]
     ti.state = TaskInstanceState.SUCCESS
-    session.add(TaskMap.from_task_instance_xcom(ti, push.function()))
+    push_mapped_length(ti, push.function(), session=session)
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions(session=session)

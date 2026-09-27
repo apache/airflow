@@ -272,7 +272,7 @@ def test_execute_passes_job_team_name_to_supervisor(mock_supervisor_start, team_
     mock_supervisor._exit_code = 0
     mock_supervisor_start.return_value = mock_supervisor
 
-    job = Job(team_name=team_name)
+    job = Job(team_names=[team_name] if team_name else [])
     job_runner = TriggererJobRunner(job)
     with (
         patch.object(job_runner, "register_signals"),

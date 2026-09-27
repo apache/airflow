@@ -41,6 +41,15 @@ components. It can automatically create a pull request with the changes.
 The command checks if you are on the correct branch (main or a version test branch like v2-10-test) with a
 clean repository. If not, it will offer to reset your repository to the latest state from apache/airflow.
 
+The upgrade also raises the lower bounds of a curated set of fast-moving dependencies (boto3,
+botocore, Google Cloud and Azure SDKs). The policy lives in ``[tool.airflow.dependency-floors]`` of the
+root ``pyproject.toml``: a floor is raised to the newest release that is at least ``min-age`` (180 days)
+old, members of a group share one floor, and packages that are capped anywhere or listed under
+``exclude`` are never touched. Bumps that make ``uv lock`` fail - with the highest or the lowest-direct
+resolution - are rolled back and listed in the PR description together with everything that was
+raised or skipped. Use ``--no-upgrade-dependency-floors`` to skip the step. The design is recorded in
+`ADR 0018 <adr/0018-raise-dependency-floors-automatically.md>`_.
+
 These are all available flags of ``upgrade`` command:
 
 .. image:: ./images/output_ci_upgrade.svg
