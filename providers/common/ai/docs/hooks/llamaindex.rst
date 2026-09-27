@@ -41,7 +41,8 @@ those backends: their model names (e.g. ``llama3.2``) are never in the
 OpenAI allowlist, so the call fails on the model name, not on connectivity.
 ``get_embedding_model()`` raises immediately at construction;
 ``get_llm()`` defers the error until the first call that reads
-``.metadata`` (``.chat()`` / ``.complete()``).
+``.metadata`` (``.chat()`` / ``.complete()``). Neither class has a constructor
+argument that skips the check.
 
 OpenAI by default, BYO for other vendors
 ----------------------------------------
@@ -87,7 +88,7 @@ The hook reads credentials from the Airflow connection of type ``llamaindex``:
   an OpenAI-compatible proxy that accepts OpenAI's exact model names (e.g.
   an internal gateway) -- not Ollama or vLLM (see above).
 - **extra** JSON --
-  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}`` --
+  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}`` --
   default model identifiers stored on the connection.
 
 Parameters
@@ -111,14 +112,14 @@ Parameters
      - Embedding model name, e.g. ``text-embedding-3-small``.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
-     - LLM model name, e.g. ``gpt-4o``. Required when calling ``get_llm()``.
+     - LLM model name, e.g. ``gpt-5``. Required when calling ``get_llm()``.
 
 Dependencies
 ------------
 
 Install the ``llamaindex`` extra::
 
-    pip install apache-airflow-providers-common-ai[llamaindex]
+    pip install "apache-airflow-providers-common-ai[llamaindex]"
 
 That extra installs ``llama-index-core``, ``llama-index-embeddings-openai``,
 and ``llama-index-llms-openai`` -- enough to back the hook's default

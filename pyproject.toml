@@ -264,6 +264,12 @@ apache-airflow = "airflow.__main__:main"
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
 ]
+"ibm.db2" = [
+    "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\""
+]
+"ibm.mq" = [
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
+]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
 ]
@@ -415,7 +421,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,fab-oauth,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-akeyless>=0.1.0",
@@ -472,6 +478,8 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
+    "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\"",
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
@@ -545,13 +553,14 @@ apache-airflow = "airflow.__main__:main"
     # tracked at https://github.com/apache/airflow/issues/70084
     "cloudpickle>=2.2.1,<3.1.2",
 ]
+"fab-oauth" = [
+    "apache-airflow-providers-fab[oauth]",
+]
 "github-enterprise" = [
-    "apache-airflow-providers-fab>=2.2.0",
-    "authlib>=1.0.0",
+    "apache-airflow-providers-fab[oauth]",
 ]
 "google-auth" = [
-    "apache-airflow-providers-fab>=2.2.0",
-    "authlib>=1.0.0",
+    "apache-airflow-providers-fab[oauth]",
 ]
 "ldap" = [
     "python-ldap>=3.4.4",
@@ -1451,8 +1460,15 @@ no-build-isolation-package = ["sphinx-redoc"]
 # (pip ignores extra-gated requirements, but not llama-index's unconditional cap). pydantic-ai's
 # OpenAI model works against openai 2.x at runtime; the declared floor tracks the SDK's httpx2
 # move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
-# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and both allow openai 3.
+# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and google-cloud-aiplatform
+# lifts its litellm cap (<1.86 below Python 3.14) far enough to reach the fixed litellm.
 override-dependencies = ["openai>=2.47.0,<3"]
+# The override replaces every package's openai requirement, not only pydantic-ai-slim's, so the
+# resolver no longer rejects a release that needs openai>=3 unconditionally, and only `pip check`
+# in the image build catches it. Cap each such package here at its last openai 2.x release, which
+# is what the resolver would pick without the override. azure-ai-projects 2.5.0 moved to
+# openai>=3.0.0; the Azure provider needs >=2.2.0.
+constraint-dependencies = ["azure-ai-projects<2.5"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
@@ -1619,6 +1635,38 @@ google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 # quarantined.
 # Remove once the rolling window advances past 2026-09-18.
 typesafe-sdk = "2026-09-19T00:00:00Z"
+
+[tool.airflow.dependency-floors]
+# Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
+# see dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
+# A floor is never raised to a release uploaded more recently than this.
+min-age = "180 days"
+packages = [
+    "boto3",
+    "botocore",
+    "google-cloud-*",
+    "google-api-python-client",
+    "azure-*",
+]
+# Members of a group always get the same floor.
+groups = [
+    ["boto3", "botocore"],
+]
+
+# Never bumped. Packages capped or excluded anywhere (<, <=, !=, ==, ~=) are skipped automatically;
+# list here the ones that must stay put for another reason, or whose cap should not be the only record.
+[tool.airflow.dependency-floors.exclude]
+sagemaker-studio = "Do not change without approval from AWS (providers/amazon/pyproject.toml)"
+pandas = "DataFrame XComs need pandas<3 (#70791)"
+pymysql = "Capped below 1.2 in PyPI constraints generation (#67491)"
+fastapi = "Repeated breakage on new releases (#59681, #59710, #59856, #61579, #68578)"
+deltalake = "Missing ARM wheels on new releases (#59977, #60098, #60376)"
+gunicorn = "API server startup deadlocks above 25.1 (#62524)"
+qdrant-client = "Capped (#62193)"
+airbyte-api = "1.x breaks provider tests (#69081)"
+mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
+anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
+azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py

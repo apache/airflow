@@ -28,9 +28,9 @@ output, the result lands in XCom for the next task, and the whole thing runs on 
 Start here
 ----------
 
-- :doc:`quickstart` — install, connect a vendor, run a two-task Dag and check its output.
-- :doc:`use_cases/index` — ten jobs a data team already has, each with the Dag that does it.
-- :doc:`model_providers` — which vendors work, and the extra, connection and prefix for each.
+- :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
+- :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
+- :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
 
 This is the Dag the quick start runs. The ``summarize`` task sends the release notes to the
 model on the ``pydanticai_default`` connection; ``publish`` receives the answer like any
@@ -94,6 +94,7 @@ waits for the result, use that vendor's provider.
     Installation <installation>
     Quick start <quickstart>
     Core concepts <concepts>
+    Develop and test locally <local_development>
 
 .. toctree::
     :titlesonly:
@@ -149,7 +150,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 0.9.0
+Release: 0.10.0
 
 Provider package
 ----------------
@@ -174,7 +175,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
-``apache-airflow-providers-standard``       ``>=1.12.1``
+``apache-airflow-providers-standard``       ``>=1.20.0``
 ``pydantic-ai-slim``                        ``>=2.33.0``
 ==========================================  ==================
 
@@ -239,5 +240,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 0.9.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 0.9.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.10.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.10.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.10.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.10.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.10.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.10.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.10.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.10.0-py3-none-any.whl.sha512>`__)

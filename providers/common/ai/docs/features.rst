@@ -23,16 +23,16 @@ LLM and agent features
 These settings change how a model call or an agent run behaves, independent of which operator
 you use. Each is a parameter on the operator or decorator.
 
-- :doc:`structured_output` — ``output_type`` returns a typed Pydantic object through XCom
+- :doc:`structured_output`: ``output_type`` returns a typed Pydantic object through XCom
   instead of a string.
-- :doc:`message_history` — ``message_history`` carries a conversation across agent runs.
-- :doc:`guardrails` — pydantic-ai capabilities and ``pydantic-ai-shields`` guards pass through
+- :doc:`message_history`: ``message_history`` carries a conversation across agent runs.
+- :doc:`guardrails`: pydantic-ai capabilities and ``pydantic-ai-shields`` guards pass through
   ``agent_params``.
-- :doc:`code_mode` — ``code_mode=True`` lets the model call several tools from one Python
+- :doc:`code_mode`: ``code_mode=True`` lets the model call several tools from one Python
   snippet instead of one round trip per call.
-- :doc:`approval_gates` — ``require_approval=True`` pauses an LLM operator until a person
+- :doc:`approval_gates`: ``require_approval=True`` pauses an LLM operator until a person
   approves, edits or rejects the output.
-- :doc:`hitl_review` — ``enable_hitl_review=True`` opens an iterative review loop on an agent,
+- :doc:`hitl_review`: ``enable_hitl_review=True`` opens an iterative review loop on an agent,
   with a chat UI and REST API for the reviewer.
 
 The last two are different tools for different jobs: an approval gate is a one-shot decision on

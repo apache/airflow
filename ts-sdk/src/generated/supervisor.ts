@@ -598,6 +598,7 @@ export type State8 = "failed" | "skipped" | "removed";
 export type EndDate8 = string | null;
 export type Type78 = "TaskState";
 export type RenderedMapIndex5 = string | null;
+export type RetryReason1 = string | null;
 export type Type79 = "TaskStateStoreResult";
 export type Type80 = "TaskStatesResult";
 export type LogicalDate6 = string | null;
@@ -1827,6 +1828,7 @@ export interface TaskState {
   end_date?: EndDate8;
   type?: Type78;
   rendered_map_index?: RenderedMapIndex5;
+  retry_reason?: RetryReason1;
 }
 /**
  * Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms.

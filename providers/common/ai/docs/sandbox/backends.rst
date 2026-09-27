@@ -209,8 +209,8 @@ Swapping the backend is one constructor argument, and tool names, spec and promp
 do not change. Four behaviours do, so read them before assuming the same Dag
 behaves identically in both places:
 
-- **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a fraction of
-  one, so set ``cpu``.
+- **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
+  0.125 of one, so set ``cpu``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal and

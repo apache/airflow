@@ -37,10 +37,9 @@ Setup
 
        pip install 'apache-airflow-providers-common-ai[typesafe]'
 
-   The extra installs the TypeSafe SDK; the model adapter itself is part of pydantic-ai
-   from 2.45.0, so make sure ``pydantic-ai-slim>=2.45.0`` is installed as well. The
-   provider does not raise its own floor to that release yet, because pydantic-ai's
-   ``openai`` extra needs openai 3.x while other Airflow providers still pin openai 2.x.
+   The extra installs the TypeSafe SDK. The ``typesafe:`` model adapter is part of
+   pydantic-ai itself from ``pydantic-ai-slim`` 2.45.0, which is newer than the floor the
+   provider's other extras set, so check that release or later is installed.
 
 2. Create a connection (``Admin > Connections``):
 
@@ -152,7 +151,7 @@ transcript when that is enabled, and a hook-level call has it on the result:
 .. code-block:: python
 
     from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-    from airflow.providers.common.compat.sdk import task
+    from airflow.sdk import task
     from typing import Literal
 
 

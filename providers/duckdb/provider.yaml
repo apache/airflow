@@ -21,7 +21,7 @@ name: DuckDB
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1788600000
+source-date-epoch: 1790023613
 description: |
   `DuckDB <https://duckdb.org/>`__ provider for Apache Airflow. Runs SQL against an in-process
   DuckDB database — in memory, backed by a local file, or hosted by MotherDuck — and manages

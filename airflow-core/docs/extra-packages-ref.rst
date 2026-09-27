@@ -120,6 +120,8 @@ other packages that can be used by airflow or some of its providers.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | cloudpickle         | ``pip install apache-airflow[cloudpickle]``         | Cloudpickle serialization support                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| fab-oauth           | ``pip install 'apache-airflow[fab-oauth]'``         | FAB OAuth authentication (authlib)                                         |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github-enterprise   | ``pip install 'apache-airflow[github-enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google-auth         | ``pip install 'apache-airflow[google-auth]'``       | Google auth backend                                                        |

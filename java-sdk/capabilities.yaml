@@ -21,7 +21,7 @@ min_airflow_version: "3.3"
 
 # Keep in sync with airflowSupervisorSchemaVersion in gradle.properties, which is what stamps the
 # JAR manifest. The render hook fails if the two disagree.
-supervisor_schema_version: "2026-06-16"
+supervisor_schema_version: "2026-10-30"
 
 # The runtime terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it does
 # not yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.

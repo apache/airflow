@@ -17,10 +17,19 @@
 
 .. _write-logs-stackdriver:
 
-Writing logs to Google Stackdriver
-----------------------------------
+.. _write-logs-cloud-logging:
 
-Airflow can be configured to read and write task logs in `Google Stackdriver Logging <https://cloud.google.com/logging/>`__.
+Writing logs to Google Cloud Logging
+------------------------------------
+
+.. note::
+
+  The ``Stackdriver*`` classes in ``airflow.providers.google.cloud.log.stackdriver_task_handler`` are
+  deprecated aliases for the ``CloudLogging*`` classes documented below, and will be removed after
+  March 31, 2027.
+
+Airflow can be configured to read and write task logs in `Google Cloud Logging <https://cloud.google.com/logging/>`__
+(formerly Stackdriver).
 
 To enable this feature, ``airflow.cfg`` must be configured as in this
 example:
@@ -39,19 +48,19 @@ All configuration options are in the ``[logging]`` section.
 
 #. By default Application Default Credentials are used to obtain credentials. You can also
    set ``google_key_path`` option in ``[logging]`` section, if you want to use your own service account.
-#. Make sure with those credentials, you can read/write to/from stackdriver.
+#. Make sure with those credentials, you can read/write to/from Cloud Logging.
 #. Install the ``google`` package, like so: ``pip install 'apache-airflow[google]'``.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you have defined.
-#. Verify that the Google Cloud Storage viewer is working in the UI. With Stackdriver you should see the logs pulled in the real time
+#. Verify that the Google Cloud Storage viewer is working in the UI. With Cloud Logging you should see the logs pulled in the real time
 
 The value of field ``remote_logging`` must always be set to ``True`` for this feature to work.
-Turning this option off will result in data not being sent to Stackdriver.
+Turning this option off will result in data not being sent to Cloud Logging.
 
 The ``remote_base_log_folder`` option contains the URL that specifies the type of handler to be used.
-For integration with Stackdriver, this option should start with ``stackdriver://``.
-The path section of the URL specifies the name of the log e.g. ``stackdriver:///airflow-tasks`` writes
-logs under the name ``airflow-tasks``.
+For integration with Cloud Logging, this option should start with ``stackdriver://`` — the URL scheme
+name is unchanged by this rename. The path section of the URL specifies the name of the log e.g.
+``stackdriver:///airflow-tasks`` writes logs under the name ``airflow-tasks``.
 
 You can set ``google_key_path`` option in the ``[logging]`` section to specify the path to `the service
 account key file <https://cloud.google.com/iam/docs/service-accounts>`__.
@@ -69,12 +78,14 @@ be used. Make sure that with those credentials, you can read and write the logs.
 By using the ``logging_config_class`` option you can get
 :ref:`advanced features <write-logs-advanced>` of
 this handler. Details are available in the handler's documentation -
-:class:`~airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler`.
+:class:`~airflow.providers.google.cloud.log.cloud_logging_task_handler.CloudLoggingTaskHandler`.
 
 
 .. _log-link-stackdriver:
 
-Google Stackdriver External Link
-''''''''''''''''''''''''''''''''
+.. _log-link-cloud-logging:
 
-Airflow automatically shows a link to Google Stackdriver when configured to use it as the remote logging system.
+Google Cloud Logging External Link
+''''''''''''''''''''''''''''''''''
+
+Airflow automatically shows a link to Google Cloud Logging when configured to use it as the remote logging system.

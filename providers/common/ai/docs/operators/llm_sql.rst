@@ -147,7 +147,7 @@ Human-in-the-Loop Approval
 
 Set ``require_approval=True`` to pause the task after SQL generation and wait
 for a human reviewer to approve the query before it is returned.
-When ``allow_modifications=True``, the reviewer can also edit the SQL — the
+When ``allow_modifications=True``, the reviewer can also edit the SQL; the
 modified query is re-validated against the same safety rules automatically.
 ``approval_timeout`` and ``on_approval_timeout`` behave as on
 :ref:`LLMOperator <howto/operator:llm>`:
@@ -181,5 +181,5 @@ Logging
 
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the generated SQL is also
-logged (truncated to 500 characters). See :ref:`AgentOperator — Logging <howto/operator:agent>`
+logged (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.

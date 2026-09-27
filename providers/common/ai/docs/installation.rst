@@ -37,7 +37,7 @@ Choosing extras
 
 The provider's extras split into a few groups:
 
-* **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``, ``typesafe``:
+* **Model providers** (``openai``, ``anthropic``, ``google``, ``bedrock``, ``typesafe``):
   pick the one matching your ``llm_conn_id`` connection (:doc:`model_providers` maps
   vendors to extras, prefixes and connection types). ``typesafe`` differs from the rest
   in kind: it installs a classifier model that answers typed questions and cannot write
@@ -46,14 +46,14 @@ The provider's extras split into a few groups:
   the built-in adapter talks to; pydantic-ai supports more model providers
   than these, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
-* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``, ``modal``: MCP servers,
+* **Agent tooling** (``mcp``, ``skills``, ``code-mode``, ``shields``, ``modal``): MCP servers,
   Agent Skills, code-mode tool execution, shield capabilities (input/output guards, tool
   guards, cost tracking), and the hosted Modal backend for :doc:`sandboxed execution <sandbox/index>`.
-* **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
+* **Document loading** (``pdf``, ``docx``, ``avro``, ``parquet``): file formats for
   document pipelines.
-* **Retrieval / SQL** — ``sql``, ``common.sql``, ``langchain``, ``llamaindex``: RAG and
+* **Retrieval / SQL** (``sql``, ``common.sql``, ``langchain``, ``llamaindex``): RAG and
   SQL-schema tooling.
-* **Git-backed content** — ``git``: pulling Agent Skills or documents from a git connection.
+* **Git-backed content** (``git``): pulling Agent Skills or documents from a git connection.
 
 The ``Optional dependencies`` table on the :doc:`landing page <index>` lists the exact
 package each extra installs.

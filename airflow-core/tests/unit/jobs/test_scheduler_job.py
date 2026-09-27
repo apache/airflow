@@ -58,7 +58,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -67,6 +67,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -95,9 +96,10 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log, resolve_team_name
-from airflow.models.pool import Pool
+from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
@@ -321,6 +323,26 @@ def _clean_db():
     clear_db_deadline()
     clear_db_callbacks()
     clear_db_triggers()
+
+
+def make_pool_stats(
+    pool: str = "default_pool",
+    total: int | float = 128,
+    running: int = 0,
+    queued: int = 0,
+    deferred: int = 0,
+    scheduled: int = 0,
+) -> dict[str, PoolStats]:
+    return {
+        pool: PoolStats(
+            total=total,
+            running=running,
+            queued=queued,
+            deferred=deferred,
+            scheduled=scheduled,
+            open=total - running - queued,
+        )
+    }
 
 
 @patch.dict(
@@ -585,36 +607,70 @@ class TestSchedulerJob:
 
         assert executor.get_task_failure_info(key) is None
 
+    @pytest.mark.parametrize("executor_state", [State.SUCCESS, State.FAILED])
+    @pytest.mark.parametrize(
+        ("missing_definition", "max_tries", "expected_max_tries", "retry_eligible"),
+        [
+            pytest.param(None, 3, 6, True, id="available-exhausted"),
+            pytest.param(None, 8, 6, True, id="available-remaining"),
+            pytest.param("dag", 3, 4, False, id="missing-dag-exhausted"),
+            pytest.param("dag", 8, 8, True, id="missing-dag-remaining"),
+            pytest.param("task", 3, 4, False, id="missing-task-exhausted"),
+            pytest.param("task", 8, 8, True, id="missing-task-remaining"),
+        ],
+    )
+    @pytest.mark.parametrize("bookkeeping", ["current", "other_scheduler", "still_running"])
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
-    def test_process_executor_events_restarting_cleared_task(self, mock_task_callback, dag_maker):
+    def test_process_executor_events_restarting_cleared_task(
+        self,
+        mock_task_callback,
+        dag_maker,
+        mocker,
+        caplog,
+        executor_state,
+        missing_definition,
+        bookkeeping,
+        max_tries,
+        expected_max_tries,
+        retry_eligible,
+    ):
         """
-        Test processing of RESTARTING task instances by scheduler's _process_executor_events.
+        A terminal executor event confirms that the cleared workload has stopped, regardless of its exit status.
 
-        Simulates the complete flow when a running task is cleared:
-        1. Task is RUNNING and has exhausted retries (try_number > max_tries)
-        2. User clears the task → state becomes RESTARTING
-        3. Executor successfully terminates the task → reports SUCCESS
-        4. Scheduler processes the event and sets task to None (scheduled)
-        5. max_tries is adjusted to allow retry beyond normal limits
+        The clear must then archive the retiring attempt and allocate its replacement, even if retries were
+        exhausted, the task definition disappeared, or scheduler bookkeeping still considers the workload active.
+        The replacement gets a fresh retry budget when the task is available, or preserves the existing budget
+        with enough room for the cleared run otherwise. Repeated events must not allocate another attempt.
 
-        This test prevents regression of issue #55045 where RESTARTING tasks
-        would get stuck due to scheduler not processing executor events.
+        This guards against #55045, where cleared tasks remained RESTARTING after executor termination.
         """
         dag_id = "test_restarting_max_tries"
         task_id = "test_task"
 
         session = settings.Session()
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/", max_active_runs=1):
-            task1 = EmptyOperator(task_id=task_id, retries=2)
+            task1 = EmptyOperator(
+                task_id=task_id,
+                retries=2,
+                retry_delay=timedelta(days=1),
+                on_failure_callback=print,
+                on_retry_callback=print,
+            )
         ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
 
-        # Set up exhausted task scenario: try_number > max_tries
-        ti1.state = TaskInstanceState.RESTARTING  # Simulates cleared running task
+        ti1.state = TaskInstanceState.RUNNING
         ti1.try_number = 4  # Already tried 4 times
-        ti1.max_tries = 3  # Originally only allowed 3 tries
-        session.merge(ti1)
+        ti1.max_tries = max_tries
+        ti1 = session.merge(ti1)
         session.commit()
 
+        retiring_id = ti1.id
+        retiring_key = ti1.key
+        clear_task_instances([ti1], session=session)
+        clear_task_instances([ti1], session=session)
+        session.commit()
+        assert ti1.id == retiring_id
+        assert ti1.key == retiring_key
         # Verify task is in RESTARTING state and eligible for retry
         assert ti1.state == TaskInstanceState.RESTARTING
         assert ti1.is_eligible_to_retry() is True, "RESTARTING should bypass max_tries"
@@ -626,28 +682,109 @@ class TestSchedulerJob:
         scheduler_job = Job()
         job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
+        if bookkeeping == "other_scheduler":
+            ti1.queued_by_job_id = -1
+            session.commit()
+        elif bookkeeping == "still_running":
+            executor.running.add(retiring_key)
+        if missing_definition == "dag":
+            mocker.patch.object(
+                job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None
+            )
+        elif missing_definition == "task":
+            mocker.patch.object(
+                SerializedDAG, "get_task", autospec=True, side_effect=TaskNotFound("Task was removed")
+            )
+
         # Simulate executor reporting task completion (this triggers the bug scenario)
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[retiring_key] = executor_state, None
 
         # Process the executor event
-        job_runner._process_executor_events(executor=executor, session=session)
+        with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
+            job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
 
+        completion_logs = [
+            message for message in caplog.messages if message.startswith("TaskInstance Finished:")
+        ]
+        assert len(completion_logs) == 1
+        assert f"ti_id={retiring_id}," in completion_logs[0]
+        assert "state=restarting," in completion_logs[0]
+        assert f"executor_state={executor_state}, try_number=4, max_tries={max_tries}," in completion_logs[0]
         assert ti1.state is None, "Task should be set to None (scheduled) state after RESTARTING processing"
+        assert ti1.id != retiring_id
+        assert ti1.try_number == 5
+        mock_task_callback.assert_not_called()
 
         # Verify max_tries was adjusted to allow retry
-        expected_max_tries = 4 + 2
         assert ti1.max_tries == expected_max_tries, (
             f"max_tries should be adjusted to {expected_max_tries}, got {ti1.max_tries}"
         )
+        assert ti1.is_eligible_to_retry() is retry_eligible
 
-        # Verify task is now eligible for retry despite being previously exhausted
-        assert ti1.is_eligible_to_retry() is True, (
-            "Task should be eligible for retry after max_tries adjustment"
+        history = session.scalars(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.dag_id == dag_id)
+        ).one()
+        assert (history.task_instance_id, history.try_number, history.state) == (retiring_id, 4, State.FAILED)
+        assert history.end_date is not None
+        replacement_id = ti1.id
+        executor.event_buffer[retiring_key] = executor_state, None
+        job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db(session=session)
+        assert (ti1.id, ti1.try_number, ti1.state) == (replacement_id, 5, None)
+
+    @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING])
+    def test_restarting_waits_for_terminal_executor_event(self, dag_maker, session, event_state):
+        with dag_maker(dag_id="restart_waits_for_termination"):
+            EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
+        ti.state, ti.try_number = State.RESTARTING, 3
+        old_id = ti.id
+        session.commit()
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[ti.key] = event_state, "worker"
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+
+        runner._process_executor_events(executor=executor, session=session)
+
+        session.flush()
+        session.refresh(ti)
+        assert (ti.id, ti.try_number, ti.state) == (old_id, 3, State.RESTARTING)
+        assert ti.external_executor_id == "worker"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstanceHistory)
+                .where(TaskInstanceHistory.dag_id == ti.dag_id)
+            )
+            == 0
         )
 
-        # Verify try_number wasn't changed (scheduler doesn't increment it here)
-        assert ti1.try_number == 4, "try_number should remain unchanged"
+    @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING, State.SUCCESS, State.FAILED])
+    @pytest.mark.parametrize("include_current", [False, True])
+    def test_retired_attempt_events_do_not_modify_replacement(
+        self, dag_maker, session, event_state, include_current
+    ):
+        with dag_maker(dag_id="retired_attempt_event"):
+            EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
+        ti.try_number = 2
+        ti.state = State.QUEUED
+        ti.external_executor_id = "replacement"
+        session.flush()
+        executor = MockExecutor(do_update=False)
+        if include_current:
+            executor.event_buffer[ti.key] = State.RUNNING, "current_worker"
+        executor.event_buffer[ti.key.with_try_number(1)] = event_state, "retired_worker"
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+
+        runner._process_executor_events(executor=executor, session=session)
+        session.flush()
+        session.refresh(ti)
+
+        assert ti.state == State.QUEUED
+        assert ti.try_number == 2
+        assert ti.external_executor_id == ("current_worker" if include_current else "replacement")
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -910,12 +1047,12 @@ class TestSchedulerJob:
 
         executor.event_buffer[ti1.key.with_try_number(1)] = State.SUCCESS, None
 
-        with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
+        with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
             self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.QUEUED
         self.job_runner.executor.callback_sink.send.assert_not_called()
-        assert any("TI try_number mismatch:" in rec.message for rec in caplog.records)
+        assert any("Ignoring executor event for a different attempt" in rec.message for rec in caplog.records)
 
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
@@ -1072,7 +1209,7 @@ class TestSchedulerJob:
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
-    def test_process_executor_events_multiple_try_numbers_warns(
+    def test_process_executor_events_multiple_try_numbers_keeps_current(
         self, mock_get_backend, mock_task_callback, dag_maker, caplog
     ):
         dag_id = "test_process_executor_events_multiple_try_numbers_warns"
@@ -1098,13 +1235,13 @@ class TestSchedulerJob:
         executor.event_buffer[ti.key.with_try_number(1)] = State.RUNNING, "first_executor_id"
         executor.event_buffer[ti.key.with_try_number(2)] = State.RUNNING, "second_executor_id"
 
-        with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
+        with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
             self.job_runner._process_executor_events(executor=executor, session=session)
 
-        assert any(
-            "Multiple executor events for same TI with different try_numbers!" in rec.message
-            for rec in caplog.records
-        )
+        assert any("Ignoring executor event for a different attempt" in rec.message for rec in caplog.records)
+        session.flush()
+        ti.refresh_from_db(session=session)
+        assert ti.external_executor_id == "second_executor_id"
         mock_task_callback.assert_not_called()
         # Only the processed-events counter should fire; duplicate try_number events
         # must not trigger any error/mismatch metrics.
@@ -1524,7 +1661,9 @@ class TestSchedulerJob:
         session.merge(ti_non_backfill)
         session.flush()
 
-        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         assert len(queued_tis) == 2
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
@@ -1535,7 +1674,7 @@ class TestSchedulerJob:
         ``ExecuteTask.make()`` reads ``ti.dag_run.created_dag_version.version_data`` to ship the
         run's pinned bundle manifest. ``dag_run`` is eager-joined and ``created_dag_version`` is a
         single batched ``selectin``, so the number of queries in
-        ``_executable_task_instances_to_queued`` must be independent of how many task instances are
+        ``_select_task_instances_to_queue`` must be independent of how many task instances are
         in the batch. If a future change lazy-loads ``dag_run``/``created_dag_version`` per TI, the
         count would scale with the task count and this test fails.
         """
@@ -1552,7 +1691,7 @@ class TestSchedulerJob:
                 ti.state = State.SCHEDULED
             session.flush()
             with count_queries(session=session) as result:
-                runner._executable_task_instances_to_queued(max_tis=64, session=session)
+                runner._select_task_instances_to_queue(64, make_pool_stats(), set(), session=session)
             session.rollback()
             return sum(result.values())
 
@@ -1586,7 +1725,9 @@ class TestSchedulerJob:
             return query
 
         with mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=capture_locked_query):
-            queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            queued_tis = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
         assert {queued_ti.key for queued_ti in queued_tis} == {ti.key}
         compiled_query = str(captured_queries[0].compile(dialect=mysql.dialect()))
@@ -1623,7 +1764,8 @@ class TestSchedulerJob:
         session.add(pool2)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
         session.flush()
         assert len(res) == 3
         res_keys = []
@@ -1687,7 +1829,8 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
         queued_keys = {ti.key for ti in res}
 
         # team_a task using its own pool: allowed
@@ -1729,7 +1872,7 @@ class TestSchedulerJob:
             ti.state = State.SCHEDULED
             session.merge(ti)
         session.flush()
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         session.flush()
         assert total_executed_ti == len(res)
 
@@ -1762,7 +1905,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -1791,7 +1934,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -1827,7 +1970,7 @@ class TestSchedulerJob:
 
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         assert len(res) == 5
         res_ti_keys = [res_ti.key for res_ti in res]
@@ -1889,7 +2032,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         # All tasks should be queued since they have valid executor mappings
         assert len(res) == 5
@@ -2013,10 +2156,11 @@ class TestSchedulerJob:
 
         queued_tis = None
         while count < task_num:
-            # Use `_executable_task_instances_to_queued` because it returns a list of TIs
-            # while `_critical_section_enqueue_task_instances` just returns the number of the TIs.
-            queued_tis = self.job_runner._executable_task_instances_to_queued(
-                max_tis=self.job_runner.executor.slots_available, session=session
+            pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
+                self.job_runner.executor.slots_available, session=session
+            )
+            queued_tis = self.job_runner._select_task_instances_to_queue(
+                max_tis, pools, starved_pools, session=session
             )
             count += len(queued_tis)
             iterations += 1
@@ -2073,8 +2217,11 @@ class TestSchedulerJob:
             run_id="run1",
         )
 
-        queued_tis = self.job_runner._executable_task_instances_to_queued(
-            max_tis=self.job_runner.executor.slots_available, session=session
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
+            self.job_runner.executor.slots_available, session=session
+        )
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
         )
 
         assert queued_tis is not None
@@ -2123,8 +2270,11 @@ class TestSchedulerJob:
             run_id="run1",
         )
 
-        queued_tis = self.job_runner._executable_task_instances_to_queued(
-            max_tis=self.job_runner.executor.slots_available, session=session
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
+            self.job_runner.executor.slots_available, session=session
+        )
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
         )
 
         assert queued_tis is not None
@@ -2179,7 +2329,8 @@ class TestSchedulerJob:
 
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
 
         assert len(res) == 2
         assert ti3.key == res[0].key
@@ -2210,7 +2361,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -2238,14 +2389,18 @@ class TestSchedulerJob:
         session.flush()
 
         # Two tasks w/o pool up for execution and our default pool size is 1
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=1), set(), session=session
+        )
         assert len(res) == 1
 
         ti2.state = State.RUNNING
         session.flush()
 
         # One task w/o pool up for execution and one task running
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=1, running=1), set(), session=session
+        )
         assert len(res) == 0
 
         session.rollback()
@@ -2274,7 +2429,7 @@ class TestSchedulerJob:
             ti.state = State.SCHEDULED
             session.merge(ti)
         session.flush()
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         session.flush()
         assert len(res) == 0
         tis = dr.get_task_instances(session=session)
@@ -2297,7 +2452,7 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         session.flush()
         assert len(res) == 0
         session.rollback()
@@ -2324,7 +2479,8 @@ class TestSchedulerJob:
         session.add(infinite_pool)
         session.commit()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
         session.flush()
         assert len(res) == 1
         session.rollback()
@@ -2350,7 +2506,9 @@ class TestSchedulerJob:
         session.commit()
         cannot_run_ti_id = next(t for t in dr.task_instances if t.task_id == "cannot_run").id
         with caplog.at_level(logging.WARNING):
-            self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats("some_pool", total=2), set(), session=session
+            )
             assert (
                 f"Not executing <TaskInstance: "
                 f"SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled] "
@@ -2389,7 +2547,12 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        assert len(self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)) == 0
+        assert (
+            len(
+                self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+            )
+            == 0
+        )
         session.rollback()
 
     def test_tis_for_queued_dagruns_are_not_run(self, dag_maker):
@@ -2413,7 +2576,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.merge(ti2)
         session.flush()
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         assert len(res) == 1
         assert ti2.key == res[0].key
@@ -2475,7 +2638,9 @@ class TestSchedulerJob:
 
         session.flush()
 
-        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         queued_runs = Counter([x.run_id for x in queued_tis])
         assert queued_runs["run_1"] == 0
         assert queued_runs["run_2"] == 1
@@ -2485,7 +2650,9 @@ class TestSchedulerJob:
         session.scalars(select(TaskInstance)).all()
 
         # now we still have max tis running so no more will be queued
-        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         assert queued_tis == []
 
         session.rollback()
@@ -2518,7 +2685,9 @@ class TestSchedulerJob:
 
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.side_effect = executor.get_mock_loader_side_effect()
-            res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 2
 
@@ -2531,7 +2700,9 @@ class TestSchedulerJob:
             session.merge(ti1_2)
             session.flush()
 
-            res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 1
 
@@ -2542,7 +2713,9 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 0
 
@@ -2554,7 +2727,9 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 2
 
@@ -2566,7 +2741,9 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             assert len(res) == 1
             session.rollback()
@@ -2602,7 +2779,7 @@ class TestSchedulerJob:
         session.merge(ti2)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         # ti2 should be blocked because ti1 is deferred and counts as active
         assert len(res) == 0
         session.rollback()
@@ -2645,7 +2822,7 @@ class TestSchedulerJob:
         session.flush()
 
         # 1 running + 1 deferred = 2, which equals the limit
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 0
         session.rollback()
 
@@ -2685,7 +2862,7 @@ class TestSchedulerJob:
         session.flush()
 
         # 1 deferred -> room for 1 more (limit is 2)
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         session.rollback()
 
@@ -2724,7 +2901,7 @@ class TestSchedulerJob:
         session.merge(ti_b1)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         queued_task_ids = [ti.task_id for ti in res]
         # task_b should be queued, task_a should be blocked
         assert "task_b" in queued_task_ids
@@ -2757,7 +2934,7 @@ class TestSchedulerJob:
         session.merge(ti2)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 0
 
         # Step 2: ti1 completes -> ti2 should be unblocked
@@ -2765,7 +2942,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti2.key
         session.rollback()
@@ -2798,7 +2975,7 @@ class TestSchedulerJob:
         session.merge(ti_a1)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         queued_task_ids = [(ti.task_id, ti.map_index) for ti in res]
         # ti_a1 should be blocked, task_b may be queued
         assert ("task_a", 1) not in queued_task_ids
@@ -2834,7 +3011,7 @@ class TestSchedulerJob:
         session.merge(t3)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
         # Deferred doesn't count toward max_active_tasks=2, so both scheduled can run
         assert len(res) == 2
         session.rollback()
@@ -2865,7 +3042,7 @@ class TestSchedulerJob:
 
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=100, session=session)
+        res = self.job_runner._select_task_instances_to_queue(100, make_pool_stats(), set(), session=session)
         assert len(res) == 0
 
         session.rollback()
@@ -2892,7 +3069,9 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=1), set(), session=session
+        )
         assert len(res) == 1
         assert res[0].key == ti2.key
 
@@ -2929,7 +3108,7 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti2.key
 
@@ -2958,7 +3137,7 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti1b.key
 
@@ -2987,7 +3166,7 @@ class TestSchedulerJob:
 
         # Schedule ti with higher priority,
         # because it's running in a different DAG run with 0 active tis
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti2a.key
 
@@ -3020,7 +3199,7 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti1b.key
 
@@ -3057,7 +3236,16 @@ class TestSchedulerJob:
         ti2.state = State.RUNNING
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(
+            1,
+            {
+                **make_pool_stats(total=0),
+                **make_pool_stats("pool1", total=1),
+                **make_pool_stats("pool2", total=1, running=2),
+            },
+            set(),
+            session=session,
+        )
         assert len(res) == 1
         assert res[0].key == ti1.key
 
@@ -3083,7 +3271,9 @@ class TestSchedulerJob:
         set_default_pool_slots(1)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=1), set(), session=session
+        )
         assert len(res) == 0
 
         mock_stats.gauge.assert_has_calls(
@@ -3099,7 +3289,9 @@ class TestSchedulerJob:
         set_default_pool_slots(2)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(total=2), set(), session=session
+        )
         assert len(res) == 1
 
         mock_stats.gauge.assert_has_calls(
@@ -3216,7 +3408,7 @@ class TestSchedulerJob:
         assert mock_queue_workload.called
         session.rollback()
 
-    def test_executable_task_instances_to_queued_sets_external_executor_id(self, dag_maker, session):
+    def test_select_task_instances_to_queue_sets_external_executor_id(self, dag_maker, session):
         """external_executor_id is written to the DB in the same UPDATE that sets state=QUEUED."""
         dag_id = "SchedulerJobTest.test_executable_sets_external_executor_id"
         session = settings.Session()
@@ -3246,7 +3438,9 @@ class TestSchedulerJob:
         ti_pre_assign.executor = pre_assigning_exec.name.module_path
         session.flush()
 
-        returned_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        returned_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
         returned_tis.sort(key=lambda ti: ti.task_id)
 
         assert len(returned_tis) == 2
@@ -4728,7 +4922,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         # Try to find executable task instances - should not find any for the removed task
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
 
         # Should be empty because the task no longer exists in the DAG
         assert res == []
@@ -4986,8 +5180,9 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.RUNNING)
         self.job_runner._schedule_dag_run(dr, session)
         session.flush()
-        task_instances_list = self.job_runner._executable_task_instances_to_queued(
-            max_tis=32, session=session
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        task_instances_list = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
         )
 
         assert len(task_instances_list) == 1
@@ -5031,8 +5226,9 @@ class TestSchedulerJob:
         for dr in _create_dagruns():
             self.job_runner._schedule_dag_run(dr, session)
 
-        task_instances_list = self.job_runner._executable_task_instances_to_queued(
-            max_tis=32, session=session
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        task_instances_list = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
         )
 
         # As tasks require 2 slots, only 3 can fit into 6 available
@@ -5098,9 +5294,11 @@ class TestSchedulerJob:
         for dr in _create_dagruns(dag_d2):
             self.job_runner._schedule_dag_run(dr, session)
 
-        self.job_runner._executable_task_instances_to_queued(max_tis=2, session=session)
-        task_instances_list2 = self.job_runner._executable_task_instances_to_queued(
-            max_tis=2, session=session
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session=session)
+        self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session=session)
+        task_instances_list2 = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
         )
 
         # Make sure we get TIs from a non-full pool in the 2nd list
@@ -5157,8 +5355,9 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        task_instances_list = self.job_runner._executable_task_instances_to_queued(
-            max_tis=32, session=session
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        task_instances_list = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
         )
 
         # Only second and third
@@ -5393,7 +5592,7 @@ class TestSchedulerJob:
         # executing task.
         run_with_error(ti, ignore_ti_state=True)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 1
+        assert ti.try_number == 2
 
         ti.refresh_from_db(lock_for_update=True, session=session)
         ti.state = State.SCHEDULED
@@ -5404,7 +5603,7 @@ class TestSchedulerJob:
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
-        assert ti.try_number == 1
+        assert ti.try_number == 2
         assert ti.state == State.SUCCESS
 
     def test_adopt_or_reset_orphaned_tasks_nothing(self):
@@ -5500,6 +5699,7 @@ class TestSchedulerJob:
         ti.refresh_from_db(session=session)
 
         assert ti.state == State.UP_FOR_RETRY
+        assert ti.try_number == 2
         assert ti.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
 
         from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -5508,6 +5708,7 @@ class TestSchedulerJob:
             select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_ti_id)
         )
         assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
+        assert tih.try_number == 1
         assert tih.hostname == hostname
         assert tih.start_date == DEFAULT_DATE
 
@@ -9505,14 +9706,6 @@ class TestSchedulerJob:
                 "on_failure_callback",
                 id="retries_exhausted",
             ),
-            pytest.param(
-                TaskInstanceState.RESTARTING,
-                1,
-                5,
-                TaskInstanceState.UP_FOR_RETRY,
-                "on_retry_callback",
-                id="restarting_stays_eligible_past_max_tries",
-            ),
         ],
     )
     def test_heartbeat_timeout_sets_callback_type_by_retry_eligibility(
@@ -9525,33 +9718,7 @@ class TestSchedulerJob:
         expected_callback_type,
         expected_dispatched_callback,
     ):
-        """Heartbeat-timeout cleanup must populate ``task_callback_type`` so the Dag processor
-        fires ``on_retry_callback`` when the task still has retries left, not
-        ``on_failure_callback``.
-
-        Reproduces the bug end-to-end through the actual scheduler purge path:
-
-        1. A TI is ``RUNNING`` (or ``RESTARTING``) with a stale ``last_heartbeat_at`` (worker
-           OOMKilled, node evicted, scheduler restarted, etc.).
-        2. ``_find_and_purge_task_instances_without_heartbeats`` builds a
-           ``TaskCallbackRequest`` and hands it to the executor's ``send_callback``.
-        3. The Dag processor branches on ``request.task_callback_type``:
-           ``UP_FOR_RETRY`` -> ``task.on_retry_callback``; anything else (including ``None``)
-           -> ``task.on_failure_callback``. See
-           ``airflow-core/src/airflow/dag_processing/processor.py``::``_execute_task_callbacks``.
-
-        Before the fix, step 2 left ``task_callback_type`` as ``None``, so step 3 always fell
-        into the ``else`` branch and ``on_failure_callback`` fired even when the task still had
-        retries left -- producing spurious failure alerts for tasks that ultimately succeeded on
-        retry.
-
-        The parametrized cases cover the full ``max_tries`` / ``try_number`` matrix for a
-        ``RUNNING`` TI -- no retries, retries available (first attempt and mid-chain), and
-        retries exhausted (``try_number > max_tries``) -- plus a ``RESTARTING`` TI (cleared
-        while running), which ``is_eligible_to_retry`` keeps retry-eligible even past
-        ``max_tries``. The ``expected_dispatched_callback`` column mirrors the Dag processor's
-        branch so the assertion captures the user-visible outcome, not just the field value.
-        """
+        """Heartbeat timeouts dispatch the callback matching the failed try's retry eligibility."""
         with dag_maker(dag_id=f"hb_timeout_r{retries}_t{try_number}", session=session):
             EmptyOperator(task_id="test_task", retries=retries)
 
@@ -9766,42 +9933,129 @@ class TestSchedulerJob:
         assert len(email_requests) == 1
         assert email_requests[0].email_type == "failure"
 
-    def test_heartbeat_timeout_restarting_zero_max_tries_matches_final_state(self, dag_maker, session):
-        """
-        is_eligible_to_retry() always returns True for a RESTARTING TI, independent of
-        max_tries. The task_callback_type sent to the Dag processor must match the state
-        handle_failure() actually persists -- these previously diverged for a RESTARTING TI
-        with max_tries=0, where the callback was typed FAILED but the TI still ended up
-        UP_FOR_RETRY.
-        """
-        with dag_maker(dag_id="hb_timeout_restarting_zero_max_tries", session=session):
-            EmptyOperator(task_id="t1", retries=0)
+    @pytest.mark.parametrize(
+        ("retries", "cleared_try", "next_try", "expected_max_tries"),
+        [(0, 1, 2, 1), (2, 3, 4, 5)],
+    )
+    def test_heartbeat_timeout_completes_clear_with_fresh_retry_budget(
+        self, dag_maker, session, mocker, retries, cleared_try, next_try, expected_max_tries
+    ):
+        with dag_maker(dag_id="hb_timeout_cleared", session=session):
+            EmptyOperator(
+                task_id="t1",
+                retries=retries,
+                retry_delay=timedelta(days=1),
+                email="test@example.com",
+                email_on_retry=True,
+            )
 
         dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
-
         executor = MockExecutor(do_update=False)
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
         ti = dag_run.get_task_instance(task_id="t1")
-        ti.state = TaskInstanceState.RESTARTING
-        ti.try_number = 1
-        ti.max_tries = 0
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = cleared_try
+        ti.max_tries = retries
         ti.queued_by_job_id = scheduler_job.id
         ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        ti.external_executor_id = "old-worker"
         session.merge(ti)
         session.commit()
 
+        old_id = ti.id
+        old_key = ti.key
+        clear_task_instances([ti], session=session)
+        ti = session.merge(ti)
+        session.commit()
+        assert ti.state == TaskInstanceState.RESTARTING
+        executor.running.add(old_key)
+
+        received = []
+
+        def record_failure(previous_state, task_instance, error):
+            received.append((task_instance.id, task_instance.try_number, task_instance.state))
+
+        mocker.patch.object(
+            get_listener_manager().hook, "on_task_instance_failed", autospec=True, side_effect=record_failure
+        )
+
         self.job_runner._find_and_purge_task_instances_without_heartbeats()
 
-        self.job_runner.executor.callback_sink.send.assert_called_once()
-        request = self.job_runner.executor.callback_sink.send.call_args[0][0]
-        assert isinstance(request, TaskCallbackRequest)
-        assert request.task_callback_type == TaskInstanceState.UP_FOR_RETRY
+        assert received == [(old_id, cleared_try, TaskInstanceState.RESTARTING)]
 
         session.expire_all()
         ti.refresh_from_db(session=session)
-        assert ti.state == TaskInstanceState.UP_FOR_RETRY
+        assert ti.max_tries == expected_max_tries
+        assert ti.state is None
+        assert ti.try_number == next_try
+        assert ti.id != old_id
+        assert ti.external_executor_id is None
+        assert old_key not in executor.running
+        assert executor.event_buffer == {old_key: (TaskInstanceState.FAILED, None)}
+        requests = [call.args[0] for call in executor.callback_sink.send.call_args_list]
+        assert len(requests) == 2
+        callback, email = requests
+        assert isinstance(callback, TaskCallbackRequest)
+        assert callback.task_callback_type == TaskInstanceState.UP_FOR_RETRY
+        assert (callback.ti.id, callback.ti.try_number) == (old_id, old_key.try_number)
+        assert isinstance(email, EmailRequest)
+        assert email.email_type == "retry"
+        assert (email.ti.id, email.ti.try_number) == (old_id, old_key.try_number)
+
+    @pytest.mark.parametrize("missing_definition", ["dag", "task"])
+    @pytest.mark.parametrize(("max_tries", "expected_max_tries"), [(0, 3), (7, 7)])
+    @pytest.mark.parametrize("callback_version_available", [True, False])
+    def test_heartbeat_timeout_completes_clear_without_definition(
+        self,
+        dag_maker,
+        session,
+        mocker,
+        missing_definition,
+        max_tries,
+        expected_max_tries,
+        callback_version_available,
+    ):
+        with dag_maker(dag_id="heartbeat_clear_missing_definition", session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = State.RESTARTING
+        ti.try_number = 3
+        ti.max_tries = max_tries
+        ti.external_executor_id = "retiring"
+        old_id, old_key = ti.id, ti.key
+        session.commit()
+        executor = MockExecutor(do_update=False)
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.running.add(old_key)
+        if missing_definition == "dag":
+            mocker.patch.object(runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None)
+        else:
+            mocker.patch.object(
+                SerializedDAG, "get_task", autospec=True, side_effect=TaskNotFound("Task was removed")
+            )
+        mocker.patch(
+            "airflow.jobs.scheduler_job_runner._ensure_ti_has_dag_version_id",
+            autospec=True,
+            return_value=callback_version_available,
+        )
+
+        runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        session.flush()
+        session.refresh(ti)
+        assert ti.id != old_id
+        assert (ti.try_number, ti.state, ti.max_tries) == (4, None, expected_max_tries)
+        assert ti.external_executor_id is None
+        assert old_key not in executor.running
+        assert executor.event_buffer == {old_key: (State.FAILED, None)}
+
+        history = session.scalars(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.dag_id == ti.dag_id)
+        ).one()
+        assert (history.task_instance_id, history.try_number, history.state) == (old_id, 3, State.FAILED)
 
     def test_heartbeat_timeout_honors_fail_fast(self, dag_maker, session):
         """
@@ -10945,7 +11199,9 @@ class TestSchedulerJob:
         with mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids") as mock_batch:
             mock_batch.return_value = {"dag_a": "team_a", "dag_b": "team_b"}
 
-            res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            res = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
 
             # Verify batch method was called with unique DAG IDs
             mock_batch.assert_called_once_with({"dag_a", "dag_b"}, session)
@@ -11049,7 +11305,9 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
 
         assert {t.key for t in queued_tis} == {ti.key}
         scheduled_calls = [
