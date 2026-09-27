@@ -63,9 +63,8 @@ class DagDef(
   ): DagDef = addTask(TaskDef(id, definition))
 
   /**
-   * Creates a task, registers it, and hands back its handle — so there is no
-   * second `addTask` call to forget, and the handle is ready to wire edges
-   * with [Deps.Flow.before].
+   * Creates a task, registers it, and hands back its handle, ready to carry
+   * configuration and to wire edges with [Deps.Flow.before].
    *
    * ```java
    * var extract = dag.task("extract", Extract.class);
