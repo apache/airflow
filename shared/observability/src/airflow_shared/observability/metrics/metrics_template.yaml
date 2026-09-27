@@ -124,7 +124,8 @@ metrics:
 
   - name: "dag_processing.processes"
     description: "Relative number of currently running Dag parsing processes (ie this delta is negative when,
-    since the last metric was sent, processes have completed). Metric with file_path and action tagging."
+    since the last metric was sent, processes have completed). Metric with file_path, bundle_name, and action
+    tagging, and team_name tagging in multi-team mode."
     type: "counter"
     legacy_name: "-"
     name_variables: []
