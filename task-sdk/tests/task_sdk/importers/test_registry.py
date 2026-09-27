@@ -281,6 +281,21 @@ class TestDagImporterRegistry:
         assert repr(definition) == str(archive / "member_dag.py")
         assert isinstance(importer, ZipImporter)
 
+    def test_list_dag_definitions_materialises_a_multi_extension_spec_once(self, tmp_path):
+        archive = tmp_path / "archive.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("member_dag.py", "from airflow.sdk import DAG\n")
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register_specs(
+            [{"classpath": "airflow.sdk.importers.ZipImporter", "extensions": [".zip", ".zipx"]}],
+            context="test",
+        )
+
+        [(importer, definition)] = registry.list_dag_definitions(_bundle(tmp_path))
+
+        assert repr(definition) == str(archive / "member_dag.py")
+        assert registry.get_importer("dags.zipx") is importer
+
     def test_lazy_importer_instantiation(self):
         """Importer classes are not imported or instantiated until get_importer is called."""
         LazyTestImporter.instances = 0

@@ -290,7 +290,7 @@ def find_file_dag_definitions(
     supported_extensions: Iterable[str],
 ) -> Iterator[FilesystemDagDefinition]:
     """
-    Discover file DAG definitions under ``root`` by *identity* alone.
+    Discover file Dag definitions under ``root`` by *identity* alone.
 
     ``root`` is normally a bundle directory; it may also be a single file, which scopes
     discovery to that file (a zip archive is still yielded for its importer to expand).
@@ -492,15 +492,17 @@ class DagImporterRegistry:
         safe_mode: bool = True,
     ) -> Iterator[tuple[AbstractDagImporter[Any], DagDefinition | DagImportError]]:
         """
-        List DAG definitions in a bundle across all registered importers.
+        List Dag definitions in a bundle across all registered importers.
 
         Each item is paired with the importer that listed it, which is the one to import it
         with: a composite importer lists definitions no extension lookup would route back to
         it, such as the members of an archive. A :class:`DagImportError` item is a
         discovery-time failure rather than a source to import.
         """
-        for spec in list(self._extension_specs.values()):
-            self._materialise_spec(spec)
+        # A spec registered for several extensions appears once per extension, and
+        # materialising it drops all of them, so take one pending spec at a time.
+        while self._extension_specs:
+            self._materialise_spec(next(iter(self._extension_specs.values())))
 
         for importer in self._ordered_importers:
             for item in importer.list_dag_definitions(bundle, safe_mode=safe_mode):
