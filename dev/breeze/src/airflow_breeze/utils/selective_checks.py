@@ -1729,6 +1729,10 @@ class SelectiveChecks:
             # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that (intermittently failing) download.
             prek_hooks_to_skip.add("ktlint")
+            # Rewriting the verification metadata resolves the entire Java SDK dependency graph
+            # from Maven Central. Skip it when no java-sdk files changed so unrelated PRs do not
+            # depend on that resolution.
+            prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
             # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
