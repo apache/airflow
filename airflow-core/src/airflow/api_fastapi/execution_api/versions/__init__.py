@@ -62,6 +62,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddStoppedTaskReport,
     AddTaskInstanceRegionCoordinates,
     AddTerminalStateRetryReasonField,
+    AddXComKeysEndpoint,
     IdentifyArchivedTaskStateUpdates,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
@@ -85,6 +86,7 @@ bundle = VersionBundle(
         AddTaskInstanceRegionCoordinates,
         IdentifyArchivedTaskStateUpdates,
         AddFirstTaskRescheduleStartDateField,
+        AddXComKeysEndpoint,
     ),
     Version(
         "2026-06-30",

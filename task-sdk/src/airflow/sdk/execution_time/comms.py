@@ -1058,6 +1058,18 @@ class GetXComSequenceSlice(BaseModel):
     type: Literal["GetXComSequenceSlice"] = "GetXComSequenceSlice"
 
 
+class GetXComByKeys(BaseModel):
+    """Fetch multiple XCom values by key list in a single round-trip."""
+
+    previous_iteration: bool = False
+    keys: list[str]
+    dag_id: str
+    run_id: str
+    task_id: str
+    map_index: int = -1
+    type: Literal["GetXComByKeys"] = "GetXComByKeys"
+
+
 class SetXCom(BaseModel):
     key: str
     value: JsonValue
@@ -1405,6 +1417,7 @@ ToSupervisor = Annotated[
     | GetVariable
     | GetVariableKeys
     | GetXCom
+    | GetXComByKeys
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
