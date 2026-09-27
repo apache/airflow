@@ -24,6 +24,20 @@
     "success": "{{taskId}} の応答に成功しました",
     "title": "ヒューマンタスクインスタンス - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "詳細を表示するには必要なアクションを選択してください"
+    },
+    "list": {
+      "completedRequiredActions": "完了した必須アクション ({{count}})",
+      "loadError": "必須アクションを読み込めません",
+      "loadingActions": "必須アクションを読み込む中...",
+      "pendingRequiredActions": "未対応の必須アクション ({{count}})"
+    },
+    "openReviewDrawer": "レビューパネルを開く",
+    "pageLimitHint": "ここでは、上位数件のアクションのみが表示されています。すべて表示するには \"$t(review.viewAll)\" を使用してください",
+    "viewAll": "すべての必須アクションを表示する"
+  },
   "state": {
     "approvalReceived": "承認済",
     "approvalRequired": "要承認",
