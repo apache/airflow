@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlencode
 
 import jwt
@@ -351,3 +351,46 @@ class TestLogoutTokenRevocation:
         assert response.status_code == 307
         assert response.headers["location"] == "http://external/logout"
         assert RevokedToken.is_revoked("test-jti-redirect-456") is True
+
+    def test_logout_clears_cookie_when_logout_url_redirects(self, logout_client):
+        """The local session cookie is cleared on the external-logout redirect too, not only revoked."""
+        auth_manager = logout_client.app.state.auth_manager
+        token_str = self._mint(auth_manager, "test-jti-redirect-cookie")
+
+        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, token_str)
+        # The refresh middleware is stubbed out so that only the logout route can clear the cookie.
+        with (
+            patch(
+                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware._refresh_user",
+                new=AsyncMock(return_value=(None, None)),
+            ),
+            patch.object(auth_manager, "get_url_logout", return_value="http://external/logout"),
+        ):
+            response = logout_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        assert response.headers["location"] == "http://external/logout"
+        cookies = response.headers.get_list("set-cookie")
+        assert any(c.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") and "Max-Age=0" in c for c in cookies)
+
+    def test_logout_clears_cookie_when_revocation_cannot_be_recorded(self, logout_client):
+        """A failed revocation write does not leave the browser session in place."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        auth_manager = logout_client.app.state.auth_manager
+        token_str = self._mint(auth_manager, "test-jti-revoke-fails")
+
+        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, token_str)
+        with (
+            patch(
+                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware._refresh_user",
+                new=AsyncMock(return_value=(None, None)),
+            ),
+            patch.object(auth_manager, "get_url_logout", return_value="http://external/logout"),
+            patch("airflow.models.revoked_token.RevokedToken.revoke", side_effect=SQLAlchemyError("db down")),
+        ):
+            response = logout_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        cookies = response.headers.get_list("set-cookie")
+        assert any(c.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") and "Max-Age=0" in c for c in cookies)
