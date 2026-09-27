@@ -20,7 +20,7 @@
 Add source_reference to import_error.
 
 Revision ID: ca8499dc1004
-Revises: c9f4b3e7a218
+Revises: a61f0c9d2b47
 Create Date: 2026-08-27 12:45:02.276898
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "ca8499dc1004"
-down_revision = "c9f4b3e7a218"
+down_revision = "a61f0c9d2b47"
 branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"

@@ -932,7 +932,7 @@ class ImportErrorResponse(BaseModel):
     import_error_id: Annotated[int, Field(title="Import Error Id")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     filename: Annotated[str, Field(title="Filename")]
-    source_reference: Annotated[str | None, Field(title="Source Reference")] = None
+    source_reference: Annotated[str | None, Field(title="Source Reference")]
     bundle_name: Annotated[str | None, Field(title="Bundle Name")]
     stack_trace: Annotated[str, Field(title="Stack Trace")]
     file_token: Annotated[

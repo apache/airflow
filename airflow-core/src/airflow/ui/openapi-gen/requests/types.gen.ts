@@ -1663,7 +1663,7 @@ export type ImportErrorResponse = {
     import_error_id: number;
     timestamp: string;
     filename: string;
-    source_reference?: string | null;
+    source_reference: string | null;
     bundle_name: string | null;
     stack_trace: string;
     /**

@@ -15487,6 +15487,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - source_reference
       - bundle_name
       - stack_trace
       - file_token

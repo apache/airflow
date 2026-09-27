@@ -119,7 +119,7 @@ ImporterWarningType = Annotated[
 DagWarningTypeValue = DagWarningType | ImporterWarningType
 """Any valid ``warning_type``: a built-in :class:`DagWarningType` or an :data:`ImporterWarningType`."""
 
-_warning_type_adapter: TypeAdapter[DagWarningType | str] = TypeAdapter(DagWarningTypeValue)
+_warning_type_adapter: TypeAdapter[DagWarningTypeValue] = TypeAdapter(DagWarningTypeValue)
 
 
 def get_warning_type_value(warning_type: str) -> str:
