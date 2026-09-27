@@ -4411,10 +4411,16 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         first = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=2)
         retry = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=2)
         items = {id(first): [1, 2], id(retry): retry_items}
+        current = [items[id(first)]]
         original_getitem = XComIterable.__getitem__
 
         def upstream_item(self, index):
-            return items[id(self)][index] if id(self) in items else original_getitem(self, index)
+            # Any copy of the upstream (a replayed result holds one) reads the items of the attempt
+            # in progress, never the mocked XCom store, which knows no upstream task.
+            if self.task_id != "upstream":
+                return original_getitem(self, index)
+            current[0] = items.get(id(self), current[0])
+            return current[0][index]
 
         with patch.object(XComIterable, "__getitem__", upstream_item):
             runs, _ = self._run_twice(retry, arg2_first=first)
