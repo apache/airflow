@@ -2799,7 +2799,7 @@ requires-dist = [
     { name = "types-docutils", marker = "extra == 'mypy'", specifier = ">=0.21.0.20240704" },
     { name = "types-markdown", marker = "extra == 'mypy'", specifier = ">=3.6.0.20240316" },
     { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402" },
-    { name = "types-protobuf", marker = "extra == 'mypy'", specifier = ">=5.26.0.20240422" },
+    { name = "types-protobuf", marker = "extra == 'mypy'", specifier = ">=5.26.0.20240422,!=5.29.1.20250402" },
     { name = "types-pymysql", marker = "extra == 'mypy'", specifier = ">=1.1.0.20240425" },
     { name = "types-python-dateutil", marker = "extra == 'mypy'", specifier = ">=2.9.0.20240316" },
     { name = "types-python-slugify", marker = "extra == 'mypy'", specifier = ">=8.0.2.20240310" },
@@ -5890,7 +5890,6 @@ dependencies = [
     { name = "sqlalchemy-bigquery" },
     { name = "sqlalchemy-spanner" },
     { name = "tenacity" },
-    { name = "types-protobuf" },
 ]
 
 [package.optional-dependencies]
@@ -6095,7 +6094,6 @@ requires-dist = [
     { name = "sqlalchemy-bigquery", specifier = ">=1.2.1" },
     { name = "sqlalchemy-spanner", specifier = ">=1.6.2" },
     { name = "tenacity", specifier = ">=8.3.0" },
-    { name = "types-protobuf", specifier = ">=5.27.0,!=5.29.1.20250402" },
 ]
 provides-extras = ["apache-beam", "cncf-kubernetes", "fab", "leveldb", "oracle", "facebook", "amazon", "apache-cassandra", "microsoft-azure", "microsoft-mssql", "mongo", "mysql", "openlineage", "postgres", "presto", "salesforce", "sftp", "ssh", "trino", "http", "standard", "common-messaging"]
 
