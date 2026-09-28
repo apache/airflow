@@ -22,7 +22,6 @@ import { useParams } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as queries from "openapi/queries";
-
 import { Wrapper } from "src/utils/Wrapper";
 
 import { RenderedTemplates } from "./RenderedTemplates";
