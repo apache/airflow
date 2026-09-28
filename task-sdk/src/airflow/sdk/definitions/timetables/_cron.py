@@ -45,13 +45,13 @@ class CronMixin:
     """
     Mixin to provide interface to work with croniter.
 
-    Optionally applies a deterministic, per-DAG jitter: when ``max_jitter`` is set, every
+    Optionally applies a deterministic, per-Dag jitter: when ``max_jitter`` is set, every
     cron boundary is shifted by a fixed offset derived from ``seed`` and spread across
-    ``[0, max_jitter)``, so DAGs sharing a cron expression no longer all fire at the same
+    ``[0, max_jitter)``, so Dags sharing a cron expression no longer all fire at the same
     instant. The offset is computed scheduler-side; this class only carries and validates
     the settings.
 
-    :param seed: stable, unique-per-DAG string the offset is derived from (the DAG id is a
+    :param seed: stable, unique-per-Dag string the offset is derived from (the Dag id is a
         natural choice). Must be non-empty whenever ``max_jitter`` is set.
     :param max_jitter: upper bound of the jitter window; the offset falls in
         ``[0, max_jitter)``. Defaults to zero, i.e. no jitter.
@@ -67,8 +67,10 @@ class CronMixin:
         # in-place. After this point the original preset string is lost;
         # attrs.evolve, equality, and serialisation all see the resolved form.
         self.expression = CRON_PRESETS.get(self.expression, self.expression)
+        if self.max_jitter < datetime.timedelta(0):
+            raise ValueError("max_jitter must not be negative")
         if self.max_jitter > datetime.timedelta(0) and not self.seed:
-            raise ValueError("seed must be a non-empty, unique-per-DAG string when max_jitter > 0")
+            raise ValueError("seed must be a non-empty, unique-per-Dag string when max_jitter > 0")
 
     def validate(self) -> None:
         try:

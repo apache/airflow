@@ -71,7 +71,7 @@ def _catchup_run_afters(timetable, count, *, earliest):
     ],
 )
 def test_jittered_runs_equal_base_runs_plus_offset(timezone_name):
-    """Every jittered run is the plain-cron run shifted by the fixed per-DAG offset.
+    """Every jittered run is the plain-cron run shifted by the fixed per-Dag offset.
 
     Cron/DST correctness is delegated to the un-jittered timetable; this asserts the offset is
     applied consistently across a catchup sequence (including a DST transition), i.e. the
@@ -167,7 +167,7 @@ def test_sub_second_max_jitter_is_bounded_and_does_not_divide_by_zero():
     ],
 )
 def test_empty_seed_requires_zero_jitter(timetable_cls):
-    """An empty seed with a real window would give every DAG the same offset -> reject in both layers."""
+    """An empty seed with a real window would give every Dag the same offset -> reject in both layers."""
     with pytest.raises(ValueError, match="seed"):
         timetable_cls(CRON, timezone="UTC", seed="", max_jitter=MAX_JITTER)
 
@@ -233,7 +233,7 @@ def test_data_interval_serialize_round_trip_preserves_offset():
     "timetable_cls", [CronTriggerTimetable, CronDataIntervalTimetable, CronPartitionTimetable]
 )
 def test_unjittered_timetable_serializes_without_jitter_keys(timetable_cls):
-    """Without jitter the serialized form is unchanged, so existing DAGs are not re-serialized on upgrade."""
+    """Without jitter the serialized form is unchanged, so existing Dags are not re-serialized on upgrade."""
     data = timetable_cls(CRON, timezone=utc).serialize()
     assert "seed" not in data
     assert "max_jitter" not in data
@@ -259,7 +259,7 @@ def test_cron_partition_serialize_round_trip_preserves_offset():
 
 
 def test_multiple_cron_children_share_one_offset():
-    """Every cron in a ``MultipleCronTriggerTimetable`` gets the same seed, so the whole DAG shifts in lockstep.
+    """Every cron in a ``MultipleCronTriggerTimetable`` gets the same seed, so the whole Dag shifts in lockstep.
 
     The offset depends only on the seed, not the cron expression, so it also equals the offset a
     single ``CronTriggerTimetable`` with the same seed would get.
@@ -315,3 +315,69 @@ def test_partition_and_multiple_encode_decode_round_trip_across_layers(sdk_timet
     else:
         offsets = [restored._offset]
     assert offsets == [expected] * len(offsets)
+
+
+def test_partition_key_stays_on_cron_boundary_with_jitter():
+    """Jitter moves when a run fires, not which period it is for: the partition key must not absorb the offset."""
+    plain = CronPartitionTimetable(CRON, timezone=utc)
+    jittered = CronPartitionTimetable(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)
+    probe = pendulum.datetime(2026, 3, 5, 12, tz="UTC")
+    plain_run, jittered_run = plain._get_next(probe), jittered._get_next(probe)
+    assert jittered_run == plain_run + jittered._offset
+    assert jittered._get_partition_info(jittered_run) == plain._get_partition_info(plain_run)
+    assert jittered._get_partition_info(jittered_run)[1] == "2026-03-06T00:00:00"
+
+    # A late-evening cron plus a jitter larger than the gap to midnight fires on the next calendar day;
+    # with a coarse key_format the date in the key must still be the cron tick's, not the fire time's.
+    plain = CronPartitionTimetable("0 23 * * *", timezone=utc, key_format="%Y-%m-%d")
+    jittered = CronPartitionTimetable(
+        "0 23 * * *", timezone=utc, key_format="%Y-%m-%d", seed="dag_4", max_jitter=timedelta(hours=2)
+    )
+    assert jittered._offset > timedelta(hours=1), "seed/window must push the fire time past midnight"
+    probe = pendulum.datetime(2026, 3, 6, 12, tz="UTC")
+    jittered_run = jittered._get_next(probe)
+    assert jittered_run.date() > plain._get_next(probe).date()
+    assert jittered._get_partition_info(jittered_run)[1] == "2026-03-06"
+
+
+@pytest.mark.parametrize("run_offset", [0, 1, -1])
+def test_iter_partition_dagrun_infos_unaffected_by_jitter(run_offset):
+    """Backfill iteration walks the cron boundaries, so the partitions are identical with and without jitter."""
+    plain = CronPartitionTimetable(CRON, timezone=utc, run_offset=run_offset)
+    jittered = CronPartitionTimetable(
+        CRON, timezone=utc, run_offset=run_offset, seed=SEED, max_jitter=MAX_JITTER
+    )
+    window = {
+        "earliest": pendulum.datetime(2026, 3, 6, tz="UTC"),
+        "latest": pendulum.datetime(2026, 3, 8, tz="UTC"),
+    }
+    expected = [
+        (i.partition_date, i.run_after, i.partition_key) for i in plain.iter_partition_dagrun_infos(**window)
+    ]
+    actual = [
+        (i.partition_date, i.run_after, i.partition_key)
+        for i in jittered.iter_partition_dagrun_infos(**window)
+    ]
+    assert len(expected) == 3
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "timetable_cls",
+    [pytest.param(CronTriggerTimetable, id="core"), pytest.param(SdkCronTriggerTimetable, id="sdk")],
+)
+def test_negative_max_jitter_is_rejected(timetable_cls):
+    """A negative window would silently do nothing while still being serialized, so reject it outright."""
+    with pytest.raises(ValueError, match="negative"):
+        timetable_cls(CRON, timezone="UTC", seed=SEED, max_jitter=timedelta(hours=-1))
+
+
+def test_description_mentions_jitter_offset():
+    """The UI text reflects the shifted fire time, so the schedule shown matches the schedule run."""
+    plain = CronTriggerTimetable(CRON, timezone=utc)
+    jittered = CronTriggerTimetable(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)
+    assert jittered.summary == plain.summary
+    assert plain.description
+    assert "jittered" not in plain.description
+    rounded = timedelta(seconds=int(jittered._offset.total_seconds()))
+    assert jittered.description == f"{plain.description}, jittered by {rounded}"

@@ -172,7 +172,7 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     :param cron: cron string that defines when to run
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
-    :param seed: stable, unique-per-DAG string the jitter offset is derived from; must be
+    :param seed: stable, unique-per-Dag string the jitter offset is derived from; must be
         non-empty when ``max_jitter`` is set. See ``CronMixin``.
     :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
         in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
@@ -411,7 +411,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
     :param run_offset: Integer offset that determines which partition date to run for.
         The partition key will be derived from the partition date.
     :param key_format: How to translate the partition date into a string partition key.
-    :param seed: stable, unique-per-DAG string the jitter offset is derived from; must be
+    :param seed: stable, unique-per-Dag string the jitter offset is derived from; must be
         non-empty when ``max_jitter`` is set. See ``CronMixin``.
     :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
         in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
@@ -490,16 +490,16 @@ class CronPartitionTimetable(CronTriggerTimetable):
         return data
 
     def _get_partition_date(self, *, run_date) -> DateTime:
+        partition_date = self._strip(coerce_datetime(run_date))
         if self._run_offset == 0:
-            return run_date
+            return partition_date
         # we will need to apply offset to determine run date
-        partition_date = coerce_datetime(run_date)
         log.info(
             "applying offset to partition date",
             partition_date=partition_date,
             run_offset=self._run_offset,
         )
-        iter_func = self._get_next if self._run_offset > 0 else self._get_prev
+        iter_func = self._get_next_cron if self._run_offset > 0 else self._get_prev_cron
         for _ in range(abs(self._run_offset)):
             partition_date = iter_func(partition_date)
         log.info("new partition date", partition_date=partition_date)
@@ -551,7 +551,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         Both bounds must be timezone-aware; a naive datetime is coerced to UTC before
         the wall-clock localization step.
         """
-        current = self._align_to_next(self.localize_partition_datetime(earliest))
+        current = self._align_to_next_cron(self.localize_partition_datetime(earliest))
         latest_dt = self.localize_partition_datetime(latest)
         while current <= latest_dt:
             partition_key = self._format_key(current)
@@ -561,7 +561,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
                 partition_date=current,
                 partition_key=partition_key,
             )
-            current = self._get_next(current)
+            current = self._get_next_cron(current)
 
     def _format_key(self, partition_date: DateTime) -> str:
         # partition_date is a UTC instant; format the key in the timetable timezone so the

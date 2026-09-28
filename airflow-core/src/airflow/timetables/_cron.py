@@ -65,10 +65,10 @@ class CronMixin:
     """
     Mixin to provide interface to work with croniter.
 
-    Optionally applies a deterministic, per-DAG jitter to every scheduled time.
+    Optionally applies a deterministic, per-Dag jitter to every scheduled time.
     When ``max_jitter`` is set, each cron boundary is shifted by a fixed offset
     derived from ``seed`` and spread across ``[0, max_jitter)``. This spreads out
-    DAGs that share a cron expression (e.g. every ``@daily`` DAG firing at
+    Dags that share a cron expression (e.g. every ``@daily`` Dag firing at
     midnight) so they no longer all fire at the same instant. The offset is stable
     for a given seed, so runs stay predictable across scheduler restarts and
     serialization.
@@ -79,7 +79,7 @@ class CronMixin:
 
     :param cron: cron expression (or a preset such as ``@daily``) defining the schedule.
     :param timezone: timezone used to interpret the cron expression.
-    :param seed: stable, unique-per-DAG string the offset is derived from; the DAG id
+    :param seed: stable, unique-per-Dag string the offset is derived from; the Dag id
         is a natural choice. Must be non-empty whenever ``max_jitter`` is set.
     :param max_jitter: upper bound of the jitter window; the offset falls in
         ``[0, max_jitter)``. Defaults to zero, i.e. no jitter. Keep it small relative
@@ -100,13 +100,16 @@ class CronMixin:
             timezone = parse_timezone(timezone)
         self._timezone = timezone
 
+        if max_jitter < datetime.timedelta(0):
+            raise ValueError("max_jitter must not be negative")
         if max_jitter > datetime.timedelta(0) and not seed:
-            raise ValueError("seed must be a non-empty, unique-per-DAG string when max_jitter > 0")
-        h = int(md5(seed.encode()).hexdigest(), 16)
+            raise ValueError("seed must be a non-empty, unique-per-Dag string when max_jitter > 0")
         max_jitter_us = max_jitter // datetime.timedelta(microseconds=1)
-        self._offset = (
-            datetime.timedelta(microseconds=h % max_jitter_us) if max_jitter_us > 0 else datetime.timedelta(0)
-        )
+        if max_jitter_us > 0:
+            h = int(md5(seed.encode()).hexdigest(), 16)
+            self._offset = datetime.timedelta(microseconds=h % max_jitter_us)
+        else:
+            self._offset = datetime.timedelta(0)
         self._seed = seed
         self._max_jitter = max_jitter
 
@@ -120,6 +123,10 @@ class CronMixin:
 
         except (CroniterBadCronError, FormatException, MissingFieldException):
             self.description = ""
+
+        if self._offset and self.description:
+            rounded = datetime.timedelta(seconds=int(self._offset.total_seconds()))
+            self.description = f"{self.description}, jittered by {rounded}"
 
     def _apply(self, t: DateTime) -> DateTime:
         """Shift a cron-aligned time forward by this timetable's jitter offset."""
@@ -256,25 +263,31 @@ class CronMixin:
         return convert_to_utc(current.in_timezone(self._timezone) - delta)
 
     def _align_to_next(self, current: DateTime) -> DateTime:
+        return self._apply(self._align_to_next_cron(self._strip(current)))
+
+    def _align_to_prev(self, current: DateTime) -> DateTime:
+        return self._apply(self._align_to_prev_cron(self._strip(current)))
+
+    def _align_to_next_cron(self, current: DateTime) -> DateTime:
         """
         Get the next scheduled time.
 
         This is ``current + interval``, unless ``current`` falls right on the
         interval boundary, when ``current`` is returned.
         """
-        next_time = self._get_next(current)
-        if self._get_prev(next_time) != current:
+        next_time = self._get_next_cron(current)
+        if self._get_prev_cron(next_time) != current:
             return next_time
         return current
 
-    def _align_to_prev(self, current: DateTime) -> DateTime:
+    def _align_to_prev_cron(self, current: DateTime) -> DateTime:
         """
         Get the prev scheduled time.
 
         This is ``current - interval``, unless ``current`` falls right on the
         interval boundary, when ``current`` is returned.
         """
-        prev_time = self._get_prev(current)
-        if self._get_next(prev_time) != current:
+        prev_time = self._get_prev_cron(current)
+        if self._get_next_cron(prev_time) != current:
             return prev_time
         return current

@@ -66,7 +66,7 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
     :param cron: cron string that defines when to run
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
-    :param seed: stable, unique-per-DAG string the jitter offset is derived from; must be
+    :param seed: stable, unique-per-Dag string the jitter offset is derived from; must be
         non-empty when ``max_jitter`` is set. See ``CronMixin``.
     :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
         in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
@@ -154,7 +154,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
     :param run_offset: Integer offset that determines which partition date to run for.
         The partition key will be derived from the partition date.
     :param key_format: How to translate the partition date into a string partition key.
-    :param seed: stable, unique-per-DAG string the jitter offset is derived from; must be
+    :param seed: stable, unique-per-Dag string the jitter offset is derived from; must be
         non-empty when ``max_jitter`` is set. See ``CronMixin``.
     :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
         in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
