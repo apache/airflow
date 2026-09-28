@@ -2096,11 +2096,15 @@ def _run_task_state_change_callbacks(
     ],
     context: Context,
     log: Logger,
+    *,
+    propagate: tuple[type[Exception], ...] = (),
 ) -> None:
     callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
             create_executable_runner(callback, context_get_outlet_events(context), logger=log).run(context)
+        except propagate:
+            raise
         except Exception:
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
@@ -2393,16 +2397,35 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
-        _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
-            get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            _run_task_state_change_callbacks(
+                task, "on_retry_callback", context, log, propagate=(AirflowFailException,)
             )
-        except Exception:
-            log.exception("error calling listener")
-        if error and task.email_on_retry and task.email:
-            _send_error_email_notification(task, ti, context, error, log)
-    elif state == TaskInstanceState.FAILED:
+        except AirflowFailException:
+            # AirflowFailException means "do not retry" wherever it is raised. The supervisor
+            # reports the last terminal state it received once this process exits, so this
+            # replaces the pending retry.
+            log.info("Retry callback raised AirflowFailException, failing the task instead of retrying")
+            state = TaskInstanceState.FAILED
+            ti.state = state
+            SUPERVISOR_COMMS.send(
+                msg=TaskState(
+                    state=TaskInstanceState.FAILED,
+                    end_date=ti.end_date,
+                    rendered_map_index=ti.rendered_map_index,
+                )
+            )
+        else:
+            try:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                )
+            except Exception:
+                log.exception("error calling listener")
+            if error and task.email_on_retry and task.email:
+                _send_error_email_notification(task, ti, context, error, log)
+    # Not elif: a retry callback can turn the outcome into a failure above.
+    if state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(

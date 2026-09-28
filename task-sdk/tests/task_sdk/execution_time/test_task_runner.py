@@ -5509,6 +5509,39 @@ class TestTaskRunnerCallsCallbacks:
         assert isinstance(reports[-1], TaskState)
         assert reports[-1].state == TaskInstanceState.FAILED
 
+    def test_on_retry_callback_raising_fail_exception_runs_failure_finalizers(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        Once a retry callback raises ``AirflowFailException``, the task finishes as failed.
+
+        The remaining retry callbacks are skipped, the failure callbacks run, and the task
+        instance ends in ``FAILED``, the state ``dag.test()`` stores after the run.
+        """
+        collected_results = []
+
+        def stop_retrying(context):
+            collected_results.append("on-retry 1")
+            raise AirflowFailException("do not retry")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                raise RuntimeError("boom")
+
+        task = CustomOperator(
+            task_id="task",
+            on_retry_callback=[stop_retrying, lambda context: collected_results.append("on-retry 2")],
+            on_failure_callback=lambda context: collected_results.append("on-failure"),
+        )
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=True)
+        log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert collected_results == ["on-retry 1", "on-failure"]
+        assert runtime_ti.state == TaskInstanceState.FAILED
+
 
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
