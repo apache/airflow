@@ -148,7 +148,7 @@ the task definition's value.
 
 .. code-block:: python
 
-    overrides={
+    overrides = {
         "containerOverrides": [
             {
                 "name": container_name,
