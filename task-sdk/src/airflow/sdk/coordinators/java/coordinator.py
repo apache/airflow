@@ -98,7 +98,7 @@ class _JarMetadata:
         try:
             with zipfile.ZipFile(path) as zf:
                 attributes = read_main_attributes(zf)
-        except zipfile.BadZipFile:
+        except (OSError, zipfile.BadZipFile):
             log.exception("Cannot read JAR; ignored", path=path)
             return None
         if attributes is None:

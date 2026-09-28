@@ -94,6 +94,14 @@ class TestJarMetadata:
 
         assert _JarMetadata.from_jar(jar) is None
 
+    @pytest.mark.parametrize("kind", ["missing", "directory"])
+    def test_unreadable_jar_gives_none(self, tmp_path, kind):
+        jar = tmp_path / "gone.jar"
+        if kind == "directory":
+            jar.mkdir()
+
+        assert _JarMetadata.from_jar(jar) is None
+
 
 class TestCalculateClasspath:
     def test_single_jar(self, tmp_path):
@@ -488,6 +496,10 @@ class TestBuildParseDagCommand:
 
         with pytest.raises(ValueError, match="Cannot read the manifest"):
             self._build(JavaCoordinator(), tmp_path, jar)
+
+    def test_rejects_a_jar_deleted_after_discovery(self, tmp_path):
+        with pytest.raises(ValueError, match="Cannot read the manifest"):
+            self._build(JavaCoordinator(), tmp_path, tmp_path / "gone.jar")
 
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
     def test_parse_dag_execs_the_jvm(self, mock_execvpe, tmp_path):
