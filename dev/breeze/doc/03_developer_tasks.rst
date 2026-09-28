@@ -727,16 +727,21 @@ Before Docker-backed commands run, Breeze removes labelled resources belonging t
 This includes running containers and leftover named volumes, even when no containers remain.
 Help and commands that do not use Docker do not trigger cleanup.
 
-``breeze down`` removes containers, networks, and volumes for the current checkout's default project.
+Please note that automatic cleanup is best-effort: disappearing or busy resources produce a warning without
+aborting the command. Remaining resources are retried on the next Docker-backed command.
+Explicit ``breeze down`` reports Docker failures as errors.
+
+``breeze down`` removes containers, networks, and volumes for Breeze projects with no worktree path
+and for projects belonging to the current checkout.
 It also removes Breeze-owned resources whose absolute worktree path no longer exists,
 including running containers. Paths are checked on the machine running Breeze, so this
 stale-worktree detection assumes a local Docker daemon.
 
-Pass ``--all-projects`` to include every project with the ``org.apache.airflow.breeze=true``
-ownership label. Unrelated projects are left alone, even if their name starts with ``breeze-``.
-The legacy ``breeze`` project is included without requiring the ownership label.
+Pass ``--all-worktrees`` to include other checkouts and every project with the ``org.apache.airflow.breeze=true``
+ownership label. Projects predating the Breeze labels are included when their name is ``breeze``
+or starts with ``breeze-``, preserving the legacy cleanup behavior.
 Use ``--project-name <name>`` to restrict removal to one exact Compose project; this also
-disables stale-worktree cleanup for other projects and cannot be combined with ``--all-projects``.
+disables stale-worktree cleanup for other projects and cannot be combined with ``--all-worktrees``.
 
 Discovery includes volumes and networks even when no containers remain. Resources are removed
 directly through Docker, so deleted worktrees do not need their Compose files restored.

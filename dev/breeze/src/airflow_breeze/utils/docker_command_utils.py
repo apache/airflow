@@ -59,6 +59,8 @@ from airflow_breeze.global_constants import (
     CURRENT_POSTGRES_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
+    KNOWN_DOCKER_COMPOSE_PROJECT_NAMES,
+    KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
 )
@@ -982,19 +984,32 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
     )
 
 
-def _get_compose_resources(kind: str) -> list[tuple[str, dict[str, str]]]:
+def _get_compose_resources(
+    kind: str, *, stale_only: bool = False
+) -> tuple[list[tuple[str, dict[str, str]]], bool]:
     cmd = ["docker", kind, "ls", "--quiet", "--filter", "label=com.docker.compose.project"]
+    if stale_only:
+        cmd.extend(
+            [
+                "--filter",
+                "label=org.apache.airflow.breeze=true",
+                "--filter",
+                "label=org.apache.airflow.breeze.worktree",
+            ]
+        )
     if kind == "container":
         cmd.append("--all")
-    result = run_command(cmd, capture_output=True, text=True, check=True, dry_run_override=False)
+    result = run_command(cmd, capture_output=True, text=True, check=not stale_only, dry_run_override=False)
+    if result.returncode != 0:
+        return [], True
     identifiers = result.stdout.split()
     if not identifiers:
-        return []
+        return [], False
     result = run_command(
         ["docker", kind, "inspect", *identifiers],
         capture_output=True,
         text=True,
-        check=True,
+        check=not stale_only,
         dry_run_override=False,
     )
     return [
@@ -1002,48 +1017,76 @@ def _get_compose_resources(kind: str) -> list[tuple[str, dict[str, str]]]:
             resource["Name"] if kind == "volume" else resource["Id"],
             resource["Config"]["Labels"] if kind == "container" else resource["Labels"],
         )
-        for resource in json.loads(result.stdout)
-    ]
+        for resource in json.loads(result.stdout or "[]")
+    ], result.returncode != 0
 
 
 def bring_compose_projects_down(
     *,
     preserve_volumes: bool = False,
-    all_projects: bool = False,
+    all_worktrees: bool = False,
     only_project: str | None = None,
-    default_project: str = "breeze",
+    current_worktree: str = "",
     stale_only: bool = False,
 ) -> list[str]:
     targets: dict[str, list[str]] = {"container": [], "volume": [], "network": []}
     projects: set[str] = set()
+    failed = False
     for kind in targets:
         if kind == "volume" and preserve_volumes:
             continue
-        for identifier, labels in _get_compose_resources(kind):
+        resources, discovery_failed = _get_compose_resources(kind, stale_only=stale_only)
+        failed |= discovery_failed
+        for identifier, labels in resources:
             project = labels["com.docker.compose.project"]
             breeze_owned = labels.get("org.apache.airflow.breeze") == "true"
+            legacy = (
+                "org.apache.airflow.breeze" not in labels
+                and "org.apache.airflow.breeze.worktree" not in labels
+                and (
+                    project in KNOWN_DOCKER_COMPOSE_PROJECT_NAMES
+                    or any(project.startswith(prefix) for prefix in KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES)
+                )
+            )
             if only_project:
                 selected = project == only_project
-            elif all_projects:
-                selected = breeze_owned or project == "breeze"
+            elif all_worktrees:
+                selected = breeze_owned or legacy
             else:
-                selected = (not stale_only and project == default_project) or (
-                    breeze_owned
-                    and _worktree_is_missing(labels.get("org.apache.airflow.breeze.worktree", ""))
+                worktree = labels.get("org.apache.airflow.breeze.worktree", "")
+                selected = breeze_owned and (
+                    (not stale_only and worktree in ("", current_worktree)) or _worktree_is_missing(worktree)
                 )
+                if not stale_only and legacy:
+                    selected = True
             if selected:
                 targets[kind].append(identifier)
                 projects.add(project)
 
     if targets["container"]:
-        run_command(["docker", "container", "stop", *targets["container"]], check=True)
+        result = run_command(
+            ["docker", "container", "stop", *targets["container"]],
+            check=not stale_only,
+            capture_output=stale_only,
+        )
+        failed |= result.returncode != 0
     for kind, identifiers in targets.items():
         if not identifiers:
             continue
         cmd = ["docker", kind, "rm"]
         if kind == "container" and not preserve_volumes:
             cmd.append("--volumes")
-        run_command([*cmd, *identifiers], check=True)
+        result = run_command(
+            [*cmd, *identifiers],
+            check=not stale_only,
+            capture_output=stale_only,
+        )
+        failed |= result.returncode != 0
+    if failed:
+        console_print(
+            "[warning]Unable to clean up some deleted-worktree resources; continuing. Breeze will retry on the next Docker command.[/]"
+        )
+        return []
     return sorted(projects)
 
 

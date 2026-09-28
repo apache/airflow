@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from click import UsageError
 from click.testing import CliRunner
 
 from airflow_breeze.commands.developer_commands import build_docs, down, run
@@ -32,13 +33,17 @@ def runner():
 
 
 def test_down_rejects_conflicting_project_selectors(runner):
-    result = runner.invoke(down, ["--all-projects", "--project-name", "foobar"])
+    with pytest.raises(UsageError, match="--all-worktrees and --project-name cannot be used together"):
+        runner.invoke(
+            down,
+            ["--all-worktrees", "--project-name", "foobar"],
+            standalone_mode=False,
+            catch_exceptions=False,
+        )
 
-    assert result.exit_code == 2
-    assert "--all-projects and --project-name cannot be used together" in result.output
 
-
-def test_down_preserves_volumes_without_startup_cleanup(runner):
+@pytest.mark.parametrize("linked", [False, True])
+def test_down_preserves_volumes_without_startup_cleanup(runner, tmp_path, linked):
     with (
         patch(
             "airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True
@@ -49,16 +54,17 @@ def test_down_preserves_volumes_without_startup_cleanup(runner):
             return_value=[],
         ) as teardown,
         patch(
-            "airflow_breeze.commands.developer_commands.get_default_project_name",
+            "airflow_breeze.commands.developer_commands.get_main_git_dir_for_worktree",
             autospec=True,
-            return_value="breeze-test",
+            return_value=tmp_path if linked else None,
         ),
+        patch("airflow_breeze.commands.developer_commands.AIRFLOW_ROOT_PATH", tmp_path),
     ):
         result = runner.invoke(down, ["--preserve-volumes"])
     assert result.exit_code == 0
     checks.assert_called_once_with(cleanup_stale_worktrees=False)
     assert teardown.call_args.kwargs["preserve_volumes"] is True
-    assert teardown.call_args.kwargs["default_project"] == "breeze-test"
+    assert teardown.call_args.kwargs["current_worktree"] == (str(tmp_path.resolve()) if linked else "")
 
 
 class TestBuildDocsPythonVersion:

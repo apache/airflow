@@ -435,25 +435,41 @@ def docker_resources():
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "expected"),
+    ("kwargs", "linked", "expected"),
     [
-        ({}, {"breeze", "stale"}),
-        ({"all_projects": True}, {"breeze", "stale", "foobar", "relative"}),
-        ({"only_project": "foobar"}, {"foobar"}),
-        ({"only_project": "breeze-thirdparty"}, {"breeze-thirdparty"}),
-        ({"only_project": "absent"}, set()),
-        ({"stale_only": True}, {"stale"}),
-        ({"default_project": "foobar"}, {"foobar", "stale"}),
+        ({}, False, {"breeze", "breeze-docs", "main-tests", "stale"}),
+        ({}, True, {"breeze", "breeze-docs", "main-tests", "foobar", "foobar-tests", "stale"}),
+        (
+            {"all_worktrees": True},
+            True,
+            {"breeze", "breeze-docs", "main-tests", "stale", "foobar", "foobar-tests", "relative", "other"},
+        ),
+        ({"only_project": "foobar"}, True, {"foobar"}),
+        ({"only_project": "breeze-thirdparty"}, True, {"breeze-thirdparty"}),
+        ({"only_project": "absent"}, True, set()),
+        ({"stale_only": True}, True, {"stale"}),
     ],
 )
 @pytest.mark.parametrize("preserve_volumes", [False, True])
-def test_down_selects_default_stale_or_explicit_projects(
-    docker_resources, tmp_path, kwargs, expected, preserve_volumes
+def test_down_selects_checkout_stale_or_explicit_projects(
+    docker_resources, tmp_path, kwargs, linked, expected, preserve_volumes
 ):
     resources, run = docker_resources
+    other = tmp_path / "other"
+    other.mkdir()
     projects = {
         "breeze": {},
+        "breeze-docs": {},
+        "unrelated": {},
+        "breeze-excluded": {"org.apache.airflow.breeze": "false"},
+        "main-tests": {"org.apache.airflow.breeze": "true", "org.apache.airflow.breeze.worktree": ""},
         "foobar": {"org.apache.airflow.breeze": "true", "org.apache.airflow.breeze.worktree": str(tmp_path)},
+        "foobar-tests": {
+            "org.apache.airflow.breeze": "true",
+            "org.apache.airflow.breeze.worktree": str(tmp_path),
+        },
+        "other": {"org.apache.airflow.breeze": "true", "org.apache.airflow.breeze.worktree": str(other)},
+        "thirdparty": {"org.apache.airflow.breeze.worktree": str(tmp_path)},
         "stale": {
             "org.apache.airflow.breeze": "true",
             "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
@@ -471,7 +487,7 @@ def test_down_selects_default_stale_or_explicit_projects(
         resources["volume"].append({"Name": f"{project}-volume", "Labels": labels})
 
     assert docker_command_utils.bring_compose_projects_down(
-        preserve_volumes=preserve_volumes, **kwargs
+        preserve_volumes=preserve_volumes, current_worktree=str(tmp_path) if linked else "", **kwargs
     ) == sorted(expected)
 
     commands = [c.args[0] for c in run.call_args_list]
@@ -533,14 +549,17 @@ def test_environment_checks_reap_stale_resources(
                     cleanup_stale_worktrees=cleanup_stale_worktrees
                 )
     if docker_available and cleanup_stale_worktrees:
-        assert call(["docker", "volume", "rm", "stale-db"], check=True) in run.call_args_list
+        assert (
+            call(["docker", "volume", "rm", "stale-db"], check=False, capture_output=True)
+            in run.call_args_list
+        )
     else:
         run.assert_not_called()
 
 
-@pytest.mark.parametrize("all_projects", [False, True])
+@pytest.mark.parametrize("all_worktrees", [False, True])
 @pytest.mark.parametrize("preserve_volumes", [False, True])
-def test_down_finds_volumes_without_containers(docker_resources, tmp_path, preserve_volumes, all_projects):
+def test_down_finds_volumes_without_containers(docker_resources, tmp_path, preserve_volumes, all_worktrees):
     resources, run = docker_resources
     resources["volume"] = [
         {
@@ -548,13 +567,15 @@ def test_down_finds_volumes_without_containers(docker_resources, tmp_path, prese
             "Labels": {
                 "com.docker.compose.project": "foobar",
                 "org.apache.airflow.breeze": "true",
-                "org.apache.airflow.breeze.worktree": str(tmp_path if all_projects else tmp_path / "deleted"),
+                "org.apache.airflow.breeze.worktree": str(
+                    tmp_path if all_worktrees else tmp_path / "deleted"
+                ),
             },
         }
     ]
 
     projects = docker_command_utils.bring_compose_projects_down(
-        preserve_volumes=preserve_volumes, all_projects=all_projects
+        preserve_volumes=preserve_volumes, all_worktrees=all_worktrees
     )
 
     removals = [c.args[0] for c in run.call_args_list if c.args[0][2] == "rm"]
@@ -564,8 +585,46 @@ def test_down_finds_volumes_without_containers(docker_resources, tmp_path, prese
     )
 
 
+@pytest.mark.parametrize("failed_action", ["ls", "inspect", "stop", "rm"])
+def test_startup_cleanup_continues_after_docker_failures(docker_resources, tmp_path, capsys, failed_action):
+    resources, run = docker_resources
+    labels = {
+        "com.docker.compose.project": "stale",
+        "org.apache.airflow.breeze": "true",
+        "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
+    }
+    resources["container"] = [{"Id": "remaining", "Config": {"Labels": labels}}]
+    resources["volume"] = [{"Name": "database", "Labels": labels}]
+    docker = run.side_effect
+
+    def fail(cmd, **kwargs):
+        result = docker(cmd, **kwargs)
+        if cmd[2] == "ls":
+            assert "label=org.apache.airflow.breeze=true" in cmd
+            assert "label=org.apache.airflow.breeze.worktree" in cmd
+            if cmd[1] == "container":
+                result.stdout += "\nvanished"
+        if cmd[2] == failed_action:
+            if kwargs.get("check"):
+                raise subprocess.CalledProcessError(1, cmd)
+            result.returncode = 1
+            result.stderr = "resource disappeared or is still in use"
+        return result
+
+    run.side_effect = fail
+    assert docker_command_utils.bring_compose_projects_down(stale_only=True) == []
+    assert capsys.readouterr().out.count("Unable to clean up some deleted-worktree resources") == 1
+    commands = [c.args[0] for c in run.call_args_list]
+    if failed_action == "ls":
+        assert all(cmd[2] == "ls" for cmd in commands)
+    else:
+        assert ["docker", "volume", "rm", "database"] in commands
+        assert ["docker", "container", "rm", "--volumes", "remaining"] in commands
+        assert not any("vanished" in cmd for cmd in commands if cmd[2] in ("stop", "rm"))
+
+
 def test_down_empty_discovery_is_not_an_error(docker_resources, capsys):
-    assert docker_command_utils.bring_compose_projects_down(all_projects=True) == []
+    assert docker_command_utils.bring_compose_projects_down(all_worktrees=True) == []
     assert "error" not in capsys.readouterr().out.lower()
 
 

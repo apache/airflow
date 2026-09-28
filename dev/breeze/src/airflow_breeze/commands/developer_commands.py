@@ -136,7 +136,7 @@ from airflow_breeze.utils.path_utils import (
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     PYCACHE_VOLUME_NAME,
     cleanup_python_generated_files,
-    get_default_project_name,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
@@ -1103,9 +1103,9 @@ def build_docs(
 @main.command(
     name="down",
     help=(
-        "Stop this checkout's default project and remove resources belonging to deleted worktrees. "
+        "Stop Breeze projects with no worktree, in this checkout, or belonging to deleted worktrees. "
         "Removes containers, networks and volumes without changing local files or images. "
-        "Use --all-projects for all Breeze-owned projects, or --project-name for one exact project."
+        "Use --all-worktrees to include other checkouts, or --project-name for one exact project."
     ),
 )
 @click.option(
@@ -1132,9 +1132,9 @@ def build_docs(
     is_flag=True,
 )
 @click.option(
-    "--all-projects",
+    "--all-worktrees",
     help=(
-        "Remove resources from all Breeze-owned projects, including projects with only leftover volumes. "
+        "Remove Breeze-owned resources across all checkouts, including leftover volumes. "
         "Unrelated Docker projects are left alone."
     ),
     is_flag=True,
@@ -1151,17 +1151,17 @@ def down(
     cleanup_mypy_cache: bool,
     cleanup_pycache: bool,
     cleanup_build_cache: bool,
-    all_projects: bool,
+    all_worktrees: bool,
     project_name: str | None,
 ):
-    if all_projects and project_name:
-        raise click.UsageError("--all-projects and --project-name cannot be used together.")
+    if all_worktrees and project_name:
+        raise click.UsageError("--all-worktrees and --project-name cannot be used together.")
     perform_environment_checks(cleanup_stale_worktrees=False)
     brought_down = bring_compose_projects_down(
         preserve_volumes=preserve_volumes,
-        all_projects=all_projects,
+        all_worktrees=all_worktrees,
         only_project=project_name,
-        default_project=get_default_project_name(),
+        current_worktree=str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else "",
     )
     if brought_down:
         action = "Would remove" if get_dry_run() else "Removed"
@@ -1314,7 +1314,7 @@ def doctor(ctx):
     if not get_dry_run() and given_answer == Answer.YES:
         cleanup_python_generated_files()
 
-    bring_compose_projects_down(all_projects=True)
+    bring_compose_projects_down(all_worktrees=True)
 
     given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
     if given_answer == Answer.YES:
