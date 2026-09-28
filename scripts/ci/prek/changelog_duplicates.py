@@ -34,6 +34,7 @@ known_exceptions = [
     "3946",  # Commits tagged to the same PR for both 1.10.2 and 1.10.3
     "4260",  # Commits tagged to the same PR for both 1.10.2 and 1.10.3
     "13153",  # Both a bugfix and a feature
+    "73368",  # Both a breaking change and part of a grouped feature entry in common.ai 0.10.0
 ]
 
 pr_numbers_re = re.compile(r"\(((?:#[0-9]{1,6}, )*#[0-9]{1,6})\)`?`?$")
