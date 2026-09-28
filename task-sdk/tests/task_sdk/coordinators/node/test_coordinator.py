@@ -26,6 +26,7 @@ import pytest
 from task_sdk.coordinators.node._bundle_test_utils import (
     BUNDLE_NAME,
     mutate_byte,
+    mutate_section,
     read_layout,
     write_bundle,
 )
@@ -122,7 +123,7 @@ class TestNodeCoordinatorParseDagCommand:
 
     def test_tampered_bundle_raises(self, tmp_path):
         bundle = write_bundle(tmp_path, "native_dag")
-        mutate_byte(bundle, int(read_layout(bundle)["code"]["start"], 16))  # type: ignore[index, call-overload]
+        mutate_section(bundle, "code")
 
         with pytest.raises(ValueError, match="code SHA-256 mismatch"):
             NodeCoordinator()._build_parse_dag_command(path=bundle)
