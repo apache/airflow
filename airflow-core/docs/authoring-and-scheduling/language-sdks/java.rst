@@ -606,6 +606,47 @@ Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT
 ``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
 fails the build for an annotation, and the ``config`` call itself for an object.
 
+.. _java-sdk/native-dag-parsing:
+
+Parsing native Java Dags
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+To have Airflow parse the Dags a bundle JAR declares, put the JAR in a Dag bundle and configure a
+:class:`~airflow.sdk.coordinators.java.JavaCoordinator` that reads that bundle: leave ``dag_bundle_name``
+unset to read every Dag bundle, or set it to read one. The Dag processor runs the JAR's main class to list
+its Dags, so it needs a Java executable, as the workers do:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-native": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java"}
+      }
+    }
+    queue_to_coordinator = {"java-native": "java-native"}
+
+Every Java coordinator parses the JARs of the Dag bundles it reads. If you configure more than one, give
+each a different ``dag_bundle_name``, otherwise Airflow fails to load ``[sdk] coordinators``.
+
+* Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
+  declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
+  that JAR as its file. Task handlers for a Python Dag are not Dags, and a JAR without ``Main-Class``,
+  such as a dependency of a thin bundle, is skipped.
+* Do not declare a Dag in Java that a Python file in the same bundle also defines.
+* Keep one executable JAR per bundle, or set ``main_class``, so that only JARs with that
+  ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
+* Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
+  ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
+  Dag-level queue yet.
+* The Code view shows the source file the Gradle plugin packs into the JAR: the main class by
+  default, or the file set with ``airflowBundle { dagSource = file("...") }``.
+* Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
+* ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
+  ``airflow dags test``, ``tasks test``, ``tasks render`` and ``tasks list`` refuse a native Java
+  Dag.
+
 .. _java-sdk/logging:
 
 Logging
@@ -871,6 +912,17 @@ The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it i
 coordinator scans. :class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans that Dag bundle recursively
 and builds the classpath automatically.
 
+The plugin also packs the source file of ``mainClass`` into the bundle JAR, so the Airflow UI can show
+the source of a native Java Dag (see :ref:`java-sdk/native-dag-parsing`). Set ``dagSource`` in
+``airflowBundle`` to pack another file instead:
+
+.. code-block:: groovy
+
+    airflowBundle {
+        mainClass = "com.example.Main"
+        dagSource = file("src/main/java/com/example/MyDag.java")
+    }
+
 .. note::
 
   You only need the ``annotationProcessor`` entry if you use the annotation-based API. It is not needed for
@@ -1045,6 +1097,28 @@ the Dag bundle your coordinator scans.
   Unlike the Gradle plugin, Maven has no equivalent of the ``verifyBundleMainClass`` validation step.
   A wrong ``<mainClass>`` value will not be caught until runtime.
 
+To show the source of a native Java Dag in the Airflow UI, pack the source file into the bundle JAR and
+name its entry with the ``Airflow-Java-SDK-Dag-Code`` manifest attribute:
+
+.. code-block:: xml
+
+    <build>
+        <resources>
+            <!-- Declaring resources replaces the default, so keep it. -->
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>src/main/java/com/example</directory>
+                <includes><include>Main.java</include></includes>
+                <targetPath>META-INF/airflow/dag-code/com/example</targetPath>
+            </resource>
+        </resources>
+    </build>
+
+Then add ``<Airflow-Java-SDK-Dag-Code>META-INF/airflow/dag-code/com/example/Main.java</Airflow-Java-SDK-Dag-Code>``
+to the ``manifestEntries`` of ``maven-shade-plugin`` or ``maven-jar-plugin`` shown above.
+
 .. _java-sdk/coordinator-config:
 
 :class:`~airflow.sdk.coordinators.java.JavaCoordinator` configuration
@@ -1074,7 +1148,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - *(auto-detect)*
      - Explicit entry-point class. If omitted, the coordinator scans for a JAR whose
        manifest sets ``Main-Class`` across the resolved Dag bundle. If multiple executable JARs
-       match the result is non-deterministic; set ``main_class`` explicitly in that case.
+       match the result is non-deterministic; set ``main_class`` explicitly in that case. When
+       the coordinator parses native Java Dags, only JARs with this ``Main-Class`` are parsed.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
