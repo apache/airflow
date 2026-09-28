@@ -128,11 +128,11 @@ dependencies = [
     "pyarrow>=22.0.0; python_version >= '3.14'",
 ]
 "sql" = [
-    "apache-airflow-providers-common-sql>=1.33.0",
+    "apache-airflow-providers-common-sql>=2.2.0",
     "sqlglot>=30.0.0",
 ]
 "common.sql" = [
-    "apache-airflow-providers-common-sql>=1.33.0"
+    "apache-airflow-providers-common-sql>=2.2.0"
 ]
 "langchain" = [
     "langchain>=1.0.0",
