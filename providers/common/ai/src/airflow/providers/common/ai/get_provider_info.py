@@ -165,6 +165,7 @@ def get_provider_info():
                     "SambaNova",
                     "Snowflake Cortex",
                     "Together AI",
+                    "TypeSafe",
                     "Vercel AI Gateway",
                     "vLLM",
                     "xAI",
