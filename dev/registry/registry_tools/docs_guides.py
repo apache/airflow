@@ -20,7 +20,9 @@ A module's ``docs_url`` points at generated API reference, which tells a reader
 what the arguments are but not how the thing is meant to be used. The prose
 guides carry that, and they already mark it: a how-to guide documents one class
 (or a class and its task-flow decorator) per section, titled with the name(s)
-(``HookToolset``, ``SQLToolset``, ``AgentOperator`` & ``@task.agent``).
+either at the start (``HookToolset``, ``SQLToolset``, ``AgentOperator`` &
+``@task.agent``) or after a colon at the very end, as in a section titled
+"Airflow hooks as tools: ``HookToolset``".
 
 So the mapping is read back out of the guides rather than curated anywhere: a
 hand-maintained name-to-guide table would rot silently every time a guide is
@@ -54,7 +56,7 @@ def is_guide_page(relative_path: str) -> bool:
       (``_api/hook/index.rst``, ``operators/_partials/foo.rst``, top-level
       ``_partials/foo.rst``): Sphinx/autoapi output and partials are directive
       markup, not the hand-written, reST-underlined titles this module's
-      leading-inline-literal convention parses.
+      inline-literal title convention parses.
     - ``changelog.rst`` and ``commits.rst``: real release-note pages, not
       how-to guides, that can carry inline-literal-formatted headings by
       coincidence.
@@ -71,13 +73,22 @@ def is_guide_page(relative_path: str) -> bool:
 _INLINE_LITERAL_NAME = r"``(@?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)``"
 _INLINE_LITERAL_NAME_RE = re.compile(_INLINE_LITERAL_NAME)
 
-# Only titles opening with a run of inline-literal names are treated as
-# documenting them, so prose headings ("Bounded query results") never produce a
-# link. A run is one or more names joined by "&", "," or "/" -- how guides write
-# a section that covers both an operator and its decorator
-# (``AgentOperator`` & ``@task.agent``). The run stops at the first thing that
-# is neither a name nor a separator, so it never reaches into prose.
-_LEADING_LITERAL_NAME_RUN = re.compile(rf"^{_INLINE_LITERAL_NAME}(?:\s*[&,/]\s*{_INLINE_LITERAL_NAME})*")
+# Only titles that either open with, or end a colon-led clause with, a run of
+# inline-literal names are treated as documenting them, so prose headings
+# ("Bounded query results") never produce a link. A run is one or more names
+# joined by "&", ",", "/" or "and" -- how guides write a section that covers both
+# an operator and its decorator (``AgentOperator`` & ``@task.agent``).
+_NAME_SEPARATOR = r"(?:\s*[&,/]\s*|\s+and\s+)"
+_NAME_RUN = rf"{_INLINE_LITERAL_NAME}(?:{_NAME_SEPARATOR}{_INLINE_LITERAL_NAME})*"
+
+# Shape one (predates #73523, and still what older release tags' docs use):
+# the title opens with the name run. The run stops at the first thing that is
+# neither a name nor a separator, so it never reaches into prose.
+_LEADING_LITERAL_NAME_RUN = re.compile(rf"^{_NAME_RUN}")
+# Shape two (since #73523): a prose lead-in, a colon, then the name run runs to
+# the very end of the title. Anchoring to "$" is what keeps a colon earlier in
+# the title, with prose after it, from being mistaken for this shape.
+_TRAILING_LITERAL_NAME_RUN = re.compile(rf":\s+{_NAME_RUN}\s*$")
 
 
 def slugify_section_anchor(title: str) -> str:
@@ -91,17 +102,21 @@ def slugify_section_anchor(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
 
 
-def _extract_leading_names_from_title(title: str) -> list[str]:
-    """Return the names a section title leads with, or [] if it names prose.
+def _extract_names_from_title(title: str) -> list[str]:
+    """Return the names a section title documents, or [] if it names prose.
 
-    A guide marks a section as being *about* one or more names by opening its
-    title with them as inline literals -- ``HookToolset``, or
-    ``AgentOperator`` & ``@task.agent`` where one section covers the operator and
-    its decorator. Requiring that markup is what keeps a single-word prose heading
-    ("Guidelines") from claiming to document a class of the same name, and it is a
+    A guide marks a section as being *about* one or more names by titling it
+    with them as inline literals, either at the start (``HookToolset``, or
+    ``AgentOperator`` & ``@task.agent`` where one section covers the operator
+    and its decorator) or after a colon at the very end ("Airflow hooks as
+    tools: ``HookToolset``"). The leading shape is tried first, since a title
+    that satisfies both (e.g. "``A``: ``B``") should still only name the class
+    it actually opens with. Requiring that markup is what keeps a single-word
+    prose heading ("Guidelines") -- or a literal appearing elsewhere in a prose
+    title -- from claiming to document a class of the same name, and it is a
     convention the guides already follow rather than one imposed on them.
     """
-    match = _LEADING_LITERAL_NAME_RUN.match(title)
+    match = _LEADING_LITERAL_NAME_RUN.match(title) or _TRAILING_LITERAL_NAME_RUN.search(title)
     return _INLINE_LITERAL_NAME_RE.findall(match.group(0)) if match else []
 
 
@@ -131,21 +146,30 @@ def collect_guide_anchors(docs: Mapping[str, str]) -> dict[str, str]:
     """Map name -> ``<page>.html#<anchor>`` for every documented class or decorator.
 
     ``docs`` maps a page path relative to the provider's docs directory (e.g.
-    ``toolsets.rst``) to its reST source. A title can lead with more than one name
-    (``AgentOperator`` & ``@task.agent``), in which case every leading name gets
-    the same anchor. When two pages document the same name, the first page in
-    sorted order wins, so a rebuild of the same sources always produces the same
-    link.
+    ``toolsets.rst``) to its reST source. A title can name more than one name
+    (``AgentOperator`` & ``@task.agent``), in which case every one gets the
+    same anchor. When two pages document the same name: a page's own title
+    (its first section) beats a subsection found on any other page, since that
+    page is the one dedicated to the class; among two page titles -- or two
+    subsections neither page titles -- the first page in sorted order wins, so
+    a rebuild of the same sources always produces the same link. "Page title"
+    is simply the first title _extract_section_titles finds, not a checked
+    top-level adornment, so a heading-shaped block earlier on the page (say,
+    inside a directive) would take that role.
     """
-    anchors: dict[str, str] = {}
+    found: dict[str, tuple[bool, str]] = {}  # name -> (from a page title?, anchor)
     for page in sorted(docs):
         page_url = re.sub(r"\.rst$", ".html", page)
-        for title in _extract_section_titles(docs[page]):
-            for name in _extract_leading_names_from_title(title):
-                if name in anchors:
+        for index, title in enumerate(_extract_section_titles(docs[page])):
+            is_page_title = index == 0
+            for name in _extract_names_from_title(title):
+                current = found.get(name)
+                # A page title replaces a subsection found earlier; nothing else
+                # replaces what was found first, so rebuilds stay deterministic.
+                if current is not None and (current[0] or not is_page_title):
                     continue
-                anchors[name] = f"{page_url}#{slugify_section_anchor(title)}"
-    return anchors
+                found[name] = (is_page_title, f"{page_url}#{slugify_section_anchor(title)}")
+    return {name: anchor for name, (_, anchor) in found.items()}
 
 
 def attach_guide_urls(modules: list[dict[str, Any]], anchors: Mapping[str, str], base_docs_url: str) -> int:
