@@ -92,7 +92,7 @@ dependencies = [
     "psycopg[binary]>=3.3.3; python_version >= '3.14'",
 ]
 "sqlalchemy" = [
-    "sqlalchemy>=1.4.54"
+    "sqlalchemy>=1.4.54,!=2.1.0"
 ]
 
 [dependency-groups]
