@@ -26,7 +26,7 @@ import re
 import threading
 import time
 from contextlib import suppress
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 try:
     import modal
@@ -131,6 +131,14 @@ def _is_tls_hostname(value: object) -> bool:
     # friends would read as a restriction while allowing nothing. Wildcards are checked
     # on what they qualify: '*.com' is as meaningless as 'com'.
     return "." in value.removeprefix("*.")
+
+
+class _NetworkKwargs(TypedDict, total=False):
+    """The subset of ``modal.Sandbox.create`` arguments that a network policy maps onto."""
+
+    block_network: bool
+    outbound_cidr_allowlist: list[str]
+    outbound_domain_allowlist: list[str]
 
 
 class ModalSandboxBackend(SandboxBackend):
@@ -668,7 +676,7 @@ class ModalSandboxBackend(SandboxBackend):
             f"run_command instead, which does not use the helper."
         )
 
-    def _network_kwargs(self, spec: SandboxSpec | None) -> dict[str, object]:
+    def _network_kwargs(self, spec: SandboxSpec | None) -> _NetworkKwargs:
         """
         Map a spec's network policy onto ``Sandbox.create`` arguments, or refuse it.
 
@@ -692,7 +700,7 @@ class ModalSandboxBackend(SandboxBackend):
         # block_network is deliberately not set alongside either list: Modal rejects the
         # combination outright, and an allowlist on its own already blocks every
         # destination that is not on it.
-        kwargs: dict[str, object] = {}
+        kwargs: _NetworkKwargs = {}
         if spec.allow_egress_to_cidrs:
             # Enforced at the address layer for any port and protocol, so there is
             # nothing here for the author to accept; no opt-in is required.
@@ -798,7 +806,7 @@ class ModalSandboxBackend(SandboxBackend):
         return list(allow_egress_to)
 
     @staticmethod
-    def _environment(spec: SandboxSpec | None) -> dict[str, str] | None:
+    def _environment(spec: SandboxSpec | None) -> dict[str, str | None] | None:
         """
         Return the environment to inject, refusing anything Modal cannot carry.
 
