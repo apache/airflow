@@ -1171,8 +1171,13 @@ def _generate_new_changelog(
                 "has first release. Not updating the changelog.[/]"
             )
             return
-        # Entries may reference several PRs at once, e.g. ``(#123, #456)``.
-        existing_prs = set(re.findall(r"#(\d+)(?=[,)])", current_changelog))
+        # Entries may reference several PRs at once, e.g. ``(#123, #456)``. Only bracketed
+        # reference groups count: prose like ``(continuation of #123)`` does not list a PR.
+        existing_prs = {
+            pr
+            for group in re.findall(r"\(((?:#\d+, )*#\d+)\)", current_changelog)
+            for pr in group.replace("#", "").split(", ")
+        }
         new_changes = [change for change in changes[0] if change.pr and change.pr not in existing_prs]
         if not new_changes:
             console_print(

@@ -98,8 +98,8 @@ class TestFindDuplicates:
     @pytest.mark.parametrize(
         "lines, expected",
         [
-            (["* Fix A (#1001, #1002)", "* Fix B (#1003)"], []),
             (["* Fix A (#1001, #1002)", "* Fix B (#1002)"], ["1002"]),
+            (["* Fix A (#1001, #1002)", "* Fix B (#1001, #1003)"], ["1001"]),
         ],
     )
     def test_grouped_pr_numbers(self, lines, expected):

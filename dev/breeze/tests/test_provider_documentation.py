@@ -116,11 +116,7 @@ Features
 
 * ``Add X (#1001, #1002)``
 * ``Add Y (#1003)``
-
-4.7.0
-.....
-
-* ``Old (#900)``
+* ``Add Z (continuation of #1005) (#1006)``
 """
     )
     provider_details = mock.MagicMock(
@@ -128,7 +124,7 @@ Features
     )
     changes = [
         Change("hash", "short", "2024-01-01", "5.0.0", f"Fix (#{pr})", f"Fix (#{pr})", pr)
-        for pr in ("1001", "1002", "1003", "1004")
+        for pr in ("1001", "1002", "1003", "1004", "1005")
     ]
 
     _generate_new_changelog(
@@ -142,6 +138,7 @@ Features
 
     new_changelog = changelog_path.read_text()
     assert "* ``Fix (#1004)``" in new_changelog
+    assert "* ``Fix (#1005)``" in new_changelog
     for pr in ("1001", "1002", "1003"):
         assert new_changelog.count(f"#{pr}") == 1
 
