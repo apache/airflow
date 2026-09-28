@@ -34,6 +34,11 @@ async function globalSetup(config: FullConfig) {
   // selected browser may be installed, so log in with the browser named in TEST_BROWSER.
   const setupProject =
     config.projects.find((project) => project.name === process.env.TEST_BROWSER) ?? config.projects[0];
+
+  if (setupProject === undefined) {
+    throw new Error("No Playwright projects are configured");
+  }
+
   const baseURL = setupProject.use.baseURL ?? testConfig.connection.baseUrl;
   const { password, username } = testConfig.credentials;
   const browserName = setupProject.name as keyof typeof browsers;
