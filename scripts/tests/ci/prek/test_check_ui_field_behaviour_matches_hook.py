@@ -87,6 +87,11 @@ class TestCheckUiFieldBehaviourForEntry:
                 ),
                 id="matching-behaviour-with-formatting-differences",
             ),
+            pytest.param(
+                {"placeholders": {"keyfile_dict": "{}", "login": "user"}},
+                _hook({"placeholders": {f"extra__{CONN_TYPE}__keyfile_dict": "{}", "login": "user"}}),
+                id="bare-and-prefixed-placeholder-keys-are-equal",
+            ),
         ],
     )
     def test_no_errors(self, yaml_behaviour, get_behaviour):

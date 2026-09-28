@@ -142,6 +142,18 @@ def normalize_behaviour_value(value: object) -> str:
         return text
 
 
+def normalize_placeholder_key(key: str, connection_type: str) -> str:
+    """
+    Prefix a custom-field placeholder key the way ``_ensure_prefix_for_placeholders`` does at runtime.
+
+    Airflow accepts both ``keyfile_dict`` and ``extra__<conn_type>__keyfile_dict`` for the same
+    field, so the two spellings must not count as drift.
+    """
+    if key in {"host", "schema", "login", "password", "port", "extra"} or key.startswith("extra__"):
+        return key
+    return f"extra__{connection_type}__{key}"
+
+
 def check_ui_field_behaviour_for_entry(
     conn_type_entry: dict,
     yaml_file_path: str,
@@ -202,12 +214,18 @@ def check_ui_field_behaviour_for_entry(
             f" only in the hook: {sorted(hook_hidden - yaml_hidden) or '-'}"
         )
 
-    for section in ("relabeling", "placeholders"):
+    key_normalizers: dict[str, Callable[[str], str]] = {
+        "relabeling": lambda key: key,
+        "placeholders": lambda key: normalize_placeholder_key(key, connection_type),
+    }
+    for section, normalize_key in key_normalizers.items():
         yaml_section = {
-            k: normalize_behaviour_value(v) for k, v in (yaml_behaviour.get(section) or {}).items()
+            normalize_key(k): normalize_behaviour_value(v)
+            for k, v in (yaml_behaviour.get(section) or {}).items()
         }
         hook_section = {
-            k: normalize_behaviour_value(v) for k, v in (hook_behaviour.get(section) or {}).items()
+            normalize_key(k): normalize_behaviour_value(v)
+            for k, v in (hook_behaviour.get(section) or {}).items()
         }
         if yaml_section == hook_section:
             continue
