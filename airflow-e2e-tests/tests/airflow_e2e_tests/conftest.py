@@ -347,6 +347,9 @@ def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=Fal
       image's HOME (/root) which the non-root process cannot write to.
     * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
       there without nesting, and its contents are visible on the host.
+      maven.repo.local names it explicitly: the JVM takes its home from
+      /etc/passwd, not HOME, so a host UID that the image does define (such
+      as 1000, its "ubuntu" user) would otherwise publish into the container.
     """
     if native:
         cwd = workdir
@@ -379,6 +382,7 @@ def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=Fal
             "eclipse-temurin:17-jdk",
             "/repo/java-sdk/gradlew",
             "--no-daemon",
+            "-Dmaven.repo.local=/workspace-home/.m2/repository",
             *gradle_argv,
         ]
     return subprocess.run(argv, cwd=cwd, check=True, capture_output=capture_output, text=True)
