@@ -107,6 +107,7 @@ waits for the result, use that vendor's provider.
     Models and providers <model_providers>
     Operators and decorators <operators/index>
     Toolsets <toolsets/index>
+    Agent frameworks <frameworks/index>
     LLM and agent features <features>
     Document and RAG pipelines <rag_pipelines>
     Reliability and operations <operations>
