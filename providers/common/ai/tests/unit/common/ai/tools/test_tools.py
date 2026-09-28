@@ -22,8 +22,6 @@ from typing import Any
 import pytest
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolResult
-from airflow.sdk._shared.secrets_masker import reset_secrets_masker
-from airflow.sdk.log import mask_secret
 
 SECRET = "crm-password-7f2a9c"
 
@@ -69,12 +67,9 @@ class TestAirflowToolCall:
 
 @pytest.mark.enable_redact
 class TestAirflowToolMasking:
-    def setup_method(self):
-        reset_secrets_masker()
-        mask_secret(SECRET)
-
-    def teardown_method(self):
-        reset_secrets_masker()
+    @pytest.fixture(autouse=True)
+    def _secret(self, register_secret):
+        register_secret(SECRET)
 
     def test_masks_a_registered_secret_in_a_text_result(self):
         async def function(arguments: dict[str, Any]) -> ToolResult:

@@ -31,22 +31,12 @@ from pydantic_ai.usage import RunUsage
 from airflow.providers.common.ai.tools import ToolResult
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
-from airflow.sdk._shared.secrets_masker import reset_secrets_masker
-from airflow.sdk.log import mask_secret
 
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
 
 def _by_name(toolset) -> dict:
     return {tool.name: tool for tool in toolset.airflow_tools()}
-
-
-@pytest.fixture
-def db_password():
-    reset_secrets_masker()
-    mask_secret("db-password-91c3")
-    yield "db-password-91c3"
-    reset_secrets_masker()
 
 
 class TestSQLToolsetAirflowTools:
@@ -93,15 +83,17 @@ class TestSQLToolsetAirflowTools:
         ts._hook.run.assert_not_called()
 
     @pytest.mark.enable_redact
-    def test_database_error_carrying_a_secret_is_masked(self, db_password):
+    def test_database_error_carrying_a_secret_is_masked(self, registered_secret):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.run.side_effect = RuntimeError(f"could not connect to postgresql://svc:{db_password}@db")
+        ts._hook.run.side_effect = RuntimeError(
+            f"could not connect to postgresql://svc:{registered_secret}@db"
+        )
 
         result = asyncio.run(_by_name(ts)["query"].call({"sql": "SELECT 1"}))
 
         assert result.is_error
-        assert db_password not in result.content
+        assert registered_secret not in result.content
         assert "postgresql://svc:***@db" in result.content
 
     def test_calls_into_one_toolset_never_overlap(self):
