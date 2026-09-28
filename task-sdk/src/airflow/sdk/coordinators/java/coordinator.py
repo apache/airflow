@@ -33,7 +33,11 @@ from airflow.sdk.coordinators._bundle_metadata import (
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.java._dag_importer import JavaDagImporter
-from airflow.sdk.coordinators.java._jar_manifest import read_main_attributes
+from airflow.sdk.coordinators.java._jar_manifest import (
+    MAIN_CLASS,
+    SUPERVISOR_SCHEMA_VERSION,
+    read_main_attributes,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -106,7 +110,7 @@ class _JarMetadata:
         if attributes is None:
             log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
             return None
-        return cls(attributes.get("main-class"), attributes.get("airflow-supervisor-schema-version"))
+        return cls(attributes.get(MAIN_CLASS), attributes.get(SUPERVISOR_SCHEMA_VERSION))
 
 
 @attrs.define
@@ -217,7 +221,8 @@ class JavaCoordinator(SubprocessCoordinator):
         return self._build_command(roots, jar.main_class), jar.schema_version
 
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
-        # The classpath and main class match execution's, so a parse runs the code a task runs.
+        # Same command shape as execution. With one executable JAR per bundle, or main_class set,
+        # a parse runs the class a task runs.
         meta = _JarMetadata.from_jar(path)
         if meta is None:
             raise ValueError(f"Cannot read the manifest of {path}")
