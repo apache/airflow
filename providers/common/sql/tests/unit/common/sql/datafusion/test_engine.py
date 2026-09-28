@@ -23,8 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from datafusion import SessionContext
 
-from airflow.models import Connection
-from airflow.providers.common.sql.config import ConnectionConfig, DataSourceConfig
+from airflow.providers.common.sql.config import ConnectionConfig, DataSourceConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 from airflow.providers.common.sql.datafusion.exceptions import (
@@ -32,30 +31,10 @@ from airflow.providers.common.sql.datafusion.exceptions import (
     QueryExecutionException,
 )
 
-TEST_CONNECTION_CONFIG = ConnectionConfig(
-    conn_id="aws_default",
-    credentials={
-        "access_key_id": "test",
-        "secret_access_key": "test",
-        "session_token": None,
-    },
-    extra_config={"region_name": "us-east-1"},
-)
+TEST_CONNECTION_CONFIG = ConnectionConfig(conn_id="test_conn")
 
 
 class TestDataFusionEngine:
-    @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db):
-        create_connection_without_db(
-            Connection(
-                conn_id="aws_default",
-                conn_type="aws",
-                login="fake_id",
-                password="fake_secret",
-                extra='{"region": "us-east-1"}',
-            )
-        )
-
     def test_init(self):
         engine = DataFusionEngine()
         assert engine.df_ctx is not None
@@ -100,7 +79,7 @@ class TestDataFusionEngine:
         engine = DataFusionEngine()
 
         datasource_config = DataSourceConfig(
-            conn_id="aws_default", table_name="test_table", uri=f"{scheme}://bucket/path", format=format
+            conn_id="test_conn", table_name="test_table", uri=f"{scheme}://bucket/path", format=format
         )
 
         engine.df_ctx = MagicMock(spec=SessionContext)
@@ -130,7 +109,7 @@ class TestDataFusionEngine:
 
         engine = DataFusionEngine()
         datasource_config = DataSourceConfig(
-            conn_id="aws_default", table_name="test_table", uri="s3://bucket/path", format="parquet"
+            conn_id="test_conn", table_name="test_table", uri="s3://bucket/path", format="parquet"
         )
 
         with pytest.raises(ObjectStoreCreationException, match="Error while creating object store"):
@@ -143,7 +122,7 @@ class TestDataFusionEngine:
         engine.registered_tables["test_table"] = "s3://old/path"
 
         datasource_config = DataSourceConfig(
-            conn_id="aws_default", table_name="test_table", uri="s3://new/path", format="parquet"
+            conn_id="test_conn", table_name="test_table", uri="s3://new/path", format="parquet"
         )
 
         with patch.object(engine, "_register_object_store"):
@@ -247,7 +226,7 @@ class TestDataFusionEngine:
         engine = DataFusionEngine()
 
         datasource_config = DataSourceConfig(
-            conn_id="aws_default",
+            conn_id="test_conn",
             table_name="test_table",
             uri="s3://bucket/path/",
             format="parquet",
@@ -272,26 +251,40 @@ class TestDataFusionEngine:
 
         assert engine.registered_tables == {"test_table": "s3://bucket/path/"}
 
-    def test_remove_none_values(self):
-        result = DataFusionEngine._remove_none_values({"a": 1, "b": None, "c": "test", "d": None})
-        assert result == {"a": 1, "c": "test"}
-
-    def test_get_connection_config(self):
-
+    def test_get_connection_config_delegates_provider_owned_storage(self):
+        """A storage type owned by a provider package gets a bare ConnectionConfig to resolve itself."""
         engine = DataFusionEngine()
+        mock_conn = MagicMock()
+        mock_conn.conn_id = "aws_default"
+        mock_conn.conn_type = "aws"
+        mock_conn.extra_dejson = {"region": "us-east-1"}
 
-        result = engine._get_connection_config("aws_default")
-        expected = ConnectionConfig(
-            conn_id="aws_default",
-            credentials={
-                "access_key_id": "fake_id",
-                "secret_access_key": "fake_secret",
-            },
-            extra_config={"region": "us-east-1"},
-        )
-        assert result.conn_id == expected.conn_id
-        assert result.credentials == expected.credentials
-        assert result.extra_config == expected.extra_config
+        with patch(
+            "airflow.providers.common.sql.datafusion.engine.BaseHook.get_connection",
+            return_value=mock_conn,
+        ):
+            result = engine._get_connection_config("aws_default", StorageType.S3)
+
+        assert result.conn_id == "aws_default"
+        assert result.credentials == {}
+        assert result.extra_config == {}
+
+    def test_get_connection_config_resolves_embedded_storage(self):
+        """A storage type still implemented here has its credentials resolved by the engine."""
+        engine = DataFusionEngine()
+        mock_conn = MagicMock()
+        mock_conn.conn_id = "google_cloud_default"
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.extra_dejson = {"key_path": "/path/to/key.json"}
+
+        with patch(
+            "airflow.providers.common.sql.datafusion.engine.BaseHook.get_connection",
+            return_value=mock_conn,
+        ):
+            result = engine._get_connection_config("google_cloud_default", StorageType.GCS)
+
+        assert result.conn_id == "google_cloud_default"
+        assert result.credentials == {"key_path": "/path/to/key.json"}
 
     def test_get_credentials_gcs_with_key_path(self):
         mock_conn = MagicMock()

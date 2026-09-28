@@ -28,7 +28,10 @@ from airflow.providers.common.sql.datafusion.exceptions import (
     QueryExecutionException,
 )
 from airflow.providers.common.sql.datafusion.format_handlers import get_format_handler
-from airflow.providers.common.sql.datafusion.object_storage_provider import get_object_storage_provider
+from airflow.providers.common.sql.datafusion.object_storage_provider import (
+    EMBEDDED_PROVIDERS,
+    get_object_storage_provider,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -37,7 +40,6 @@ class DataFusionEngine(LoggingMixin):
 
     def __init__(self):
         super().__init__()
-        # TODO: session context has additional parameters via SessionConfig see what's possible we can use Possible via DataFusionHook ?
         self.df_ctx = SessionContext()
         self.registered_tables: dict[str, str] = {}
 
@@ -61,7 +63,9 @@ class DataFusionEngine(LoggingMixin):
             if datasource_config.storage_type == StorageType.LOCAL:
                 connection_config = None
             else:
-                connection_config = self._get_connection_config(datasource_config.conn_id)
+                connection_config = self._get_connection_config(
+                    datasource_config.conn_id, datasource_config.storage_type
+                )
 
             self._register_object_store(datasource_config, connection_config)
 
@@ -128,9 +132,12 @@ class DataFusionEngine(LoggingMixin):
         except Exception as e:
             raise QueryExecutionException(f"Error while executing query: {e}")
 
-    def _get_connection_config(self, conn_id: str) -> ConnectionConfig:
-
+    def _get_connection_config(self, conn_id: str, storage_type: StorageType | None) -> ConnectionConfig:
+        """Build a ConnectionConfig, resolving credentials only for storage types implemented here."""
         airflow_conn = BaseHook.get_connection(conn_id)
+
+        if storage_type not in EMBEDDED_PROVIDERS:
+            return ConnectionConfig(conn_id=airflow_conn.conn_id)
 
         credentials, extra_config = self._get_credentials(airflow_conn)
 
@@ -141,17 +148,8 @@ class DataFusionEngine(LoggingMixin):
         )
 
     def _get_credentials(self, conn: Connection) -> tuple[dict[str, Any], dict[str, Any]]:
-
-        credentials = {}
-        extra_config = {}
-
-        def _fetch_extra_configs(keys: list[str]) -> dict[str, Any]:
-            conf = {}
-            extra_dejson = conn.extra_dejson
-            for key in keys:
-                if key in extra_dejson:
-                    conf[key] = conn.extra_dejson[key]
-            return conf
+        credentials: dict[str, Any] = {}
+        extra_config: dict[str, Any] = {}
 
         def _get_gcp_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
             # Older Airflow connection UIs wrote custom extra fields as
@@ -162,28 +160,6 @@ class DataFusionEngine(LoggingMixin):
             return extra_dejson.get(f"extra__google_cloud_platform__{field_name}")
 
         match conn.conn_type:
-            case "aws":
-                try:
-                    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-                except ImportError:
-                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-                    raise AirflowOptionalProviderFeatureException(
-                        "Failed to import AwsGenericHook. To use the S3 storage functionality, please install the "
-                        "apache-airflow-providers-amazon package."
-                    )
-                aws_hook: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
-                creds = aws_hook.get_credentials()
-                credentials.update(
-                    {
-                        "access_key_id": conn.login or creds.access_key,
-                        "secret_access_key": conn.password or creds.secret_key,
-                        "session_token": creds.token if creds.token else None,
-                    }
-                )
-                credentials = self._remove_none_values(credentials)
-                extra_config = _fetch_extra_configs(["region", "endpoint"])
-
             case "google_cloud_platform":
                 extra_dejson = conn.extra_dejson
                 for unsupported_field in ("key_secret_name", "credential_config_file", "impersonation_chain"):
