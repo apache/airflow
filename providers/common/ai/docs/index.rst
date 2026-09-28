@@ -222,7 +222,7 @@ Extra            Dependencies
 ``openai``       ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
 ``typesafe``     ``typesafe-sdk>=0.6.0``
 ``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
-``modal``        ``modal>=1.5.0``
+``modal``        ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``

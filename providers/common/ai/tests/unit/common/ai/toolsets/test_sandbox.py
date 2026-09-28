@@ -17,23 +17,34 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
+import time_machine
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.sandbox.base import (
+    EXPIRES_AT_TAG,
+    HOLDER_TAG,
+    NETWORK_TAG,
+    OWNER_TAG,
+    AttachableSandboxBackend,
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxSpec,
     SandboxTerminalError,
+    encode_network_policy,
 )
+from airflow.providers.common.ai.toolsets import sandbox as sandbox_module
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
+
+from unit.common.ai.sandbox.fake_tags import InMemoryTagStore
 
 TOOL_NAMES = ["list_directory", "read_file", "run_command", "write_file"]
 
@@ -92,6 +103,30 @@ class _RecordingBackend(SandboxBackend):
         self.destroyed.append(sandbox)
         if self.destroy_error is not None:
             raise self.destroy_error
+
+
+class _AttachableRecordingBackend(InMemoryTagStore, _RecordingBackend, AttachableSandboxBackend):
+    """The recording double plus an in-memory tag store, so a toolset can attach to it."""
+
+    name = "attachable"
+
+    def __init__(self, *, tags=None, tags_errors: list[Exception] | None = None, **kwargs):
+        super().__init__(tags=tags, **kwargs)
+        # Consumed one per read, so a test can fail the release a set number of times.
+        self.tags_errors = list(tags_errors or [])
+
+    def read_tags(self, sandbox):
+        if self.tags_errors:
+            raise self.tags_errors.pop(0)
+        return super().read_tags(sandbox)
+
+
+def _owned(owner: str = "me", **extra: str) -> dict[str, dict[str, str]]:
+    return {"sb-1": {OWNER_TAG: owner, **extra}}
+
+
+def _task_context(dag_id="d", run_id="r", task_id="t", map_index=-1):
+    return {"ti": SimpleNamespace(dag_id=dag_id, run_id=run_id, task_id=task_id, map_index=map_index)}
 
 
 def _ctx():
@@ -698,3 +733,337 @@ class TestForRun:
         forked = await CustomToolset(_RecordingBackend()).for_run(_ctx())
 
         assert isinstance(forked, CustomToolset)
+
+
+class TestAttachMode:
+    """
+    ``attach_to``: use a sandbox another task provisioned, and leave it standing.
+
+    Outside an Airflow task there is no context to derive an owner from, which is the
+    situation these tests run in, so most of them pass ``owner`` explicitly; the ones
+    about the defaults patch the context lookup instead.
+    """
+
+    @pytest.mark.parametrize(
+        ("backend_cls", "kwargs", "match"),
+        [
+            pytest.param(
+                _RecordingBackend,
+                {"attach_to": "sb-1"},
+                "not an AttachableSandboxBackend",
+                id="plain_backend",
+            ),
+            pytest.param(
+                _AttachableRecordingBackend,
+                {"attach_to": "sb-1", "spec": SandboxSpec()},
+                "spec cannot be combined",
+                id="spec",
+            ),
+            pytest.param(
+                _AttachableRecordingBackend, {"owner": "me"}, "owner only applies", id="owner_alone"
+            ),
+            pytest.param(_AttachableRecordingBackend, {"attach_to": ""}, "empty string", id="empty_handle"),
+            pytest.param(
+                _AttachableRecordingBackend,
+                {"spec": SandboxSpec(owner="me")},
+                "SandboxSpec.owner is for",
+                id="owner_on_own",
+            ),
+        ],
+    )
+    def test_constructor_refuses_a_shape_that_cannot_work(self, backend_cls, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            SandboxToolset(backend_cls(), **kwargs)
+
+    @pytest.mark.asyncio
+    async def test_uses_the_given_sandbox_and_provisions_nothing(self):
+        backend = _AttachableRecordingBackend(tags=_owned())
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        async with ts:
+            await _call(ts, "run_command", {"command": "ls"})
+            await _call(ts, "write_file", {"path": "a", "content": "b"})
+
+        assert backend.created == []
+        assert [c[0] for c in backend.commands] == ["sb-1"]
+        assert backend.destroyed == [], "an attached sandbox is never the toolset's to destroy"
+
+    @pytest.mark.asyncio
+    async def test_claims_the_sandbox_on_enter_and_releases_it_on_exit(self):
+        backend = _AttachableRecordingBackend(tags=_owned())
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        async with ts:
+            assert backend.tags["sb-1"][HOLDER_TAG] == "me"
+
+        assert HOLDER_TAG not in backend.tags["sb-1"]
+        assert backend.tags["sb-1"][OWNER_TAG] == "me", "releasing must not strip the owner"
+
+    @pytest.mark.asyncio
+    async def test_the_wrong_owner_is_refused_before_the_model_spends_anything(self):
+        backend = _AttachableRecordingBackend(tags=_owned("someone_else"))
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        with pytest.raises(SandboxTerminalError, match="not owned by 'me'"):
+            async with ts:
+                raise AssertionError("the body must not run")
+
+        assert backend.commands == []
+
+    @pytest.mark.asyncio
+    async def test_outside_a_task_the_owner_has_to_be_given(self):
+        ts = SandboxToolset(_AttachableRecordingBackend(tags=_owned()), attach_to="sb-1")
+
+        with pytest.raises(SandboxTerminalError, match="needs an owner"):
+            async with ts:
+                pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("map_index", "holder"),
+        [pytest.param(-1, "d/r/t", id="unmapped"), pytest.param(3, "d/r/t[3]", id="mapped")],
+    )
+    async def test_inside_a_task_the_dag_run_owns_and_the_task_instance_holds(self, map_index, holder):
+        # Owner = the Dag run, so a provisioning task in the same run needs no shared
+        # secret; holder = the task instance without its try number, so a retry is the
+        # same holder while another Dag run under a shared owner, or another map index,
+        # is not.
+        backend = _AttachableRecordingBackend(tags=_owned("d/r"))
+        ts = SandboxToolset(backend, attach_to="sb-1")
+
+        with patch(
+            "airflow.providers.common.ai.toolsets.sandbox.get_current_context",
+            autospec=True,
+            return_value=_task_context(map_index=map_index),
+        ):
+            async with ts:
+                assert backend.tags["sb-1"][HOLDER_TAG] == holder
+
+    @pytest.mark.asyncio
+    async def test_an_explicit_owner_wins_over_the_dag_run(self):
+        backend = _AttachableRecordingBackend(tags=_owned("shared-pool"))
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="shared-pool")
+
+        with patch(
+            "airflow.providers.common.ai.toolsets.sandbox.get_current_context",
+            autospec=True,
+            return_value=_task_context(),
+        ):
+            async with ts:
+                assert backend.tags["sb-1"][HOLDER_TAG] == "d/r/t"
+
+    @pytest.mark.asyncio
+    async def test_a_recoverable_error_while_attaching_is_terminal(self):
+        # Nothing the model does can change whether this sandbox can be attached to.
+        backend = _AttachableRecordingBackend(tags=_owned(), tags_errors=[SandboxError("blip")])
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        with pytest.raises(SandboxTerminalError, match="Could not attach to sandbox 'sb-1'"):
+            async with ts:
+                pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", [None, "", "None"], ids=["native_none", "empty", "string_none"])
+    async def test_a_handle_that_rendered_to_nothing_fails_instead_of_provisioning(self, value):
+        # The templater writes the rendered value after construction. A missing XCom
+        # renders to None or "None", and neither may turn this into a toolset that
+        # quietly provisions a sandbox of its own.
+        backend = _AttachableRecordingBackend(tags=_owned())
+        ts = SandboxToolset(backend, attach_to="{{ ti.xcom_pull(task_ids='provision') }}", owner="me")
+        ts.attach_to = value
+
+        with pytest.raises(SandboxTerminalError, match="attach_to rendered to"):
+            async with ts:
+                pass
+        with pytest.raises(SandboxTerminalError, match="attach_to rendered to"):
+            await ts.for_run(_ctx())
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_a_tool_call_before_entering_provisions_nothing(self):
+        backend = _AttachableRecordingBackend(tags=_owned())
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        with pytest.raises(SandboxTerminalError, match="Not attached to sandbox 'sb-1'"):
+            await _call(ts, "run_command", {"command": "ls"})
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_a_release_that_keeps_failing_is_logged_with_the_holder_left_behind(
+        self, caplog, monkeypatch
+    ):
+        monkeypatch.setattr(sandbox_module, "_RELEASE_RETRY_DELAY", 0.0)
+        backend = _AttachableRecordingBackend(tags=_owned())
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        async with ts:
+            backend.tags_errors = [RuntimeError("tags service down")] * 3
+
+        assert "after 3 attempts" in caplog.text
+        assert "held by me" in caplog.text
+        assert backend.tags["sb-1"][HOLDER_TAG] == "me"
+
+    @pytest.mark.asyncio
+    async def test_a_release_blip_is_retried_and_leaves_no_claim(self, caplog, monkeypatch):
+        monkeypatch.setattr(sandbox_module, "_RELEASE_RETRY_DELAY", 0.0)
+        backend = _AttachableRecordingBackend(tags=_owned())
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        async with ts:
+            backend.tags_errors = [RuntimeError("blip"), RuntimeError("blip")]
+
+        assert HOLDER_TAG not in backend.tags["sb-1"]
+        assert "Failed to release" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_releasing_a_sandbox_that_has_ended_is_quiet(self, caplog):
+        # The sandbox reached its lifetime between the last command and the run's end.
+        # Nothing is held any more, so this is information, not a warning with a trace.
+        backend = _AttachableRecordingBackend(tags=_owned())
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        async with ts:
+            del backend.tags["sb-1"]
+
+        assert "Failed to release" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_the_sandbox_is_released_but_not_destroyed_when_a_call_raises(self):
+        backend = _AttachableRecordingBackend(tags=_owned(), run_error=SandboxTerminalError("boom"))
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        with pytest.raises(SandboxTerminalError, match="boom"):
+            async with ts:
+                await _call(ts, "run_command", {"command": "x"})
+
+        assert backend.destroyed == []
+        assert HOLDER_TAG not in backend.tags["sb-1"]
+
+    @pytest.mark.asyncio
+    async def test_a_sandbox_that_stops_under_a_command_fails_the_task(self):
+        # An owned sandbox would be replaced on the next call. This one was never ours,
+        # so the model must not be told its files are gone as if work could continue.
+        backend = _AttachableRecordingBackend(
+            tags=_owned(),
+            run_result=SandboxExecResult(
+                exit_code=-1, stdout="", stderr="", timed_out=True, sandbox_terminated=True
+            ),
+        )
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        with pytest.raises(SandboxTerminalError, match="stopped while running a command"):
+            async with ts:
+                await _call(ts, "run_command", {"command": "x"})
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_the_note_tells_the_model_whose_sandbox_it_is_what_it_reaches_and_how_long_it_has(self):
+        # The spec was the provisioning task's, so everything here comes from the tags.
+        stamped = encode_network_policy(SandboxSpec(block_network=True))
+        tags = _owned(**{EXPIRES_AT_TAG: str(1_000_000 + 30 * 60), NETWORK_TAG: stamped})
+        backend = _AttachableRecordingBackend(tags=tags)
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        with time_machine.travel(1_000_000, tick=False):
+            async with ts:
+                description = (await ts.get_tools(_ctx()))["run_command"].tool_def.description
+
+        assert "set up by an earlier task" in description
+        assert "for a later task to collect" in description
+        assert "NO network access" in description
+        assert "About 30 minutes of its lifetime remained when this run began" in description
+
+    @pytest.mark.asyncio
+    async def test_the_note_does_not_change_between_steps(self):
+        # Tool definitions are part of the cached prompt prefix; a note that counted
+        # down every step would invalidate the cache on every model call.
+        tags = _owned(**{EXPIRES_AT_TAG: str(1_000_000 + 30 * 60)})
+        ts = SandboxToolset(_AttachableRecordingBackend(tags=tags), attach_to="sb-1", owner="me")
+
+        with time_machine.travel(1_000_000, tick=False) as traveller:
+            async with ts:
+                first = (await ts.get_tools(_ctx()))["run_command"].tool_def.description
+                traveller.shift(600)
+                second = (await ts.get_tools(_ctx()))["run_command"].tool_def.description
+
+        assert first == second
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("tags", "expected"),
+        [
+            pytest.param({}, "How long it has left is not known", id="no_expiry"),
+            pytest.param({EXPIRES_AT_TAG: "0"}, "Under a minute", id="expired"),
+            pytest.param({EXPIRES_AT_TAG: str(1_000_000 + 59)}, "Under a minute", id="fifty_nine_seconds"),
+            pytest.param(
+                {EXPIRES_AT_TAG: str(1_000_000 + 75)}, "About 1 minute of", id="seventy_five_seconds"
+            ),
+            pytest.param({EXPIRES_AT_TAG: str(1_000_000 + 150)}, "About 2 minutes", id="two_and_a_half"),
+        ],
+    )
+    async def test_the_note_is_honest_about_the_clock(self, tags, expected):
+        backend = _AttachableRecordingBackend(tags=_owned(**tags))
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        with time_machine.travel(1_000_000, tick=False):
+            async with ts:
+                description = (await ts.get_tools(_ctx()))["run_command"].tool_def.description
+
+        assert expected in description
+
+    @pytest.mark.asyncio
+    async def test_without_a_network_stamp_the_note_admits_it_does_not_know(self):
+        ts = SandboxToolset(_AttachableRecordingBackend(tags=_owned()), attach_to="sb-1", owner="me")
+
+        async with ts:
+            description = (await ts.get_tools(_ctx()))["run_command"].tool_def.description
+
+        assert "whatever the task that set it up allowed" in description
+
+    @pytest.mark.asyncio
+    async def test_commands_are_shortened_to_what_the_creator_left(self, monkeypatch):
+        # Whatever backend the sandbox is on: the clamp is the toolset's, so a backend of
+        # your own gets it for free.
+        monkeypatch.setattr("airflow.providers.common.ai.toolsets.sandbox.time.monotonic", lambda: 50.0)
+        tags = _owned(**{EXPIRES_AT_TAG: str(1_000_000 + 30)})
+        backend = _AttachableRecordingBackend(tags=tags)
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me", max_command_timeout=600)
+
+        with time_machine.travel(1_000_000, tick=False):
+            async with ts:
+                await _call(ts, "run_command", {"command": "sleep 300", "timeout_seconds": 300})
+
+        assert backend.commands[0][2] == 30.0
+
+    @pytest.mark.asyncio
+    async def test_for_run_carries_the_attachment(self):
+        backend = _AttachableRecordingBackend(tags=_owned())
+        base = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        forked = await base.for_run(_ctx())
+        async with forked:
+            await forked.call_tool("run_command", {"command": "a"}, ctx=_ctx(), tool=_tool())
+
+        assert forked.attach_to == "sb-1"
+        assert [c[0] for c in backend.commands] == ["sb-1"]
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_two_runs_in_sequence_find_the_same_sandbox(self):
+        # HITL regeneration is a second run, entered on a fresh for_run copy of the
+        # toolset, exactly as pydantic-ai does it. Both find the same sandbox.
+        backend = _AttachableRecordingBackend(tags=_owned())
+        base = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        for _ in range(2):
+            run = await base.for_run(_ctx())
+            async with run:
+                await run.call_tool("run_command", {"command": "ls"}, ctx=_ctx(), tool=_tool())
+
+        assert [c[0] for c in backend.commands] == ["sb-1", "sb-1"]
+        assert backend.created == []
+        assert backend.destroyed == []
+        assert HOLDER_TAG not in backend.tags["sb-1"]

@@ -91,6 +91,12 @@ class TestSpecEnforcement:
                 spec=SandboxSpec(allow_egress_to_cidrs=["10.0.0.0/8"])
             )
 
+    def test_refuses_an_owner_because_nothing_could_attach(self, backend):
+        # A microVM on this worker cannot be reached from another task, so recording
+        # an owner would promise an attach that can never happen.
+        with pytest.raises(SandboxTerminalError, match="owner"):
+            backend.create(spec=SandboxSpec(owner="dag/run"))
+
     def test_refuses_no_egress_when_the_host_policy_is_undeclared(self):
         with pytest.raises(SandboxError, match="host policy has not been declared"):
             SbxSandboxBackend().create(spec=SandboxSpec(block_network=True))
