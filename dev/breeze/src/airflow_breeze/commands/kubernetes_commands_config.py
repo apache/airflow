@@ -57,6 +57,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--go-image",
                 "--java-image",
                 "--ts-image",
+                "--ts-sdk-native-dag-test",
             ],
         }
     ],
