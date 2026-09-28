@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.serde import U
 
-__version__ = 2
+__version__ = 3
 
 serializers = [
     "datetime.date",
@@ -53,11 +53,9 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         qn = qualname(o)
 
         if o.tzinfo is None:
-            # A naive datetime carries no timezone information, so anchor it to
-            # the configured default timezone (``core.default_timezone``) rather
-            # than the OS local timezone of the serializing process. Otherwise
-            # the stored epoch silently depends on which machine writes the value.
-            # The payload keeps ``tz`` empty so it still deserializes as naive.
+            # Anchor naive datetimes to the configured default timezone instead of the
+            # writer's OS local timezone, so the stored epoch is writer-independent.
+            # ``tz`` stays empty so the value still deserializes as naive.
             ts = make_aware(o).timestamp()
             tz = None
         else:
@@ -104,11 +102,13 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
 
     if cls is datetime.datetime and isinstance(data, dict):
         if tz is None:
-            # No timezone was stored, so this was a naive datetime. Interpret the
-            # epoch in the configured default timezone (mirroring ``serialize``)
-            # and return a naive datetime, so the round-trip compares equal to
-            # what was pushed regardless of the deserializing process's OS timezone.
-            return make_naive(datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=datetime.timezone.utc))
+            ts = float(data[TIMESTAMP])
+            if version >= 3:
+                # v3+: the epoch was anchored to the configured default timezone on write.
+                return make_naive(datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc))
+            # v1/v2: the epoch was captured in the writer's OS local timezone; keep the
+            # legacy read so in-flight payloads don't silently shift during rolling upgrades.
+            return datetime.datetime.fromtimestamp(ts)
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
     if cls is datetime.datetime and isinstance(data, int | float):
