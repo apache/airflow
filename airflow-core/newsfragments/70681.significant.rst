@@ -1,0 +1,7 @@
+Configurable secrets backend lookup order in Core and Workers
+
+Airflow now allows configuring the lookup order of secret backends via two new configuration options:
+- ``[secrets] backends_order``: Controls lookup order for core components (supports ``custom``, ``environment_variable``, and ``metastore``).
+- ``[workers] backends_order``: Controls lookup order on Task SDK workers (supports ``custom``, ``environment_variable``, and ``execution_api``).
+
+The configured order can also be inspected in the UI on the Variables page and via the ``GET /ui/backends_order`` endpoint. Default values preserve existing behavior (``custom,environment_variable,metastore`` and ``custom,environment_variable,execution_api``).
