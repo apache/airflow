@@ -32,7 +32,7 @@ from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cached_property, partial
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, get_args
 
 import httpx
 import rich
@@ -711,10 +711,6 @@ class CommandFactory:
     ) -> list[Arg]:
         """Create Arg for non-primitive type Pydantic."""
         parameter_type_map = getattr(generated_datamodels, parameter_type)
-        # Fields supplied by CLI defaults do not need an explicit argument.
-        cli_defaults = self._apply_datamodel_defaults(
-            parameter_type_map, dict.fromkeys(parameter_type_map.model_fields)
-        )
         commands = []
         # Rebuilt per visit: datamodels are shared across operations, so appending would duplicate fields.
         self.datamodels_extended_map[parameter_type] = []
@@ -736,7 +732,7 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
-                    arg_required=field_type.is_required() and cli_defaults[field] is None,
+                    arg_required=field_type.is_required() and type(None) not in get_args(field_type.annotation),
                     arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
                     if annotation is bool
                     else None,
