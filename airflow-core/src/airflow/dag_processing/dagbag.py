@@ -22,7 +22,7 @@ import os
 import sys
 import textwrap
 import warnings
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -44,8 +44,11 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
+from airflow.plugins_manager import owning_teams_of_scheduling_class
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
+from airflow.serialization.encoders import is_timetable
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -180,14 +183,68 @@ def _assign_default_team_pools(
             task.pool = Pool.get_default_team_pool_name(dag_team_name)
 
 
+def _iter_nested_timetables(timetable: Any, seen: set[int]) -> Iterator[Any]:
+    """
+    Yield ``timetable`` and every timetable it wraps, depth first.
+
+    Wrapping timetables such as ``AssetOrTimeSchedule`` take another timetable as an
+    argument, so the wrapper alone does not tell us which classes a Dag actually uses.
+    Walking attributes rather than special-casing known wrappers means a plugin's own
+    wrapping timetable is covered too, and a new wrapper in core does not silently
+    reopen the gap.
+    """
+    if id(timetable) in seen:
+        return
+    seen.add(id(timetable))
+    yield timetable
+
+    for value in getattr(timetable, "__dict__", {}).values():
+        members = value if isinstance(value, (list, tuple, set)) else (value,)
+        for member in members:
+            if is_timetable(member):
+                yield from _iter_nested_timetables(member, seen)
+
+
+def _iter_scheduling_classes(dag: DAG) -> Iterator[tuple[str, Any]]:
+    """Yield ``(description, instance)`` for each plugin-providable class the Dag uses."""
+    seen: set[int] = set()
+    for timetable in _iter_nested_timetables(dag.timetable, seen):
+        description = "its timetable" if timetable is dag.timetable else "a timetable within its schedule"
+        yield description, timetable
+
+    for task in dag.tasks:
+        weight_rule = getattr(task, "weight_rule", None)
+        if weight_rule is None:
+            continue
+        # weight_rule is either a strategy instance or a string, and the string can be a
+        # dotted path to a plugin's class or a built-in name, so resolve it the same way
+        # serialization will.
+        # An unresolvable value is not a team problem. Leave that error to serialization.
+        with contextlib.suppress(ValueError):
+            yield (
+                f"the weight_rule of task {task.task_id!r}",
+                validate_and_load_priority_weight_strategy(weight_rule),
+            )
+
+    # A Dag may carry one alert or a list of them, and each names a reference class that
+    # a plugin can provide.
+    deadline = dag.deadline
+    for alert in deadline if isinstance(deadline, list) else filter(None, [deadline]):
+        yield "one of its deadline references", alert.reference
+
+
 def _validate_plugin_scheduling_classes(dag: DAG, bundle_name: str | None = None) -> None:
     """
     Reject a Dag that uses scheduling classes belonging to another team's plugin.
 
-    Timetables and priority weight strategies are imported and instantiated by the Dag
-    author, so unlike executors or pools there is no team-aware lookup in the way. This
-    check is the only thing keeping a team-scoped plugin's scheduling classes from being
-    used by Dags outside that team.
+    Timetables, priority weight strategies and deadline references are chosen by the Dag
+    author, by importing the class or naming its path, so unlike executors or pools there
+    is no team-aware lookup in the way. This check is the only thing keeping a team-scoped
+    plugin's scheduling classes from being used by Dags outside that team.
+
+    Partition mappers and windows are not covered: a timetable returns those from
+    ``get_partition_mapper()`` when asked, so which class a Dag ends up using is not
+    visible from the parsed Dag.
 
     Raising here surfaces as an import error for the Dag, leaving the rest of the bundle
     to parse normally.
@@ -195,19 +252,9 @@ def _validate_plugin_scheduling_classes(dag: DAG, bundle_name: str | None = None
     if not conf.getboolean("core", "multi_team"):
         return
 
-    from airflow.plugins_manager import owning_teams_of_scheduling_class
-
     dag_team_name = _bundle_team_name(bundle_name)
 
-    candidates: list[tuple[str, Any]] = [("its timetable", dag.timetable)]
-    for task in dag.tasks:
-        # A string weight_rule names a built-in strategy, so only instances can come
-        # from a plugin.
-        weight_rule = getattr(task, "weight_rule", None)
-        if weight_rule is not None and not isinstance(weight_rule, str):
-            candidates.append((f"the weight_rule of task {task.task_id!r}", weight_rule))
-
-    for description, candidate in candidates:
+    for description, candidate in _iter_scheduling_classes(dag):
         owning_teams = owning_teams_of_scheduling_class(candidate)
         # No plugin registered the class, or a global plugin did: either way the class
         # itself is not tied to a team, whatever team owns this Dag.

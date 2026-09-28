@@ -635,6 +635,19 @@ def coerce_to_core_timetable(obj: object) -> object:
     return decode_timetable(encode_timetable(obj))
 
 
+def is_timetable(obj: object) -> bool:
+    """
+    Whether *obj* is a timetable, on either the Core or the Task SDK side.
+
+    An SDK timetable does not satisfy the Core ``Timetable`` protocol, so callers outside
+    this module cannot tell with a single check, and most of them should not import from
+    the SDK to do it themselves.
+
+    :meta private:
+    """
+    return isinstance(obj, (BaseTimetable, CoreTimetable))
+
+
 @overload
 def ensure_serialized_asset(obj: Asset | SerializedAsset) -> SerializedAsset: ...
 

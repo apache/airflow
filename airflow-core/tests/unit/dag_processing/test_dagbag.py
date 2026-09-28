@@ -1571,3 +1571,129 @@ class TestValidatePluginSchedulingClasses:
 
         with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", timetable_class)]):
             _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_timetable_nested_in_a_global_wrapper_is_still_found(self, mock_manager_class):
+        """A wrapper timetable must not launder another team's inner timetable."""
+        from airflow.sdk.definitions.asset import Asset
+        from airflow.timetables.assets import AssetOrTimeSchedule
+
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle("team_b")
+        with DAG(
+            "test-dag",
+            schedule=AssetOrTimeSchedule(timetable=timetable_class(), assets=[Asset("a")]),
+        ) as dag:
+            BaseOperator(task_id="t1")
+
+        with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", timetable_class)]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @pytest.mark.parametrize("as_dotted_path", [False, True], ids=["instance", "dotted-path"])
+    def test_weight_rule_is_checked_in_both_reference_forms(self, mock_manager_class, as_dotted_path):
+        """weight_rule may be an instance or a dotted path; a plugin class either way."""
+        from airflow._shared.module_loading import qualname
+
+        from unit.plugins.priority_weight_strategy import StaticTestPriorityWeightStrategy
+
+        strategy_class = StaticTestPriorityWeightStrategy
+        mock_manager_class.return_value = self._bundle("team_b")
+
+        from airflow.plugins_manager import AirflowPlugin
+
+        plugin = AirflowPlugin()
+        plugin.name = "team_a_plugin"
+        plugin.team_name = "team_a"
+        plugin.priority_weight_strategies = [strategy_class]
+
+        weight_rule = qualname(strategy_class) if as_dotted_path else strategy_class()
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", weight_rule=weight_rule)
+
+        with mock_plugin_manager(plugins=[plugin]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_builtin_weight_rule_name_is_not_rejected(self, mock_manager_class):
+        mock_manager_class.return_value = self._bundle("team_b")
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", weight_rule="downstream")
+
+        with mock_plugin_manager(plugins=[]):
+            _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_deadline_reference_from_another_team_is_rejected(self, mock_manager_class):
+        from airflow.sdk.definitions.deadline import (
+            AsyncCallback,
+            BaseDeadlineReference,
+            DeadlineAlert,
+            deadline_reference,
+        )
+
+        @deadline_reference
+        class TeamDeadlineReference(BaseDeadlineReference):
+            def _evaluate_with(self, *, session, **kwargs):
+                raise NotImplementedError
+
+        async def deadline_callback():
+            raise NotImplementedError
+
+        from airflow.plugins_manager import AirflowPlugin
+
+        plugin = AirflowPlugin()
+        plugin.name = "team_a_plugin"
+        plugin.team_name = "team_a"
+        plugin.deadline_references = [TeamDeadlineReference]
+
+        mock_manager_class.return_value = self._bundle("team_b")
+        with DAG(
+            "test-dag",
+            schedule=None,
+            deadline=DeadlineAlert(
+                reference=TeamDeadlineReference(),
+                interval=timedelta(hours=1),
+                callback=AsyncCallback(deadline_callback),
+            ),
+        ) as dag:
+            BaseOperator(task_id="t1")
+
+        with mock_plugin_manager(plugins=[plugin]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_timetable_nested_in_a_task_sdk_wrapper_is_still_found(self, mock_manager_class):
+        """A Task SDK timetable does not satisfy the core protocol, so it needs its own check."""
+        from airflow.sdk.bases.timetable import BaseTimetable
+
+        inner_class = self._timetable_class()
+
+        class SdkWrapper(BaseTimetable):
+            def __init__(self, inner):
+                self.inner = inner
+
+            def next_dagrun_info(self, *args, **kwargs): ...
+
+            def serialize(self):
+                return {}
+
+            @property
+            def summary(self):
+                return "sdk-wrapper"
+
+        mock_manager_class.return_value = self._bundle("team_b")
+        with DAG("test-dag", schedule=SdkWrapper(inner_class())) as dag:
+            BaseOperator(task_id="t1")
+
+        with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", inner_class)]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
