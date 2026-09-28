@@ -5473,6 +5473,42 @@ class TestTaskRunnerCallsCallbacks:
             expected_exception_logs.insert(index, calls)
         assert log.exception.mock_calls == expected_exception_logs
 
+    def test_on_retry_callback_raising_fail_exception_stops_retry(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        ``AirflowFailException`` from ``on_retry_callback`` fails the task instead of retrying.
+
+        Other callback errors are logged and ignored (see above), but this exception means
+        "do not retry" wherever it is raised. The supervisor reports the last terminal-state
+        message the task runner sent, so that message must be ``FAILED``.
+        """
+        collected_results = []
+
+        def retry_callback(context):
+            collected_results.append("on-retry callback")
+            raise AirflowFailException("do not retry")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                raise RuntimeError("boom")
+
+        task = CustomOperator(task_id="task", on_retry_callback=retry_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=True)
+        log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert collected_results == ["on-retry callback"]
+        sent = [
+            call.kwargs.get("msg", call.args[0] if call.args else None)
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        reports = [msg for msg in sent if isinstance(msg, (RetryTask, TaskState))]
+        assert isinstance(reports[-1], TaskState)
+        assert reports[-1].state == TaskInstanceState.FAILED
+
 
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
