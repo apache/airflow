@@ -179,6 +179,19 @@ class AirflowClient:
         """List a Dag's tasks, with the edges each one carries."""
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
 
+    def get_task_instance_links(self, dag_id: str, run_id: str, task_id: str):
+        """Get the extra links of a task instance, keyed by link name."""
+        return self._make_request(
+            method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/links"
+        )
+
+    def get_dag_source(self, dag_id: str):
+        """Get the source code stored for a Dag's latest version."""
+        return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
+
+    def get_dag_run(self, dag_id: str, run_id: str):
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
+
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
         self.un_pause_dag(dag_id)
