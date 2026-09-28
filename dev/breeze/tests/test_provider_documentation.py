@@ -40,6 +40,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     classification_result,
     classify_change_deterministically,
     drop_provider_to_doc_only,
+    format_message_for_classification,
     get_most_impactful_change,
     get_version_tag,
     update_release_notes,
@@ -412,6 +413,15 @@ def test_version_bump_for_provider_documentation(initial_version, bump_index, ex
 )
 def test_get_most_impactful_change(changes, expected):
     assert get_most_impactful_change(changes) == expected
+
+
+def test_format_message_for_classification_links_every_reference_to_its_own_number():
+    message = "Fix td_format rendering of negative durations (#72694) (#72774)"
+    assert format_message_for_classification(message) == (
+        "Fix td_format rendering of negative durations "
+        "(https://github.com/apache/airflow/pull/72694) "
+        "(https://github.com/apache/airflow/pull/72774)"
+    )
 
 
 @pytest.mark.parametrize(
