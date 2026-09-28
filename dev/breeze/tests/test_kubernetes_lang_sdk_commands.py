@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from click.testing import CliRunner
 
 from airflow_breeze.commands import kubernetes_commands
 from airflow_breeze.commands.kubernetes_commands import (
@@ -375,6 +376,113 @@ class TestSetupLangSdkTestNativeSelection:
             "go_sdk": fake_go_sdk,
             "java_sdk": fake_java_sdk,
         }
+
+
+class TestSetupLangSdkTestTypeScriptGate:
+    """The TypeScript artifacts need a Node toolchain, so only the native TypeScript Dag test builds them."""
+
+    @pytest.fixture
+    def recorded(self, monkeypatch, tmp_path):
+        recorded: dict[str, object] = {}
+
+        def fake_parallel(steps, output):
+            recorded["steps"] = [title for title, _thunk in steps]
+
+        monkeypatch.setattr(kubernetes_commands, "_run_lang_sdk_parallel", fake_parallel)
+        monkeypatch.setattr(
+            kubernetes_commands,
+            "_lang_sdk_resolve_sdk_sources",
+            lambda staging, output: (tmp_path / "go_sdk", tmp_path / "java_sdk"),
+        )
+        monkeypatch.setattr(
+            kubernetes_commands,
+            "_lang_sdk_upload_artifacts",
+            lambda *args, typescript: recorded.update(typescript=typescript),
+        )
+        for name in ("_lang_sdk_apply_configmaps_and_secret", "_lang_sdk_deploy_airflow"):
+            monkeypatch.setattr(kubernetes_commands, name, lambda *a, **k: None)
+        monkeypatch.setattr(
+            kubernetes_commands,
+            "BuildProdParams",
+            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+        )
+        return recorded
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_steps", "expected_typescript"),
+        [
+            pytest.param(
+                {},
+                ["Build Go bundle", "Build Java jar", "Deploy localstack", "Build Java worker image"],
+                False,
+                id="default-go-and-java-only",
+            ),
+            pytest.param(
+                {"ts_sdk_native_dag_test": True},
+                [
+                    "Build Go bundle",
+                    "Build Java jar",
+                    "Build TypeScript bundle",
+                    "Deploy localstack",
+                    "Build Java worker image",
+                    "Build TypeScript worker image",
+                ],
+                True,
+                id="native-ts-dag-test",
+            ),
+            pytest.param(
+                {"ts_sdk_native_dag_test": True, "ts_image": "my-ts-worker:1"},
+                [
+                    "Build Go bundle",
+                    "Build Java jar",
+                    "Build TypeScript bundle",
+                    "Deploy localstack",
+                    "Build Java worker image",
+                ],
+                True,
+                id="native-ts-dag-test-with-given-image",
+            ),
+        ],
+    )
+    def test_typescript_steps_follow_the_flag(self, recorded, kwargs, expected_steps, expected_typescript):
+        kubernetes_commands._setup_lang_sdk_test(python="3.10", kubernetes_version="v1.35.0", **kwargs)
+
+        assert recorded == {"steps": expected_steps, "typescript": expected_typescript}
+
+    @pytest.mark.parametrize("typescript", [False, True])
+    @mock.patch.object(kubernetes_commands, "run_command_with_k8s_env")
+    def test_upload_artifacts_uploads_typescript_only_when_asked(
+        self, mock_run, typescript, dry_run, tmp_path
+    ):
+        mock_run.return_value = mock.Mock(stdout="")
+
+        _lang_sdk_upload_artifacts(tmp_path, "3.10", "v1.35.0", None, typescript=typescript)
+
+        commands = [" ".join(map(str, call.args[0])) for call in mock_run.call_args_list]
+        assert any("ts-artifacts" in command for command in commands) is typescript
+        assert any("typescript_example.py" in command for command in commands) is typescript
+
+    @pytest.mark.parametrize(
+        ("args", "env", "expected"),
+        [
+            pytest.param([], {}, False, id="default"),
+            pytest.param(["--ts-sdk-native-dag-test"], {}, True, id="flag"),
+            pytest.param([], {"RUN_TS_SDK_NATIVE_DAG_K8S_TESTS": "true"}, True, id="env"),
+        ],
+    )
+    @mock.patch.object(kubernetes_commands, "make_sure_kubernetes_tools_are_installed")
+    @mock.patch.object(kubernetes_commands, "sync_virtualenv")
+    @mock.patch.object(kubernetes_commands, "_setup_lang_sdk_test")
+    def test_command_passes_the_flag(
+        self, mock_setup, mock_sync, _mock_tools, args, env, expected, monkeypatch
+    ):
+        monkeypatch.delenv("RUN_TS_SDK_NATIVE_DAG_K8S_TESTS", raising=False)
+        mock_sync.return_value = mock.Mock(returncode=0)
+
+        result = CliRunner().invoke(kubernetes_commands.setup_lang_sdk_test, args, env=env)
+
+        assert result.exit_code == 0, result.output
+        assert mock_setup.call_args.kwargs["ts_sdk_native_dag_test"] is expected
 
 
 class TestLangSdkResolveSdkSources:

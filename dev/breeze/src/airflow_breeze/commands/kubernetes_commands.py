@@ -2933,9 +2933,13 @@ def _lang_sdk_deploy_localstack(python: str, kubernetes_version: str, output: Ou
 
 
 def _lang_sdk_upload_artifacts(
-    staging: Path, python: str, kubernetes_version: str, output: Output | None
+    staging: Path, python: str, kubernetes_version: str, output: Output | None, *, typescript: bool = False
 ) -> None:
-    """Copy artifacts + stub Dag into the localstack pod and create/fill S3 buckets via awslocal."""
+    """
+    Copy artifacts + stub Dag into the localstack pod and create/fill S3 buckets via awslocal.
+
+    ``typescript`` also uploads the TypeScript bundle and the Dag its native Dag triggers.
+    """
     pod = run_command_with_k8s_env(
         [
             "kubectl",
@@ -2957,30 +2961,43 @@ def _lang_sdk_upload_artifacts(
     ).stdout.strip()
 
     go_bundle = staging / "go-artifacts" / "lang_sdk_combined"
-    ts_bundle = staging / "ts-artifacts" / LANG_SDK_TS_BUNDLE_NAME
     if get_dry_run():
         # The dry-run build steps produce no jar; use the placeholder name so the commands still print.
         java_jar = staging / "java-artifacts" / "app.jar"
     else:
         java_jar = next((staging / "java-artifacts").glob("*.jar"))
     stub_dag = LANG_SDK_PATH / "dags" / "lang_sdk_combined.py"
-    # The native TypeScript Dag triggers this one, so it has to be in the
-    # cluster for its trigger task to have a target. It is the same Python Dag
-    # the mixed-language half of `ts-sdk/example` is written against.
-    ts_stub_dag = LANG_SDK_TS_EXAMPLE_PATH / "dags" / "typescript_example.py"
-
-    for src, dest in (
+    copies = [
         (go_bundle, "/tmp/go_bundle"),
         (java_jar, "/tmp/app.jar"),
-        (ts_bundle, f"/tmp/{LANG_SDK_TS_BUNDLE_NAME}"),
         (stub_dag, "/tmp/lang_sdk_combined.py"),
-        (ts_stub_dag, "/tmp/typescript_example.py"),
-    ):
+    ]
+    buckets = ["go-artifacts", "java-artifacts", "dags"]
+    uploads = [
+        ("/tmp/go_bundle", "s3://go-artifacts/lang_sdk_combined"),
+        ("/tmp/app.jar", "s3://java-artifacts/app.jar"),
+        ("/tmp/lang_sdk_combined.py", "s3://dags/lang_sdk_combined.py"),
+    ]
+    if typescript:
+        # The native TypeScript Dag triggers typescript_example, so it has to be in the
+        # cluster for its trigger task to have a target. It is the same Python Dag
+        # the mixed-language half of `ts-sdk/example` is written against.
+        copies += [
+            (staging / "ts-artifacts" / LANG_SDK_TS_BUNDLE_NAME, f"/tmp/{LANG_SDK_TS_BUNDLE_NAME}"),
+            (LANG_SDK_TS_EXAMPLE_PATH / "dags" / "typescript_example.py", "/tmp/typescript_example.py"),
+        ]
+        buckets.append("ts-artifacts")
+        uploads += [
+            (f"/tmp/{LANG_SDK_TS_BUNDLE_NAME}", f"s3://ts-artifacts/{LANG_SDK_TS_BUNDLE_NAME}"),
+            ("/tmp/typescript_example.py", "s3://dags/typescript_example.py"),
+        ]
+
+    for src, dest in copies:
         _lang_sdk_kubectl(
             ["cp", str(src), f"{HELM_AIRFLOW_NAMESPACE}/{pod}:{dest}"], python, kubernetes_version, output
         )
 
-    for bucket in ("go-artifacts", "java-artifacts", "ts-artifacts", "dags"):
+    for bucket in buckets:
         _lang_sdk_kubectl(
             ["exec", "-n", HELM_AIRFLOW_NAMESPACE, pod, "--", "awslocal", "s3", "mb", f"s3://{bucket}"],
             python,
@@ -2988,13 +3005,6 @@ def _lang_sdk_upload_artifacts(
             output,
             check=False,
         )
-    uploads = (
-        ("/tmp/go_bundle", "s3://go-artifacts/lang_sdk_combined"),
-        ("/tmp/app.jar", "s3://java-artifacts/app.jar"),
-        (f"/tmp/{LANG_SDK_TS_BUNDLE_NAME}", f"s3://ts-artifacts/{LANG_SDK_TS_BUNDLE_NAME}"),
-        ("/tmp/lang_sdk_combined.py", "s3://dags/lang_sdk_combined.py"),
-        ("/tmp/typescript_example.py", "s3://dags/typescript_example.py"),
-    )
     for src, dest in uploads:
         _lang_sdk_kubectl(
             ["exec", "-n", HELM_AIRFLOW_NAMESPACE, pod, "--", "awslocal", "s3", "cp", src, dest],
@@ -3179,17 +3189,21 @@ def _setup_lang_sdk_test(
     go_image: str | None = None,
     java_image: str | None = None,
     ts_image: str | None = None,
+    ts_sdk_native_dag_test: bool = False,
     output: Output | None = None,
 ) -> None:
     """Provision the lang-SDK coordinator env on an already-deployed KubernetesExecutor cluster.
 
-    Resolves the go-sdk/java-sdk sources, then builds the Go/Java/TypeScript artifacts, the Java
-    and TypeScript worker images and deploys localstack in parallel, then serially uploads the
-    artifacts, applies the config + secret, and helm-upgrades Airflow with the lang-SDK values.
+    Resolves the go-sdk/java-sdk sources, then builds the Go/Java artifacts, the Java worker
+    image and deploys localstack in parallel, then serially uploads the artifacts, applies the
+    config + secret, and helm-upgrades Airflow with the lang-SDK values.
+
+    ``ts_sdk_native_dag_test`` also builds the TypeScript bundle and worker image, which need a
+    Node toolchain, for the native TypeScript Dag test.
     """
     go_image = go_image or f"{BuildProdParams(python=python).airflow_image_kubernetes}:latest"
     build_java_image = java_image is None
-    build_ts_image = ts_image is None
+    build_ts_image = ts_sdk_native_dag_test and ts_image is None
     if java_image is None:
         # The worker-image build below produces this fixed tag; resolve it up-front so the config
         # rendering (which needs the tag, not the build result) does not depend on the parallel run.
@@ -3211,12 +3225,14 @@ def _setup_lang_sdk_test(
                 "Build Java jar",
                 lambda o: _lang_sdk_build_java_jar(staging, java_sdk_source, o, native=native),
             ),
-            (
-                "Build TypeScript bundle",
-                lambda o: _lang_sdk_build_ts_bundle(staging, o, native=native),
-            ),
-            ("Deploy localstack", lambda o: _lang_sdk_deploy_localstack(python, kubernetes_version, o)),
         ]
+        if ts_sdk_native_dag_test:
+            steps.append(
+                ("Build TypeScript bundle", lambda o: _lang_sdk_build_ts_bundle(staging, o, native=native))
+            )
+        steps.append(
+            ("Deploy localstack", lambda o: _lang_sdk_deploy_localstack(python, kubernetes_version, o))
+        )
         if build_java_image:
             steps.append(
                 (
@@ -3232,17 +3248,19 @@ def _setup_lang_sdk_test(
                 )
             )
         _run_lang_sdk_parallel(steps, output=output)
-        _lang_sdk_upload_artifacts(staging, python, kubernetes_version, output)
+        _lang_sdk_upload_artifacts(
+            staging, python, kubernetes_version, output, typescript=ts_sdk_native_dag_test
+        )
     _lang_sdk_apply_configmaps_and_secret(python, kubernetes_version, go_image, java_image, ts_image, output)
     _lang_sdk_deploy_airflow(python, kubernetes_version, output)
 
 
 @kubernetes_group.command(
     name="setup-lang-sdk-test",
-    help="Provision the lang-SDK (Go + Java + TypeScript) coordinator system test on an "
-    "already-deployed KubernetesExecutor cluster: build artifacts, build + load the Java and "
-    "TypeScript worker images, deploy localstack S3, upload artifacts + stub Dag, create config, "
-    "and upgrade the Helm release. "
+    help="Provision the lang-SDK (Go + Java) coordinator system test on an already-deployed "
+    "KubernetesExecutor cluster: build artifacts, build + load the Java worker image, deploy "
+    "localstack S3, upload artifacts + stub Dag, create config, and upgrade the Helm release. "
+    "With --ts-sdk-native-dag-test it also builds the TypeScript bundle and worker image. "
     "Run the test afterwards with `RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests "
     "--executor KubernetesExecutor -- -k test_lang_sdk_combined_dag_succeeds`.",
 )
@@ -3260,7 +3278,17 @@ def _setup_lang_sdk_test(
 @click.option(
     "--ts-image",
     help="Image for the TypeScript (NodeCoordinator) worker pod. Must include Node. Defaults to "
-    "building the prod image plus Node (Dockerfile.typescript) and loading it into the kind cluster.",
+    "building the prod image plus Node (Dockerfile.typescript) and loading it into the kind cluster. "
+    "Used with --ts-sdk-native-dag-test.",
+)
+@click.option(
+    "--ts-sdk-native-dag-test/--no-ts-sdk-native-dag-test",
+    help="Also provision the native TypeScript Dag test: pack the TypeScript bundle, which needs a "
+    "Node toolchain, and build the TypeScript worker image. Off by default, so the Go + Java test "
+    "needs no Node toolchain.",
+    default=False,
+    show_default=True,
+    envvar="RUN_TS_SDK_NATIVE_DAG_K8S_TESTS",
 )
 @option_verbose
 @option_dry_run
@@ -3270,6 +3298,7 @@ def setup_lang_sdk_test(
     go_image: str | None,
     java_image: str | None,
     ts_image: str | None,
+    ts_sdk_native_dag_test: bool,
 ):
     result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
@@ -3281,6 +3310,7 @@ def setup_lang_sdk_test(
         go_image=go_image,
         java_image=java_image,
         ts_image=ts_image,
+        ts_sdk_native_dag_test=ts_sdk_native_dag_test,
         output=None,
     )
     console_print(
