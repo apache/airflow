@@ -138,6 +138,41 @@ The parameters you need to configure for this Operator will depend upon which ``
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
 
+Overriding the task definition
+""""""""""""""""""""""""""""""
+
+``overrides`` is passed to the ECS ``RunTask`` API unchanged, so it follows that API's rules.
+Those rules are not the same for every field: within a container override, ``environment`` is
+merged into the environment the task definition already defines, while the other fields replace
+the task definition's value.
+
+.. code-block:: python
+
+    overrides={
+        "containerOverrides": [
+            {
+                "name": container_name,
+                "command": ["run", "--mode", "backfill"],
+                "environment": [{"name": "MODE", "value": "backfill"}],
+            },
+        ],
+    }
+
+For the container above, ``command`` replaces the task definition's command outright, while
+``MODE`` is added to (or overrides) the variables the task definition already sets. Every other
+variable defined in the task definition is still passed to the container.
+
+.. note::
+
+    ``environment`` cannot be used to *unset* a variable. A variable that is no longer wanted has
+    to be removed from the task definition itself: omitting it from ``overrides`` leaves the task
+    definition's value in place.
+
+``cpu``, ``memory``, ``memoryReservation``, ``resourceRequirements`` and ``environmentFiles``
+all replace the task definition's value rather than adding to it. See
+`ContainerOverride <https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerOverride.html>`__
+in the Amazon ECS API reference for the full list of fields.
+
 Stream logs to AWS CloudWatch
 """""""""""""""""""""""""""""
 
