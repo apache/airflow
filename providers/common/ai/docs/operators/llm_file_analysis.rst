@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_file_analysis:
 
-``LLMFileAnalysisOperator`` & ``@task.llm_file_analysis``
-=========================================================
+Analyze files and images: ``LLMFileAnalysisOperator``
+=====================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
 or the ``@task.llm_file_analysis`` decorator to analyze files from object storage
@@ -152,15 +152,22 @@ Parameters
   ``BaseModel`` for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
   ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
   ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
   Pydantic instance flows through XCom unchanged. Set to ``True`` when a
   downstream consumer needs the dict shape.
 
+``decision_policy`` is not supported here: the operator runs its own ``execute``
+without the confidence gate and rejects a policy with a bar at construction.
+
 This operator also inherits ``LLMOperator``'s HITL review parameters --
-``require_approval``, ``approval_timeout``, ``on_approval_timeout``, and
-``allow_modifications`` -- see :doc:`llm` for details.
+``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+``allow_modifications``, ``approval_notifiers``, and ``approval_assigned_users`` --
+see :doc:`llm` for details.
 
 Supported Formats
 -----------------
@@ -185,5 +192,5 @@ Parquet and Avro readers require their corresponding optional extras:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai[parquet]
-    pip install apache-airflow-providers-common-ai[avro]
+    pip install "apache-airflow-providers-common-ai[parquet]"
+    pip install "apache-airflow-providers-common-ai[avro]"

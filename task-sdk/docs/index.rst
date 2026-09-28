@@ -86,6 +86,7 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.BaseOperator`
 - :class:`airflow.sdk.BaseOperatorLink`
 - :class:`airflow.sdk.BaseSensorOperator`
+- :class:`airflow.sdk.ChainRetryPolicy`
 - :class:`airflow.sdk.Connection`
 - :class:`airflow.sdk.Context`
 - :class:`airflow.sdk.DAG`

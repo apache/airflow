@@ -293,7 +293,7 @@ class AssetsOperations(BaseOperations):
 
     def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
         """Materialize an asset."""
-        self.response = self.client.post(f"assets/{asset_id}/materialize")
+        self.response = self.client.post(f"assets/{asset_id}/materialize", json={})
         return DAGRunResponse.model_validate_json(self.response.content)
 
     def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:
@@ -391,17 +391,17 @@ class BackfillOperations(BaseOperations):
 
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/pause")
+        self.response = self.client.put(f"backfills/{backfill_id}/pause")
         return BackfillResponse.model_validate_json(self.response.content)
 
     def unpause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Unpause a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/unpause")
+        self.response = self.client.put(f"backfills/{backfill_id}/unpause")
         return BackfillResponse.model_validate_json(self.response.content)
 
     def cancel(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Cancel a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/cancel")
+        self.response = self.client.put(f"backfills/{backfill_id}/cancel")
         return BackfillResponse.model_validate_json(self.response.content)
 
 

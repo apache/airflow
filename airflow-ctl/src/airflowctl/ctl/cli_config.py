@@ -106,6 +106,17 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "If you need help, run the command with --help."
             )
         sys.exit(1)
+    # Must stay below ``ServerResponseError``, which subclasses it. Responses the client could not
+    # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
+    # as the bare httpx error.
+    except httpx.HTTPStatusError as e:
+        rich.print(f"[red]Server response error: {e}[/red]")
+        if e.response.is_redirect:
+            rich.print(
+                "[red]The server answered with a redirect, which airflowctl does not follow. "
+                "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
+            )
+        sys.exit(1)
 
 
 class DefaultHelpParser(argparse.ArgumentParser):

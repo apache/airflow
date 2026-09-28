@@ -18,8 +18,8 @@
 """
 Read and verify TypeScript Dag bundles.
 
-File order: layout comment, metadata comment, then executable JavaScript.
-Read the headers, verify the section digests, and return coordinator metadata.
+File order: layout comment, metadata comment, source block comment, then executable JavaScript.
+Read the headers, verify the section digests, and return coordinator metadata or the source.
 """
 
 from __future__ import annotations
@@ -44,7 +44,13 @@ _LAYOUT_COMMENT_PREFIX = b"//# airflowBundle="
 _MAX_LAYOUT_LINE_BYTES = 4096
 _METADATA_COMMENT_PREFIX = b"//# airflowMetadata="
 _MAX_METADATA_LINE_BYTES = 1024 * 1024
+# A block comment, because the entrypoint spans more than one line.
+_SOURCE_COMMENT_OPEN = b"/*# airflowSource\n"
+_SOURCE_COMMENT_CLOSE = b"\n#*/\n"
+_MAX_SOURCE_BYTES = 1024 * 1024
 _SUPPORTED_BUNDLE_MAJOR_VERSION = 1
+# Reverses the packer's escaping of ``*/``, the only sequence that could close the comment early.
+_SOURCE_ESCAPE = re.compile(rb"\*\\([\\/])")
 
 # Bound hashing memory and process-local cache growth independently of the format.
 _HASH_CHUNK_BYTES = 1024 * 1024
@@ -63,9 +69,10 @@ class _DeclaredSection:
 
 @attrs.define(frozen=True)
 class _BundleLayout:
-    """The metadata and executable sections described by the layout comment."""
+    """The metadata, source, and executable sections described by the layout comment."""
 
     metadata: _DeclaredSection
+    source: _DeclaredSection
     code: _DeclaredSection
 
 
@@ -75,6 +82,7 @@ class _DigestCacheKey:
 
     path: str
     metadata: _DeclaredSection
+    source: _DeclaredSection
     code: _DeclaredSection
     device: int
     inode: int
@@ -88,6 +96,7 @@ class _ComputedDigests:
     """SHA-256 digests calculated from the actual section bytes."""
 
     metadata: bytes
+    source: bytes
     code: bytes
 
 
@@ -106,6 +115,25 @@ class BundleMetadata:
 
 def read_bundle(bundle_path: pathlib.Path) -> BundleMetadata:
     """Read and verify one exact TypeScript bundle file."""
+    # Interpret metadata only after checking its serialized bytes against the declared digest.
+    return _parse_bundle_metadata(_read_verified_payloads(bundle_path).metadata)
+
+
+def read_bundle_source(bundle_path: pathlib.Path) -> str:
+    """Return the entrypoint source ``airflow-ts-pack`` embedded in *bundle_path*."""
+    return _decode_source(_read_verified_payloads(bundle_path).source)
+
+
+@attrs.define(frozen=True)
+class _VerifiedPayloads:
+    """The metadata and source payloads of a bundle whose digests have been checked."""
+
+    metadata: bytes
+    source: bytes
+
+
+def _read_verified_payloads(bundle_path: pathlib.Path) -> _VerifiedPayloads:
+    """Open *bundle_path* once, check its framing and digests, and return its payloads."""
     try:
         bundle_file = bundle_path.open("rb")
     except OSError as exc:
@@ -118,13 +146,19 @@ def read_bundle(bundle_path: pathlib.Path) -> BundleMetadata:
         except OSError as exc:
             raise OSError(f"cannot read {bundle_path.name}: {exc}") from exc
 
-        layout, metadata_payload = _read_bundle_headers(
+        layout, payloads = _read_bundle_headers(
             bundle_file, path=bundle_path, file_size=initial_file_info.st_size
         )
         _verify_integrity(bundle_file, path=bundle_path, layout=layout, initial_file_info=initial_file_info)
 
-    # Interpret metadata only after checking its serialized bytes against the declared digest.
-    return _parse_bundle_metadata(metadata_payload)
+    return payloads
+
+
+def _decode_source(payload: bytes) -> str:
+    try:
+        return _SOURCE_ESCAPE.sub(rb"*\1", payload).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"embedded airflow source is not valid UTF-8: {exc}") from exc
 
 
 class _BundleDigestCache:
@@ -191,6 +225,7 @@ def _parse_layout(payload: bytes) -> _BundleLayout:
         raise ValueError("embedded airflow bundle layout must contain a mapping")
     return _BundleLayout(
         metadata=_parse_section(layout, "metadata"),
+        source=_parse_section(layout, "source"),
         code=_parse_section(layout, "code"),
     )
 
@@ -266,6 +301,9 @@ def _compute_stable_digests(
         metadata=_hash_region(
             bundle_file, start=layout.metadata.start, end=layout.metadata.end, path=path, section="metadata"
         ),
+        source=_hash_region(
+            bundle_file, start=layout.source.start, end=layout.source.end, path=path, section="source"
+        ),
         code=_hash_region(
             bundle_file, start=layout.code.start, end=layout.code.end, path=path, section="code"
         ),
@@ -290,6 +328,7 @@ def _verify_integrity(
     cache_key = _DigestCacheKey(
         path=os.fspath(path),
         metadata=layout.metadata,
+        source=layout.source,
         code=layout.code,
         device=initial_file_info.st_dev,
         inode=initial_file_info.st_ino,
@@ -307,6 +346,7 @@ def _verify_integrity(
 
     for section, computed_digest, declared_digest in (
         ("metadata", computed_digests.metadata, layout.metadata.sha256),
+        ("source", computed_digests.source, layout.source.sha256),
         ("code", computed_digests.code, layout.code.sha256),
     ):
         if computed_digest != declared_digest:
@@ -335,19 +375,20 @@ def _parse_bundle_metadata(payload: bytes) -> BundleMetadata:
             f"unsupported airflow bundle metadata version {value!r}; "
             f"this runtime supports major version {_SUPPORTED_BUNDLE_MAJOR_VERSION}"
         )
-    dags = metadata.get("dags")
-    if not isinstance(dags, dict):
-        raise ValueError("embedded airflow metadata must contain a dags mapping")
+    # Keyed by Dag, but named for what the bundle provides: handlers for Dags declared elsewhere.
+    task_handlers = metadata.get("task_handlers")
+    if not isinstance(task_handlers, dict):
+        raise ValueError("embedded airflow metadata must contain a task_handlers mapping")
     return BundleMetadata(
-        dag_ids=frozenset(dags),
+        dag_ids=frozenset(task_handlers),
         supervisor_schema_version=extract_supervisor_schema_version(metadata),
     )
 
 
 def _read_bundle_headers(
     bundle_file: BinaryIO, *, path: pathlib.Path, file_size: int
-) -> tuple[_BundleLayout, bytes]:
-    """Read both comment payloads and check their declared ranges against the file."""
+) -> tuple[_BundleLayout, _VerifiedPayloads]:
+    """Read every comment payload and check their declared ranges against the file."""
     layout_payload = _read_prefixed_line(
         bundle_file,
         path=path,
@@ -368,9 +409,39 @@ def _read_bundle_headers(
     layout_line_size = len(_LAYOUT_COMMENT_PREFIX) + len(layout_payload) + 1
     metadata_start = layout_line_size + len(_METADATA_COMMENT_PREFIX)
     metadata_end = metadata_start + len(metadata_payload)
-    code_start = metadata_end + 1
     if (layout.metadata.start, layout.metadata.end) != (metadata_start, metadata_end):
         raise ValueError("bundle layout metadata offsets do not match the metadata section")
+    source_payload = _read_source_region(
+        bundle_file, path=path, start=metadata_end + 1 + len(_SOURCE_COMMENT_OPEN), layout=layout
+    )
+    code_start = layout.source.end + len(_SOURCE_COMMENT_CLOSE)
     if (layout.code.start, layout.code.end) != (code_start, file_size):
         raise ValueError("bundle layout code offsets do not match the executable section")
-    return layout, metadata_payload
+    return layout, _VerifiedPayloads(metadata=metadata_payload, source=source_payload)
+
+
+def _read_source_region(
+    bundle_file: BinaryIO, *, path: pathlib.Path, start: int, layout: _BundleLayout
+) -> bytes:
+    """Read the source block comment and check that it frames the declared range exactly."""
+    # The length is declared, not derivable, so the comment markers pin the range to real bytes.
+    if layout.source.start != start:
+        raise ValueError("bundle layout source offsets do not match the source section")
+    length = layout.source.end - start
+    if length > _MAX_SOURCE_BYTES:
+        raise ValueError(f"embedded airflow source exceeds {_MAX_SOURCE_BYTES} bytes")
+    try:
+        opener = bundle_file.read(len(_SOURCE_COMMENT_OPEN))
+        payload = bundle_file.read(length)
+        closer = bundle_file.read(len(_SOURCE_COMMENT_CLOSE))
+    except OSError as exc:
+        raise OSError(f"cannot read {path.name}: {exc}") from exc
+    if opener != _SOURCE_COMMENT_OPEN:
+        raise ValueError(f"{path.name} has no embedded airflow source after its metadata")
+    if len(payload) != length or closer != _SOURCE_COMMENT_CLOSE:
+        raise ValueError("embedded airflow source is not closed by its block comment")
+    # An unescaped ``*/`` would end the comment where Node reads the file,
+    # so bytes the layout calls source would execute while both digests still match.
+    if b"*/" in payload:
+        raise ValueError("embedded airflow source contains an unescaped block comment terminator")
+    return payload

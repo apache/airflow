@@ -61,7 +61,7 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
 .. note::
     The scheduler is designed for high throughput. This is an informed design decision to achieve scheduling
-    tasks as soon as possible. The scheduler checks how many free slots available in a pool and schedule at most that number of tasks instances in one iteration.
+    tasks as soon as possible. The scheduler checks how many free slots are available in a pool and schedules at most that number of task instances in one iteration.
     This means that task priority will only come into effect when there are more scheduled tasks
     waiting than the queue slots. Thus there can be cases where low priority tasks will be scheduled before high priority tasks if they share the same batch.
     For more read about that you can reference `this GitHub discussion <https://github.com/apache/airflow/discussions/28809>`__.
@@ -71,7 +71,7 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 Running More Than One Scheduler
 -------------------------------
 
-.. versionadded: 2.0.0
+.. versionadded:: 2.0.0
 
 Airflow supports running more than one scheduler concurrently -- both for performance reasons and for
 resiliency.
@@ -283,6 +283,7 @@ However, you can also look at other non-performance-related scheduler configurat
   monitored by this scheduler instead.
 
 - :ref:`config:scheduler__max_tis_per_query`
+
   The batch size of queries in the scheduling main loop. This should not be greater than
   ``core.parallelism``. If this is too high then SQL query performance may be impacted by
   complexity of query predicate, and/or excessive locking.
@@ -291,6 +292,7 @@ However, you can also look at other non-performance-related scheduler configurat
   Set this to 0 to use the value of ``core.parallelism``.
 
 - :ref:`config:scheduler__scheduler_idle_sleep_time`
+
   Controls how long the scheduler will sleep between loops, but if there was nothing to do
   in the loop. i.e. if it scheduled something then it will start the next loop
   iteration straight away. This parameter is badly named (historical reasons) and it will be

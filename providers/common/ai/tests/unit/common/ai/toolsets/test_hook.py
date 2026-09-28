@@ -85,6 +85,61 @@ class TestHookToolsetInit:
         assert "FakeHook" in ts.id
 
 
+class _FakeConnHook(_FakeHook):
+    """A hook that names its connection attribute, like every provider hook does."""
+
+    conn_name_attr = "fake_conn_id"
+
+    def __init__(self, fake_conn_id: str = "fake_default"):
+        self.fake_conn_id = fake_conn_id
+
+
+class TestHookToolsetConnId:
+    def test_conn_id_is_read_from_the_hooks_conn_name_attr(self):
+        ts = HookToolset(_FakeConnHook("warehouse"), allowed_methods=["list_keys"])
+
+        assert ts.conn_id == "warehouse"
+        assert ts.id == "hook-_FakeConnHook-warehouse"
+
+    def test_a_hook_without_conn_name_attr_has_no_conn_id(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+
+        assert ts.conn_id is None
+        assert ts.id == "hook-_FakeHook"
+
+    def test_setting_conn_id_copies_the_hook(self):
+        """The hook in the Dag file is shared by every task instance that uses the toolset."""
+        hook = _FakeConnHook("tenant_{{ customer }}")
+        ts = HookToolset(hook, allowed_methods=["list_keys"])
+
+        ts.conn_id = "tenant_acme"
+
+        assert ts.conn_id == "tenant_acme"
+        assert ts._hook is not hook
+        assert hook.fake_conn_id == "tenant_{{ customer }}"
+
+    def test_setting_conn_id_on_a_hook_without_one_raises(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+
+        with pytest.raises(AttributeError, match="keeps no connection ID"):
+            ts.conn_id = "x"
+
+    def test_falls_back_to_conn_id_when_conn_name_attr_is_not_set(self):
+        """WasbHook and KubernetesHook declare one attribute and keep the ID in ``conn_id``."""
+
+        class _WasbShapedHook(_FakeHook):
+            conn_name_attr = "wasb_conn_id"
+
+            def __init__(self, wasb_conn_id: str):
+                self.conn_id = wasb_conn_id
+
+        ts = HookToolset(_WasbShapedHook("blob_{{ customer }}"), allowed_methods=["list_keys"])
+        ts.conn_id = "blob_acme"
+
+        assert ts.conn_id == "blob_acme"
+        assert ts.id == "hook-_WasbShapedHook-blob_acme"
+
+
 class TestHookToolsetGetTools:
     def test_returns_tools_for_allowed_methods(self):
         hook = _FakeHook()

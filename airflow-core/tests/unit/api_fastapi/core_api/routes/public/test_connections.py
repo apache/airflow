@@ -1471,6 +1471,37 @@ class TestConnection(TestConnectionEndpoint):
         assert json.loads(captured["extra"])["private_key_file"] == stored_path
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reuse_stored_credentials_when_the_ui_sends_port_zero(self, test_client, session):
+        """The UI builds its body with ``Number(port)``, so a stored NULL port arrives as 0."""
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="sqlite",
+                host=None,
+                port=None,
+                password="stored_password",
+            )
+        )
+        session.commit()
+
+        def mock_test_connection(self):
+            return True, "mocked"
+
+        # Exactly what TestConnectionButton.tsx sends for a connection with no host or port.
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "sqlite",
+            "host": "",
+            "port": 0,
+            "password": "***",
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200, response.json()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_reject_overridden_target_when_password_is_masked(self, test_client, session):
         """A masked password is not caller-supplied credentials for a new destination."""
         session.add(

@@ -23,11 +23,7 @@ import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagServiceGetDagDetails,
-  useTaskInstanceServiceGetTaskInstances,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { Checkbox, Modal, SegmentedControl } from "src/system-components";
@@ -73,20 +69,6 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     dagId,
   });
 
-  const { data: groupTaskInstances } = useTaskInstanceServiceGetTaskInstances(
-    {
-      dagId,
-      dagRunId: runId,
-      taskGroupId: groupId,
-    },
-    undefined,
-    {
-      enabled: open,
-    },
-  );
-
-  const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
-
   const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
     enabled: open,
   });
@@ -113,7 +95,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
-      enabled: open && groupTaskIds.length > 0,
+      enabled: open,
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
           ? refetchInterval
@@ -128,7 +110,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
       include_upstream: upstream,
       only_failed: onlyFailed,
       run_on_latest_version: runOnLatestVersion,
-      task_ids: groupTaskIds,
+      task_group_id: groupId,
     },
   });
 
@@ -142,7 +124,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
       footerActions={
         <>
           <Button
-            disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
+            disabled={affectedTasks.total_entries === 0}
             loading={isPending}
             onClick={() => {
               mutate({
@@ -157,7 +139,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
                   ...(note === null ? {} : { note }),
                   only_failed: onlyFailed,
                   run_on_latest_version: runOnLatestVersion,
-                  task_ids: groupTaskIds,
+                  task_group_id: groupId,
                 },
               });
             }}

@@ -274,7 +274,10 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
 
     matched_dags = list(session.scalars(query).all())
     if not matched_dags:
-        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        if args.output in ("table", "plain"):
+            print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        else:
+            AirflowConsole().print_as(data=[], output=args.output)
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
@@ -796,6 +799,10 @@ def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SE
         session=session,
     )
     dag_runs.sort(key=operator.attrgetter("run_after"), reverse=True)
+    # Slice after sorting so `--limit` reliably returns the most recent runs,
+    # independent of insertion order in DagRun.find().
+    if getattr(args, "limit", None):
+        dag_runs = dag_runs[: args.limit]
 
     def _render_dagrun(dr: DagRun) -> dict[str, str]:
         return {

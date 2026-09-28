@@ -29,7 +29,7 @@ internally converted to always use a timetable.
 If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
 to worry about writing a custom timetable because Airflow has default timetables that handle those cases.
 But for more complicated scheduling requirements,
-you can create your own timetable class and pass that to the Dags ``schedule`` argument.
+you can create your own timetable class and pass that to the Dag's ``schedule`` argument.
 
 Some examples of when custom timetable implementations are useful:
 
@@ -48,7 +48,7 @@ Some examples of when custom timetable implementations are useful:
 
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
-Airflow allows you to write custom timetables in plugins and used by
+Airflow allows you to write custom timetables in plugins and use them in
 Dags. You can find an example demonstrating a custom timetable in the
 :doc:`/howto/timetable` how-to guide.
 
@@ -409,7 +409,7 @@ data interval that they cover, depending on 3 arguments: ``schedule``, ``start_d
      - ``True``
      - * 00:00 - 00:30
        * 00:30 - 01:00
-     - Same behavior than using the timedelta object.
+     - Same behavior as using the timedelta object.
 
    * - ``*/30 * * * *``
      - ``year-02-01``
@@ -434,7 +434,7 @@ data interval that they cover, depending on 3 arguments: ``schedule``, ``start_d
      - ``True``
      - * 00:00 - 00:30
        * 00:30 - 01:00
-     - Same behavior than using the cron expression.
+     - Same behavior as using the cron expression.
 
    * - ``datetime.timedelta(minutes=30)``
      - ``year-02-01``

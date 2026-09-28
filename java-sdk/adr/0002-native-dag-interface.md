@@ -139,7 +139,7 @@ public final class EtlPipeline_Dag {
   public static final class Transform implements Task {
     @Override
     public void execute(Context context, Client client) throws Exception {
-      TaskArgs args = TaskArgs.of(context);
+      TaskArgs args = TaskArgs.of(context, client, 1);
       long extracted = args.require(0, Long.class);
       double threshold = 0.9; // baked from lit(0.9) at Dag-build time
       client.setXCom(new EtlPipeline().transform(client, context, extracted, threshold));

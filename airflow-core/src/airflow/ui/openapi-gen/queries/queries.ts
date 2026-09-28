@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGBody_, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -585,6 +585,46 @@ export const useDagBundleServiceGetDagBundles = <TData = Common.DagBundleService
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundlesKeyFn({ limit, offset, orderBy }, queryKey), queryFn: () => DagBundleService.getDagBundles({ limit, offset, orderBy }) as TData, ...options });
 /**
+* Get Dag Bundle
+* Get a Dag bundle.
+* @param data The data for the request.
+* @param data.bundleName
+* @returns DagBundleDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useDagBundleServiceGetDagBundle = <TData = Common.DagBundleServiceGetDagBundleDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleName }: {
+  bundleName: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundleKeyFn({ bundleName }, queryKey), queryFn: () => DagBundleService.getDagBundle({ bundleName }) as TData, ...options });
+/**
+* Get Dag Bundle Files
+* List the files in a Dag bundle, ordered by path.
+*
+* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
+* import error without registering any Dag is listed too, on the same admin-by-default terms as
+* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
+* and it is the case this page most needs to show.
+*
+* ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
+* has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
+* stays listed on the strength of a live Dag *or* an import error, so a file that has just broken
+* does not vanish from the page someone opened to find out why, while a file deleted long ago
+* drops out instead of lingering forever.
+*
+* Parse times come from the Dags in the file rather than the file itself, which is the only
+* record Airflow keeps: a file whose every Dag was removed keeps no parse time of its own.
+* @param data The data for the request.
+* @param data.bundleName
+* @param data.limit
+* @param data.offset
+* @returns DagBundleFileCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagBundleServiceGetDagBundleFiles = <TData = Common.DagBundleServiceGetDagBundleFilesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleName, limit, offset }: {
+  bundleName: string;
+  limit?: number;
+  offset?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }, queryKey), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) as TData, ...options });
+/**
 * Get Dag Stats
 * Get Dag statistics.
 * @param data The data for the request.
@@ -629,6 +669,16 @@ export const useConfigServiceGetConfigValue = <TData = Common.ConfigServiceGetCo
 */
 export const useConfigServiceGetConfigs = <TData = Common.ConfigServiceGetConfigsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey), queryFn: () => ConfigService.getConfigs() as TData, ...options });
 /**
+* Get Backends Order Value
+* @param data The data for the request.
+* @param data.accept
+* @returns Config Successful Response
+* @throws ApiError
+*/
+export const useConfigServiceGetBackendsOrderValue = <TData = Common.ConfigServiceGetBackendsOrderValueDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetBackendsOrderValueKeyFn({ accept }, queryKey), queryFn: () => ConfigService.getBackendsOrderValue({ accept }) as TData, ...options });
+/**
 * List Dag Warnings
 * Get a list of Dag warnings.
 * @param data The data for the request.
@@ -645,7 +695,7 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
   limit?: number;
   offset?: number;
   orderBy?: string[];
-  warningType?: DagWarningType;
+  warningType?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
 * Get Dags
@@ -1483,7 +1533,7 @@ export const useImportErrorServiceGetImportError = <TData = Common.ImportErrorSe
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
 * @param data.filenamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `filename_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.filenamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.filename Exact filename match. Returns only the import error for this specific file path.
@@ -2245,10 +2295,10 @@ export const useAssetServiceCreateAssetEvent = <TData = Common.AssetServiceCreat
 */
 export const useAssetServiceMaterializeAsset = <TData = Common.AssetServiceMaterializeAssetMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   assetId: number;
-  requestBody?: MaterializeAssetBody;
+  requestBody: MaterializeAssetBody;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   assetId: number;
-  requestBody?: MaterializeAssetBody;
+  requestBody: MaterializeAssetBody;
 }, TContext>({ mutationFn: ({ assetId, requestBody }) => AssetService.materializeAsset({ assetId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Create Backfill
@@ -2760,6 +2810,19 @@ export const useDagServicePatchDag = <TData = Common.DagServicePatchDagMutationR
   requestBody: DAGPatchBody;
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, requestBody, updateMask }) => DagService.patchDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Bulk Dags
+* Bulk pause, resume, or drain Dags by id.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns BulkResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceBulkDags = <TData = Common.DagServiceBulkDagsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: BulkBody_BulkDAGBody_;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: BulkBody_BulkDAGBody_;
+}, TContext>({ mutationFn: ({ requestBody }) => DagService.bulkDags({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Task Instance
 * Update a task instance.
