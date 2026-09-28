@@ -32,8 +32,10 @@ import json
 import uuid
 from pathlib import Path
 
+import pytest
 import sqlalchemy as sa
 
+from airflow import settings
 from airflow.serialization.serialized_objects import BaseSerialization
 
 from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
@@ -230,3 +232,35 @@ class TestMigration0094NestedKwargsEncoding:
         assert _migration._deserialize_extended(encoded) == original
         # ... and is lenient: decoding already-raw (pre-fix) kwargs is a no-op
         assert _migration._deserialize_extended(original) == original
+
+
+@pytest.mark.db_test
+class TestMigration0094PostgresEncodeDecodeHelpers:
+    """
+    Regression for the Postgres ``pg_temp.encode_extended``/``decode_extended`` SQL functions
+    used by ``_upgrade_postgresql``/``_downgrade_postgresql``.
+
+    ``jsonb_agg`` over zero rows returns SQL NULL, not ``'[]'::jsonb`` -- so without an explicit
+    ``COALESCE``, a callback kwargs value that happens to be an empty list would silently become
+    ``null`` on encode (or decode), rather than round-tripping as ``[]``.
+    """
+
+    @pytest.mark.backend("postgres")
+    def test_empty_list_round_trips_through_encode_and_decode(self):
+        original = {"tags": [], "name": "x", "nested": {"empty_list": []}}
+        with settings.engine.begin() as conn:
+            conn.execute(sa.text(_migration._PG_ENCODE_EXTENDED_DDL))
+            conn.execute(sa.text(_migration._PG_DECODE_EXTENDED_DDL))
+
+            encoded = conn.execute(
+                sa.text("SELECT pg_temp.encode_extended(CAST(:node AS jsonb))"),
+                {"node": json.dumps(original)},
+            ).scalar()
+            assert encoded == BaseSerialization.serialize(original)
+            assert BaseSerialization.deserialize(encoded) == original
+
+            decoded = conn.execute(
+                sa.text("SELECT pg_temp.decode_extended(CAST(:node AS jsonb))"),
+                {"node": json.dumps(encoded)},
+            ).scalar()
+            assert decoded == original

@@ -84,7 +84,12 @@ _PG_ENCODE_EXTENDED_DDL = dedent("""
         END LOOP;
         RETURN jsonb_build_object('__type', 'dict', '__var', out);
       ELSIF jsonb_typeof(node) = 'array' THEN
-        RETURN (SELECT jsonb_agg(pg_temp.encode_extended(e)) FROM jsonb_array_elements(node) e);
+        -- jsonb_agg over zero rows returns SQL NULL, not '[]'::jsonb -- coalesce so an empty
+        -- list round-trips as an empty list instead of becoming null.
+        RETURN COALESCE(
+          (SELECT jsonb_agg(pg_temp.encode_extended(e)) FROM jsonb_array_elements(node) e),
+          '[]'::jsonb
+        );
       END IF;
       RETURN node;
     END;
@@ -133,7 +138,11 @@ _PG_DECODE_EXTENDED_DDL = dedent("""
           RETURN out;
         END IF;
       ELSIF jsonb_typeof(node) = 'array' THEN
-        RETURN (SELECT jsonb_agg(pg_temp.decode_extended(e)) FROM jsonb_array_elements(node) e);
+        -- Same as encode_extended: jsonb_agg over zero rows returns SQL NULL, not '[]'::jsonb.
+        RETURN COALESCE(
+          (SELECT jsonb_agg(pg_temp.decode_extended(e)) FROM jsonb_array_elements(node) e),
+          '[]'::jsonb
+        );
       END IF;
       RETURN node;
     END;
