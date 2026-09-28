@@ -79,7 +79,7 @@ func TestTaskIDIsTheFunctionName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			task := Dag("etl", DagSpec{}).Task(tt.fn)
+			task := Dag("etl").Task(tt.fn)
 			assert.Equal(t, tt.want, task.taskId)
 		})
 	}
@@ -129,8 +129,17 @@ func TestTaskIdFromFuncName(t *testing.T) {
 	}
 }
 
+func TestDagTakesAtMostOneDagSpec(t *testing.T) {
+	assert.NotPanics(t, func() { Dag("etl", DagSpec{}) })
+	assert.PanicsWithValue(t,
+		`airflow.Dag: Dag "etl" got 2 airflow.DagSpec values; `+
+			`set all of the Dag's attributes in one DagSpec`,
+		func() { Dag("etl", DagSpec{}, DagSpec{}) },
+	)
+}
+
 func TestTaskSpecSetsTheTaskID(t *testing.T) {
-	dag := Dag("etl", DagSpec{})
+	dag := Dag("etl")
 
 	spec := TaskSpec{TaskID: "extract_rows"}
 	task := dag.Task(ExtractRows, spec)
@@ -142,7 +151,7 @@ func TestTaskSpecSetsTheTaskID(t *testing.T) {
 }
 
 func TestTaskTakesAPointerToTaskSpec(t *testing.T) {
-	task := Dag("etl", DagSpec{}).Task(extract, &TaskSpec{TaskID: "extract_rows"})
+	task := Dag("etl").Task(extract, &TaskSpec{TaskID: "extract_rows"})
 	assert.Equal(t, "extract_rows", task.taskId)
 	assert.Equal(t, TaskSpec{TaskID: "extract_rows"}, task.spec)
 }
@@ -194,14 +203,14 @@ func TestTaskNeedsTaskIDWhenFnHasNoName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg := panicMessage(t, func() { tt.add(Dag("etl", DagSpec{})) })
+			msg := panicMessage(t, func() { tt.add(Dag("etl")) })
 			assert.Regexp(t,
 				`^airflow\.DagRef\.Task: Dag "etl": `+tt.runtimeName+` has no name to use `+
 					`as the task_id; set one with airflow\.TaskSpec\{TaskID: \.\.\.\}$`,
 				msg,
 			)
 
-			task := tt.add(Dag("etl", DagSpec{}), TaskSpec{TaskID: "transform"})
+			task := tt.add(Dag("etl"), TaskSpec{TaskID: "transform"})
 			assert.Equal(t, "transform", task.taskId)
 		})
 	}
@@ -245,7 +254,7 @@ func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg := panicMessage(t, func() { Dag("etl", DagSpec{}).Task(tt.fn, tt.opts...) })
+			msg := panicMessage(t, func() { Dag("etl").Task(tt.fn, tt.opts...) })
 			assert.Regexp(t,
 				`^airflow\.DagRef\.Task: task "`+tt.task+`" of Dag "etl" got 2 airflow\.TaskSpec `+
 					`values; set all of the task's attributes in one TaskSpec$`,
@@ -256,7 +265,7 @@ func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 }
 
 func TestTaskRejectsADuplicateTaskID(t *testing.T) {
-	dag := Dag("etl", DagSpec{})
+	dag := Dag("etl")
 	dag.Task(extract)
 
 	want := `airflow.DagRef.Task: Dag "etl" already has a task "extract"; ` +
@@ -264,7 +273,7 @@ func TestTaskRejectsADuplicateTaskID(t *testing.T) {
 	assert.PanicsWithValue(t, want, func() { dag.Task(extract) })
 	assert.PanicsWithValue(t, want, func() { dag.Task(ExtractRows, TaskSpec{TaskID: "extract"}) })
 	assert.NotPanics(t,
-		func() { Dag("reports", DagSpec{}).Task(extract) },
+		func() { Dag("reports").Task(extract) },
 		"the same task_id in another Dag is a different task",
 	)
 }
@@ -299,7 +308,7 @@ func TestTaskPanicsOnBadFunction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg := panicMessage(t, func() { Dag("etl", DagSpec{}).Task(tt.fn) })
+			msg := panicMessage(t, func() { Dag("etl").Task(tt.fn) })
 			assert.Contains(t, msg, `airflow.DagRef.Task: Dag "etl": `)
 			assert.Contains(t, msg, tt.want)
 		})
@@ -341,14 +350,14 @@ func TestTaskRejectsOptionsItDoesNotDefine(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.PanicsWithValue(t, `airflow.DagRef.Task: Dag "etl": `+tt.want, func() {
-				Dag("etl", DagSpec{}).Task(extract, tt.opts...)
+				Dag("etl").Task(extract, tt.opts...)
 			})
 		})
 	}
 }
 
 func TestTaskAfterRegisterPanics(t *testing.T) {
-	dag := Dag("etl", DagSpec{})
+	dag := Dag("etl")
 	dag.Task(extract)
 	Bundle().Register(dag)
 
@@ -363,7 +372,7 @@ func TestTaskAfterRegisterPanics(t *testing.T) {
 func TestTaskIsSafeForConcurrentUse(t *testing.T) {
 	const workers, perWorker = 8, 100
 
-	dag := Dag("etl", DagSpec{})
+	dag := Dag("etl")
 	var wg sync.WaitGroup
 	for worker := range workers {
 		wg.Add(1)
@@ -383,7 +392,8 @@ func TestTaskIsSafeForConcurrentUse(t *testing.T) {
 // is registered or not added at all. If Register marked the Dag registered without the lock,
 // only a run with -race would fail.
 func TestRegisterWhileTasksAreAdded(t *testing.T) {
-	dag := Dag("etl", DagSpec{})
+	dag := Dag("etl")
+	started := make(chan struct{})
 	registered := make(chan struct{})
 	type outcome struct {
 		added     int
@@ -396,6 +406,7 @@ func TestRegisterWhileTasksAreAdded(t *testing.T) {
 			o.recovered = recover()
 			done <- o
 		}()
+		close(started)
 		for ; ; o.added++ {
 			select {
 			case <-registered:
@@ -408,6 +419,10 @@ func TestRegisterWhileTasksAreAdded(t *testing.T) {
 			}
 		}
 	}()
+	// Wait until the goroutine is running before calling Register. If the goroutine only started
+	// after close(registered), that close would order every Task call after Register, and -race
+	// could not catch a Register that skips the lock.
+	<-started
 	Bundle().Register(dag)
 	close(registered)
 	o := <-done

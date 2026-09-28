@@ -118,7 +118,7 @@ func TestRegisterRejectsDuplicateTask(t *testing.T) {
 }
 
 func TestRegisterTakesTaskHandlersAndDagsTogether(t *testing.T) {
-	etl := Dag("etl", DagSpec{})
+	etl := Dag("etl")
 	etl.Task(extract)
 
 	b := Bundle()
@@ -131,13 +131,13 @@ func TestRegisterTakesTaskHandlersAndDagsTogether(t *testing.T) {
 }
 
 func TestRegisterRejectsDuplicateDag(t *testing.T) {
-	etl := Dag("etl", DagSpec{})
+	etl := Dag("etl")
 	b := Bundle()
 	b.Register(etl)
 
 	want := `airflow.BundleRef.Register: Dag "etl" is already registered`
 	assert.PanicsWithValue(t, want, func() { b.Register(etl) })
-	second := Dag("etl", DagSpec{})
+	second := Dag("etl")
 	assert.PanicsWithValue(t, want, func() { b.Register(second) })
 	assert.Same(t, etl, b.dags.dags["etl"])
 	assert.False(t, second.registered, "a Dag that Register rejects can still take tasks")
@@ -158,7 +158,7 @@ func TestRegisterAfterServePanics(t *testing.T) {
 	want := "airflow.BundleRef.Register: Serve has already been called; " +
 		"register everything before Serve"
 	assert.PanicsWithValue(t, want, func() { b.Register(TaskHandler("py_etl", "load", noop)) })
-	assert.PanicsWithValue(t, want, func() { b.Register(Dag("etl", DagSpec{})) })
+	assert.PanicsWithValue(t, want, func() { b.Register(Dag("etl")) })
 }
 
 // The flag lives on the bundle, not on the task-handler map, so a kind of item added to
@@ -192,7 +192,7 @@ func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
 			defer wg.Done()
 			for i := range perWorker {
 				b.Register(TaskHandler("py_etl", fmt.Sprintf("task_%d_%d", worker, i), noop))
-				b.Register(Dag(fmt.Sprintf("dag_%d_%d", worker, i), DagSpec{}))
+				b.Register(Dag(fmt.Sprintf("dag_%d_%d", worker, i)))
 				b.taskHandlers.LookupTask("py_etl", "task_0_0")
 				b.taskHandlers.ListTaskHandlers()
 			}

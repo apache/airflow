@@ -39,10 +39,11 @@ type DagRef struct {
 	taskIds    map[string]struct{}
 }
 
-// Dag returns an empty Dag with the given dag_id. spec holds the rest of the Dag's attributes.
-// Add the tasks with [DagRef.Task], then pass the Dag to [BundleRef.Register]:
+// Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
+// Dag's attributes, and Dag panics if it gets more than one DagSpec. Add the tasks with
+// [DagRef.Task], then pass the Dag to [BundleRef.Register]:
 //
-//	dag := airflow.Dag("etl", airflow.DagSpec{})
+//	dag := airflow.Dag("etl")
 //	dag.Task(extract)
 //	dag.Task(load, airflow.TaskSpec{TaskID: "load_rows"})
 //
@@ -52,8 +53,19 @@ type DagRef struct {
 //
 // [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
 // --airflow-metadata manifest and cannot run their tasks.
-func Dag(dagId string, spec DagSpec) *DagRef {
-	return &DagRef{dagId: dagId, spec: spec}
+func Dag(dagId string, spec ...DagSpec) *DagRef {
+	if len(spec) > 1 {
+		panic(fmt.Sprintf(
+			"airflow.Dag: Dag %q got %d airflow.DagSpec values; "+
+				"set all of the Dag's attributes in one DagSpec",
+			dagId, len(spec),
+		))
+	}
+	d := &DagRef{dagId: dagId}
+	if len(spec) == 1 {
+		d.spec = spec[0]
+	}
+	return d
 }
 
 func (*DagRef) registerable() {}

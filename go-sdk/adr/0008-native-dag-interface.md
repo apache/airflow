@@ -107,7 +107,7 @@ loaded.Before(airflow.Label(emptyNotice, "when empty"))  // loaded >> Label("whe
 ```go
 package airflow
 
-func Dag(dagId string, spec DagSpec) *DagRef
+func Dag(dagId string, spec ...DagSpec) *DagRef
 
 func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef
 func (d *DagRef) TaskGroup(groupId string, opts ...TaskGroupOption) *TaskGroupRef
