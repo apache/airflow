@@ -346,6 +346,9 @@ class TestJenkinsOperator:
             pytest.param(
                 '{"dry_run": true, "notify": false}', {"dry_run": True, "notify": False}, id="json booleans"
             ),
+            pytest.param(
+                '{"dry_run": true, "optional": null}', {"dry_run": True, "optional": None}, id="json null"
+            ),
             pytest.param("{'dry_run': True}", {"dry_run": True}, id="python literals"),
         ],
     )
