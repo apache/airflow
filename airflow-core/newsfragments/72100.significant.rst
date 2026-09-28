@@ -34,7 +34,7 @@ default is per-browser and does not affect anyone else on the same deployment.
 Operators with durable execution are worth particular attention. Clearing a *failed* task never runs
 ``on_kill``, so an external job that outlived its worker is still running, and discarding the stored
 id means submitting a second one. The same applies to operators configured to leave their job alive
-on kill, such as ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"``.
+on kill, such as ``GlueJobOperator``, which defaults ``stop_job_run_on_kill`` to ``False``.
 
 This also widens the permission surface of clearing: a task-instance clear (gated by the
 task-instance edit permission) now deletes ``task_state_store`` rows for that task instance, the same

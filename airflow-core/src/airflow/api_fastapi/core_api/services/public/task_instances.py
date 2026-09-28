@@ -66,9 +66,13 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
     A failure is logged and re-raised so the request fails and the session rolls back, rather than
     reporting success while some entries survive undiscarded.
 
-    This only drops the metadata DB reference row via ``_get_db_backend()``; a custom
-    ``[workers] state_store_backend`` payload is left orphaned there with no reclaim path other than
-    its own lifecycle/TTL policy.
+    This only drops the metadata DB reference row via ``_get_db_backend()``; it does not go through
+    ``get_state_backend()``. A custom ``[workers] state_store_backend`` payload is left orphaned
+    with no reclaim path other than its own lifecycle/TTL policy, and a custom ``[state_store]
+    backend`` is not touched at all: the worker still reads and writes there, so a clear reports
+    success while the actual state survives and a later attempt can resume from it. Closing this
+    gap needs a server-side path to the configured state backend and is tracked for a future
+    change; today, this discard is only exact for the default metastore backend.
 
     :param event: what prompted the discard, used as the log event name.
     """

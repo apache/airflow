@@ -61,8 +61,8 @@ Number of days after which task state store rows expire. When a key is written w
 ~~~~~~~~~~~~~~~~~~~~
 
 Retention and ``clear_on_success`` are not the only ways task state store entries get removed:
-clearing a task instance also discards them by default unless ``keep_task_state`` is set. See
-:doc:`/core-concepts/resumable-tasks`.
+clearing a task instance through the REST API, the UI, or ``airflowctl`` also discards them by
+default unless ``keep_task_state`` is set. See :doc:`/core-concepts/resumable-tasks`.
 
 When ``True``, all task state store keys for a task instance are automatically deleted when that task instance moves to the ``success`` state. Defaults to ``False``, which preserves task state store entries after success for observability (e.g. the submitted job ID or the last row count is still readable from the UI or REST API after the run completes).
 

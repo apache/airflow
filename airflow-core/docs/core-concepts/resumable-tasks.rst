@@ -159,10 +159,12 @@ To resume from the checkpoint instead, set ``keep_task_state`` when clearing, or
 corresponding box in the clear dialog. That is the right choice when nothing about the inputs or the
 code changed and you only want the task to carry on where it stopped.
 
-This applies to clearing individual task instances, including via ``airflowctl dags clear``, which
-clears every task instance in the matched Dag run(s) through this same endpoint. Clearing an entire
-Dag run through the Clear Run dialog/API, and marking a task as failed or success (which clears
-downstream tasks as a side effect), still keep task state unconditionally today; see
+This applies to clearing individual task instances through the REST API, the UI, or
+``airflowctl dags clear`` (which clears every task instance in the matched Dag run(s) through this
+same endpoint). Clearing an entire Dag run through the Clear Run dialog/API, marking a task as
+failed or success (which clears downstream tasks as a side effect), and the core CLI's
+``airflow tasks clear`` / ``airflow dags clear`` (which call ``clear_task_instances()`` directly and
+never reach the discard endpoint) all still keep task state unconditionally today; see
 `#72929 <https://github.com/apache/airflow/issues/72929>`_.
 
 **Clearing a task that submitted an external job**
@@ -177,19 +179,21 @@ Whether that matters depends on what happened to the job:
   and there is nothing left to reconnect to. Submitting a fresh one is the only option anyway.
 * An operator configured, or defaulting, to leave the job running on kill keeps it alive, so a
   fresh submission runs alongside it. Check the operator's own docs — for example
-  ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"`` opts into this, while
   ``GlueJobOperator`` defaults ``stop_job_run_on_kill`` to ``False`` and so leaves the job running
   unless you turn it on.
 * Clearing a *failed* task never runs ``on_kill`` at all, so an external job that outlived the
   worker is still running.
 * A deferred task has no worker process to run ``on_kill`` on. Instead, the Triggerer cancels the
-  *trigger's* ``on_kill`` for the orphaned trigger. Most triggers cancel the external job there too;
-  ``GlueJobCompleteTrigger`` and ``LivyTrigger`` are the exceptions that don't implement ``on_kill``,
-  so treat those like the second bullet above.
+  orphaned trigger and runs the trigger's ``on_kill``, bounded by ``[triggerer] on_kill_timeout``.
+  Most triggers cancel the external job there too.
+  ``GlueJobCompleteTrigger`` and ``LivyTrigger`` don't implement ``on_kill``, but neither writes a
+  job id to the state store when deferred either, so ``keep_task_state`` will not help for them. For
+  a deferred ``GlueJobOperator``, set ``durable=True`` so the next attempt reattaches regardless of
+  state store contents; for a deferred ``LivyOperator``, cancel the batch yourself before clearing.
 
-In the cases where the job is left running (the second bullet, a failed task, or an unimplemented
-trigger ``on_kill``), pass ``keep_task_state`` so the next attempt reconnects to the job already in
-flight instead of paying for a second one.
+In the cases where the job is left running (the second bullet or a failed task), pass
+``keep_task_state`` so the next attempt reconnects to the job already in flight instead of paying
+for a second one.
 
 Note that ``[state_store] clear_on_success`` is a separate control: it discards a task's entries as
 soon as it reaches ``SUCCESS``, so nothing is left for a later clear to find either way (see

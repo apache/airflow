@@ -103,9 +103,17 @@ const ClearTaskInstanceDialog = (props: Props) => {
   useEffect(() => {
     if (openDialog) {
       setNote(taskInstance?.note ?? null);
+    }
+  }, [openDialog, taskInstance?.note]);
+
+  // Separate from the note effect above: this must only reset on open, not on every
+  // note refetch, or a background note change while the dialog is open silently
+  // discards the user's checked box.
+  useEffect(() => {
+    if (openDialog) {
       setKeepTaskState(keepTaskStateDefault);
     }
-  }, [openDialog, taskInstance?.note, keepTaskStateDefault]);
+  }, [openDialog, keepTaskStateDefault]);
 
   const onCloseDialog = () => {
     setNote(taskInstance?.note ?? null);
