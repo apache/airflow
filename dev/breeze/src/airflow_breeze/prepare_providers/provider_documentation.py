@@ -1171,9 +1171,9 @@ def _generate_new_changelog(
                 "has first release. Not updating the changelog.[/]"
             )
             return
-        new_changes = [
-            change for change in changes[0] if change.pr and "(#" + change.pr + ")" not in current_changelog
-        ]
+        # Entries may reference several PRs at once, e.g. ``(#123, #456)``.
+        existing_prs = set(re.findall(r"#(\d+)(?=[,)])", current_changelog))
+        new_changes = [change for change in changes[0] if change.pr and change.pr not in existing_prs]
         if not new_changes:
             console_print(
                 f"[success]The provider {package_id} changelog for `{latest_version}` "

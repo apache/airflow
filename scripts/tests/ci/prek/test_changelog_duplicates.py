@@ -17,24 +17,24 @@
 from __future__ import annotations
 
 import pytest
-from ci.prek.changelog_duplicates import find_duplicates, known_exceptions, pr_number_re
+from ci.prek.changelog_duplicates import extract_pr_numbers, find_duplicates, known_exceptions
 
 
-class TestPrNumberRegex:
+class TestExtractPrNumbers:
     @pytest.mark.parametrize(
-        "line, expected_pr",
+        "line, expected_prs",
         [
-            ("* Fix something (#12345)", "12345"),
-            ("* Fix something (#1)", "1"),
-            ("* Fix something (#123456)", "123456"),
-            ("Some change (#99999)`", "99999"),
-            ("Some change (#99999)``", "99999"),
+            ("* Fix something (#12345)", ["12345"]),
+            ("* Fix something (#1)", ["1"]),
+            ("* Fix something (#123456)", ["123456"]),
+            ("Some change (#99999)`", ["99999"]),
+            ("Some change (#99999)``", ["99999"]),
+            ("* ``Fix something (#12345, #67890)``", ["12345", "67890"]),
+            ("* Fix something (#1, #2, #3)", ["1", "2", "3"]),
         ],
     )
-    def test_matches_valid_pr_numbers(self, line, expected_pr):
-        match = pr_number_re.search(line)
-        assert match is not None
-        assert match.group(1) == expected_pr
+    def test_extracts_pr_numbers(self, line, expected_prs):
+        assert extract_pr_numbers(line) == expected_prs
 
     @pytest.mark.parametrize(
         "line",
@@ -47,7 +47,7 @@ class TestPrNumberRegex:
         ],
     )
     def test_no_match(self, line):
-        assert pr_number_re.search(line) is None
+        assert extract_pr_numbers(line) == []
 
 
 class TestFindDuplicates:
@@ -94,6 +94,16 @@ class TestFindDuplicates:
 
     def test_empty_input(self):
         assert find_duplicates([]) == []
+
+    @pytest.mark.parametrize(
+        "lines, expected",
+        [
+            (["* Fix A (#1001, #1002)", "* Fix B (#1003)"], []),
+            (["* Fix A (#1001, #1002)", "* Fix B (#1002)"], ["1002"]),
+        ],
+    )
+    def test_grouped_pr_numbers(self, lines, expected):
+        assert find_duplicates(lines) == expected
 
     def test_all_known_exceptions_are_strings(self):
         for exc in known_exceptions:

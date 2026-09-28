@@ -36,7 +36,13 @@ known_exceptions = [
     "13153",  # Both a bugfix and a feature
 ]
 
-pr_number_re = re.compile(r".*\(#([0-9]{1,6})\)`?`?$")
+pr_numbers_re = re.compile(r"\(((?:#[0-9]{1,6}, )*#[0-9]{1,6})\)`?`?$")
+
+
+def extract_pr_numbers(line: str) -> list[str]:
+    """Return the PR numbers ending a changelog entry: ``(#123)`` or ``(#123, #456)``."""
+    match = pr_numbers_re.search(line)
+    return match.group(1).replace("#", "").split(", ") if match else []
 
 
 def find_duplicates(lines: list[str]) -> list[str]:
@@ -44,7 +50,7 @@ def find_duplicates(lines: list[str]) -> list[str]:
     seen: list[str] = []
     dups: list[str] = []
     for line in lines:
-        if (match := pr_number_re.search(line)) and (pr := match.group(1)):
+        for pr in extract_pr_numbers(line):
             if pr not in seen:
                 seen.append(pr)
             elif pr not in known_exceptions:
