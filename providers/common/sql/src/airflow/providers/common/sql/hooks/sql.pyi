@@ -32,7 +32,7 @@ Definition of the public interface for
 airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.sql.
 """
 
-from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Awaitable, Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from functools import cached_property as cached_property
 from typing import Any, Literal, Protocol, TypeVar, overload
 
@@ -48,6 +48,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage as Operator
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 
 T = TypeVar("T")
+HANDLER = Callable[[Any], Any | Awaitable[Any]]
 SQL_PLACEHOLDERS: Incomplete
 WARNING_MESSAGE: str
 
@@ -185,6 +186,27 @@ class DbApiHook(BaseHook):
     @staticmethod
     def get_openlineage_authority_part(connection, default_port: int | None = None) -> str: ...
     def get_db_log_messages(self, conn) -> None: ...
+    async def aget_conn(self) -> Any: ...
+    @overload
+    async def arun(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None: ...
+    @overload
+    async def arun(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: HANDLER = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
     @overload
     def run(
         self,

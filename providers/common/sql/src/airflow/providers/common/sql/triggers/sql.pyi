@@ -29,7 +29,7 @@
 #
 """Definition of the public interface for airflow.providers.common.sql.triggers.sql."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable, Mapping
 from typing import Any
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
@@ -37,8 +37,17 @@ from airflow.triggers.base import BaseTrigger as BaseTrigger, TriggerEvent as Tr
 
 class SQLExecuteQueryTrigger(BaseTrigger):
     def __init__(
-        self, sql: str | list[str], conn_id: str, hook_params: dict | None = None, **kwargs
+        self,
+        sql: str | Iterable[str],
+        conn_id: str,
+        autocommit: bool,
+        split_statements: bool,
+        return_last: bool,
+        parameters: Iterable[Any] | Mapping[str, Any] | None = None,
+        fetch_results: bool = False,
+        read_only: bool = False,
+        hook_params: dict | None = None,
     ) -> None: ...
     def serialize(self) -> tuple[str, dict[str, Any]]: ...
-    def get_hook(self) -> DbApiHook: ...
+    async def aget_hook(self) -> DbApiHook: ...
     async def run(self) -> AsyncIterator[TriggerEvent]: ...  # type: ignore
