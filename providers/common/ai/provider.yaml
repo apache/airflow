@@ -73,6 +73,9 @@ integrations:
   - integration-name: Modal
     external-doc-url: https://modal.com/docs/guide/sandbox
     tags: [service]
+  - integration-name: OpenSandbox
+    external-doc-url: https://open-sandbox.ai/
+    tags: [software]
 
 hooks:
   - integration-name: Pydantic AI
