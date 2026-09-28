@@ -244,9 +244,13 @@ class TestJavaCoordinatorAttributes:
         assert coordinator.dag_bundle_name is None
         assert coordinator.main_class == ""
 
-    @pytest.mark.parametrize("jars_root", [None, []], ids=["none", "empty-list"])
+    @pytest.mark.parametrize(
+        "jars_root",
+        [None, [], "", "  ", [""]],
+        ids=["none", "empty-list", "empty-str", "blank-str", "list-of-empty-str"],
+    )
     def test_explicit_empty_jars_root_raises(self, jars_root):
-        with pytest.raises(ValueError, match="must contain at least one path when provided"):
+        with pytest.raises(ValueError, match="and each path must be non-empty"):
             JavaCoordinator(jars_root=jars_root)
 
     def test_explicit_root_does_not_require_main_class(self, tmp_path):
