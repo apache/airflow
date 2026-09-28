@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-09-28T22:36:14.047489
+# This constraints file was automatically generated on 2026-09-28T23:42:47.012268
 # via `uv sync --resolution highest` for the "v3-3-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -10,16 +10,16 @@
 #
 Deprecated==1.3.1
 Jinja2==3.1.6
-Mako==1.4.1
+Mako==1.4.3
 MarkupSafe==3.0.3
-PyJWT==2.13.0
+PyJWT==2.15.0
 PyYAML==6.0.3
 Pygments==2.21.0
-SQLAlchemy==2.0.52
+SQLAlchemy==2.0.54
 a2wsgi==1.10.10
 aiosmtplib==5.1.3
 aiosqlite==0.22.1
-alembic==1.19.2
+alembic==1.20.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
@@ -28,7 +28,7 @@ arrow==1.4.0
 asgiref==3.12.1
 attrs==26.1.0
 babel==2.18.0
-cachetools==7.1.8
+cachetools==7.2.0
 cadwyn==7.0.0
 certifi==2026.7.22
 cffi==2.1.1
@@ -43,16 +43,16 @@ dnspython==2.8.0
 email-validator==2.3.0
 fastapi-cli==0.0.32
 fastapi==0.136.3
-fsspec==2026.7.0
+fsspec==2026.9.0
 googleapis-common-protos==1.75.3
 greenback==1.3.0
-greenlet==3.5.5
-grpcio==1.83.1
+greenlet==3.5.6
+grpcio==1.84.0
 h11==0.16.0
 httpcore==1.0.9
 httptools==0.8.0
 httpx==0.28.1
-idna==3.19
+idna==3.20
 importlib_metadata==8.9.0
 isoduration==20.11.0
 itsdangerous==2.2.0
@@ -89,12 +89,12 @@ pydantic-extra-types==2.11.1
 pydantic-settings==2.15.0
 pydantic==2.13.5
 pydantic_core==2.46.5
-pygtrie==2.6.1
+pygtrie==2.6.2
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.3
 python-multipart==0.0.32
-python-slugify==8.0.4
+python-slugify==9.1.1
 referencing==0.37.0
 requests==2.34.2
 rich-argparse==1.8.0
@@ -106,7 +106,7 @@ shellingham==1.5.4
 six==1.17.0
 sniffio==1.3.1
 sqlparse==0.6.0
-starlette==1.6.0
+starlette==1.7.0
 structlog==26.1.0
 svcs==26.2.0
 tabulate==0.10.0
@@ -116,15 +116,15 @@ text-unidecode==1.3
 typer==0.27.2
 typing-inspection==0.4.4
 typing_extensions==4.16.0
-tzdata==2026.3
+tzdata==2026.4
 universal_pathlib==0.3.10
-urllib3==2.7.0
+urllib3==2.8.0
 uuid6==2025.0.1
-uv==0.12.10
-uvicorn==0.52.4
+uv==0.12.18
+uvicorn==0.53.0
 uvloop==0.22.1
-watchfiles==1.2.0
+watchfiles==1.3.0
 websockets==16.1.1
 wirerope==1.0.0
-wrapt==2.4.0
+wrapt==2.4.1
 zipp==4.1.0
