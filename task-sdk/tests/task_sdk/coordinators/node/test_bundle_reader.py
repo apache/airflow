@@ -46,6 +46,7 @@ from airflow.sdk.coordinators.node._bundle_reader import (
     _digest_cache,
     _hash_region,
     read_bundle,
+    read_bundle_entrypoint_source,
     read_bundle_source,
 )
 
@@ -364,6 +365,12 @@ class TestBundleReader:
         assert read_bundle(bundle).dag_ids == frozenset({"sales", "inventory"})
         assert read_bundle_source(bundle, "sales") == "export const sales = 1;\n"
         assert read_bundle_source(bundle, "inventory") == "export const inv = 2;\n"
+        assert read_bundle_entrypoint_source(bundle) == "export const sales = 1;\n"
+
+    def test_reads_no_entrypoint_source_when_none_is_declared(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales", entrypoint_path=None)
+
+        assert read_bundle_entrypoint_source(bundle) is None
 
     def test_returns_none_without_a_dag_id(self, tmp_path):
         # A Dag owned by another language (Python) shows its own source; the caller omits dag_id
