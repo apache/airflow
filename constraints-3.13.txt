@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-09-27T18:11:58.499215
+# This constraints file was automatically generated on 2026-09-28T16:45:03.406199
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -230,7 +230,7 @@ azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==26.0.0
-azure-mgmt-storage==25.1.0
+azure-mgmt-storage==25.2.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.3
 azure-storage-blob==12.30.3
@@ -327,7 +327,7 @@ genai-prices==0.1.8
 geomet==1.1.0
 gevent==26.9.0
 gitdb==4.0.12
-google-ads==32.0.0
+google-ads==33.0.0
 google-analytics-admin==0.30.1
 google-api-core==2.38.0
 google-api-python-client==2.200.0
@@ -410,7 +410,7 @@ httpr==0.7.2
 httptools==0.8.0
 httpx2==2.13.1
 httpx==0.28.1
-huggingface_hub==1.32.0
+huggingface_hub==1.33.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -577,9 +577,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.48.0
+pydantic-ai-slim==2.49.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.48.0
+pydantic-graph==2.49.0
 pydantic-settings==2.15.0
 pydantic==2.13.5
 pydantic_core==2.46.5
@@ -611,7 +611,7 @@ python-multipart==0.0.32
 python-slugify==9.1.1
 python-telegram-bot==22.8
 pytokens==0.4.1
-pytz==2026.3.post1
+pytz==2026.4
 pyvespa==1.2.7
 pywinrm==0.5.0
 pyzmq==27.2.0
@@ -659,7 +659,7 @@ snowflake-connector-python==4.7.5
 snowflake-snowpark-python==1.55.0
 snowflake-sqlalchemy==1.11.1
 sortedcontainers==2.4.0
-soupsieve==2.9.2
+soupsieve==2.10
 spython==0.3.14
 sqlalchemy-bigquery==1.17.2
 sqlalchemy-spanner==1.20.1
@@ -710,10 +710,10 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.11.1
+virtualenv==21.12.0
 watchfiles==1.3.0
 watchtower==3.4.0
-wcwidth==0.9.0
+wcwidth==0.9.1
 weaviate-client==4.16.2
 webencodings==0.6.1
 websocket-client==1.9.0

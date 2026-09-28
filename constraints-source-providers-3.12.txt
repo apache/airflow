@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-09-27T18:08:53.522339
+# This constraints file was automatically generated on 2026-09-28T16:39:13.757609
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -319,6 +319,7 @@ httpcore==1.0.9
 httplib2==0.32.0
 httpr==0.7.2
 httptools==0.8.0
+httpx-sse==0.4.3
 httpx2==2.13.1
 httpx==0.28.1
 huggingface_hub==1.32.0
@@ -478,6 +479,7 @@ openlineage-integration-common==1.53.0
 openlineage-python==1.53.0
 openlineage_sql==1.53.0
 openpyxl==3.1.5
+opensandbox==1.1.0
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
 opentelemetry-api==1.44.0
