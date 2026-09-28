@@ -25,23 +25,24 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import select
+from sqlalchemy import Column, MetaData, String, Table, create_engine, select
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
-    NullableDatetimeRangeFilter,
     RangeFilter,
     SortParam,
-    _AssetDependencyFilter,
-    _ConsumingAssetFilter,
-    _escape_like_pattern,
-    _OwnersFilter,
-    _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
-    _TaskDisplayNamePrefixPatternParam,
     datetime_range_filter_factory,
     filter_param_factory,
+)
+from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
+from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
+from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
+from airflow.api_fastapi.common.parameters.search import (
+    _escape_like_pattern,
+    _PrefixPatternParam,
+    _TaskDisplayNamePrefixPatternParam,
     regex_param_factory,
 )
 from airflow.models import DagModel, DagRun, Log
@@ -452,6 +453,17 @@ class TestPrefixSearchParam:
         # Range scan uses the full composite-key value as the lower bound.
         assert "2026-01-01|us" in sql
 
+    def test_to_orm_narrows_the_range_with_a_leading_substring(self):
+        """The index-friendly bounds are wider than the prefix, so an equality pins the prefix down."""
+        param = _PrefixSearchParam(DagModel.dag_id).set_value("dag_9")
+        statement = param.to_orm(select(DagModel))
+
+        sql = _compile(statement)
+        # '9' bumps to ':' (non-alphanumeric), so the upper bound comes from the shorter 'dag'.
+        assert "dag_id >= 'dag_9'" in sql
+        assert "dag_id < 'dah'" in sql
+        assert "substr(dag.dag_id, 1, 5) = 'dag_9'" in sql
+
     def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
         """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
         param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
@@ -461,6 +473,64 @@ class TestPrefixSearchParam:
 
         sql = _compile(statement)
         assert "is not null" in sql
+
+
+class TestPrefixSearchParamOnARealEngine:
+    """
+    Run the predicate against SQLite so the rows it lets through are checked, not just the SQL.
+
+    Every term below computes an upper bound wider than the term itself, so the bounds alone
+    would also return the rows that are missing from each ``expected`` list.
+    """
+
+    NAMES = [
+        "dag_9",
+        "dag_99",
+        "dag_abc",
+        "dagz9",
+        "dagZ1",
+        "a9",
+        "aa",
+        "abz",
+        "abz1",
+        "ab~",
+        "z1",
+        "zz",
+        "{a",
+    ]
+
+    @pytest.fixture
+    def select_names(self):
+        table = Table("prefix_probe", MetaData(), Column("name", String(64), primary_key=True))
+        engine = create_engine("sqlite://")
+        table.metadata.create_all(engine)
+        with engine.connect() as conn:
+            conn.execute(table.insert(), [{"name": name} for name in self.NAMES])
+
+            def run(term: str) -> list[str]:
+                param = _PrefixSearchParam(table.c.name).set_value(term)
+                return sorted(row[0] for row in conn.execute(param.to_orm(select(table.c.name))))
+
+            yield run
+
+    @pytest.mark.parametrize(
+        ("term", "expected"),
+        [
+            # 'dagz9' pins down that the user's '_' is literal, not a single-character wildcard.
+            ("dag_9", ["dag_9", "dag_99"]),
+            # Differs from 'dagz9' only in case, which the bounds distinguish and so must the
+            # predicate narrowing them.
+            ("dagZ", ["dagZ1"]),
+            ("a9", ["a9"]),
+            ("abz", ["abz", "abz1"]),
+            # 'z' cascades down to no upper bound at all.
+            ("z", ["z1", "zz"]),
+            # Documented trade-off, unchanged: a trailing '_' is stripped, so 'dag_' means 'dag'.
+            ("dag_", ["dagZ1", "dag_9", "dag_99", "dag_abc", "dagz9"]),
+        ],
+    )
+    def test_only_values_with_the_prefix_come_back(self, select_names, term, expected):
+        assert select_names(term) == expected
 
 
 class TestTaskDisplayNamePrefixPatternParam:
@@ -476,6 +546,15 @@ class TestTaskDisplayNamePrefixPatternParam:
         assert "task_id >=" in sql
         assert "task_id <" in sql
         assert "task_display_name is not null" in sql
+
+    def test_to_orm_narrows_both_branches_with_a_leading_substring(self):
+        """Both sides of the ``IS NULL`` split need the prefix predicate, not only the bounds."""
+        param = _TaskDisplayNamePrefixPatternParam().set_value("task_9")
+        statement = param.to_orm(select(TaskInstance))
+
+        sql = _compile(statement)
+        assert "substr(task_instance.task_id, 1, 6) = 'task_9'" in sql
+        assert "substr(task_instance.task_display_name, 1, 6) = 'task_9'" in sql
 
     def test_to_orm_empty_matches_all(self):
         param = _TaskDisplayNamePrefixPatternParam().set_value("")
@@ -554,7 +633,9 @@ class TestRegexParamFactory:
     def test_dependency_applies_timeout_when_pattern_provided(self):
         session = mock.MagicMock()
         with conf_vars({("api", "regexp_query_timeout"): "30"}):
-            with mock.patch("airflow.api_fastapi.common.parameters.apply_regex_query_timeout") as apply_mock:
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
                 gen = self._depends()(session=session, value="^us")
                 param = next(gen)
                 apply_mock.assert_called_once_with(session)
@@ -565,7 +646,9 @@ class TestRegexParamFactory:
     def test_dependency_skips_timeout_without_pattern(self):
         session = mock.MagicMock()
         with conf_vars({("api", "regexp_query_timeout"): "30"}):
-            with mock.patch("airflow.api_fastapi.common.parameters.apply_regex_query_timeout") as apply_mock:
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
                 gen = self._depends()(session=session, value=None)
                 param = next(gen)
                 apply_mock.assert_not_called()

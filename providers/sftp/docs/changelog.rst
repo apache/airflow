@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add deferrable mode to SFTPOperator (#72336)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep pooled SFTP connection on application-level SFTP errors (#73288)``
+* ``Fix SFTPHookAsync letting a connection's known_hosts extra override an explicit constructor path (#73593)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing tests for sftp exceptions (#72456)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
 6.0.1
 .....
 

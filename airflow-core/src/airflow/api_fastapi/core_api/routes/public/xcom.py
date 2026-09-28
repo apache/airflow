@@ -94,7 +94,6 @@ def get_xcom_entry(
         task_ids=task_id,
         dag_ids=dag_id,
         map_indexes=map_index,
-        limit=1,
     ).options(
         joinedload(XComModel.task),
         joinedload(XComModel.dag_run).joinedload(DR.dag_model),
@@ -104,7 +103,7 @@ def get_xcom_entry(
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database.
-    raw_result: tuple[XComModel] | None = session.scalars(xcom_query).first()
+    raw_result: tuple[XComModel] | None = session.scalars(xcom_query.limit(1)).first()
 
     if raw_result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
@@ -396,6 +395,8 @@ def update_xcom_entry(
             run_id=dag_run_id,
             map_index=patch_body.map_index,
             serialize=False,
+            # Not recomputed from the new value: a custom XCom backend stores only a reference.
+            mapped_length=xcom_entry.mapped_length,
             session=session,
         )
     except (ValueError, TypeError) as e:

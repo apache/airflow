@@ -44,7 +44,7 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
-import { renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";
 import { FileLocation } from "./FileLocation";
@@ -52,6 +52,7 @@ import { VersionCompareSelect } from "./VersionCompareSelect";
 
 export const Code = () => {
   const { t: translate } = useTranslation(["dag", "common", "components"]);
+  const { renderDuration } = useDurationFormat();
   const { dagId } = useParams();
 
   const selectedVersion = useSelectedVersion();
@@ -160,6 +161,8 @@ export const Code = () => {
       ? translate("code.noCode")
       : (compareCode?.content ?? "");
 
+  const language: string = code?.language ?? "python";
+
   const codeStatus = (
     <>
       <ErrorAlert
@@ -182,7 +185,11 @@ export const Code = () => {
         <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
       )}
       <Box flex={1} minH={0}>
-        <CodeDiffViewer modifiedCode={displayedCode} originalCode={displayedCompareCode} />
+        <CodeDiffViewer
+          language={language}
+          modifiedCode={displayedCode}
+          originalCode={displayedCompareCode}
+        />
       </Box>
     </Box>
   ) : (
@@ -205,7 +212,7 @@ export const Code = () => {
       <Box flex={1} minH={0}>
         <Editor
           beforeMount={beforeMount}
-          language="python"
+          language={language}
           options={editorOptions}
           theme={theme}
           value={displayedCode}

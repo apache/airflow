@@ -236,6 +236,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
                     job_flow_id=job_flow_id,
                     step_ids=step_ids,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_max_attempts=self.waiter_max_attempts,
                     waiter_delay=self.waiter_delay,
                 ),
@@ -645,6 +648,9 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.poll_interval,
                     waiter_max_attempts=self.max_polling_attempts,
                     cancel_on_kill=self.cancel_on_kill,
@@ -654,6 +660,9 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.poll_interval,
                     cancel_on_kill=self.cancel_on_kill,
                 ),
@@ -757,6 +766,7 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         "job_flow_overrides",
         "waiter_delay",
         "waiter_max_attempts",
+        "emr_conn_id",
     )
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"job_flow_overrides": "json"}
@@ -866,6 +876,9 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                         trigger=EmrCreateJobFlowTrigger(
                             job_flow_id=self._job_flow_id,
                             aws_conn_id=self.aws_conn_id,
+                            region_name=self.region_name,
+                            verify=self.verify,
+                            botocore_config=self.botocore_config,
                             waiter_delay=self.waiter_delay,
                             waiter_max_attempts=self.waiter_max_attempts,
                             waiter_name=waiter_name,
@@ -1079,6 +1092,9 @@ class EmrTerminateJobFlowOperator(AwsBaseOperator[EmrHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -1175,6 +1191,9 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
                 trigger=EmrServerlessCreateApplicationTrigger(
                     application_id=application_id,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
@@ -1220,6 +1239,9 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
             trigger=EmrServerlessStartApplicationTrigger(
                 application_id=event["application_id"],
                 aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                botocore_config=self.botocore_config,
                 waiter_delay=self.waiter_delay,
                 waiter_max_attempts=self.waiter_max_attempts,
             ),
@@ -1368,6 +1390,9 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                     ),
                     method_name="execute",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -1427,6 +1452,9 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                         cancel_on_kill=self.cancel_on_kill,
                     ),
                     method_name="execute_complete",
@@ -1646,6 +1674,9 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
     template_fields: Sequence[str] = aws_template_fields(
         "application_id",
     )
+    # Method the task resumes at once the application has stopped in deferrable mode.
+    # Subclasses can override it to run further steps after the stop.
+    stop_complete_method_name: str = "execute_complete"
 
     def __init__(
         self,
@@ -1683,6 +1714,9 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                         trigger=EmrServerlessCancelJobsTrigger(
                             application_id=self.application_id,
                             aws_conn_id=self.aws_conn_id,
+                            region_name=self.region_name,
+                            verify=self.verify,
+                            botocore_config=self.botocore_config,
                             waiter_delay=self.waiter_delay,
                             waiter_max_attempts=self.waiter_max_attempts,
                         ),
@@ -1706,11 +1740,14 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                 trigger=EmrServerlessStopApplicationTrigger(
                     application_id=self.application_id,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-                method_name="execute_complete",
+                method_name=self.stop_complete_method_name,
             )
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_app_stopped")
@@ -1736,11 +1773,14 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
             trigger=EmrServerlessStopApplicationTrigger(
                 application_id=self.application_id,
                 aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                botocore_config=self.botocore_config,
                 waiter_delay=self.waiter_delay,
                 waiter_max_attempts=self.waiter_max_attempts,
             ),
             timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-            method_name="execute_complete",
+            method_name=self.stop_complete_method_name,
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -1786,6 +1826,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     template_fields: Sequence[str] = aws_template_fields(
         "application_id",
     )
+    stop_complete_method_name = "delete_stopped_application"
 
     def __init__(
         self,
@@ -1815,9 +1856,18 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self.wait_for_delete_completion = False if deferrable else wait_for_completion
 
     def execute(self, context: Context) -> None:
-        # super stops the app (or makes sure it's already stopped)
+        # super stops the app (or makes sure it's already stopped). In deferrable mode it defers
+        # instead of returning, and the task resumes in ``delete_stopped_application``.
         super().execute(context)
+        self._delete_application()
 
+    def delete_stopped_application(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        # super(): this class overrides execute_complete to handle the delete trigger's event,
+        # while the event here comes from the stop trigger.
+        super().execute_complete(context, event)
+        self._delete_application()
+
+    def _delete_application(self) -> None:
         self.log.info("Now deleting application: %s", self.application_id)
         response = self.hook.conn.delete_application(applicationId=self.application_id)
 
@@ -1829,6 +1879,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
                 trigger=EmrServerlessDeleteApplicationTrigger(
                     application_id=self.application_id,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),

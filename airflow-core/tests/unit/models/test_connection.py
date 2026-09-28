@@ -272,53 +272,134 @@ class TestConnection:
         assert connection.get_uri() == expected_uri
 
     @pytest.mark.parametrize(
-        ("connection", "expected_warned"),
+        ("conn_type", "registered", "expected_remedy"),
         [
-            (Connection(conn_id="test-uri-1", uri="google-cloud-platform://testlogin:testpassword@"), False),
-            (Connection(conn_id="test-uri-2", uri="amazon://test:test@"), False),
-            (
-                Connection(
-                    conn_id="test-non-uri-1",
-                    conn_type="google-cloud-platform",
-                    login="testlogin",
-                    password="testpassword",
-                ),
-                False,
+            # Typed with '-' where the provider registers '_': the connection is the thing to
+            # fix, so say which spelling reaches the hook.
+            pytest.param(
+                "google-cloud-platform",
+                "google_cloud_platform",
+                "Spell this connection's type with '_' to reach it.",
+                id="hyphenated-conn-type",
             ),
-            (
-                Connection(
-                    conn_id="test-non-uri-2",
-                    conn_type="google_cloud_platform",
-                    login="testlogin",
-                    password="testpassword",
-                ),
-                True,
-            ),
-            (
-                Connection(
-                    conn_id="test-non-uri-3", conn_type="amazon", login="testlogin", password="testpassword"
-                ),
-                False,
+            # The reverse, which is what a hyphenated connection-type actually produces: a
+            # connection read from a URI or from JSON normalizes to '_' and cannot reach the
+            # registered name, so there is nothing that connection can do and the provider
+            # has to rename. A metadata-DB row keeps the hyphen and does resolve.
+            pytest.param(
+                "pydanticai_vertex",
+                "pydanticai-vertex",
+                "so this connection cannot reach that hook",
+                id="hyphenated-registration",
             ),
         ],
     )
-    def test_get_uri_conn_type_warning(self, connection: Connection, expected_warned: bool):
+    def test_get_hook_names_the_other_spelling_when_it_is_the_registered_one(
+        self, conn_type, registered, expected_remedy
+    ):
+        """
+        '-' and '_' are the same character to a URI scheme, so a connection type spelled one
+        way cannot resolve a hook registered the other way. The bare 'Unknown hook type' named
+        neither the cause nor which spelling would work.
+        """
+        conn = Connection(conn_id="c", conn_type=conn_type)
+
+        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+            mock_manager.return_value.hooks = {registered: mock.MagicMock()}
+            with pytest.raises(AirflowException, match="Unknown hook type") as exc_info:
+                conn.get_hook()
+
+        message = str(exc_info.value)
+        assert conn_type in message
+        assert registered in message
+        assert expected_remedy in message
+
+    def test_get_hook_does_not_guess_an_unregistered_spelling(self):
+        """
+        A hyphenated connection-type registers verbatim and resolves for a connection built
+        with that type directly, so an unresolved hyphenated type is not evidence that the
+        underscored name exists. With nothing registered either way, say only what is known.
+        """
+        conn = Connection(conn_id="c", conn_type="google-cloud-platform")
+
+        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+            mock_manager.return_value.hooks = {}
+            with pytest.raises(AirflowException) as exc_info:
+                conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
+
+    def test_get_hook_does_not_advise_a_spelling_whose_hook_cannot_be_imported(self):
+        """
+        ProvidersManager.hooks holds None for a connection type whose hook could not be
+        imported, so membership alone does not mean the other spelling would resolve. Advice
+        that still fails when followed is worse than no advice.
+        """
+        conn = Connection(conn_id="c", conn_type="google-cloud-platform")
+
+        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+            mock_manager.return_value.hooks = {"google_cloud_platform": None}
+            with pytest.raises(AirflowException) as exc_info:
+                conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
+
+    def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self):
+        """
+        A URI scheme cannot contain '_' (RFC 3986), so ``foo_bar://h`` parses with no scheme
+        at all and leaves conn_type empty. The resulting failure used to read
+        ``Unknown hook type ""``, which named neither the cause nor the fix.
+        """
+        conn = Connection(conn_id="c", uri="pydanticai_azure://h")
+        assert conn.conn_type == ""
+
+        with pytest.raises(AirflowException, match="has no connection type") as exc_info:
+            conn.get_hook()
+
+        assert "RFC 3986" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "connection",
+        [
+            # Parsed from a URI, so _normalize_conn_type has already decoded '-' to '_'.
+            Connection(conn_id="test-uri-1", uri="google-cloud-platform://testlogin:testpassword@"),
+            Connection(conn_id="test-uri-2", uri="amazon://test:test@"),
+            # Set directly with a hyphen, which is the spelling that cannot round-trip.
+            Connection(
+                conn_id="test-non-uri-1",
+                conn_type="google-cloud-platform",
+                login="testlogin",
+                password="testpassword",
+            ),
+            # The canonical underscore form, which serializes to 'google-cloud-platform://'
+            # and decodes back unchanged.
+            Connection(
+                conn_id="test-non-uri-2",
+                conn_type="google_cloud_platform",
+                login="testlogin",
+                password="testpassword",
+            ),
+            Connection(
+                conn_id="test-non-uri-3", conn_type="amazon", login="testlogin", password="testpassword"
+            ),
+        ],
+    )
+    def test_get_uri_does_not_warn_about_the_connection_type(self, connection: Connection):
+        """
+        get_uri() serializes a connection; it does not validate one.
+
+        It used to warn that a conn_type containing '_' broke RFC 3986. That is the one
+        spelling which survives the round trip, since get_uri() encodes '_' as '-' and
+        reading a connection back decodes it, and the warning fired on every uncached
+        connection fetch. A connection type that cannot round-trip is reported where it
+        fails, by get_hook(), and is rejected by the provider schema.
+        """
         with capture_logs() as captured_logs:
             connection.get_uri()
-        conn_type_warnings = list(
-            filter(
-                lambda captured_log: (
-                    captured_log["log_level"] == "warning" and "RFC3986" in captured_log["event"]
-                ),
-                captured_logs,
-            )
-        )
-        if expected_warned:
-            assert conn_type_warnings, f"RFC3986 warning expected for connection '{connection.conn_id}'."
-        else:
-            assert not conn_type_warnings, (
-                f"RFC3986 warning not expected for connection '{connection.conn_id}'."
-            )
+
+        assert [
+            captured_log for captured_log in captured_logs if captured_log["log_level"] == "warning"
+        ] == []
 
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),

@@ -17,8 +17,9 @@
 
 // Package binding resolves TaskFlow arguments for Go task functions.
 //
-// Runtime values are injected by type. Other parameters bind positionally,
-// except a sole struct whose fields bind by `arg:` tag or folded Go name.
+// A task function takes an airflow.Context first, and every parameter after it is data.
+// Data parameters bind positionally, except a sole struct whose fields bind by `arg:` tag
+// or folded Go name.
 // Captured defaults may go unclaimed, and a sole untagged struct can decode one
 // unclaimed argument as a whole value.
 //
@@ -69,10 +70,7 @@ func (LiteralArg) sealedArg() {}
 type paramKind int
 
 const (
-	paramTIRunContext paramKind = iota
-	paramContext
-	paramLogger
-	paramClient
+	paramAirflowContext paramKind = iota
 	paramData
 	paramLoneStruct
 )
@@ -103,6 +101,13 @@ type Plan struct {
 
 // Analyze validates a task function and builds its binding plan.
 func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
+	if fnType.NumIn() == 0 {
+		return nil, fmt.Errorf(
+			"task function %s: takes no parameters, but the first parameter must be "+
+				"airflow.Context",
+			fnName,
+		)
+	}
 	p := &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
 	var dataIdxs []int
 	for i := range fnType.NumIn() {
@@ -154,39 +159,23 @@ func (p *Plan) Resolve(
 	client sdk.Client,
 	args []Arg,
 ) ([]reflect.Value, error) {
-	out := p.resolveInjectables(ctx, logger, client)
+	out := make([]reflect.Value, len(p.params))
+	// Bound to the live task context, so actx.Done() fires on supervisor shutdown.
+	ti, dagRun := storedRunMetadata(ctx)
+	out[0] = newAirflowContext(ctx, logger, client, ti, dagRun)
 	if p.loneStruct {
 		return p.resolveLoneStructParam(ctx, client, args, out)
 	}
 	return p.resolveFlatParams(ctx, client, args, out)
 }
 
-func (p *Plan) resolveInjectables(
-	ctx context.Context,
-	logger *slog.Logger,
-	client sdk.Client,
-) []reflect.Value {
-	out := make([]reflect.Value, len(p.params))
-	for i, plan := range p.params {
-		switch plan.kind {
-		case paramTIRunContext:
-			// Rebuild the stored metadata around the live task context.
-			var ti sdk.TaskInstance
-			var dagRun sdk.DagRun
-			if stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext); ok {
-				ti, dagRun = stored.TaskInstance(), stored.DagRun()
-			}
-			out[i] = reflect.ValueOf(sdk.NewTIRunContext(ctx, ti, dagRun))
-		case paramContext:
-			out[i] = reflect.ValueOf(ctx)
-		case paramLogger:
-			out[i] = reflect.ValueOf(logger)
-		case paramClient:
-			out[i] = reflect.ValueOf(client)
-		case paramData, paramLoneStruct:
-		}
+// storedRunMetadata reads the task instance and Dag run recorded on the task context.
+func storedRunMetadata(ctx context.Context) (sdk.TaskInstance, sdk.DagRun) {
+	stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		return sdk.TaskInstance{}, sdk.DagRun{}
 	}
-	return out
+	return stored.TaskInstance(), stored.DagRun()
 }
 
 func (p *Plan) resolveFlatParams(
@@ -493,29 +482,36 @@ func (p *Plan) decodeArg(
 }
 
 func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error) {
-	switch {
-	case isTIRunContext(in):
-		// TIRunContext also satisfies context.Context, so check it first.
-		return paramPlan{kind: paramTIRunContext, index: index}, nil
-	case isContext(in):
-		if !contextType.Implements(in) {
+	if index == 0 {
+		if in == airflowContextType {
+			return paramPlan{kind: paramAirflowContext, index: index}, nil
+		}
+		if in == airflowContextPtrType {
 			return paramPlan{}, fmt.Errorf(
-				"task function %s: parameter %d: interface %s adds methods on top of "+
-					"context.Context; declare sdk.TIRunContext or a separate parameter instead",
-				fnName, index, in,
+				"task function %s: parameter 0 is %s, but airflow.Context is taken by value",
+				fnName, in,
 			)
 		}
-		return paramPlan{kind: paramContext, index: index}, nil
-	case isLogger(in):
-		return paramPlan{kind: paramLogger, index: index}, nil
-	case isClient(in):
-		return paramPlan{kind: paramClient, index: index}, nil
+		return paramPlan{}, fmt.Errorf(
+			"task function %s: parameter 0 is %s, but the first parameter must be airflow.Context",
+			fnName, in,
+		)
+	}
+	// A logger is a pointer to a struct, so it passes isDecodableType. Without this check
+	// the handler would get a pointer to a zero slog.Logger, and the first log call would panic.
+	if in.AssignableTo(slogLoggerType) {
+		return paramPlan{}, fmt.Errorf(
+			"task function %s: parameter %d: %s cannot receive a task argument (the task's "+
+				"logger comes from the Logger method of the leading airflow.Context)",
+			fnName, index, in,
+		)
 	}
 	if in.Kind() == reflect.Interface && in.NumMethod() > 0 {
 		return paramPlan{}, fmt.Errorf(
-			"task function %s: parameter %d: interface %s is not injectable "+
-				"(want context.Context, sdk.TIRunContext, or a subset of sdk.Client): %s",
-			fnName, index, in, explainClientMismatch(in),
+			"task function %s: parameter %d: %s cannot receive a task argument (an interface "+
+				"with methods cannot be decoded, and the task's context and client come from "+
+				"the leading airflow.Context)",
+			fnName, index, in,
 		)
 	}
 	if !isDecodableType(in) {
@@ -840,43 +836,8 @@ func implementsUnmarshaler(t reflect.Type) bool {
 }
 
 var (
-	contextType      = reflect.TypeFor[context.Context]()
-	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
-	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
-	clientType       = reflect.TypeFor[sdk.Client]()
+	slogLoggerType = reflect.TypeFor[*slog.Logger]()
 
 	jsonUnmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
-
-func isContext(inType reflect.Type) bool {
-	return inType != nil && inType.Implements(contextType)
-}
-
-func isTIRunContext(inType reflect.Type) bool {
-	return inType == tiRunContextType
-}
-
-func isLogger(inType reflect.Type) bool {
-	return inType != nil && inType.AssignableTo(slogLoggerType)
-}
-
-// isClient reports whether inType is a non-empty subset of sdk.Client.
-func isClient(inType reflect.Type) bool {
-	return inType != nil && inType.Kind() == reflect.Interface &&
-		inType.NumMethod() > 0 && clientType.Implements(inType)
-}
-
-func explainClientMismatch(in reflect.Type) string {
-	for i := range in.NumMethod() {
-		m := in.Method(i)
-		cm, ok := clientType.MethodByName(m.Name)
-		if !ok {
-			return fmt.Sprintf("sdk.Client has no method %s", m.Name)
-		}
-		if cm.Type != m.Type {
-			return fmt.Sprintf("method %s is %s on sdk.Client, not %s", m.Name, cm.Type, m.Type)
-		}
-	}
-	return "its method set is not a subset of sdk.Client"
-}

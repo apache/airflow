@@ -46,7 +46,7 @@ import os
 from airflow.providers.common.compat.sdk import dag, task
 
 LLM_CONN_ID = os.environ.get("LLM_CONN_ID", "langchain_default")
-LLM_MODEL = os.environ.get("LLM_MODEL", "openai:gpt-4o")
+LLM_MODEL = os.environ.get("LLM_MODEL", "openai:gpt-5")
 DB_CONN_ID = os.environ.get("DB_CONN_ID", "sql_default")
 
 DEFAULT_QUESTION = "Which tables exist, and how many rows does each contain?"

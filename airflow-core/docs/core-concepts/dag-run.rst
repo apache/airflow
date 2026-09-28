@@ -28,7 +28,7 @@ Dag Run Status
 
 A Dag Run status is determined when the execution of the Dag is finished.
 The execution of the Dag depends on its containing tasks and their dependencies.
-The status is assigned to the Dag Run when all of the tasks are in the one of the terminal states (i.e. if there is no possible transition to another state) like ``success``, ``failed`` or ``skipped``.
+The status is assigned to the Dag Run when all of the tasks are in one of the terminal states (i.e. if there is no possible transition to another state) like ``success``, ``failed`` or ``skipped``.
 The Dag Run is having the status assigned based on the so-called "leaf nodes" or simply "leaves". Leaf nodes are the tasks with no children.
 
 There are two possible terminal states for the Dag Run:

@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import boto3
 import pytest
 from moto import mock_aws
@@ -318,6 +320,59 @@ class TestS3ToSFTPOperator:
 
 class TestS3ToSFTPOperatorInit:
     """Unit tests for S3ToSFTPOperator.__init__ that do not require an SSH server."""
+
+    @pytest.mark.parametrize(
+        ("keys", "expected", "skipped"),
+        [
+            pytest.param(
+                ["source/pre_one.txt", "source/xpre_two.txt", "source/pre_again_pre_.txt"],
+                [
+                    ("source/pre_one.txt", "/destination/new_one.txt"),
+                    ("source/pre_again_pre_.txt", "/destination/new_again_pre_.txt"),
+                ],
+                ["xpre_two.txt"],
+                id="prefix-only-at-start",
+            ),
+            pytest.param(
+                ["source/pre_one.txt", "source/pre_dir/pre_two.txt", "source/pre_dir/other.txt"],
+                [
+                    ("source/pre_one.txt", "/destination/new_one.txt"),
+                    ("source/pre_dir/pre_two.txt", "/destination/pre_dir/new_two.txt"),
+                ],
+                ["pre_dir/other.txt"],
+                id="nested-keys-keep-their-directory",
+            ),
+        ],
+    )
+    @mock.patch.object(S3ToSFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.SSHHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.S3Hook")
+    def test_execute_matches_the_prefix_on_the_file_name(
+        self, mock_s3_hook_class, mock_ssh_hook_class, mock_download_from_s3, keys, expected, skipped
+    ):
+        """The prefix matches only the start of the file name, and only that leading occurrence is
+        renamed. ``list_keys`` recurses, so a nested key is matched on its file name and keeps its
+        directory, while the old substring rule still decides which skipped keys are reported."""
+        mock_s3_hook = mock_s3_hook_class.return_value
+        mock_s3_hook.list_keys.return_value = keys
+        sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
+        operator = S3ToSFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            sftp_path="/destination/",
+            sftp_conn_id=SFTP_CONN_ID,
+            s3_filenames="pre_",
+            sftp_filenames="new_",
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
+
+        assert mock_download_from_s3.call_args_list == [
+            mock.call(sftp_client, mock_s3_hook, *call) for call in expected
+        ]
+        mock_log_warning.assert_called_once_with(mock.ANY, len(skipped), "pre_", skipped, "")
 
     @pytest.mark.parametrize(
         ("s3_filenames", "sftp_filenames"),

@@ -19,12 +19,14 @@
 
 package org.apache.airflow.sdk.execution
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.util.StdDateFormat
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.apache.airflow.sdk.execution.comm.Discriminator
+import org.apache.airflow.sdk.execution.comm.PutVariable
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 import org.msgpack.core.buffer.ArrayBufferInput
@@ -37,6 +39,17 @@ data class RawFrame(
   val rawError: Any?,
 )
 
+/**
+ * jsonschema2pojo stamps every model with `@JsonInclude(NON_NULL)`, so
+ * Jackson drops null fields from the wire map. The supervisor requires these
+ * fields to be present. When one is missing it fails validation, logs the
+ * frame and never replies, so the caller blocks forever.
+ */
+private val REQUIRED_NULLABLE_REQUESTS = setOf(PutVariable::class.java)
+
+@JsonInclude(JsonInclude.Include.ALWAYS)
+private abstract class KeepNullFields
+
 object Frame {
   internal const val MAX_FRAME_LENGTH = 0xFFFF_FFFFL
 
@@ -47,6 +60,7 @@ object Frame {
       registerModule(JavaTimeModule())
       registerModule(TimestampToJavaOffsetDateTimeModule())
       setDateFormat(StdDateFormat().withColonInTimeZone(true))
+      REQUIRED_NULLABLE_REQUESTS.forEach { addMixIn(it, KeepNullFields::class.java) }
     }
 
   fun encodeRequest(

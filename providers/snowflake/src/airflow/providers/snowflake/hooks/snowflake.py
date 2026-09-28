@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
@@ -84,6 +85,25 @@ def _is_retryable_oauth_error(exception: BaseException) -> bool:
             return True
 
     return False
+
+
+_ACCOUNT_COMPONENT_PATTERN = re.compile(r"\A[A-Za-z0-9._-]+\Z")
+
+
+def _validate_account_component(value: Any, field_name: str) -> str:
+    """
+    Check that an account or region value is a bare Snowflake identifier.
+
+    These values are interpolated into the Snowflake REST URLs, so a value carrying
+    characters that are significant in a URL would change which host the request is
+    addressed to. Snowflake account and region identifiers are made up of letters,
+    digits, dots, underscores and hyphens, so anything else is rejected rather than sent.
+    """
+    if not isinstance(value, str) or not _ACCOUNT_COMPONENT_PATTERN.fullmatch(value):
+        raise ValueError(
+            f"Invalid Snowflake {field_name} {value!r}: only letters, digits, '.', '_' and '-' are allowed."
+        )
+    return value
 
 
 class _SnowflakeOAuthManager:
@@ -160,7 +180,11 @@ class _SnowflakeOAuthManager:
         ):
             return self._oauth_token
 
-        url = token_endpoint or f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+        if token_endpoint:
+            url = token_endpoint
+        else:
+            account = _validate_account_component(conn_config["account"], "account")
+            url = f"https://{account}.snowflakecomputing.com/oauth/token-request"
 
         data = {
             "grant_type": grant_type,
@@ -366,10 +390,12 @@ class SnowflakeHook(DbApiHook):
     def account_identifier(self) -> str:
         """Get snowflake account identifier."""
         conn_config = self._get_conn_params()
-        account_identifier = f"https://{conn_config['account']}"
+        account = _validate_account_component(conn_config["account"], "account")
+        account_identifier = f"https://{account}"
 
         if conn_config["region"]:
-            account_identifier += f".{conn_config['region']}"
+            region = _validate_account_component(conn_config["region"], "region")
+            account_identifier += f".{region}"
 
         return account_identifier
 

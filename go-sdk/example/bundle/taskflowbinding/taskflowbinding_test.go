@@ -18,19 +18,30 @@
 package taskflowbinding
 
 import (
-	"context"
 	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
+// unusedClient satisfies airflow.NewContext, which rejects a nil client.
+// These handlers never call it.
+type unusedClient struct{ sdk.Client }
+
+func testContext(t *testing.T) airflow.Context {
+	t.Helper()
+	return airflow.NewContext(
+		t.Context(), slog.Default(), unusedClient{},
+		airflow.TaskInstance{}, airflow.DagRun{},
+	)
+}
+
 func TestViaFlatArgs(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaFlatArgs(ctx, slog.Default(),
+	got, err := ViaFlatArgs(testContext(t),
 		"summary", 3, 2.5, true,
 		[]string{"metrics", "hourly"},
 		Config{Environment: "production", Region: "eu-west-1", Debug: true},
@@ -46,8 +57,7 @@ func TestViaFlatArgs(t *testing.T) {
 }
 
 func TestViaFlatArgsRejectsWrongBinding(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaFlatArgs(ctx, slog.Default(),
+	_, err := ViaFlatArgs(testContext(t),
 		"summary", 3, 2.5, true,
 		[]string{"metrics", "hourly"},
 		Config{},
@@ -58,8 +68,7 @@ func TestViaFlatArgsRejectsWrongBinding(t *testing.T) {
 }
 
 func TestViaStructNoTags(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaStructNoTags(ctx, slog.Default(), ViaStructNoTagsInput{
+	got, err := ViaStructNoTags(testContext(t), ViaStructNoTagsInput{
 		RegionCode: "eu-west-1",
 		Threshold:  0.75,
 	})
@@ -71,8 +80,7 @@ func TestViaStructNoTags(t *testing.T) {
 }
 
 func TestViaStructNoTagsRejectsWrongBinding(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaStructNoTags(ctx, slog.Default(), ViaStructNoTagsInput{
+	_, err := ViaStructNoTags(testContext(t), ViaStructNoTagsInput{
 		RegionCode: "wrong-region",
 		Threshold:  0.75,
 	})
@@ -80,8 +88,7 @@ func TestViaStructNoTagsRejectsWrongBinding(t *testing.T) {
 }
 
 func TestViaStructArgTag(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaStructArgTag(ctx, slog.Default(), ViaStructArgTagInput{
+	got, err := ViaStructArgTag(testContext(t), ViaStructArgTagInput{
 		Region:    "eu-west-1",
 		Threshold: 0.75,
 	})
@@ -93,8 +100,7 @@ func TestViaStructArgTag(t *testing.T) {
 }
 
 func TestViaStructArgTagRejectsWrongBinding(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaStructArgTag(ctx, slog.Default(), ViaStructArgTagInput{
+	_, err := ViaStructArgTag(testContext(t), ViaStructArgTagInput{
 		Region:    "wrong-region",
 		Threshold: 0.75,
 	})
@@ -102,8 +108,7 @@ func TestViaStructArgTagRejectsWrongBinding(t *testing.T) {
 }
 
 func TestViaStructUnmatchedArg(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaStructUnmatchedArg(ctx, slog.Default(), ViaStructUnmatchedArgInput{
+	got, err := ViaStructUnmatchedArg(testContext(t), ViaStructUnmatchedArgInput{
 		Region:  "eu-west-1",
 		Missing: "",
 	})
@@ -115,8 +120,7 @@ func TestViaStructUnmatchedArg(t *testing.T) {
 }
 
 func TestViaStructUnmatchedArgRejectsNonZeroMissingField(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaStructUnmatchedArg(ctx, slog.Default(), ViaStructUnmatchedArgInput{
+	_, err := ViaStructUnmatchedArg(testContext(t), ViaStructUnmatchedArgInput{
 		Region:  "eu-west-1",
 		Missing: "unexpected",
 	})
@@ -124,8 +128,7 @@ func TestViaStructUnmatchedArgRejectsNonZeroMissingField(t *testing.T) {
 }
 
 func TestViaFlatMap(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaFlatMap(ctx, slog.Default(), FlatMapConfig{Region: "eu-west-1", Count: 3})
+	got, err := ViaFlatMap(testContext(t), FlatMapConfig{Region: "eu-west-1", Count: 3})
 	require.NoError(t, err)
 
 	summary, ok := got.(map[string]any)
@@ -135,14 +138,12 @@ func TestViaFlatMap(t *testing.T) {
 }
 
 func TestViaFlatMapRejectsWrongBinding(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaFlatMap(ctx, slog.Default(), FlatMapConfig{Region: "wrong-region", Count: 3})
+	_, err := ViaFlatMap(testContext(t), FlatMapConfig{Region: "wrong-region", Count: 3})
 	assert.ErrorContains(t, err, "whole-value map bound incorrectly")
 }
 
 func TestViaStructMap(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaStructMap(ctx, slog.Default(), StructMapInput{
+	got, err := ViaStructMap(testContext(t), StructMapInput{
 		Payload: map[string]any{"region": "eu-west-1", "count": 3},
 	})
 	require.NoError(t, err)
@@ -153,16 +154,14 @@ func TestViaStructMap(t *testing.T) {
 }
 
 func TestViaStructMapRejectsWrongBinding(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaStructMap(ctx, slog.Default(), StructMapInput{
+	_, err := ViaStructMap(testContext(t), StructMapInput{
 		Payload: map[string]any{"region": "wrong-region"},
 	})
 	assert.ErrorContains(t, err, "map field bound incorrectly")
 }
 
 func TestViaPlainMap(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaPlainMap(ctx, slog.Default(), map[string]string{
+	got, err := ViaPlainMap(testContext(t), map[string]string{
 		"team": "data", "tier": "gold",
 	})
 	require.NoError(t, err)
@@ -174,7 +173,6 @@ func TestViaPlainMap(t *testing.T) {
 }
 
 func TestViaPlainMapRejectsWrongBinding(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaPlainMap(ctx, slog.Default(), map[string]string{"team": "wrong"})
+	_, err := ViaPlainMap(testContext(t), map[string]string{"team": "wrong"})
 	assert.ErrorContains(t, err, "plain map bound incorrectly")
 }

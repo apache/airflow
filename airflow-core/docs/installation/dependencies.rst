@@ -39,8 +39,8 @@ Provider distributions
 ''''''''''''''''''''''
 
 Airflow is delivered in multiple, separate, but connected packages. There is the main ``apache-airflow``
-package, ``airflow-core`` package (which is a dependency of ``apache-airflow``) which implements
-main airflow functionality, ``airflow-task-sdk`` package that is used by Dag authors to implement Dags,
+package, ``apache-airflow-core`` package (which is a dependency of ``apache-airflow``) which implements
+main airflow functionality, ``apache-airflow-task-sdk`` package that is used by Dag authors to implement Dags,
 and multiple so called ``Airflow providers`` packages.
 
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
@@ -62,12 +62,12 @@ packages, but not all optional features of Apache Airflow have corresponding pro
 
 We are using the ``extras`` setuptools features to also install providers.
 Most of the extras are also linked (same name) with providers - for example using ``apache-airflow[google]``
-extra installs ``airflow-core`` and adds ``apache-airflow-providers-google`` as dependency.
-However, there are some extras that do not install providers (examples ``github_enterprise``, ``kerberos`` -
+extra installs ``apache-airflow-core`` and adds ``apache-airflow-providers-google`` as dependency.
+However, there are some extras that do not install providers (examples ``github_enterprise``, ``kerberos``) -
 they add some extra dependencies which are needed for those ``extra`` features of
-Airflow mentioned. The three examples above add respectively GitHub Enterprise OAuth authentication,
-Kerberos integration . None of those have providers, they are just extending Apache Airflow
-``airflow-core`` package with new functionalities.
+Airflow mentioned. The two examples above add respectively GitHub Enterprise OAuth authentication and
+Kerberos integration. None of those have providers, they are just extending Apache Airflow
+``apache-airflow-core`` package with new functionalities.
 
 System dependencies
 '''''''''''''''''''
