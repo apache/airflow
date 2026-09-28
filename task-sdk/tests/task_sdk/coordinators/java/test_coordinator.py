@@ -23,10 +23,10 @@ import pathlib
 import re
 import socket
 import subprocess
-import zipfile
 from unittest.mock import MagicMock, patch
 
 import pytest
+from task_sdk.coordinators.java._jar_test_utils import make_jar
 from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
@@ -34,6 +34,7 @@ from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
     _JarInfo,
+    _JarMetadata,
     _walk_jars,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
@@ -65,15 +66,31 @@ def _make_jar(
     schema_version: str | None = None,
 ) -> pathlib.Path:
     """Write a minimal JAR with (optionally) a Main-Class manifest entry."""
-    lines = ["Manifest-Version: 1.0"]
+    attributes = {"Manifest-Version": "1.0"}
     if main_class:
-        lines.append(f"Main-Class: {main_class}")
+        attributes["Main-Class"] = main_class
     if schema_version:
-        lines.append(f"Airflow-Supervisor-Schema-Version: {schema_version}")
-    manifest = "\n".join(lines) + "\n\n"
-    with zipfile.ZipFile(path, "w") as zf:
-        zf.writestr("META-INF/MANIFEST.MF", manifest)
-    return path
+        attributes["Airflow-Supervisor-Schema-Version"] = schema_version
+    return make_jar(path, attributes=attributes)
+
+
+class TestJarMetadata:
+    def test_reads_a_folded_main_class(self, tmp_path):
+        main_class = "org.apache.airflow.example.nativedag.generated.VeryLongNativeDagBundleBuilder"
+        jar = make_jar(tmp_path / "app.jar", attributes={"Main-Class": main_class})
+
+        assert _JarMetadata.from_jar(jar) == _JarMetadata(main_class, None)
+
+    def test_jar_without_manifest_gives_none(self, tmp_path):
+        jar = make_jar(tmp_path / "lib.jar", entries={"com/example/Lib.class": b"\xca\xfe"})
+
+        assert _JarMetadata.from_jar(jar) is None
+
+    def test_non_zip_gives_none(self, tmp_path):
+        jar = tmp_path / "broken.jar"
+        jar.write_bytes(b"not a zip")
+
+        assert _JarMetadata.from_jar(jar) is None
 
 
 class TestCalculateClasspath:
