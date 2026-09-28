@@ -21,7 +21,6 @@ import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GridRunsResponse } from "openapi/requests/types.gen";
-
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { Wrapper } from "src/utils/Wrapper";
