@@ -159,6 +159,50 @@ value inside ``scope`` (``dag_id``, ``task_id``, ``operator``, ``hook``) is trea
      - List of regex patterns; datasets whose ``<namespace>/<name>`` matches any of them are
        dropped. Task events only. See :ref:`emission_policy_datasets:openlineage`.
 
+**Valid scope and control combinations.** A rule that uses a control its scope does not accept
+is skipped with a WARNING that names the offending keys.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 10 14 10 18 18
+
+   * - Control
+     - Global (``{}``)
+     - ``operator``
+     - ``dag_id``
+     - ``dag_id`` + ``task_id``
+     - Any of these + ``hook``
+   * - ``emit``, ``emit_task_events``
+     - yes
+     - yes
+     - yes
+     - yes
+     - no
+   * - ``emit_dag_events``
+     - yes
+     - no
+     - yes
+     - no
+     - no
+   * - ``extract_operator_metadata``, ``include_source_code``, ``include_full_task_info``
+     - yes
+     - yes
+     - yes
+     - yes
+     - no
+   * - ``hook_lineage``
+     - yes
+     - yes
+     - yes
+     - yes
+     - yes, keeps or drops the hook's datasets; not with ``exclude_datasets``
+   * - ``exclude_datasets``
+     - yes
+     - yes
+     - yes
+     - yes
+     - yes; not with ``hook_lineage``
+
 ``locked`` (top-level, default ``false``) is an admin-only floor lock: when ``true``, the
 control fields carried by this rule's ``controls`` dict cannot be overridden by per-Dag /
 per-task authoring flags (see :ref:`emission_policy_authoring:openlineage`). The rule still
