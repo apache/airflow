@@ -759,10 +759,13 @@ class DagRun(Base, LoggingMixin):
         Meant to be called by request-driven trigger surfaces -- manual UI/REST-API triggers and
         TriggerDagRunOperator/CLI (via :func:`airflow.api.common.trigger_dag.trigger_dag`) -- right
         after :meth:`SerializedDAG.create_dagrun`. Deliberately not called from the scheduler's own
-        run-creation call sites: those run every scheduling loop, and the scheduler already has
-        separate periodic bookkeeping for this (``_set_exceeds_max_active_runs``) that intentionally
-        only logs once when a Dag *newly* becomes blocked, rather than every loop. Calling this from
-        there too would turn a one-shot, per-trigger log back into that same per-loop spam.
+        run-creation call sites: those run every scheduling loop, so calling this from there too
+        would turn a one-shot, per-trigger log into a per-loop one instead.
+
+        Counts running non-backfill runs only, to match the promotion queries
+        (:meth:`get_queued_dag_runs_to_set_running` and the scheduler's ``_start_queued_dagruns``),
+        which both count running runs per ``(dag_id, backfill_id)`` -- a running backfill run
+        doesn't hold back a manual trigger's own max_active_runs slot.
 
         :meta private:
         """
@@ -772,7 +775,11 @@ class DagRun(Base, LoggingMixin):
             session.scalar(
                 select(func.count())
                 .select_from(cls)
-                .where(cls.dag_id == dag.dag_id, cls.state == DagRunState.RUNNING)
+                .where(
+                    cls.dag_id == dag.dag_id,
+                    cls.state == DagRunState.RUNNING,
+                    cls.backfill_id.is_(None),
+                )
             )
             or 0
         )
