@@ -2213,7 +2213,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.6.0" },
     { name = "rich-argparse", specifier = ">=1.0.0" },
     { name = "setproctitle", specifier = ">=1.3.3" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.50" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.50,!=2.1.0" },
     { name = "starlette", specifier = ">=1.3.1" },
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
     { name = "structlog", specifier = ">=26.1.0" },
@@ -2783,7 +2783,7 @@ requires-dist = [
     { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'", specifier = ">=1.0.3" },
     { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'", specifier = ">=1.1.5" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=8.0.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'sqlalchemy'", specifier = ">=1.4.49" },
+    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'sqlalchemy'", specifier = ">=1.4.49,!=2.1.0" },
     { name = "sqlalchemy-utils", marker = "extra == 'sqlalchemy'", specifier = ">=0.41.2" },
     { name = "swagger-plugin-for-sphinx", marker = "extra == 'docs'", specifier = ">=7.1.0,!=7.2.0" },
     { name = "tabulate", marker = "extra == 'docs'", specifier = ">=0.9.0" },
@@ -3292,7 +3292,7 @@ requires-dist = [
     { name = "redshift-connector", marker = "python_full_version >= '3.14'", specifier = ">=2.1.13" },
     { name = "s3fs", marker = "extra == 's3fs'", specifier = ">=2023.10.0" },
     { name = "sagemaker-studio", specifier = ">=1.0.25,<1.1.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
@@ -3819,7 +3819,7 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyhive", extras = ["hive-pure-sasl"], specifier = ">=0.7.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "winkerberos", marker = "sys_platform == 'win32' and extra == 'gssapi'", specifier = ">=0.7.0" },
 ]
 provides-extras = ["amazon", "microsoft-mssql", "mysql", "presto", "samba", "sqlalchemy", "vertica", "gssapi"]
@@ -3921,7 +3921,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "impyla", specifier = ">=0.22.0,<1.0" },
     { name = "kerberos", marker = "extra == 'kerberos'", specifier = ">=1.3.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["kerberos", "sqlalchemy"]
 
@@ -4677,14 +4677,14 @@ openai = [
     { name = "openai" },
     { name = "pydantic-ai-slim", extra = ["openai"] },
 ]
+opensandbox = [
+    { name = "opensandbox" },
+]
 parquet = [
     { name = "pyarrow" },
 ]
 pdf = [
     { name = "pypdf" },
-]
-opensandbox = [
-    { name = "opensandbox" },
 ]
 shields = [
     { name = "pydantic-ai-shields" },
@@ -5028,7 +5028,7 @@ requires-dist = [
     { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "pyiceberg-core", marker = "extra == 'pyiceberg-core'", specifier = ">=0.8.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "sqlparse", specifier = ">=0.5.1" },
 ]
 provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "amazon", "datafusion", "pyiceberg-core", "apache-iceberg"]
@@ -5544,7 +5544,7 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyexasol", specifier = ">=0.26.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["sqlalchemy"]
 
@@ -6559,7 +6559,7 @@ requires-dist = [
     { name = "jpype1", marker = "(python_full_version == '3.11.*' and platform_machine != 'arm64') or (python_full_version == '3.11.*' and sys_platform != 'darwin')", specifier = ">=1.4.1" },
     { name = "jpype1", marker = "(python_full_version == '3.12.*' and platform_machine != 'arm64') or (python_full_version == '3.12.*' and sys_platform != 'darwin')", specifier = ">=1.5.0" },
     { name = "jpype1", marker = "(python_full_version == '3.13.*' and platform_machine != 'arm64') or (python_full_version == '3.13.*' and sys_platform != 'darwin')", specifier = ">=1.5.1" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["openlineage", "sqlalchemy"]
 
@@ -7272,7 +7272,7 @@ requires-dist = [
     { name = "attrs", specifier = ">=22.2" },
     { name = "openlineage-integration-common", specifier = ">=1.52.0" },
     { name = "openlineage-python", specifier = ">=1.52.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["sqlalchemy"]
 
@@ -7683,7 +7683,7 @@ requires-dist = [
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13' and extra == 'psycopg2'", specifier = ">=2.9.10" },
     { name = "psycopg2-binary", marker = "python_full_version < '3.13' and extra == 'psycopg2'", specifier = ">=2.9.9" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["amazon", "asyncpg", "microsoft-azure", "openlineage", "pandas", "polars", "psycopg2", "sqlalchemy"]
 
@@ -7753,7 +7753,7 @@ requires-dist = [
     { name = "presto-python-client", specifier = ">=0.8.4" },
     { name = "psycopg2-binary", marker = "python_full_version < '3.13'", specifier = ">=2.9.9" },
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["google", "sqlalchemy"]
 
@@ -8531,7 +8531,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-ssh", marker = "extra == 'ssh'", editable = "providers/ssh" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "teradatasql", specifier = ">=17.20.0.28" },
     { name = "teradatasqlalchemy", specifier = ">=17.20.0.0" },
 ]
@@ -8649,7 +8649,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "vertica-python", specifier = ">=1.3.0" },
 ]
 provides-extras = ["sqlalchemy"]
@@ -8828,7 +8828,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "ydb", specifier = ">=3.18.8" },
     { name = "ydb-dbapi", specifier = ">=0.1.0" },
 ]
