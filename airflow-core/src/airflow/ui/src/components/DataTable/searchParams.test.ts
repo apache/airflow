@@ -50,28 +50,19 @@ describe("searchParams", () => {
       expect(stateToSearchParams(state).toString()).toEqual("limit=20&sort=-age&sort=name");
     });
 
-    it("omits sort only when it matches the default sorting exactly", () => {
+    it("keeps sort in the URL when it matches the default sorting", () => {
       const defaultState: TableState = {
         pagination: {
           pageIndex: 0,
           pageSize: 20,
         },
-        sorting: [{ desc: true, id: "age" }],
+        sorting: [
+          { desc: true, id: "age" },
+          { desc: false, id: "name" },
+        ],
       };
 
-      expect(stateToSearchParams(defaultState, defaultState).toString()).toEqual("");
-      expect(
-        stateToSearchParams(
-          {
-            ...defaultState,
-            sorting: [
-              { desc: true, id: "age" },
-              { desc: false, id: "name" },
-            ],
-          },
-          defaultState,
-        ).toString(),
-      ).toEqual("sort=-age&sort=name");
+      expect(stateToSearchParams(defaultState, defaultState).toString()).toEqual("sort=-age&sort=name");
     });
   });
 

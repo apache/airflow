@@ -29,14 +29,6 @@ const {
   SORT: SORT_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const isSameSorting = (sorting: SortingState, defaultSorting: SortingState | undefined) =>
-  defaultSorting?.length === sorting.length &&
-  sorting.every((sort, index) => {
-    const defaultSort = defaultSorting[index];
-
-    return defaultSort?.id === sort.id && defaultSort.desc === sort.desc;
-  });
-
 export const stateToSearchParams = (state: TableState, defaultTableState?: TableState): URLSearchParams => {
   const queryParams = new URLSearchParams(globalThis.location.search);
 
@@ -59,11 +51,9 @@ export const stateToSearchParams = (state: TableState, defaultTableState?: Table
   }
 
   queryParams.delete(SORT_PARAM);
-  if (!isSameSorting(state.sorting, defaultTableState?.sorting)) {
-    state.sorting.forEach(({ desc, id }) => {
-      queryParams.append(SORT_PARAM, `${desc ? "-" : ""}${id}`);
-    });
-  }
+  state.sorting.forEach(({ desc, id }) => {
+    queryParams.append(SORT_PARAM, `${desc ? "-" : ""}${id}`);
+  });
 
   return queryParams;
 };

@@ -81,7 +81,7 @@
     "esbuild": "^0.28.2",
     "@types/node": "^26.1.2",
     "eslint": "^10.4.0",
-    "json-schema-to-typescript": "^15.0.4",
+    "json-schema-to-typescript": "^16.0.0",
     "prettier": "^3.8.3",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
