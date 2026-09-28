@@ -20,7 +20,8 @@ import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import { BACKFILL_COLOR } from "./calendarUtils";
+import { RunTypeIcon } from "src/components/RunTypeIcon";
+
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
 const SQUARE_SIZE = "12px";
@@ -100,14 +101,9 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
           ))}
           {counts.backfill > 0 && (
             <HStack data-testid="calendar-tooltip-backfill" gap={3}>
-              <Box
-                bg={BACKFILL_COLOR}
-                border="1px solid"
-                borderColor="border.emphasized"
-                borderRadius="full"
-                height={SQUARE_SIZE}
-                width={SQUARE_SIZE}
-              />
+              <Box fontSize={SQUARE_SIZE} lineHeight={1}>
+                <RunTypeIcon runType="backfill" />
+              </Box>
               <Text fontSize="xs">
                 {counts.backfill} {translate("dag:calendar.backfill")}
               </Text>

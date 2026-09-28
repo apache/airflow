@@ -21,8 +21,9 @@ import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { RouterLink, Tooltip } from "src/system-components";
 
+import { RunTypeIcon } from "src/components/RunTypeIcon";
+
 import { CalendarTooltip } from "./CalendarTooltip";
-import { BACKFILL_COLOR } from "./calendarUtils";
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
 type Props = {
@@ -103,15 +104,20 @@ export const CalendarCell = ({
   const hasBackfill = (cellData?.counts.backfill ?? 0) > 0;
   const backfillIndicator = hasBackfill ? (
     <Box
-      bg={BACKFILL_COLOR}
-      borderRadius="full"
+      alignItems="center"
+      color="white"
       data-testid="backfill-indicator"
-      height="7px"
+      display="flex"
+      filter="drop-shadow(0 0 1px rgba(0, 0, 0, 0.7))"
+      fontSize="9px"
+      justifyContent="center"
+      lineHeight={1}
       position="absolute"
-      right="1px"
-      top="1px"
-      width="7px"
-    />
+      right="0"
+      top="0"
+    >
+      <RunTypeIcon runType="backfill" />
+    </Box>
   ) : undefined;
 
   const cellBox = isMixedState ? (
