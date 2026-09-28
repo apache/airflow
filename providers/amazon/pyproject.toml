@@ -93,6 +93,10 @@ dependencies = [
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=7.2.0",  # use next version
 ]
+"datafusion" = [
+    "datafusion>=50.0.0,<52.0.0",
+    "apache-airflow-providers-common-sql>=1.33.0",
+]
 "s3fs" = [
     "s3fs>=2023.10.0",
 ]
@@ -207,7 +211,8 @@ dev = [
     "apache-airflow-providers-common-sql[pandas,polars]",
     "apache-airflow-providers-amazon[sqlalchemy]",
     "apache-airflow-providers-amazon[parquet]",
-    "apache-airflow-providers-duckdb"
+    "apache-airflow-providers-duckdb",
+    "apache-airflow-providers-amazon[datafusion]"
 ]
 
 # To build docs:
