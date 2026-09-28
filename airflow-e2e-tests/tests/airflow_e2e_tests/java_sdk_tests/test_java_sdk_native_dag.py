@@ -123,7 +123,12 @@ def test_every_task_is_routed_to_the_native_coordinator(parsed_dags: AirflowClie
 
 @_by_dag_id
 def test_the_dag_source_is_the_bundle_main_class(parsed_dags: AirflowClient, native_dag: _NativeDag):
-    """The Code view shows the Java source the JAR embeds, not the JAR read as text."""
+    """
+    The Code view shows the Java source the JAR embeds, not the JAR read as text.
+
+    The Code view shows the JAR's entrypoint, its main class, so both Dags show the file that
+    declares ``java_native_e2e`` and registers ``java_native_annotation_e2e``.
+    """
     content = parsed_dags.get_dag_source(native_dag.dag_id)["content"]
 
     assert "public class NativeBundleBuilder" in content
