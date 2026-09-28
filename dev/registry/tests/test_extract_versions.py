@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import textwrap
 from unittest.mock import MagicMock, call, patch
 
@@ -323,9 +324,9 @@ class TestReadGuideDocs:
 
 class TestGitLsTree:
     def test_passes_quote_path_false_to_git(self):
-        mock_result = MagicMock()
-        mock_result.stdout = "providers/test/docs/toolsets.rst\n"
-        with patch("extract_versions.subprocess.run", return_value=mock_result) as mock_run:
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = b"providers/test/docs/toolsets.rst\n"
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result) as mock_run:
             git_ls_tree("providers-test/1.0.0", "providers/test/docs/")
 
         assert mock_run.call_args.args[0] == [
@@ -340,6 +341,14 @@ class TestGitLsTree:
             "providers/test/docs/",
         ]
 
+    def test_decodes_stdout_as_utf8(self):
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = "docs/café.rst\ndocs/b.rst\n".encode()
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
+            result = git_ls_tree("providers-test/1.0.0", "providers/test/docs/")
+
+        assert result == ["docs/café.rst", "docs/b.rst"]
+
 
 def _batch_hit(sha1: str, obj_type: str, content: bytes) -> bytes:
     return f"{sha1} {obj_type} {len(content)}\n".encode() + content + b"\n"
@@ -351,7 +360,7 @@ def _batch_missing(spec: str) -> bytes:
 
 class TestGitCatFileBatch:
     def test_empty_paths_returns_empty_dict_without_subprocess(self):
-        with patch("extract_versions.subprocess.run") as mock_run:
+        with patch("extract_versions.subprocess.run", autospec=True) as mock_run:
             result = git_cat_file_batch("providers-test/1.0.0", [])
 
         assert result == {}
@@ -364,9 +373,9 @@ class TestGitCatFileBatch:
         second_content = "café prôse with more text\n".encode()
         payload = _batch_hit("aaa1", "blob", first_content) + _batch_hit("bbb2", "blob", second_content)
 
-        mock_result = MagicMock()
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
         mock_result.stdout = payload
-        with patch("extract_versions.subprocess.run", return_value=mock_result):
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
             result = git_cat_file_batch(tag, paths)
 
         assert result == {
@@ -379,9 +388,9 @@ class TestGitCatFileBatch:
         paths = ["providers/test/docs/a.rst", "providers/test/docs/missing.rst"]
         payload = _batch_hit("aaa1", "blob", b"content\n") + _batch_missing(f"{tag}:{paths[1]}")
 
-        mock_result = MagicMock()
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
         mock_result.stdout = payload
-        with patch("extract_versions.subprocess.run", return_value=mock_result):
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
             result = git_cat_file_batch(tag, paths)
 
         assert result == {paths[0]: "content\n"}
@@ -391,9 +400,9 @@ class TestGitCatFileBatch:
         paths = ["providers/test/docs/a.rst", "providers/test/docs/b.rst"]
         payload = _batch_missing(f"{tag}:{paths[0]}") + _batch_missing(f"{tag}:{paths[1]}")
 
-        mock_result = MagicMock()
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
         mock_result.stdout = payload
-        with patch("extract_versions.subprocess.run", return_value=mock_result):
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
             result = git_cat_file_batch(tag, paths)
 
         assert result == {}

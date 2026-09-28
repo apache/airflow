@@ -131,25 +131,17 @@ def git_show(tag: str, path: str) -> str | None:
 
 
 def git_ls_tree(tag: str, prefix: str) -> list[str]:
-    """List the file paths under a prefix at a specific git tag.
-
-    Decodes via the process locale (`text=True`), unlike `git_cat_file_batch`'s
-    UTF-8 decode -- and `git_cat_file_batch` re-encodes these same strings
-    (passed straight through by `read_guide_docs`) into its stdin, so a
-    non-UTF-8 locale could break byte-for-byte round-trip. No such path exists
-    under `providers/` today.
-    """
+    """List the file paths under a prefix at a specific git tag."""
     try:
         result = subprocess.run(
             ["git", "-c", "core.quotePath=false", "ls-tree", "-r", "--name-only", tag, "--", prefix],
             capture_output=True,
-            text=True,
             cwd=AIRFLOW_ROOT,
             check=True,
         )
     except subprocess.CalledProcessError:
         return []
-    return [line for line in result.stdout.splitlines() if line]
+    return [line for line in result.stdout.decode("utf-8").splitlines() if line]
 
 
 def git_cat_file_batch(tag: str, paths: list[str]) -> dict[str, str]:
