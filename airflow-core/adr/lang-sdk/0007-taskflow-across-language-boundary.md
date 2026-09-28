@@ -276,6 +276,9 @@ tracked in [#70523](https://github.com/apache/airflow/issues/70523).
 - The mechanism is not private to `@task.stub`: any TaskFlow-shaped operator that sets `is_stub`
   gets arg-binding materialization. A stub-flagged operator that is not a `DecoratedOperator` is
   recognized as stub-backed but receives no bindings (decision B).
+- Core is not the only producer. A language SDK that declares a Dag of its own serializes its tasks
+  with `is_stub` and writes `_arg_bindings` into the Dag it submits, with no Python operator behind
+  them, so `_arg_bindings` means "a stub task's captured arguments", not "@task.stub".
 - Older clients are unaffected: the version migration strips `arg_bindings`, and the server skips
   deriving it for them entirely.
 
