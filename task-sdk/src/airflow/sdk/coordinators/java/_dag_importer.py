@@ -23,22 +23,19 @@ import zipfile
 from typing import TYPE_CHECKING, ClassVar, Final
 
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
-from airflow.sdk.coordinators.java._jar_manifest import read_main_attributes
+from airflow.sdk.coordinators.java._jar_manifest import DAG_CODE, MAIN_CLASS, read_main_attributes
 from airflow.sdk.importers.base import DagSourceCode
 
 if TYPE_CHECKING:
     from airflow.sdk.coordinators.java.coordinator import JavaCoordinator
     from airflow.sdk.importers.base import DagDefinition
 
-_DAG_CODE_ATTRIBUTE: Final = "airflow-java-sdk-dag-code"
 _MAX_SOURCE_BYTES: Final = 1024 * 1024
 _NO_SOURCE: Final = (
     "// This JAR embeds no Dag source. Build it with the Airflow Java SDK Gradle plugin, or set\n"
     "// airflowBundle.dagSource, to show the source here.\n"
 )
-_SOURCE_TOO_LARGE: Final = (
-    f"// The Dag source this JAR embeds is over {_MAX_SOURCE_BYTES} bytes, so it is not shown.\n"
-)
+_SOURCE_TOO_LARGE: Final = "// The Dag source this JAR embeds is over 1 MiB, so it is not shown.\n"
 
 
 class JavaDagImporter(CoordinatorDagImporter):
@@ -65,7 +62,7 @@ class JavaDagImporter(CoordinatorDagImporter):
                 attributes = read_main_attributes(zf) or {}
         except (OSError, zipfile.BadZipFile):
             return True
-        if not (main_class := attributes.get("main-class")):
+        if not (main_class := attributes.get(MAIN_CLASS)):
             return False
         return not self.coordinator.main_class or main_class == self.coordinator.main_class
 
@@ -81,7 +78,7 @@ class JavaDagImporter(CoordinatorDagImporter):
 
 
 def _find_source_entry(zf: zipfile.ZipFile) -> zipfile.ZipInfo | None:
-    if not (entry := (read_main_attributes(zf) or {}).get(_DAG_CODE_ATTRIBUTE)):
+    if not (entry := (read_main_attributes(zf) or {}).get(DAG_CODE)):
         return None
     try:
         return zf.getinfo(entry)
