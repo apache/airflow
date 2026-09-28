@@ -86,6 +86,7 @@ LABELS = {
     "sambanova": "SambaNova",
     "snowflake": "Snowflake Cortex",
     "together": "Together AI",
+    "typesafe": "TypeSafe",
     "vercel": "Vercel AI Gateway",
     "vllm": "vLLM",
     "xai": "xAI",
@@ -163,14 +164,14 @@ requires_openai_codex_module = pytest.mark.skipif(
 # `provider.yaml`'s vendor list is derived from a current pydantic-ai, but the provider
 # supports `pydantic-ai-slim>=2.33.0` (`pyproject.toml`) and CI's "Low dep tests" job installs
 # exactly that floor. Vendors upstream added after the floor are legitimately absent there --
-# bisected empirically: `vllm` landed in 2.38.0 and `github_copilot` in 2.42.0 (`openai_codex`
-# also landed after the floor, in 2.41.0, but is excluded from this reasoning -- see
-# `OPENAI_CODEX_AVAILABLE_FROM` above) -- so only the "installed but not declared" direction
-# holds on every supported version. The opposite direction ("declared but not installed") is a
-# real drift signal solely from the release that carries every vendor currently declared, i.e.
-# the later of the two, `github_copilot`'s 2.42.0: raise this when a newly declared vendor lands
-# in a later release.
-ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.42.0")
+# bisected empirically: `vllm` landed in 2.38.0, `github_copilot` in 2.42.0, and `typesafe` in
+# 2.45.0 (`openai_codex` also landed after the floor, in 2.41.0, but is excluded from this
+# reasoning -- see `OPENAI_CODEX_AVAILABLE_FROM` above) -- so only the "installed but not
+# declared" direction holds on every supported version. The opposite direction ("declared but
+# not installed") is a real drift signal solely from the release that carries every vendor
+# currently declared, i.e. the latest of the three, `typesafe`'s 2.45.0: raise this when a
+# newly declared vendor lands in a later release.
+ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.45.0")
 
 requires_all_declared_vendors = pytest.mark.skipif(
     Version(Version(version("pydantic-ai-slim")).base_version) < ALL_DECLARED_VENDORS_AVAILABLE_FROM,
@@ -424,6 +425,7 @@ TOOLSET_TABLE_ENTRIES: dict[str, tuple[str, str]] = {
     "datafusion": ("DataFusionToolset", "toolsets/datafusion"),
     "logging": ("LoggingToolset", "toolsets/logging"),
     "mcp": ("MCPToolset", "toolsets/mcp"),
+    "object_storage": ("ObjectStorageToolset", "toolsets/object_storage"),
     "sandbox": ("SandboxToolset", "sandbox/index"),
     "skills": ("AgentSkillsToolset", "toolsets/skills"),
     "langchain_bridge": ("LangChain Bridge", "toolsets/langchain"),

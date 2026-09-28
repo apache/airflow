@@ -50,6 +50,9 @@ Toolsets
      - Airflow task logs
    * - :doc:`MCPToolset <toolsets/mcp>`
      - Any MCP server (user-supplied endpoint)
+   * - :doc:`ObjectStorageToolset <toolsets/object_storage>`
+     - Object storage (S3, GCS, Azure Blob Storage, or any store
+       :class:`~airflow.sdk.ObjectStoragePath` can open), read-only
    * - :doc:`SandboxToolset <sandbox/index>`
      - Docker Sandboxes (the shipped sbx backend; other backends can be added via SandboxBackend)
    * - :doc:`AgentSkillsToolset <toolsets/skills>`

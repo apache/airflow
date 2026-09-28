@@ -189,6 +189,7 @@ connection-types:
       - SambaNova
       - Snowflake Cortex
       - Together AI
+      - TypeSafe
       - Vercel AI Gateway
       - vLLM
       - xAI
