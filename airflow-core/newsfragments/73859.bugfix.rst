@@ -1,0 +1,1 @@
+Fix ``hash()`` raising ``TypeError: unhashable type: 'Timezone'`` on cron-based timetables.
