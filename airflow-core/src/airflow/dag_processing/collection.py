@@ -31,7 +31,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, false, func, insert, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -78,6 +78,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.serialized_dag import DagWriteMetadata
+    from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
     from airflow.typing_compat import Self, Unpack
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
@@ -259,6 +260,7 @@ def _serialize_dag_capturing_errors(
     bundle_version: str | None,
     version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
+    dag_source_code: DagSourceCode | None = None,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -280,12 +282,15 @@ def _serialize_dag_capturing_errors(
             bundle_version=bundle_version,
             version_data=version_data,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+            dag_source_code=dag_source_code,
             session=session,
             _prefetched=_prefetched,
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
+            DagCode.update_source_code(
+                dag.dag_id, dag.fileloc, dag_source_code=dag_source_code, session=session
+            )
         if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
@@ -370,7 +375,11 @@ def _update_dag_warnings(
         session.scalars(
             select(DagWarning).where(
                 DagWarning.dag_id.in_(dag_ids),
-                DagWarning.warning_type.in_(warning_types),
+                or_(
+                    DagWarning.warning_type.in_(warning_types),
+                    # Importer-namespaced types are only ever reported while parsing.
+                    DagWarning.warning_type.not_in([t.value for t in DagWarningType]),
+                ),
             )
         )
     )
@@ -588,6 +597,7 @@ def update_dag_parsing_results_in_db(
         DagWarningType.RUNTIME_VARYING_VALUE,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
+    dag_source_codes: dict[str, DagSourceCode] | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -609,6 +619,8 @@ def update_dag_parsing_results_in_db(
     :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
+    :param dag_source_codes: Source code read by the Dag importers, keyed by Dag fileloc. Dags
+        without an entry have their source read from ``fileloc``.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
     if len(accepted) != len(dags):
@@ -617,6 +629,7 @@ def update_dag_parsing_results_in_db(
         warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
     dags = accepted
 
+    dag_source_codes = dag_source_codes or {}
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
@@ -657,6 +670,7 @@ def update_dag_parsing_results_in_db(
                             version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
+                            dag_source_code=dag_source_codes.get(dag.fileloc),
                         )
                     )
             except OperationalError:

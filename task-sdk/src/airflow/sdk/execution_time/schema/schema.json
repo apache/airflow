@@ -1015,6 +1015,20 @@
           "default": null,
           "title": "Import Errors"
         },
+        "parsed_definitions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parsed Definitions",
+          "type": "array"
+        },
+        "dag_source_codes": {
+          "additionalProperties": {
+            "$ref": "#/$defs/DagSourceCode"
+          },
+          "title": "Dag Source Codes",
+          "type": "object"
+        },
         "type": {
           "const": "DagFileParsingResult",
           "default": "DagFileParsingResult",
@@ -1492,6 +1506,25 @@
       ],
       "title": "DagRunType",
       "type": "string"
+    },
+    "DagSourceCode": {
+      "description": "Raw source code and its language identifier for a DAG definition.",
+      "properties": {
+        "source_code": {
+          "title": "Source Code",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_code",
+        "language"
+      ],
+      "title": "DagSourceCode",
+      "type": "object"
     },
     "DeferTask": {
       "additionalProperties": false,
