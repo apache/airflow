@@ -779,6 +779,11 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
     # A native Dag: the Dag processor parses it, so `ts_hitl_ai_approval` has no Python Dag file.
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "ai-approval.min.mjs", ts_bundles_dir / "ai-approval.min.mjs")
+    # The same artifact inside the Dag bundle, where the Dag processor finds its native Dag.
+    (tmp_dir / "dags" / "typescript").mkdir()
+    copyfile(
+        TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", tmp_dir / "dags" / "typescript" / "example.min.mjs"
+    )
 
     # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
     # and the tests check that dispatch tells their same-named tasks apart.
@@ -786,6 +791,9 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
 
     dag_bundle_config = _build_dag_bundle_config({"ts-task-handlers": "/opt/airflow/ts-bundles"})
+    # "ts" runs every TypeScript task, stub or native, from the ts-task-handlers Dag bundle.
+    # "ts-native" serves the Dags folder: the Dag processor parses the bundle's
+    # native Dag with it.
     coordinator_config = json.dumps(
         {
             "ts": {
@@ -794,7 +802,11 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
                     "task_handler_bundle_name": "ts-task-handlers",
                     "node_executable": "/opt/nodejs/node",
                 },
-            }
+            },
+            "ts-native": {
+                "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+                "kwargs": {"task_handler_bundle_name": "dags-folder", "node_executable": "/opt/nodejs/node"},
+            },
         }
     )
     queue_to_coordinator = json.dumps({"typescript": "ts"})
