@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Node.js runtime coordinator that launches a Node.js subprocess for task execution."""
+"""Node.js runtime coordinator that launches a Node.js subprocess for task execution and Dag parsing."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from airflow.sdk.coordinators._bundle_metadata import (
     walk_files,
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.coordinators.node._bundle_reader import read_bundle
+from airflow.sdk.coordinators.node._bundle_reader import BUNDLE_SUFFIX, read_bundle
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -42,10 +42,9 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
-
-BUNDLE_SUFFIX = ".min.mjs"
 
 
 def _is_bundle(path: pathlib.Path) -> bool:
@@ -98,7 +97,7 @@ class _Bundle(ResolvedBundle):
 @attrs.define(kw_only=True)
 class NodeCoordinator(SubprocessCoordinator):
     """
-    Coordinator that launches a Node.js subprocess for task execution.
+    Coordinator that launches a Node.js subprocess for task execution and Dag parsing.
 
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
@@ -117,7 +116,8 @@ class NodeCoordinator(SubprocessCoordinator):
         ``"node"``, which relies on ``$PATH``).
     :param bundles_root: Directories searched recursively, in order, for the first verified
         ``*.min.mjs`` bundle declaring the task instance's Dag. See :class:`SubprocessCoordinator`
-        for its interaction with ``dag_bundle_name``.
+        for its interaction with ``dag_bundle_name``. Without it, the coordinator also parses the
+        native Dags of the ``*.min.mjs`` bundles in the Dag bundles it serves.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
@@ -134,3 +134,12 @@ class NodeCoordinator(SubprocessCoordinator):
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
+
+    @classmethod
+    def get_dag_importer_class(cls) -> type[NodeDagImporter]:
+        from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
+
+        return NodeDagImporter
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        return [self.node_executable, os.fspath(path)], read_bundle(path).supervisor_schema_version
