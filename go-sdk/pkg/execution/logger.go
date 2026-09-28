@@ -236,12 +236,6 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 
 	entry := make(map[string]any)
 
-	// Set standard fields.
-	entry["event"] = r.Message
-	if !r.Time.IsZero() {
-		entry["timestamp"] = r.Time.Format(time.RFC3339Nano)
-	}
-
 	// Apply pre-configured attrs. Keys are already qualified with the groups
 	// active at the WithAttrs call site, so the current h.groups is NOT
 	// applied here — only to record-level attrs below. The stored key already
@@ -259,6 +253,12 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
+	// Standard fields go in after the attrs: a user attribute of the same name
+	// must not displace them, and "event" carries the message the supervisor logs.
+	entry["event"] = r.Message
+	if !r.Time.IsZero() {
+		entry["timestamp"] = r.Time.Format(time.RFC3339Nano)
+	}
 	if loggerName != "" {
 		entry["logger"] = loggerName
 	}
