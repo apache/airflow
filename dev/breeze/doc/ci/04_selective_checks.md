@@ -465,11 +465,17 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     canary and the changed tests must pass after it
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
-  Java test-fixture bundle (`airflow-e2e-tests/java-test-bundle/`), the Java e2e suite or its Docker
+  Java test-fixture and native-Dag bundles (`airflow-e2e-tests/java-test-bundle/`,
+  `airflow-e2e-tests/java-native-bundle/`), the Java e2e suite or its Docker
   files (`airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/`,
-  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), or the Java
-  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`) change. Like the
-  other deployed e2e suites, enabling them forces `PROD Image building`.
+  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), the Java
+  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`), or the native
+  Lang-SDK Dag parsing sources change. Those are the Dag processing files `dagbag.py`,
+  `importer_routing.py`, `lang_sdk_processor.py`, `manager.py` and `processor.py`, `models/dagcode.py`,
+  the Task SDK importers (`task-sdk/src/airflow/sdk/importers/`), the coordinator registry
+  (`task-sdk/src/airflow/sdk/execution_time/coordinator.py`), and `coordinators/_dag_importer.py`;
+  they trigger the TypeScript SDK E2E tests too. Like the other
+  deployed e2e suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -628,7 +634,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
-| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |

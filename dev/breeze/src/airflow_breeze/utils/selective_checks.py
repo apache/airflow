@@ -195,6 +195,16 @@ class HashableDict(dict[T, list[str]]):
         return hash(frozenset(self))
 
 
+# Core and Task SDK sources on the native Lang-SDK Dag path: discovery, parsing through a
+# coordinator's runtime, importing it into a Dag bag, and reading its source.
+LANG_SDK_NATIVE_DAG_PARSING_FILES = (
+    r"^airflow-core/src/airflow/dag_processing/(dagbag|importer_routing|lang_sdk_processor|manager|processor)\.py$",
+    r"^airflow-core/src/airflow/models/dagcode\.py$",
+    r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
+    r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
+    r"^task-sdk/src/airflow/sdk/importers/.*",
+)
+
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
@@ -261,11 +271,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
             r"^airflow-e2e-tests/java-test-bundle/.*",
+            r"^airflow-e2e-tests/java-native-bundle/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.GO_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or e2e tests.
@@ -298,6 +310,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,

@@ -1613,6 +1613,53 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run java e2e tests when JavaCoordinator changes",
         ),
         pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/_dag_importer.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the coordinator Dag importer changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/manager.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the Dag processor manager changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/lang_sdk_processor.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the Lang-SDK Dag file processor changes",
+        ),
+        pytest.param(
+            (
+                "airflow-e2e-tests/java-native-bundle/src/java/org/apache/airflow/e2e/NativeBundleBuilder.java",
+            ),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+            },
+            id="Run only java e2e tests when the java native-Dag bundle changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/bundles/base.py",),
+            {
+                "run-java-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Skip java and ts e2e tests for a Dag processing change off the native Dag path",
+        ),
+        pytest.param(
             ("go-sdk/sdk/variable.go",),
             {
                 "run-go-sdk-tests": "true",
