@@ -20,7 +20,7 @@ import type { IconButtonProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
 
 type Props = {
   readonly isVisible: boolean;

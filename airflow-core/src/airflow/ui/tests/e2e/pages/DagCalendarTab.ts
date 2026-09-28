@@ -17,6 +17,7 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class DagCalendarTab extends BasePage {
@@ -89,7 +90,7 @@ export class DagCalendarTab extends BasePage {
     const states: Array<string> = [];
 
     // Read run states from the cell's `data-states` attribute rather than hovering to
-    // read the tooltip. The tooltip (BasicTooltip) opens on a `mouseenter` after a
+    // read the tooltip. The tooltip opens on a `mouseenter` after a
     // 500ms delay and renders through a portal; synthetic pointer events do not open
     // it reliably in headless Firefox, which made these tests flaky. `data-states` is
     // populated with the same view-mode-aware logic the tooltip uses (see

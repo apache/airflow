@@ -64,7 +64,7 @@ class SalesforceBulkOperator(BaseOperator):
         ``{"UNABLE_TO_LOCK_ROW", "API_TEMPORARILY_UNAVAILABLE"}``.
     """
 
-    template_fields: Sequence[str] = ("object_name", "payload", "external_id_field")
+    template_fields: Sequence[str] = ("object_name", "payload", "external_id_field", "salesforce_conn_id")
 
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
 

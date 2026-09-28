@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useReactFlow } from "@xyflow/react";
 import { useEffect } from "react";
+
+import { useReactFlow } from "@xyflow/react";
 
 // Fits the viewport whenever a new layout is committed. Must live inside
 // <ReactFlow> to call useReactFlow(). Using layoutData as the dep means it

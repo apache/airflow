@@ -45,7 +45,7 @@ PROVIDER_METADATA_CONFIG_OPTIONS: list[tuple[str, str, str]] = [
 CFG_FALLBACK_CONFIG_OPTIONS: list[tuple[str, str, str]] = [
     ("celery", "flower_host", "0.0.0.0"),
     ("celery", "pool", "prefork"),
-    ("celery", "worker_precheck", "False"),
+    ("celery", "worker_prefetch_multiplier", "1"),
     ("kubernetes_executor", "in_cluster", "True"),
     ("kubernetes_executor", "verify_ssl", "True"),
     ("elasticsearch", "end_of_log_mark", "end_of_log"),

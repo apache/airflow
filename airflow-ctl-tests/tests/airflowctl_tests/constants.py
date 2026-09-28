@@ -31,5 +31,14 @@ DOCKER_COMPOSE_FILE_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
 )
 
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
+API_USERNAME = "airflow"
+API_PASSWORD = "airflow"
+
+LOGIN_COMMAND = f"auth login --username {API_USERNAME} --password {API_PASSWORD}"
 LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
+
+DAG_RUN_WAIT_TIMEOUT_ENV = "AIRFLOW_CTL_TEST_DAG_RUN_TIMEOUT"
+# Budget for a freshly booted compose stack to schedule and finish a Dag run: the
+# scheduler still has to warm up, parse the examples and queue the tasks, none of which
+# is a failure. Slower machines can raise it through the environment variable.
+DAG_RUN_WAIT_TIMEOUT = float(os.environ.get(DAG_RUN_WAIT_TIMEOUT_ENV, "300"))

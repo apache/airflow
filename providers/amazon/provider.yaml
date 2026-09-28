@@ -23,12 +23,14 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1787678157
+source-date-epoch: 1790023613
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.37.0
+  - 9.36.0
   - 9.35.1
   - 9.35.0
   - 9.34.0
@@ -139,6 +141,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst
+      - /docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst
     tags: [aws]
   - integration-name: Amazon Bedrock
     external-doc-url: https://aws.amazon.com/bedrock/
@@ -417,6 +420,9 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/neptune_analytics.rst
     tags: [aws]
+  - integration-name: Amazon MSK
+    external-doc-url: https://aws.amazon.com/msk/
+    tags: [aws]
   - integration-name: Amazon S3 Vectors
     external-doc-url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html
     logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
@@ -429,6 +435,7 @@ operators:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.operators.athena
+      - airflow.providers.amazon.aws.operators.athena_spark
   - integration-name: Amazon Web Services
     python-modules:
       - airflow.providers.amazon.aws.operators.base_aws
@@ -807,7 +814,9 @@ hooks:
     python-modules:
       - airflow.providers.amazon.aws.hooks.neptune
       - airflow.providers.amazon.aws.hooks.neptune_analytics
-
+  - integration-name: Amazon MSK
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.msk
 
 bundles:
   - integration-name: Amazon Simple Storage Service (S3)
@@ -839,6 +848,9 @@ triggers:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon Kinesis Data Stream
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.kinesis
   - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
     python-modules:
       - airflow.providers.amazon.aws.triggers.mwaa
@@ -897,6 +909,9 @@ triggers:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.triggers.dms
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.quicksight
 
 transfers:
   - source-integration-name: Amazon DynamoDB

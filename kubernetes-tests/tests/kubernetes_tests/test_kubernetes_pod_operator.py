@@ -1038,7 +1038,7 @@ class TestKubernetesPodOperatorSystem:
                     },
                     {
                         "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
-                        "image": "alpine:3.24.1",
+                        "image": "alpine:3.24.2",
                         "name": "airflow-xcom-sidecar",
                         "resources": {
                             "requests": {"cpu": "1m", "memory": "10Mi"},
@@ -1113,7 +1113,7 @@ class TestKubernetesPodOperatorSystem:
         # Name is now in template fields, and it's final value requires context
         # so we need to execute for name validation
         context = create_context(k)
-        with pytest.raises(AirflowException):
+        with pytest.raises((ValueError, AirflowException), match="has to be"):
             k.execute(context)
 
     def test_on_kill(self):

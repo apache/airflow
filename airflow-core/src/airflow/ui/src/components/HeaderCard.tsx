@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
 
 import { DagDeactivatedBanner } from "./DagDeactivatedBanner";
@@ -32,7 +34,7 @@ type Props = {
   readonly stats: Array<{ key?: string; label: string; value: ReactNode | string }>;
   readonly subTitle?: ReactNode | string;
   readonly title: ReactNode | string;
-  readonly type: "asset" | "dag" | "dagRun" | "task" | "taskGroup" | "taskInstance";
+  readonly type: "asset" | "dag" | "dagBundle" | "dagRun" | "task" | "taskGroup" | "taskInstance";
 };
 
 export const HeaderCard = ({ actions, icon, state, stats, subTitle, title, type }: Props) => {

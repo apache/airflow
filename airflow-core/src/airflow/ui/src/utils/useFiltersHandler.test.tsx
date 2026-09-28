@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { act, renderHook } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
+
+import { act, renderHook } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { isValidFilterValue } from "src/components/FilterBar/utils";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { BaseWrapper } from "src/utils/Wrapper";
 

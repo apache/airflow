@@ -157,7 +157,7 @@ Make sure to test such live upgrade procedure in a staging environment before yo
 to avoid any surprises and side-effects.
 
 When it comes to live-upgrading the ``Webserver``, ``Triggerer`` components, if you run them in separate
-environments and have more than one instances for each of them, you can rolling-restart them one by one,
+environments and have more than one instance for each of them, you can rolling-restart them one by one,
 without any downtime. This should usually be done as the first step in your upgrade procedure.
 
 When you are running a deployment with separate ``Dag processor``, in a
@@ -182,7 +182,7 @@ of the executor you use:
   of running tasks going down to zero. Once the workers are upgraded, they will be automatically put in online
   mode and start picking up new tasks. You can then upgrade the ``Scheduler`` in a rolling restart mode.
 
-* For the :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`, you can upgrade the scheduler
+* For the :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`, you can upgrade the scheduler,
   triggerer, webserver in a rolling restart mode, and generally you should not worry about the workers, as they
   are managed by the Kubernetes cluster and will be automatically adopted by ``Schedulers`` when they are
   upgraded and restarted.
@@ -254,8 +254,8 @@ Impersonate Service Accounts
 ----------------------------
 
 If you need access to other service accounts, you can
-:ref:`impersonate other service accounts <howto/connection:google_cloud_platform:impersonation>` to exchange the token with
-the default identity to another service account. Thus, the account keys are still managed by Google
+:ref:`impersonate other service accounts <howto/connection:google_cloud_platform:impersonation>` to exchange the token of
+the default identity for that of another service account. Thus, the account keys are still managed by Google
 and cannot be read by your workload.
 
 It is not recommended to generate service account keys and store them in the metadata database or the
@@ -270,7 +270,7 @@ of this instance and credentials to access it. To simplify this task, you can us
 :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook`
 instead of :class:`~airflow.providers.ssh.hooks.ssh.SSHHook`
 
-The :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` support authorization with
+The :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` supports authorization with
 Google OS Login service. It is an extremely robust way to manage Linux access properly as it stores
 short-lived ssh keys in the metadata service, offers PAM modules for access and sudo privilege checking
 and offers the ``nsswitch`` user lookup into the metadata service as well.

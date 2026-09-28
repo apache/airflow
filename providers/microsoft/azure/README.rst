@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``15.0.1``
+Release: ``15.2.0``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.0/>`_.
 
 Installation
 ------------
@@ -59,24 +59,24 @@ PIP package                                 Version required
 ``aiohttp``                                 ``>=3.14.0``
 ``azure-batch``                             ``>=15.0.0``
 ``azure-ai-projects``                       ``>=2.2.0``
-``azure-cosmos``                            ``>=4.6.0``
-``azure-mgmt-cosmosdb``                     ``>=3.0.0``
-``azure-datalake-store``                    ``>=0.0.45``
-``azure-identity``                          ``>=1.3.1``
-``azure-keyvault-secrets``                  ``>=4.1.0``
+``azure-cosmos``                            ``>=4.15.0``
+``azure-mgmt-cosmosdb``                     ``>=9.9.0``
+``azure-datalake-store``                    ``>=0.0.45,<1``
+``azure-identity``                          ``>=1.25.3``
+``azure-keyvault-secrets``                  ``>=4.10.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
-``azure-mgmt-resource``                     ``>=2.2.0``
-``azure-storage-blob``                      ``>=12.26.0``
-``azure-mgmt-storage``                      ``>=16.0.0``
-``azure-storage-file-share``                ``>=12.7.0``
-``azure-servicebus``                        ``>=7.12.1``
-``azure-synapse-spark``                     ``>=0.2.0``
-``azure-synapse-artifacts``                 ``>=0.17.0``
-``azure-storage-file-datalake``             ``>=12.9.1``
+``azure-mgmt-resource``                     ``>=25.0.0``
+``azure-storage-blob``                      ``>=12.28.0``
+``azure-mgmt-storage``                      ``>=24.0.1``
+``azure-storage-file-share``                ``>=12.24.0``
+``azure-servicebus``                        ``>=7.14.3``
+``azure-synapse-spark``                     ``>=0.7.0``
+``azure-synapse-artifacts``                 ``>=0.22.0``
+``azure-storage-file-datalake``             ``>=12.23.0``
 ``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=10.0.0``
-``azure-mgmt-containerregistry``            ``>=8.0.0``
-``azure-mgmt-compute``                      ``>=33.0.0``
+``azure-mgmt-containerregistry``            ``>=15.0.0``
+``azure-mgmt-compute``                      ``>=37.2.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``
@@ -127,4 +127,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.0/changelog.html>`_.

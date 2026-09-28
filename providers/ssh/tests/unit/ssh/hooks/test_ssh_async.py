@@ -135,9 +135,11 @@ class TestSSHHookAsync:
 
         mock_ssh_client = mock.AsyncMock()
 
-        with mock.patch("asgiref.sync.sync_to_async") as mock_sync:
-            mock_sync.return_value = mock.AsyncMock(return_value=mock_conn_obj)
-
+        with mock.patch(
+            "airflow.providers.ssh.hooks.ssh.get_async_connection",
+            new_callable=mock.AsyncMock,
+            return_value=mock_conn_obj,
+        ):
             with mock.patch("asyncssh.connect", new_callable=mock.AsyncMock) as mock_connect:
                 mock_connect.return_value = mock_ssh_client
                 result = await hook._get_conn()

@@ -20,6 +20,7 @@ import { Table } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
+
 import Time from "src/components/Time.tsx";
 
 const TableColumnHeader = ({ children, width }: { readonly children: string; readonly width?: string }) => (

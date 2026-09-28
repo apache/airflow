@@ -17,14 +17,20 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import (
     ModelResponse,
     ModelResponsePart,
     ToolCallPart,
 )
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.utils.logging import (
@@ -34,8 +40,14 @@ from airflow.providers.common.ai.utils.logging import (
 )
 
 
-def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
-    """Build a mock AgentRunResult with usage, response, and messages."""
+def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None, cost=None):
+    """Build a mock AgentRunResult with usage, response, and messages.
+
+    ``cost`` defaults to ``None`` and must be set explicitly -- a MagicMock
+    attribute left unconfigured returns a new (truthy, ``is not None``)
+    MagicMock, which would silently push every caller through
+    ``log_run_summary``'s cost-logging branch.
+    """
     usage_kwargs = usage_kwargs or {
         "requests": 4,
         "tool_calls": 3,
@@ -44,7 +56,7 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
         "total_tokens": 3359,
     }
     result = MagicMock()
-    result.usage = MagicMock(**usage_kwargs)
+    result.usage = MagicMock(cost=cost, **usage_kwargs)
     result.response = MagicMock(model_name=model_name)
 
     messages: list = []
@@ -86,6 +98,30 @@ class TestLogRunSummary:
         assert tool_line == "Tool call sequence: list_tables -> get_schema -> query"
         assert records[-1].message == "::endgroup::"
 
+    def test_names_the_model_that_served_a_failed_over_run(self):
+        """
+        After a failover the summary names the model that actually answered.
+
+        A silent failover still reporting the primary would hide the cost and quality
+        change from whoever has to account for which model produced an output.
+        """
+
+        def _primary_is_down(messages, info):
+            raise ModelAPIError("openai:gpt-5", "provider outage")
+
+        agent = Agent(
+            FallbackModel(FunctionModel(_primary_is_down), TestModel()),
+            instructions="classify",
+        )
+        result = agent.run_sync("hello")
+
+        logger = MagicMock(spec=logging.Logger)
+        log_run_summary(logger, result)
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        assert "model=%s" in summary_format
+        assert summary_args[0] == "test"
+
     def test_no_tools_skips_sequence_line(self, caplog):
         logger = logging.getLogger("test.log_run_summary")
         result = _make_mock_result(tool_names=None)
@@ -96,6 +132,38 @@ class TestLogRunSummary:
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert len(records) == 2  # summary line + endgroup (no tool sequence)
         assert records[-1].message == "::endgroup::"
+
+    def test_cost_none_does_not_log_cost_line(self, caplog):
+        """cost is None means "unpriceable", not "free" -- no fragment, not a $0 line."""
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=None)
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert not any("LLM run cost" in r.message for r in records)
+
+    def test_cost_set_logs_cost_line_with_value(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=Decimal("0.0123"))
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == "LLM run cost: $0.0123 (USD, best-effort)"
+
+    def test_small_cost_logs_plain_decimal_not_scientific_notation(self, caplog):
+        """A cheap single-call run's cost must not render as e.g. "$7.5E-7"."""
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=Decimal("0.00000075"))
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == "LLM run cost: $0.00000075 (USD, best-effort)"
 
 
 class TestLogOutputDebug:

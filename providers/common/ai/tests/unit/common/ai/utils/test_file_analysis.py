@@ -30,6 +30,7 @@ from airflow.providers.common.ai.exceptions import (
     LLMFileAnalysisUnsupportedFormatError,
 )
 from airflow.providers.common.ai.utils.file_analysis import (
+    _DECOMPRESSORS,
     FileAnalysisRequest,
     _infer_partitions,
     _read_raw_bytes,
@@ -278,9 +279,14 @@ class TestBuildFileAnalysisRequest:
 
         mock_prepare.assert_not_called()
 
-    def test_gzip_expansion_respects_processed_content_limit(self, tmp_path):
-        path = tmp_path / "big.log.gz"
-        path.write_bytes(gzip.compress(b"A" * 20_000))
+    @pytest.mark.parametrize(
+        ("suffix", "module_name"),
+        [("gz", "gzip"), ("bz2", "bz2"), ("xz", "lzma")],
+    )
+    def test_compressed_expansion_respects_processed_content_limit(self, tmp_path, suffix, module_name):
+        codec = pytest.importorskip(module_name)
+        path = tmp_path / f"big.log.{suffix}"
+        path.write_bytes(codec.compress(b"A" * 20_000))
 
         with pytest.raises(LLMFileAnalysisLimitExceededError, match="processed-content limit"):
             build_file_analysis_request(
@@ -377,6 +383,8 @@ class TestFileAnalysisHelpers:
         [
             ("events.csv", "csv", None),
             ("events.csv.gz", "csv", "gzip"),
+            ("events.csv.bz2", "csv", "bzip2"),
+            ("events.json.xz", "json", "xz"),
             ("dashboard.jpg", "jpg", None),
             ("report.pdf", "pdf", None),
             ("app", "log", None),
@@ -402,21 +410,76 @@ class TestFileAnalysisHelpers:
         with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="Compression"):
             detect_file_format(ObjectStoragePath(str(path)))
 
-    @pytest.mark.parametrize("filename", ["sample.parquet.gz", "sample.avro.gz", "sample.png.gz"])
-    def test_detect_file_format_rejects_unsupported_gzip_format_combinations(self, tmp_path, filename):
+    @pytest.mark.parametrize(
+        ("filename", "codec", "module_name"),
+        [("events.csv.bz2", "bzip2", "bz2"), ("events.json.xz", "xz", "lzma")],
+    )
+    def test_detect_file_format_without_codec_module(self, tmp_path, filename, codec, module_name):
+        path = tmp_path / filename
+        path.write_bytes(b"content")
+        gz_path = tmp_path / "events.csv.gz"
+        gz_path.write_bytes(b"content")
+        plain_path = tmp_path / "events.csv"
+        plain_path.write_bytes(b"content")
+
+        with patch.dict(_DECOMPRESSORS, {"gzip": gzip.open}, clear=True):
+            with pytest.raises(
+                AirflowOptionalProviderFeatureException,
+                match=f"Compression '{codec}' requires the '{module_name}' module",
+            ):
+                detect_file_format(ObjectStoragePath(str(path)))
+            assert detect_file_format(ObjectStoragePath(str(gz_path))) == ("csv", "gzip")
+            assert detect_file_format(ObjectStoragePath(str(plain_path))) == ("csv", None)
+
+    @pytest.mark.parametrize(
+        "filename", ["sample.parquet.gz", "sample.avro.bz2", "sample.png.xz", "sample.pdf.gz"]
+    )
+    def test_detect_file_format_rejects_unsupported_compression_format_combinations(self, tmp_path, filename):
         path = tmp_path / filename
         path.write_bytes(b"content")
 
-        with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="not supported for"):
+        with pytest.raises(
+            LLMFileAnalysisUnsupportedFormatError, match=r"not supported for '\w+' file analysis"
+        ):
             detect_file_format(ObjectStoragePath(str(path)))
 
-    def test_read_raw_bytes_decompresses_gzip(self, tmp_path):
-        path = tmp_path / "events.log.gz"
-        path.write_bytes(gzip.compress(b"line one\nline two\n"))
+    @pytest.mark.parametrize(
+        ("suffix", "compression", "module_name"),
+        [
+            ("gz", "gzip", "gzip"),
+            ("bz2", "bzip2", "bz2"),
+            ("xz", "xz", "lzma"),
+        ],
+    )
+    def test_read_raw_bytes_decompresses(self, tmp_path, suffix, compression, module_name):
+        codec = pytest.importorskip(module_name)
+        path = tmp_path / f"events.log.{suffix}"
+        path.write_bytes(codec.compress(b"line one\nline two\n"))
 
-        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression="gzip", max_bytes=1_024)
+        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
 
         assert content == b"line one\nline two\n"
+
+    @pytest.mark.parametrize(
+        ("suffix", "compression", "module_name", "separator", "expected"),
+        [
+            ("bz2", "bzip2", "bz2", b"", b"first\nsecond\n"),
+            ("bz2", "bzip2", "bz2", b"GARBAGE", b"first\n"),
+            ("xz", "xz", "lzma", b"", b"first\nsecond\n"),
+            ("xz", "xz", "lzma", b"\x00\x00\x00\x00", b"first\n"),
+        ],
+        ids=["bz2-concatenated", "bz2-trailing-garbage", "xz-concatenated", "xz-stream-padding"],
+    )
+    def test_read_raw_bytes_multi_stream_behavior(
+        self, tmp_path, suffix, compression, module_name, separator, expected
+    ):
+        codec = pytest.importorskip(module_name)
+        path = tmp_path / f"events.log.{suffix}"
+        path.write_bytes(codec.compress(b"first\n") + separator + codec.compress(b"second\n"))
+
+        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
+
+        assert content == expected
 
     def test_truncate_text_preserves_head_and_tail(self):
         text = "A" * 9_000 + "B" * 3_000

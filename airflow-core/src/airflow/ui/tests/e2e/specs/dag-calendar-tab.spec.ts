@@ -17,6 +17,7 @@
  * under the License.
  */
 import { expect } from "@playwright/test";
+
 import { test } from "tests/e2e/fixtures/calendar-data";
 
 test.describe("Dag Calendar Tab", () => {

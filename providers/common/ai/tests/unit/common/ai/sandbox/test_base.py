@@ -180,6 +180,23 @@ class TestDefaultFileOperations:
         with pytest.raises(SandboxError, match="does not exist"):
             local.read_file("s", str(tmp_path / "nope.txt"), max_bytes=100)
 
+    def test_a_directory_is_an_error_not_an_empty_read(self, local, tmp_path):
+        # Regression: ``stat`` succeeds on a directory and the pipeline's exit
+        # status is base64's, so a directory used to read back as an empty file
+        # and the model was told the directory was a file with no lines.
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "inner.txt").write_text("x")
+
+        with pytest.raises(SandboxError, match="is a directory"):
+            local.read_file("s", str(tmp_path / "sub"), max_bytes=100)
+
+    def test_a_symlink_to_a_directory_is_an_error_too(self, local, tmp_path):
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "link").symlink_to(tmp_path / "sub")
+
+        with pytest.raises(SandboxError, match="is a directory"):
+            local.read_file("s", str(tmp_path / "link"), max_bytes=100)
+
     def test_oversized_file_is_refused(self, local, tmp_path):
         (tmp_path / "big.bin").write_bytes(b"x" * 500)
 

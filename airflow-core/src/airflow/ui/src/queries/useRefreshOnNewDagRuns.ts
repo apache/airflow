@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   useDagServiceGetDagDetailsKey,

@@ -125,6 +125,25 @@ func (c *CoordinatorClient) UnmarshalJSONVariable(
 	return json.Unmarshal([]byte(val), pointer)
 }
 
+// SetVariable asks the supervisor to store a variable value.
+func (c *CoordinatorClient) SetVariable(
+	ctx context.Context,
+	key, value, description string,
+) error {
+	msg := genmodels.PutVariable{Key: key, Value: value}
+	if description != "" {
+		msg.Description = description
+	}
+	_, err := c.comm.Communicate(ctx, msg)
+	return err
+}
+
+// DeleteVariable asks the supervisor to delete a variable.
+func (c *CoordinatorClient) DeleteVariable(ctx context.Context, key string) error {
+	_, err := c.comm.Communicate(ctx, genmodels.DeleteVariable{Key: key})
+	return err
+}
+
 // GetConnection requests a connection from the supervisor.
 func (c *CoordinatorClient) GetConnection(
 	ctx context.Context,

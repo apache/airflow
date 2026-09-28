@@ -17,11 +17,12 @@
 """
 Python stub Dags mirroring the Go SDK example bundle (``go-sdk/example/bundle``).
 
-Three Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
+Four Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
 load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
-timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag`` (one
+timing sequential vs goroutine XCom pulls), ``taskflow_binding_dag`` (one
 task per shape of the TaskFlow argument-binding surface; see its Dag function
-below).
+below), and ``variable_write_dag`` (one ``write_and_delete_variable`` task that
+writes and deletes Airflow Variables).
 
 ``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
 run exercises XCom across the language boundary, the same way
@@ -208,3 +209,15 @@ def taskflow_binding_dag():
 
 
 taskflow_binding_dag()
+
+
+@task.stub(queue="golang")
+def write_and_delete_variable(): ...
+
+
+@dag(dag_id="variable_write_dag")
+def variable_write_dag():
+    write_and_delete_variable()
+
+
+variable_write_dag()

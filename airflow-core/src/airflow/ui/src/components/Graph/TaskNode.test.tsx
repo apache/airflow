@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ComponentProps, ReactNode } from "react";
+
 import { render, screen } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
-import type { ComponentProps, ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { TaskNode } from "./TaskNode";

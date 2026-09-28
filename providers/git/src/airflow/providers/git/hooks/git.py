@@ -29,7 +29,7 @@ import warnings
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import quote as urlquote
+from urllib.parse import unquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
@@ -59,6 +59,9 @@ class GitHook(BaseHook):
       private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
       ``key_file`` (path to key file).
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
+
+    Token authentication over http(s) configures a credential helper through ``GIT_CONFIG_COUNT``
+    and needs git version 2.31 or higher.
     """
 
     conn_name_attr = "git_conn_id"
@@ -101,8 +104,11 @@ class GitHook(BaseHook):
         extra = connection.extra_dejson
 
         self.repo_url = repo_url or connection.host
-        self.user_name = connection.login or "user"
-        self.auth_token = connection.password
+        if isinstance(self.repo_url, str) and not self.repo_url.startswith(("git@", "https://")):
+            self.repo_url = os.path.expanduser(self.repo_url)
+        embedded_user, embedded_token = self._strip_embedded_credentials()
+        self.user_name = connection.login or embedded_user or "user"
+        self.auth_token = connection.password or embedded_token
 
         # SSH key authentication
         self.private_key = extra.get("private_key")
@@ -155,7 +161,6 @@ class GitHook(BaseHook):
             if self.key_file and not self.private_key:
                 with open(self.key_file, encoding="utf-8") as key_file:
                     self.private_key = key_file.read()
-        self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
     _SSH_REPO_URL_PATTERN = re.compile(r"^[^/@:]+@[^/:]+:")
@@ -242,73 +247,93 @@ class GitHook(BaseHook):
             )
             self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
 
+    def _strip_embedded_credentials(self) -> tuple[str | None, str | None]:
+        """Take any ``user:password@`` out of the repo url and return what it held."""
+        if not isinstance(self.repo_url, str) or not self.repo_url.startswith(("http://", "https://")):
+            return None, None
+        scheme, separator, rest = self.repo_url.partition("://")
+        authority, slash, path = rest.partition("/")
+        userinfo, at_sign, host = authority.rpartition("@")
+        user, _, password = userinfo.partition(":")
+        # A bare ``user@`` holds no secret, so leave those urls exactly as the connection wrote
+        # them; anything git clones from a stripped url would lose the username for nothing.
+        if not at_sign or not password:
+            return None, None
+        self.repo_url = f"{scheme}{separator}{host}{slash}{path}"
+        return unquote(user) or None, unquote(password)
+
+    def _extract_credential_scope(self) -> str:
+        """Return the ``<scheme>://<host>[:port]`` git matches a credential config against."""
+        scheme, _, rest = str(self.repo_url).partition("://")
+        host = rest.partition("/")[0].rpartition("@")[2]
+        return f"{scheme}://{host}" if host else ""
+
     @contextlib.contextmanager
-    def _github_app_askpass_env(self) -> Generator[None]:
-        if not self.auth_token:
+    def _token_credential_env(self) -> Generator[None]:
+        """Hand the token to git through a credential helper scoped to the repository's host."""
+        # Credential helpers only serve http(s); an SSH connection that happens to carry a
+        # password would gain nothing from one.
+        if not self.auth_token or not str(self.repo_url).startswith(("http://", "https://")):
             yield
             return
 
-        token = shlex.quote(self.auth_token)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(
-                "#!/bin/sh\n"
-                'case "$1" in\n'
-                "  *Username*) echo x-access-token;;\n"
-                f"  *Password*) echo {token};;\n"
-                f"  *) echo {token};;\n"
-                "esac\n"
-            )
-            askpass_script.flush()
-            os.chmod(askpass_script.name, stat.S_IRWXU)
+        scope = self._extract_credential_scope()
+        if not scope:
+            yield
+            return
 
-            old_askpass = os.environ.get("GIT_ASKPASS")
-            old_lc_all = os.environ.get("LC_ALL")
-            old_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
+        with tempfile.TemporaryDirectory() as helper_dir:
+            helper_path = os.path.join(helper_dir, "credential-helper.sh")
+            # git matches the configured scope against the url it parsed, then hands the helper
+            # structured fields on stdin. A submodule elsewhere never reaches this helper, and no
+            # part of the decision depends on the wording of a human-readable prompt.
+            # Written and closed before git runs: Linux refuses to exec a file that is still
+            # open for writing, which git surfaces as "cannot exec: Text file busy".
+            with open(helper_path, "w") as helper_script:
+                helper_script.write(
+                    r"""#!/bin/sh
+cat > /dev/null
+[ "$1" = get ] || exit 0
+printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
+"""
+                )
+            os.chmod(helper_path, stat.S_IRWXU)
+
+            # Append to any GIT_CONFIG_* the deployment already exports rather than replacing it.
             try:
-                os.environ["GIT_ASKPASS"] = askpass_script.name
-                os.environ["GIT_TERMINAL_PROMPT"] = "0"
-                self.env["GIT_ASKPASS"] = askpass_script.name
-                self.env["LC_ALL"] = "C"
-                self.env["GIT_TERMINAL_PROMPT"] = "0"
+                index = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+            except ValueError:
+                index = 0
+            # System/global config loads before env-supplied config, so a deployment-wide
+            # `credential.helper` would otherwise answer `get` first and our token would never
+            # be used. git also invokes every helper on `approve`, so a `store` helper would
+            # persist it to ~/.git-credentials. Reset the scope to empty first (git help credentials).
+            values = {
+                "GIT_CONFIG_COUNT": str(index + 2),
+                f"GIT_CONFIG_KEY_{index}": f"credential.{scope}.helper",
+                f"GIT_CONFIG_VALUE_{index}": "",
+                f"GIT_CONFIG_KEY_{index + 1}": f"credential.{scope}.helper",
+                # git runs the value through a shell, so a temp dir containing a space would
+                # split into two words. ``!`` marks it as a command so the quoting survives.
+                f"GIT_CONFIG_VALUE_{index + 1}": "!" + shlex.quote(helper_path),
+                "GIT_TERMINAL_PROMPT": "0",
+                "AIRFLOW_GIT_USER": self.user_name,
+                "AIRFLOW_GIT_TOKEN": self.auth_token,
+            }
+            # ``self.env`` alone is not enough: callers only forward it on the initial clone,
+            # so fetches would run without the credential and hang on the terminal prompt.
+            envs = (os.environ, self.env)
+            saved = [(env, var, env.get(var)) for env in envs for var in values]
+            try:
+                for env in envs:
+                    env.update(values)
                 yield
             finally:
-                if old_askpass is None:
-                    self.env.pop("GIT_ASKPASS", None)
-                    os.environ.pop("GIT_ASKPASS", None)
-                else:
-                    self.env["GIT_ASKPASS"] = old_askpass
-                    os.environ["GIT_ASKPASS"] = old_askpass
-
-                if old_lc_all is None:
-                    self.env.pop("LC_ALL", None)
-                    os.environ.pop("LC_ALL", None)
-                else:
-                    self.env["LC_ALL"] = old_lc_all
-                    os.environ["LC_ALL"] = old_lc_all
-
-                if old_terminal_prompt is None:
-                    self.env.pop("GIT_TERMINAL_PROMPT", None)
-                    os.environ.pop("GIT_TERMINAL_PROMPT", None)
-                else:
-                    self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
-                    os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
-
-    def _process_git_auth_url(self) -> None:
-        if not isinstance(self.repo_url, str):
-            return
-        if self.auth_token and self.repo_url.startswith("https://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
-        elif self.auth_token and self.repo_url.startswith("http://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("http://", f"http://{encoded_user}:{encoded_token}@", 1)
-        elif self.repo_url.startswith("http://"):
-            # if no auth token, use the repo url as is
-            pass
-        elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
-            self.repo_url = os.path.expanduser(self.repo_url)
+                for env, var, old_val in saved:
+                    if old_val is None:
+                        env.pop(var, None)
+                    else:
+                        env[var] = old_val
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
@@ -352,25 +377,28 @@ class GitHook(BaseHook):
     def configure_hook_env(self):
         if self.github_app_id is not None and self.github_installation_id is not None:
             self._ensure_github_app_token()
-            with self._github_app_askpass_env():
+            with self._token_credential_env():
                 yield
             return
 
-        if self.private_key:
-            with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
-                tmp_keyfile.write(self.private_key)
-                tmp_keyfile.flush()
-                os.chmod(tmp_keyfile.name, 0o600)
-                self.set_git_env(tmp_keyfile.name)
+        # Wraps every branch, not just the token-only one: an http(s) connection may also carry
+        # SSH options, and the token used to reach git through the URL whichever branch ran.
+        with self._token_credential_env():
+            if self.private_key:
+                with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
+                    tmp_keyfile.write(self.private_key)
+                    tmp_keyfile.flush()
+                    os.chmod(tmp_keyfile.name, 0o600)
+                    self.set_git_env(tmp_keyfile.name)
+                    with self._passphrase_askpass_env():
+                        yield
+            elif self.key_file:
+                self.set_git_env(self.key_file)
                 with self._passphrase_askpass_env():
                     yield
-        elif self.key_file:
-            self.set_git_env(self.key_file)
-            with self._passphrase_askpass_env():
+            elif self.host_proxy_cmd or self.ssh_port or self.ssh_config_file or self.known_hosts_file:
+                self.set_git_env()
                 yield
-        elif self.host_proxy_cmd or self.ssh_port or self.ssh_config_file or self.known_hosts_file:
-            self.set_git_env()
-            yield
-        else:
-            self.set_git_env(self.key_file)
-            yield
+            else:
+                self.set_git_env(self.key_file)
+                yield

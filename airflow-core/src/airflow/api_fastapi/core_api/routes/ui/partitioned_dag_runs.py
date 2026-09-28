@@ -40,6 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.partitioned_dag_runs import (
     PartitionedDagRunDetailResponse,
     PartitionedDagRunResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     ReadableDagsFilterDep,
     requires_access_asset,
@@ -242,6 +243,7 @@ def _build_response(row, required_count: int, received_count: int) -> Partitione
 
 @partitioned_dag_runs_router.get(
     "/partitioned_dag_runs",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_partitioned_dag_runs(
@@ -283,8 +285,14 @@ def get_partitioned_dag_runs(
 
     if not (rows := session.execute(query).all()):
         if dag_id.value is not None and total_entries == 0:
-            dag_exists = session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value))
-            if dag_exists is None:
+            # An unreadable-but-existing Dag must return 404 too — otherwise the caller
+            # can probe by dag_id and learn which Dags exist outside their permitted set.
+            if readable_dag_ids is not None:
+                if dag_id.value not in readable_dag_ids:
+                    raise HTTPException(
+                        status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found"
+                    )
+            elif session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value)) is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found")
         return PartitionedDagRunCollectionResponse(partitioned_dag_runs=[], total=total_entries)
 

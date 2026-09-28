@@ -134,7 +134,7 @@ class DataflowConfiguration:
     :param max_num_workers: Maximum amount of workers that will be used for Dataflow job execution.
     """
 
-    template_fields: Sequence[str] = ("job_name", "location")
+    template_fields: Sequence[str] = ("job_name", "location", "gcp_conn_id")
 
     def __init__(
         self,
@@ -883,6 +883,7 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
         "job_id",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
 
     def __init__(
@@ -963,6 +964,8 @@ class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
 
     Returns the created Dataflow Data Pipeline instance in JSON representation.
     """
+
+    template_fields: Sequence[str] = ("gcp_conn_id",)
 
     operator_extra_links = (DataflowPipelineLink(),)
 
@@ -1061,6 +1064,8 @@ class DataflowRunPipelineOperator(GoogleCloudBaseOperator):
     Returns the created Job in JSON representation.
     """
 
+    template_fields: Sequence[str] = ("gcp_conn_id",)
+
     operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
@@ -1134,6 +1139,8 @@ class DataflowDeletePipelineOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields: Sequence[str] = ("gcp_conn_id",)
 
     def __init__(
         self,

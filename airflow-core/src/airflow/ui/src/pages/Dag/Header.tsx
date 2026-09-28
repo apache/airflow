@@ -21,17 +21,21 @@ import { FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
-import { DagIcon } from "src/assets/DagIcon";
+
+import { RouterLink } from "src/system-components";
+
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { TeamName } from "src/components/TeamName";
-import { RouterLink } from "src/components/ui";
+
+import { DagIcon } from "src/assets/DagIcon";
 import { useShowTeam } from "src/hooks/useShowTeam";
 
 import { DagOwners } from "../DagsList/DagOwners";
@@ -67,13 +71,14 @@ export const Header = ({
     : [
         {
           label: translate("dagDetails.nextRun"),
-          value:
-            !dag?.is_paused && Boolean(dag?.next_dagrun_run_after) ? (
-              <DagRunInfo
-                logicalDate={dag?.next_dagrun_logical_date}
-                runAfter={dag?.next_dagrun_run_after as string}
-              />
-            ) : undefined,
+          value: dag?.is_paused ? undefined : dag?.scheduling_state === "draining" ? (
+            <DrainingBadge />
+          ) : Boolean(dag?.next_dagrun_run_after) ? (
+            <DagRunInfo
+              logicalDate={dag?.next_dagrun_logical_date}
+              runAfter={dag?.next_dagrun_run_after as string}
+            />
+          ) : undefined,
         },
       ];
 
@@ -108,7 +113,7 @@ export const Header = ({
     },
     ...nextRunStat,
     {
-      label: translate("dagDetails.maxActiveRuns"),
+      label: translate("dagDetails.activeRuns"),
       value:
         dag?.max_active_runs === undefined
           ? undefined

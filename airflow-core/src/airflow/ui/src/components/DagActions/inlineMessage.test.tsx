@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { TFunction } from "i18next";
-import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";

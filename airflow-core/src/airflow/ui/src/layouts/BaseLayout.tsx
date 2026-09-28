@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, LocaleProvider } from "@chakra-ui/react";
 import { useEffect, type PropsWithChildren } from "react";
+
+import { Box, LocaleProvider } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse } from "openapi/requests/types.gen";
-import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
+
 import { ReactPlugin } from "src/pages/ReactPlugin";
+
+import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
+
 import { useConfig } from "src/queries/useConfig";
 import { DocumentTitleProvider } from "src/utils";
 
@@ -50,6 +54,9 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
       }
     };
 
+    // On mount too: i18next's initial `languageChanged` fires before this listener attaches, so a
+    // page loaded directly in an RTL language would otherwise stay ltr until the next change.
+    updateHtml(i18n.resolvedLanguage ?? i18n.language);
     i18n.on("languageChanged", updateHtml);
 
     return () => {

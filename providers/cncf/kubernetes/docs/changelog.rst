@@ -27,6 +27,70 @@
 Changelog
 ---------
 
+10.23.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent KubernetesExecutor from launching stale workloads (#69762)``
+* ``Fix KubernetesPodOperator discarding successful XCom when sidecar kill fails (#72068)``
+* ``Fix deferrable Kubernetes 401s with a default exec-based kubeconfig (#72300)``
+* ``Fix unformatted Kubernetes pod trigger error messages (#73034)``
+* ``Apply KubernetesPodOperator template fields only after rendering (#71174)``
+
+Misc
+~~~~
+
+* ``Unify executor workload queues (#63491)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove mention of CeleryKubernetesExecutor from KubernetesExecutor doc (#73624)``
+* ``Document that clear_on_success also removes the KubernetesPodOperator pod identity (#71749)``
+* ``Remove note about airflow 2.7.0 from docs (#72913)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Fix Airflow 2 session leak in mapped KubernetesPodOperator test (#73260)``
+
+10.22.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add KubernetesPodExecOperator for existing Kubernetes Pods (#71244)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix XCom sidecar helper mutating the caller's pod volumes (#72522)``
+* ``Fix KubernetesPodOperator XCom loss when container_logs is a string (#72502)``
+
+Misc
+~~~~
+
+* ``Refactor validate_key to raise ValueError instead of AirflowException (#68890)``
+* ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove stale is_async docstring param from await_pod_start (#72261)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.21.1
 .......
 

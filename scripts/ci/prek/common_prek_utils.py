@@ -346,6 +346,59 @@ def check_uv_version(uv_bin: str = "uv") -> None:
         sys.exit(1)
 
 
+BREEZE_SHIM_MARKER = "Apache Airflow breeze shim — managed by scripts/tools/setup_breeze"
+BREEZE_SHIM_VERSION_PREFIX = "# breeze-shim-version:"
+SETUP_BREEZE_SHIM_VERSION_PREFIX = "SHIM_VERSION="
+SETUP_BREEZE_PATH = AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze"
+BREEZE_LOCKED_VENV_PATH = AIRFLOW_BREEZE_SOURCES_PATH / ".venv"
+
+
+def _read_shim_version(text: str, prefix: str) -> int | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            try:
+                return int(stripped[len(prefix) :].strip().strip("\"'"))
+            except ValueError:
+                return None
+    return None
+
+
+def describe_breeze_not_running_from_lock() -> str | None:
+    """Describe why the ``breeze`` on PATH does not run from ``dev/breeze/uv.lock``.
+
+    Only the current shim (which dispatches to ``uv run --locked``) and the locked venv CI
+    syncs run the versions the lock pins. An older shim and a legacy ``uv tool`` / ``pipx``
+    install both resolve breeze's dependencies against the index instead, so anything derived
+    from them — command hashes above all — reflects whatever the index served that day.
+
+    :return: a description of the offending install, or None when breeze runs from the lock.
+    """
+    breeze_bin = shutil.which("breeze")
+    if breeze_bin is None:
+        return None
+    resolved = Path(breeze_bin).resolve()
+    if resolved.is_relative_to(BREEZE_LOCKED_VENV_PATH.resolve()):
+        return None
+    try:
+        text = Path(breeze_bin).read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
+    if BREEZE_SHIM_MARKER not in text:
+        return f"`{breeze_bin}` is a legacy global install, which ignores the lock"
+    expected_version = _read_shim_version(SETUP_BREEZE_PATH.read_text(), SETUP_BREEZE_SHIM_VERSION_PREFIX)
+    if expected_version is None:
+        return None
+    installed_version = _read_shim_version(text, BREEZE_SHIM_VERSION_PREFIX)
+    if installed_version is not None and installed_version >= expected_version:
+        return None
+    installed_text = installed_version if installed_version is not None else "pre-versioning"
+    return (
+        f"the shim at `{breeze_bin}` needs to be upgraded "
+        f"(installed: {installed_text}, current: {expected_version})"
+    )
+
+
 def initialize_breeze_prek(name: str, file: str):
     if name not in ("__main__", "__mp_main__"):
         raise SystemExit(
@@ -363,7 +416,7 @@ def initialize_breeze_prek(name: str, file: str):
             "[red]The `breeze` command is not on path.[/]\n\n"
             "[yellow]Please install breeze. Recommended: run `./scripts/tools/setup_breeze` "
             "from the repo root — it installs a shim at `~/.local/bin/breeze` that runs breeze "
-            "via `uvx` from the current git worktree (see ADR 0017).\n"
+            "via `uv run --locked` from the current git worktree (see ADR 0017).\n"
             "Legacy global install (`uv tool install -e ./dev/breeze` or "
             "`pipx install -e ./dev/breeze`) still works but is no longer recommended.[/]\n\n"
             "[bright_blue]You can also set SKIP_BREEZE_PREK_HOOKS env variable to non-empty "

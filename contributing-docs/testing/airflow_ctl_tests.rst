@@ -45,3 +45,15 @@ Then, you can run the tests using the following command:
 
    The above command runs the integration tests for ``airflowctl`` in the Breeze environment.
    Ensure that the correct tag or branch is checked out before executing the tests.
+
+Waiting for Dag Runs
+--------------------
+
+The ``xcom`` commands can only run once their Dag run has finished, so the tests wait for it.
+A freshly booted compose stack has to start the scheduler, queue the run and execute the tasks,
+which on a slow machine can take longer than the default budget of 300 seconds:
+
+.. code-block:: bash
+
+   # Allow ten minutes for the Dag run to finish
+   AIRFLOW_CTL_TEST_DAG_RUN_TIMEOUT=600 breeze testing airflow-ctl-integration-tests
