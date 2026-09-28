@@ -2072,7 +2072,9 @@ class TestAwsS3Hook:
         assert "Downloaded dag_04.py to" in logs_string
 
     @pytest.mark.parametrize("s3_prefix", ["dags", "project/dags"])
-    @pytest.mark.parametrize("sibling_suffix", ["_archive/old.py", "_old.py", ""])
+    @pytest.mark.parametrize(
+        "sibling_suffix", ["_archive/old.py", "_old.py", pytest.param("", id="key_equals_prefix")]
+    )
     def test_sync_to_local_dir_excludes_sibling_keys(
         self, s3_bucket, s3_client, tmp_path, s3_prefix, sibling_suffix
     ):
