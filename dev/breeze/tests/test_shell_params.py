@@ -266,6 +266,18 @@ def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, lin
             {"POSTGRES_DRIVER": "psycopg"},
             id="POSTGRES_DRIVER stays psycopg when installing from a GitHub branch",
         ),
+        pytest.param(
+            {},
+            {"postgres_version": "17"},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
+            id="POSTGRES_DATA_VOLUME_PATH is the data directory up to Postgres 17",
+        ),
+        pytest.param(
+            {},
+            {"postgres_version": "18"},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql"},
+            id="POSTGRES_DATA_VOLUME_PATH is its parent from Postgres 18",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(
@@ -316,6 +328,16 @@ def test_generated_env_files_do_not_change_when_pythonwarnings_is_set(tmp_path, 
 def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
     base_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH.read_text())
     assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]
+
+
+def test_postgres_data_volume_is_mounted_at_the_image_volume_path():
+    backend_compose_file = yaml.safe_load(
+        (SCRIPTS_CI_DOCKER_COMPOSE_PATH / "backend-postgres.yml").read_text()
+    )
+    assert (
+        "postgres-data-volume:${POSTGRES_DATA_VOLUME_PATH:-/var/lib/postgresql/data}"
+        in backend_compose_file["services"]["postgres"]["volumes"]
+    )
 
 
 @pytest.mark.parametrize(
