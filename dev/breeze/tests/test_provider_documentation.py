@@ -117,6 +117,11 @@ Features
 * ``Add X (#1001, #1002)``
 * ``Add Y (#1003)``
 * ``Add Z (continuation of #1005) (#1006)``
+
+4.7.0
+.....
+
+* ``Old (#900)``
 """
     )
     provider_details = mock.MagicMock(
