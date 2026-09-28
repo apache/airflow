@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack, Badge } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
+
+import { Box, VStack, Badge } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { TbLogicAnd } from "react-icons/tb";
 
 export const AndGateNode = ({ children }: PropsWithChildren) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Box

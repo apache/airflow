@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
-import React, { useState } from "react";
+import { useState } from "react";
+
+import { Center, HStack, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDag } from "openapi/queries";
-import { Dialog, Tooltip } from "src/components/ui";
-import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+
+import { Modal, Tooltip, RadioCardItem, RadioCardRoot } from "src/system-components";
+
 import { useTrigger } from "src/queries/useTrigger";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
@@ -48,14 +50,14 @@ type TriggerDAGModalProps = {
     | undefined;
 };
 
-const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
+const TriggerDAGModal = ({
   dagDisplayName,
   dagId,
   isPaused,
   onClose,
   open,
   prefillConfig,
-}) => {
+}: TriggerDAGModalProps) => {
   const { t: translate } = useTranslation("components");
   const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
   const {
@@ -80,84 +82,80 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} unmountOnExit>
-      <Dialog.Content backdrop>
-        <Dialog.Header paddingBottom={0}>
-          <VStack align="start" gap={2} width="100%" wordBreak="break-all">
-            <Heading size="xl">
-              {runMode === RunMode.SINGLE ? translate("triggerDag.title") : translate("backfill.title")} -{" "}
-              {nameOverflowing ? <br /> : undefined} {dagDisplayName}
-            </Heading>
+    <Modal
+      lazyMount
+      onOpenChange={onClose}
+      open={open}
+      title={
+        <>
+          {runMode === RunMode.SINGLE ? translate("triggerDag.title") : translate("backfill.title")} -{" "}
+          {nameOverflowing ? <br /> : undefined} {dagDisplayName}
+        </>
+      }
+      unmountOnExit
+    >
+      {isLoading ? (
+        <Center py={6}>
+          <VStack>
+            <Spinner size="lg" />
+            <Text mt={2}>{translate("triggerDag.loading")}</Text>
           </VStack>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body>
-          {isLoading ? (
-            <Center py={6}>
-              <VStack>
-                <Spinner size="lg" />
-                <Text mt={2}>{translate("triggerDag.loading")}</Text>
-              </VStack>
-            </Center>
-          ) : isError ? (
-            <Center py={6}>
-              <Text color="fg.error">{translate("triggerDag.loadingFailed")}</Text>
-            </Center>
-          ) : (
-            <>
-              {dag ? (
-                <RadioCardRoot
-                  my={4}
-                  onChange={(event) => {
-                    setRunMode((event.target as HTMLInputElement).value as RunMode);
-                  }}
-                  value={runMode}
-                >
-                  <HStack align="stretch">
-                    <RadioCardItem
-                      description={translate("triggerDag.selectDescription")}
-                      label={translate("triggerDag.selectLabel")}
-                      value={RunMode.SINGLE}
-                    />
-                    <Tooltip
-                      content={translate("backfill.scheduleNotBackfillable")}
-                      disabled={isBackfillable}
-                      portalled
-                    >
-                      <RadioCardItem
-                        description={translate("backfill.selectDescription")}
-                        disabled={!isBackfillable}
-                        label={translate("backfill.selectLabel")}
-                        value={RunMode.BACKFILL}
-                      />
-                    </Tooltip>
-                  </HStack>
-                </RadioCardRoot>
-              ) : undefined}
-
-              {runMode === RunMode.SINGLE ? (
-                <TriggerDAGForm
-                  dagDisplayName={dagDisplayName}
-                  dagId={dagId}
-                  error={error}
-                  hasSchedule={hasSchedule}
-                  isPartitioned={isPartitioned}
-                  isPaused={isPaused}
-                  isPending={isPending}
-                  onSubmitTrigger={triggerDagRun}
-                  open={open}
-                  prefillConfig={prefillConfig}
+        </Center>
+      ) : isError ? (
+        <Center py={6}>
+          <Text color="fg.error">{translate("triggerDag.loadingFailed")}</Text>
+        </Center>
+      ) : (
+        <>
+          {dag ? (
+            <RadioCardRoot
+              my={4}
+              onChange={(event) => {
+                setRunMode((event.target as HTMLInputElement).value as RunMode);
+              }}
+              value={runMode}
+            >
+              <HStack align="stretch">
+                <RadioCardItem
+                  description={translate("triggerDag.selectDescription")}
+                  label={translate("triggerDag.selectLabel")}
+                  value={RunMode.SINGLE}
                 />
-              ) : (
-                isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
-              )}
-            </>
+                <Tooltip
+                  content={translate("backfill.scheduleNotBackfillable")}
+                  disabled={isBackfillable}
+                  portalled
+                >
+                  <RadioCardItem
+                    description={translate("backfill.selectDescription")}
+                    disabled={!isBackfillable}
+                    label={translate("backfill.selectLabel")}
+                    value={RunMode.BACKFILL}
+                  />
+                </Tooltip>
+              </HStack>
+            </RadioCardRoot>
+          ) : undefined}
+
+          {runMode === RunMode.SINGLE ? (
+            <TriggerDAGForm
+              dagDisplayName={dagDisplayName}
+              dagId={dagId}
+              error={error}
+              hasSchedule={hasSchedule}
+              isPartitioned={isPartitioned}
+              isPaused={isPaused}
+              isPending={isPending}
+              onSubmitTrigger={triggerDagRun}
+              open={open}
+              prefillConfig={prefillConfig}
+            />
+          ) : (
+            isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
           )}
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+        </>
+      )}
+    </Modal>
   );
 };
 

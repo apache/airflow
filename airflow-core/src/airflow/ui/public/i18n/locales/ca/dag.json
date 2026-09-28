@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Ha de completar-se dins de {{interval}} de {{reference}}",
+    "completionRuleDynamic": "Ha de completar-se dins d'un interval variable mesurat des de {{reference}}",
     "count_one": "{{count}} termini",
     "count_other": "{{count}} terminis",
     "referenceType": {
@@ -91,10 +92,6 @@
     "critical": "CRÍTIC",
     "debug": "DEPURACIÓ",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Pantalla completa",
-      "tooltip": "Prem {{hotkey}} per a pantalla completa"
-    },
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
     "search": {
@@ -147,13 +144,7 @@
       "label": "Nombre d'execucions de Dag"
     },
     "dependencies": {
-      "label": "Dependències",
-      "options": {
-        "allDagDependencies": "Totes les dependències de Dag",
-        "externalConditions": "Condicions externes",
-        "onlyTasks": "Només tasques"
-      },
-      "placeholder": "Dependències"
+      "allDagDependencies": "Totes les dependències de Dag"
     },
     "graphDirection": {
       "label": "Direcció del gràfic"
@@ -246,6 +237,8 @@
     "deleteWarning": "La tasca perdrà aquesta memòria persistent. Si la tasca utilitza aquesta clau per fer seguiment de feina externa (p. ex., un ID de treball extern), no podrà reprendre-la.",
     "edit": "Editar magatzem de tasca",
     "emptyStore": "El magatzem de tasca emmagatzema valors que persisteixen entre reintents. Els workers poden escriure al magatzem de tasca mitjançant el Task SDK.",
+    "entry_one": "Entrada",
+    "entry_other": "Entrades",
     "expiresAt": {
       "column": "Caduca a",
       "custom": "Personalitzat",

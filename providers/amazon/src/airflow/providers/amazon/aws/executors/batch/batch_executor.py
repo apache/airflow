@@ -33,9 +33,19 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.amazon.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts, prune_dict
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
+
+    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -91,16 +101,13 @@ class AwsBatchExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_4_PLUS:
+        supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
+    elif AIRFLOW_V_3_3_PLUS:
         supports_callbacks: bool = True
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
-
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -132,28 +139,29 @@ class AwsBatchExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS],
         )
 
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
+    if not AIRFLOW_V_3_1_PLUS:
 
-        if isinstance(workload, workloads.ExecuteTask):
+        def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+            from airflow.executors import workloads
+
+            if not isinstance(workload, workloads.ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             self.queued_tasks[workload.ti.key] = workload
-            return
-        if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
-            self.queued_callbacks[workload.callback.key] = workload
-            return
-        raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
-        for w in workload_items:
-            if isinstance(w, workloads.ExecuteTask):
-                task_command = [w]
-                task_key = w.ti.key
-                queue = w.ti.queue
-                executor_config = w.ti.executor_config or {}
+        for workload in workload_items:
+            if isinstance(workload, workloads.ExecuteTask):
+                task_command = [workload]
+                task_key = workload.ti.key
+                queue = workload.ti.queue
+                executor_config = workload.ti.executor_config or {}
 
-                del self.queued_tasks[task_key]
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][task_key]
+                else:
+                    del self.queued_tasks[task_key]
                 self.execute_async(
                     key=task_key,
                     command=task_command,  # type: ignore[arg-type]
@@ -161,18 +169,21 @@ class AwsBatchExecutor(BaseExecutor):
                     executor_config=executor_config,
                 )
                 self.running.add(task_key)
-            elif AIRFLOW_V_3_3_PLUS and isinstance(w, workloads.ExecuteCallback):
-                callback_command = [w]
-                callback_key = w.callback.key
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
+                callback_command = [workload]
+                callback_key = workload.callback.key
                 queue = None
-                if isinstance(w.callback.data, dict) and "queue" in w.callback.data:
-                    queue = w.callback.data["queue"]
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
 
-                del self.queued_callbacks[callback_key]
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][callback_key]
+                else:
+                    del self.queued_callbacks[callback_key]
                 self.execute_async(key=callback_key, command=callback_command, queue=queue)  # type: ignore[arg-type]
                 self.running.add(callback_key)
             else:
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def check_health(self):
         """Make a test API call to check the health of the Batch Executor."""
@@ -268,11 +279,38 @@ class AwsBatchExecutor(BaseExecutor):
         self.log.debug("Active Workers: %s", describe_job_response)
 
         for job in describe_job_response:
-            if job.get_job_state() == State.FAILED:
-                self._handle_failed_job(job)
-            elif job.get_job_state() == State.SUCCESS:
-                workload_key = self.active_workers.pop_by_id(job.job_id)
-                self.success(workload_key)
+            # snapshot the key before handling the job: if the error strikes after
+            # pop_by_id() already removed it, the collection can no longer tell us
+            # whose workload it was, and the workload would be left with no terminal state
+            workload_key = self.active_workers.id_to_key.get(job.job_id)
+            try:
+                if job.get_job_state() == State.FAILED:
+                    self._handle_failed_job(job)
+                elif job.get_job_state() == State.SUCCESS:
+                    self.success(self.active_workers.pop_by_id(job.job_id))
+            except (ClientError, NoCredentialsError):
+                # credential problems are executor-wide, not job-specific: let sync() handle them
+                raise
+            except Exception:
+                self.log.exception(
+                    "Evicting Batch job %s after an unexpected error while syncing it.", job.job_id
+                )
+                self._evict_job(job.job_id, workload_key)
+
+    def _evict_job(self, job_id: str, workload_key: BatchJobWorkloadKey | None = None) -> None:
+        """
+        Remove a job from the collection and fail its workload, tolerating corrupted bookkeeping.
+
+        workload_key is the caller's snapshot of the mapping taken before the error;
+        it is the fallback when the job was already removed from the collection.
+        """
+        workload_key = self.active_workers.remove_job(job_id) or workload_key
+        if workload_key is None:
+            return
+        try:
+            self.fail(workload_key)
+        except Exception:
+            self.log.exception("Failed to fail workload %s of evicted Batch job %s", workload_key, job_id)
 
     def _handle_failed_job(self, job):
         """

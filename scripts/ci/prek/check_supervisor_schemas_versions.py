@@ -57,7 +57,7 @@ CORE_PROCESSOR_PATH = "airflow-core/src/airflow/dag_processing/processor.py"
 DUMP_SCRIPT = Path(__file__).parent / "dump_supervisor_schemas.py"
 
 
-# TODO: We should consolidte the common logic with check_execution_api_versions.py into common_prek_utils
+# TODO: We should consolidate the common logic with check_execution_api_versions.py into common_prek_utils
 def get_target_branch() -> str:
     """Branch to compare against. GITHUB_BASE_REF for PRs, DEFAULT_BRANCH in CI, else main."""
     return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"

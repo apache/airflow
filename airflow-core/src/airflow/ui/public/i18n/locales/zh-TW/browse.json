@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "事件類型"
-    },
-    "title": "稽核日誌事件"
+    }
   },
   "deadlines": {
     "columns": {
@@ -57,6 +56,8 @@
       "successTitle": "XCom 已更新",
       "title": "編輯 XCom"
     },
+    "entry_one": "XCom 項目",
+    "entry_other": "XCom 項目",
     "key": "鍵",
     "title": "XCom",
     "value": "值"

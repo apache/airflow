@@ -34,10 +34,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 
-try:
-    from airflow.utils import timezone  # type: ignore[attr-defined]
-except AttributeError:
-    from airflow.sdk import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 pytestmark = pytest.mark.db_test
 

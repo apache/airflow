@@ -260,6 +260,8 @@ Airflow version. Whenever we release a new version of Airflow, we upgrade all de
 applicable versions and test them together, so if you want to keep up with those tests - staying up-to-date
 with latest version of Airflow is the easiest way to update those dependencies.
 
+.. _installing-from-pypi-installation-and-upgrade-scenarios:
+
 Installation and upgrade scenarios
 ''''''''''''''''''''''''''''''''''
 

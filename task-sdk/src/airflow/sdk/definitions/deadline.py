@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -24,9 +25,9 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
-from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
+from airflow.sdk.definitions.callback import DEADLINE_CALLBACK_TYPES, AsyncCallback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
+from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -46,7 +47,9 @@ class BaseDeadlineReference(ABC):
     The actual evaluation logic (``_evaluate_with``) is in Core's ``SerializedReferenceModels``.
 
     For custom deadline references, users should inherit from this class and implement
-    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).
+    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).  A custom
+    reference must be decorated with ``@deadline_reference`` and listed in the ``deadline_references``
+    attribute of an ``AirflowPlugin``; see :external:doc:`howto/deadline-alerts`.
     """
 
     @property
@@ -148,16 +151,42 @@ class DeadlineAlert:
         self,
         reference: DeadlineReferenceType,
         interval: timedelta | VariableInterval,
-        callback: Callback,
+        callback: AsyncCallback | SyncCallback,
         name: str | None = None,
     ):
+        if isinstance(interval, (int, float)) and not isinstance(interval, bool):
+            # A bare number was never documented or type-hinted, but it parses today because this
+            # check did not exist, and the decoder still reads legacy rows stored as total_seconds().
+            # Normalize so Dags that parse today keep parsing, and warn so the accident does not
+            # become contract.  bool is excluded: it is an int subclass, so True would mean 1 second.
+            warnings.warn(
+                f"Passing a number as a deadline interval is deprecated and will be removed in a "
+                f"future release. Pass timedelta(seconds={interval}) instead.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            interval = timedelta(seconds=interval)
+        elif isinstance(interval, timedelta):
+            # serde dispatches on qualified class name and registers only datetime.timedelta, so a
+            # subclass such as pendulum.duration() would pass the check below and then fail there.
+            # Rebuilding timedelta subclasses into a timedelta keeps this to one path.
+            interval = timedelta(seconds=interval.total_seconds())
+
+        if not isinstance(interval, (timedelta, VariableInterval)):
+            raise ValueError(
+                f"Interval must be a `timedelta` or a `VariableInterval`, received {type(interval).__name__}."
+            )
+
+        # Serializing blocks subclasses for security reasons, so isinstance is too loose.
+        if type(callback) not in DEADLINE_CALLBACK_TYPES:
+            raise ValueError(
+                f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
+            )
+
+        self.callback = callback
         self.reference = reference
         self.interval = interval
         self.name = name
-
-        if not isinstance(callback, (AsyncCallback, SyncCallback)):
-            raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
-        self.callback = callback
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
@@ -272,7 +301,19 @@ class DeadlineReference:
         deadline_reference_type: DeadlineReferenceTypes | None = None,
     ) -> type[BaseDeadlineReference]:
         """
-        Register a custom deadline reference class.
+        Register a custom deadline reference class for use in Dag files.
+
+        This makes the reference available to Dag authors as ``DeadlineReference.<ClassName>`` and
+        records when it should be evaluated.
+
+        .. warning::
+
+            Registering the reference is **not** the same as registering the plugin, despite the
+            name of this method.  This only affects the process that runs the Dag file; it does not
+            make the class resolvable when the scheduler deserializes the Dag.  The class must
+            *also* be listed in the ``deadline_references`` attribute of an ``AirflowPlugin``, or
+            deserialization raises ``DeadlineReferenceNotRegistered``.  See
+            :external:doc:`howto/deadline-alerts`.
 
         :param reference_class: The custom reference class inheriting from BaseDeadlineReference
         :param deadline_reference_type: A DeadlineReference.TYPES for when the deadline should be evaluated ("DAGRUN_CREATED",
@@ -336,6 +377,11 @@ def deadline_reference(deadline_reference_type=None):
 
     May be used with or without parentheses. Without parentheses the reference is evaluated when a
     new dagrun is created; pass a ``DeadlineReference.TYPES`` value to choose a different time.
+
+    The decorated class must also be registered in the ``deadline_references`` list of an
+    ``AirflowPlugin`` so that it can be resolved when the Dag is deserialized.  An unregistered
+    reference raises ``DeadlineReferenceNotRegistered``.  See also
+    :external:doc:`howto/deadline-alerts`.
 
     .. code-block:: python
 
@@ -419,6 +465,13 @@ class VariableInterval:
     key: str
 
     def resolve(self) -> timedelta:
+        warnings.warn(
+            "VariableInterval.resolve() is deprecated and will be removed in a future release. "
+            "Deadline interval resolution is handled internally during deadline evaluation.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+
         try:
             value = Variable.get(self.key)
         except AirflowRuntimeError as e:
@@ -430,8 +483,5 @@ class VariableInterval:
             raise ValueError(
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
             ) from e
-
-        if seconds <= 0:
-            raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
 
         return timedelta(seconds=seconds)

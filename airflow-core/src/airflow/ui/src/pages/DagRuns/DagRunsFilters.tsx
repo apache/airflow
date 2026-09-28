@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack } from "@chakra-ui/react";
-
 import { FilterBar } from "src/components/FilterBar";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
@@ -58,12 +57,6 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
-    <VStack align="start" gap={4} paddingY="4px">
-      <FilterBar
-        configs={filterConfigs}
-        initialValues={initialValues}
-        onFiltersChange={handleFiltersChange}
-      />
-    </VStack>
+    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
   );
 };

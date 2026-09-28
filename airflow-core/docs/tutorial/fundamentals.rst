@@ -213,7 +213,7 @@ Working with Time Zones
 
 Creating a time zone aware Dag is straightforward. Just ensure you use time zone aware dates
 with `pendulum <https://github.com/python-pendulum/pendulum>`_. Avoid using the standard library
-`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they have known limitations.
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as it has known limitations.
 
 Recap
 -----
@@ -293,8 +293,10 @@ This command will provide detailed logs and execute your bash command.
 Keep in mind that the ``airflow tasks test`` command runs task instances locally, outputs their logs to stdout, and
 doesn't track state in the database. This is a handy way to test individual task instances.
 
-Similarly, ``airflow dags test`` runs a single Dag run without registering any state in the database, which is useful
-for testing your entire Dag locally.
+Similarly, ``airflow dags test`` runs a single Dag run locally, which is useful for testing your entire Dag. Unlike
+``airflow tasks test``, it creates a real Dag run and records task state in the metadata database, so it needs an
+initialized database and a Dag that Airflow can serialize from your Dags folder. See
+:ref:`Testing Dags with dag.test() <concepts:debugging>`.
 
 What's Next?
 -------------

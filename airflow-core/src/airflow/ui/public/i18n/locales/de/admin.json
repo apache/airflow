@@ -10,7 +10,8 @@
     "columns": {
       "section": "Abschnitt"
     },
-    "title": "Airflow Konfiguration"
+    "config_one": "Konfiguration",
+    "config_other": "Konfigurationen"
   },
   "connections": {
     "add": "Verbindung hinzufügen",
@@ -96,7 +97,9 @@
       "dagProcessorJob": "Dag-Prozessor-Job",
       "schedulerJob": "Scheduler-Job",
       "triggererJob": "Triggerer-Job"
-    }
+    },
+    "job_one": "Job",
+    "job_other": "Jobs"
   },
   "plugins": {
     "columns": {
@@ -104,6 +107,8 @@
     },
     "importError_one": "Fehler beim Laden eines Plug-ins",
     "importError_other": "Fehler beim Laden von Plug-ins",
+    "plugin_one": "Plug-in",
+    "plugin_other": "Plug-ins",
     "searchPlaceholder": "Nach Datei suchen"
   },
   "pools": {
@@ -137,7 +142,9 @@
     "columns": {
       "packageName": "Paketname",
       "version": "Version"
-    }
+    },
+    "provider_one": "Provider",
+    "provider_other": "Provider"
   },
   "variables": {
     "add": "Variable hinzufügen",
@@ -177,6 +184,7 @@
           "title": "Überspringen"
         }
       },
+      "parsingFile": "Datei wird analysiert ...",
       "title": "Variablen importieren",
       "upload": "JSON-Datei hochladen",
       "uploadPlaceholder": "JSON-Datei mit Variablen auswählen (z.B., {\"name\": \"wert\", ...})"

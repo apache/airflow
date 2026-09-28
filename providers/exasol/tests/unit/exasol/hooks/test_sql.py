@@ -265,7 +265,7 @@ def test_query(
         cursors = []
         for index in range(len(cursor_descriptions)):
             cur = mock.MagicMock(
-                rowcount=lambda: len(cursor_results[index]),
+                rowcount=lambda _idx=index: len(cursor_results[_idx]),
             )
             cur.columns.return_value = get_columns(cursor_descriptions[index])
             cur.fetchall.return_value = cursor_results[index]

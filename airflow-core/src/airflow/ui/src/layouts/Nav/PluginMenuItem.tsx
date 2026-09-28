@@ -23,6 +23,7 @@ import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
+
 import { useColorMode } from "src/context/colorMode";
 import type { NavItemResponse } from "src/utils/types";
 

@@ -42,7 +42,10 @@ class JiraOperator(BaseOperator):
         jira_method will be executed.
     """
 
-    template_fields: Sequence[str] = ("jira_method_args",)
+    template_fields: Sequence[str] = (
+        "jira_method_args",
+        "jira_conn_id",
+    )
 
     def __init__(
         self,

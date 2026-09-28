@@ -20,16 +20,21 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import type { TFunction } from "i18next";
 
 import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
+
 import {
   extractTIContext,
   renderStructuredLog,
   renderTIContextPreamble,
 } from "src/components/renderStructuredLog";
+
 import { parseStreamingLogContent } from "src/utils/logs";
+
+export const getGroupHeaderMarker = (isExpanded: boolean): string => (isExpanded ? "▼" : "▶");
 
 type GetDownloadTextOptions = {
   fetchedData: TaskInstancesLogResponse | undefined;
   logLevelFilters: Array<string>;
+  showLogLevel: boolean;
   showSource: boolean;
   showTimestamp: boolean;
   sourceFilters: Array<string>;
@@ -44,6 +49,7 @@ type GetDownloadTextOptions = {
 export const getDownloadText = ({
   fetchedData,
   logLevelFilters,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -59,6 +65,7 @@ export const getDownloadText = ({
       logLink: "",
       logMessage: line,
       renderingMode: "text",
+      showLogLevel,
       showSource,
       showTimestamp,
       sourceFilters,

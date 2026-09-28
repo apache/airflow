@@ -23,21 +23,6 @@ from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3
 log = logging.getLogger(__name__)
 
 
-def init_appbuilder_views(app):
-    """Initialize Web UI views."""
-    from airflow.models import import_all_models
-    from airflow.providers.fab.www import views
-
-    import_all_models()
-
-    appbuilder = app.appbuilder
-
-    # Remove the session from scoped_session registry to avoid
-    # reusing a session with a disconnected connection
-    appbuilder.session.remove()
-    appbuilder.add_view_no_menu(views.FabIndexView())
-
-
 def init_plugins(app):
     """Integrate Flask and FAB with plugins."""
     from airflow import plugins_manager

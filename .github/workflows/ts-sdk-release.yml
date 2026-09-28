@@ -1,0 +1,208 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+name: Release TypeScript SDK
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Stage the package for review or publish it directly"
+        required: true
+        type: choice
+        options:
+          - staged
+          - formal
+      tag:
+        description: "TypeScript SDK release tag (ts-sdk/<version>)"
+        required: true
+        type: string
+      npm_tag:
+        description: "npm dist-tag (for example: beta or latest)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ts-sdk-npm-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Verify and package release
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+      package_file: ${{ steps.release.outputs.package_file }}
+      sha256: ${{ steps.package.outputs.sha256 }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Checkout dispatched release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.19.0"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - name: Enable the pinned pnpm version
+        run: corepack enable
+      - name: Validate release inputs
+        id: release
+        working-directory: ts-sdk
+        env:
+          NPM_TAG: ${{ inputs.npm_tag }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/validate-release-inputs.mjs
+      - name: Confirm dispatch and checkout use the release tag
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          DISPATCH_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test "${DISPATCH_REF}" = "refs/tags/${RELEASE_TAG}"
+          test "${DISPATCH_SHA}" = "$(git rev-parse HEAD)"
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor HEAD "$(git rev-parse refs/remotes/origin/main)"
+      - name: Verify package identity
+        working-directory: ts-sdk
+        env:
+          EXPECTED_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(node --print "require('./package.json').name")" = "apache-airflow-ts-sdk"
+          test "$(node --print "require('./package.json').version")" = "${EXPECTED_VERSION}"
+      - name: Confirm release advances the npm dist-tag
+        working-directory: ts-sdk
+        env:
+          NPM_TAG: ${{ inputs.npm_tag }}
+          PACKAGE_NAME: ${{ steps.release.outputs.package_name }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          error_file="${RUNNER_TEMP}/npm-view-error.log"
+          set +e
+          current_version="$(npm view "${PACKAGE_NAME}" "dist-tags.${NPM_TAG}" 2>"${error_file}")"
+          view_status=$?
+          set -e
+          if [[ ${view_status} -ne 0 ]]; then
+            if grep -q "E404" "${error_file}"; then
+              current_version=""
+            else
+              cat "${error_file}" >&2
+              exit "${view_status}"
+            fi
+          fi
+          CURRENT_DIST_TAG_VERSION="${current_version}" node scripts/validate-release-inputs.mjs
+      - name: Install and test package
+        working-directory: ts-sdk
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm run lint
+          pnpm run format:check
+          pnpm run typecheck
+          pnpm test
+      - name: Verify package contents
+        working-directory: ts-sdk
+        run: pnpm run verify:package
+      - name: Create package tarball
+        id: package
+        working-directory: ts-sdk
+        env:
+          PACKAGE_FILE: ${{ steps.release.outputs.package_file }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          artifact_dir="${RUNNER_TEMP}/ts-sdk-package"
+          mkdir -p "${artifact_dir}"
+          npm pack --pack-destination "${artifact_dir}"
+          artifact_path="${artifact_dir}/${PACKAGE_FILE}"
+          test -f "${artifact_path}"
+          test "$(find "${artifact_dir}" -maxdepth 1 -type f -name '*.tgz' | wc -l)" -eq 1
+          echo "artifact_name=ts-sdk-package-${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "sha256=$(sha256sum "${artifact_path}" | awk '{print $1}')" >> "${GITHUB_OUTPUT}"
+      - name: Upload package tarball
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: ${{ runner.temp }}/ts-sdk-package/${{ steps.release.outputs.package_file }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: ${{ inputs.release_type == 'staged' && 'Stage release on npm' || 'Publish formal release to npm' }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: ts-sdk-npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.19.0"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - name: Check npm supports staged and trusted publishing
+        run: |
+          node --input-type=module --eval '
+            import { execFileSync } from "node:child_process";
+            const npmVersion = execFileSync("npm", ["--version"], { encoding: "utf8" }).trim();
+            const [major, minor] = npmVersion.split(".").map(Number);
+            if (major < 11 || (major === 11 && minor < 15)) {
+              console.error(
+                `npm ${npmVersion} does not support staged and trusted publishing; ` +
+                  "npm 11.15.0 or later is required. Raise the node-version pin in this workflow.",
+              );
+              process.exit(1);
+            }
+          '
+      - name: Download verified package tarball
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: ${{ runner.temp }}/ts-sdk-package
+      - name: Verify package tarball checksum
+        env:
+          EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
+          PACKAGE_FILE: ${{ needs.build.outputs.package_file }}
+        run: |
+          set -euo pipefail
+          artifact_path="${RUNNER_TEMP}/ts-sdk-package/${PACKAGE_FILE}"
+          test -f "${artifact_path}"
+          echo "${EXPECTED_SHA256}  ${artifact_path}" | sha256sum --check --strict -
+      - name: Stage with npm trusted publishing
+        if: inputs.release_type == 'staged'
+        env:
+          NPM_TAG: ${{ inputs.npm_tag }}
+          PACKAGE_FILE: ${{ needs.build.outputs.package_file }}
+        run: npm stage publish "${RUNNER_TEMP}/ts-sdk-package/${PACKAGE_FILE}" --tag "${NPM_TAG}"
+      - name: Publish with npm trusted publishing
+        if: inputs.release_type == 'formal'
+        env:
+          NPM_TAG: ${{ inputs.npm_tag }}
+          PACKAGE_FILE: ${{ needs.build.outputs.package_file }}
+        run: npm publish "${RUNNER_TEMP}/ts-sdk-package/${PACKAGE_FILE}" --tag "${NPM_TAG}"

@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Tipus d'esdeveniment"
-    },
-    "title": "Registre d'auditoria"
+    }
   },
   "deadlines": {
     "columns": {
@@ -57,6 +56,8 @@
       "successTitle": "XCom actualitzat",
       "title": "Editar XCom"
     },
+    "entry_one": "Entrada d'XCom",
+    "entry_other": "Entrades d'XCom",
     "key": "Clau",
     "title": "XCom",
     "value": "Valor"

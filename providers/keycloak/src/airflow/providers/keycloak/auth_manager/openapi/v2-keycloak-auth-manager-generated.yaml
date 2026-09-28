@@ -164,6 +164,7 @@ components:
       oneOf:
       - $ref: '#/components/schemas/TokenPasswordBody'
       - $ref: '#/components/schemas/TokenClientCredentialsBody'
+      - $ref: '#/components/schemas/TokenJwtFederatedBody'
       title: TokenBody
       description: Token request body.
       discriminator:
@@ -171,6 +172,7 @@ components:
         mapping:
           client_credentials: '#/components/schemas/TokenClientCredentialsBody'
           password: '#/components/schemas/TokenPasswordBody'
+          urn:ietf:params:oauth:grant-type:jwt-bearer: '#/components/schemas/TokenJwtFederatedBody'
     TokenClientCredentialsBody:
       properties:
         grant_type:
@@ -191,6 +193,30 @@ components:
       - client_secret
       title: TokenClientCredentialsBody
       description: Client credentials grant token serializer for post bodies.
+    TokenJwtFederatedBody:
+      properties:
+        grant_type:
+          type: string
+          const: urn:ietf:params:oauth:grant-type:jwt-bearer
+          title: Grant Type
+        assertion:
+          type: string
+          title: Assertion
+      additionalProperties: false
+      type: object
+      required:
+      - grant_type
+      - assertion
+      title: TokenJwtFederatedBody
+      description: 'JWT-bearer grant token serializer for post bodies.
+
+
+        Accepts a Keycloak access token obtained via any Keycloak-native authentication
+
+        method (e.g. a client federated to an external OIDC identity provider) instead
+        of
+
+        Airflow re-authenticating to Keycloak itself.'
     TokenPasswordBody:
       properties:
         grant_type:

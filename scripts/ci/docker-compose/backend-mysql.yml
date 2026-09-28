@@ -39,6 +39,7 @@ services:
       interval: 10s
       timeout: 15s
       start_period: 60s
+      start_interval: 1s
       retries: 5
     restart: "on-failure"
     command: [

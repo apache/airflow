@@ -118,7 +118,7 @@ In the case above, these are the ways you could import the python files:
 
 You can see the ``.airflowignore`` file at the root of your folder. This is a file that you can put in your
 ``dags`` folder to tell Airflow which files from the folder should be ignored when the Airflow
-scheduler looks for Dags. It should contain either regular expressions (the default) or glob expressions
+scheduler looks for Dags. It should contain either glob expressions (the default) or regular expressions
 for the paths that should be ignored. You do not need to have that file in any other folder in
 ``PYTHONPATH`` (and also you can only keep shared code in the other folders, not the actual Dags).
 
@@ -379,7 +379,7 @@ The popular choices are setuptools, poetry, hatch, flit.
 
     mkdir airflow_operators
 
-3. Create the file ``__init__.py`` inside the package and add following code:
+3. Create a file called ``__init__.py`` inside the package and add the following code:
 
 .. code-block:: python
 

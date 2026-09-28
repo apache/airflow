@@ -92,6 +92,28 @@ class TestTokenRouter:
             "client_id", "client_secret", expiration_time_in_seconds=10
         )
 
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_jwt_federated_token")
+    def test_create_token_jwt_bearer_grant(self, mock_create_jwt_federated_token, client):
+        mock_create_jwt_federated_token.return_value = self.token
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token",
+            json={
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "assertion": "a-keycloak-access-token",
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"access_token": self.token}
+        mock_create_jwt_federated_token.assert_called_once_with(
+            "a-keycloak-access-token", expiration_time_in_seconds=10
+        )
+
     @pytest.mark.parametrize(
         "body",
         [
@@ -102,6 +124,8 @@ class TestTokenRouter:
             {"grant_type": "client_credentials", "username": "username", "password": "password"},
             {"grant_type": "client_credentials", "client_id": "client_id", "password": "password"},
             {"grant_type": "client_credentials", "username": "username", "client_secret": "client_secret"},
+            {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer"},
+            {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "username": "username"},
         ],
     )
     @conf_vars(

@@ -47,13 +47,7 @@ ALL_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 USE_AIRFLOW_VERSION = os.environ.get("USE_AIRFLOW_VERSION") or ""
 IS_AIRFLOW_VERSION_PROVIDED = re.match(r"^(\d+)\.(\d+)\.(\d+)\S*$", USE_AIRFLOW_VERSION)
 
-SKIP_IMPORTING_PACKAGES: list[str] = [
-    "airflow.providers.google.cloud.utils.mlengine_prediction_summary",
-    "airflow.providers.google.cloud.operators.dataflow",
-    "airflow.providers.google.cloud.hooks.dataflow",
-    "airflow.providers.google.cloud.sensors.dataflow",
-    "airflow.providers.google.cloud.triggers.dataflow",
-]
+SKIP_IMPORTING_PACKAGES: list[str] = []
 
 
 class EntityType(Enum):

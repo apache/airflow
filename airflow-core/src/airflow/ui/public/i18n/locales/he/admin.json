@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "קטגוריה"
-    },
-    "title": "תצורת Airflow"
+    }
   },
   "connections": {
     "add": "הוסף חיבור חדש",

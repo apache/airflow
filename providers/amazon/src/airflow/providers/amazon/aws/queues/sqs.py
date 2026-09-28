@@ -41,29 +41,9 @@ class SqsMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for SQS integration with common-messaging.
 
-    [START sqs_message_queue_provider_description]
-
-    * It uses ``sqs`` as scheme for identifying SQS queues.
-    * For parameter definitions take a look at :class:`~airflow.providers.amazon.aws.triggers.sqs.SqsSensorTrigger`.
-
-    .. code-block:: python
-
-        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
-        from airflow.sdk import Asset, AssetWatcher
-
-        trigger = MessageQueueTrigger(
-            scheme="sqs",
-            # Additional AWS SqsSensorTrigger parameters as needed
-            sqs_queue="https://sqs.us-east-1.amazonaws.com/123456789012/my-queue",
-            aws_conn_id="aws_default",
-        )
-
-        asset = Asset("sqs_queue_asset", watchers=[AssetWatcher(name="sqs_watcher", trigger=trigger)])
-
-    For a complete example, see:
-    :mod:`tests.system.amazon.aws.example_dag_sqs_message_queue_trigger`
-
-    [END sqs_message_queue_provider_description]
+    Dispatches ``scheme="sqs"`` to
+    :class:`~airflow.providers.amazon.aws.triggers.sqs.SqsSensorTrigger`,
+    which also defines the accepted parameters.
     """
 
     scheme = "sqs"

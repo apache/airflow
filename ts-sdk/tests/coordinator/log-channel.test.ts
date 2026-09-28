@@ -35,7 +35,7 @@ async function makeServer(): Promise<Fixture> {
     resolveSockClosed = r;
   });
   const server = net.createServer((sock) => {
-    sock.on("data", (chunk) => received.push(chunk));
+    sock.on("data", (chunk: Buffer) => received.push(chunk));
     sock.on("close", () => resolveSockClosed());
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -288,7 +288,7 @@ describe("LogChannel", () => {
     const received: Buffer[] = [];
     const server = net.createServer((sock) => {
       serverSocks.push(sock);
-      sock.on("data", (chunk) => received.push(chunk));
+      sock.on("data", (chunk: Buffer) => received.push(chunk));
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const port = (server.address() as net.AddressInfo).port;

@@ -125,6 +125,10 @@ Durable execution applies to the synchronous path. When ``deferrable=True`` is s
 already tracks the statement across the wait, so deferrable mode takes precedence and ``durable``
 has no effect.
 
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
+operator always submits fresh SQL on retry, exactly as before this feature existed.
+
 Reference
 ---------
 

@@ -512,6 +512,32 @@ def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec, targ
     assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
 
 
+@pytest.mark.parametrize("option_value", ["True", "False"])
+def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value):
+    """
+    ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+    parsing child, which only follows the platform gate (pinned to bare fork by ``_force_bare_fork``).
+    """
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+    mocker.patch("airflow.dag_processing.processor._pre_import_airflow_modules")
+
+    with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+        DagFileProcessorProcess.start(
+            path="some_dag.py",
+            bundle_path=pathlib.Path("/tmp/bundle"),
+            bundle_name="testing",
+            dag_file_rel_path="some_dag.py",
+            callbacks=[],
+            client=MagicMock(spec=Client),
+            target=_parse_file_entrypoint,
+            logger=MagicMock(),
+        )
+
+    assert base_start.call_args.kwargs["use_exec"] is False
+
+
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
     # Create the dag in a fn, and use inspect.getsource to write it to a file so that
     # a) the test dag is directly viewable here in the tests
@@ -681,6 +707,48 @@ def test_parse_file_static_check_with_error():
     assert "Don't use the variables as arguments" in next(iter(result.import_errors.values()))
 
 
+@conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
+def test_parse_file_static_check_error_still_executes_callbacks(spy_agency):
+    """Callbacks for already-scheduled runs must run even when the stability check blocks parsing."""
+    from airflow import DAG
+
+    called = False
+
+    def on_failure(context):
+        nonlocal called
+        called = True
+
+    dag = DAG(dag_id="a", on_failure_callback=on_failure)
+
+    def fake_collect_dags(self, *args, **kwargs):
+        self.dags[dag.dag_id] = dag
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+    requests = [
+        DagCallbackRequest(
+            filepath="test_dag_version_inflation_check.py",
+            msg="Message",
+            dag_id="a",
+            run_id="b",
+            bundle_name="testing",
+            bundle_version=None,
+        )
+    ]
+    result = _parse_file(
+        DagFileParseRequest(
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
+            bundle_path=TEST_DAG_FOLDER,
+            bundle_name="testing",
+            callback_requests=requests,
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert result is None
+    assert called is True
+
+
 def test_parse_file_static_check_with_default_warning():
     result = _parse_file(
         DagFileParseRequest(
@@ -814,6 +882,42 @@ class TestExecuteCallbacks:
         mock_lock.return_value.__exit__.assert_called_once()
         mock_execute.assert_called_once_with(dagbag, callbacks[0], log)
 
+    def test_execute_callbacks_continues_after_failed_request(self, spy_agency):
+        """A request for a removed Dag must not abort the remaining requests in the batch."""
+        called = False
+
+        def on_failure(context):
+            nonlocal called
+            called = True
+
+        dag = DAG(dag_id="a", on_failure_callback=on_failure)
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        def make_request(dag_id):
+            return DagCallbackRequest(
+                filepath="test.py",
+                dag_id=dag_id,
+                run_id="test_run",
+                bundle_name="testing",
+                bundle_version=None,
+                is_failure_callback=True,
+                msg="Message",
+            )
+
+        log = MagicMock(spec=FilteringBoundLogger)
+        _execute_callbacks(dagbag, [make_request("removed_dag"), make_request("a")], log)
+
+        assert called is True
+        log.exception.assert_called_once()
+        assert log.exception.call_args.kwargs["dag_id"] == "removed_dag"
+        assert "context_from_server" not in log.exception.call_args.kwargs["request"]
+
 
 class TestExecuteDagCallbacks:
     """Test the _execute_dag_callbacks function with context_from_server"""
@@ -891,6 +995,72 @@ class TestExecuteDagCallbacks:
         # Check that we have template context variables from RuntimeTaskInstance
         assert "ts" in context_received
         assert "params" in context_received
+
+    def test_execute_dag_callbacks_missing_last_ti_task_falls_back_to_minimal_context(self, spy_agency):
+        """A removed last_ti task must not drop the callback; it runs with the minimal context."""
+        called = False
+        context_received = None
+
+        def on_failure(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_failure_callback=on_failure) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+            partition_key=None,
+        )
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="removed_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=DagRunContext(dag_run=dag_run_data, last_ti=ti_data),
+            is_failure_callback=True,
+            msg="Test failure message",
+        )
+
+        _execute_dag_callbacks(dagbag, request, structlog.get_logger())
+
+        assert called is True
+        assert context_received is not None
+        assert context_received["dag"] is dag
+        assert context_received["run_id"] == "test_run"
+        assert context_received["reason"] == "Test failure message"
+        # The rich template context requires the task; the fallback has none of it
+        assert "ts" not in context_received
 
     def test_execute_dag_callbacks_without_context_from_server(self, spy_agency):
         """Test _execute_dag_callbacks falls back to simple context when context_from_server is None"""
@@ -2156,6 +2326,63 @@ class TestDagProcessingMessageTypes:
 
 
 class TestDagFileProcessorProcess:
+    def test_registered_message_types(self):
+        expected = set(typing.get_args(typing.get_args(ToManager)[0]))
+        assert set(DagFileProcessorProcess._request_handlers) == expected
+
+    @pytest.mark.parametrize(
+        "message_type",
+        sorted(set(typing.get_args(typing.get_args(ToManager)[0])) - {DagFileParsingResult}, key=str),
+        ids=lambda message_type: message_type.__name__,
+    )
+    def test_reuses_shared_request_handlers(self, message_type):
+        handler = DagFileProcessorProcess._request_handlers[message_type]
+        assert handler is supervisor.ActivitySubprocess._request_handlers[message_type]
+        assert handler is supervisor.WatchedSubprocess._shared_request_handlers[message_type]
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    @pytest.mark.parametrize(
+        "message_type",
+        sorted(
+            set(typing.get_args(typing.get_args(ToSupervisor)[0]))
+            - set(typing.get_args(typing.get_args(ToManager)[0])),
+            key=str,
+        ),
+        ids=lambda message_type: message_type.__name__,
+    )
+    def test_rejects_task_only_messages(self, send_msg, proc, message_type):
+        proc._handle_request(message_type.model_construct(), structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(
+            proc,
+            None,
+            request_id=42,
+            error=comms.ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
+        )
+        assert not proc.client.mock_calls
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_dispatch_parsing_result(self, send_msg, proc):
+        result = DagFileParsingResult(fileloc="test_dag.py", serialized_dags=[])
+        proc._handle_request(result, structlog.get_logger(), req_id=42)
+
+        assert proc.parsing_result is result
+        send_msg.assert_called_once_with(proc, None, request_id=42, error=None)
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_previous_successful_run_uses_process_id(self, send_msg, proc):
+        proc.client.task_instances.get_previous_successful_dagrun.return_value = (
+            comms.PrevSuccessfulDagRunResult()
+        )
+        proc._handle_request(
+            comms.GetPrevSuccessfulDagRun(ti_id=uuid.uuid4()), structlog.get_logger(), req_id=42
+        )
+
+        proc.client.task_instances.get_previous_successful_dagrun.assert_called_once_with(proc.id)
+        send_msg.assert_called_once_with(
+            proc, comms.PrevSuccessfulDagRunResult(), request_id=42, error=None, exclude_unset=True
+        )
+
     @pytest.fixture
     def proc(self):
         from socket import socketpair
@@ -2218,7 +2445,9 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch(
+                "airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True
+            ) as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(
@@ -2259,7 +2488,9 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch(
+                "airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True
+            ) as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(

@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
@@ -356,7 +357,7 @@ class MySqlHook(DbApiHook):
         conn.commit()
         conn.close()
 
-    def get_openlineage_database_info(self, connection):
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
         """Return MySQL specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 

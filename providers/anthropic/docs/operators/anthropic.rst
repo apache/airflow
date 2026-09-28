@@ -147,18 +147,200 @@ Parameters
 * ``poll_interval`` — seconds between session status checks.
 * ``timeout`` — seconds to wait for a terminal status; defaults to 24 hours.
 * ``vault_ids`` — vault IDs providing MCP/credential access to the session.
+* ``budget`` -- spend ceiling for the session, in US dollars (``25.00``) or as the raw API
+  payload (a mapping). Templated, so it can come from a Variable, a params entry, or
+  an upstream XCom. See `Session budgets`_ below.
 * ``session_resources`` — files, GitHub repos, or memory stores to mount (forwarded to
   ``sessions.create`` as ``resources``; renamed to avoid the reserved ``BaseOperator.resources``).
-* ``session_kwargs`` — extra keyword arguments forwarded to ``sessions.create``.
+* ``session_kwargs`` — extra keyword arguments forwarded to ``sessions.create``. Setting
+  ``budget`` here as well as via the ``budget`` argument is rejected.
 
 .. note::
 
     Completion is detected accurately for both modes. A ``message`` run inspects the
     terminal ``session.status_idle`` event's ``stop_reason`` (correlated against the
-    kickoff event): ``end_turn`` succeeds; ``requires_action`` and ``retries_exhausted``
-    raise an error. An ``outcome`` run is judged from the ``outcome_evaluations`` verdict.
-    The agent must still be configured for autonomous operation (no client-side custom
-    tools / ``always_ask``).
+    kickoff event): ``end_turn`` succeeds; ``requires_action``, ``retries_exhausted`` and
+    ``budget_reached`` raise an error. An ``outcome`` run is judged from the
+    ``outcome_evaluations`` verdict. The agent must still be configured for autonomous
+    operation (no client-side custom tools / ``always_ask``).
+
+Session budgets
+"""""""""""""""
+
+``budget`` bounds what a single session may spend. The session stops issuing new model
+requests once its tracked list cost reaches the ceiling. A number or numeric string is read
+as **US dollars**:
+
+.. code-block:: python
+
+    AnthropicAgentSessionOperator(
+        task_id="research",
+        agent_id="agt_...",
+        environment_id="env_...",
+        message="Summarise yesterday's incidents.",
+        budget=25.00,  # 25.00 USD
+        retries=0,
+    )
+
+The field is templated, so the ceiling can come from a Variable
+(``budget="{{ var.value.max_agent_spend }}"``) and be changed without editing the Dag.
+Amounts are converted through :class:`~decimal.Decimal`, never binary float, and anything
+finer than a cent is rejected rather than silently rounded.
+
+Pass a mapping instead to send the raw API payload, for a budget shape the provider has not
+caught up with. Today the API accepts only ``type: "limit"`` and ``currency: "USD"``, so the
+mapping form is an escape hatch for future additions rather than something needed now:
+
+.. code-block:: python
+
+    budget = {"type": "limit", "max_list_cost": {"amount": "2500", "currency": "USD"}}
+
+To raise or remove a ceiling on a session that is already running, use
+:meth:`~airflow.providers.anthropic.hooks.anthropic.AnthropicHook.update_session`. Only the
+keywords you pass are sent, because the API distinguishes *omitted* (preserve) from
+``None`` (clear):
+
+.. code-block:: python
+
+    hook = AnthropicHook()
+    hook.update_session(session_id, budget=50.00)  # raise the ceiling
+    hook.update_session(session_id, budget=None)  # remove it entirely
+
+On a ``message`` run, a session that stops this way raises
+:class:`~airflow.providers.anthropic.exceptions.AnthropicSessionBudgetExceeded`, a subclass
+of ``AnthropicAgentSessionError``, so it can be caught on its own and routed to review
+rather than treated as a fault.
+
+.. warning::
+
+    On an ``outcome`` run, completion is judged from ``outcome_evaluations`` before the idle
+    event is read, so a budget stop raises nothing. The session stays non-terminal, polling
+    continues until ``timeout`` (24 hours by default), and the task then fails with
+    ``AnthropicAgentSessionTimeout`` -- a misleading error for a session that stopped
+    deliberately. Set a shorter ``timeout`` when combining ``outcome`` with a budget.
+
+.. note::
+
+    On an ``outcome`` run, completion is judged from the session's ``outcome_evaluations``
+    before the idle event is consulted, so a budget stop is reported as whatever verdict the
+    outcome recorded and raises the generic ``AnthropicAgentSessionError``. Catch
+    ``AnthropicSessionBudgetExceeded`` only on ``message`` runs.
+
+.. warning::
+
+    **A budget is a stop trigger, not a spend cap.** The ceiling is checked *between*
+    model requests, so a request already in flight runs to completion and the session can
+    finish well above the limit -- in testing, by a large multiple of a very small
+    ceiling, because a single long generation overshoots before the next request can be
+    blocked. Size it as a circuit breaker rather than a guarantee, and read the session's
+    ``usage.list_cost`` for what was actually spent.
+
+.. warning::
+
+    A session also stops with ``budget_reached`` when its usage includes a model with **no
+    list price**, because a budget cannot measure that spend. Raising the ceiling does not
+    unblock that case; remove the budget instead.
+
+.. warning::
+
+    Airflow ``retries`` multiply spend. Each retry starts a **new** session with a **fresh**
+    budget, so ``retries=2`` with a $25 ceiling can spend $75. Prefer ``retries=0`` on
+    budgeted sessions: the operator archives a budget-stopped session, so there is no
+    running session left to raise the ceiling on.
+
+Recording what a session actually spent
+"""""""""""""""""""""""""""""""""""""""
+
+Because the ceiling is not a cap, it does not tell you the spend. The operator pushes the
+session's usage to XCom under ``usage`` on **both** success and failure, so cost per Dag run
+can be queried and a budget-stopped run still records what it consumed:
+
+.. code-block:: python
+
+    {
+        "input_tokens": 827,
+        "output_tokens": 17065,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 0},
+        "server_tool_use": {"web_search_requests": 0, "web_fetch_requests": 0},
+        "active_seconds": 91.2,
+        "list_cost": {"amount": "44", "currency": "USD"},
+        "try_number": 1,
+    }
+
+``amount`` is the API's **minor-unit string** (``"44"`` is $0.44), kept as a string so no
+rounding is applied to a cost figure. ``list_cost`` is ``None`` when usage includes a model
+with no list price -- which is precisely when a caller has to price the run from the token
+counts, so every billable dimension is reported: cache *writes* are billed above base input,
+and server tool calls are billed per request. Reading usage is best effort: if it fails, the
+task's real outcome is preserved and a warning is logged.
+
+.. warning::
+
+    Airflow clears a task's XCom at the start of every attempt, so ``usage`` holds the
+    **final attempt only** and ``try_number`` records which one that was. With retries
+    enabled, total spend across attempts is not recoverable from this key; sum it from the
+    session records instead. This is the same scenario as the retry warning above, so
+    ``retries=0`` keeps both problems away.
+
+Configuring the agent
+"""""""""""""""""""""
+
+Agent-level settings are not operator arguments: they belong to the agent, which is created
+once and referenced by ID on every run.
+:meth:`~airflow.providers.anthropic.hooks.anthropic.AnthropicHook.create_agent` forwards
+keyword arguments to the API unchanged, so these need no provider support.
+
+**Pinning the inference region.** Pass ``model`` as a config object instead of a bare id to
+confine inference to one region:
+
+.. code-block:: python
+
+    hook.create_agent(
+        name="us-only-analyst",
+        model={"id": "claude-opus-5", "inference_geo": "us"},
+    )
+
+An unsupported value is rejected with a 400 naming the accepted set; see `Data residency
+<https://platform.claude.com/docs/en/manage-claude/data-residency>`__ for the regions
+Anthropic currently serves and the workspace-level controls. When ``inference_geo`` is unset,
+requests fall through to the workspace's
+``default_inference_geo``. On an update, ``model`` is whole-object replacement, so omitting
+``inference_geo`` clears it rather than preserving it.
+
+The pin is re-checked against the workspace allowlist when the agent is saved, when a
+session is created, and on every turn a session serves -- so narrowing the allowlist stops
+running sessions, not just new ones.
+
+In a ``multiagent`` configuration the coordinator's pin and every roster member's must all
+be set to the same value, or all be unset -- a mismatch is rejected. Following both this and
+the roster example below on one agent is the easy way to trip that.
+
+**Adding an advisor.** A coordinator agent can consult a second model mid-turn by adding an
+``advisor`` entry to its ``multiagent`` roster:
+
+.. code-block:: python
+
+    hook.create_agent(
+        name="coordinator",
+        model="claude-opus-5",
+        multiagent={
+            "type": "coordinator",
+            "agents": [
+                worker_agent_id,
+                {"type": "advisor", "model": "claude-opus-5"},
+            ],
+        },
+    )
+
+``type: "coordinator"`` on the ``multiagent`` object is required and the request is rejected
+without it. The roster takes 1 to 20 entries, each an agent ID
+string, a versioned ``{"type": "agent", "id": ..., "version": ...}`` reference,
+``{"type": "self"}`` for recursive self-invocation, or an ``advisor``. Referenced agents
+must exist, must be distinct, must not be archived, and must not themselves set
+``multiagent`` (depth limit 1); at most one ``self`` and at most one ``advisor``. The
+advisor occupies the roster name ``anthropic.advisor``, and its model must be permitted as
+an advisor for the coordinator's own model.
 
 .. exampleinclude:: /../tests/system/anthropic/example_anthropic_agent.py
     :language: python

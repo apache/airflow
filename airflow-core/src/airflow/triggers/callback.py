@@ -35,12 +35,22 @@ PAYLOAD_BODY_KEY = "body"
 class CallbackTrigger(BaseTrigger):
     """Trigger that executes a callback function asynchronously."""
 
-    supports_triggerer_queue: bool = False
+    # CallbackTrigger sets its own `queue` directly (see `__init__` below), so
+    # `_defer_task` must not overwrite it with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = False
 
-    def __init__(self, callback_path: str, callback_kwargs: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        callback_path: str,
+        callback_kwargs: dict[str, Any] | None = None,
+        *,
+        queue: str | None = None,
+    ):
         super().__init__()
         self.callback_path = callback_path
         self.callback_kwargs = callback_kwargs or {}
+        # Read by Trigger.from_object() when persisting the row; unused once running.
+        self.queue = queue
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (

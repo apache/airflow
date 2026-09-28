@@ -75,6 +75,39 @@ class TestGCSToS3Operator:
                 user_project=None,
             )
 
+    @pytest.mark.parametrize(
+        "match_glob",
+        [
+            pytest.param("**/*.csv", id="value_supplied"),
+            pytest.param("", id="empty_string_is_still_supplied"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.__version__", "10.2.0")
+    def test_init__match_glob_rejected_on_older_google_provider(self, match_glob):
+        """Supplying match_glob requires apache-airflow-providers-google>=10.3.0.
+
+        The check asks whether the argument was supplied, not whether its value is truthy,
+        so an empty string is rejected too - it was supplied.
+        """
+        with pytest.raises(ValueError, match=r"requires 'apache-airflow-providers-google>=10\.3\.0'"):
+            GCSToS3Operator(
+                task_id=TASK_ID,
+                gcs_bucket=GCS_BUCKET,
+                dest_s3_key=S3_BUCKET,
+                match_glob=match_glob,
+            )
+
+    @mock.patch("airflow.providers.google.__version__", "10.2.0")
+    def test_init__match_glob_omitted_is_accepted_on_older_google_provider(self):
+        """Omitting match_glob leaves nothing to reject, whatever the google provider version."""
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            gcs_bucket=GCS_BUCKET,
+            dest_s3_key=S3_BUCKET,
+        )
+
+        assert operator.match_glob is None
+
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_incremental(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
@@ -186,6 +219,47 @@ class TestGCSToS3Operator:
             uploaded_files = operator.execute(None)
             assert sorted(MOCK_FILES) == sorted(uploaded_files)
             assert sorted(MOCK_FILES) == sorted(hook.list_keys("bucket", delimiter="/"))
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
+    def test_execute_skips_overlapping_folder_markers(self, mock_hook):
+        mock_hook.return_value.list.return_value = ["src/", "src/airflow.png", "lonely/"]
+        with NamedTemporaryFile() as f:
+            gcs_provide_file = mock_hook.return_value.provide_file
+            gcs_provide_file.return_value.__enter__.return_value.name = f.name
+
+            operator = GCSToS3Operator(
+                task_id=TASK_ID,
+                gcs_bucket=GCS_BUCKET,
+                dest_aws_conn_id="aws_default",
+                dest_s3_key=S3_BUCKET,
+                replace=True,
+            )
+            hook, _ = _create_test_bucket()
+
+            uploaded_files = operator.execute(None)
+            assert uploaded_files == ["lonely/", "src/airflow.png"]
+            assert hook.list_keys("bucket") == ["lonely/", "src/airflow.png"]
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
+    def test_execute_skips_markers_without_a_basename_when_flattening(self, mock_hook):
+        mock_hook.return_value.list.return_value = ["src/", "src/airflow.png", "lonely/"]
+        with NamedTemporaryFile() as f:
+            gcs_provide_file = mock_hook.return_value.provide_file
+            gcs_provide_file.return_value.__enter__.return_value.name = f.name
+
+            operator = GCSToS3Operator(
+                task_id=TASK_ID,
+                gcs_bucket=GCS_BUCKET,
+                dest_aws_conn_id="aws_default",
+                dest_s3_key="s3://bucket/dest/",
+                flatten_structure=True,
+                replace=True,
+            )
+            hook, _ = _create_test_bucket()
+
+            uploaded_files = operator.execute(None)
+            assert uploaded_files == ["src/airflow.png"]
+            assert hook.list_keys("bucket") == ["dest/airflow.png"]
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_with_replace(self, mock_hook):

@@ -99,9 +99,13 @@ class DataFusionToolset(AbstractToolset[Any]):
     :param datasource_configs: One or more DataFusion data-source configurations.
     :param allow_writes: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
         INSERT INTO, etc.). Default ``False`` — only SELECT-family statements
-        are permitted.
+        are permitted. ``EXPLAIN`` reaches the engine only with ``allow_writes=True``,
+        and fails there: the ``max_rows`` limit wraps the plan, and DataFusion requires
+        ``EXPLAIN`` to be the root of the plan. The agent gets an error result, not the
+        plan.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
-        Default ``50``.
+        Default ``50``. The query is limited to ``max_rows + 1`` rows, so a large
+        result is never fully materialized; the extra row only signals truncation.
     :param max_result_bytes: Budget for the serialized ``query`` result, in bytes.
         Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
         row of a 3000-column table is larger than a thousand rows of a narrow one, and
@@ -211,12 +215,13 @@ class DataFusionToolset(AbstractToolset[Any]):
                 _validate_sql(sql)
 
             engine = self._get_engine()
-            pydict = engine.execute_query(sql)
+            try:
+                pydict = engine.session_context.sql(sql).limit(self._max_rows + 1).to_pydict()
+            except Exception as e:
+                raise QueryExecutionException(f"Error while executing query: {e}") from e
             col_names = list(pydict.keys())
             num_rows = len(next(iter(pydict.values()), []))
 
-            # DataFusion has already materialised the full result, so unlike SQLToolset
-            # there is nothing left to avoid fetching -- only the payload is bounded.
             rows = [[pydict[col][i] for col in col_names] for i in range(min(num_rows, self._max_rows))]
             return build_query_result(
                 col_names,
@@ -224,7 +229,6 @@ class DataFusionToolset(AbstractToolset[Any]):
                 max_rows=self._max_rows,
                 max_result_bytes=self._max_result_bytes,
                 more_rows_available=num_rows > self._max_rows,
-                total_rows=num_rows,
             )
         except SQLSafetyError as ex:
             log.warning("query failed SQL safety validation: %s", ex)

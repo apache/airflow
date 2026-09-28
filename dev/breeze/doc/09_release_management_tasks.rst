@@ -1080,6 +1080,28 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :width: 100%
   :alt: Breeze workflow-run publish-docs
 
+Syncing the staging site with main
+""""""""""""""""""""""""""""""""""
+
+Before publishing release candidate docs to staging, reset the ``staging`` branches of
+``apache/airflow-site`` and ``apache/airflow-site-archive`` to ``main`` with the
+``breeze workflow-run sync-staging-to-main`` command. It triggers the ``reset-staging.yml`` workflow in both
+repositories, which force-updates each ``staging`` branch to the current ``main`` commit (``main`` itself is
+not changed); in ``apache/airflow-site`` it also rebuilds the staging site.
+
+.. warning::
+
+   Skip this step if a vote for any other release is in progress. The ``staging`` branches hold the
+   docs prepared for that vote, and resetting them to ``main`` overwrites them. The command asks for
+   confirmation before triggering the workflow.
+
+These are all available flags of ``workflow-run sync-staging-to-main`` command:
+
+.. image:: ./images/output_workflow-run_sync-staging-to-main.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_sync-staging-to-main.svg
+  :width: 100%
+  :alt: Breeze workflow-run sync-staging-to-main
+
 Resolving the constraints for a release
 """""""""""""""""""""""""""""""""""""""
 

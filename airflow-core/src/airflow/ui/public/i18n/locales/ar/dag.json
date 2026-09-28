@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "يجب الإكمال خلال {{interval}} من {{reference}}",
+    "completionRuleDynamic": "يجب الإكمال خلال فترة متغيرة تُقاس من {{reference}}",
     "count_few": "{{count}} مواعيد نهائية",
     "count_many": "{{count}} موعداً نهائياً",
     "count_one": "موعد نهائي واحد",
@@ -175,13 +176,7 @@
       "label": "عدد تشغيلات Dag"
     },
     "dependencies": {
-      "label": "التبعيات",
-      "options": {
-        "allDagDependencies": "جميع تبعيات Dag",
-        "externalConditions": "الشروط الخارجية",
-        "onlyTasks": "المهام فقط"
-      },
-      "placeholder": "التبعيات"
+      "allDagDependencies": "جميع تبعيات Dag"
     },
     "graphDirection": {
       "label": "اتجاه الرسم البياني"

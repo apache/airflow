@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { JSX, ReactNode } from "react";
+
 import { chakra } from "@chakra-ui/react";
 import Anser, { type AnserJsonEntry } from "anser";
-import type { JSX } from "react";
-import * as React from "react";
 
 const fixBackspace = (inputText: string): string => {
   let tmp = inputText;
@@ -166,7 +166,7 @@ const convertBundleIntoReact = (options: {
     );
   }
 
-  const content: Array<React.ReactNode> = [];
+  const content: Array<ReactNode> = [];
   const linkRegex =
     /(?<whitespace>\s|^)(?<url>https?:\/\/(?:www\.|(?!www))[^\s.]+\.\S{2,}|www\.\S+\.\S{2,})/gu;
 
@@ -220,12 +220,12 @@ type AnsiRendererProps = {
   readonly useClasses?: boolean;
 };
 
-export const AnsiRenderer: React.FC<AnsiRendererProps> = ({
+export const AnsiRenderer = ({
   children = "",
   className,
   linkify = false,
   useClasses = false,
-}) => (
+}: AnsiRendererProps) => (
   <code className={className}>
     {ansiToJSON(children, useClasses).map((bundle, index) =>
       convertBundleIntoReact({ bundle, key: index, linkify, useClasses }),
