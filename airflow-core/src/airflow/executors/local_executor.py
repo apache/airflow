@@ -38,6 +38,7 @@ import structlog
 
 from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads.parsing import ParseDagDefinitionsKey, ParseDagDefinitionsState
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -174,7 +175,7 @@ class LocalExecutor(BaseExecutor):
             # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
             self._spawn_workers_with_gc_freeze(self.parallelism)
 
-    def _check_workers(self):
+    def _check_workers(self, *, pending_workloads: int = 0):
         # Reap any dead workers
         to_remove = set()
         for pid, proc in self.workers.items():
@@ -186,9 +187,9 @@ class LocalExecutor(BaseExecutor):
             self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
 
         with self._unread_messages:
-            num_outstanding = self._unread_messages.value
+            num_outstanding = self._unread_messages.value + pending_workloads
 
-        if num_outstanding <= 0 or self.activity_queue.empty():
+        if num_outstanding <= 0 or (not pending_workloads and self.activity_queue.empty()):
             # Nothing to do. Future enhancement if someone wants: shut down workers that have been idle for N
             # seconds
             return
@@ -202,8 +203,7 @@ class LocalExecutor(BaseExecutor):
                 # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
                 self._spawn_workers_with_gc_freeze(self.parallelism - len(self.workers))
             else:
-                # This only creates one worker, which is fine as we call this directly after putting a message on
-                # activity_queue in execute_async when using spawn in multiprocessing
+                # Non-fork workers start lazily, including before a pending queue write.
                 self._spawn_worker()
 
     def _spawn_worker(self):
@@ -251,7 +251,12 @@ class LocalExecutor(BaseExecutor):
         try:
             while not self.result_queue.empty():
                 key, state, exc = self.result_queue.get()
-                self.change_state(key, state)
+                if isinstance(key, ParseDagDefinitionsKey):
+                    self.change_state(
+                        key, state, info=exc, remove_running=state != ParseDagDefinitionsState.RUNNING
+                    )
+                else:
+                    self.change_state(key, state)
         except (OSError, EOFError):
             self.log.exception("Error reading from result queue")
 
@@ -314,10 +319,18 @@ class LocalExecutor(BaseExecutor):
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
-            self.activity_queue.put(workload)
-            removed = self.executor_queues[workload.type].pop(workload.key, None)
-            if not removed:
+            if workload.key not in self.executor_queues[workload.type]:
                 raise KeyError(f"Workload {workload.key} was not found in any queue")
-        with self._unread_messages:
-            self._unread_messages.value += len(workload_list)
-        self._check_workers()
+            # SimpleQueue.put blocks on large payloads, so a consumer must exist before publication.
+            self._check_workers(pending_workloads=1)
+            with self._unread_messages:
+                self._unread_messages.value += 1
+            try:
+                self.activity_queue.put(workload)
+            except Exception:
+                with self._unread_messages:
+                    self._unread_messages.value -= 1
+                raise
+            self.executor_queues[workload.type].pop(workload.key)
+            if workload.type == WorkloadType.PARSE_DAG_DEFINITIONS:
+                self.running.add(workload.key)

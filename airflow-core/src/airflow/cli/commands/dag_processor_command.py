@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.dag_processing.manager import DagFileProcessorManager
@@ -32,14 +32,22 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 
 log = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from airflow.dag_processing.executor_manager import ExecutorDagProcessor
+
 
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
-    """Create DagFileProcessorProcess instance."""
+    """Select the regular manager or the explicitly enabled executor prototype."""
     if args.bundle_name:
         cli_utils.validate_dag_bundle_arg(args.bundle_name)
+    processor_class: type[DagFileProcessorManager | ExecutorDagProcessor] = DagFileProcessorManager
+    if args.executor_parsing:
+        from airflow.dag_processing.executor_manager import ExecutorDagProcessor
+
+        processor_class = ExecutorDagProcessor
     return DagProcessorJobRunner(
         job=Job(bundle_names=args.bundle_name),
-        processor=DagFileProcessorManager(
+        processor=processor_class(
             max_runs=args.num_runs,
             bundle_names_to_parse=args.bundle_name,
         ),

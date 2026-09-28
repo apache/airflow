@@ -257,6 +257,8 @@ def _serialize_dag_capturing_errors(
     bundle_version: str | None,
     version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
+    source_code: str | None = None,
+    raise_on_error: bool = False,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -280,10 +282,16 @@ def _serialize_dag_capturing_errors(
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
             _prefetched=_prefetched,
+            **({"source_code": source_code} if source_code is not None else {}),
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
+            DagCode.update_source_code(
+                dag.dag_id,
+                dag.fileloc,
+                session=session,
+                **({"source_code": source_code} if source_code is not None else {}),
+            )
         if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
@@ -291,6 +299,8 @@ def _serialize_dag_capturing_errors(
     except OperationalError:
         raise
     except Exception:
+        if raise_on_error:
+            raise
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
         return [
@@ -489,6 +499,8 @@ def update_dag_parsing_results_in_db(
         DagWarningType.RUNTIME_VARYING_VALUE,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
+    atomic: bool = False,
+    source_codes: dict[str, str] | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -510,6 +522,9 @@ def update_dag_parsing_results_in_db(
     :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
+    :param atomic: Propagate persistence errors without rollback or internal retry. The caller owns
+        the transaction and must repeat authority checks when retrying it.
+    :param source_codes: Optional source text keyed by Dag ID, avoiding reads from parser-local paths.
     """
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
@@ -517,17 +532,20 @@ def update_dag_parsing_results_in_db(
     try:
         duplicate_warnings = _build_duplicate_dag_id_warnings(dags, bundle_name, session)
     except Exception:
+        if atomic:
+            raise
         log.exception("Error building duplicate dag_id warnings.")
     else:
         warnings = set(warnings) | duplicate_warnings
 
-    for attempt in run_with_db_retries(logger=log):
+    max_attempts = 1 if atomic else MAX_DB_RETRIES
+    for attempt in run_with_db_retries(max_retries=max_attempts, logger=log):
         with attempt:
             serialize_errors = []
             log.debug(
                 "Running dagbag.bulk_write_to_db with retries. Try %d of %d",
                 attempt.retry_state.attempt_number,
-                MAX_DB_RETRIES,
+                max_attempts,
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
@@ -551,10 +569,13 @@ def update_dag_parsing_results_in_db(
                             version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
+                            source_code=source_codes.get(dag.dag_id) if source_codes is not None else None,
+                            raise_on_error=atomic,
                         )
                     )
             except OperationalError:
-                session.rollback()
+                if not atomic:
+                    session.rollback()
                 raise
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
@@ -567,12 +588,16 @@ def update_dag_parsing_results_in_db(
             session=session,
         )
     except Exception:
+        if atomic:
+            raise
         log.exception("Error logging import errors!")
 
     # Record DAG warnings in the metadatabase.
     try:
         _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
     except Exception:
+        if atomic:
+            raise
         log.exception("Error logging DAG warnings.")
 
     session.flush()

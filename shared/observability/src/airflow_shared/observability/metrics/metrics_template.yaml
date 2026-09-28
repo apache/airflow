@@ -179,6 +179,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.parsing_step_{status}"
+    description: "Experimental parsing steps by outcome: admitted, idle, deferred or failed."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["status"]
+
   - name: "scheduler.executor_events.processed"
     description: "Number of executor events processed per ``process_executor_events`` call."
     type: "counter"
@@ -762,6 +768,12 @@ metrics:
 
   - name: "scheduler.scheduler_loop_duration"
     description: "Milliseconds spent running one scheduler loop"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.parsing_step_duration"
+    description: "Milliseconds spent in one experimental scheduler parsing step, including deferred steps."
     type: "timer"
     legacy_name: "-"
     name_variables: []

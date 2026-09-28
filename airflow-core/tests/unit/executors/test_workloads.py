@@ -30,6 +30,11 @@ from airflow.executors import workloads
 from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, WorkloadType, base as workloads_base
 from airflow.executors.workloads.base import WORKLOAD_TYPE_PRIORITY, BaseWorkloadSchema, BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
+from airflow.executors.workloads.parsing import (
+    ParseDagDefinitions,
+    ParseDagDefinitionsKey,
+    ParseDagDefinitionsState,
+)
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.trigger import RunTrigger
 from airflow.executors.workloads.types import (
@@ -45,8 +50,8 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
 from airflow.utils.state import CallbackState, TaskInstanceState
 
-# One row per WorkloadType: (schema, key, state enum, ORM model).
-WORKLOAD_FAMILIES: dict[WorkloadType, tuple[type, type, type, type]] = {
+# Executor-only workloads have no scheduler ORM model.
+WORKLOAD_FAMILIES: dict[WorkloadType, tuple[type, type, type, type | None]] = {
     WorkloadType.EXECUTE_TASK: (ExecuteTask, TaskInstanceKey, TaskInstanceState, TaskInstanceModel),
     WorkloadType.EXECUTE_CALLBACK: (ExecuteCallback, CallbackKey, CallbackState, ExecutorCallback),
     # Referenced via the package so pytest does not collect ``TestConnection`` as a test class.
@@ -55,6 +60,12 @@ WORKLOAD_FAMILIES: dict[WorkloadType, tuple[type, type, type, type]] = {
         ConnectionTestKey,
         ConnectionTestState,
         ConnectionTestRequest,
+    ),
+    WorkloadType.PARSE_DAG_DEFINITIONS: (
+        ParseDagDefinitions,
+        ParseDagDefinitionsKey,
+        ParseDagDefinitionsState,
+        None,
     ),
 }
 
@@ -71,7 +82,7 @@ def test_workload_families_track_every_workload_type():
     schemas = {row[0] for row in WORKLOAD_FAMILIES.values()}
     keys = {row[1] for row in WORKLOAD_FAMILIES.values()}
     states = {row[2] for row in WORKLOAD_FAMILIES.values()}
-    models = {row[3] for row in WORKLOAD_FAMILIES.values()}
+    models = {row[3] for row in WORKLOAD_FAMILIES.values() if row[3] is not None}
 
     assert {schema.model_fields["type"].default for schema in schemas} == set(WorkloadType)
     assert _union_members(workloads.ExecutorWorkload) == schemas

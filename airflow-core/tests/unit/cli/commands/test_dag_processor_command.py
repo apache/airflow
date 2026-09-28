@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import signal
 from unittest import mock
 
 import pytest
@@ -28,6 +29,17 @@ from airflow.cli.commands import dag_processor_command
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.fixture(autouse=True)
+def restore_command_signal_handlers():
+    """CLI actions install process-wide handlers; do not leak them into executor tests."""
+    handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+    try:
+        yield
+    finally:
+        for sig, handler in handlers.items():
+            signal.signal(sig, handler)
 
 
 class TestDagProcessorCommand:
@@ -91,6 +103,20 @@ class TestDagProcessorCommand:
         mock_reloader.assert_called_once()
         # The callback function should be callable
         assert callable(mock_reloader.call_args[0][0])
+
+    @conf_vars({("core", "load_examples"): "False"})
+    @mock.patch("airflow.dag_processing.executor_manager.ExecutorDagProcessor", autospec=True)
+    @mock.patch("airflow.cli.commands.dag_processor_command.DagFileProcessorManager", autospec=True)
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_executor_parsing_is_explicit_opt_in(self, regular, experimental, enabled):
+        args = self.parser.parse_args(
+            ["dag-processor", "--num-runs", "1"] + (["--executor-parsing"] if enabled else [])
+        )
+        runner = dag_processor_command._create_dag_processor_job_runner(args)
+        selected, unused = (experimental, regular) if enabled else (regular, experimental)
+        selected.assert_called_once_with(max_runs=1, bundle_names_to_parse=None)
+        unused.assert_not_called()
+        assert runner.processor is selected.return_value
 
     @conf_vars(
         {("core", "load_examples"): "False", ("profiling", "memray_trace_components"): "dag_processor"}

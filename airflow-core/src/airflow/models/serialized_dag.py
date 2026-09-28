@@ -614,6 +614,7 @@ class SerializedDagModel(Base):
         *,
         session: Session = NEW_SESSION,
         _prefetched: DagWriteMetadata | None = None,
+        source_code: str | None = None,
     ) -> bool:
         """
         Serialize a DAG and writes it into database.
@@ -713,7 +714,9 @@ class SerializedDagModel(Base):
                 dag_version.bundle_version = bundle_version
                 dag_version.version_data = version_data
                 session.merge(dag_version)
-                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+                DagCode.update_source_code(
+                    dag_id=dag.dag_id, fileloc=dag.fileloc, source_code=source_code, session=session
+                )
             if name_updated or bundle_metadata_changed:
                 # A write occurred — a deadline alert name update and/or a bundle
                 # metadata refresh — so report True so callers know the DB changed.
@@ -774,7 +777,9 @@ class SerializedDagModel(Base):
             dag_version.version_data = version_data
             session.merge(dag_version)
             # Update the latest DagCode
-            DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            DagCode.update_source_code(
+                dag_id=dag.dag_id, fileloc=dag.fileloc, source_code=source_code, session=session
+            )
             stats.incr(
                 "dag.serialization.version_updated",
                 tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},
@@ -802,7 +807,7 @@ class SerializedDagModel(Base):
 
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
-        DagCode.write_code(dagv, dag.fileloc, session=session)
+        DagCode.write_code(dagv, dag.fileloc, source_code=source_code, session=session)
         stats.incr(
             "dag.serialization.version_created",
             tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},

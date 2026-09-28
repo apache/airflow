@@ -262,3 +262,25 @@ class TestDagCode:
         refreshed = DagCode.get_latest_dagcode(dag.dag_id)
         assert refreshed.fileloc == dag.fileloc
         assert refreshed.source_code_hash == original_hash
+
+
+@pytest.mark.parametrize("source", ["", "# supplied remotely\n"])
+@patch.object(DagCode, "get_code_from_file", autospec=True, side_effect=AssertionError("filesystem read"))
+def test_write_and_update_supplied_source_without_filesystem(read_code, source, session, testing_dag_bundle):
+    from airflow.models.dag import DagModel
+
+    session.add(DagModel(dag_id="supplied_source", bundle_name="testing"))
+    session.flush()
+    version = DagVersion(dag_id="supplied_source", bundle_name="testing", version_number=1)
+    session.add(version)
+    session.flush()
+    code = DagCode.write_code(version, "/worker-only/example.py", source_code=source, session=session)
+    session.flush()
+    assert code.source_code == source
+    DagCode.update_source_code(
+        "supplied_source", "/worker-only/moved.py", source_code=source + "# changed\n", session=session
+    )
+    session.flush()
+    assert code.source_code == source + "# changed\n"
+    assert code.fileloc == "/worker-only/moved.py"
+    read_code.assert_not_called()

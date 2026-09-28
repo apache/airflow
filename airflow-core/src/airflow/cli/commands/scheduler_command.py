@@ -44,6 +44,7 @@ def _run_scheduler_job(args) -> None:
         job=Job(),
         num_runs=args.num_runs,
         only_idle=args.only_idle,
+        parsing_config=args.parsing_config,
     )
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(args.skip_serve_logs), _serve_health_check(enable_health_check):

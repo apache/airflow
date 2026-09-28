@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias
 
+from airflow.executors.workloads.parsing import ParseDagDefinitionsKey, ParseDagDefinitionsState
 from airflow.models.callback import CallbackKey, ExecutorCallback
 from airflow.models.connection_test import ConnectionTestKey, ConnectionTestRequest, ConnectionTestState
 from airflow.models.taskinstance import TaskInstance
@@ -27,8 +28,8 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 # Type aliases for workload keys and states (used by executor layer)
-WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey | ConnectionTestKey
-WorkloadState: TypeAlias = TaskInstanceState | CallbackState | ConnectionTestState
+WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey | ConnectionTestKey | ParseDagDefinitionsKey
+WorkloadState: TypeAlias = TaskInstanceState | CallbackState | ConnectionTestState | ParseDagDefinitionsState
 
 if TYPE_CHECKING:
     # Type alias for executor workload results (used by executor implementations)
@@ -41,11 +42,15 @@ SchedulerWorkload: TypeAlias = TaskInstance | ExecutorCallback | ConnectionTestR
 
 def state_class_for_key(
     key: WorkloadKey,
-) -> type[TaskInstanceState] | type[CallbackState] | type[ConnectionTestState]:
+) -> (
+    type[TaskInstanceState] | type[CallbackState] | type[ConnectionTestState] | type[ParseDagDefinitionsState]
+):
     if isinstance(key, TaskInstanceKey):
         return TaskInstanceState
     if isinstance(key, ConnectionTestKey):
         return ConnectionTestState
     if isinstance(key, CallbackKey):
         return CallbackState
+    if isinstance(key, ParseDagDefinitionsKey):
+        return ParseDagDefinitionsState
     raise TypeError(f"Unknown workload key type: {type(key)!r}")

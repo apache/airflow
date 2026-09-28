@@ -25,18 +25,19 @@ from pydantic import Field
 from airflow.executors.workloads.base import WORKLOAD_TYPE_PRIORITY, BaseWorkload, BundleInfo, WorkloadType
 from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.connection_test import TestConnection
+from airflow.executors.workloads.parsing import ParseDagDefinitions
 from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 
 All = Annotated[
-    ExecuteTask | ExecuteCallback | RunTrigger | TestConnection,
+    ExecuteTask | ExecuteCallback | RunTrigger | TestConnection | ParseDagDefinitions,
     Field(discriminator="type"),
 ]
 
 TaskInstance = TaskInstanceDTO
 
 ExecutorWorkload = Annotated[
-    ExecuteTask | ExecuteCallback | TestConnection,
+    ExecuteTask | ExecuteCallback | TestConnection | ParseDagDefinitions,
     Field(discriminator="type"),
 ]
 """Workload types that can be sent to executors (excludes RunTrigger, which is handled by the triggerer)."""
@@ -49,6 +50,7 @@ __all__ = [
     "ExecuteCallback",
     "ExecuteTask",
     "ExecutorWorkload",
+    "ParseDagDefinitions",
     "TaskInstance",
     "TaskInstanceDTO",
     "TestConnection",
