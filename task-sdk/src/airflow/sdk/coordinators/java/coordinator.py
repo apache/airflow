@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import email
 import os
 import pathlib
 import stat
@@ -31,6 +30,7 @@ import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import validate_schema_version
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+from airflow.sdk.coordinators.java._jar_manifest import read_main_attributes
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -89,24 +89,21 @@ def _calculate_classpath(roots: Sequence[pathlib.Path]) -> str:
 
 @attrs.define
 class _JarMetadata:
-    main_class: str
-    schema_version: str
+    main_class: str | None
+    schema_version: str | None
 
     @classmethod
     def from_jar(cls, path: pathlib.Path) -> Self | None:
         try:
             with zipfile.ZipFile(path) as zf:
-                try:
-                    manifest_info = zf.getinfo("META-INF/MANIFEST.MF")
-                except KeyError:
-                    log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
-                    return None
-                with zf.open(manifest_info) as f:
-                    manifest = email.message_from_binary_file(f)
-            return cls(manifest["Main-Class"], manifest["Airflow-Supervisor-Schema-Version"])
+                attributes = read_main_attributes(zf)
         except zipfile.BadZipFile:
             log.exception("Cannot read JAR; ignored", path=path)
             return None
+        if attributes is None:
+            log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
+            return None
+        return cls(attributes.get("main-class"), attributes.get("airflow-supervisor-schema-version"))
 
 
 @attrs.define
