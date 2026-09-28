@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
+
 import {
   Box,
   createListCollection,
@@ -27,20 +29,26 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt } from "react-icons/lu";
 import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
-import type { ImperativePanelGroupHandle } from "react-resizable-panels";
+import type { GroupImperativeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
+
+import {
+  IconButton,
+  Switch,
+  Tooltip,
+  type ButtonGroupOption,
+  ButtonGroupToggle,
+} from "src/system-components";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
-import { IconButton, Switch, Tooltip } from "src/components/ui";
-import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+
 import type { DagView } from "src/constants/dagView";
 import { SHOW_ALL_DEPENDENCIES_KEY } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
@@ -58,7 +66,7 @@ import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
 type Props = {
   readonly dagView: DagView;
   readonly limit: number;
-  readonly panelGroupRef: RefObject<ImperativePanelGroupHandle | null>;
+  readonly panelGroupRef: RefObject<GroupImperativeHandle | null>;
   readonly setDagView: (value: DagView) => void;
   readonly setLimit: (value: number) => void;
   readonly setShowVersionIndicatorMode: Dispatch<SetStateAction<VersionIndicatorOptions>>;
@@ -142,7 +150,10 @@ export const PanelButtons = ({
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
-      const newLayout = view === "graph" ? [70, 30] : [30, 70];
+      const newLayout =
+        view === "graph"
+          ? { "details-panel": 30, "main-panel": 70 }
+          : { "details-panel": 70, "main-panel": 30 };
 
       panelGroupRef.current.setLayout(newLayout);
       // Used setTimeout to ensure DOM has been updated

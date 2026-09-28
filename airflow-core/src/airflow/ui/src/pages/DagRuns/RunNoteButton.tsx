@@ -19,7 +19,9 @@
 import { useTranslation } from "react-i18next";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+
 import { useDagRunNote } from "src/queries/useDagRunNote";
 
 const RunNoteButton = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {

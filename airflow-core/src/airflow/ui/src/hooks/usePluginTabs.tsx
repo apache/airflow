@@ -17,9 +17,11 @@
  * under the License.
  */
 import type { ReactNode } from "react";
+
 import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
+
 import { useColorMode } from "src/context/colorMode";
 import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
 

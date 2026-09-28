@@ -53,6 +53,7 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.asset.access_control import AssetAccessControl as AssetAccessControl
 from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.connection import Connection as Connection
 from airflow.sdk.definitions.context import (
     Context as Context,
@@ -60,6 +61,7 @@ from airflow.sdk.definitions.context import (
     get_parsing_context as get_parsing_context,
 )
 from airflow.sdk.definitions.dag import DAG as DAG, dag as dag
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.decorators import (
     result as result,
     setup as setup,
@@ -100,6 +102,7 @@ from airflow.sdk.definitions.partition_mappers.window import (
     YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
+    ChainRetryPolicy as ChainRetryPolicy,
     ExceptionRetryPolicy as ExceptionRetryPolicy,
     RetryAction as RetryAction,
     RetryDecision as RetryDecision,
@@ -143,6 +146,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "AsyncCallback",
     "BaseAsyncOperator",
     "BaseBranchOperator",
     "BaseHook",
@@ -153,6 +157,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -161,6 +166,8 @@ __all__ = [
     "DAG",
     "DagRunState",
     "DayWindow",
+    "DeadlineAlert",
+    "DeadlineReference",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
@@ -199,6 +206,7 @@ __all__ = [
     "StartOfQuarterMapper",
     "StartOfWeekMapper",
     "StartOfYearMapper",
+    "SyncCallback",
     "TaskGroup",
     "TaskInstanceState",
     "TriggerRule",

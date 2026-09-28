@@ -51,10 +51,14 @@ as follows:
     protocol not available
     Error 1 returned
 
-Try adding ``--builder=default`` to your command. For example:
+If autodetection picked a stale Docker Desktop context, point Breeze at a working socket
+with ``--docker-host`` (or set ``DOCKER_HOST``), or force a known context / Buildx builder
+with ``--builder``. For example:
 
 .. code-block:: bash
 
+    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.10 --backend mysql --mysql-version 8.0
+    # or:
     breeze --builder=default --python 3.10 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
@@ -394,6 +398,20 @@ in ``--from-ref`` and ``--to-ref`` flags.
 
     If the cache gets broken, run ``breeze down --cleanup-mypy-cache`` which wipes the docker
     volume and every per-hook ``.build/mypy-venvs/`` and ``.build/mypy-caches/`` directory.
+
+.. note::
+
+    Python bytecode (``.pyc``) compiled from the mounted sources inside the container is written
+    to the ``airflow-pycache-volume`` docker volume (``PYTHONPYCACHEPREFIX``) rather than next to
+    the sources, so it never shows up in your checkout but survives between ``breeze shell`` and
+    ``breeze start-airflow`` runs. This noticeably speeds up every ``airflow`` command and component
+    start-up, especially on macOS where reading sources through the bind mount is slow.
+    The cache is safe to share across Python versions: ``.pyc`` file names keep the
+    interpreter tag (``foo.cpython-310.pyc`` vs ``foo.cpython-312.pyc``), so bytecode is
+    never reused across versions. It is shared across worktrees, though -- sources always
+    mount at ``/opt/airflow`` and freshness is checked by source mtime and size, so
+    alternating between worktrees keeps invalidating the other one's entries.
+    Run ``breeze down --cleanup-pycache`` to wipe the volume.
 
 .. note::
 

@@ -109,73 +109,6 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         assert response.status_code == 200
         assert response.json() == expected_response
 
-    @pytest.mark.parametrize(
-        ("dag_id", "dag_version", "expected_response"),
-        [
-            [
-                "ANOTHER_DAG_ID",
-                1,
-                {
-                    "bundle_name": "another_bundle_name",
-                    "bundle_version": "some_commit_hash",
-                    "bundle_url": "http://test_host.github.com/tree/some_commit_hash/dags",
-                    "created_at": mock.ANY,
-                    "dag_id": "ANOTHER_DAG_ID",
-                    "id": mock.ANY,
-                    "version_number": 1,
-                    "dag_display_name": "ANOTHER_DAG_ID",
-                },
-            ],
-            [
-                "dag_with_multiple_versions",
-                1,
-                {
-                    "bundle_name": "dag_maker",
-                    "bundle_version": "some_commit_hash1",
-                    "bundle_url": "http://test_host.github.com/tree/some_commit_hash1/dags",
-                    "created_at": mock.ANY,
-                    "dag_id": "dag_with_multiple_versions",
-                    "id": mock.ANY,
-                    "version_number": 1,
-                    "dag_display_name": "dag_with_multiple_versions",
-                },
-            ],
-            [
-                "dag_with_multiple_versions",
-                2,
-                {
-                    "bundle_name": "dag_maker",
-                    "bundle_version": "some_commit_hash2",
-                    "bundle_url": "http://test_host.github.com/tree/some_commit_hash2/dags",
-                    "created_at": mock.ANY,
-                    "dag_id": "dag_with_multiple_versions",
-                    "id": mock.ANY,
-                    "version_number": 2,
-                    "dag_display_name": "dag_with_multiple_versions",
-                },
-            ],
-            [
-                "dag_with_multiple_versions",
-                3,
-                {
-                    "bundle_name": "dag_maker",
-                    "bundle_version": "some_commit_hash3",
-                    "bundle_url": "http://test_host.github.com/tree/some_commit_hash3/dags",
-                    "created_at": mock.ANY,
-                    "dag_id": "dag_with_multiple_versions",
-                    "id": mock.ANY,
-                    "version_number": 3,
-                    "dag_display_name": "dag_with_multiple_versions",
-                },
-            ],
-        ],
-    )
-    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_get_dag_version_with_url_template(self, test_client, dag_id, dag_version, expected_response):
-        response = test_client.get(f"/dags/{dag_id}/dagVersions/{dag_version}")
-        assert response.status_code == 200
-        assert response.json() == expected_response
-
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
     @mock.patch("airflow.models.dag_version.DagBundlesManager.view_url", autospec=True)
     @mock.patch("airflow.models.dagbundle.DagBundleModel.render_url", autospec=True, return_value=None)
@@ -302,11 +235,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_get_dag_versions(
-        self, mock_hasattr, test_client, dag_id, expected_response, expected_query_count
-    ):
-        mock_hasattr.return_value = False
+    def test_get_dag_versions(self, test_client, dag_id, expected_response, expected_query_count):
         with assert_queries_count(expected_query_count):
             response = test_client.get(f"/dags/{dag_id}/dagVersions")
         assert response.status_code == 200
@@ -327,108 +256,6 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         assert body["total_entries"] == 3
         dag_ids = {v["dag_id"] for v in body["dag_versions"]}
         assert dag_ids == {"dag_with_multiple_versions"}
-
-    @pytest.mark.parametrize(
-        ("dag_id", "expected_response", "expected_query_count"),
-        [
-            [
-                "~",
-                {
-                    "dag_versions": [
-                        {
-                            "bundle_name": "another_bundle_name",
-                            "bundle_version": "some_commit_hash",
-                            "bundle_url": "http://test_host.github.com/tree/some_commit_hash/dags",
-                            "created_at": mock.ANY,
-                            "dag_id": "ANOTHER_DAG_ID",
-                            "id": mock.ANY,
-                            "version_number": 1,
-                            "dag_display_name": "ANOTHER_DAG_ID",
-                        },
-                        {
-                            "bundle_name": "dag_maker",
-                            "bundle_version": "some_commit_hash1",
-                            "bundle_url": "http://test_host.github.com/tree/some_commit_hash1/dags",
-                            "created_at": mock.ANY,
-                            "dag_id": "dag_with_multiple_versions",
-                            "id": mock.ANY,
-                            "version_number": 1,
-                            "dag_display_name": "dag_with_multiple_versions",
-                        },
-                        {
-                            "bundle_name": "dag_maker",
-                            "bundle_version": "some_commit_hash2",
-                            "bundle_url": "http://test_host.github.com/tree/some_commit_hash2/dags",
-                            "created_at": mock.ANY,
-                            "dag_id": "dag_with_multiple_versions",
-                            "id": mock.ANY,
-                            "version_number": 2,
-                            "dag_display_name": "dag_with_multiple_versions",
-                        },
-                        {
-                            "bundle_name": "dag_maker",
-                            "bundle_version": "some_commit_hash3",
-                            "bundle_url": "http://test_host.github.com/tree/some_commit_hash3/dags",
-                            "created_at": mock.ANY,
-                            "dag_id": "dag_with_multiple_versions",
-                            "id": mock.ANY,
-                            "version_number": 3,
-                            "dag_display_name": "dag_with_multiple_versions",
-                        },
-                    ],
-                    "total_entries": 4,
-                },
-                3,
-            ],
-            [
-                "dag_with_multiple_versions",
-                {
-                    "dag_versions": [
-                        {
-                            "bundle_name": "dag_maker",
-                            "bundle_version": "some_commit_hash1",
-                            "bundle_url": "http://test_host.github.com/tree/some_commit_hash1/dags",
-                            "created_at": mock.ANY,
-                            "dag_id": "dag_with_multiple_versions",
-                            "id": mock.ANY,
-                            "version_number": 1,
-                            "dag_display_name": "dag_with_multiple_versions",
-                        },
-                        {
-                            "bundle_name": "dag_maker",
-                            "bundle_version": "some_commit_hash2",
-                            "bundle_url": "http://test_host.github.com/tree/some_commit_hash2/dags",
-                            "created_at": mock.ANY,
-                            "dag_id": "dag_with_multiple_versions",
-                            "id": mock.ANY,
-                            "version_number": 2,
-                            "dag_display_name": "dag_with_multiple_versions",
-                        },
-                        {
-                            "bundle_name": "dag_maker",
-                            "bundle_version": "some_commit_hash3",
-                            "bundle_url": "http://test_host.github.com/tree/some_commit_hash3/dags",
-                            "created_at": mock.ANY,
-                            "dag_id": "dag_with_multiple_versions",
-                            "id": mock.ANY,
-                            "version_number": 3,
-                            "dag_display_name": "dag_with_multiple_versions",
-                        },
-                    ],
-                    "total_entries": 3,
-                },
-                5,
-            ],
-        ],
-    )
-    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_get_dag_versions_with_url_template(
-        self, test_client, dag_id, expected_response, expected_query_count
-    ):
-        with assert_queries_count(expected_query_count):
-            response = test_client.get(f"/dags/{dag_id}/dagVersions")
-        assert response.status_code == 200
-        assert response.json() == expected_response
 
     @pytest.mark.parametrize(
         ("params", "expected_versions", "expected_total_entries"),

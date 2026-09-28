@@ -107,7 +107,8 @@ _DESCRIPTIONS = {
         "Run a shell command inside an isolated sandbox and return its output. Pipes, "
         "redirection, && and globs work. A non-zero exit is reported, not raised, so read "
         "stderr and fix your command. The sandbox is separate from the Airflow worker and "
-        "is not given Airflow's connections, variables, or environment."
+        "is not given Airflow's connections, variables, or environment. Relative paths "
+        "resolve against the sandbox's working directory; run 'pwd' if you need to know it."
     ),
     READ_FILE: (
         "Read a text file from the sandbox. Long files are truncated and the result tells "
@@ -279,12 +280,58 @@ class SandboxToolset(AbstractToolset[Any]):
             # __aexit__ can destroy a sandbox created during cancellation.
             self._sandbox = await create_task
             raise
+        except SandboxTerminalError:
+            raise
+        except SandboxError as e:
+            # Provisioning takes only the spec, which the model cannot see or change,
+            # so no retry the model makes can turn a failed create into a working
+            # sandbox. Fail the task and let Airflow's retry try the provisioning
+            # again, rather than spending the model's retry budget on it.
+            raise SandboxTerminalError(
+                f"Could not provision a sandbox on backend {self._backend.name!r}: {e}"
+            ) from e
         else:
             self._sandbox = sandbox
             return sandbox
         finally:
             if self._create_task is create_task:
                 self._create_task = None
+
+    def _network_note(self) -> str:
+        """
+        Describe the sandbox's egress in the one place the model reliably reads.
+
+        Without it the model has to discover the policy by failing: measured, a
+        ``pip install`` in a sandbox that denies egress costs a turn and returns a DNS
+        error, and under an allowlist a reach for plain HTTP burns the whole command
+        budget and returns only a timeout, which reads as "my command was slow". The
+        spec is known here, so say it instead.
+        """
+        if not self._spec.block_network:
+            return "This sandbox has outbound network access."
+        hosts = list(self._spec.allow_egress_to or ())
+        cidrs = list(self._spec.allow_egress_to_cidrs or ())
+        if not hosts and not cidrs:
+            return (
+                "This sandbox has NO network access, including DNS, so installing packages "
+                "or downloading anything will fail. Work with what the image already has."
+            )
+        by_name = f"these hosts, over HTTPS on port 443 only: {', '.join(hosts)}"
+        by_address = f"these address ranges, on any port: {', '.join(cidrs)}"
+        if hosts and cidrs:
+            return (
+                f"This sandbox reaches only {by_name}; and {by_address}. Anything else will fail. "
+                "The hosts accept HTTPS only, so plain HTTP to them fails; the address ranges accept "
+                "any port. Hostnames resolve, but only listed hosts and addresses answer."
+            )
+        if hosts:
+            return (
+                f"This sandbox reaches only {by_name}. Anything else, and plain HTTP to any host, will fail."
+            )
+        return (
+            f"This sandbox reaches only {by_address}. Anything else will fail; hostnames still resolve, "
+            "but only those addresses answer."
+        )
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         tools: dict[str, ToolsetTool[Any]] = {}
@@ -297,9 +344,12 @@ class SandboxToolset(AbstractToolset[Any]):
             # leaves it native instead of folding a shell surface into run_code.
             extra = code_arg_kwargs("command", "shell") if base == RUN_COMMAND else {}
             name = self._tool_name(base)
+            description = _DESCRIPTIONS[base]
+            if base == RUN_COMMAND:
+                description = f"{description} {self._network_note()}"
             tool_def = ToolDefinition(
                 name=name,
-                description=_DESCRIPTIONS[base],
+                description=description,
                 parameters_json_schema=schema,
                 sequential=True,
                 **return_schema_kwargs({"type": "string"}),
@@ -375,13 +425,22 @@ class SandboxToolset(AbstractToolset[Any]):
         if result.stderr:
             parts.append(f"[stderr]\n{self._truncate(result.stderr, result.stderr_truncated)}")
         output = "\n".join(parts) if parts else "(no output)"
+        notes: list[str] = []
         if result.timed_out:
-            note = f"[timed out after {timeout:g}s]"
-            if result.sandbox_terminated:
-                note += " [sandbox was replaced; files from earlier calls are gone]"
-            return f"{output}\n{note}"
-        if result.exit_code:
-            return f"{output}\n[exit code: {result.exit_code}]"
+            # What the command actually got, which a backend may have had to shorten.
+            # Telling the model the number it asked for would send it back with a bigger
+            # one when the real constraint was never its request.
+            applied = result.applied_timeout if result.applied_timeout is not None else timeout
+            notes.append(f"[timed out after {applied:g}s]")
+        elif result.exit_code:
+            notes.append(f"[exit code: {result.exit_code}]")
+        if result.sandbox_terminated:
+            # Said whatever else happened, not only after a timeout: a backend can lose
+            # the sandbox under an ordinary-looking failure too, and the model has to
+            # learn that its files are gone from somewhere.
+            notes.append("[sandbox was replaced; files from earlier calls are gone]")
+        if notes:
+            return f"{output}\n{' '.join(notes)}"
         return output
 
     def _truncate(self, text: str, already_truncated: bool) -> str:

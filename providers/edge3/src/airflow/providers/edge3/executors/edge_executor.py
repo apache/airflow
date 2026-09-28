@@ -30,25 +30,47 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
-from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.models.edge_job import EdgeJobModel, build_job_key
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
-from airflow.providers.edge3.models.types import is_callback_execute
+from airflow.providers.edge3.models.types import (
+    CALLBACK_JOB_MAP_INDEX,
+    CALLBACK_JOB_TRY_NUMBER,
+    EXECUTE_CALLBACK_TAG,
+    build_callback_run_id,
+    is_callback_execute,
+)
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.cli.cli_config import GroupCommand
+    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
     CommandType = Sequence[str]
     # Task tuple to send to be executed
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
+
+
+# _purge_jobs() reports on or deletes a job only while it is in one of these states.
+_PURGE_HANDLED_STATES = (
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.SUCCESS,
+    TaskInstanceState.FAILED,
+    TaskInstanceState.REMOVED,
+    TaskInstanceState.RESTARTING,
+    TaskInstanceState.UP_FOR_RETRY,
+)
 
 
 class EdgeExecutor(BaseExecutor):
@@ -58,7 +80,7 @@ class EdgeExecutor(BaseExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState | str] = {}
+        self.last_reported_state: dict[TaskInstanceKey | CallbackKey, TaskInstanceState | str] = {}
 
         # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
         # In Airflow 2.x, ExecutorConf exists but lacks methods like getint, getboolean, getsection, etc.
@@ -103,14 +125,13 @@ class EdgeExecutor(BaseExecutor):
         session: Session,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
+        key: TaskInstanceKey | CallbackKey
         if is_callback_execute(workload):
-            from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
-
             existing_job = session.scalars(
                 select(EdgeJobModel).where(
                     EdgeJobModel.dag_id == EXECUTE_CALLBACK_TAG,
                     EdgeJobModel.task_id == workload.callback.id,
-                    EdgeJobModel.run_id == f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}",
+                    EdgeJobModel.run_id == build_callback_run_id(workload.callback.id),
                 )
             ).first()
 
@@ -122,9 +143,9 @@ class EdgeExecutor(BaseExecutor):
                     EdgeJobModel(
                         dag_id=EXECUTE_CALLBACK_TAG,
                         task_id=str(workload.callback.id),
-                        run_id=f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}",
-                        map_index=-1,
-                        try_number=0,
+                        run_id=build_callback_run_id(workload.callback.id),
+                        map_index=CALLBACK_JOB_MAP_INDEX,
+                        try_number=CALLBACK_JOB_TRY_NUMBER,
                         queue=self.conf.get_mandatory_value("operators", "default_queue"),
                         concurrency_slots=1,
                         state=TaskInstanceState.QUEUED,
@@ -132,6 +153,7 @@ class EdgeExecutor(BaseExecutor):
                         team_name=self.team_name,
                     )
                 )
+            key = workload.key
         elif isinstance(workload, workloads.ExecuteTask):
             task_instance = workload.ti
             key = task_instance.key
@@ -170,6 +192,8 @@ class EdgeExecutor(BaseExecutor):
                 )
         else:
             raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
+        # Added before the caller commits. On rollback, the reconciliation in _purge_jobs() drops the key.
+        self.running.add(key)
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         """
@@ -260,6 +284,24 @@ class EdgeExecutor(BaseExecutor):
 
         return bool(lifeless_jobs)
 
+    def _get_tracked_job_keys(
+        self, session: Session, states: Sequence[TaskInstanceState]
+    ) -> set[TaskInstanceKey | CallbackKey]:
+        """
+        Read the keys of this team's jobs that are in one of ``states``.
+
+        Rows are read without locking on purpose: an edge worker fetches its next job with
+        ``FOR UPDATE SKIP LOCKED``, so locking the queued rows here would make it come back empty.
+        """
+        query = select(
+            EdgeJobModel.dag_id,
+            EdgeJobModel.task_id,
+            EdgeJobModel.run_id,
+            EdgeJobModel.try_number,
+            EdgeJobModel.map_index,
+        ).where(EdgeJobModel.team_name == self.team_name, EdgeJobModel.state.in_(states))
+        return {build_job_key(*row) for row in session.execute(query)}
+
     def _purge_jobs(self, session: Session) -> bool:
         """Clean finished jobs."""
         purged_marker = False
@@ -270,22 +312,16 @@ class EdgeExecutor(BaseExecutor):
             .with_for_update(skip_locked=True)
             .where(
                 EdgeJobModel.team_name == self.team_name,
-                EdgeJobModel.state.in_(
-                    [
-                        TaskInstanceState.RUNNING,
-                        TaskInstanceState.SUCCESS,
-                        TaskInstanceState.FAILED,
-                        TaskInstanceState.REMOVED,
-                        TaskInstanceState.RESTARTING,
-                        TaskInstanceState.UP_FOR_RETRY,
-                    ]
-                ),
+                EdgeJobModel.state.in_(_PURGE_HANDLED_STATES),
             )
         ).all()
 
-        # Sync DB with executor otherwise runs out of sync in multi scheduler deployment
-        already_removed = self.running - set(job.key for job in jobs)
-        self.running = self.running - already_removed
+        # Sync DB with executor otherwise runs out of sync in multi scheduler deployment. Only a queued job
+        # or one handled below keeps its slot. _update_orphaned_jobs() can leave a job in any task instance
+        # state, and a row this method never reads again would hold its slot until the scheduler restarts.
+        self.running &= self._get_tracked_job_keys(
+            session, states=(TaskInstanceState.QUEUED, *_PURGE_HANDLED_STATES)
+        )
 
         for job in jobs:
             if job.key in self.running:
@@ -300,15 +336,13 @@ class EdgeExecutor(BaseExecutor):
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.success(job.key)
-                elif job.state in [
-                    TaskInstanceState.FAILED,
-                    TaskInstanceState.RESTARTING,
-                    TaskInstanceState.UP_FOR_RETRY,
-                ]:
+                elif job.state in [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]:
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
                 else:
+                    # RESTARTING is not a failure here: the fetch endpoint parks a claimed job in that
+                    # state until the worker reports RUNNING.
                     self.last_reported_state[job.key] = TaskInstanceState(job.state)
             if (
                 job.state == TaskInstanceState.SUCCESS
@@ -369,7 +403,10 @@ class EdgeExecutor(BaseExecutor):
         """
         # Remove from executor's internal state
         self.running.discard(ti.key)
-        self.queued_tasks.pop(ti.key, None)
+        if AIRFLOW_V_3_4_PLUS:
+            self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+        else:
+            self.queued_tasks.pop(ti.key, None)
         if ti.key in self.last_reported_state:
             del self.last_reported_state[ti.key]
 
@@ -385,17 +422,25 @@ class EdgeExecutor(BaseExecutor):
         )
         self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    @provide_session
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance], *, session: Session = NEW_SESSION
+    ) -> Sequence[TaskInstance]:
         """
-        Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
+        Adopt the task instances whose job is still in flight in the edge_job table.
 
-        Anything that is not adopted will be cleared by the scheduler (and then become eligible for
-        re-scheduling)
+        The ``running`` set is empty after a scheduler restart, so the adopted keys go back into it
+        to keep slot accounting accurate. Task instances whose job is finished or missing are
+        returned so the scheduler clears and re-schedules them.
 
         :return: any TaskInstances that were unable to be adopted
         """
-        # We handle all running tasks from the DB in sync, no adoption logic needed.
-        return []
+        tracked_keys = self._get_tracked_job_keys(
+            session,
+            states=(TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING, TaskInstanceState.RUNNING),
+        )
+        self.running.update(ti.key for ti in tis if ti.key in tracked_keys)
+        return [ti for ti in tis if ti.key not in tracked_keys]
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:

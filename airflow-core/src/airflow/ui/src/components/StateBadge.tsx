@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, type BadgeProps } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Badge, type BadgeProps } from "@chakra-ui/react";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 

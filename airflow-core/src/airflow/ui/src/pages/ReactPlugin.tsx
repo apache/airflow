@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Spinner } from "@chakra-ui/react";
 import { type FC, lazy, Suspense } from "react";
+
+import { Spinner } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import {

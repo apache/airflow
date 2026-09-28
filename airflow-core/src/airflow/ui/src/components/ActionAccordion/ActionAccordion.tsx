@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
+
+import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type {
@@ -25,8 +26,10 @@ import type {
   TaskInstanceCollectionResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
+
+import { Accordion } from "src/system-components";
+
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Accordion } from "src/components/ui";
 
 import { DataTable } from "../DataTable";
 import { getColumns, type RowSelection } from "./columns";

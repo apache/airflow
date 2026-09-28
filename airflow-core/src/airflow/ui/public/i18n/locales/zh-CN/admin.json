@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "段落"
-    }
+    },
+    "config_one": "配置",
+    "config_other": "配置"
   },
   "connections": {
     "add": "添加连接",
@@ -35,7 +37,7 @@
       "connectionTypeRequired": "连接类型是必填的",
       "extraFields": "额外字段",
       "extraFieldsJson": "额外字段 JSON",
-      "helperText": "找不到连接类型？请确保您已安装对应的 Airflow Providers 套件。",
+      "helperText": "找不到连接类型？请确保您已安装对应的 Airflow 整合套件。",
       "helperTextForRedactedFields": "已遮蔽的字段 ('***') 若未修改，将保持不变。",
       "selectConnectionType": "选择连接类型",
       "standardFields": "标准字段"
@@ -95,7 +97,9 @@
       "dagProcessorJob": "Dag 处理器作业",
       "schedulerJob": "调度器作业",
       "triggererJob": "触发器作业"
-    }
+    },
+    "job_one": "作业",
+    "job_other": "作业"
   },
   "plugins": {
     "columns": {
@@ -103,6 +107,8 @@
     },
     "importError_one": "插件导入错误",
     "importError_other": "插件导入错误",
+    "plugin_one": "插件",
+    "plugin_other": "插件",
     "searchPlaceholder": "搜索文件"
   },
   "pools": {
@@ -136,7 +142,9 @@
     "columns": {
       "packageName": "插件名称",
       "version": "版本"
-    }
+    },
+    "provider_one": "整合套件",
+    "provider_other": "整合套件"
   },
   "variables": {
     "add": "新增变量",
@@ -161,7 +169,7 @@
     "import": {
       "button": "导入",
       "conflictResolution": "选择变量冲突解决方式",
-      "errorParsingJsonFile": "解析 JSON 文件时发生错误：请上传包含变量的 JSON 文件 (例如：{\"key\": \"value\", ...})。",
+      "errorParsingJsonFile": "解析 JSON 文件时发生错误：请上传包含变量的 JSON 文件（例如：{\"key\": \"value\", ...}）。",
       "options": {
         "fail": {
           "description": "如果检测到任何已存在的变量，则导入失败。",
@@ -176,9 +184,10 @@
           "title": "非严格模式"
         }
       },
+      "parsingFile": "正在解析文件...",
       "title": "导入变量",
       "upload": "上传 JSON 文件",
-      "uploadPlaceholder": "上传包含变量的 JSON 文件 (例如：{\"key\": \"value\", ...})"
+      "uploadPlaceholder": "上传包含变量的 JSON 文件（例如：{\"key\": \"value\", ...}）"
     },
     "noRowsMessage": "找不到变量",
     "searchPlaceholder": "搜索键",

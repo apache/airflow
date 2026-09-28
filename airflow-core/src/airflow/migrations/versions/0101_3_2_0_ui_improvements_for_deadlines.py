@@ -28,6 +28,12 @@ Revises: e79fc784f145
 Create Date: 2025-10-17 16:04:55.016272
 """
 
+# ruff: noqa: B023
+# _migrate_dag_deadlines is defined inside a for-loop but is invoked and fully drained
+# (via `list(_migrate_dag_deadlines(dag_conn))`) within the same iteration, so the
+# captured loop values never leak across iterations. This migration shipped in 3.2.0 —
+# do not rewrite the body for lint hygiene; document the invariant instead.
+
 from __future__ import annotations
 
 import contextlib

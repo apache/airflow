@@ -322,6 +322,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
+                "--include-mypy-volume",
                 "--skip-image-upgrade-check",
             ],
         },
@@ -332,6 +333,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--cleanup-pycache",
                 "--cleanup-build-cache",
             ],
         },

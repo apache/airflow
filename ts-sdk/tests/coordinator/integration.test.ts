@@ -25,10 +25,10 @@
 // drives the runtime through task success, task failure, retry, abort signaling,
 // task-time RPCs, missing handlers, and parse-mode responses.
 //
-// No Python, no Airflow install — but exercises the same wire format
+// No Python, no Airflow install, but exercises the same wire format
 // the real coordinator speaks.
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer, Socket as NetSocket, type Server, type Socket } from "node:net";
 import { encode, decode } from "@msgpack/msgpack";
 import {
@@ -36,14 +36,35 @@ import {
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
-import { DagRegistry } from "../../src/sdk/registry.js";
+import { Bundle } from "../../src/sdk/bundle.js";
+import { withArgNames } from "../../src/sdk/arg-names.js";
+import { TaskHandler } from "../../src/sdk/task-handler.js";
+import { getClient, getContext } from "../../src/sdk/task.js";
 
-const testDag = new Dag("test_dag");
-const otherDag = new Dag("other_dag");
-// The registry the runtime dispatches through. startCoordinator() is driven
-// directly rather than through serveDags(), so these tests can supply mock
-// socket addresses.
-const registry = new DagRegistry(testDag, otherDag);
+/** The arguments `py_dag.bound`'s Python call site passes, as its handler
+ *  spells them. Folding absorbs the snake_case on the wire. */
+interface BoundTransformArgs {
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+// The bundle the runtime dispatches through. startCoordinator() is driven
+// directly rather than through bundle.serve(), so these tests can supply mock
+// socket addresses. Both authoring kinds are registered in one call, since the
+// runtime dispatches through one lookup regardless of which put a task there.
+//
+// Rebuilt per test: dispatching reads the bundle, which finalizes every native
+// Dag in it against further tasks, so one Dag cannot collect a task per test.
+let testDag: Dag;
+let otherDag: Dag;
+let bundle: Bundle;
+
+beforeEach(() => {
+  testDag = new Dag("test_dag");
+  otherDag = new Dag("other_dag");
+  bundle = new Bundle(testDag, otherDag);
+});
 
 interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;
@@ -54,7 +75,7 @@ interface MockResult {
 /** Callback used by `driveSupervisor` to answer runtime-initiated
  *  requests. Return `{ body, error? }` to reply with that arity-3
  *  frame, or `null` to ignore the request (the runtime will hang
- *  waiting for a response — only useful for negative tests). */
+ *  waiting for a response, which is only useful for negative tests). */
 type Responder = (
   msgType: string,
   body: Record<string, unknown>,
@@ -149,7 +170,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
   const commAccept = acceptOne(comm.server);
   const logsAccept = acceptOne(logs.server);
 
-  const runtimeDone = startCoordinator(registry, {
+  const runtimeDone = startCoordinator(bundle, {
     commAddr: `127.0.0.1:${comm.port}`,
     logsAddr: `127.0.0.1:${logs.port}`,
     argv: [],
@@ -157,7 +178,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
 
   const [commSock, logsSock] = await Promise.all([commAccept, logsAccept]);
 
-  // Send the kickoff frame as a _ResponseFrame (arity 3) — matches what
+  // Send the kickoff frame as a _ResponseFrame (arity 3), matching what
   // Airflow's `_send_startup_details` actually emits on the wire.
   commSock.write(frameBytes(0, initialFrame, true));
 
@@ -220,7 +241,7 @@ describe("coordinator runtime integration", () => {
 
     const logsSockPromise = acceptOne(logs.server);
     const commSockPromise = acceptOne(comm.server);
-    const runtimeDone = startCoordinator(registry, {
+    const runtimeDone = startCoordinator(bundle, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
@@ -239,10 +260,10 @@ describe("coordinator runtime integration", () => {
 
   it("dispatches StartupDetails to a registered handler and emits SucceedTask", async () => {
     let observedCtx: unknown = null;
-    testDag.task("say_hello", async ({ ctx }) => {
-      observedCtx = ctx;
+    testDag.task("say_hello", async () => {
+      observedCtx = getContext();
       return "ok";
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("say_hello"));
 
@@ -265,7 +286,7 @@ describe("coordinator runtime integration", () => {
 
     // Logger names should be hierarchical (`ts-sdk.<subsystem>`) so the
     // Python supervisor's ConsoleRenderer prints them as a distinct
-    // `[name]` column — not hardcoded to "task" (which collides with
+    // `[name]` column, not hardcoded to "task" (which collides with
     // user task logs).
     const loggers = new Set(result.logRecords.map((r) => r["logger"]));
     expect(loggers.has("ts-sdk.runtime")).toBe(true);
@@ -295,8 +316,8 @@ describe("coordinator runtime integration", () => {
     const commAccept = acceptOne(comm.server);
     const logsAccept = acceptOne(logs.server);
 
-    testDag.task("terminal_timeout", async () => undefined);
-    const runtimeDone = startCoordinator(registry, {
+    testDag.task("terminal_timeout", async () => undefined)();
+    const runtimeDone = startCoordinator(bundle, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
@@ -327,7 +348,7 @@ describe("coordinator runtime integration", () => {
   it("returns TaskState=failed when the handler throws", async () => {
     testDag.task("boom", async () => {
       throw new Error("boom");
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("boom"));
 
@@ -340,7 +361,7 @@ describe("coordinator runtime integration", () => {
   it("returns RetryTask when the handler throws and Airflow says the failure is retryable", async () => {
     testDag.task("boom_retry", async () => {
       throw new Error("boom");
-    });
+    })();
 
     const result = await driveSupervisor(
       makeStartupDetails("boom_retry", "test_dag", "r1", {
@@ -355,13 +376,248 @@ describe("coordinator runtime integration", () => {
     });
   });
 
-  it("aborts ctx.signal on SIGTERM and reports a thrown task error", async () => {
-    let sawAbort = false;
-    testDag.task("aborted_then_failed", async ({ ctx }) => {
-      process.emit("SIGTERM");
-      sawAbort = ctx.signal.aborted;
-      throw new Error("interrupted");
+  it("dispatches to a task handler registered for a Python-owned Dag", async () => {
+    // The mixed-language path: no Dag object exists for `py_dag` on this side,
+    // only a handler bound to its dag_id and task_id.
+    let observedCtx: unknown = null;
+    bundle.register(
+      new TaskHandler("py_dag", "transform", async () => {
+        observedCtx = getContext();
+        return "transformed";
+      }),
+    );
+
+    const result = await driveSupervisor(makeStartupDetails("transform", "py_dag"));
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observedCtx).toMatchObject({ dagId: "py_dag", taskId: "transform" });
+    const setXComReqs = result.runtimeRequests.filter((r) => r.type === "SetXCom");
+    expect(setXComReqs[0]!.body).toMatchObject({
+      key: "return_value",
+      value: "transformed",
+      dag_id: "py_dag",
+      task_id: "transform",
     });
+  });
+
+  it("keeps two Dags' same-named tasks apart when dispatching", async () => {
+    // Registration keys on the pair, and so must dispatch: the runtime is
+    // handed dag_id and task_id together and must not answer from the wrong one.
+    bundle.register(
+      new TaskHandler("pair_dag_a", "shared", async () => "from a"),
+      new TaskHandler("pair_dag_b", "shared", async () => "from b"),
+    );
+
+    for (const [dagId, expected] of [
+      ["pair_dag_a", "from a"],
+      ["pair_dag_b", "from b"],
+    ]) {
+      const result = await driveSupervisor(makeStartupDetails("shared", dagId));
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests.find((r) => r.type === "SetXCom")!.body).toMatchObject({
+        value: expected,
+        dag_id: dagId,
+      });
+    }
+  });
+
+  it("hands a handler the arguments its Dag's call bound", async () => {
+    // End of the folding path through the real wire format: the Python call
+    // site's names arrive snake_case and the handler destructures camelCase.
+    let observed: unknown = null;
+    bundle.register(
+      new TaskHandler(
+        "py_dag",
+        "bound",
+        async ({ regionCode, threshold, dryRun }: BoundTransformArgs) => {
+          observed = { regionCode, threshold, dryRun };
+          return observed;
+        },
+      ),
+    );
+
+    const result = await driveSupervisor(
+      makeStartupDetails("bound", "py_dag", "r1", {
+        arg_bindings: [
+          { name: "region_code", kind: "literal", value: "uk" },
+          { name: "threshold", kind: "literal", value: 0.75 },
+          { name: "dry_run", kind: "literal", value: false, from_default: true },
+        ],
+      }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observed).toEqual({ regionCode: "uk", threshold: 0.75, dryRun: false });
+  });
+
+  it("resolves an upstream output its Dag's call passed, before the handler runs", async () => {
+    // `summarize(make_totals(), "uk")` on the Python side: the runtime pulls
+    // the upstream's return_value itself rather than the handler doing it.
+    let observed: unknown = null;
+    bundle.register(
+      new TaskHandler(
+        "py_dag",
+        "upstream_bound",
+        async ({ totals, regionCode }: { totals: { orders: number }; regionCode: string }) => {
+          observed = { totals, regionCode };
+          return observed;
+        },
+      ),
+    );
+
+    const responder: Responder = (msgType, body) => {
+      if (msgType === "GetXCom") {
+        return {
+          body: { type: "XComResult", key: body["key"], value: { orders: 12 } },
+        };
+      }
+      if (msgType === "SetXCom") return { body: null };
+      return null;
+    };
+
+    const result = await driveSupervisor(
+      makeStartupDetails("upstream_bound", "py_dag", "r1", {
+        arg_bindings: [
+          { name: "totals", kind: "xcom", task_id: "make_totals" },
+          { name: "region_code", kind: "literal", value: "uk" },
+        ],
+      }),
+      responder,
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observed).toEqual({ totals: { orders: 12 }, regionCode: "uk" });
+    // Pulled under the same key Python `@task` pushes a return value to, and
+    // for the upstream the binding named rather than the running task.
+    expect(result.runtimeRequests.find((r) => r.type === "GetXCom")!.body).toMatchObject({
+      key: "return_value",
+      task_id: "make_totals",
+      dag_id: "py_dag",
+    });
+  });
+
+  it("fails the task when an upstream it was called with pushed no output", async () => {
+    // An unbound argument reaches the handler as `undefined` and corrupts its
+    // output, so this stops the task instead, before it ran.
+    let ran = false;
+    bundle.register(
+      new TaskHandler("py_dag", "missing_upstream", async () => {
+        ran = true;
+        return "should not run";
+      }),
+    );
+
+    const responder: Responder = (msgType) =>
+      msgType === "GetXCom" ? { body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } } : null;
+
+    const result = await driveSupervisor(
+      makeStartupDetails("missing_upstream", "py_dag", "r1", {
+        arg_bindings: [{ name: "totals", kind: "xcom", task_id: "make_totals" }],
+      }),
+      responder,
+    );
+
+    expect(ran).toBe(false);
+    expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
+    expect(
+      result.logRecords.some(
+        (r) =>
+          r["event"] === "[ts-sdk.runtime] Cannot bind this task's call arguments" &&
+          String(r["error"]).includes("pushed no return_value XCom"),
+      ),
+    ).toBe(true);
+  });
+
+  it("honours a handler's explicit renames over folding", async () => {
+    // `withArgNames` travels with the handler, so the dispatch site reads it
+    // back off the function the bundle holds.
+    let observed: unknown = null;
+    bundle.register(
+      new TaskHandler(
+        "py_dag",
+        "renamed",
+        withArgNames(
+          { label: "run_label" },
+          async ({ label, regionCode }: { label: string; regionCode: string }) => {
+            observed = { label, regionCode };
+            return observed;
+          },
+        ),
+      ),
+    );
+
+    const result = await driveSupervisor(
+      makeStartupDetails("renamed", "py_dag", "r1", {
+        arg_bindings: [
+          { name: "run_label", kind: "literal", value: "nightly" },
+          { name: "region_code", kind: "literal", value: "uk" },
+        ],
+      }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    // `label` came from the map, `regionCode` folded as usual.
+    expect(observed).toEqual({ label: "nightly", regionCode: "uk" });
+  });
+
+  it("fails the task when two of its bound names fold alike", async () => {
+    // Reported before the handler runs, so nothing it might have written to
+    // XCom is at stake.
+    bundle.register(new TaskHandler("py_dag", "ambiguous", async () => "never runs"));
+
+    const result = await driveSupervisor(
+      makeStartupDetails("ambiguous", "py_dag", "r1", {
+        arg_bindings: [
+          { name: "region_code", kind: "literal", value: "uk" },
+          { name: "regionCode", kind: "literal", value: "de" },
+        ],
+      }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
+    expect(
+      result.logRecords.some(
+        (r) =>
+          r["event"] === "[ts-sdk.runtime] Cannot bind this task's call arguments" &&
+          String(r["error"]).includes('both fold to "regioncode"'),
+      ),
+    ).toBe(true);
+  });
+
+  it("names what a failing task's call bound", async () => {
+    // A handler that destructured an argument under a name nothing folds to
+    // gets no error of its own, so the failure report carries the names.
+    bundle.register(
+      new TaskHandler("py_dag", "misnamed", async () => {
+        throw new Error("cannot proceed");
+      }),
+    );
+
+    const result = await driveSupervisor(
+      makeStartupDetails("misnamed", "py_dag", "r1", {
+        arg_bindings: [{ name: "region_code", kind: "literal", value: "uk" }],
+      }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    expect(
+      result.logRecords.some(
+        (r) =>
+          r["event"] === "[ts-sdk.runtime] Task failed" &&
+          JSON.stringify(r["bound_args"]) === JSON.stringify(["region_code"]),
+      ),
+    ).toBe(true);
+  });
+
+  it("aborts the context signal on SIGTERM and reports a thrown task error", async () => {
+    let sawAbort = false;
+    testDag.task("aborted_then_failed", async () => {
+      process.emit("SIGTERM");
+      sawAbort = getContext().signal.aborted;
+      throw new Error("interrupted");
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("aborted_then_failed"));
 
@@ -375,11 +631,11 @@ describe("coordinator runtime integration", () => {
 
   it("returns RetryTask with the thrown error when a task fails after SIGTERM", async () => {
     let sawAbort = false;
-    testDag.task("aborted_then_failed_retry", async ({ ctx }) => {
+    testDag.task("aborted_then_failed_retry", async () => {
       process.emit("SIGTERM");
-      sawAbort = ctx.signal.aborted;
+      sawAbort = getContext().signal.aborted;
       throw new Error("interrupted");
-    });
+    })();
 
     const result = await driveSupervisor(
       makeStartupDetails("aborted_then_failed_retry", "test_dag", "r1", {
@@ -398,11 +654,11 @@ describe("coordinator runtime integration", () => {
 
   it("does not discard a completed task result after SIGTERM", async () => {
     let sawAbort = false;
-    testDag.task("completed_after_sigterm", async ({ ctx }) => {
+    testDag.task("completed_after_sigterm", async () => {
       process.emit("SIGTERM");
-      sawAbort = ctx.signal.aborted;
+      sawAbort = getContext().signal.aborted;
       return "completed";
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("completed_after_sigterm"));
 
@@ -434,9 +690,10 @@ describe("coordinator runtime integration", () => {
     const xcomStore = new Map<string, unknown>();
     let observedGreeting: string | null = "<unset>";
 
-    testDag.task("say_hello_client", async ({ ctx, client }) => {
-      // The coordinator-mode handler MUST receive a client.
-      if (!client) throw new Error("client missing in coordinator mode");
+    testDag.task("say_hello_client", async () => {
+      // The coordinator-mode handler MUST be able to reach a client.
+      const ctx = getContext();
+      const client = getClient();
 
       observedGreeting = await client.getVariable("e6_greeting");
       await client.setXCom({
@@ -455,7 +712,7 @@ describe("coordinator runtime integration", () => {
       if (back !== `node says: ${observedGreeting}`) {
         throw new Error(`xcom round-trip mismatch: ${back}`);
       }
-    });
+    })();
 
     const responder: Responder = (msgType, body) => {
       if (msgType === "GetVariable") {
@@ -503,9 +760,9 @@ describe("coordinator runtime integration", () => {
 
   it("returns null from getVariable when the supervisor signals NOT_FOUND", async () => {
     let observed: string | null = "<unset>";
-    testDag.task("missing_variable", async ({ client }) => {
-      observed = await client.getVariable("missing_key");
-    });
+    testDag.task("missing_variable", async () => {
+      observed = await getClient().getVariable("missing_key");
+    })();
 
     const responder: Responder = (msgType) => {
       if (msgType === "GetVariable") {
@@ -530,10 +787,10 @@ describe("coordinator runtime integration", () => {
     let calledSecondDag = false;
     testDag.task("shared_task", async () => {
       calledFirstDag = true;
-    });
+    })();
     otherDag.task("shared_task", async () => {
       calledSecondDag = true;
-    });
+    })();
 
     await driveSupervisor(makeStartupDetails("shared_task"));
 
@@ -556,7 +813,7 @@ describe("coordinator runtime integration", () => {
   });
 
   it("auto-pushes return_value XCom when handler returns a value", async () => {
-    testDag.task("pusher", async () => "my-result");
+    testDag.task("pusher", async () => "my-result")();
 
     const responder: Responder = (msgType, _body) => {
       if (msgType === "SetXCom") return { body: null };
@@ -578,7 +835,7 @@ describe("coordinator runtime integration", () => {
   it("does NOT push return_value XCom when handler returns undefined", async () => {
     testDag.task("void_task", async () => {
       // no return value
-    });
+    })();
 
     const result = await driveSupervisor(makeStartupDetails("void_task"));
 

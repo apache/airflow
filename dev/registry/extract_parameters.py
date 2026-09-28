@@ -38,6 +38,7 @@ Output:
 from __future__ import annotations
 
 import argparse
+import ast
 import concurrent.futures
 import importlib
 import inspect
@@ -45,6 +46,7 @@ import json
 import logging
 import re
 import sys
+import textwrap
 import typing
 from collections import defaultdict
 from dataclasses import dataclass
@@ -95,6 +97,7 @@ class Module:
     provider_id: str
     provider_name: str
     supports_durable_execution: bool
+    supports_deferrable: bool
 
 
 def get_category(integration_name: str) -> str:
@@ -391,28 +394,169 @@ def load_resumable_job_mixin() -> type | None:
         return None
 
 
+# Matches an actual self.defer() call or self.deferrable attribute read, but not
+# self.defer_for_approval(). `raise TaskDeferred` catches operators that raise it directly
+# instead of calling self.defer() (e.g. VespaIngestOperator); requiring the `raise` keeps an
+# `except TaskDeferred` handler or a `:raises TaskDeferred:` docstring line from matching.
+_DEFERRAL_TOKEN_RE = re.compile(r"self\.defer\(|self\.deferrable\b|raise TaskDeferred")
+_SELF_CALL_RE = re.compile(r"self\.([A-Za-z_][A-Za-z0-9_]*)\(")
+_SUPER_EXECUTE_RE = re.compile(r"super\(\)\.execute\(")
+# Matches the @task.* decorator idiom of naming the parent class directly instead of using
+# super() (e.g. `AgentOperator.execute(self, context)` in common.ai's @task.agent).
+_EXPLICIT_EXECUTE_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\.execute\(")
+
+# To prevent infinite looping, most cases in the repo are 1-2 hops away.
+_MAX_DEFERRAL_WALK_DEPTH = 6
+
+
+def _get_method_source(cls: type, name: str) -> str | None:
+    method = getattr(cls, name, None)
+    if method is None:
+        return None
+    try:
+        return inspect.getsource(method)
+    except (OSError, TypeError):
+        return None
+
+
+def _find_owner_of_execute(mro: tuple[type, ...], start_idx: int) -> type | None:
+    """Return the first class in `mro[start_idx:]` whose own `__dict__` defines `execute`."""
+    for cls in mro[start_idx:]:
+        if "execute" in cls.__dict__:
+            return cls
+    return None
+
+
+def _next_execute_via_super(origin: type, current: type) -> type | None:
+    """Find what `super().execute()` resolves to from `current`, per `origin`'s MRO.
+
+    Must use `origin`'s MRO, not `current`'s own: with multiple inheritance (e.g. a
+    `@task.kubernetes`-built class) they diverge, and a mixin's own MRO may have no
+    relationship to the class the chain actually needs to reach.
+    """
+    try:
+        idx = origin.__mro__.index(current)
+    except ValueError:
+        return None
+    return _find_owner_of_execute(origin.__mro__, idx + 1)
+
+
+def _strip_comment_lines(source: str) -> str:
+    """Drop whole-line comments so they can't be mistaken for real delegation code.
+
+    A comment can say the opposite of what the code does (e.g. "overrides execute rather
+    than calling super().execute()"), and a raw-text search can't tell the two apart.
+    """
+    return "\n".join(line for line in source.splitlines() if not line.strip().startswith("#"))
+
+
+def _next_execute_hop(origin: type, current: type, source: str) -> type | None:
+    """Find the next class in `source`'s delegation chain, via `super().execute()` or an
+    explicit `ParentClass.execute(...)` call.
+
+    Every explicit match is tried in order, since an unrelated earlier call (e.g.
+    `cursor.execute(...)`) can otherwise shadow the real delegation. The matched class is
+    resolved to whoever actually owns `execute` (it may only inherit one, e.g.
+    `GKEStartPodOperator.execute(self, context)`), the same way a `super()` hop is.
+    """
+    source = _strip_comment_lines(source)
+    if _SUPER_EXECUTE_RE.search(source):
+        return _next_execute_via_super(origin, current)
+
+    mro_by_name = {base.__name__: base for base in origin.__mro__}
+    for match in _EXPLICIT_EXECUTE_RE.finditer(source):
+        named_cls = mro_by_name.get(match.group(1))
+        if named_cls is None:
+            continue
+        owner = _find_owner_of_execute(origin.__mro__, origin.__mro__.index(named_cls))
+        if owner is not None:
+            return owner
+    return None
+
+
+def _find_marker_declaring_class(cls: type) -> type | None:
+    """Return the class in `cls`'s MRO whose own body sets `__supports_durable_execution = True`.
+
+    The lookup is per-class (`_{base.__name__}__supports_durable_execution`), not a fixed
+    string, and only matches a class whose own `__dict__` carries the (mangled) name;
+    inheriting the attribute value from a base doesn't count, only writing it yourself does.
+    Leading underscores in the class name are stripped first, matching Python's own name
+    mangling rule (`_Foo` mangles to `_Foo__x`, not `__Foo__x`).
+    """
+    for base in cls.__mro__:
+        mangled = f"_{base.__name__.lstrip('_')}__supports_durable_execution"
+        if base.__dict__.get(mangled) is True:
+            return base
+    return None
+
+
+def _delegates_execute_to(cls: type, target: type, depth: int) -> bool:
+    """Return True if `cls`'s resolved `execute()` chain reaches `target.execute`.
+
+    Covers a class that never overrides `execute` (inherits `target.execute` directly, e.g.
+    GKEStartPodOperator), one whose override ends in `super().execute(context)` (e.g.
+    EksPodOperator), and one that names the parent class directly instead (e.g.
+    `AgentOperator.execute(self, context)` in `@task.agent`).
+
+    The `super().execute(` check is a text search with no view of control flow, so a class
+    that returns before reaching that call still matches. SparkKubernetesOperator is the
+    live example: its deferrable path returns out of `execute_async(context)` and never
+    reaches the `super().execute(context)` below it. The durable verdict is still right
+    there, but for a reason this function does not test, since KubernetesPodOperator's
+    `execute_sync` and `execute_async` both reach the pod reattach independently. The gap
+    this leaves: a subclass whose `execute` neither reaches the marker-declaring class nor
+    goes through that reattach would inherit the durable claim without earning it.
+    """
+    owner = _find_owner_of_execute(cls.__mro__, 0)
+    remaining = depth
+    while owner is not None:
+        if owner is target:
+            return True
+        if remaining <= 0:
+            return False
+        source = _get_method_source(owner, "execute")
+        if source is None:
+            return False
+        owner = _next_execute_hop(cls, owner, source)
+        remaining -= 1
+    return False
+
+
+def _execute_chain_calls_resumable(cls: type, depth: int) -> bool:
+    """Return True if some class along `cls`'s resolved `execute()` chain calls execute_resumable().
+
+    Same walk as `_delegates_execute_to`: a delegating override's own source may not mention
+    `execute_resumable` even though the class it hands off to does.
+    """
+    owner = _find_owner_of_execute(cls.__mro__, 0)
+    remaining = depth
+    while owner is not None:
+        source = _get_method_source(owner, "execute")
+        if source is None:
+            return False
+        if "execute_resumable" in source:
+            return True
+        if remaining <= 0:
+            return False
+        owner = _next_execute_hop(cls, owner, source)
+        remaining -= 1
+    return False
+
+
 def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     """Return True if a class implements durable/crash-safe execution.
 
     Two ways to qualify:
-    1. A class-level `__supports_durable_execution = True`
-    declaration (for operators that implement this directly against
-    task_state_store, without ResumableJobMixin -- e.g. KubernetesPodOperator,
-    AgentOperator).
-    2. Genuinely implementing ResumableJobMixin's contract.
-
-    The first path deliberately looks up the class prefixed attribute
-    (`_{ClassName}__supports_durable_execution`) rather than a fixed string.
-    A subclass that overrides execute() itself (e.g. SparkKubernetesOperator)
-    may not preserve the parent's task_state_store reconnect behavior, so the
-    declaration must not be inherited -- only the exact class that wrote
-    `__supports_durable_execution` in its own body qualifies this way.
-
-    Inheriting the mixin alone is not sufficient for the second path: a
-    complete override is inert unless execute() actually calls
-    execute_resumable().
+    1. A class-level `__supports_durable_execution = True` declaration (for operators like
+    KubernetesPodOperator/AgentOperator that implement this directly against
+    task_state_store, without ResumableJobMixin). Inherited by a subclass that hasn't
+    replaced the declaring class's `execute()`, whether by not overriding it at all, or by
+    delegating back via `super().execute()`.
+    2. Genuinely implementing ResumableJobMixin's contract, where `execute()` (or a class it
+    delegates to) calls `execute_resumable()`.
     """
-    if getattr(cls, f"_{cls.__name__}__supports_durable_execution", None) is True:
+    declaring_cls = _find_marker_declaring_class(cls)
+    if declaring_cls is not None and _delegates_execute_to(cls, declaring_cls, _MAX_DEFERRAL_WALK_DEPTH):
         return True
 
     if resumable_mixin is None or resumable_mixin not in cls.__mro__:
@@ -421,15 +565,128 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     if inspect.isabstract(cls):
         return False
 
-    execute = getattr(cls, "execute", None)
-    if execute is None:
-        return False
+    return _execute_chain_calls_resumable(cls, _MAX_DEFERRAL_WALK_DEPTH)
+
+
+def _is_terminal_block(body: list[ast.stmt]) -> bool:
+    """Return True if `body`'s last statement always exits the function (raise or return)."""
+    return bool(body) and isinstance(body[-1], (ast.Raise, ast.Return))
+
+
+def _strip_dead_version_guard_branches(source: str, resolve_global: typing.Callable[[str], object]) -> str:
+    """Blank out code after a terminal `if <flag>: raise ...` whose flag resolves True here.
+
+    Some operators write `if AIRFLOW_V_3_3_PLUS: raise ...` with no `else`, followed by a
+    pre-3.3 `self.defer(...)` fallback that never runs on the core being imported.
+    `resolve_global` looks up the flag by name rather than a fixed list.
+    """
     try:
-        source = inspect.getsource(execute)
+        tree = ast.parse(textwrap.dedent(source))
+    except SyntaxError:
+        return source
+
+    if not tree.body or not isinstance(tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return source
+
+    dead_from: int | None = None
+    for stmt in tree.body[0].body:
+        if (
+            isinstance(stmt, ast.If)
+            and not stmt.orelse
+            and isinstance(stmt.test, ast.Name)
+            and _is_terminal_block(stmt.body)
+            and resolve_global(stmt.test.id) is True
+        ):
+            dead_from = stmt.end_lineno
+            break
+
+    if dead_from is None:
+        return source
+    return "".join(source.splitlines(keepends=True)[:dead_from])
+
+
+def _get_reachable_method_source(cls: type, name: str) -> str | None:
+    """Like `_get_method_source`, but with comments and dead version-guard branches stripped."""
+    method = getattr(cls, name, None)
+    if method is None:
+        return None
+    try:
+        source = _strip_comment_lines(inspect.getsource(method))
     except (OSError, TypeError):
+        return None
+
+    # unwrap() undoes a functools.wraps() decorator, whose __globals__ would otherwise
+    # point at the decorator's own module instead of the method's. BaseOperatorMeta wraps
+    # execute on nearly every registered operator, so this is the common case, not an edge
+    # one: without it the version flag resolves to nothing and no dead branch is stripped.
+    func = inspect.unwrap(getattr(method, "__func__", method))
+    module_globals = getattr(func, "__globals__", None)
+    if module_globals is None:
+        return source
+    return _strip_dead_version_guard_branches(source, module_globals.get)
+
+
+def _references_deferral(
+    origin: type, current: type, source: str, visited: set[tuple[int, str, int]], depth: int
+) -> bool:
+    """Return True if `source` (the resolved `execute()` of `current`, called on `origin`) references deferral.
+
+    `origin` stays fixed across recursion so `super().execute()` hops resolve against its
+    real MRO, while `current` walks forward through the chain. `self.<name>()` helpers are
+    resolved against `origin` rather than `current`, matching how they actually dispatch at
+    runtime: past the first hop `current` is an ancestor, whose copy of a helper a more
+    derived class may have overridden. `visited` keys include the remaining depth, so a node
+    first reached with little budget left isn't skipped when re-reached with more.
+    """
+    if _DEFERRAL_TOKEN_RE.search(source):
+        return True
+    if depth <= 0:
         return False
 
-    return "execute_resumable" in source
+    next_cls = _next_execute_hop(origin, current, source)
+    if next_cls is not None:
+        key = (id(next_cls), "execute", depth)
+        if key not in visited:
+            visited.add(key)
+            next_source = _get_reachable_method_source(next_cls, "execute")
+            if next_source is not None and _references_deferral(
+                origin, next_cls, next_source, visited, depth - 1
+            ):
+                return True
+
+    for name in _SELF_CALL_RE.findall(source):
+        key = (id(origin), name, depth)
+        if key in visited:
+            continue
+        visited.add(key)
+        helper_source = _get_reachable_method_source(origin, name)
+        if helper_source is not None and _references_deferral(
+            origin, current, helper_source, visited, depth - 1
+        ):
+            return True
+
+    return False
+
+
+def supports_deferrable(cls: type) -> bool:
+    """Return True if the class's resolved execute() actually references deferral.
+
+    Checking for a `deferrable` constructor parameter isn't enough: a subclass can
+    inherit the parameter while overriding execute() with code that never reads it,
+    and an operator that always defers unconditionally has no parameter to find at
+    all. This walks outward from execute() into helper methods it calls via
+    `self.<name>(...)`, and up the MRO through `super().execute(...)` looking for
+    an actual `self.defer(...)` call, a `self.deferrable` read, or a `TaskDeferred`
+    raise, rather than only checking execute()'s own source text. A `defer()` fallback
+    behind a version guard that's False on this core (e.g. `if AIRFLOW_V_3_3_PLUS: raise
+    ...`) is excluded, since it never actually runs here.
+    """
+    source = _get_reachable_method_source(cls, "execute")
+    if source is None:
+        return False
+
+    seed = {(id(cls), "execute", _MAX_DEFERRAL_WALK_DEPTH)}
+    return _references_deferral(cls, cls, source, seed, _MAX_DEFERRAL_WALK_DEPTH)
 
 
 def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:
@@ -453,6 +710,34 @@ def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:
     return module_path, name, obj
 
 
+def _resolve_decorated_operator_class(decorator_fn: object) -> type | None:
+    """Return the operator class a `@task.*` decorator builds, or None.
+
+    A task decorator's registered `class-name` points at the factory function, not at an
+    operator, so capability detection has nothing to inspect without this hop. Every
+    decorator in the tree passes its operator to `task_decorator_factory` as
+    `decorated_operator_class=<Name>`, which is resolved here against the factory's own
+    module. The class itself is private (`_AgentDecoratedOperator`), so the decorator entry
+    is the only place it surfaces in the catalog.
+    """
+    try:
+        source = inspect.getsource(decorator_fn)  # type: ignore[arg-type]
+    except (OSError, TypeError):
+        return None
+
+    match = re.search(r"decorated_operator_class\s*=\s*([A-Za-z_][A-Za-z0-9_]*)", source)
+    if match is None:
+        return None
+
+    func = inspect.unwrap(getattr(decorator_fn, "__func__", decorator_fn))  # type: ignore[arg-type]
+    module_globals = getattr(func, "__globals__", None)
+    if module_globals is None:
+        return None
+
+    candidate = module_globals.get(match.group(1))
+    return candidate if inspect.isclass(candidate) else None
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
@@ -463,7 +748,7 @@ def discover_classes_from_provider(
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with all 12 Module fields.
+    and returns metadata for each discovered class with every `Module` dataclass field.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
@@ -512,7 +797,7 @@ def discover_classes_from_provider(
         category: str = "",
         transfer_desc: str | None = None,
     ) -> dict:
-        """Build a full module entry dict with all 12 fields."""
+        """Build a full module entry dict with all fields."""
         module_name = module_path.split(".")[-1]
         docstring = _get_first_docstring_line(cls_or_obj)
         short_desc = docstring or transfer_desc or f"{integration} {module_type}".strip()
@@ -530,6 +815,7 @@ def discover_classes_from_provider(
             "provider_id": provider_id,
             "provider_name": provider_name,
             "supports_durable_execution": is_durable_capable(cls_or_obj, resumable_mixin),
+            "supports_deferrable": supports_deferrable(cls_or_obj),
         }
 
     discovered: list[dict] = []
@@ -675,6 +961,10 @@ def discover_classes_from_provider(
         docstring = _get_first_docstring_line(obj) if hasattr(obj, "__doc__") else None
         short_desc = docstring or f"Task decorator for {decorator_name or func_name}"
 
+        # Capabilities belong to the operator the decorator builds, not to the factory
+        # function the provider registers, so they're read off the resolved class.
+        decorated_cls = _resolve_decorated_operator_class(obj)
+
         discovered.append(
             {
                 "id": f"{provider_id}-decorator-{decorator_name or func_name}",
@@ -688,6 +978,10 @@ def discover_classes_from_provider(
                 "category": "decorators",
                 "provider_id": provider_id,
                 "provider_name": provider_name,
+                "supports_durable_execution": (
+                    is_durable_capable(decorated_cls, resumable_mixin) if decorated_cls else False
+                ),
+                "supports_deferrable": supports_deferrable(decorated_cls) if decorated_cls else False,
             }
         )
 

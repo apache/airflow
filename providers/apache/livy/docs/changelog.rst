@@ -28,6 +28,19 @@
 Changelog
 ---------
 
+4.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix LivyAsyncHook get_batch_state and get_batch_logs sending POST to GET-only Livy endpoints (#71867)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 4.6.1
 .....
 

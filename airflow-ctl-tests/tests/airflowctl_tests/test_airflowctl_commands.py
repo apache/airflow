@@ -56,6 +56,12 @@ TEST_COMMANDS = [
     "assets list",
     "assets get 1",
     "assets create-event --asset-id=1",
+    "assets set-state-store 1 test_key test_value",
+    "assets get-state-store 1 test_key",
+    "assets list-state-store 1",
+    "assets delete-state-store 1 test_key",
+    "assets set-state-store 1 clear_key value",
+    "assets clear-state-store 1",
     # Backfill commands
     "backfill list example_bash_operator",
     # Config commands

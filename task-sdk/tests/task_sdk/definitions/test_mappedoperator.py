@@ -25,7 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk import TaskInstanceState, TriggerRule
+from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
@@ -116,6 +116,27 @@ def test_task_mapping_override_default_args():
     assert mapped.start_date == pendulum.instance(default_args["start_date"])
     # owner should be equal to Airflow default owner (airflow) because it is not provided at all
     assert mapped.owner == "airflow"
+
+
+def test_mapped_task_preserves_custom_base_operator_default():
+    retry_policy = ExceptionRetryPolicy(rules=[])
+
+    class CustomRetryOperator(BaseOperator):
+        def __init__(self, *, value: str, retry_policy=retry_policy, **kwargs):
+            super().__init__(retry_policy=retry_policy, **kwargs)
+            self.value = value
+
+        def execute(self, context):
+            pass
+
+    direct = CustomRetryOperator(task_id="direct", value="direct")
+    mapped = CustomRetryOperator.partial(task_id="mapped").expand(value=["mapped"])
+    unmapped = mapped.unmap({"value": "mapped"})
+
+    assert direct.retry_policy is retry_policy
+    assert mapped.partial_kwargs["retry_policy"] is retry_policy
+    assert mapped.partial_kwargs["inlets"] == []
+    assert unmapped.retry_policy is retry_policy
 
 
 def test_map_unknown_arg_raises():

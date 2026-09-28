@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 from airflow.providers.common.compat.sdk import AirflowException
 
 # Note: Any AirflowException raised is expected to cause the TaskInstance
@@ -32,7 +34,7 @@ class EcsTaskFailToStart(Exception):
 
     def __reduce__(self):
         """Return ECSTask state and its message."""
-        return EcsTaskFailToStart, (self.message)
+        return EcsTaskFailToStart, (self.message,)
 
 
 class EcsOperatorError(Exception):
@@ -106,3 +108,20 @@ class DataSyncTaskCreationError(AirflowException):
 
 class DataSyncTaskExecutionFailedError(AirflowException):
     """Raised when a DataSync task execution could not be started or did not complete successfully."""
+
+
+class WaiterTerminalFailure(AirflowException):
+    """Raised when an AWS waiter reaches a terminal failure state."""
+
+    def __init__(self, message: str, last_response: dict[str, Any]):
+        super().__init__(message)
+        self.message = message
+        self.last_response = last_response
+
+    def __reduce__(self):
+        """Return the waiter failure state as its message and the last waiter response."""
+        return WaiterTerminalFailure, (self.message, self.last_response)
+
+
+class WaiterMaxAttemptsError(AirflowException):
+    """Raised when an AWS waiter exhausts its configured attempts."""

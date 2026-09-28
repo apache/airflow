@@ -52,6 +52,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 try:
@@ -193,9 +194,12 @@ class TestCeleryExecutor:
         assert FAKE_EXCEPTION_MSG in caplog.text, caplog.record_tuples
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
+    @mock.patch(
+        "airflow.providers.celery.executors.celery_executor.CeleryExecutor."
+        + ("trigger_workloads" if AIRFLOW_V_3_4_PLUS else "trigger_tasks")
+    )
     @mock.patch(f"{stats_reference}.gauge")
-    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
         calls = [
@@ -1569,6 +1573,25 @@ class TestAmqpsSslConfig:
         assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
         assert "keyfile" not in broker_ssl
         assert "certfile" not in broker_ssl
+
+
+@pytest.mark.parametrize(
+    "get_team_conf",
+    [
+        pytest.param(lambda: conf, id="sdk_conf"),
+        pytest.param(
+            lambda: ExecutorConf(team_name=None),
+            id="executor_conf",
+            marks=pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+"),
+        ),
+    ],
+)
+@conf_vars({("celery", "SSL_ACTIVE"): "yes"})
+def test_non_boolean_ssl_active_degrades_to_no_ssl(get_team_conf):
+    """A malformed [celery] ssl_active must degrade to a no-SSL config instead of raising."""
+    config = default_celery.get_default_celery_config(get_team_conf())
+
+    assert "broker_use_ssl" not in config
 
 
 class TestCreateCeleryAppTeamIsolation:

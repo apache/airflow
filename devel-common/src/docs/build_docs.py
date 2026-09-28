@@ -38,7 +38,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from sphinx_exts.docs_build import dev_index_generator
-from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH, GENERATED_PATH
+from sphinx_exts.docs_build.code_utils import AIRFLOW_CONTENT_ROOT_PATH, CONSOLE_WIDTH, GENERATED_PATH
 from sphinx_exts.docs_build.docs_builder import (
     AirflowDocsBuilder,
     get_available_packages,
@@ -328,6 +328,34 @@ def print_build_output(result: BuildDocsResult):
         console.print(f"[bright_blue]{result.package_name:60}: " + "#" * 80)
 
 
+_API_SOURCE_ROOTS = {
+    "apache-airflow": AIRFLOW_CONTENT_ROOT_PATH / "airflow-core" / "src",
+    "task-sdk": AIRFLOW_CONTENT_ROOT_PATH / "task-sdk" / "src",
+    "apache-airflow-ctl": AIRFLOW_CONTENT_ROOT_PATH / "airflow-ctl" / "src",
+}
+
+
+def _estimated_build_weight(package_name: str) -> int:
+    """Number of Python files autoapi will parse: the rough cost of building one package."""
+    builder = AirflowDocsBuilder(package_name=package_name)
+    source_root = (
+        builder.provider_path / "src" if builder.is_provider else _API_SOURCE_ROOTS.get(package_name)
+    )
+    if source_root is None or not source_root.exists():
+        return 0
+    return sum(1 for _ in source_root.rglob("*.py"))
+
+
+def sort_heaviest_first(packages: list[str]) -> list[str]:
+    """
+    Order packages so the long builds start first.
+
+    With a handful of workers, starting google/amazon/apache-airflow last would leave the other workers
+    idle at the end; starting them first lets the many small packages fill in around them.
+    """
+    return sorted(packages, key=lambda package_name: (-_estimated_build_weight(package_name), package_name))
+
+
 def run_docs_build_in_parallel(
     all_build_errors: dict[str, list[DocBuildError]],
     packages_to_build: list[str],
@@ -337,7 +365,7 @@ def run_docs_build_in_parallel(
     """Runs documentation building in parallel."""
     doc_build_specifications: list[BuildSpecification] = []
     with with_group("Scheduling documentation to build"):
-        for package_name in packages_to_build:
+        for package_name in sort_heaviest_first(packages_to_build):
             console.print(f"[bright_blue]{package_name:60}:[/] Scheduling documentation to build")
             doc_build_specifications.append(
                 BuildSpecification(
@@ -348,7 +376,11 @@ def run_docs_build_in_parallel(
             )
     with with_group("Running docs building"):
         console.print()
-        result_list = pool.map(perform_docs_build_for_single_package, doc_build_specifications)
+        # chunksize=1 hands packages out one at a time, so a worker that finishes early picks up the
+        # next package instead of the fixed chunk pool.map would have pre-assigned to it.
+        result_list = list(
+            pool.imap_unordered(perform_docs_build_for_single_package, doc_build_specifications, chunksize=1)
+        )
     for result in result_list:
         if result.errors:
             all_build_errors[result.package_name].extend(result.errors)
@@ -377,14 +409,18 @@ def run_spell_check_in_parallel(
     """Runs spell check in parallel."""
     spell_check_specifications: list[BuildSpecification] = []
     with with_group("Scheduling spell checking of documentation"):
-        for package_name in packages_to_build:
+        for package_name in sort_heaviest_first(packages_to_build):
             console.print(f"[bright_blue]{package_name:60}:[/] Scheduling spellchecking")
             spell_check_specifications.append(
                 BuildSpecification(package_name=package_name, is_autobuild=False, verbose=verbose)
             )
     with with_group("Running spell checking of documentation"):
         console.print()
-        result_list = pool.map(perform_spell_check_for_single_package, spell_check_specifications)
+        result_list = list(
+            pool.imap_unordered(
+                perform_spell_check_for_single_package, spell_check_specifications, chunksize=1
+            )
+        )
     for result in result_list:
         if result.spelling_errors:
             all_spelling_errors[result.package_name].extend(result.spelling_errors)
@@ -693,52 +729,19 @@ def build_docs(
         all_spelling_errors.update(package_spelling_errors)
 
     if not one_pass_only:
-        # Build documentation for some packages again if it can help them.
-        package_build_errors = retry_building_docs_if_needed(
-            all_build_errors=all_build_errors,
-            all_spelling_errors=all_spelling_errors,
-            autobuild=autobuild,
-            docs_only=docs_only,
-            jobs=jobs,
-            verbose=verbose,
-            package_build_errors=package_build_errors,
-            originally_built_packages=packages_to_build,
-            # If spellchecking fails, we need to rebuild all packages first in case some references
-            # are broken between packages
-            rebuild_all_packages=spellcheck_only,
-        )
-
-        # And try again in case one change spans across three-level dependencies.
-        package_build_errors = retry_building_docs_if_needed(
-            all_build_errors=all_build_errors,
-            all_spelling_errors=all_spelling_errors,
-            autobuild=autobuild,
-            docs_only=docs_only,
-            jobs=jobs,
-            verbose=verbose,
-            package_build_errors=package_build_errors,
-            originally_built_packages=packages_to_build,
-            # In the 3rd pass we only rebuild packages that failed in the 2nd pass
-            # no matter if we do spellcheck-only build
-            rebuild_all_packages=False,
-        )
-
-        if spellcheck_only:
-            # And in case of spellcheck-only, we add a 4th pass to account for A->B-C case
-            # For spellcheck-only build, the first pass does not solve any of the dependency
-            # Issues, they only start getting solved and the 2nd pass so we might need to do one more pass
+        # Packages that failed on a cross-reference to a package built later in the same pass are
+        # built again now that the inventory exists (spelling builds write one too, see
+        # airflow_intersphinx). The second retry covers a change spanning A -> B -> C dependencies.
+        for _ in range(2):
             package_build_errors = retry_building_docs_if_needed(
                 all_build_errors=all_build_errors,
                 all_spelling_errors=all_spelling_errors,
                 autobuild=autobuild,
                 docs_only=docs_only,
+                spellcheck_only=spellcheck_only,
                 jobs=jobs,
                 verbose=verbose,
                 package_build_errors=package_build_errors,
-                originally_built_packages=packages_to_build,
-                # In the 4th pass we only rebuild packages that failed in the 3rd pass
-                # no matter if we do spellcheck-only build
-                rebuild_all_packages=False,
             )
 
     dev_index_generator.generate_index(f"{GENERATED_PATH}/_build/index.html")
@@ -758,11 +761,10 @@ def retry_building_docs_if_needed(
     all_spelling_errors: dict[str, list[SpellingError]],
     autobuild: bool,
     docs_only: bool,
+    spellcheck_only: bool,
     jobs: int,
     verbose: bool,
     package_build_errors: dict[str, list[DocBuildError]],
-    originally_built_packages: list[str],
-    rebuild_all_packages: bool,
 ) -> dict[str, list[DocBuildError]]:
     to_retry_packages = [
         package_name
@@ -773,11 +775,6 @@ def retry_building_docs_if_needed(
         console.print("[green]No packages to retry. No more passes are needed.[/]")
         return package_build_errors
     console.print("[warning] Some packages failed to build due to dependencies. We need another pass.[/]")
-    # if we are rebuilding all packages, we need to retry all packages
-    # even if there is one package to rebuild only
-    if rebuild_all_packages:
-        console.print("[warning]Rebuilding all originally built package as this is the first build pass:[/]")
-        to_retry_packages = originally_built_packages
     console.print(f"[bright_blue]Packages to rebuild: {to_retry_packages}[/]")
     for package_name in to_retry_packages:
         if package_name in all_build_errors:
@@ -788,7 +785,7 @@ def retry_building_docs_if_needed(
         packages_to_build=to_retry_packages,
         is_autobuild=autobuild,
         docs_only=docs_only,
-        spellcheck_only=False,
+        spellcheck_only=spellcheck_only,
         jobs=jobs,
         verbose=verbose,
     )

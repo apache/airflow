@@ -379,6 +379,36 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=user)
 
+    def filter_authorized_assets(
+        self,
+        *,
+        assets: Sequence[AssetDetails],
+        user: AwsAuthManagerUser,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        requests: dict[str, IsAuthorizedRequest] = {}
+        requests_list: list[IsAuthorizedRequest] = []
+        for details in assets:
+            if details.id is None:
+                continue
+            request: IsAuthorizedRequest = {
+                "method": method,
+                "entity_type": AvpEntities.ASSET,
+                "entity_id": details.id,
+            }
+            requests[details.id] = request
+            requests_list.append(request)
+
+        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
+            requests=requests_list, user=user
+        )
+
+        return {
+            asset_id
+            for asset_id, request in requests.items()
+            if self._is_authorized_from_batch_response(batch_is_authorized_results, request, user)
+        }
+
     def filter_authorized_connections(
         self,
         *,

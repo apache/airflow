@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useState } from "react";
+
+import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";

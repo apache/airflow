@@ -39,6 +39,25 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
+def test_set_dag_run_state_to_failed_ignores_removed_task_tis(dag_maker: DagMaker[SerializedDAG]):
+    with dag_maker("TEST_DAG_REMOVED_TASK"):
+        EmptyOperator(task_id="pending")
+        EmptyOperator(task_id="removed_task")
+    dr = dag_maker.create_dagrun()
+    dag_maker.session.flush()
+
+    with dag_maker("TEST_DAG_REMOVED_TASK") as dag_without_removed:
+        EmptyOperator(task_id="pending")
+
+    result: tuple[list[TaskInstance], list[TaskInstance]] = set_dag_run_state_to_failed(
+        dag=dag_without_removed, run_id=dr.run_id, commit=True, session=dag_maker.session
+    )
+    updated_tis, _ = result
+    assert len(updated_tis) == 1
+    assert updated_tis[0].task_id == "pending"
+    assert updated_tis[0].state == TaskInstanceState.SKIPPED
+
+
 def test_set_dag_run_state_to_failed(dag_maker: DagMaker[SerializedDAG]):
     with dag_maker("TEST_DAG_1") as dag:
         with EmptyOperator(task_id="teardown").as_teardown():

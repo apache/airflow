@@ -23,6 +23,7 @@ import json
 import operator
 import os
 import pathlib
+import re
 from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
@@ -47,6 +48,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
 )
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -70,7 +72,6 @@ from airflow.models.taskinstance import (
     find_relevant_relatives,
 )
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.bash import BashOperator
@@ -112,9 +113,10 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.mapping import expand_mapped_task_instances
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import (
     create_task_instance as _create_task_instance,
@@ -508,7 +510,7 @@ class TestTaskInstance:
         ti = dag_maker.run_ti(task.task_id, dag_run_kwargs={"logical_date": timezone.utcnow()})
         assert ti.state == State.SKIPPED
 
-    def test_retry_delay(self, dag_maker, time_machine):
+    def test_retry_delay(self, dag_maker, time_machine, session):
         """
         Test that retry delays are respected
         """
@@ -528,16 +530,10 @@ class TestTaskInstance:
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = dag_maker.serialized_dag.get_task(ti.task_id)
-        with create_session() as session:
-            session.get(TaskInstance, ti.id).try_number += 1
-
         # first run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 1
-
-        with create_session() as session:
-            session.get(TaskInstance, ti.id).try_number += 1
+        assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
         time_machine.shift(3)
@@ -545,14 +541,11 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
 
-        with create_session() as session:
-            session.get(TaskInstance, ti.id).try_number += 1
-
         # third run -- failed
         time_machine.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
-        assert ti.try_number == 3
+        assert ti.try_number == 2
 
     def test_retry_handling(self, dag_maker, session):
         """
@@ -575,21 +568,15 @@ class TestTaskInstance:
         def run_with_error():
             with contextlib.suppress(AirflowException):
                 dag_maker.run_ti(ti.task_id, dag_run)
-            return session.get(TaskInstance, ti.id)
+            return dag_run.get_task_instance(ti.task_id, session=session)
 
         dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         ti = dag_run.task_instances[0]
         assert ti.try_number == 0
-        session.get(TaskInstance, ti.id).try_number += 1
-        session.commit()
-
         # first run -- up for retry
         ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 1
-
-        session.get(TaskInstance, ti.id).try_number += 1
-        session.commit()
+        assert ti.try_number == 2
 
         # second run -- fail
         ti = run_with_error()
@@ -601,23 +588,56 @@ class TestTaskInstance:
         dag.clear()
 
         ti.refresh_from_db()
-        ti.try_number += 1
-        session.add(ti)
-        session.commit()
+        assert ti.try_number == 3
 
         # third run -- up for retry
         ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 3
-
-        session.get(TaskInstance, ti.id).try_number += 1
-        session.commit()
+        assert ti.try_number == 4
 
         # fourth run -- fail
         ti = run_with_error()
         assert ti.state == State.FAILED
         assert ti.try_number == 4
         assert RenderedTaskInstanceFields.get_templated_fields(ti) == expected_rendered_ti_fields
+
+    @pytest.mark.parametrize("try_number", [1, 3, 50, 10000])
+    @pytest.mark.parametrize(
+        ("multiplier", "max_delay", "override"),
+        [(1, None, None), (2, None, None), (3, 60, None), (2, 60, 7), (2, 60, 0)],
+    )
+    def test_prepare_next_try_preserves_retry_deadline(
+        self, dag_maker, session, try_number, multiplier, max_delay, override
+    ):
+        with dag_maker():
+            task = BashOperator(
+                task_id="retry",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(seconds=30),
+                retry_exponential_backoff=multiplier,
+                max_retry_delay=datetime.timedelta(seconds=max_delay) if max_delay else None,
+            )
+        ti = dag_maker.create_dagrun(session=session).task_instances[0]
+        ti.task = task
+        ti.state = State.RUNNING
+        ti.try_number = try_number
+        ti.end_date = timezone.utcnow()
+        ti.retry_delay_override = override
+        old_id = ti.id
+        deadline = ti.next_retry_datetime()
+
+        ti.prepare_db_for_next_try(session)
+        ti.state = State.UP_FOR_RETRY
+        session.flush()
+
+        assert ti.id != old_id
+        assert ti.try_number == try_number + 1
+        assert ti.next_retry_datetime() == deadline
+        history = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+        )
+        assert history.try_number == try_number
 
     def test_next_retry_datetime(self, dag_maker):
         delay = datetime.timedelta(seconds=30)
@@ -818,7 +838,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti.try_number == 0
+        assert ti.try_number == 1
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
@@ -881,7 +901,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti.try_number == 0
+        assert ti.try_number == 1
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
@@ -906,10 +926,12 @@ class TestTaskInstance:
         # depends_on_past prevents the run
         ti = dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         assert ti.state is None
+        assert ti.try_number == 0
 
         # ignore first depends_on_past to allow the run
         ti = dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         assert ti.state == State.SUCCESS
+        assert ti.try_number == 1
 
     def test_depends_on_past_catchup_false(self, dag_maker):
         class CustomOp(BaseOperator):
@@ -2354,17 +2376,16 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
     @provide_session
-    def test_handle_failure_calls_listener(self, dag_maker, *, session: Session):
+    def test_handle_failure_calls_listener(self, dag_maker, mocker, *, session: Session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
-        from airflow.listeners.listener import get_listener_manager
-
-        listener_callback_on_error = mock.MagicMock()
-        get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
+        listener_callback_on_error = mocker.patch.object(
+            get_listener_manager().pm.hook, "on_task_instance_failed", autospec=True
+        )
 
         with dag_maker(dag_id="test_handle_failure", start_date=start_date, schedule=None) as dag:
             task1 = CustomOp(
@@ -2440,8 +2461,7 @@ class TestTaskInstance:
 
         ti.handle_failure("test queued ti", test_mode=False)
         assert ti.state == State.UP_FOR_RETRY
-        # try_number remains at 1
-        assert ti.try_number == 1
+        assert ti.try_number == 2
 
         mock_backend.incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
@@ -3002,26 +3022,19 @@ def test_defer_task_with_trigger_timeout(create_task_instance):
 
 
 @pytest.mark.parametrize(
-    ("initial_state", "initial_try_number", "expected_try_number", "msg"),
+    ("initial_state", "initial_try_number", "expected_try_number"),
     [
-        (TaskInstanceState.DEFERRED, 1, 2, "try_number should increment if state is not UP_FOR_RESCHEDULE"),
-        (
-            TaskInstanceState.UP_FOR_RESCHEDULE,
-            5,
-            5,
-            "try_number should NOT increment if state is UP_FOR_RESCHEDULE",
-        ),
+        (None, 0, 1),
+        (None, 3, 3),
+        (TaskInstanceState.UP_FOR_RETRY, 3, 3),
+        (TaskInstanceState.DEFERRED, 1, 1),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 5, 5),
     ],
 )
-def test_defer_task_try_number_increment_on_state(
-    create_task_instance, initial_state, initial_try_number, expected_try_number, msg
+def test_defer_task_initializes_only_first_attempt(
+    create_task_instance, session, initial_state, initial_try_number, expected_try_number
 ):
-    """
-    Test that defer_task increments try_number only if the pre-deferral state is not UP_FOR_RESCHEDULE.
-    """
     from airflow.triggers.base import StartTriggerArgs
-
-    session = mock.MagicMock()
 
     ti = create_task_instance(
         dag_id="test_defer_task_try_number",
@@ -3036,7 +3049,7 @@ def test_defer_task_try_number_increment_on_state(
     ti.state = initial_state
     ti.try_number = initial_try_number
     ti.defer_task(session=session)
-    assert ti.try_number == expected_try_number, msg
+    assert ti.try_number == expected_try_number
 
 
 def _defer_ti_in_testing_bundle(create_task_instance, session, *, with_team):
@@ -3128,13 +3141,19 @@ class TestTaskInstanceRelationships:
             getattr(loaded_ti, attr)
 
 
-class TestTaskInstanceRecordTaskMapXComPush:
-    """Test TI.xcom_push() correctly records return values for task-mapping."""
+def _mapped_length_count(session) -> int:
+    return session.scalar(
+        select(func.count()).select_from(XComModel).where(XComModel.mapped_length.is_not(None))
+    )
+
+
+class TestTaskInstanceRecordMappedLengthXComPush:
+    """Test TI.xcom_push() correctly records return value lengths for task-mapping."""
 
     def setup_class(self):
         """Ensure we start fresh."""
         with create_session() as session:
-            session.execute(delete(TaskMap))
+            session.execute(delete(XComModel))
 
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_leaf(self, dag_maker, xcom_value):
@@ -3150,7 +3169,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         run_task_instance(ti, dag.get_task(ti.task_id))
 
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
+        assert _mapped_length_count(dag_maker.session) == 0
 
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_not_used(self, dag_maker, xcom_value):
@@ -3170,7 +3189,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         run_task_instance(ti, dag.get_task(ti.task_id))
 
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
+        assert _mapped_length_count(dag_maker.session) == 0
 
     @pytest.mark.parametrize("xcom_1", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     @pytest.mark.parametrize("xcom_4", [[1, 2, 3], {"a": 1, "b": 2}])
@@ -3209,16 +3228,16 @@ class TestTaskInstanceRecordTaskMapXComPush:
         dr = dag_maker.create_dagrun()
 
         dag_maker.run_ti("push_1", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
+        assert _mapped_length_count(dag_maker.session) == 0
 
         dag_maker.run_ti("push_2", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 1
+        assert _mapped_length_count(dag_maker.session) == 1
 
         dag_maker.run_ti("push_3", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 1
+        assert _mapped_length_count(dag_maker.session) == 1
 
         dag_maker.run_ti("push_4", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 2
+        assert _mapped_length_count(dag_maker.session) == 2
 
 
 class TestMappedTaskInstanceReceiveValue:
@@ -3281,7 +3300,7 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -3292,7 +3311,7 @@ class TestMappedTaskInstanceReceiveValue:
     def test_map_xcom_wide_batched_expand(self, dag_maker, session):
         """Wide XCom-driven expand goes through the batched add_all()/flush() path.
 
-        Exercises ``TaskMap.expand_mapped_task`` over a 20-element upstream XCom and
+        Exercises ``TaskInstance.expand_mapped_task`` over a 20-element upstream XCom and
         asserts the batched expansion creates exactly N mapped TIs with contiguous
         ``map_index`` 0..N-1, the expected ``None`` (schedulable) state, and that the
         returned instances are usable: they keep their ``.task`` (no merge() that drops
@@ -3329,7 +3348,9 @@ class TestMappedTaskInstanceReceiveValue:
         # a slower one. Measured at 7 for this fixture; margin allows for minor backend
         # differences while staying far below what a per-index merge() would cost.
         with assert_queries_count(7, margin=2):
-            mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+            mapped_tis, max_map_index = expand_mapped_task_instances(
+                show_task, dag_run.run_id, session=session
+            )
 
         # Correct count + contiguous indexes 0..N-1.
         assert len(mapped_tis) == width
@@ -3405,29 +3426,20 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
         assert len(mapped_tis) == 3
         assert max_map_index == 2
 
-        # Grow the upstream's pushed length 3 -> 5 by rewriting the return-value XCom and
-        # the TaskMap row that records the mapped length.
+        # Grow the upstream's pushed length 3 -> 5 by rewriting the return-value XCom.
         XComModel.set(
             key="return_value",
             value=[1, 2, 3, 4, 5],
             dag_id=dag_run.dag_id,
             task_id="emit",
             run_id=dag_run.run_id,
+            mapped_length=5,
             session=session,
         )
-        task_map = session.scalars(
-            select(TaskMap).where(
-                TaskMap.dag_id == dag_run.dag_id,
-                TaskMap.task_id == "emit",
-                TaskMap.run_id == dag_run.run_id,
-            )
-        ).one()
-        task_map.length = 5
-        task_map.keys = None
         session.flush()
 
         # Pins the query count so a regression back to per-index session.merge() -- which
@@ -3469,7 +3481,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         show_task = dag.get_task("show")
         assert show_task.get_parse_time_mapped_ti_count() == 6
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 5
 
@@ -3516,7 +3528,7 @@ class TestMappedTaskInstanceReceiveValue:
             dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
 
         bash_task = dag.get_task("dynamic.bash")
-        mapped_bash_tis, max_map_index = TaskMap.expand_mapped_task(
+        mapped_bash_tis, max_map_index = expand_mapped_task_instances(
             bash_task, dag_run.run_id, session=session
         )
         assert max_map_index == 3  # 2 * 2 mapped tasks.
@@ -3560,6 +3572,27 @@ class TestMappedTaskInstanceReceiveValue:
         result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
         assert isinstance(result, dict), f"Expected dict for unmapped task, got {type(result)}"
         assert result == {"key": "value"}
+
+    def test_xcom_pull_single_value_query_is_bounded(self, dag_maker, session):
+        """Pulling one value from one task must ask the database for one row."""
+        with dag_maker(dag_id="test_xcom_pull_bounded", session=session):
+            upstream = PythonOperator(task_id="unmapped_task", python_callable=lambda: {"key": "value"})
+            downstream = PythonOperator(task_id="downstream", python_callable=lambda: None)
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        dag_maker.run_ti("unmapped_task", dag_run=dag_run, session=session)
+
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        with capture_orm_selects("xcom") as statements:
+            result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
+
+        assert result == {"key": "value"}
+        assert statements, "expected xcom_pull to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"xcom_pull is not bounded to one row: {sql}"
 
     def test_xcom_pull_returns_lazy_sequence_for_mapped_xcom(self, dag_maker, session):
         """
@@ -4510,3 +4543,49 @@ class TestTaskInstanceStatsTagsTeamName:
             mock.ANY,
             tags=expected_tags,
         )
+
+
+@pytest.mark.parametrize("retries", [0, 1])
+@pytest.mark.parametrize("listener_raises", [False, True])
+def test_failure_listener_receives_failed_try_before_rotation(
+    dag_maker, session, mocker, retries, listener_raises
+):
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="task", retries=retries)
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", session=session)
+    ti.task = dag.get_task("task")
+    ti.try_number = 1
+    ti.state = State.RUNNING
+    session.commit()
+    original_id = ti.id
+    received = []
+
+    def record_failure(previous_state, task_instance, error):
+        received.append(
+            (task_instance.id, task_instance.try_number, task_instance.state, previous_state, error)
+        )
+        if listener_raises:
+            raise RuntimeError("listener failed")
+
+    mocker.patch.object(
+        get_listener_manager().hook, "on_task_instance_failed", autospec=True, side_effect=record_failure
+    )
+
+    ti.handle_failure("worker lost", session=session)
+
+    expected_state = State.UP_FOR_RETRY if retries else State.FAILED
+    assert received == [(original_id, 1, expected_state, State.RUNNING, "worker lost")]
+    ti.refresh_from_db(session=session)
+    assert ti.state == expected_state
+    if retries:
+        assert ti.id != original_id
+        assert ti.try_number == 2
+        history = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == original_id)
+        )
+        assert history.try_number == 1
+        assert history.state == State.FAILED
+    else:
+        assert ti.id == original_id
+        assert ti.try_number == 1
