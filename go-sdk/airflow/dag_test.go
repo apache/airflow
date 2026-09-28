@@ -80,14 +80,14 @@ func TestTaskIDIsTheFunctionName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			task := Dag("etl").Task(tt.fn)
-			assert.Equal(t, tt.want, task.taskId)
+			assert.Equal(t, tt.want, task.taskID)
 		})
 	}
 }
 
 // The runtime name in each row has the form that runtime.FuncForPC reports for the kind of
 // function that the row names.
-func TestTaskIdFromFuncName(t *testing.T) {
+func TestTaskIDFromFuncName(t *testing.T) {
 	tests := []struct {
 		name        string
 		runtimeName string
@@ -122,7 +122,7 @@ func TestTaskIdFromFuncName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := taskIdFromFuncName(tt.runtimeName)
+			got, ok := taskIDFromFuncName(tt.runtimeName)
 			assert.Equal(t, tt.ok, ok)
 			assert.Equal(t, tt.want, got)
 		})
@@ -143,16 +143,16 @@ func TestTaskSpecSetsTheTaskID(t *testing.T) {
 
 	spec := TaskSpec{TaskID: "extract_rows"}
 	task := dag.Task(ExtractRows, spec)
-	assert.Equal(t, "extract_rows", task.taskId)
+	assert.Equal(t, "extract_rows", task.taskID)
 	assert.Equal(t, spec, task.spec)
 
 	task = dag.Task(extract, TaskSpec{})
-	assert.Equal(t, "extract", task.taskId, "an empty TaskID keeps the function name")
+	assert.Equal(t, "extract", task.taskID, "an empty TaskID keeps the function name")
 }
 
 func TestTaskTakesAPointerToTaskSpec(t *testing.T) {
 	task := Dag("etl").Task(extract, &TaskSpec{TaskID: "extract_rows"})
-	assert.Equal(t, "extract_rows", task.taskId)
+	assert.Equal(t, "extract_rows", task.taskID)
 	assert.Equal(t, TaskSpec{TaskID: "extract_rows"}, task.spec)
 }
 
@@ -211,7 +211,7 @@ func TestTaskNeedsTaskIDWhenFnHasNoName(t *testing.T) {
 			)
 
 			task := tt.add(Dag("etl"), TaskSpec{TaskID: "transform"})
-			assert.Equal(t, "transform", task.taskId)
+			assert.Equal(t, "transform", task.taskID)
 		})
 	}
 }

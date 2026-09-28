@@ -160,12 +160,12 @@ func (m *dagMap) add(dag *DagRef) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, exists := m.dags[dag.dagId]; exists {
-		panic(fmt.Sprintf("airflow.BundleRef.Register: Dag %q is already registered", dag.dagId))
+	if _, exists := m.dags[dag.dagID]; exists {
+		panic(fmt.Sprintf("airflow.BundleRef.Register: Dag %q is already registered", dag.dagID))
 	}
 	dag.markRegistered()
 	if m.dags == nil {
 		m.dags = make(map[string]*DagRef)
 	}
-	m.dags[dag.dagId] = dag
+	m.dags[dag.dagID] = dag
 }

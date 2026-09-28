@@ -27,7 +27,7 @@ import (
 
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
 type DagRef struct {
-	dagId string
+	dagID string
 	// Dag and Task copy the specs they are given, so a caller cannot change a registered Dag
 	// through a spec it still holds. A slice or map field in DagSpec or TaskSpec would share its
 	// contents with the caller, so Dag and Task would have to copy that field too.
@@ -36,7 +36,7 @@ type DagRef struct {
 	mu         sync.Mutex
 	registered bool
 	tasks      []*TaskRef
-	taskIds    map[string]struct{}
+	taskIDs    map[string]struct{}
 }
 
 // Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
@@ -53,15 +53,15 @@ type DagRef struct {
 //
 // [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
 // --airflow-metadata manifest and cannot run their tasks.
-func Dag(dagId string, spec ...DagSpec) *DagRef {
+func Dag(dagID string, spec ...DagSpec) *DagRef {
 	if len(spec) > 1 {
 		panic(fmt.Sprintf(
 			"airflow.Dag: Dag %q got %d airflow.DagSpec values; "+
 				"set all of the Dag's attributes in one DagSpec",
-			dagId, len(spec),
+			dagID, len(spec),
 		))
 	}
-	d := &DagRef{dagId: dagId}
+	d := &DagRef{dagID: dagID}
 	if len(spec) == 1 {
 		d.spec = spec[0]
 	}
@@ -72,7 +72,7 @@ func (*DagRef) registerable() {}
 
 // TaskRef is a task that [DagRef.Task] added to a Dag.
 type TaskRef struct {
-	taskId string
+	taskID string
 	spec   TaskSpec
 }
 
@@ -112,21 +112,21 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: Dag %q has already been registered; "+
 				"add every task before Register",
-			d.dagId,
+			d.dagID,
 		))
 	}
 	if _, err := newTaskFunction(fn); err != nil {
-		panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: %v", d.dagId, err))
+		panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: %v", d.dagID, err))
 	}
 	var cfg taskConfig
 	for i, opt := range opts {
 		switch opt := opt.(type) {
 		case nil:
-			panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: opts[%d] is nil", d.dagId, i))
+			panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: opts[%d] is nil", d.dagID, i))
 		case *TaskSpec:
 			if opt == nil {
 				panic(fmt.Sprintf(
-					"airflow.DagRef.Task: Dag %q: opts[%d] is a nil *airflow.TaskSpec", d.dagId, i,
+					"airflow.DagRef.Task: Dag %q: opts[%d] is a nil *airflow.TaskSpec", d.dagID, i,
 				))
 			}
 		case TaskSpec:
@@ -135,7 +135,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 			panic(fmt.Sprintf(
 				"airflow.DagRef.Task: Dag %q: opts[%d] has type %T, "+
 					"which is not an option that package airflow defines",
-				d.dagId, i, opt,
+				d.dagID, i, opt,
 			))
 		}
 		opt.applyTask(&cfg)
@@ -144,7 +144,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: task %q of Dag %q got %d airflow.TaskSpec values; "+
 				"set all of the task's attributes in one TaskSpec",
-			findTaskName(fn, cfg.specs), d.dagId, len(cfg.specs),
+			findTaskName(fn, cfg.specs), d.dagID, len(cfg.specs),
 		))
 	}
 
@@ -152,30 +152,30 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	if len(cfg.specs) == 1 {
 		spec = cfg.specs[0]
 	}
-	taskId := spec.TaskID
-	if taskId == "" {
+	taskID := spec.TaskID
+	if taskID == "" {
 		var ok bool
-		if taskId, ok = taskIdFromFuncName(funcName(fn)); !ok {
+		if taskID, ok = taskIDFromFuncName(funcName(fn)); !ok {
 			panic(fmt.Sprintf(
 				"airflow.DagRef.Task: Dag %q: %s has no name to use as the task_id; "+
 					"set one with airflow.TaskSpec{TaskID: ...}",
-				d.dagId, funcName(fn),
+				d.dagID, funcName(fn),
 			))
 		}
 	}
-	if _, exists := d.taskIds[taskId]; exists {
+	if _, exists := d.taskIDs[taskID]; exists {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: Dag %q already has a task %q; "+
 				"set another task_id with airflow.TaskSpec{TaskID: ...}",
-			d.dagId, taskId,
+			d.dagID, taskID,
 		))
 	}
-	if d.taskIds == nil {
-		d.taskIds = make(map[string]struct{})
+	if d.taskIDs == nil {
+		d.taskIDs = make(map[string]struct{})
 	}
-	d.taskIds[taskId] = struct{}{}
+	d.taskIDs[taskID] = struct{}{}
 
-	task := &TaskRef{taskId: taskId, spec: spec}
+	task := &TaskRef{taskID: taskID, spec: spec}
 	d.tasks = append(d.tasks, task)
 	return task
 }
@@ -196,15 +196,15 @@ func findTaskName(fn any, specs []TaskSpec) string {
 			return spec.TaskID
 		}
 	}
-	if taskId, ok := taskIdFromFuncName(funcName(fn)); ok {
-		return taskId
+	if taskID, ok := taskIDFromFuncName(funcName(fn)); ok {
+		return taskID
 	}
 	return funcName(fn)
 }
 
-// taskIdFromFuncName takes the runtime name of a function and returns the name that the
+// taskIDFromFuncName takes the runtime name of a function and returns the name that the
 // function is declared with. It reports false when the runtime name does not carry one.
-func taskIdFromFuncName(name string) (string, bool) {
+func taskIDFromFuncName(name string) (string, bool) {
 	// Package reflect runs every function it makes through a stub of its own, such as
 	// reflect.makeFuncStub, so the name is the stub's.
 	if strings.HasPrefix(name, "reflect.") {
