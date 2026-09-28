@@ -22,11 +22,15 @@ package org.apache.airflow.sdk.plugin
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
+import java.io.File
 import java.lang.reflect.Modifier
 import java.net.URLClassLoader
 import java.util.jar.JarFile
@@ -61,7 +65,21 @@ abstract class AirflowBundleExtension {
    */
   @get:Input
   abstract val fatJar: Property<Boolean>
+
+  /**
+   * The Dag source file the Airflow UI shows for this bundle.
+   *
+   * It defaults to the `.java` file of [mainClass] in the `main` source set. The file is packed
+   * into the bundle JAR under `META-INF/airflow/dag-code/`, and the `Airflow-Java-SDK-Dag-Code`
+   * manifest attribute names it.
+   */
+  @get:InputFile
+  @get:Optional
+  abstract val dagSource: RegularFileProperty
 }
+
+private const val DAG_CODE_ATTRIBUTE = "Airflow-Java-SDK-Dag-Code"
+private const val DAG_CODE_DIR = "META-INF/airflow/dag-code"
 
 /**
  * Gradle plugin for building Apache Airflow Java SDK bundles.
@@ -98,6 +116,9 @@ abstract class AirflowBundleExtension {
  * directory instead. In this mode, `Airflow-Supervisor-Schema-Version` lives in
  * the `airflow-sdk` JAR instead. The bundle JAR still contains `Main-Class`.
  *
+ * In both modes the bundle JAR also carries the Dag source (see
+ * [AirflowBundleExtension.dagSource]), so the Airflow UI can show the source of a
+ * native Java Dag.
  */
 class AirflowSdkPlugin : Plugin<Project> {
   override fun apply(project: Project) {
@@ -107,11 +128,16 @@ class AirflowSdkPlugin : Plugin<Project> {
     ext.fatJar.convention(true)
 
     project.afterEvaluate {
+      val dagCode = resolveDagCode(project, ext)
       project.tasks.withType(Jar::class.java).configureEach { task ->
         task.doFirst {
           ext.mainClass.orNull?.let { className ->
             task.manifest.attributes(mapOf("Main-Class" to className))
           }
+        }
+        dagCode?.let { (file, entryDir) ->
+          task.from(file) { spec -> spec.into(entryDir) }
+          task.manifest.attributes(mapOf(DAG_CODE_ATTRIBUTE to "$entryDir/${file.name}"))
         }
       }
 
@@ -218,4 +244,36 @@ class AirflowSdkPlugin : Plugin<Project> {
       }
     }
   }
+}
+
+/**
+ * Returns the Dag source file to pack and its directory in the JAR, or `null` when there is none.
+ *
+ * The directory mirrors the package of `mainClass`, so the entry reads like a source path.
+ */
+private fun resolveDagCode(
+  project: Project,
+  ext: AirflowBundleExtension,
+): Pair<File, String>? {
+  val mainClass = ext.mainClass.orNull ?: return null
+  val className = mainClass.substringBefore('$')
+  val packagePath = className.substringBeforeLast('.', "").replace('.', '/')
+  val entryDir = if (packagePath.isEmpty()) DAG_CODE_DIR else "$DAG_CODE_DIR/$packagePath"
+  ext.dagSource.orNull?.let { return it.asFile to entryDir }
+
+  val relativePath = className.replace('.', '/') + ".java"
+  val source =
+    project.extensions
+      .getByType(SourceSetContainer::class.java)
+      .getByName("main")
+      .java.srcDirs
+      .map { it.resolve(relativePath) }
+      .firstOrNull { it.isFile }
+  if (source == null) {
+    project.logger.info(
+      "airflowBundle: no $relativePath in the main source set, so the bundle JAR carries no Dag " +
+        "source for the Airflow UI. Set airflowBundle.dagSource to choose the file.",
+    )
+  }
+  return source?.let { it to entryDir }
 }
