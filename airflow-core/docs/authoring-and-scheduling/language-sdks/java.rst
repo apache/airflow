@@ -532,6 +532,40 @@ An ``InputTask`` whose type argument is not a concrete ``TaskInput`` fails when 
 rather than mid-run.  Plain ``Task`` remains the right interface for a task the Dag file
 calls with no arguments.
 
+.. _java-sdk/native-dags:
+
+Native Java Dags
+----------------
+
+A Dag can also be authored entirely in Java, with no Python stub file: the ``DagDef`` and
+``TaskDef`` objects hold the tasks, and Java declares the graph.
+
+Building the Dag in Java
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+``dag.task(...)`` registers a task as it creates it and hands back a handle, so there is no second
+``addTask`` call to forget.  ``before`` and ``after`` draw every edge on this surface — Python's
+``a >> b`` and ``b << a`` — and the task body moves the data itself, by reading the upstream's XCom
+through ``Client``:
+
+.. code-block:: java
+
+    var dag = new DagDef("java_etl");
+
+    var extract = dag.task("extract", Extract.class);
+    var transform = dag.task("transform", Transform.class);
+    var load = dag.task("load", Load.class);
+
+    transform.after(extract).before(load);
+
+Both are variadic, so ``a.before(b, c)`` fans out and ``d.after(b, c)`` fans in, and both return
+their own receiver, so a chain reads from one task outwards.  ``Flow.of(a, b).before(c, d)``, from
+``org.apache.airflow.sdk.Deps.Flow``, draws every edge between two sets in one call.
+
+Edges are checked when the Dag is registered with a ``Bundle``: an upstream that belongs to another
+Dag, or to no Dag, and a cycle anywhere in the graph both fail there rather than at the first task
+run.
+
 .. _java-sdk/logging:
 
 Logging
