@@ -61,9 +61,11 @@ def __getattr__(name):
 
             return DEFAULT_SECRETS_SEARCH_PATH_WORKERS
         except (ImportError, AttributeError):
+            from airflow._shared.configuration import secrets_backends
+
             # Back-compat for older Task SDK clients
             return [
-                "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+                secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
             ]
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -95,7 +95,7 @@ Features
 * ``Add a deferrable batch execution mode to common.ai (#72938)``
 * ``Add a Modal backend for the sandbox toolset (#72910)``
 * ``Add support for TypeSafe Jev classifier models (#73363)``
-* ``Add branch_descriptions to LLMBranchOperator so the model reads what each branch means (#73367)``
+* ``Add branches to LLMBranchOperator so the model reads what each branch means (#73367, #73368)``
 * ``Add connection-driven provider failover for common.ai LLM calls (#72156)``
 * ``Support assigned reviewers in LLM approval reviews (#72157)``
 * ``Stamp Airflow run identity onto agent runs and traces (#73275)``

@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hin
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
+from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
 
     from pydantic_ai._run_context import RunContext
 
+    from airflow.providers.common.ai.tools import AirflowTool
     from airflow.providers.common.compat.sdk import BaseHook
 
 # Maps Python types to JSON Schema fragments.
@@ -126,6 +128,21 @@ class HookToolset(AbstractToolset[Any]):
     def id(self) -> str:
         name = type(self._hook).__name__
         return f"hook-{name}-{self.conn_id}" if self.conn_id else f"hook-{name}"
+
+    def airflow_tools(self) -> list[AirflowTool]:
+        """
+        Return this toolset's tools as framework-neutral tools.
+
+        Each is an :class:`~airflow.providers.common.ai.tools.AirflowTool`. Use
+        them to give the tools to an agent framework other than pydantic-ai,
+        for example through
+        :func:`~airflow.providers.common.ai.tools.strands.as_strands_tools`. The
+        tools behave as they do in ``AgentOperator``, and every result and error
+        passes through Airflow's secret masker before the model sees it.
+
+        .. warning:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+        """
+        return airflow_tools_from_toolset(self)
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         tools: dict[str, ToolsetTool[Any]] = {}
