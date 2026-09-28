@@ -50,6 +50,8 @@ from airflow_e2e_tests.constants import (
     GO_SDK_STATE_STORE_RETENTION_DAYS,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
+    JAVA_NATIVE_BUNDLE_LIBS_PATH,
+    JAVA_NATIVE_BUNDLE_ROOT_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
     JAVA_SDK_EXAMPLE_LIBS_PATH,
     JAVA_SDK_MAVEN_CACHE_PATH,
@@ -402,8 +404,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
     _run_java_sdk_gradle(JAVA_SDK_ROOT_PATH, "publishToMavenLocal", "-PskipSigning=true", native=native)
 
-    # The example, scala_spark_example, and java-test-bundle are independent
-    # Gradle builds that all consume the SDK artifact published above, so build
+    # The example, scala_spark_example, java-test-bundle, and java-native-bundle
+    # are independent Gradle builds that all consume the SDK artifact published above, so build
     # them concurrently. Sharing a writable Gradle user home between concurrent
     # builds is safe because each build can ping the other's lock-owner port over
     # one shared loopback - the host's own in native mode, --network=host in the
@@ -418,14 +420,17 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(JAVA_TEST_BUNDLE_LIBS_PATH, ignore_errors=True)
+    rmtree(JAVA_NATIVE_BUNDLE_LIBS_PATH, ignore_errors=True)
     toolchain = "host toolchain" if native else "eclipse-temurin:17-jdk"
     console.print(
-        f"[yellow]Building Java SDK, Scala Spark, and test-fixture bundles concurrently ({toolchain})..."
+        "[yellow]Building Java SDK, Scala Spark, test-fixture, and native-Dag bundles concurrently "
+        f"({toolchain})..."
     )
     example_bundle_workdirs = [
         JAVA_SDK_ROOT_PATH / "example",
         JAVA_SDK_ROOT_PATH / "scala_spark_example",
         JAVA_TEST_BUNDLE_ROOT_PATH,
+        JAVA_NATIVE_BUNDLE_ROOT_PATH,
     ]
     with ThreadPoolExecutor(max_workers=len(example_bundle_workdirs)) as pool:
         bundle_builds = [
@@ -443,6 +448,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
     copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
     copytree(JAVA_TEST_BUNDLE_LIBS_PATH, tmp_dir / "java-test-jars")
+    # The native-Dag bundle goes into the Dag bundle, where the Dag processor parses it.
+    copytree(JAVA_NATIVE_BUNDLE_LIBS_PATH, tmp_dir / "dags" / "java-native")
 
     # Copy the Java SDK example Dag files so Airflow can discover them.
     copyfile(JAVA_SDK_EXAMPLE_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
@@ -456,7 +463,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # JRE and copies nothing from the context, so without this docker build would
     # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
     # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
-    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\n")
+    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\ndags/\n")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
@@ -509,10 +516,16 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {"task_handler_bundle_name": "java-test-task-handlers"},
             },
+            # Serves the Dags folder: it parses the native-Dag JAR there and runs
+            # that JAR's tasks.
+            "java-native": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {"task_handler_bundle_name": "dags-folder"},
+            },
         }
     )
     queue_to_coordinator = json.dumps(
-        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk"}
+        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk", "java-native": "java-native"}
     )
 
     # Connection expected by the Java example bundle tasks. The JSON form
