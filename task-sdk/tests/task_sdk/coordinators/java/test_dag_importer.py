@@ -145,6 +145,11 @@ class TestGetSourceCode:
         assert "embeds no Dag source" in result.source_code
         assert result.language == "java"
 
+    def test_placeholder_for_a_jar_without_manifest(self, tmp_path):
+        jar = make_jar(tmp_path / "lib.jar", entries={SOURCE_ENTRY: "class Dags {}"})
+
+        assert "embeds no Dag source" in _importer().get_source_code(_definition(jar)).source_code
+
     def test_placeholder_when_the_source_is_too_large(self, tmp_path):
         jar = self._jar(
             tmp_path, attributes={"Airflow-Java-SDK-Dag-Code": SOURCE_ENTRY}, entries={SOURCE_ENTRY: "x" * 9}
