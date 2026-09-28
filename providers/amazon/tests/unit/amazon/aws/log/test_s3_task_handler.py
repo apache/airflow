@@ -32,6 +32,7 @@ from moto import mock_aws
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO, S3TaskHandler
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import EmptyOperator
@@ -40,11 +41,6 @@ from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
-
-try:
-    from airflow.sdk.timezone import datetime
-except ImportError:
-    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)
@@ -198,7 +194,7 @@ class TestS3RemoteLogIO:
             self.subject = self.s3_task_handler.io
             assert self.subject.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
@@ -382,7 +378,7 @@ class TestS3TaskHandler:
             # Verify the hook now with the config override
             assert self.s3_task_handler.io.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
@@ -542,3 +538,26 @@ class TestS3TaskHandler:
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2
         S3TaskHandler(self.local_log_location, self.remote_log_base, filename_template=None)
+
+
+def test_upload_skips_path_outside_base_log_folder(tmp_path, caplog):
+    """A traversing log path is refused before the file is read or its parent removed.
+
+    ``base_log_folder.joinpath(path)`` is purely lexical, so a ``..``-bearing relative path
+    escapes the log folder. Without the containment check the file would be uploaded to the
+    remote log store and, with ``delete_local_copy``, its parent directory deleted.
+    """
+    base = tmp_path / "logs"
+    base.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.log"
+    secret.write_text("sensitive")
+
+    subject = S3RemoteLogIO(remote_base="s3://bucket/remote", base_log_folder=base, delete_local_copy=True)
+    with caplog.at_level(logging.WARNING):
+        subject.upload(os.path.join("..", "outside", "secret.log"))
+
+    assert secret.exists()
+    assert outside.exists()
+    assert "outside base_log_folder" in caplog.text

@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, HStack, Skeleton, Text } from "@chakra-ui/react";
 import { FiChevronRight, FiChevronLeft } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
 
 export const StatsCard = ({
@@ -36,7 +38,7 @@ export const StatsCard = ({
   state,
 }: {
   readonly colorScheme: string;
-  readonly count: number;
+  readonly count?: number;
   readonly icon?: ReactNode;
   readonly isLoading?: boolean;
   readonly isRTL: boolean;

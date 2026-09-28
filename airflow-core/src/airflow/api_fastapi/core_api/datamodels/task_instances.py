@@ -217,6 +217,12 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="A list of `task_id` or [`task_id`, `map_index`]. "
         "If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
     )
+    task_group_id: str | None = Field(
+        default=None,
+        description="Clear every task in this task group. Mutually exclusive with `task_ids`. "
+        "The group's tasks are resolved on the server from the dag structure, so all of them are "
+        "targeted regardless of how many there are.",
+    )
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False
@@ -250,6 +256,8 @@ class ClearTaskInstancesBody(StrictBaseModel):
             raise ValueError("Exactly one of dag_run_id or end_date must be provided")
         if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
             raise ValueError("task_ids list should have at least 1 element.")
+        if data.get("task_ids") and data.get("task_group_id"):
+            raise ValueError("Only one of task_ids or task_group_id may be provided")
         return data
 
 

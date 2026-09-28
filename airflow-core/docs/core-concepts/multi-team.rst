@@ -54,7 +54,8 @@ A **Team** is a logical grouping that represents a group of users within your or
 
 Teams within the Airflow database have a very simple structure, only containing one field:
 
-- **name**: A unique identifier for the team (3-50 characters, alphanumeric with hyphens and underscores)
+- **name**: A unique identifier for the team (3-50 characters, lower case letters, digits, hyphens and
+  underscores, with no two consecutive underscores)
 
 Teams are associated with Dag bundles through a separate association table, which links team names to Dag bundle names.
 
@@ -118,8 +119,10 @@ implement two methods:
   used primarily to check whether a user belongs to a team.
 - ``_get_teams``: Returns the set of teams defined in the auth manager.
 
-During initialization, Airflow validates that all teams defined in the auth manager are also present in the
-Airflow metadata database. If any team is missing, Airflow will raise an error.
+During initialization, Airflow compares the teams defined in the auth manager with the teams in the Airflow
+metadata database. A mismatch in either direction -- a team the auth manager defines that the database does
+not have, or a team the database has that the auth manager does not define -- emits a ``UserWarning``.
+Startup is not blocked, so watch the startup log for these warnings.
 
 If the auth manager you are using does not implement these methods, Airflow will raise a
 ``NotImplementedError`` at runtime.
@@ -161,7 +164,8 @@ Creating a Team
 
     airflow teams create <team_name>
 
-Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.
+Team names must be 3-50 characters long and contain only lower case letters, digits, hyphens and underscores.
+Two consecutive underscores are not allowed.
 
 Listing Teams
 ^^^^^^^^^^^^^
@@ -188,6 +192,38 @@ Or to skip the confirmation prompt:
 .. warning::
 
     A team cannot be deleted if it has associated resources (Dag bundles, Variables, Connections, or Pools). You must remove these associations first.
+
+.. _multi-team-teams-sync:
+
+Syncing Teams from the Dag Bundle Config
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.3.0
+
+.. code-block:: bash
+
+    airflow teams sync
+
+Creates a team for every ``team_name`` in the :ref:`Dag bundle config <multi-team-dag-bundles>` that the
+database does not have yet, so the bundle config can be the one place teams are declared instead of running
+``airflow teams create`` once per team. It also creates the default pool of any configured team that is
+missing one, including teams that already existed.
+
+.. _multi-team-teams-verify:
+
+Verifying the Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.4.0
+
+.. code-block:: bash
+
+    airflow teams verify
+
+Checks the multi-team configuration against the database and reports any of these problems:
+
+- a team that has no default pool
+- a team referenced by a Dag bundle but missing from the database
 
 Configuring Team Resources
 --------------------------
@@ -516,6 +552,8 @@ name followed by an equals sign:
     broker_url = redis://team-b-redis:6379/0
     result_backend = db+postgresql+psycopg://team-b-db/celery_results
 
+.. _multi-team-dag-bundles:
+
 Dag Bundle to Team Association
 ------------------------------
 
@@ -552,7 +590,9 @@ In this example:
 
 .. note::
 
-    The team specified in ``team_name`` must exist in the database before syncing the Dag bundles. Create teams first using ``airflow teams create``.
+    The team specified in ``team_name`` must exist in the database before syncing the Dag bundles. Create the
+    teams first with ``airflow teams create``, or let ``airflow teams sync`` create them from this config
+    (see :ref:`multi-team-teams-sync`).
 
 How Scheduling Works
 --------------------

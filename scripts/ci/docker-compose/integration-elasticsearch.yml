@@ -33,6 +33,7 @@ services:
       interval: 10s
       timeout: 30s
       start_period: 60s
+      start_interval: 1s
       retries: 50
     restart: "on-failure"
 

@@ -20,6 +20,7 @@ import { Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { ConfirmationModal } from "src/components/ConfirmationModal";
+
 import { getRedirectPath } from "src/utils/links.ts";
 
 type LogoutModalProps = {
@@ -28,7 +29,7 @@ type LogoutModalProps = {
 };
 
 const LogoutModal = ({ isOpen, onClose }: LogoutModalProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <ConfirmationModal

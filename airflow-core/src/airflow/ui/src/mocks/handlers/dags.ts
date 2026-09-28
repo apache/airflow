@@ -18,7 +18,7 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
-const successDag = {
+export const successDag = {
   dag_display_name: "tutorial_taskflow_api_success",
   dag_id: "tutorial_taskflow_api_success",
   file_token:
@@ -26,6 +26,7 @@ const successDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: true,
   is_paused: false,
   is_stale: false,
@@ -52,7 +53,7 @@ const successDag = {
   timetable_type: "NullTimetable",
 };
 
-const failedDag = {
+export const failedDag = {
   dag_display_name: "tutorial_taskflow_api_failed",
   dag_id: "tutorial_taskflow_api_failed",
   file_token:
@@ -60,6 +61,7 @@ const failedDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: false,
   is_stale: false,
@@ -86,7 +88,7 @@ const failedDag = {
   timetable_type: "CronTriggerTimetable",
 };
 
-const pausedDag = {
+export const pausedDag = {
   dag_display_name: "paused_dag",
   dag_id: "paused_dag",
   file_token:
@@ -94,6 +96,7 @@ const pausedDag = {
   fileloc: "/airflow/dags/paused_dag.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: true,
   is_stale: false,

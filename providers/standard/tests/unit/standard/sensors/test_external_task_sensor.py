@@ -37,6 +37,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSensorTimeout,
     AirflowSkipException,
     TaskDeferred,
+    timezone,
 )
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
@@ -93,10 +94,8 @@ else:
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import TaskGroup
-    from airflow.sdk.timezone import coerce_datetime, datetime
 else:
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-    from airflow.utils.timezone import coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
@@ -108,7 +107,7 @@ pytestmark = pytest.mark.db_test
 
 TI = TaskInstance
 
-DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 TEST_TASK_ID = "time_sensor_check"
 TEST_TASK_ID_ALTERNATE = "time_sensor_check_alternate"
@@ -1774,7 +1773,10 @@ class TestExternalTaskAsyncSensor:
             failed_states=failed_states,
         )
 
-        context = {"execution_date": datetime(2025, 1, 1), "logical_date": datetime(2025, 1, 1)}
+        context = {
+            "execution_date": timezone.datetime(2025, 1, 1),
+            "logical_date": timezone.datetime(2025, 1, 1),
+        }
         with pytest.raises(TaskDeferred) as exc:
             sensor.execute(context=context)
 
@@ -1996,7 +1998,9 @@ def run_tasks(
     tis: dict[str, TaskInstance] = {}
 
     for dag in dag_bag.dags.values():
-        data_interval = DataInterval(coerce_datetime(logical_date), coerce_datetime(logical_date))
+        data_interval = DataInterval(
+            timezone.coerce_datetime(logical_date), timezone.coerce_datetime(logical_date)
+        )
         if AIRFLOW_V_3_0_PLUS:
             scheduler_dag = create_scheduler_dag(dag)
             runs[dag.dag_id] = dagrun = scheduler_dag.create_dagrun(

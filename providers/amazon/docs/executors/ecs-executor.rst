@@ -330,9 +330,9 @@ Create Task Definition
 
 - ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``, with the value being the PostgreSQL connection string in the following format using the values set during the `Database section <#create-the-rds-db-instance>`_ above:
 
-.. code-block:: bash
-
-   postgresql+psycopg://<username>:<password>@<endpoint>/<database_name>
+.. include:: general.rst
+  :start-after: .. BEGIN SQL_ALCHEMY_CONN
+  :end-before: .. END SQL_ALCHEMY_CONN
 
 
 - ``AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS``, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.

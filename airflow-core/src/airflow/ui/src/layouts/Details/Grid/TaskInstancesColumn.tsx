@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 
 import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridTI } from "./GridTI";

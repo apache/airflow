@@ -66,6 +66,9 @@ class DagCode(Base):
     )
     source_code: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
     source_code_hash: Mapped[str] = mapped_column(String(32), nullable=False)
+    language: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="python", server_default="python"
+    )
     dag_version_id: Mapped[UUID] = mapped_column(
         sa.Uuid(), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
@@ -191,4 +194,6 @@ class DagCode(Base):
         if new_source_code_hash != latest_dagcode.source_code_hash:
             latest_dagcode.source_code = new_source_code
             latest_dagcode.source_code_hash = new_source_code_hash
-            session.merge(latest_dagcode)
+        # Keep fileloc aligned even when the contents are unchanged (e.g. the file was moved/renamed).
+        if fileloc != latest_dagcode.fileloc:
+            latest_dagcode.fileloc = fileloc

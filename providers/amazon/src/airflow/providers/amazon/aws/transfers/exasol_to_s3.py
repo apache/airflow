@@ -52,7 +52,15 @@ class ExasolToS3Operator(BaseOperator):
         method of :class:`~pyexasol.connection.ExaConnection`.
     """
 
-    template_fields: Sequence[str] = ("query_or_table", "key", "bucket_name", "query_params", "export_params")
+    template_fields: Sequence[str] = (
+        "query_or_table",
+        "key",
+        "bucket_name",
+        "query_params",
+        "export_params",
+        "exasol_conn_id",
+        "aws_conn_id",
+    )
     template_fields_renderers = {"query_or_table": "sql", "query_params": "json", "export_params": "json"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"

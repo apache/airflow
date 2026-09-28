@@ -52,6 +52,11 @@ HttpOperator
 Use the :class:`~airflow.providers.http.operators.http.HttpOperator` to call HTTP requests and get
 the response text back.
 
+Deferrable mode runs the request in the Triggerer. A Triggerer restart can replay
+it, so non-idempotent methods (including the default ``POST``) log a warning.
+See :ref:`howto/deferrable:HttpOperator` for the idempotent method set and how
+to silence the warning with ``warn_on_non_idempotent=False``.
+
 .. warning:: Configuring ``https`` via HttpOperator is counter-intuitive
 
    For historical reasons, configuring ``HTTPS`` connectivity via HTTP operator is, well, difficult and
@@ -126,8 +131,6 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
     :language: python
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
-
-
 
 The :class:`~airflow.providers.http.operators.paginated.HttpOperator` also allows to repeatedly call an API
 endpoint, typically to loop over its pages. All API responses are stored in memory by the Operator and returned

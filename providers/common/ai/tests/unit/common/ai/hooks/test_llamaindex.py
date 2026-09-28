@@ -168,3 +168,38 @@ class TestGetLlm:
 
         with pytest.raises(ValueError, match="No llm model identifier set"):
             hook.get_llm()
+
+
+class TestConnectionTest:
+    @patch("llama_index.llms.openai.OpenAI")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_successful_connection(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"llm_model": "gpt-4o"})
+
+        hook = LlamaIndexHook()
+        success, message = hook.test_connection()
+
+        assert success is True
+        assert message == "Model resolved successfully."
+
+    @patch("llama_index.llms.openai.OpenAI")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_failed_connection(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"llm_model": "gpt-4o"})
+        mock_cls.side_effect = ValueError("Invalid API key")
+
+        hook = LlamaIndexHook()
+        success, message = hook.test_connection()
+
+        assert success is False
+        assert "Invalid API key" in message
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_failed_connection_no_model(self, mock_get_conn):
+        mock_get_conn.return_value = _conn()
+
+        hook = LlamaIndexHook()
+        success, message = hook.test_connection()
+
+        assert success is False
+        assert "No llm model identifier set" in message

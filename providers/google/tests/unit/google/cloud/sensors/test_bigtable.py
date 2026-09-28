@@ -25,7 +25,10 @@ from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.cloud.links.bigtable import BigtableTablesLink
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 PROJECT_ID = "test_project_id"
 INSTANCE_ID = "test-instance-id"
@@ -34,7 +37,7 @@ TABLE_ID = "test-table-id"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class BigtableWaitForTableReplicationTest:
+class TestBigtableWaitForTableReplication:
     @pytest.mark.parametrize(
         ("missing_attribute", "project_id", "instance_id", "table_id"),
         [
@@ -43,7 +46,7 @@ class BigtableWaitForTableReplicationTest:
         ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
-    def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
+    def test_empty_attribute(self, mock_hook, missing_attribute, project_id, instance_id, table_id):
         with pytest.raises(AirflowException) as ctx:
             BigtableTableReplicationCompletedSensor(
                 project_id=project_id,
@@ -126,8 +129,16 @@ class BigtableWaitForTableReplicationTest:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        assert op.poke(None)
+        ti = mock.MagicMock()
+
+        assert op.poke({"ti": ti, "task": op})
+
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        # Only this path reaches BigtableTablesLink.persist, which does context["ti"].xcom_push().
+        ti.xcom_push.assert_called_once_with(
+            key=BigtableTablesLink.key,
+            value={} if AIRFLOW_V_3_0_PLUS else {"instance_id": INSTANCE_ID, "project_id": PROJECT_ID},
         )

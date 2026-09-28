@@ -221,6 +221,113 @@ class TestLogoutTokenRevocation:
         assert response.status_code == 307
         assert RevokedToken.is_revoked("nonexistent-jti") is False
 
+    @staticmethod
+    def _mint(auth_manager, jti: str) -> str:
+        now = int(time.time())
+        signer = auth_manager._get_token_signer()
+        return jwt.encode(
+            {
+                "sub": "admin",
+                "jti": jti,
+                "exp": now + 3600,
+                "iat": now,
+                "nbf": now,
+                "aud": "apache-airflow",
+                "iss": signer.issuer,
+            },
+            signer._secret_key,
+            algorithm=signer.algorithm,
+        )
+
+    def test_logout_revokes_a_bearer_token(self, logout_client):
+        """A bearer-only logout must revoke the token it presented.
+
+        Clients calling the API authenticate with `Authorization: Bearer`, and there is
+        no cookie on such a request. Logout previously read only the cookie, so it
+        returned its normal response while revoking nothing and the token stayed valid
+        until it expired.
+        """
+        auth_manager = logout_client.app.state.auth_manager
+        token_str = self._mint(auth_manager, "test-jti-bearer")
+
+        with patch.object(auth_manager, "get_url_logout", return_value=None):
+            response = logout_client.get(
+                "/auth/logout",
+                headers={"Authorization": f"Bearer {token_str}"},
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 307
+        assert RevokedToken.is_revoked("test-jti-bearer") is True
+
+    def test_logout_revokes_every_credential_presented(self, logout_client):
+        """Both a bearer and a cookie presented together must both be revoked.
+
+        Revoking only the precedence-selected one would leave the other valid after the
+        caller asked to be logged out.
+        """
+        auth_manager = logout_client.app.state.auth_manager
+        bearer_token = self._mint(auth_manager, "test-jti-both-bearer")
+        cookie_token = self._mint(auth_manager, "test-jti-both-cookie")
+
+        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, cookie_token)
+        with patch.object(auth_manager, "get_url_logout", return_value=None):
+            response = logout_client.get(
+                "/auth/logout",
+                headers={"Authorization": f"Bearer {bearer_token}"},
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 307
+        assert RevokedToken.is_revoked("test-jti-both-bearer") is True
+        assert RevokedToken.is_revoked("test-jti-both-cookie") is True
+
+    def test_logout_revokes_both_even_when_a_trusted_user_is_cached(self, logout_client):
+        """The trusted-middleware shortcut must not change what logout revokes.
+
+        On protected routes `get_user()` can return a user cached by JWTRefreshMiddleware
+        without consulting the request's credentials at all. Logout must still act on the
+        credentials actually presented, so revocation cannot be skipped by that shortcut.
+        """
+        from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+
+        auth_manager = logout_client.app.state.auth_manager
+        bearer_token = self._mint(auth_manager, "test-jti-trusted-bearer")
+        cookie_token = self._mint(auth_manager, "test-jti-trusted-cookie")
+
+        async def _inject(request, call_next):
+            request.state.user = object()
+            request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+            return await call_next(request)
+
+        logout_client.app.middleware("http")(_inject)
+        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, cookie_token)
+        with patch.object(auth_manager, "get_url_logout", return_value=None):
+            response = logout_client.get(
+                "/auth/logout",
+                headers={"Authorization": f"Bearer {bearer_token}"},
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 307
+        assert RevokedToken.is_revoked("test-jti-trusted-bearer") is True
+        assert RevokedToken.is_revoked("test-jti-trusted-cookie") is True
+
+    def test_logout_revokes_a_bearer_token_before_an_external_redirect(self, logout_client):
+        """The bearer must be revoked even when the auth manager redirects away."""
+        auth_manager = logout_client.app.state.auth_manager
+        token_str = self._mint(auth_manager, "test-jti-bearer-redirect")
+
+        with patch.object(auth_manager, "get_url_logout", return_value="https://idp.example/logout"):
+            response = logout_client.get(
+                "/auth/logout",
+                headers={"Authorization": f"Bearer {token_str}"},
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 307
+        assert RevokedToken.is_revoked("test-jti-bearer-redirect") is True
+
     def test_logout_revokes_token_when_logout_url_redirects(self, logout_client):
         """Token must be revoked before the redirect when get_url_logout returns a URL."""
         now = int(time.time())

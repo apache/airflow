@@ -35,7 +35,7 @@ permissions:
 jobs:
   get-pr-info:
     name: "Get PR information"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       should-run: ${{ steps.pr-info.outputs.should-run }}
       pr-number: ${{ steps.pr-info.outputs.pr-number }}

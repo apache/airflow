@@ -29,6 +29,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
+
+import { TimezoneProvider } from "src/context/timezone";
 import type * as Utils from "src/utils";
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -38,12 +40,14 @@ const mocks = vi.hoisted(() => ({
   getBackfill: vi.fn(),
   listBackfillDagRuns: vi.fn(),
   listBackfills: vi.fn(),
+  listTeams: vi.fn(),
 }));
 
 vi.mock("openapi/queries", () => ({
   useBackfillServiceGetBackfill: mocks.getBackfill,
   useBackfillServiceListBackfillDagRuns: mocks.listBackfillDagRuns,
   useBackfillServiceListBackfillsUi: mocks.listBackfills,
+  useTeamsServiceListTeams: mocks.listTeams,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -127,10 +131,12 @@ const renderBackfills = (initialEntry = "/dags/example_dag/backfills") =>
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <Routes>
-          <Route element={<Backfills />} path="/dags/:dagId/backfills" />
-          <Route element={<Backfills />} path="/dags/:dagId/backfills/:backfillId" />
-        </Routes>
+        <TimezoneProvider>
+          <Routes>
+            <Route element={<Backfills />} path="/dags/:dagId/backfills" />
+            <Route element={<Backfills />} path="/dags/:dagId/backfills/:backfillId" />
+          </Routes>
+        </TimezoneProvider>
       </MemoryRouter>
     </BaseWrapper>,
   );
@@ -173,11 +179,17 @@ const expectDagRunsQuery = (backfillId: number) => {
   return options.refetchInterval;
 };
 
-describe("Backfills", () => {
+describe("Backfills filters", () => {
   beforeEach(() => {
     mocks.getBackfill.mockReset();
     mocks.listBackfillDagRuns.mockReset();
     mocks.listBackfills.mockReset();
+    mocks.listTeams.mockReset();
+    mocks.listTeams.mockReturnValue({
+      data: { teams: [], total_entries: 0 },
+      error: undefined,
+      isLoading: false,
+    });
   });
 
   it("opens a backfill's associated slots in a dialog", async () => {

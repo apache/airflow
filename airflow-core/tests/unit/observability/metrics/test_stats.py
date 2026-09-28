@@ -39,23 +39,35 @@ class InvalidCustomStatsd:
 
 
 class TestStats:
-    def test_load_invalid_custom_stats_client(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
-            }
-        ):
+    @pytest.mark.parametrize(
+        ("extra_conf", "expected_message"),
+        [
+            (
+                {},
+                "Your custom StatsD client must extend the statsd.StatsClient in order "
+                "to ensure backwards compatibility.",
+            ),
+            (
+                {("metrics", "statsd_socket_path"): "/var/run/datadog/dsd.socket"},
+                "Your custom StatsD client must extend the statsd.UnixSocketStatsClient "
+                "when using a socket path in order to ensure backwards compatibility.",
+            ),
+        ],
+        ids=["udp", "socket"],
+    )
+    def test_load_invalid_custom_stats_client(self, extra_conf, expected_message):
+        conf = {
+            ("metrics", "statsd_on"): "True",
+            ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
+            **extra_conf,
+        }
+        with conf_vars(conf):
             importlib.reload(airflow._shared.observability.metrics.stats)
             airflow.observability.stats.initialize(
                 factory=stats_utils.get_stats_factory(), export_legacy_names=True
             )
-            error_message = re.escape(
-                "Your custom StatsD client must extend the statsd."
-                "StatsClient in order to ensure backwards compatibility."
-            )
             # we assert for Exception here instead of AirflowConfigException to not import from shared configuration
-            with pytest.raises(Exception, match=error_message):
+            with pytest.raises(Exception, match=re.escape(expected_message)):
                 airflow.observability.stats.incr("empty_key")
         importlib.reload(airflow._shared.observability.metrics.stats)
 

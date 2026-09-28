@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Input, Text } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
+
+import { Box, Input, Text } from "@chakra-ui/react";
 import { MdClose } from "react-icons/md";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
+
 import type { ValidationError } from "src/hooks/useDateRangeFilter";
 
 type DateInputProps = {
+  readonly disabled?: boolean;
   readonly field: "end" | "start";
   readonly getBorderColor: (field: ValidationError["field"]) => string;
   readonly getFieldError: (field: ValidationError["field"]) => ValidationError | undefined;
@@ -41,6 +44,7 @@ type DateInputProps = {
 };
 
 export const DateInput = ({
+  disabled,
   field,
   getBorderColor,
   getFieldError,
@@ -64,6 +68,7 @@ export const DateInput = ({
         <Input
           _focus={{ borderColor: "brand.focusRing" }}
           borderColor={getBorderColor(fieldName)}
+          disabled={disabled}
           fontSize="sm"
           fontWeight="medium"
           onBlur={onDateBlur}
@@ -73,7 +78,7 @@ export const DateInput = ({
           value={inputValue}
           w="full"
         />
-        {Boolean(inputValue) && (
+        {Boolean(inputValue) && !Boolean(disabled) && (
           <IconButton
             aria-label={`Clear ${field} ${inputType}`}
             onClick={(event) => {

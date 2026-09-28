@@ -56,6 +56,7 @@ services:
       interval: 10s
       timeout: 10s
       start_period: 30s
+      start_interval: 1s
       retries: 5
 
   airflow:

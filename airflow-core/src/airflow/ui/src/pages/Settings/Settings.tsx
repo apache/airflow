@@ -16,20 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, createListCollection, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, createListCollection, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { Select, SegmentedControl, Switch } from "src/system-components";
+
 import type { Direction } from "src/components/Graph/DirectionDropdown";
-import { Select } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
-import { Switch } from "src/components/ui/Switch";
+
+import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
+  useDefaultLandingPage,
+  useDefaultTaskInstanceTab,
+  useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
+  type LandingPageOption,
 } from "src/hooks/useUserSettings";
 import { useDocumentTitle } from "src/utils";
 import type { Option } from "src/utils/option";
@@ -160,15 +166,33 @@ const Section = ({ children, title }: { readonly children: ReactNode; readonly t
 );
 
 export const Settings = () => {
-  const { t: translate } = useTranslation(["common", "components", "dags"]);
+  const { t: translate } = useTranslation(["common", "components", "dags", "dag"]);
 
   useDocumentTitle(translate("settings.title"));
 
   const [graphDirection, setGraphDirection] = useDefaultGraphDirection();
+  const [taskGroupsExpanded, setTaskGroupsExpanded] = useDefaultTaskGroupsExpanded();
   const [clearRunOptions, setClearRunOptions] = useClearRunDefaultOptions();
   const [clearTaskOptions, setClearTaskOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTask, setPreventRunningTask] = useClearPreventRunningTaskDefault();
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
+  const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
+  const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
+
+  const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
+    { label: translate("dag:tabs.logs"), value: "logs" },
+    { label: translate("dag:tabs.details"), value: "details" },
+    { label: translate("dag:tabs.renderedTemplates"), value: "rendered_templates" },
+    { label: translate("dag:tabs.code"), value: "code" },
+    { label: translate("dag:tabs.auditLog"), value: "events" },
+    { label: translate("dag:tabs.assetEvents"), value: "asset_events" },
+    { label: translate("dag:tabs.xcom"), value: "xcom" },
+  ];
+
+  const landingPageOptions: Array<SelectOption<LandingPageOption>> = [
+    { label: translate("settings.general.landingPage.options.dashboard"), value: "dashboard" },
+    { label: translate("settings.general.landingPage.options.dags"), value: "dags" },
+  ];
 
   const directionOptions: Array<SelectOption<Direction>> = [
     { label: translate("components:graph.directionRight"), value: "RIGHT" },
@@ -199,7 +223,29 @@ export const Settings = () => {
         {translate("settings.description")}
       </Text>
       <Stack gap={8}>
+        <Section title={translate("settings.general.title")}>
+          <SelectSetting
+            helper={translate("settings.general.landingPage.helper")}
+            label={translate("settings.general.landingPage.label")}
+            onChange={setDefaultLandingPage}
+            options={landingPageOptions}
+            testId="default-landing-page"
+            value={defaultLandingPage}
+          />
+        </Section>
         <Section title={translate("settings.graph.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.graph.taskGroupsExpanded.label")}
+                checked={taskGroupsExpanded}
+                data-testid="default-task-groups-expanded"
+                onCheckedChange={(event) => setTaskGroupsExpanded(event.checked)}
+              />
+            }
+            helper={translate("settings.graph.taskGroupsExpanded.helper")}
+            label={translate("settings.graph.taskGroupsExpanded.label")}
+          />
           <SelectSetting
             helper={translate("settings.graph.defaultDirection.helper")}
             label={translate("settings.graph.defaultDirection.label")}
@@ -248,6 +294,16 @@ export const Settings = () => {
             multiple
             onChange={setMarkTaskOptions}
             options={directionalToggleOptions}
+          />
+        </Section>
+        <Section title={translate("settings.taskInstance.title")}>
+          <SelectSetting
+            helper={translate("settings.taskInstance.defaultTab.helper")}
+            label={translate("settings.taskInstance.defaultTab.label")}
+            onChange={setDefaultTaskInstanceTab}
+            options={taskInstanceTabOptions}
+            testId="default-task-instance-tab"
+            value={defaultTaskInstanceTab}
           />
         </Section>
       </Stack>

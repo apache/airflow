@@ -29,7 +29,8 @@ import {
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import type { ClearDagRunsResponse, DAGRunResponse } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useBulkClearDagRunsDryRunKey } from "./useBulkClearDagRunsDryRun";

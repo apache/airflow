@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, useDisclosure, VStack } from "@chakra-ui/react";
+import { useState } from "react";
+
+import { Box, Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
+
+import { Tooltip, ActionBar } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import {
   SelectionHeaderCheckbox,
@@ -37,14 +41,14 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
-import { Tooltip } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
+import { BackendsOrderCard } from "./BackendsOrderCard";
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
@@ -199,20 +203,26 @@ export const Variables = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={variableKeyPattern ?? ""}
-          onChange={handleSearchChange}
-          placeholder={translate("variables.searchPlaceholder")}
-        />
-        <HStack gap={4} justifyContent="flex-end" mt={2}>
-          <ImportVariablesButton disabled={selectedRows.size > 0} />
-          <AddVariableButton disabled={selectedRows.size > 0} />
-        </HStack>
-      </VStack>
+      <BackendsOrderCard />
       <DataTable
-        actions={
+        columns={columns}
+        data={variables}
+        errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={variableKeyPattern ?? ""}
+            onChange={handleSearchChange}
+            placeholder={translate("variables.searchPlaceholder")}
+          />
+        }
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="admin:variables.variable"
+        noRowsMessage={translate("variables.noRowsMessage")}
+        onStateChange={setTableURLState}
+        presentationActions={
           variables.length > 0 ? (
             <ExpandCollapseButtons
               collapseLabel={translate("common:expand.collapse")}
@@ -223,15 +233,12 @@ export const Variables = () => {
             />
           ) : undefined
         }
-        columns={columns}
-        data={variables}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="admin:variables.variable"
-        noRowsMessage={translate("variables.noRowsMessage")}
-        onStateChange={setTableURLState}
+        primaryActions={
+          <>
+            <ImportVariablesButton disabled={selectedRows.size > 0} />
+            <AddVariableButton disabled={selectedRows.size > 0} />
+          </>
+        }
         total={data?.total_entries ?? 0}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>

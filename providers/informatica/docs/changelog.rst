@@ -28,6 +28,27 @@
 Changelog
 =========
 
+0.2.1
+.....
+
+Misc
+~~~~
+
+* ``Import TaskInstanceState from airflow.sdk (#72445)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Bump aiohttp in /providers/informatica/dev/informatica_simulator (#71048)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 0.2.0
 .....
 
@@ -89,6 +110,6 @@ Misc
    * ``Add *.iml to .gitignore in all distributions (#63636)``
 
 0.1.1
------
+.....
 
 Initial version of the provider.

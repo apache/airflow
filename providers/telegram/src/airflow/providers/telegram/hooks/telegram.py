@@ -80,7 +80,7 @@ class TelegramHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "extra", "login", "port", "extra"],
+            "hidden_fields": ["schema", "extra", "login", "port"],
             "relabeling": {},
         }
 

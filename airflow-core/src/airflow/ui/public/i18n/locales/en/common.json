@@ -24,8 +24,10 @@
   },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
+  "breadcrumb": "Breadcrumb",
   "browse": {
     "auditLog": "Audit Log",
+    "dagBundles": "Dag Bundles",
     "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
@@ -38,7 +40,10 @@
   "createdAssetEvent_other": "Created $t(common:assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag Bundle",
+  "dagBundle_other": "Dag Bundles",
   "dagDetails": {
+    "activeRuns": "Active Runs",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
@@ -138,16 +143,24 @@
   },
   "filter": "Filter",
   "filters": {
+    "addFilter": "Add Filter",
+    "completedAt": "Completed At",
+    "date": "Date",
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
+    "maxActiveRunsFrom": "Max Active Runs From",
+    "maxActiveRunsTo": "Max Active Runs To",
+    "removeFilter": "Remove Filter",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
     "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
-    "startTime": "Start Time"
+    "selectDateTime": "Select date and time",
+    "startTime": "Start Time",
+    "time": "Time"
   },
   "fullscreen": {
     "tooltip": "Press {{hotkey}} for fullscreen"
@@ -155,6 +168,11 @@
   "generateToken": "Generate Token",
   "includedIn": "Included in",
   "key": "Key",
+  "logLevel": {
+    "hide": "Hide Log Levels",
+    "hotkey": "l",
+    "show": "Show Log Levels"
+  },
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -174,6 +192,7 @@
     "assets": "Assets",
     "browse": "Browse",
     "dags": "Dags",
+    "dashboard": "Dashboard",
     "docs": "Docs",
     "home": "Home",
     "legacyFabViews": "Legacy Views",
@@ -192,11 +211,14 @@
     "write": "Write"
   },
   "overallStatus": "Overall Status",
+  "partition_one": "Partition",
+  "partition_other": "Partitions",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Received Asset Events"
   },
+  "pause": "Pause",
   "pendingDagRun_one": "{{count}} Pending Dag Run",
   "pendingDagRun_other": "{{count}} Pending Dag Runs",
   "presetFilters": {
@@ -264,10 +286,25 @@
       "title": "Clearing"
     },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
+    "general": {
+      "landingPage": {
+        "helper": "Page shown when you open Airflow.",
+        "label": "Landing page",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "General"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
         "label": "Default graph direction"
+      },
+      "taskGroupsExpanded": {
+        "helper": "Expand task groups in Dags where you haven't saved a group selection. Existing selections are kept.",
+        "label": "Expand task groups by default"
       },
       "title": "Graph"
     },
@@ -277,6 +314,13 @@
         "label": "Default mark selection"
       },
       "title": "Marking"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Tab shown first when you open a task instance. Links to a specific tab still open that tab.",
+        "label": "Default task instance tab"
+      },
+      "title": "Task Instance"
     },
     "title": "Settings"
   },
@@ -313,6 +357,7 @@
       "toggleExpand": "Expand or collapse all groups",
       "toggleFullscreen": "Toggle fullscreen",
       "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleLogLevel": "Toggle log levels",
       "toggleSource": "Toggle source",
       "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
       "toggleTimestamp": "Toggle timestamps",
@@ -354,6 +399,7 @@
     "up_for_retry": "Up For Retry",
     "upstream_failed": "Upstream Failed"
   },
+  "switchDag": "Switch $t(dag_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
@@ -363,8 +409,10 @@
     "filterReset_other": "Reset filters",
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
+    "noResultsFound": "No results found",
     "noTagsFound": "No tags found",
     "noTeamsFound": "No teams found",
+    "ownerPlaceholder": "Filter by owner",
     "tagMode": {
       "all": "All",
       "any": "Any"
@@ -510,6 +558,7 @@
   "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
+  "unpause": "Unpause",
   "user": "User",
   "validation": {
     "mustBeAtLeast": "Must be at least {{min}}.",

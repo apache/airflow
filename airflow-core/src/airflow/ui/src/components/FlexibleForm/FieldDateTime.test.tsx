@@ -151,3 +151,29 @@ describe("FieldDateTime — time field (issue #66492)", () => {
     expect(getInputByName("cutoff_time").value).toBe("09:15:30");
   });
 });
+
+describe("FieldDateTime — non-string values", () => {
+  beforeEach(() => {
+    mockSetParamsDict.mockClear();
+    Object.keys(mockParamsDict).forEach((key) => {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete mockParamsDict[key];
+    });
+  });
+
+  it.each([
+    ["a serialized param wrapper", { description: null, schema: { format: "date" }, value: null }],
+    ["a number", 20_260_528],
+    ["an array", ["2026-05-28"]],
+  ])("renders an empty date input instead of throwing for %s", (_label, value) => {
+    mockParamsDict.cutoff_date = { schema: { format: "date", type: "string" }, value };
+
+    expect(() =>
+      render(<FieldDateTime name="cutoff_date" onUpdate={vi.fn()} type="date" />, {
+        wrapper: Wrapper,
+      }),
+    ).not.toThrow();
+
+    expect(getInputByName("cutoff_date").value).toBe("");
+  });
+});

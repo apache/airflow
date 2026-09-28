@@ -130,6 +130,32 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
     return list(bundles.values())
 
 
+def _read_bundle_config_list() -> list[_ExternalBundleConfig]:
+    config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
+    if not config_list:
+        return []
+    if not isinstance(config_list, list):
+        raise AirflowConfigException(
+            "Section `dag_processor` key `dag_bundle_config_list` "
+            f"must be list but got {config_list.__class__}"
+        )
+    return _parse_bundle_config(config_list)
+
+
+def _get_configured_bundle_team_names() -> dict[str, str | None]:
+    """
+    Get the team owning each explicitly configured Dag bundle.
+
+    This reads the config rather than going through ``DagBundlesManager`` so that callers who only
+    need the declared bundle partition neither import every bundle class nor see the example-Dag
+    bundles that ``DagBundlesManager.parse_config`` injects when ``[core] load_examples`` is set --
+    those are added by Airflow, not declared by the deployment.
+
+    :return: mapping of bundle name to team name, ``None`` for bundles that are not team scoped.
+    """
+    return {cfg.name: cfg.team_name for cfg in _read_bundle_config_list()}
+
+
 def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
     from airflow import example_dags
 
@@ -274,15 +300,9 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
-        if not config_list:
+        bundle_config_list = _read_bundle_config_list()
+        if not bundle_config_list:
             return
-        if not isinstance(config_list, list):
-            raise AirflowConfigException(
-                "Section `dag_processor` key `dag_bundle_config_list` "
-                f"must be list but got {config_list.__class__}"
-            )
-        bundle_config_list = _parse_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
             _add_example_dag_bundle(bundle_config_list)
             _add_provider_example_dags_to_bundle(bundle_config_list)

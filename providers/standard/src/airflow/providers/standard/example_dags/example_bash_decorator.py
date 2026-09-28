@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pendulum
 
 from airflow.providers.common.compat.sdk import TriggerRule
@@ -36,6 +38,7 @@ def example_bash_decorator():
     - Jinja templating and context variables
     - Skip behavior via non-zero exit codes and conditional branching
     - Parameterized environment variables and dynamic command construction
+    - Pushing several named XComs from one task with `multiple_outputs`
 
     For details, see the Bash decorator documentation
     [here](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/bash.html).
@@ -113,6 +116,27 @@ def example_bash_decorator():
 
     get_file_stats()
     # [END howto_decorator_bash_build_cmd]
+
+    # [START howto_decorator_bash_multiple_outputs]
+    @task.bash(multiple_outputs=True, output_processor=json.loads)
+    def describe_dag_folder() -> str:
+        # The dict must be the last line the command writes: only that line is captured.
+        return """
+            set -e
+            dag_folder="$AIRFLOW_HOME/dags"
+            file_count=$(find "$dag_folder" -type f -name '*.py' 2>/dev/null | wc -l)
+            printf '{"dag_folder": "%s", "file_count": %s}\\n' "$dag_folder" "$file_count"
+        """
+
+    dag_stats = describe_dag_folder()
+
+    @task.bash
+    def show_dag_folder_stats(folder: str, count: int) -> str:
+        return f'echo "found {count} Dag file(s) under {folder}"'
+
+    # Each key of the returned dict is available as its own XCom.
+    show_dag_folder_stats(folder=dag_stats["dag_folder"], count=dag_stats["file_count"])
+    # [END howto_decorator_bash_multiple_outputs]
 
     chain(run_me_loop, run_this)
     chain([also_this, also_this_again, this_skips, run_this], run_this_last)
