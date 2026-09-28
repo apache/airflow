@@ -67,7 +67,13 @@ class HiveToDruidOperator(BaseOperator):
     :param job_properties: additional properties for job
     """
 
-    template_fields: Sequence[str] = ("sql", "intervals")
+    template_fields: Sequence[str] = (
+        "sql",
+        "intervals",
+        "hive_cli_conn_id",
+        "druid_ingest_conn_id",
+        "metastore_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "hql"}
 

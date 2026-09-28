@@ -83,6 +83,14 @@ class TestSpecEnforcement:
         assert policy[3:5] == ["--sandbox", name]
         assert policy[5:] == ["pypi.org", "files.pythonhosted.org"]
 
+    def test_refuses_an_address_allowlist_it_has_no_rule_for(self):
+        # ``sbx policy allow network`` takes hostnames; there is nothing to map a range onto,
+        # and this holds whatever the host policy says.
+        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
+            SbxSandboxBackend(host_network_policy="deny-all").create(
+                spec=SandboxSpec(allow_egress_to_cidrs=["10.0.0.0/8"])
+            )
+
     def test_refuses_no_egress_when_the_host_policy_is_undeclared(self):
         with pytest.raises(SandboxError, match="host policy has not been declared"):
             SbxSandboxBackend().create(spec=SandboxSpec(block_network=True))

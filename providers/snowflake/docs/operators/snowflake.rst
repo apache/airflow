@@ -139,7 +139,7 @@ the connection metadata is structured as follows:
    * - Schema: string
      - Set schema to execute SQL operations on by default
    * - Extra: dictionary
-     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``, ``refresh_token``. If using OAuth must specify ``refresh_token`` (`obtained here <https://community.snowflake.com/s/article/HOW-TO-OAUTH-TOKEN-GENERATION-USING-SNOWFLAKE-CUSTOM-OAUTH>`__)
+     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``, ``refresh_token``. For OAuth, specify ``refresh_token`` (`obtained here <https://community.snowflake.com/s/article/HOW-TO-OAUTH-TOKEN-GENERATION-USING-SNOWFLAKE-CUSTOM-OAUTH>`__). To use the ``client_credentials`` grant or ``azure_conn_id`` instead, also set ``authenticator`` to ``oauth``. See :ref:`howto/connection:snowflake`.
 
 An example usage of the SnowflakeSqlApiHook is as follows:
 

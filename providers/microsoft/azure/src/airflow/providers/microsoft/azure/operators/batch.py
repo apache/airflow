@@ -113,6 +113,7 @@ class AzureBatchOperator(BaseOperator):
         "batch_job_id",
         "batch_task_id",
         "batch_task_command_line",
+        "azure_batch_conn_id",
     )
     ui_color = "#f0f0e4"
 

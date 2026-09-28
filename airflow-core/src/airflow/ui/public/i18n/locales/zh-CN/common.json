@@ -4,7 +4,7 @@
     "Connections": "连接",
     "Plugins": "插件",
     "Pools": "资源池",
-    "Providers": "Providers",
+    "Providers": "整合套件",
     "Variables": "变量"
   },
   "allOperators": "全部操作器",
@@ -212,7 +212,7 @@
     "receivedAssetEvents": "接收到的资源事件"
   },
   "pause": "暂停",
-  "pendingDagRun_one": "{{count}} 个待执行 Dag 执行",
+  "pendingDagRun_one": "1 个待执行 Dag 执行",
   "pendingDagRun_other": "{{count}} 个待执行 Dag 执行",
   "presetFilters": {
     "deleteTitle": "删除预设筛选条件",
@@ -457,7 +457,7 @@
   "taskInstance_one": "任务实例",
   "taskInstance_other": "任务实例",
   "teams": {
-    "more_one": "及其他 {{count}} 个团队",
+    "more_one": "及其他 1 个团队",
     "more_other": "及其他 {{count}} 个团队",
     "none": "无团队",
     "title": "团队"

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -39,6 +40,7 @@ from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, Ve
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import (
+    OpenAIAgentSessionError,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -953,3 +955,10 @@ class TestValidateTriggerEvent:
     )
     def test_valid_event_is_returned(self, event):
         assert validate_execute_complete_event(event) is event
+
+
+def test_managed_agents_reports_sdk_upgrade_without_breaking_hook():
+    hook = OpenAIHook()
+    hook.conn = SimpleNamespace(beta=SimpleNamespace())
+    with pytest.raises(OpenAIAgentSessionError, match="requires openai>=3.13.0"):
+        hook.create_agent_session(input="Hello", environment={"type": "none"}, agent_id="agent")

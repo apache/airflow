@@ -208,6 +208,7 @@ class TestGetImportError:
         test_client,
         permitted_dag_model_all,
         import_errors,
+        url_safe_serializer,
     ):
         import_error: ParseImportError | None = (
             import_errors[prepared_import_error_idx] if prepared_import_error_idx is not None else None
@@ -219,7 +220,14 @@ class TestGetImportError:
         if expected_status_code != 200:
             return
 
-        expected_body.update({"import_error_id": import_error_id})
+        expected_body.update(
+            {
+                "import_error_id": import_error_id,
+                "file_token": url_safe_serializer.dumps(
+                    {"bundle_name": import_error.bundle_name, "relative_fileloc": import_error.filename}
+                ),
+            }
+        )
         assert response.json() == expected_body
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, import_errors):
@@ -255,6 +263,7 @@ class TestGetImportError:
         permitted_dag_model_all,
         not_permitted_dag_model,
         import_errors,
+        url_safe_serializer,
     ):
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
@@ -268,6 +277,9 @@ class TestGetImportError:
             "filename": FILENAME1,
             "stack_trace": "REDACTED - you do not have read permission on all Dags in the file",
             "bundle_name": BUNDLE_NAME,
+            "file_token": url_safe_serializer.dumps(
+                {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+            ),
         }
 
     @pytest.mark.parametrize(
@@ -285,6 +297,7 @@ class TestGetImportError:
         import_errors,
         can_view_all_import_errors,
         expected_status_code,
+        url_safe_serializer,
     ):
         """A file with no registered Dag has no per-Dag key to authorize on, so
         visibility is gated on the dedicated ``IMPORT_ERRORS_ALL`` view: callers
@@ -305,6 +318,9 @@ class TestGetImportError:
                 "filename": FILENAME1,
                 "stack_trace": STACKTRACE1,
                 "bundle_name": BUNDLE_NAME,
+                "file_token": url_safe_serializer.dumps(
+                    {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+                ),
             }
         # The unregistered-file view is what gates access, scoped to the file's
         # team (None for the un-teamed "testing" bundle).
@@ -746,6 +762,7 @@ class TestGetImportErrors:
         expected_stack_trace,
         permitted_dag_model_all,
         import_errors,
+        url_safe_serializer,
     ):
         dag_id1 = "dag_id1"
         mock_get_dag_id_to_team_name_mapping.return_value = {dag_id1: team}
@@ -770,6 +787,9 @@ class TestGetImportErrors:
                     "filename": FILENAME1,
                     "stack_trace": expected_stack_trace,
                     "bundle_name": BUNDLE_NAME,
+                    "file_token": url_safe_serializer.dumps(
+                        {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+                    ),
                 }
             ],
         }

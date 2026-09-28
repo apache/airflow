@@ -144,12 +144,8 @@ def get_most_impactful_change(changes: list[TypeOfChange]):
     return max(changes, key=lambda change: precedence_order[change])
 
 
-def format_message_for_classification(message):
-    find_pr = re.search(r"#(\d+)", message)
-    if find_pr:
-        num = find_pr.group(1)
-        message = re.sub(r"#(\d+)", f"https://github.com/apache/airflow/pull/{num}", message)
-    return message
+def format_message_for_classification(message: str) -> str:
+    return re.sub(r"#(\d+)", r"https://github.com/apache/airflow/pull/\1", message)
 
 
 class ClassifiedChanges:

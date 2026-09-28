@@ -48,7 +48,6 @@ if __name__ == "__main__":
     all_ts_files = [file for file in files if file.endswith(".ts") or file.endswith(".tsx")]
     print("All TypeScript files:", all_ts_files)
 
-    run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)
     run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir)
     if any("/openapi/" in file for file in original_files):
         run_command(["pnpm", "codegen"], cwd=dir)
