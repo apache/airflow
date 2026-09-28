@@ -32,7 +32,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
-    ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -108,6 +107,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
+    get_default_project_name,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
@@ -222,7 +222,7 @@ class ShellParams:
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = DEFAULT_POSTGRES_VERSION
-    project_name: str = ALLOWED_DOCKER_COMPOSE_PROJECTS[0]
+    project_name: str = field(default_factory=get_default_project_name)
     providers_constraints_location: str = ""
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     providers_constraints_reference: str = ""
@@ -346,7 +346,7 @@ class ShellParams:
             console_print(f"[info]Airflow used at runtime: {self.use_airflow_version}[/]")
 
     def get_backend_compose_files(self, backend: str) -> list[Path]:
-        if backend == "sqlite" and self.project_name != "breeze":
+        if backend == "sqlite" and self.project_name not in ("breeze", get_default_project_name()):
             # When running scripts, we do not want to mount the volume to make sure that the
             # sqlite database is not persisted between runs of the script and that the
             # breeze database is not cleaned accidentally

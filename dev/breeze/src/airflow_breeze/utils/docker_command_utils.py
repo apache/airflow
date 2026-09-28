@@ -43,7 +43,7 @@ from airflow_breeze.utils.path_utils import (
     create_pycache_volume_if_needed,
     get_main_git_dir_for_worktree,
 )
-from airflow_breeze.utils.shared_options import get_verbose
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 try:
@@ -59,8 +59,6 @@ from airflow_breeze.global_constants import (
     CURRENT_POSTGRES_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
-    KNOWN_DOCKER_COMPOSE_PROJECT_NAMES,
-    KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
 )
@@ -625,7 +623,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 
 
 @lru_cache
-def perform_environment_checks(quiet: bool = False):
+def perform_environment_checks(quiet: bool = False, *, cleanup_stale_worktrees: bool = True):
     check_docker_is_running()
     container_engine_is_docker = check_container_engine_is_docker(quiet)
     if not container_engine_is_docker:
@@ -640,6 +638,11 @@ def perform_environment_checks(quiet: bool = False):
     check_uv_version(quiet)
     if not quiet:
         console_print(f"[success]Host python version is {sys.version}[/]")
+    if cleanup_stale_worktrees:
+        projects = bring_compose_projects_down(stale_only=True)
+        if projects:
+            action = "Would clean up" if get_dry_run() else "Cleaned up"
+            console_print(f"[info]{action} projects from deleted worktrees: {projects}[/]")
 
 
 def get_docker_syntax_version() -> str:
@@ -823,16 +826,22 @@ def remove_stale_worktree_containers() -> None:
         return
     for line in result.stdout.splitlines():
         container_id, _, worktree = line.partition("\t")
-        path = Path(worktree)
-        if not path.is_absolute():
-            continue
-        try:
-            path.stat()
-        except FileNotFoundError:
+        if _worktree_is_missing(worktree):
             console_print(f"Removing container {container_id} for deleted worktree {worktree}")
             run_command(["docker", "rm", "--force", "--volumes", container_id], check=False)
-        except OSError as error:
-            console_print(f"[warning]Cannot check worktree {worktree}: {error}. Keeping {container_id}.[/]")
+
+
+def _worktree_is_missing(worktree: str) -> bool:
+    path = Path(worktree)
+    if not path.is_absolute():
+        return False
+    try:
+        path.stat()
+    except FileNotFoundError:
+        return True
+    except OSError as error:
+        console_print(f"[warning]Cannot check worktree {worktree}: {error}. Keeping its resources.[/]")
+    return False
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -973,82 +982,69 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
     )
 
 
-def discover_running_compose_projects() -> set[str]:
-    """
-    Return the set of compose project names of every container on the host.
-
-    Reads the ``com.docker.compose.project`` label that ``docker compose``
-    sets on every container/network/volume it creates. Returns an empty set
-    if docker is unreachable or no compose-managed containers exist.
-    """
+def _get_compose_resources(kind: str) -> list[tuple[str, dict[str, str]]]:
+    cmd = ["docker", kind, "ls", "--quiet", "--filter", "label=com.docker.compose.project"]
+    if kind == "container":
+        cmd.append("--all")
+    result = run_command(cmd, capture_output=True, text=True, check=True, dry_run_override=False)
+    identifiers = result.stdout.split()
+    if not identifiers:
+        return []
     result = run_command(
-        [
-            "docker",
-            "ps",
-            "--all",
-            "--filter",
-            "label=com.docker.compose.project",
-            "--format",
-            '{{ .Label "com.docker.compose.project" }}',
-        ],
+        ["docker", kind, "inspect", *identifiers],
         capture_output=True,
         text=True,
-        check=False,
+        check=True,
+        dry_run_override=False,
     )
-    if result.returncode != 0 or not result.stdout:
-        console_print(f"[error] Unable to find running docker container projects: {result.stderr}")
-        return set()
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+    return [
+        (
+            resource["Name"] if kind == "volume" else resource["Id"],
+            resource["Config"]["Labels"] if kind == "container" else resource["Labels"],
+        )
+        for resource in json.loads(result.stdout)
+    ]
 
 
-def is_known_breeze_compose_project(name: str) -> bool:
-    """Return True if ``name`` matches a project breeze knows it owns."""
-    if name in KNOWN_DOCKER_COMPOSE_PROJECT_NAMES:
-        return True
-    return any(name.startswith(prefix) for prefix in KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES)
-
-
-def bring_all_compose_projects_down(
+def bring_compose_projects_down(
     *,
     preserve_volumes: bool = False,
-    include_unknown: bool = False,
+    all_projects: bool = False,
     only_project: str | None = None,
-) -> tuple[list[str], list[str]]:
-    """
-    Discover and bring down every docker compose project breeze manages.
+    default_project: str = "breeze",
+    stale_only: bool = False,
+) -> list[str]:
+    targets: dict[str, list[str]] = {"container": [], "volume": [], "network": []}
+    projects: set[str] = set()
+    for kind in targets:
+        if kind == "volume" and preserve_volumes:
+            continue
+        for identifier, labels in _get_compose_resources(kind):
+            project = labels["com.docker.compose.project"]
+            breeze_owned = labels.get("org.apache.airflow.breeze") == "true"
+            if only_project:
+                selected = project == only_project
+            elif all_projects:
+                selected = breeze_owned or project == "breeze"
+            else:
+                selected = (not stale_only and project == default_project) or (
+                    breeze_owned
+                    and _worktree_is_missing(labels.get("org.apache.airflow.breeze.worktree", ""))
+                )
+            if selected:
+                targets[kind].append(identifier)
+                projects.add(project)
 
-    :param preserve_volumes: if True, pass ``--volumes`` is omitted so DB
-        volumes survive (matches the existing ``--preserve-volumes`` flag
-        on ``breeze down``).
-    :param include_unknown: if True, also bring down projects whose names
-        do not match any known breeze prefix. Useful as an emergency
-        cleanup; can wipe out unrelated docker compose projects on the
-        host, so off by default.
-    :param only_project: if set, restrict to exactly this project name and
-        skip discovery entirely (for the ``--project-name`` flag).
-    :returns: ``(brought_down, skipped)`` lists of project names, both
-        sorted, suitable for printing in a session summary.
-    """
-    if only_project:
-        targets = {only_project}
-        skipped: set[str] = set()
-    else:
-        running = discover_running_compose_projects()
-        if include_unknown:
-            targets = running
-            skipped = set()
-        else:
-            targets = {name for name in running if is_known_breeze_compose_project(name)}
-            skipped = running - targets
-    brought_down: list[str] = []
-    for name in sorted(targets):
-        console_print(f"[info]Bringing down docker compose project: {name}[/]")
-        cmd = ["docker", "compose", "--project-name", name, "down", "--remove-orphans"]
-        if not preserve_volumes:
+    if targets["container"]:
+        run_command(["docker", "container", "stop", *targets["container"]], check=True)
+    for kind, identifiers in targets.items():
+        if not identifiers:
+            continue
+        cmd = ["docker", kind, "rm"]
+        if kind == "container" and not preserve_volumes:
             cmd.append("--volumes")
-        run_command(cmd, text=True, check=False)
-        brought_down.append(name)
-    return brought_down, sorted(skipped)
+        run_command([*cmd, *identifiers], check=True)
+    return sorted(projects)
 
 
 def execute_command_in_shell(

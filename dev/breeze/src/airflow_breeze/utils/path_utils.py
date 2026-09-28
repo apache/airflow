@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -637,6 +638,13 @@ def cleanup_python_generated_files():
             console_print("You can also remove those files manually using sudo.")
     if get_verbose():
         console_print("[info]Cleaned")
+
+
+def get_default_project_name() -> str:
+    if get_main_git_dir_for_worktree() is None:
+        return "breeze"
+    name = re.sub(r"[^a-z0-9_-]", "-", AIRFLOW_ROOT_PATH.resolve().name.lower())
+    return f"breeze-{name}"
 
 
 def get_main_git_dir_for_worktree() -> Path | None:

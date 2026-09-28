@@ -20,11 +20,14 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
+import click
 import pytest
 import yaml
+from click.testing import CliRunner
 from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.commands.common_options import option_project_name
 from airflow_breeze.global_constants import MOUNT_SELECTED, PYCACHE_PREFIX_IN_CONTAINER
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.path_utils import (
@@ -36,6 +39,41 @@ from airflow_breeze.utils.path_utils import (
 )
 
 console = Console(width=400, color_system="standard")
+
+
+@pytest.mark.parametrize("linked_worktree", [False, True])
+@pytest.mark.parametrize("explicit_project", [None, "foobar", "breeze"])
+def test_worktree_project_default_and_override(tmp_path, linked_worktree, explicit_project):
+    root = tmp_path / "My Worktree"
+    with (
+        patch("airflow_breeze.utils.path_utils.AIRFLOW_ROOT_PATH", root),
+        patch(
+            "airflow_breeze.utils.path_utils.get_main_git_dir_for_worktree",
+            autospec=True,
+            return_value=tmp_path / ".git" if linked_worktree else None,
+        ),
+    ):
+        params = ShellParams(**({"project_name": explicit_project} if explicit_project else {}))
+        sqlite_file = params.get_backend_compose_files("sqlite")[0].name
+
+        @click.command()
+        @option_project_name
+        def command(project_name):
+            click.echo(project_name)
+
+        result = CliRunner().invoke(
+            command,
+            ["--project-name", explicit_project] if explicit_project else [],
+            env={"PROJECT_NAME": None},
+        )
+    assert params.project_name == (
+        explicit_project or ("breeze-my-worktree" if linked_worktree else "breeze")
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == params.project_name
+    assert sqlite_file == (
+        "backend-sqlite-no-volume.yml" if explicit_project == "foobar" else "backend-sqlite.yml"
+    )
 
 
 @pytest.mark.parametrize("linked_worktree", [False, True])

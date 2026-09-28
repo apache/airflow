@@ -120,6 +120,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     FILES_PATH,
     cleanup_python_generated_files,
+    get_default_project_name,
 )
 from airflow_breeze.utils.run_tests import (
     TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
@@ -1907,7 +1908,7 @@ def _run_test_command(
     use_xdist: bool,
     mysql_version: str = "",
     postgres_version: str = "",
-    project_name: str = "breeze",
+    project_name: str | None = None,
 ):
     _verify_parallelism_parameters(
         excluded_parallel_test_types, run_db_tests_only, run_in_parallel, use_xdist
@@ -1942,7 +1943,7 @@ def _run_test_command(
         parallel_test_types_list=test_list,
         parallelism=parallelism,
         postgres_version=postgres_version,
-        project_name=project_name,
+        project_name=project_name or get_default_project_name(),
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
         python=python,

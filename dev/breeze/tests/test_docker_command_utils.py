@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from contextlib import ExitStack
 from pathlib import Path
 from unittest import mock
 from unittest.mock import call
@@ -34,16 +35,13 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils import docker_command_utils
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
-    bring_all_compose_projects_down,
     check_docker_compose_version,
     check_docker_is_running,
     check_docker_permission_denied,
     check_docker_version,
-    discover_running_compose_projects,
     enter_shell,
     fix_ownership_using_docker,
     get_images_to_pull,
-    is_known_breeze_compose_project,
     prepare_docker_build_command,
     pull_images_with_retries,
 )
@@ -412,98 +410,251 @@ SOCKET_INFO_DESKTOP_LINUX = json.dumps(
 )
 
 
+@pytest.fixture
+def docker_resources():
+    resources = {"container": [], "network": [], "volume": []}
+
+    def docker(cmd, **kwargs):
+        kind, action = cmd[1:3]
+        if action == "ls":
+            assert "label=com.docker.compose.project" in cmd
+            if kind == "container":
+                assert "--all" in cmd
+            output = "\n".join(item.get("Id", item.get("Name")) for item in resources[kind])
+        elif action == "inspect":
+            output = json.dumps(resources[kind])
+        else:
+            assert action in ("stop", "rm")
+            output = ""
+        return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
+
+    with mock.patch(
+        "airflow_breeze.utils.docker_command_utils.run_command", autospec=True, side_effect=docker
+    ) as run:
+        yield resources, run
+
+
 @pytest.mark.parametrize(
-    ("name", "expected"),
+    ("kwargs", "expected"),
     [
-        ("breeze", True),
-        ("breeze-prek", True),
-        ("docker-compose", False),
-        ("docs", False),
-        ("db", False),
-        ("providers", False),
-        ("breeze-registry-abcd1234", True),
-        ("breeze-backfill-deadbeef", True),
-        ("breeze-run-12345678", True),
-        ("airflow-test", False),
-        ("airflow-test-providers-google", False),
-        ("constraints-3-12", False),
-        ("providers-7", False),
-        ("my-other-project", False),
-        ("airflow", False),
-        ("doc", False),
-        ("", False),
+        ({}, {"breeze", "stale"}),
+        ({"all_projects": True}, {"breeze", "stale", "foobar", "relative"}),
+        ({"only_project": "foobar"}, {"foobar"}),
+        ({"only_project": "breeze-thirdparty"}, {"breeze-thirdparty"}),
+        ({"only_project": "absent"}, set()),
+        ({"stale_only": True}, {"stale"}),
+        ({"default_project": "foobar"}, {"foobar", "stale"}),
     ],
 )
-def test_is_known_breeze_compose_project(name, expected):
-    assert is_known_breeze_compose_project(name) is expected
+@pytest.mark.parametrize("preserve_volumes", [False, True])
+def test_down_selects_default_stale_or_explicit_projects(
+    docker_resources, tmp_path, kwargs, expected, preserve_volumes
+):
+    resources, run = docker_resources
+    projects = {
+        "breeze": {},
+        "foobar": {"org.apache.airflow.breeze": "true", "org.apache.airflow.breeze.worktree": str(tmp_path)},
+        "stale": {
+            "org.apache.airflow.breeze": "true",
+            "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
+        },
+        "relative": {
+            "org.apache.airflow.breeze": "true",
+            "org.apache.airflow.breeze.worktree": "relative/path",
+        },
+        "breeze-thirdparty": {"org.apache.airflow.breeze.worktree": str(tmp_path / "deleted")},
+    }
+    for project, extra_labels in projects.items():
+        labels = {"com.docker.compose.project": project, **extra_labels}
+        resources["container"].append({"Id": f"{project}-container", "Config": {"Labels": labels}})
+        resources["network"].append({"Id": f"{project}-network", "Labels": labels})
+        resources["volume"].append({"Name": f"{project}-volume", "Labels": labels})
+
+    assert docker_command_utils.bring_compose_projects_down(
+        preserve_volumes=preserve_volumes, **kwargs
+    ) == sorted(expected)
+
+    commands = [c.args[0] for c in run.call_args_list]
+    for kind in ("container", "network", "volume"):
+        removed = {
+            arg for cmd in commands if cmd[1:3] == [kind, "rm"] for arg in cmd[3:] if not arg.startswith("--")
+        }
+        assert removed == (
+            set() if kind == "volume" and preserve_volumes else {f"{project}-{kind}" for project in expected}
+        )
+    if expected:
+        stops = [cmd for cmd in commands if cmd[1:3] == ["container", "stop"]]
+        assert {arg for cmd in stops for arg in cmd[3:]} == {f"{project}-container" for project in expected}
+        first_removal = next(i for i, cmd in enumerate(commands) if cmd[2] == "rm")
+        assert all(cmd[2] in ("ls", "inspect", "stop") for cmd in commands[:first_removal])
+        removal = next(cmd for cmd in commands if cmd[1:3] == ["container", "rm"])
+        assert ("--volumes" in removal) is not preserve_volumes
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-def test_discover_running_compose_projects_parses_label_output(mock_run_command):
-    mock_run_command.return_value = mock.Mock(
-        returncode=0,
-        stdout="breeze\nbreeze\nairflow-test-providers-amazon\n   \n",
+@pytest.mark.parametrize("cleanup_stale_worktrees", [False, True])
+@pytest.mark.parametrize("docker_available", [False, True])
+def test_environment_checks_reap_stale_resources(
+    docker_resources, tmp_path, cleanup_stale_worktrees, docker_available
+):
+    resources, run = docker_resources
+    resources["volume"] = [
+        {
+            "Name": "stale-db",
+            "Labels": {
+                "com.docker.compose.project": "stale",
+                "org.apache.airflow.breeze": "true",
+                "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
+            },
+        },
+        {"Name": "live-db", "Labels": {"com.docker.compose.project": "breeze"}},
+    ]
+    with ExitStack() as stack:
+        for name in (
+            "check_docker_is_running",
+            "check_container_engine_is_docker",
+            "check_docker_version",
+            "check_docker_compose_version",
+            "check_windows_filesystem_mount",
+            "check_executable_entrypoint_permissions",
+            "check_uv_version",
+        ):
+            check = stack.enter_context(
+                mock.patch.object(docker_command_utils, name, autospec=True, return_value=True)
+            )
+            if name == "check_docker_is_running" and not docker_available:
+                check.side_effect = SystemExit(1)
+        if docker_available:
+            docker_command_utils.perform_environment_checks.__wrapped__(
+                cleanup_stale_worktrees=cleanup_stale_worktrees
+            )
+        else:
+            with pytest.raises(SystemExit):
+                docker_command_utils.perform_environment_checks.__wrapped__(
+                    cleanup_stale_worktrees=cleanup_stale_worktrees
+                )
+    if docker_available and cleanup_stale_worktrees:
+        assert call(["docker", "volume", "rm", "stale-db"], check=True) in run.call_args_list
+    else:
+        run.assert_not_called()
+
+
+@pytest.mark.parametrize("all_projects", [False, True])
+@pytest.mark.parametrize("preserve_volumes", [False, True])
+def test_down_finds_volumes_without_containers(docker_resources, tmp_path, preserve_volumes, all_projects):
+    resources, run = docker_resources
+    resources["volume"] = [
+        {
+            "Name": "foobar-postgres14-db-volume",
+            "Labels": {
+                "com.docker.compose.project": "foobar",
+                "org.apache.airflow.breeze": "true",
+                "org.apache.airflow.breeze.worktree": str(tmp_path if all_projects else tmp_path / "deleted"),
+            },
+        }
+    ]
+
+    projects = docker_command_utils.bring_compose_projects_down(
+        preserve_volumes=preserve_volumes, all_projects=all_projects
     )
-    assert discover_running_compose_projects() == {"breeze", "airflow-test-providers-amazon"}
-    cmd = mock_run_command.call_args.args[0]
-    assert cmd[:2] == ["docker", "ps"]
-    assert "label=com.docker.compose.project" in cmd
+
+    removals = [c.args[0] for c in run.call_args_list if c.args[0][2] == "rm"]
+    assert projects == ([] if preserve_volumes else ["foobar"])
+    assert removals == (
+        [] if preserve_volumes else [["docker", "volume", "rm", "foobar-postgres14-db-volume"]]
+    )
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-def test_discover_running_compose_projects_returns_empty_on_failure(mock_run_command):
-    mock_run_command.return_value = mock.Mock(returncode=1, stdout="")
-    assert discover_running_compose_projects() == set()
+def test_down_empty_discovery_is_not_an_error(docker_resources, capsys):
+    assert docker_command_utils.bring_compose_projects_down(all_projects=True) == []
+    assert "error" not in capsys.readouterr().out.lower()
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
-def test_bring_all_compose_projects_down_filters_unknown_by_default(
-    mock_discover, mock_run_command, _mock_console
-):
-    mock_discover.return_value = {"breeze", "providers-3", "my-app"}
-    brought_down, skipped = bring_all_compose_projects_down()
-    assert brought_down == ["breeze"]
-    assert skipped == ["my-app", "providers-3"]
-    down_calls = [c for c in mock_run_command.call_args_list if c.args[0][:2] == ["docker", "compose"]]
-    assert len(down_calls) == 1
-    for c in down_calls:
-        assert "--volumes" in c.args[0]
-        assert "--remove-orphans" in c.args[0]
+@pytest.mark.parametrize("failed_kind", ["container", "volume"])
+def test_down_does_not_remove_resources_when_discovery_fails(docker_resources, failed_kind):
+    resources, run = docker_resources
+    resources["container"] = [
+        {"Id": "container", "Config": {"Labels": {"com.docker.compose.project": "breeze"}}}
+    ]
+    docker = run.side_effect
+
+    def fail(cmd, **kwargs):
+        if cmd[1:3] == [failed_kind, "ls"]:
+            if kwargs.get("check"):
+                raise subprocess.CalledProcessError(1, cmd)
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="unavailable")
+        return docker(cmd, **kwargs)
+
+    run.side_effect = fail
+
+    with pytest.raises(subprocess.CalledProcessError):
+        docker_command_utils.bring_compose_projects_down()
+
+    assert all(c.args[0][2] in ("ls", "inspect") for c in run.call_args_list)
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
-def test_bring_all_compose_projects_down_include_unknown(mock_discover, mock_run_command, _mock_console):
-    mock_discover.return_value = {"breeze", "my-app"}
-    brought_down, skipped = bring_all_compose_projects_down(include_unknown=True)
-    assert brought_down == ["breeze", "my-app"]
-    assert skipped == []
+def test_down_stops_after_container_removal_failure(docker_resources):
+    resources, run = docker_resources
+    labels = {"com.docker.compose.project": "breeze"}
+    resources["container"] = [{"Id": "container", "Config": {"Labels": labels}}]
+    resources["volume"] = [{"Name": "database", "Labels": labels}]
+    docker = run.side_effect
+
+    def fail(cmd, **kwargs):
+        if cmd[1:3] == ["container", "rm"]:
+            if kwargs.get("check"):
+                raise subprocess.CalledProcessError(1, cmd)
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="in use")
+        return docker(cmd, **kwargs)
+
+    run.side_effect = fail
+    with pytest.raises(subprocess.CalledProcessError):
+        docker_command_utils.bring_compose_projects_down()
+
+    assert not any(c.args[0][1:3] == ["volume", "rm"] for c in run.call_args_list)
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
-def test_bring_all_compose_projects_down_only_project_skips_discovery(
-    mock_discover, mock_run_command, _mock_console
-):
-    brought_down, skipped = bring_all_compose_projects_down(only_project="my-app")
-    assert brought_down == ["my-app"]
-    assert skipped == []
-    mock_discover.assert_not_called()
+def test_down_removes_volumes_even_when_a_shared_network_is_still_in_use(docker_resources):
+    resources, run = docker_resources
+    labels = {"com.docker.compose.project": "breeze"}
+    resources["network"] = [{"Id": "shared-network", "Labels": labels}]
+    resources["volume"] = [{"Name": "database", "Labels": labels}]
+    docker = run.side_effect
+
+    def fail(cmd, **kwargs):
+        if cmd[1:3] == ["network", "rm"]:
+            if kwargs.get("check"):
+                raise subprocess.CalledProcessError(1, cmd)
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="active endpoints")
+        return docker(cmd, **kwargs)
+
+    run.side_effect = fail
+    with pytest.raises(subprocess.CalledProcessError) as error:
+        docker_command_utils.bring_compose_projects_down()
+
+    assert error.value.cmd == ["docker", "network", "rm", "shared-network"]
+    assert any(c.args[0] == ["docker", "volume", "rm", "database"] for c in run.call_args_list)
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
-def test_bring_all_compose_projects_down_preserve_volumes(mock_discover, mock_run_command, _mock_console):
-    mock_discover.return_value = {"breeze"}
-    bring_all_compose_projects_down(preserve_volumes=True)
-    down_call = next(c for c in mock_run_command.call_args_list if c.args[0][:2] == ["docker", "compose"])
-    assert "--volumes" not in down_call.args[0]
-    assert "--remove-orphans" in down_call.args[0]
+def test_down_dry_run_reads_metadata_without_removing_resources():
+    def docker(cmd, **kwargs):
+        assert cmd[2] in ("ls", "inspect")
+        if cmd[1:3] == ["volume", "ls"]:
+            output = "database\n"
+        elif cmd[2] == "inspect":
+            output = json.dumps([{"Name": "database", "Labels": {"com.docker.compose.project": "breeze"}}])
+        else:
+            output = ""
+        return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
+
+    with (
+        mock.patch("airflow_breeze.utils.run_utils.subprocess.run", autospec=True, side_effect=docker),
+        mock.patch(
+            "airflow_breeze.utils.run_utils.get_dry_run",
+            autospec=True,
+            side_effect=lambda override: True if override is None else override,
+        ),
+    ):
+        assert docker_command_utils.bring_compose_projects_down() == ["breeze"]
 
 
 def _shell_params_for_openlineage(

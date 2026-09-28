@@ -22,13 +22,43 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from airflow_breeze.commands.developer_commands import build_docs, run
+from airflow_breeze.commands.developer_commands import build_docs, down, run
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
 
 @pytest.fixture
 def runner():
     return CliRunner()
+
+
+def test_down_rejects_conflicting_project_selectors(runner):
+    result = runner.invoke(down, ["--all-projects", "--project-name", "foobar"])
+
+    assert result.exit_code == 2
+    assert "--all-projects and --project-name cannot be used together" in result.output
+
+
+def test_down_preserves_volumes_without_startup_cleanup(runner):
+    with (
+        patch(
+            "airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True
+        ) as checks,
+        patch(
+            "airflow_breeze.commands.developer_commands.bring_compose_projects_down",
+            autospec=True,
+            return_value=[],
+        ) as teardown,
+        patch(
+            "airflow_breeze.commands.developer_commands.get_default_project_name",
+            autospec=True,
+            return_value="breeze-test",
+        ),
+    ):
+        result = runner.invoke(down, ["--preserve-volumes"])
+    assert result.exit_code == 0
+    checks.assert_called_once_with(cleanup_stale_worktrees=False)
+    assert teardown.call_args.kwargs["preserve_volumes"] is True
+    assert teardown.call_args.kwargs["default_project"] == "breeze-test"
 
 
 class TestBuildDocsPythonVersion:

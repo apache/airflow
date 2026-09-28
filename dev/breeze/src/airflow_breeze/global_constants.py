@@ -185,19 +185,6 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = [
     "docker-compose",
 ]
 
-# Every docker compose project name that any breeze command, prek hook, or
-# CI workflow uses. `breeze down` discovers running compose projects via the
-# `com.docker.compose.project` label and only touches the ones that match
-# either an exact entry in `KNOWN_DOCKER_COMPOSE_PROJECT_NAMES` or one of the
-# prefixes in `KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES`. When you add a new
-# project_name pattern anywhere (new breeze command, new prek hook, new CI
-# step), update this list so `breeze down` stays a one-shot cleanup.
-KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
-    "breeze",  # default `breeze shell` / `breeze start-airflow`
-]
-KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
-    "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
-]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
