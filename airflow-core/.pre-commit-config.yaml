@@ -26,12 +26,16 @@ repos:
     hooks:
       - id: check-first-limit
         name: Check single-row lookups have an explicit limit
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_first_limit.py
         language: python
         files: ^src/airflow/.*\.py$
         pass_filenames: true
       - id: check-taskinstance-tis-attrs
         name: Check that TI and TIS have the same attributes
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_ti_vs_tis_attributes.py
         language: python
         files:
@@ -42,6 +46,8 @@ repos:
         require_serial: true
       - id: check-airflow-k8s-not-used
         name: Check airflow.kubernetes imports are not used
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         files: ^src/airflow/.*\.py$
         require_serial: true
@@ -51,6 +57,8 @@ repos:
           --message "You should only import kubernetes code from `airflow.providers.cncf.kubernetes`."
       - id: check-common-compat-used-for-openlineage
         name: Check common.compat is used for OL deprecated classes
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         files: ^src/airflow/.*\.py$
         require_serial: true
@@ -60,6 +68,8 @@ repos:
           --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
       - id: check-cncf-k8s-only-for-executors
         name: Check cncf.kubernetes imports used for executors only
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         files: ^src/airflow/.*\.py$
         require_serial: true
@@ -76,12 +86,16 @@ repos:
           "Only few k8s executors exceptions are allowed to use `airflow.providers.cncf.kubernetes`."
       - id: check-extra-packages-references
         name: Checks setup extra packages
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Checks if extras defined in hatch_build.py are listed in extra-packages-ref.rst file
         language: python
         files: ^docs/extra-packages-ref\.rst$|^hatch_build\.py$
         pass_filenames: false
         entry: ../scripts/ci/prek/check_extra_packages_ref.py
       - id: check-no-providers-in-core-examples
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: pygrep
         name: No providers imports in core example DAGs
         description: The core example DAGs have no dependencies other than standard provider or core Airflow
@@ -90,6 +104,8 @@ repos:
         files: ^src/airflow/example_dags/.*\.py$
       - id: check-only-new-session-with-provide-session
         name: Check NEW_SESSION is only used with @provide_session
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/new_session_in_provide_session.py
         pass_filenames: true
@@ -97,18 +113,24 @@ repos:
         exclude: ^src/airflow/serialization/pydantic/.*
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/check_base_operator_partial_arguments.py
         pass_filenames: false
         files: ^src/airflow/models/(?:base|mapped)operator\.py$
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/decorator_operator_implements_custom_name.py
         pass_filenames: true
         files: ^src/airflow/.*\.py$
       - id: compile-ui-assets
         name: Compile ui assets (manual)
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: node
         stages: ['manual']
         types_or: [javascript, ts, tsx]
@@ -121,6 +143,8 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
       - id: compile-ui-assets-dev
         name: Compile ui assets in dev mode (manual)
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: node
         stages: ['manual']
         types_or: [javascript, ts, tsx]
@@ -133,6 +157,8 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
       - id: check-tests-in-the-right-folders
         name: Check if tests are in the right folders
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_tests_in_right_folders.py
         language: python
         files: ^tests/.*\.py$
@@ -140,6 +166,8 @@ repos:
         require_serial: true
       - id: lint-json-schema
         name: Lint config_templates/config.yml
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/lint_json_schema.py
         args:
           - --spec-file
@@ -150,12 +178,16 @@ repos:
         require_serial: true
       - id: check-code-deprecations
         name: Check deprecations categories in decorators
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_deprecations.py
         language: python
         pass_filenames: true
         files: ^src/airflow/.*\.py$
       - id: check-http-exception-import-from-fastapi
         name: Check HTTPException is imported from fastapi
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_http_exception_import_from_fastapi.py
         language: python
         pass_filenames: true
@@ -173,18 +205,24 @@ repos:
         files: ^src/airflow/api_fastapi/.*/routes/.*\.py$
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_init_in_tests.py
         language: python
         pass_filenames: false
         files: ^tests/.*\.py$
       - id: check-tests-unittest-testcase
         name: Unit tests do not inherit from unittest.TestCase
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Check that unit tests do not inherit from unittest.TestCase
         entry: ../scripts/ci/prek/unittest_testcase.py
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
       - id: check-no-fab-migrations
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: pygrep
         name: Check no migration is done on FAB related table
         description: >
@@ -212,6 +250,8 @@ repos:
           ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key\.py$
       - id: ts-compile-lint-ui
         name: Compile / format / lint UI
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: TS types generation / ESLint / Prettier new UI files
         language: node
         files: |
@@ -228,6 +268,8 @@ repos:
         require_serial: true
       - id: ts-compile-lint-simple-auth-manager-ui
         name: Compile / format / lint simple auth manager UI
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: TS types generation / ESLint / Prettier new UI files
         language: node
         files: |
@@ -245,6 +287,8 @@ repos:
         require_serial: true
       - id: mypy-airflow-core
         name: Run mypy for airflow-core
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py airflow-core
         pass_filenames: false
@@ -254,6 +298,8 @@ repos:
       # The below prek hooks are those requiring CI image to be built
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/generate_openapi_spec.py
         pass_filenames: false
@@ -264,6 +310,8 @@ repos:
         exclude: ^src/airflow/api_fastapi/execution_api/.*
       - id: check-i18n-json
         name: Check i18n files validity
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Check i18n files are valid json, have no TODOs, and auto-format them
         language: python
         files: ^src/airflow/ui/public/i18n/locales/.*\.json$
@@ -271,6 +319,8 @@ repos:
         pass_filenames: false
       - id: update-migration-references
         name: Update migration ref doc
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/migration_reference.py
         args: ["--app", "airflow"]
@@ -281,6 +331,8 @@ repos:
           ^docs/migrations-ref\.rst$
       - id: migration-round-trip
         name: Migration round-trip SQLite FK enforcement
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/migration_round_trip.py
         pass_filenames: false
@@ -289,6 +341,8 @@ repos:
         files: ^src/airflow/migrations/versions/.*\.py$
       - id: check-default-configuration
         name: Check the default configuration
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_default_configuration.py
         language: python
         require_serial: true
@@ -296,6 +350,8 @@ repos:
         files: ^src/airflow/config_templates/config\.yml$
       - id: check-security-doc-constants
         name: Check security docs match config.yml constants
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_security_doc_constants.py
         language: python
         pass_filenames: false
@@ -305,6 +361,8 @@ repos:
           ^docs/security/jwt_token_authentication\.rst$|
           ^docs/security/security_model\.rst$
       - id: check-airflow-version-checks-in-core
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: pygrep
         name: No AIRFLOW_V_* imports in airflow-core
         entry: "import AIRFLOW_V_"
@@ -322,6 +380,8 @@ repos:
           ^tests/unit/models/test_variable\.py$
       - id: check-sdk-imports-in-core
         name: Check for SDK imports in core files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_sdk_imports_in_core.py
         language: python
         types: [python]
@@ -329,6 +389,8 @@ repos:
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-schema-defaults
         name: Check schema defaults match server-side defaults
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_schema_defaults.py
         language: python
         files:

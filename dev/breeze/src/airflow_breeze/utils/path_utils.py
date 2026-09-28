@@ -20,6 +20,7 @@ Useful tools for various Paths used inside Airflow Sources.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import os
 import platform
@@ -619,6 +620,11 @@ def cleanup_python_generated_files():
                 pass
             except PermissionError:
                 permission_errors.append(Path(dirpath))
+            except OSError as e:
+                # A concurrent breeze process (e.g. parallel prek hooks) can write a fresh .pyc
+                # between rmtree emptying the directory and removing it.
+                if e.errno != errno.ENOTEMPTY:
+                    raise
             dirnames.clear()
     if permission_errors:
         if platform.uname().system.lower() == "linux":
