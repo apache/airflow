@@ -27,6 +27,11 @@ if TYPE_CHECKING:
 
 MANIFEST_NAME: Final = "META-INF/MANIFEST.MF"
 
+# Attribute keys as parse_main_attributes returns them, lower-cased.
+MAIN_CLASS: Final = "main-class"
+SUPERVISOR_SCHEMA_VERSION: Final = "airflow-supervisor-schema-version"
+DAG_CODE: Final = "airflow-java-sdk-dag-code"
+
 _LINE_END = re.compile(rb"\r\n|\r|\n")
 
 
