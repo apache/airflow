@@ -204,16 +204,27 @@ class JavaCoordinator(SubprocessCoordinator):
     jvm_args: list[str] = attrs.field(factory=list)
     main_class: str = ""
 
+    def _build_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
+        return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
+
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         # Without main_class, the first executable JAR in walk order wins; tracked at
         # https://github.com/apache/airflow/issues/71134
         roots = self._get_scan_roots()
         jar = _JarInfo.find(roots, self.main_class)
-        command = [
-            self.java_executable,
-            "-classpath",
-            _calculate_classpath(roots),
-            *self.jvm_args,
-            jar.main_class,
-        ]
-        return command, jar.schema_version
+        return self._build_command(roots, jar.main_class), jar.schema_version
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        # The classpath and main class match execution's, so a parse runs the code a task runs.
+        meta = _JarMetadata.from_jar(path)
+        if meta is None:
+            raise ValueError(f"Cannot read the manifest of {path}")
+        if not meta.main_class:
+            raise ValueError(f"{path} is not an executable JAR: its manifest sets no Main-Class")
+        if self.main_class and meta.main_class != self.main_class:
+            raise ValueError(
+                f"{path} runs {meta.main_class!r}, but this coordinator's main_class is {self.main_class!r}"
+            )
+        roots = self._get_scan_roots()
+        jar = _JarInfo.find(roots, meta.main_class)
+        return self._build_command(roots, jar.main_class), jar.schema_version

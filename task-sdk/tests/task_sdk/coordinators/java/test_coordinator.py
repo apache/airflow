@@ -430,3 +430,86 @@ class TestJavaCoordinatorExecuteTask:
 
         assert isinstance(result, BaseCoordinator.ExecutionResult)
         assert result.exit_code == 0
+
+
+class TestBuildParseDagCommand:
+    def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, jar: pathlib.Path):
+        with coordinator._set_scan_roots([root]):
+            return coordinator._build_parse_dag_command(path=jar)
+
+    def test_fat_jar(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
+        coordinator = JavaCoordinator(java_executable="/opt/java/bin/java", jvm_args=["-Xmx256m"])
+
+        command, schema_version = self._build(coordinator, tmp_path, jar)
+
+        assert command == ["/opt/java/bin/java", "-classpath", jar.as_posix(), "-Xmx256m", "com.example.Dags"]
+        assert schema_version == "2026-06-16"
+
+    def test_thin_jar_takes_the_schema_version_from_a_sibling(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags")
+        (tmp_path / "libs").mkdir()
+        sdk = _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-06-16")
+
+        command, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
+
+        assert command[2].split(os.pathsep) == [jar.as_posix(), sdk.as_posix()]
+        assert command[-1] == "com.example.Dags"
+        assert schema_version == "2026-06-16"
+
+    def test_matches_the_execute_command(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
+        _make_jar(tmp_path / "dep.jar", main_class=None)
+        coordinator = JavaCoordinator(jvm_args=["-Xmx256m"])
+
+        parse = self._build(coordinator, tmp_path, jar)
+        with coordinator._set_scan_roots([tmp_path]):
+            execute = coordinator._build_execute_task_command(what=_make_ti())
+
+        assert parse == execute
+
+    @pytest.mark.parametrize(
+        ("attributes", "match"),
+        [
+            pytest.param(None, "Cannot read the manifest", id="no-manifest"),
+            pytest.param({"Manifest-Version": "1.0"}, "sets no Main-Class", id="no-main-class"),
+            pytest.param({"Main-Class": "com.example.Other"}, "main_class is 'com.example.Dags'", id="pin"),
+        ],
+    )
+    def test_rejects_a_jar_it_cannot_run(self, tmp_path, attributes, match):
+        jar = make_jar(tmp_path / "app.jar", attributes=attributes, entries={"a.class": b""})
+
+        with pytest.raises(ValueError, match=match):
+            self._build(JavaCoordinator(main_class="com.example.Dags"), tmp_path, jar)
+
+    def test_rejects_a_non_zip(self, tmp_path):
+        jar = tmp_path / "broken.jar"
+        jar.write_bytes(b"not a zip")
+
+        with pytest.raises(ValueError, match="Cannot read the manifest"):
+            self._build(JavaCoordinator(), tmp_path, jar)
+
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
+    def test_parse_dag_execs_the_jvm(self, mock_execvpe, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
+        reported: list[str | None] = []
+
+        with pytest.raises(OSError, match="exec"):
+            JavaCoordinator().parse_dag(
+                path=jar,
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert reported == ["2026-06-16"]
+        argv = mock_execvpe.call_args.args[1]
+        assert argv == [
+            "java",
+            "-classpath",
+            jar.as_posix(),
+            "com.example.Dags",
+            "--comm=127.0.0.1:1001",
+            "--logs=127.0.0.1:1002",
+        ]
