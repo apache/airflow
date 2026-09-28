@@ -246,8 +246,10 @@ task instance.
   The ``[sdk]`` config, the packed ``*.min.mjs`` bundles and Node.js must be present wherever tasks execute
   and on the Dag processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with
   ``LocalExecutor``, they run inside the scheduler process. The Dag processor checks the stub tasks of each
-  Python Dag against the task handlers the packed bundles register, so it runs them too. The API server
-  does not need any of it. Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
+  Python Dag against the task handlers the packed bundles register, so it runs them too.
+  It also runs them to parse Dags declared in TypeScript, see :ref:`typescript-sdk/native-parsing`.
+  The API server does not need any of it.
+  Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
   component, like your other Dag bundles: the worker and the Dag processor resolve
   ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read it is rejected if the
   name is missing there.
@@ -258,8 +260,8 @@ Declaring a Dag in TypeScript
 -----------------------------
 
 A ``Dag`` is declared on this side rather than in Python: its schedule, its tasks, their options and
-the edges between them are all written in TypeScript. The surface is still growing, so a Dag declared
-this way is not served to Airflow yet.
+the edges between them are all written in TypeScript. Airflow parses such a Dag from its packed bundle,
+see :ref:`typescript-sdk/native-parsing`.
 
 ``dag.task(taskId, handler)`` returns a *factory*. A handler takes one object of named arguments, and
 calling the factory names each input, so the call graph is the task graph:
@@ -527,6 +529,54 @@ first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task i
 name does not matter beyond that suffix, so one Dag bundle can hold several bundles and a Dag is routed to
 whichever declares it. If multiple bundles declare the same Dag, the first in sorted path order wins.
 
+.. _typescript-sdk/native-parsing:
+
+Parsing native Dags
+-------------------
+
+A Dag declared in TypeScript ships in its packed bundle, so the bundle goes into a Dag bundle,
+next to any Python Dag files.
+To have Airflow parse it, configure a :class:`~airflow.sdk.coordinators.node.NodeCoordinator`.
+The Dag processor runs ``node`` on the bundle to list its Dags, so it needs Node.js, as the workers do:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "ts": {
+        "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+        "kwargs": {"node_executable": "/usr/local/bin/node"}
+      }
+    }
+    queue_to_coordinator = {"typescript": "ts"}
+
+Once a ``NodeCoordinator`` is configured, the Dag processor parses the packed bundles of every Dag bundle,
+so it needs this ``[sdk]`` configuration and Node.js. With one ``NodeCoordinator``, it parses them all.
+With several,
+map each Dag bundle that holds native TypeScript Dags to one of them in ``[sdk] dag_bundle_to_coordinator``.
+Each packed bundle of a Dag bundle that has no entry, or whose entry names no ``NodeCoordinator``,
+fails to parse with an import error:
+
+.. code-block:: ini
+
+    [sdk]
+    dag_bundle_to_coordinator = {"dags-folder": "ts"}
+
+A Dag bundle that holds only the bundles that Python stub Dags' tasks run should list ``*`` in its ``.airflowignore``.
+Otherwise, with several Node coordinators, its bundles fail to parse.
+
+The Dag processor parses only files that end in ``.min.mjs`` and start with the header ``airflow-ts-pack`` writes.
+A bundle that fails its integrity check, or whose Dags cannot be serialized or fail validation,
+such as a cycle drawn with ``before`` and ``after``, is reported as an import error.
+
+The Code view shows the bundle's entry module for each of its Dags, as ``airflow-ts-pack`` embeds it
+(see :ref:`typescript-sdk/build`). If the source cannot be read from the bundle, the view shows a short
+notice instead.
+
+A bundle that only registers ``TaskHandler`` objects is parsed too,
+since its metadata does not say whether it declares Dags. Each parse then launches ``node`` once and finds no Dags.
+To avoid that cost, list such bundles in ``.airflowignore``; the coordinator still finds them to run tasks.
+
 .. _typescript-sdk/coordinator-config:
 
 :class:`~airflow.sdk.coordinators.node.NodeCoordinator` configuration
@@ -568,12 +618,19 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   * If ``task_handler_bundle_name`` is unset, the bundle is read from the **task's own** Dag bundle, pinned
     to the version the run was created with.
 
+  The coordinator also parses native TypeScript Dags, see :ref:`typescript-sdk/native-parsing`.
+
 Limitations
 -----------
 
 * **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
   languages, so task names and dependencies are declared in Python with
   :func:`@task.stub <airflow.sdk.task.stub>`.
+* **Cluster policies do not apply to a native Dag.** ``dag_policy`` and ``task_policy`` are not run on
+  it, so they cannot change or reject it.
+* **Some CLI commands do not take a native Dag.** ``airflow dags test``, ``tasks test``, ``tasks render``
+  and ``tasks list`` refuse it, and ``airflow dags reserialize`` does not store the Dags of
+  ``*.min.mjs`` bundles, which only the Dag processor stores.
 * **Beta status.** The SDK API may change in incompatible ways between releases.
 * **One Node.js subprocess per task instance.** Tasks that need to share in-process state between instances
   should use XCom or an external store instead.
