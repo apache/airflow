@@ -117,6 +117,14 @@ def test_the_dag_the_bundle_parsed_is_registered(parsed_dag: AirflowClient):
     assert {tag["name"] for tag in dag.get("tags") or []} >= {"typescript", "native"}
 
 
+def test_the_dag_source_is_the_bundle_entry_module(parsed_dag: AirflowClient):
+    """The Code view shows the TypeScript entry module the bundle embeds, not the bundle itself."""
+    content = parsed_dag.get_dag_source(_DAG_ID)["content"]
+
+    assert "new Bundle()" in content
+    assert "airflow-ts-pack" not in content
+
+
 def test_the_graph_carries_every_construct(parsed_dag: AirflowClient):
     """Group prefixes, the fan-in, the branches and the trigger all survive parsing."""
     tasks = parsed_dag.get_tasks(_DAG_ID).get("tasks", [])
@@ -178,6 +186,23 @@ def test_every_other_task_succeeded(completed_run: _CompletedRun):
         assert completed_run.ti_states.get(task_id) == "success", (
             f"{task_id!r} did not succeed. all task states: {completed_run.ti_states}"
         )
+
+
+def test_the_trigger_started_the_downstream_run(completed_run: _CompletedRun):
+    """The TypeScript runtime ran ``trigger_downstream``, and it triggered the Dag."""
+    run_id = completed_run.xcom("trigger_downstream", key="trigger_run_id")
+    client = completed_run.client
+
+    state = client.wait_for_dag_run(dag_id=_DOWNSTREAM_DAG_ID, run_id=run_id, timeout=_TS_TASK_TIMEOUT)
+    run = client.get_dag_run(_DOWNSTREAM_DAG_ID, run_id)
+
+    assert state == "success", f"expected the downstream run to succeed; got {run!r}"
+    assert run["run_type"] == "operator_triggered"
+    # Sent as the TypeScript Dag wrote it: there is no Jinja rendering.
+    assert run["conf"] == {"triggered_by": _DAG_ID}
+
+    links = client.get_task_instance_links(_DAG_ID, completed_run.run_id, "trigger_downstream")
+    assert links["extra_links"]["Triggered DAG"].endswith(f"/dags/{_DOWNSTREAM_DAG_ID}/runs/{run_id}")
 
 
 def test_xcoms_flow_between_typescript_tasks(completed_run: _CompletedRun):
