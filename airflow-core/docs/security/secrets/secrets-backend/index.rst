@@ -46,7 +46,7 @@ documentation of the secret backend you are using to see if such option is avail
 On the other hand, if a workers secrets backend is defined, the order of lookup has higher priority for the workers secrets
 backend and then the secrets backend.
 
-The secrets backends search ordering is also configurable via the configuration option ``[secrets]backends_order``.
+The secrets backends search ordering is also configurable via the configuration option ``[secrets] backends_order``.
 
 .. warning::
 
@@ -66,7 +66,7 @@ The ``[secrets]`` section has the following options:
     [secrets]
     backend =
     backend_kwargs =
-    backends_order =
+    backends_order = custom,environment_variable,metastore
 
 Set ``backend`` to the fully qualified class name of the backend you want to enable.
 
@@ -75,9 +75,10 @@ your secrets backend.
 
 ``backends_order`` is a comma-separated list of secret backends. These backends will be used in the order they are specified.
 Please note that the ``environment_variable`` and ``metastore`` are required values and cannot be removed
-from the list. Supported values are:
+from the list, and an empty value is rejected. Supported values are:
 
-* ``custom``: Custom secret backend specified in the ``secrets[backend]`` configuration option.
+* ``custom``: Custom secret backend specified in the ``[secrets] backend`` configuration option.
+  Required when ``[secrets] backend`` is set.
 * ``environment_variable``: Standard environment variable backend ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
 * ``metastore``: Standard metastore backend ``airflow.secrets.metastore.MetastoreBackend``.
 
@@ -123,7 +124,7 @@ configure separate secrets backend for workers, you can do that using:
     [workers]
     secrets_backend =
     secrets_backend_kwargs =
-    backends_order =
+    backends_order = custom,environment_variable,execution_api
 
 Set ``secrets_backend`` to the fully qualified class name of the backend you want to enable.
 
@@ -132,9 +133,10 @@ your secrets backend for the workers.
 
 ``backends_order`` is a comma-separated list of secret backends for workers. These backends will be used in the order they are specified.
 Please note that the ``environment_variable`` and ``execution_api`` are required values and cannot be removed
-from the list. Supported values are:
+from the list, and an empty value is rejected. Supported values are:
 
-* ``custom``: Custom secret backend specified in the ``workers[secrets_backend]`` configuration option.
+* ``custom``: Custom secret backend specified in the ``[workers] secrets_backend`` configuration option.
+  Required when ``[workers] secrets_backend`` is set.
 * ``environment_variable``: Standard environment variable backend ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
 * ``execution_api``: Standard execution_api backend ``airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend``.
 

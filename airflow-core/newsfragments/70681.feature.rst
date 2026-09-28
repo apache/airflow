@@ -1,0 +1,1 @@
+Add configurable secrets backend lookup order via ``[secrets] backends_order`` (core components) and ``[workers] backends_order`` (Task SDK workers). The configured order is shown on the Variables page; defaults preserve the existing order.

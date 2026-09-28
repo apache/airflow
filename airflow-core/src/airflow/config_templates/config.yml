@@ -1608,11 +1608,12 @@ secrets:
         Please note that the ``environment_variable`` and ``metastore`` are required values and cannot be
         removed from the list. Supported values are:
 
-        * ``custom``: Custom secret backend specified in the ``secrets[backend]`` configuration option.
+        * ``custom``: Custom secret backend specified in the ``[secrets] backend`` configuration option.
+          Required when ``[secrets] backend`` is set.
         * ``environment_variable``: Standard environment variable backend
           ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
         * ``metastore``: Standard metastore backend ``airflow.secrets.metastore.MetastoreBackend``.
-      version_added: 3.3.0
+      version_added: 3.4.0
       type: string
       example: ~
       default: "custom,environment_variable,metastore"
@@ -2113,13 +2114,13 @@ workers:
         specified. Please note that the ``environment_variable`` and ``execution_api`` are required values and
         cannot be removed from the list. Supported values are:
 
-        * ``custom``: Custom secret backend specified in the ``workers[secrets_backend]`` configuration
-          option.
+        * ``custom``: Custom secret backend specified in the ``[workers] secrets_backend``
+          configuration option. Required when ``[workers] secrets_backend`` is set.
         * ``environment_variable``: Standard environment variable backend
           ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
         * ``execution_api``: Standard execution_api backend
           ``airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend``.
-      version_added: 3.3.0
+      version_added: 3.4.0
       type: string
       example: ~
       default: "custom,environment_variable,execution_api"

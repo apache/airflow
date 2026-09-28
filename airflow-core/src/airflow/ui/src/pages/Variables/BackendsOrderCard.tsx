@@ -20,6 +20,8 @@ import { Box, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuSettings } from "react-icons/lu";
 
+import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
+
 import { StatsCard } from "src/components/StatsCard";
 
 import { BackendsOrderModal } from "./BackendsOrderModal";
@@ -28,6 +30,12 @@ export const BackendsOrderCard = () => {
   const { i18n, t: translate } = useTranslation("admin");
   const isRTL = i18n.dir() === "rtl";
   const { onClose, onOpen, open } = useDisclosure();
+  const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
+
+  // The endpoint requires the same configuration access as the Admin > Config page.
+  if (!authLinks?.authorized_menu_items.includes("Config")) {
+    return undefined;
+  }
 
   return (
     <Box alignItems="center" display="flex">
