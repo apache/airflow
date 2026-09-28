@@ -27,6 +27,7 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 from fastapi.testclient import TestClient
 
+from airflow import settings
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -46,6 +47,16 @@ API_PATHS = {
 }
 
 BASE_URL = "http://testserver"
+
+
+@pytest.fixture(autouse=True)
+def isolate_async_orm(monkeypatch, pytestconfig):
+    monkeypatch.setattr(settings, "async_engine", None)
+    monkeypatch.setattr(settings, "AsyncSession", None)
+    if pytestconfig.getoption("skip_db_tests"):
+        monkeypatch.setattr(
+            settings, "_configure_async_session", mock.create_autospec(settings._configure_async_session)
+        )
 
 
 def get_api_path(request):
@@ -133,11 +144,12 @@ def _authed_test_client(app: FastAPI, request):
             ),
         )
     with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
+        with TestClient(
             app,
             headers={"Authorization": f"Bearer {token}"},
             base_url=f"{BASE_URL}{get_api_path(request)}",
-        )
+        ) as test_client:
+            yield test_client
 
 
 @pytest.fixture
@@ -167,22 +179,28 @@ def fresh_test_client(request):
 
 @pytest.fixture
 def unauthenticated_test_client(request, _isolated_shared_app):
-    return TestClient(_isolated_shared_app, base_url=f"{BASE_URL}{get_api_path(request)}")
+    with TestClient(_isolated_shared_app, base_url=f"{BASE_URL}{get_api_path(request)}") as test_client:
+        yield test_client
 
 
 @pytest.fixture
-def unauthorized_test_client(request, _isolated_shared_app):
-    app = _isolated_shared_app
-    auth_manager: SimpleAuthManager = app.state.auth_manager
+def unauthorized_headers(_isolated_shared_app):
+    auth_manager: SimpleAuthManager = _isolated_shared_app.state.auth_manager
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
     )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def unauthorized_test_client(request, _isolated_shared_app, unauthorized_headers):
     with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
-            app,
-            headers={"Authorization": f"Bearer {token}"},
+        with TestClient(
+            _isolated_shared_app,
+            headers=unauthorized_headers,
             base_url=f"{BASE_URL}{get_api_path(request)}",
-        )
+        ) as test_client:
+            yield test_client
 
 
 @pytest.fixture

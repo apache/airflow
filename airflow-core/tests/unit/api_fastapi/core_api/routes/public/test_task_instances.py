@@ -27,7 +27,6 @@ from unittest import mock
 
 import pendulum
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import joinedload
 
@@ -7085,38 +7084,31 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "update",
-                            "entities": [
-                                {
-                                    "dag_id": self.BASH_DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.BASH_TASK_ID,
-                                    "new_state": "success",
-                                },
-                                {
-                                    "dag_id": self.DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.TASK_ID,
-                                    "new_state": "success",
-                                },
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "dag_id": self.BASH_DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.BASH_TASK_ID,
+                                "new_state": "success",
+                            },
+                            {
+                                "dag_id": self.DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.TASK_ID,
+                                "new_state": "success",
+                            },
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 200
         assert response.json()["update"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
@@ -7160,36 +7152,29 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "delete",
-                            "entities": [
-                                {
-                                    "dag_id": self.BASH_DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.BASH_TASK_ID,
-                                },
-                                {
-                                    "dag_id": self.DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.TASK_ID,
-                                },
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {
+                                "dag_id": self.BASH_DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.BASH_TASK_ID,
+                            },
+                            {
+                                "dag_id": self.DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.TASK_ID,
+                            },
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 200
         assert response.json()["delete"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]

@@ -427,13 +427,7 @@ def create_async_metadata_engine(
 
 
 def _configure_async_session() -> None:
-    """
-    Configure async SQLAlchemy session.
-
-    This exists so tests can reconfigure the session. How SQLAlchemy configures
-    this does not work well with Pytest and you can end up with issues when the
-    session and runs in a different event loop from the test itself.
-    """
+    """Configure the async engine and session factory."""
     global AsyncSession, async_engine
 
     if not SQL_ALCHEMY_CONN_ASYNC:
@@ -668,6 +662,16 @@ def dispose_orm(do_log: bool = True):
         async_engine.sync_engine.dispose()
         async_engine = None
         AsyncSession = None
+
+
+async def dispose_async_orm() -> None:
+    """Dispose the async pool on the event loop that owns its connections."""
+    global async_engine, AsyncSession
+
+    if async_engine is not None:
+        await async_engine.dispose()
+    async_engine = None
+    AsyncSession = None
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):
