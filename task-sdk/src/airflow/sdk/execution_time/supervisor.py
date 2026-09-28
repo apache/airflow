@@ -294,7 +294,7 @@ TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
 
 # How long a task process gets to stop itself (raise AirflowTaskTimeout, run on_kill, report its state) after
 # execution_timeout elapses before the supervisor sends SIGTERM, and again before it escalates to SIGKILL.
-EXECUTION_TIMEOUT_GRACE_PERIOD: float = 5.0
+EXECUTION_TIMEOUT_GRACE_PERIOD: float = conf.getfloat("core", "killed_task_cleanup_time")
 
 SERVER_TERMINATED = TerminalStateNonSuccess.SERVER_TERMINATED.value
 

@@ -1392,6 +1392,35 @@ class TestWatchedSubprocess:
             mock_kill.assert_not_called()
             proc.process_log.error.assert_not_called()
 
+    def test_execution_timeout_clears_escalation_if_process_is_gone(self, mocker):
+        process = mocker.Mock()
+        process.ProcessNotFound = type("ProcessNotFound", (Exception,), {})
+        mocker.patch("time.monotonic", return_value=20.0)
+        mock_signal = mocker.patch(
+            "airflow.sdk.execution_time.supervisor.WatchedSubprocess._signal_subprocess",
+            side_effect=process.ProcessNotFound(),
+        )
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=process,
+            client=mocker.Mock(),
+        )
+        proc._execution_timeout_seconds = 30.0
+        proc._execution_timeout_enforce_at = 20.0
+        proc._execution_timeout_next_signal = signal.SIGTERM
+
+        proc._handle_execution_timeout_if_needed()
+
+        mock_signal.assert_called_once_with(signal.SIGTERM)
+        mock_kill.assert_not_called()
+        assert proc._execution_timeout_next_signal is None
+        assert proc._execution_timeout_enforce_at is None
+        assert proc._execution_timeout_due_in() is None
+
     @pytest.mark.parametrize(
         ("stops_on_sigterm", "expected_exit_code"),
         [

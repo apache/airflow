@@ -312,7 +312,9 @@ core:
     killed_task_cleanup_time:
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that
-        it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED
+        it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED.
+        The task supervisor also waits this long after ``execution_timeout`` elapses before
+        it sends SIGTERM to a task process that has not stopped on its own.
       version_added: ~
       type: integer
       example: ~
