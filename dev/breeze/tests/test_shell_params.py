@@ -38,6 +38,22 @@ from airflow_breeze.utils.path_utils import (
 console = Console(width=400, color_system="standard")
 
 
+@pytest.mark.parametrize("linked_worktree", [False, True])
+def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, linked_worktree):
+    monkeypatch.setenv("BREEZE_WORKTREE_PATH", "/another/checkout")
+    with (
+        patch("airflow_breeze.params.shell_params.AIRFLOW_ROOT_PATH", tmp_path),
+        patch(
+            "airflow_breeze.params.shell_params.get_main_git_dir_for_worktree",
+            autospec=True,
+            return_value=tmp_path / ".git" if linked_worktree else None,
+        ),
+    ):
+        env = ShellParams().env_variables_for_docker_commands
+
+    assert env["BREEZE_WORKTREE_PATH"] == (str(tmp_path.resolve()) if linked_worktree else "")
+
+
 @pytest.mark.parametrize(
     ("env_vars", "kwargs", "expected_vars"),
     [

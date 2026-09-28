@@ -558,7 +558,7 @@ def create_volume_if_missing(volume_name: str):
     )
     if res_inspect.returncode != 0:
         result = run_command(
-            cmd=["docker", "volume", "create", volume_name],
+            cmd=["docker", "volume", "create", "--label", "org.apache.airflow.breeze=true", volume_name],
             check=False,
             capture_output=True,
         )

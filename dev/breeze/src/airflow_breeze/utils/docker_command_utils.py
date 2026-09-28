@@ -28,6 +28,7 @@ import subprocess
 import sys
 import time
 from functools import lru_cache
+from pathlib import Path
 from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
 
@@ -802,22 +803,55 @@ def pull_images_with_retries(
     return all_pulled
 
 
+def remove_stale_worktree_containers() -> None:
+    result = run_command(
+        [
+            "docker",
+            "ps",
+            "--all",
+            "--filter",
+            "label=org.apache.airflow.breeze=true",
+            "--format",
+            '{{.ID}}\t{{.Label "org.apache.airflow.breeze.worktree"}}',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print("[error]Unable to discover containers belonging to deleted worktrees.[/]")
+        return
+    for line in result.stdout.splitlines():
+        container_id, _, worktree = line.partition("\t")
+        path = Path(worktree)
+        if not path.is_absolute():
+            continue
+        try:
+            path.stat()
+        except FileNotFoundError:
+            console_print(f"Removing container {container_id} for deleted worktree {worktree}")
+            run_command(["docker", "rm", "--force", "--volumes", container_id], check=False)
+        except OSError as error:
+            console_print(f"[warning]Cannot check worktree {worktree}: {error}. Keeping {container_id}.[/]")
+
+
 def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
     Removes specified docker networks. If no networks are specified, it removes all networks created by breeze.
-    Any network with label "com.docker.compose.project=breeze" are removed when no networks are specified.
+    Prunes unused Breeze-labelled networks, including the legacy default project.
     Errors are ignored (not even printed in the output), so you can safely call it without checking
     if the networks exist.
 
     :param networks: list of networks to remove
     """
     if networks is None:
-        run_command(
-            ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
-            check=False,
-            stderr=DEVNULL,
-            quiet=True,
-        )
+        for label in ("org.apache.airflow.breeze=true", "com.docker.compose.project=breeze"):
+            run_command(
+                ["docker", "network", "prune", "-f", "--filter", f"label={label}"],
+                check=False,
+                stderr=DEVNULL,
+                quiet=True,
+            )
     else:
         for network in networks:
             run_command(
@@ -831,18 +865,19 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
 def remove_docker_volumes(volumes: list[str] | None = None) -> None:
     """
     Removes specified docker volumes. If no volumes are specified, it removes all volumes created by breeze.
-    Any volume with label "com.docker.compose.project=breeze" are removed when no volumes are specified.
+    Prunes unused Breeze-labelled volumes, including the legacy default project.
     Errors are ignored (not even printed in the output), so you can safely call it without checking
     if the volumes exist.
 
     :param volumes: list of volumes to remove
     """
     if volumes is None:
-        run_command(
-            ["docker", "volume", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
-            check=False,
-            stderr=DEVNULL,
-        )
+        for label in ("org.apache.airflow.breeze=true", "com.docker.compose.project=breeze"):
+            run_command(
+                ["docker", "volume", "prune", "-f", "-a", "--filter", f"label={label}"],
+                check=False,
+                stderr=DEVNULL,
+            )
     else:
         for volume in volumes:
             run_command(

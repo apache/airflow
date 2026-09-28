@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from unittest import mock
 from unittest.mock import call
 
@@ -30,6 +31,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.utils import docker_command_utils
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
     bring_all_compose_projects_down,
@@ -45,6 +47,49 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     pull_images_with_retries,
 )
+
+
+@pytest.mark.parametrize("listing_failed", [False, True])
+def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_paths(tmp_path, listing_failed):
+    existing = tmp_path / "existing worktree"
+    existing.mkdir()
+    missing = tmp_path / "deleted worktree"
+    listing = "\n".join(
+        [f"stale\t{missing}", f"active\t{existing}", "primary\t", "legacy\t<no value>", "relative\trelative"]
+    )
+    with mock.patch("airflow_breeze.utils.docker_command_utils.run_command", autospec=True) as run:
+        run.return_value = subprocess.CompletedProcess([], int(listing_failed), stdout=listing, stderr="")
+        docker_command_utils.remove_stale_worktree_containers()
+
+    assert run.call_args_list[0].args[0] == [
+        "docker",
+        "ps",
+        "--all",
+        "--filter",
+        "label=org.apache.airflow.breeze=true",
+        "--format",
+        '{{.ID}}\t{{.Label "org.apache.airflow.breeze.worktree"}}',
+    ]
+    removals = [c.args[0] for c in run.call_args_list if c.args[0][:2] == ["docker", "rm"]]
+    assert removals == ([] if listing_failed else [["docker", "rm", "--force", "--volumes", "stale"]])
+
+
+def test_stale_worktree_cleanup_keeps_containers_when_path_cannot_be_checked(tmp_path):
+    original_stat = Path.stat
+
+    def stat(path, **kwargs):
+        if path == tmp_path:
+            raise PermissionError("unreadable")
+        return original_stat(path, **kwargs)
+
+    with (
+        mock.patch("airflow_breeze.utils.docker_command_utils.run_command", autospec=True) as run,
+        mock.patch.object(Path, "stat", autospec=True, side_effect=stat),
+    ):
+        run.return_value = subprocess.CompletedProcess([], 0, stdout=f"container\t{tmp_path}\n", stderr="")
+        docker_command_utils.remove_stale_worktree_containers()
+
+    assert run.call_count == 1
 
 
 @pytest.mark.parametrize(

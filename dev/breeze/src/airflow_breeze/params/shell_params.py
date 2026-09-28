@@ -612,6 +612,9 @@ services:
         """
 
         _env: dict[str, str] = {}
+        _env["BREEZE_WORKTREE_PATH"] = (
+            str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else ""
+        )
         _set_var(_env, "AIRFLOW_CI_IMAGE", self.airflow_image_name)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)

@@ -26,6 +26,9 @@ services:
         condition: service_healthy
 
   postgres:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: postgres:${POSTGRES_VERSION}
     environment:
       - POSTGRES_USER=postgres
@@ -44,4 +47,7 @@ services:
     restart: "on-failure"
 volumes:
   postgres-data-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     name: "${COMPOSE_PROJECT_NAME}-postgres${POSTGRES_VERSION}-db-volume"
