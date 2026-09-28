@@ -368,6 +368,28 @@ class TestPostConnection(TestConnectionEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            [{"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE}],
+            '{"connection_id": "a"}',
+            42,
+        ],
+        ids=["list", "string", "number"],
+    )
+    def test_post_should_respond_422_for_non_dict_json_body(self, test_client, session, body):
+        """The audit-log dependency reads the body before validation, so a non-object body still gets a 422."""
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body"]
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="post_connection",
+            logical_date=None,
+            expected_extra={"method": "POST"},
+        )
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
         response = test_client.post(
@@ -1447,6 +1469,37 @@ class TestConnection(TestConnectionEndpoint):
 
         assert response.status_code == 200
         assert json.loads(captured["extra"])["private_key_file"] == stored_path
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reuse_stored_credentials_when_the_ui_sends_port_zero(self, test_client, session):
+        """The UI builds its body with ``Number(port)``, so a stored NULL port arrives as 0."""
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="sqlite",
+                host=None,
+                port=None,
+                password="stored_password",
+            )
+        )
+        session.commit()
+
+        def mock_test_connection(self):
+            return True, "mocked"
+
+        # Exactly what TestConnectionButton.tsx sends for a connection with no host or port.
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "sqlite",
+            "host": "",
+            "port": 0,
+            "password": "***",
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200, response.json()
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_reject_overridden_target_when_password_is_masked(self, test_client, session):

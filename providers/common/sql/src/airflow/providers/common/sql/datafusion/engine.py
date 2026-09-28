@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 from datafusion import SessionContext
@@ -49,6 +50,12 @@ class DataFusionEngine(LoggingMixin):
         """Register a datasource with the datafusion engine."""
         if not isinstance(datasource_config, DataSourceConfig):
             raise ValueError("datasource_config must be of type DataSourceConfig")
+
+        if not datasource_config.is_table_provider and datasource_config.storage_type is None:
+            raise ValueError(
+                f"DataSourceConfig for table {datasource_config.table_name!r} has no uri or format; "
+                "DataFusionEngine only registers object-store or catalog-managed sources."
+            )
 
         if not datasource_config.is_table_provider:
             if datasource_config.storage_type == StorageType.LOCAL:
@@ -146,6 +153,14 @@ class DataFusionEngine(LoggingMixin):
                     conf[key] = conn.extra_dejson[key]
             return conf
 
+        def _get_gcp_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
+            # Older Airflow connection UIs wrote custom extra fields as
+            # extra__google_cloud_platform__<field_name> instead of the bare key; GoogleBaseHook
+            # still reads that legacy spelling as a fallback, so this must too.
+            if field_name in extra_dejson:
+                return extra_dejson[field_name]
+            return extra_dejson.get(f"extra__google_cloud_platform__{field_name}")
+
         match conn.conn_type:
             case "aws":
                 try:
@@ -168,6 +183,26 @@ class DataFusionEngine(LoggingMixin):
                 )
                 credentials = self._remove_none_values(credentials)
                 extra_config = _fetch_extra_configs(["region", "endpoint"])
+
+            case "google_cloud_platform":
+                extra_dejson = conn.extra_dejson
+                for unsupported_field in ("key_secret_name", "credential_config_file", "impersonation_chain"):
+                    if _get_gcp_extra_field(extra_dejson, unsupported_field):
+                        raise ValueError(
+                            f"Connection field {unsupported_field!r} is not supported for DataFusion "
+                            "GCS access; only key_path, keyfile_dict, GOOGLE_APPLICATION_CREDENTIALS, or "
+                            "ambient credentials (gcloud ADC file / metadata server) are used."
+                        )
+                key_path = _get_gcp_extra_field(extra_dejson, "key_path") or None
+                keyfile_dict = _get_gcp_extra_field(extra_dejson, "keyfile_dict") or None
+                if key_path and keyfile_dict:
+                    raise ValueError(
+                        "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                        "Please provide only one value."
+                    )
+                if not key_path and not keyfile_dict:
+                    key_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+                credentials = self._remove_none_values({"key_path": key_path, "keyfile_dict": keyfile_dict})
 
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")

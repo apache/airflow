@@ -50,9 +50,9 @@ class DocumentLoaderOperator(BaseOperator):
     with metadata). Framework-agnostic: no LlamaIndex, LangChain, or other
     AI framework dependency.
 
-    Built-in parsers handle ``.txt``, ``.md``, ``.csv``, and ``.json`` with
-    zero extra dependencies. PDF and DOCX support require optional packages
-    installable via extras::
+    Built-in parsers handle ``.txt``, ``.md``, ``.csv``, ``.json``, and
+    ``.jsonl`` with zero extra dependencies. PDF and DOCX support require
+    optional packages installable via extras::
 
         pip install apache-airflow-providers-common-ai[pdf]    # pypdf
         pip install apache-airflow-providers-common-ai[docx]   # python-docx
@@ -75,9 +75,12 @@ class DocumentLoaderOperator(BaseOperator):
         ``ObjectStoragePath`` for cloud URIs (``aws_default``,
         ``google_cloud_default``, ...). Ignored for local paths.
     :param source_bytes: Raw file bytes, typically from XCom.
-    :param file_type: File extension hint when using ``source_bytes``
-        (e.g. ``".pdf"``). Also accepted with ``source_path`` to override
-        auto-detection.
+    :param file_type: File extension hint (e.g. ``".pdf"``). Required when
+        using ``source_bytes``, since bytes carry no extension to detect.
+        Omitting it is rejected when the operator is constructed -- Dag parse
+        time for a regular task, run time for a mapped one, since ``expand()``
+        validates argument names only and defers construction to ``unmap()``.
+        Optional with ``source_path``, where it overrides auto-detection.
     :param parser: Parsing backend selection. ``"auto"`` (default) picks the
         backend from the file extension.
     :param file_extensions: When ``source_path`` is a directory or glob,
@@ -89,17 +92,18 @@ class DocumentLoaderOperator(BaseOperator):
         document's ``metadata`` dict. Auto-extracted fields such as
         ``file_name``, ``file_path``, ``row_index``, ``item_index``, and
         ``page_number`` take precedence over keys with the same name.
-    :param encoding: Text encoding used for ``.txt``/``.md``/``.csv``/``.json``
-        and for the bytes path. Defaults to ``"utf-8"``.
+    :param encoding: Text encoding used for
+        ``.txt``/``.md``/``.csv``/``.json``/``.jsonl`` and for the bytes path.
+        Defaults to ``"utf-8"``.
     :param encoding_errors: How decode errors are handled. Defaults to
         ``"strict"``; set to ``"replace"`` or ``"ignore"`` to tolerate
         mixed-encoding inputs at the cost of some character loss.
-    :param json_text_field: When parsing JSON, treat this key as the
-        embedding text and put every other key into ``metadata``. Applies
-        to each item when the top-level JSON is a list, or to the object
-        when it is a single dict. When ``None`` (default), the operator
-        flattens dicts into ``"k: v, k: v"`` text (same shape as the CSV
-        parser).
+    :param json_text_field: When parsing JSON or JSON Lines, treat this key
+        as the embedding text and put every other key into ``metadata``.
+        Applies to each item when the top-level JSON is a list, to the object
+        when it is a single dict, or to each JSON Lines record. When ``None``
+        (default), the operator flattens dicts into ``"k: v, k: v"`` text
+        (same shape as the CSV parser).
     """
 
     template_fields: Sequence[str] = (
@@ -116,6 +120,7 @@ class DocumentLoaderOperator(BaseOperator):
         ".md": "text",
         ".csv": "csv",
         ".json": "json",
+        ".jsonl": "jsonl",
         ".pdf": "pypdf",
         ".docx": "python-docx",
     }
@@ -136,6 +141,12 @@ class DocumentLoaderOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+        if source_path is not None and source_bytes is not None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
+        if source_path is None and source_bytes is None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
+        if source_bytes is not None and file_type is None:
+            raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
         self.source_path = source_path
         self.source_conn_id = source_conn_id
         self.source_bytes = source_bytes
@@ -148,13 +159,21 @@ class DocumentLoaderOperator(BaseOperator):
         self.json_text_field = json_text_field
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
-        # source_path/file_type are template fields; validate after rendering, not in __init__.
-        if self.source_path is not None and self.source_bytes is not None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
-        if self.source_path is None and self.source_bytes is None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
+        # Provision -- whether an argument was supplied at all -- is settled in __init__.
+        # Both guards below exist for a different reason: file_type and source_path are
+        # template fields, so a supplied argument can still arrive here as None once it has
+        # been rendered. __init__ cannot catch that, because it only ever sees the unrendered
+        # template string; _parse_bytes and _resolve_files need the rendered value to be real.
         if self.source_bytes is not None and self.file_type is None:
-            raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
+            raise ValueError(
+                "'file_type' was supplied but rendered to None. Check the template or the "
+                "upstream XCom value it resolves from."
+            )
+        if self.source_bytes is None and self.source_path is None:
+            raise ValueError(
+                "'source_path' was supplied but rendered to None. Check the template or the "
+                "upstream XCom value it resolves from."
+            )
 
         if self.source_bytes is not None:
             if TYPE_CHECKING:
@@ -279,11 +298,14 @@ class DocumentLoaderOperator(BaseOperator):
         if backend == "python-docx":
             return self._parse_docx_stream(io.BytesIO(raw))
 
-        text = self._decode(raw, source_hint=f"<bytes:{ext}>")
+        source_hint = f"<bytes:{ext}>"
+        text = self._decode(raw, source_hint=source_hint)
         if backend == "csv":
             return self._parse_csv_text(text)
         if backend == "json":
             return self._parse_json_text(text)
+        if backend == "jsonl":
+            return self._parse_json_lines_text(text, source_hint=source_hint)
         return [{"text": text, "metadata": {}}]
 
     def _parse_file(self, file_path: Path, ext: str) -> list[dict[str, Any]]:
@@ -295,6 +317,8 @@ class DocumentLoaderOperator(BaseOperator):
             return self._parse_csv(file_path)
         if backend == "json":
             return self._parse_json(file_path)
+        if backend == "jsonl":
+            return self._parse_json_lines(file_path)
         if backend == "pypdf":
             with file_path.open("rb") as fh:
                 return self._parse_pdf_stream(fh)
@@ -355,6 +379,27 @@ class DocumentLoaderOperator(BaseOperator):
         if isinstance(data, list):
             return [self._json_item_to_doc(item, item_index=idx) for idx, item in enumerate(data)]
         return [self._json_item_to_doc(data, item_index=None)]
+
+    def _parse_json_lines(self, file_path: Path) -> list[dict[str, Any]]:
+        return self._parse_json_lines_text(self._read_text(file_path), source_hint=str(file_path))
+
+    def _parse_json_lines_text(self, text: str, *, source_hint: str) -> list[dict[str, Any]]:
+        documents: list[dict[str, Any]] = []
+        # split("\n") rather than splitlines(): JSON Lines is defined with \n, while splitlines()
+        # also breaks on U+2028/U+2029/U+0085, which are legal unescaped characters inside a JSON
+        # string and would tear a valid record in half. A trailing \r from CRLF is JSON whitespace.
+        for line_number, line in enumerate(text.split("\n"), start=1):
+            if not line.strip():
+                continue
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Failed to parse {source_hint}: "
+                    f"invalid JSON on line {line_number}, column {e.colno}: {e.msg}"
+                ) from e
+            documents.append(self._json_item_to_doc(item, item_index=len(documents)))
+        return documents
 
     def _json_item_to_doc(self, item: Any, *, item_index: int | None) -> dict[str, Any]:
         metadata: dict[str, Any] = {}

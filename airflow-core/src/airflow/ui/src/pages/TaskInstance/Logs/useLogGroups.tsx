@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { ParsedLogEntry } from "src/queries/useLogs";
 
@@ -38,16 +38,24 @@ export const useLogGroups = ({
   parsedLogs: Array<ParsedLogEntry>;
   searchMatchIndices?: Set<number>;
 }) => {
-  // Build parent map for nested visibility checks
-  const groupHeaders = parsedLogs.filter(
-    (entry): entry is { group: NonNullable<ParsedLogEntry["group"]> } & ParsedLogEntry =>
-      entry.group?.type === "header",
-  );
-  const allGroupIds = new Set(groupHeaders.map((entry) => entry.group.id));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- React Compiler auto-memoizes this
-  const groupParentMap = new Map<number, number | undefined>(
-    groupHeaders.map((entry) => [entry.group.id, entry.group.parentId]),
-  );
+  // Build parent map for nested visibility checks. Memoized explicitly rather
+  // than relying on the compiler: react-virtual force-rerenders the consumer
+  // on every scroll event (`flushSync` in its React adapter), and without this
+  // memo the O(n) rebuild below re-ran on every one of those renders — cost
+  // scaling with total log size, not the virtualized/visible row count.
+  const { allGroupIds, groupParentMap } = useMemo(() => {
+    const groupHeaders = parsedLogs.filter(
+      (entry): entry is { group: NonNullable<ParsedLogEntry["group"]> } & ParsedLogEntry =>
+        entry.group?.type === "header",
+    );
+
+    return {
+      allGroupIds: new Set(groupHeaders.map((entry) => entry.group.id)),
+      groupParentMap: new Map<number, number | undefined>(
+        groupHeaders.map((entry) => [entry.group.id, entry.group.parentId]),
+      ),
+    };
+  }, [parsedLogs]);
 
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(() =>
     expanded ? new Set(allGroupIds) : new Set<number>(),
@@ -78,45 +86,57 @@ export const useLogGroups = ({
     });
   };
 
-  // Check if all ancestors of a group are expanded
-  const isGroupAncestryExpanded = (groupId: number): boolean => {
-    const parentId = groupParentMap.get(groupId);
+  // Build visible items list with index mapping. Memoized for the same reason
+  // as groupParentMap above: this loop runs over every log line, and without
+  // memoization it re-ran on every react-virtual-forced re-render (i.e. on
+  // every scroll event), with cost scaling with total log size rather than
+  // the number of rows actually on screen.
+  const { lineNumberToVisibleIndex, originalToVisibleIndex, visibleItems } = useMemo(() => {
+    // Check if all ancestors of a group are expanded
+    const isGroupAncestryExpanded = (groupId: number): boolean => {
+      const parentId = groupParentMap.get(groupId);
 
-    if (parentId === undefined) {
-      return true;
-    }
-
-    return expandedGroups.has(parentId) && isGroupAncestryExpanded(parentId);
-  };
-
-  const isEntryVisible = (entry: ParsedLogEntry): boolean => {
-    if (!entry.group) {
-      return true;
-    }
-
-    if (entry.group.type === "header") {
-      return isGroupAncestryExpanded(entry.group.id);
-    }
-
-    return expandedGroups.has(entry.group.id) && isGroupAncestryExpanded(entry.group.id);
-  };
-
-  // Build visible items list with index mapping
-  const visibleItems: Array<VisibleItem> = [];
-  const originalToVisibleIndex = new Map<number, number>();
-  const lineNumberToVisibleIndex = new Map<number, number>();
-
-  for (let idx = 0; idx < parsedLogs.length; idx += 1) {
-    const entry = parsedLogs[idx];
-
-    if (entry && isEntryVisible(entry)) {
-      originalToVisibleIndex.set(idx, visibleItems.length);
-      if (entry.lineNumber !== undefined) {
-        lineNumberToVisibleIndex.set(entry.lineNumber, visibleItems.length);
+      if (parentId === undefined) {
+        return true;
       }
-      visibleItems.push({ entry, originalIndex: idx });
+
+      return expandedGroups.has(parentId) && isGroupAncestryExpanded(parentId);
+    };
+
+    const isEntryVisible = (entry: ParsedLogEntry): boolean => {
+      if (!entry.group) {
+        return true;
+      }
+
+      if (entry.group.type === "header") {
+        return isGroupAncestryExpanded(entry.group.id);
+      }
+
+      return expandedGroups.has(entry.group.id) && isGroupAncestryExpanded(entry.group.id);
+    };
+
+    const items: Array<VisibleItem> = [];
+    const originalToVisible = new Map<number, number>();
+    const lineNumberToVisible = new Map<number, number>();
+
+    for (let idx = 0; idx < parsedLogs.length; idx += 1) {
+      const entry = parsedLogs[idx];
+
+      if (entry && isEntryVisible(entry)) {
+        originalToVisible.set(idx, items.length);
+        if (entry.lineNumber !== undefined) {
+          lineNumberToVisible.set(entry.lineNumber, items.length);
+        }
+        items.push({ entry, originalIndex: idx });
+      }
     }
-  }
+
+    return {
+      lineNumberToVisibleIndex: lineNumberToVisible,
+      originalToVisibleIndex: originalToVisible,
+      visibleItems: items,
+    };
+  }, [expandedGroups, groupParentMap, parsedLogs]);
 
   // Map search match indices from original to visible indices
   const visibleSearchMatchIndices = searchMatchIndices

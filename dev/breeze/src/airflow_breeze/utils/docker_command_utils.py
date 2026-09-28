@@ -39,6 +39,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
+    create_pycache_volume_if_needed,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.shared_options import get_verbose
@@ -113,12 +114,15 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
-    ("uv.lock", "/opt/airflow/uv.lock"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
     ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
+
+# ``uv.lock`` is deliberately absent above: it is mounted from ``mount-uv-lock.yml``, which
+# ShellParams skips for ``--force-lowest-dependencies`` so that the lowest-direct ``uv sync``
+# run in the container cannot write its re-resolved lock back over the host's.
 
 DOCKER_INFO_TIMEOUT = 30
 
@@ -710,7 +714,7 @@ def fix_ownership_using_docker(quiet: bool = True):
             "-e",
             f"VERBOSE={str(get_verbose()).lower()}",
             "-e",
-            f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+            f"DOCKER_IS_ROOTLESS={str(is_docker_rootless()).lower()}",
             "--rm",
             "-t",
             OWNERSHIP_CLEANUP_DOCKER_TAG,
@@ -1110,6 +1114,8 @@ def enter_shell(
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
+    if shell_params.include_pycache_volume:
+        create_pycache_volume_if_needed()
     shell_params.print_badge_info()
     cmd = ["docker", "compose"]
     if shell_params.quiet:

@@ -93,6 +93,24 @@
     "loading": "正在載入執行狀態數量",
     "tooltip": "{{state}}：{{formattedCount}} — 點選以篩選執行"
   },
+  "schedulingActions": {
+    "cancelDrain": "恢復排程",
+    "drain": "完成後暫停",
+    "drainPrompt": "目前仍有 Dag 執行尚未結束。您可以等待這些執行結束後再暫停，或立即暫停。",
+    "pauseNow": "立即暫停"
+  },
+  "schedulingBanner": {
+    "message": "待目前的執行全部結束後，此 Dag 將自動暫停。"
+  },
+  "schedulingState": {
+    "active": "啟用中",
+    "draining": "完成後將暫停",
+    "drainingBadgeTooltip": "待目前的執行全部結束後，此 Dag 將自動暫停。",
+    "drainingTooltip": "{{dagDisplayName}} 會在目前的執行全部結束後自動暫停。點選以恢復排程。",
+    "label": "排程狀態",
+    "paused": "暫停",
+    "placeholder": "選擇排程狀態…"
+  },
   "search": {
     "advanced": "進階搜尋",
     "clear": "清除搜尋",

@@ -30,6 +30,10 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStartJobOperator,
     EmrServerlessStopApplicationOperator,
 )
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessStopApplicationTrigger,
+)
 from airflow.providers.amazon.version_compat import NOTSET
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
@@ -1390,15 +1394,69 @@ class TestEmrServerlessDeleteOperator:
 
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_delete_application_deferrable(self, mock_conn):
-        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
-
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id,
             application_id=application_id,
             deferrable=True,
         )
-        with pytest.raises(TaskDeferred):
+        with pytest.raises(TaskDeferred) as defer:
             operator.execute(None)
+
+        assert isinstance(defer.value.trigger, EmrServerlessStopApplicationTrigger)
+        assert defer.value.method_name == "delete_stopped_application"
+        mock_conn.stop_application.assert_called_once_with(applicationId=application_id)
+        mock_conn.delete_application.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "cancel_running_jobs", autospec=True)
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_delete_application_deferrable_with_force_stop(self, mock_conn, mock_cancel_running_jobs):
+        mock_cancel_running_jobs.return_value = 1
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id,
+            application_id=application_id,
+            deferrable=True,
+            force_stop=True,
+        )
+        with pytest.raises(TaskDeferred) as defer:
+            operator.execute(None)
+        assert defer.value.method_name == "stop_application"
+
+        with pytest.raises(TaskDeferred) as defer:
+            operator.stop_application(None, {"status": "success", "application_id": application_id})
+
+        assert isinstance(defer.value.trigger, EmrServerlessStopApplicationTrigger)
+        assert defer.value.method_name == "delete_stopped_application"
+        mock_conn.delete_application.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_delete_stopped_application_deferrable(self, mock_conn):
+        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id,
+            application_id=application_id,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as defer:
+            operator.delete_stopped_application(None, {"status": "success", "application_id": application_id})
+
+        mock_conn.delete_application.assert_called_once_with(applicationId=application_id)
+        assert isinstance(defer.value.trigger, EmrServerlessDeleteApplicationTrigger)
+        assert defer.value.method_name == "execute_complete"
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_delete_stopped_application_stop_error(self, mock_conn):
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id,
+            application_id=application_id,
+            deferrable=True,
+        )
+        error_event = {"status": "error", "message": "Stop failed", "application_id": application_id}
+
+        with pytest.raises(AirflowException, match="Error stopping EMR Serverless application"):
+            operator.delete_stopped_application(None, error_event)
+
+        mock_conn.delete_application.assert_not_called()
 
     def test_execute_complete_error(self):
         operator = EmrServerlessDeleteApplicationOperator(

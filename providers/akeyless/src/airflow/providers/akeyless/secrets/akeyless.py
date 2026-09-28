@@ -181,6 +181,55 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
             return cid.generateAzure(self._extra.get("azure_object_id"))
         raise ValueError(f"No cloud-id generator for {self._access_type!r}")
 
+    def _multi_team_enabled(self) -> bool:
+        """Whether the deployment runs in multi-team mode."""
+        return conf.getboolean("core", "multi_team", fallback=False)
+
+    def _escapes_its_namespace(self, key: str, team_name: str | None) -> bool:
+        """
+        Whether looking ``key`` up for ``team_name`` could resolve another team's secret.
+
+        Only the team-scoped lookup crosses a namespace boundary. It is tried under
+        ``<base path><sep><team><sep><key>`` and, when that misses, falls back to
+        ``<base path><sep><key>`` -- the prefix every *other* team's secrets sit under. A
+        caller in team ``alpha`` asking for ``beta<sep>db_password`` therefore reaches team
+        ``beta``'s secret through the fallback. The key is Dag-author controlled and the
+        execution API variables route is declared with a ``:path`` converter, so a separator
+        survives the round trip.
+
+        The refusal is deliberately narrow, because in this backend the separator is the
+        ordinary path separator and nested keys are a legitimate, documented layout. It
+        applies only when this backend actually builds a team-scoped path and can fall back
+        past it:
+
+        * ``use_team_secrets_path=False`` disables team-scoped lookup entirely, so no team
+          path is constructed and no boundary is crossed -- nested keys keep working.
+        * A caller with no ``team_name`` resolves in the shared namespace directly rather
+          than falling back into it. Whether a global-scope caller should be able to name a
+          team's namespace is a separate question about global scope, not this fallback, and
+          is left alone here.
+        * Outside multi-team mode there are no team namespaces at all.
+
+        The key is never parsed to work out *which* team it names, because it cannot be:
+        nothing distinguishes a nested key in the shared namespace from one naming a team.
+        """
+        return (
+            self._multi_team_enabled()
+            and self.use_team_secrets_path
+            and team_name is not None
+            and self.sep in key
+        )
+
+    def _log_refusal(self, kind: str, key: str) -> None:
+        self.log.warning(
+            "%s id %r contains %r, which separates path segments in an Akeyless secret name. "
+            "Looked up for a team, such an id can resolve another team's namespace through "
+            "the team-agnostic fallback, so it is not looked up. Returning None.",
+            kind.capitalize(),
+            key,
+            self.sep,
+        )
+
     def _get_secret(self, base_path: str | None, key: str) -> str | None:
         if base_path is None:
             return None
@@ -199,7 +248,7 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         """Look up a secret with team-scoped path, falling back to global."""
         if base_path is None:
             return None
-        multi_team = conf.get("core", "multi_team", fallback=False)
+        multi_team = self._multi_team_enabled()
         if multi_team and self.use_team_secrets_path and team_name is not None:
             team_path = f"{base_path}{self.sep}{team_name}"
             response = self._get_secret(team_path, key)
@@ -217,6 +266,9 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         """Build a ``Connection`` from an Akeyless secret (URI or JSON dict)."""
         from airflow.models.connection import Connection
 
+        if self._escapes_its_namespace(conn_id, team_name):
+            self._log_refusal("connection", conn_id)
+            return None
         raw = self._get_team_or_global_secret(self.connections_path, team_name, conn_id)
         if raw is None:
             return None
@@ -231,6 +283,9 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """Retrieve an Airflow Variable from Akeyless."""
+        if self._escapes_its_namespace(key, team_name):
+            self._log_refusal("variable", key)
+            return None
         raw = self._get_team_or_global_secret(self.variables_path, team_name, key)
         if raw is None:
             return None
@@ -244,6 +299,10 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """Retrieve an Airflow Configuration option from Akeyless."""
+        # No guard here. Config lookups carry no team_name and Airflow does not perform
+        # team-scoped config lookups through a secrets backend, so this path never builds a
+        # team-scoped name and has no boundary to cross. Refusing nested ids here would only
+        # break subfolder config layouts.
         raw = self._get_secret(self.config_path, key)
         if raw is None:
             return None

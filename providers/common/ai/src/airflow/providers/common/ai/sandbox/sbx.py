@@ -80,12 +80,19 @@ class SbxSandboxBackend(SandboxBackend):
     backend ships with the provider yet; add one behind :class:`SandboxBackend`
     if you need Kubernetes.
 
-    **Network policy is a host-level setting, not a per-sandbox one.** ``sbx``
-    governs egress through ``sbx policy``, so this backend cannot apply a
-    per-sandbox rule. Rather than let a DAG author believe a
-    :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` restriction is in
-    force when it is not, ``create`` refuses a spec it cannot honor unless the
-    Deployment Manager states the host policy through ``host_network_policy``.
+    **Network policy is layered on a host-level setting, not independent of
+    one.** ``sbx`` governs egress through a host-level ``sbx policy``.
+    ``create`` applies ``allow_egress_to`` as a per-sandbox rule on top of
+    that policy, but the rule can only narrow a host policy that is already
+    ``deny-all`` and never widen one. ``block_network`` has no per-sandbox
+    enforcement at all: no ``sbx`` call implements it. Rather than let a Dag
+    author believe a
+    :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` restriction is
+    in force when it is not, ``create`` raises instead of silently ignoring a
+    spec that asks for either -- and since ``block_network`` defaults to
+    ``True``, a bare ``SandboxSpec()`` with no arguments already asks for it.
+    It lets the spec through only when the Deployment Manager has already
+    declared the host policy as ``deny-all`` through ``host_network_policy``.
 
     **Orphans are not reclaimed automatically.** There is no server-side TTL to
     fall back on: if the worker is killed outright, the microVM and its workspace
@@ -162,6 +169,14 @@ class SbxSandboxBackend(SandboxBackend):
             # "No requirements stated" -- see SandboxBackend.create. The toolset
             # always sends a concrete spec, so this is the direct-caller path.
             return
+        if spec.allow_egress_to_cidrs:
+            # ``sbx policy allow network`` takes hostnames. There is no per-sandbox
+            # address-range rule to map this onto, so it cannot be enforced here.
+            raise SandboxTerminalError(
+                "SandboxSpec names allow_egress_to_cidrs, which this backend cannot enforce: "
+                "sbx has no per-sandbox address-range rule. Use allow_egress_to with hostnames "
+                "on a deny-all host policy, or use a backend with an address-layer allowlist."
+            )
         if spec.allow_egress_to and self._host_network_policy != "deny-all":
             # A per-sandbox allow rule only means anything on top of a deny-all
             # global policy; against an open host policy it grants nothing and

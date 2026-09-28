@@ -183,6 +183,18 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Connection``
      - ``PUT``
    * - ``GET``
+     - ``/api/v2/dagBundles``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}/files``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``
      - ``GET``
@@ -206,6 +218,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags``
      - ``DAG``
      - ``PUT``
+   * - ``PATCH``
+     - ``/api/v2/dags/bulk``
+     - ``DAG``
+     - ``multi``
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}``
      - ``DAG``

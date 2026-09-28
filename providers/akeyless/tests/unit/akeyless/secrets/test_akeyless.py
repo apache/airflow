@@ -392,3 +392,139 @@ class TestAkeylessBackend:
         with patch.dict(sys.modules, {"akeyless_cloud_id": None}):
             with pytest.raises(ImportError, match="akeyless_cloud_id"):
                 backend._get_cloud_id()
+
+    # ------------------------------------------------------------------
+    # Cross-team namespace escape
+    # ------------------------------------------------------------------
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_variable_cannot_reach_another_teams_namespace(self, mock_sdk):
+        """A key containing the separator must not resolve another team's secret.
+
+        The team-scoped lookup misses and the team-agnostic fallback resolves
+        ``{base}/{key}`` -- which is the prefix every other team's secrets live under.
+        The backend is wired here so that the cross-team path *would* return a value,
+        so the assertion is that team beta's secret does not come back, not merely
+        that some guard ran.
+        """
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        mock_sdk.ApiException = Exception
+        api.get_secret_value.return_value = {"/airflow/variables/beta/db_password": "beta-secret"}
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            val = backend.get_variable("beta/db_password", team_name="alpha")
+
+        assert val is None
+        api.get_secret_value.assert_not_called()
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_connection_cannot_reach_another_teams_namespace(self, mock_sdk):
+        """The same escape is refused for connections."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        mock_sdk.ApiException = Exception
+        api.get_secret_value.return_value = {"/airflow/connections/beta/prod_db": "postgres://u:p@h/d"}
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            conn = backend.get_connection("beta/prod_db", team_name="alpha")
+
+        assert conn is None
+        api.get_secret_value.assert_not_called()
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_nested_config_ids_still_resolve_in_multi_team_mode(self, mock_sdk):
+        """Config lookups are global and must keep working with subfolder layouts.
+
+        ``get_config`` takes no ``team_name`` and Airflow does not do team-scoped config
+        lookups through a secrets backend, so there is no boundary for a config id to
+        cross. Guarding it would silently break subfolder config layouts on upgrade.
+        """
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/config/db/sql_alchemy_conn": "postgres://x"}
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            val = backend.get_config("db/sql_alchemy_conn")
+
+        assert val == "postgres://x"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_nested_keys_still_resolve_when_team_paths_are_disabled(self, mock_sdk):
+        """``use_team_secrets_path=False`` builds no team path, so nothing is refused.
+
+        A deployment can run multi-team for other features while keeping Akeyless as a
+        single flat namespace. Banning separators there would be a pure regression.
+        """
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/nested/my_var": "nested-val"}
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend(use_team_secrets_path=False)
+            val = backend.get_variable("nested/my_var", team_name="alpha")
+
+        assert val == "nested-val"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_nested_keys_still_resolve_for_a_caller_with_no_team(self, mock_sdk):
+        """With no team_name the lookup resolves in the shared namespace directly."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/nested/my_var": "nested-val"}
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            val = backend.get_variable("nested/my_var")
+
+        assert val == "nested-val"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_a_team_scoped_key_without_the_separator_still_resolves(self, mock_sdk):
+        """The guard must not break ordinary team-scoped lookups."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/alpha/my_var": "team-val"}
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            val = backend.get_variable("my_var", team_name="alpha")
+
+        assert val == "team-val"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_nested_keys_still_work_outside_multi_team_mode(self, mock_sdk):
+        """Without team namespaces a separator in a key is an ordinary nested path."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/nested/my_var": "nested-val"}
+
+        with conf_vars({("core", "multi_team"): "False"}):
+            backend = _backend()
+            val = backend.get_variable("nested/my_var")
+
+        assert val == "nested-val"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_multi_team_disabled_is_read_as_a_boolean(self, mock_sdk):
+        """``multi_team = False`` must not select the multi-team code paths.
+
+        The option was previously read with ``conf.get``, which yields the string
+        ``"False"`` -- truthy -- so the global-path branch was taken even with
+        multi-team off.
+        """
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/my_var": "plain-val"}
+
+        with conf_vars({("core", "multi_team"): "False"}):
+            backend = _backend(global_secrets_path="global")
+            val = backend.get_variable("my_var")
+
+        assert val == "plain-val"
+        # The global-secrets path must not have been consulted at all.
+        requested = [c.kwargs["names"][0] for c in mock_sdk.GetSecretValue.call_args_list]
+        assert requested == ["/airflow/variables/my_var"]

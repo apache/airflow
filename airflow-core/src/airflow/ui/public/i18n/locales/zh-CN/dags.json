@@ -10,23 +10,34 @@
   "filters": {
     "allRunTypes": "全部执行类型",
     "allStates": "全部状态",
+    "anyRunState": "任意执行",
+    "anyRunStatePlaceholder": "选择任意执行的状态...",
     "favorite": {
       "all": "全部",
       "favorite": "已加入收藏",
       "unfavorite": "未加入收藏"
     },
+    "favoriteState": "收藏状态",
+    "favoriteStatePlaceholder": "选择收藏状态...",
+    "lastRunState": "上次执行",
+    "lastRunStatePlaceholder": "选择上次执行的状态...",
+    "noTimetableTypesFound": "找不到时间表类型",
     "paused": {
       "active": "已启用",
       "all": "全部",
       "paused": "暂停"
     },
-    "runIdPatternFilter": "搜索 Dag 执行"
+    "pausedPlaceholder": "选择暂停状态...",
+    "pausedState": "暂停状态",
+    "requiresHitlAction": "需要人工响应",
+    "runIdPatternFilter": "搜索 Dag 执行",
+    "timetableType": "时间表类型"
   },
   "ownerLink": "拥有者 {{owner}} 的地址",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "找不到任务。",
-      "title": "受影响的任务: {{count}}"
+      "title": "受影响的任务：{{count}}"
     },
     "clear": {
       "button": "清除 {{type}}",
@@ -40,7 +51,7 @@
       "title": "清除所有已映射任务实例"
     },
     "confirmationDialog": {
-      "description": "任务当前处于 {{state}} 状态，由用户 {{user}} 于 {{time}} 启动。\n在任务完成执行前，或用户在清除任务对话框中取消勾选「防止重复执行执行中的任务」选项前，无法清除此任务。",
+      "description": "任务当前处于 {{state}} 状态，由用户 {{user}} 于 {{time}} 启动。\n在任务完成执行前，或用户在清除任务对话框中取消勾选 \"防止重复执行执行中的任务\" 选项前，无法清除此任务。",
       "title": "无法清除任务实例"
     },
     "delete": {
@@ -62,7 +73,7 @@
         "failed": "按下 shift+f 标记为失败",
         "success": "按下 shift+s 标记为成功"
       },
-      "title": "标记为 {{type}} 为 {{state}}"
+      "title": "标记 {{type}} 为 {{state}}"
     },
     "options": {
       "downstream": "下游",
@@ -73,8 +84,32 @@
       "preventRunningTasks": "防止重复执行执行中的任务",
       "queueNew": "加入新任务到队列",
       "runOnLatestVersion": "执行最新套件包版本",
+      "runOnLatestVersionForced": "始终使用最新版本，因为没有可回退的早期版本",
       "upstream": "上游"
     }
+  },
+  "runStateCounts": {
+    "label": "执行状态",
+    "loading": "正在加载执行状态计数",
+    "tooltip": "{{state}}：{{formattedCount}}，点击以筛选执行"
+  },
+  "schedulingActions": {
+    "cancelDrain": "恢复调度",
+    "drain": "完成后暂停",
+    "drainPrompt": "此 Dag 有正在进行的 Dag 执行。您可以等待这些执行全部完成后再暂停 Dag，或立即停止调度而不等待它们完成。",
+    "pauseNow": "立即暂停"
+  },
+  "schedulingBanner": {
+    "message": "此 Dag 将在当前的 Dag 执行全部完成后自动暂停。"
+  },
+  "schedulingState": {
+    "active": "已启用",
+    "draining": "完成后将暂停",
+    "drainingBadgeTooltip": "此 Dag 将在当前的 Dag 执行全部完成后自动暂停。",
+    "drainingTooltip": "{{dagDisplayName}} 将在当前的 Dag 执行全部完成后自动暂停。点击可恢复调度。",
+    "label": "调度状态",
+    "paused": "暂停",
+    "placeholder": "选择调度状态..."
   },
   "search": {
     "advanced": "高级搜索",
@@ -88,17 +123,17 @@
       "asc": "按显示名称排序 (A-Z)",
       "desc": "按显示名称排序 (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "按上次开始执行日期排序 (从新到旧)",
-      "desc": "按上次开始执行日期排序 (从新到旧)"
+    "lastRunAfter": {
+      "asc": "按上次执行的最早可执行时间排序（从早到晚）",
+      "desc": "按上次执行的最早可执行时间排序（从晚到早）"
     },
     "lastRunState": {
       "asc": "按上次执行状态排序 (A-Z)",
       "desc": "按上次执行状态排序 (Z-A)"
     },
     "nextDagRun": {
-      "asc": "按下次执行时间排序 (由近而远)",
-      "desc": "按下次执行时间排序 (由远而近)"
+      "asc": "按下次执行时间排序（由近而远）",
+      "desc": "按下次执行时间排序（由远而近）"
     },
     "placeholder": "排序方式"
   },
