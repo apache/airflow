@@ -22,7 +22,7 @@ import os
 import sys
 import textwrap
 import warnings
-from collections.abc import Generator, Iterator
+from collections.abc import Generator, Iterator, Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -46,7 +46,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
 from airflow.plugins_manager import owning_teams_of_scheduling_class
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
-from airflow.serialization.encoders import is_timetable
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.utils.file import correct_maybe_zipped
@@ -183,34 +182,67 @@ def _assign_default_team_pools(
             task.pool = Pool.get_default_team_pool_name(dag_team_name)
 
 
-def _iter_nested_timetables(timetable: Any, seen: set[int]) -> Iterator[Any]:
-    """
-    Yield ``timetable`` and every timetable it wraps, depth first.
+# A Dag's schedule is a shallow object graph; this only bounds the pathological case.
+_MAX_SCHEDULE_DEPTH = 8
+# Values that cannot hold a plugin class, skipped before walking or recording them.
+_LEAF_TYPES = (str, bytes, bytearray, bool, int, float, complex, datetime, timedelta, type(None))
 
-    Wrapping timetables such as ``AssetOrTimeSchedule`` take another timetable as an
-    argument, so the wrapper alone does not tell us which classes a Dag actually uses.
-    Walking attributes rather than special-casing known wrappers means a plugin's own
-    wrapping timetable is covered too, and a new wrapper in core does not silently
-    reopen the gap.
+
+def _iter_members(obj: Any) -> Iterator[Any]:
     """
-    if id(timetable) in seen:
+    Yield the objects ``obj`` holds, whether as container members or as attributes.
+
+    Attributes come from both ``__dict__`` and slots: the Task SDK scheduling classes are
+    ``attrs.define`` classes, which are slotted, so their fields are absent from
+    ``__dict__``, while inherited attributes may still live in a ``__dict__`` beside them.
+    """
+    if isinstance(obj, Mapping):
+        yield from obj.keys()
+        yield from obj.values()
         return
-    seen.add(id(timetable))
-    yield timetable
+    if isinstance(obj, (list, tuple, set, frozenset)):
+        yield from obj
+        return
 
-    for value in getattr(timetable, "__dict__", {}).values():
-        members = value if isinstance(value, (list, tuple, set)) else (value,)
-        for member in members:
-            if is_timetable(member):
-                yield from _iter_nested_timetables(member, seen)
+    yield from getattr(obj, "__dict__", {}).values()
+    for klass in type(obj).__mro__:
+        slots = getattr(klass, "__slots__", ())
+        for name in (slots,) if isinstance(slots, str) else slots:
+            try:
+                yield getattr(obj, name)
+            except AttributeError:
+                # A declared slot need not be filled in.
+                continue
+
+
+def _iter_plugin_classes(obj: Any, seen: set[int], depth: int = 0) -> Iterator[Any]:
+    """
+    Yield everything in ``obj``'s object graph whose class a plugin registered.
+
+    Asking which classes a Dag reaches, rather than which attributes hold a particular
+    kind of class, is what keeps this honest: a timetable wraps another timetable, holds
+    partition mappers in a dict, and those hold windows, so any check written per kind of
+    class or per known attribute goes blind the moment one of those shapes changes.
+
+    The graph being walked is a Dag's schedule, which is small. ``seen`` stops cycles and
+    repeated work, and the depth limit bounds anything unexpectedly deep.
+    """
+    if depth > _MAX_SCHEDULE_DEPTH or isinstance(obj, _LEAF_TYPES) or id(obj) in seen:
+        return
+    seen.add(id(obj))
+
+    if owning_teams_of_scheduling_class(obj) is not None:
+        yield obj
+
+    for member in _iter_members(obj):
+        yield from _iter_plugin_classes(member, seen, depth + 1)
 
 
 def _iter_scheduling_classes(dag: DAG) -> Iterator[tuple[str, Any]]:
-    """Yield ``(description, instance)`` for each plugin-providable class the Dag uses."""
+    """Yield ``(location, instance)`` for each plugin-provided class the Dag uses."""
     seen: set[int] = set()
-    for timetable in _iter_nested_timetables(dag.timetable, seen):
-        description = "its timetable" if timetable is dag.timetable else "a timetable within its schedule"
-        yield description, timetable
+    for found in _iter_plugin_classes(dag.timetable, seen):
+        yield "its schedule", found
 
     for task in dag.tasks:
         weight_rule = getattr(task, "weight_rule", None)
@@ -221,30 +253,29 @@ def _iter_scheduling_classes(dag: DAG) -> Iterator[tuple[str, Any]]:
         # serialization will.
         # An unresolvable value is not a team problem. Leave that error to serialization.
         with contextlib.suppress(ValueError):
-            yield (
-                f"the weight_rule of task {task.task_id!r}",
-                validate_and_load_priority_weight_strategy(weight_rule),
-            )
+            strategy = validate_and_load_priority_weight_strategy(weight_rule)
+            if owning_teams_of_scheduling_class(strategy) is not None:
+                yield f"the weight_rule of task {task.task_id!r}", strategy
 
-    # A Dag may carry one alert or a list of them, and each names a reference class that
-    # a plugin can provide.
     deadline = dag.deadline
     for alert in deadline if isinstance(deadline, list) else filter(None, [deadline]):
-        yield "one of its deadline references", alert.reference
+        for found in _iter_plugin_classes(alert, seen):
+            yield "its deadline", found
 
 
 def _validate_plugin_scheduling_classes(dag: DAG, bundle_name: str | None = None) -> None:
     """
     Reject a Dag that uses scheduling classes belonging to another team's plugin.
 
-    Timetables, priority weight strategies and deadline references are chosen by the Dag
-    author, by importing the class or naming its path, so unlike executors or pools there
-    is no team-aware lookup in the way. This check is the only thing keeping a team-scoped
-    plugin's scheduling classes from being used by Dags outside that team.
+    Timetables, partition mappers, windows, deadline references and priority weight
+    strategies are all chosen by the Dag author, by importing the class or naming its
+    path, so unlike executors or pools there is no team-aware lookup in the way. This
+    check is the only thing keeping a team-scoped plugin's scheduling classes from being
+    used by Dags outside that team.
 
-    Partition mappers and windows are not covered: a timetable returns those from
-    ``get_partition_mapper()`` when asked, so which class a Dag ends up using is not
-    visible from the parsed Dag.
+    A partition mapper that a timetable picks inside ``get_partition_mapper()`` from the
+    asset it is asked about is not covered, because nothing decides it until the timetable
+    runs. One handed to the timetable by the Dag is covered like anything else.
 
     Raising here surfaces as an import error for the Dag, leaving the rest of the bundle
     to parse normally.
@@ -254,10 +285,10 @@ def _validate_plugin_scheduling_classes(dag: DAG, bundle_name: str | None = None
 
     dag_team_name = _bundle_team_name(bundle_name)
 
-    for description, candidate in _iter_scheduling_classes(dag):
+    for location, candidate in _iter_scheduling_classes(dag):
         owning_teams = owning_teams_of_scheduling_class(candidate)
-        # No plugin registered the class, or a global plugin did: either way the class
-        # itself is not tied to a team, whatever team owns this Dag.
+        # Registered by at least one global plugin, so not tied to a team, whatever team
+        # owns this Dag.
         if owning_teams is None or None in owning_teams:
             continue
         if dag_team_name in owning_teams:
@@ -266,11 +297,10 @@ def _validate_plugin_scheduling_classes(dag: DAG, bundle_name: str | None = None
         owners = ", ".join(sorted(team for team in owning_teams if team))
         belongs_to = f"team '{dag_team_name}'" if dag_team_name else "no team"
         raise ValueError(
-            f"Dag '{dag.dag_id}' uses {description}, "
-            f"{type(candidate).__name__}, which is provided by a plugin belonging to {owners}. "
-            f"This Dag belongs to {belongs_to}, so it cannot use it. Move the Dag into a bundle "
-            f"owned by {owners}, or have the plugin provide the class globally instead of for a "
-            "single team."
+            f"Dag '{dag.dag_id}' uses {type(candidate).__name__} in {location}, which is "
+            f"provided by a plugin belonging to {owners}. This Dag belongs to {belongs_to}, "
+            f"so it cannot use it. Move the Dag into a bundle owned by {owners}, or have the "
+            "plugin provide the class globally instead of for a single team."
         )
 
 

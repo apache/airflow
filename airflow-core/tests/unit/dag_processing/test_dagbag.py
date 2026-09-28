@@ -1697,3 +1697,97 @@ class TestValidatePluginSchedulingClasses:
         with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", inner_class)]):
             with pytest.raises(ValueError, match="team_a"):
                 _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @pytest.mark.parametrize(
+        "wrapper_path",
+        [
+            "airflow.timetables.assets.AssetOrTimeSchedule",
+            "airflow.sdk.definitions.timetables.assets.AssetOrTimeSchedule",
+        ],
+        ids=["core", "task-sdk"],
+    )
+    def test_asset_or_time_schedule_is_walked_on_both_sides(self, mock_manager_class, wrapper_path):
+        """The Task SDK wrapper is a slotted attrs class, so its inner timetable is not in __dict__."""
+        from airflow._shared.module_loading import import_string
+        from airflow.sdk.definitions.asset import Asset
+
+        wrapper_class = import_string(wrapper_path)
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle("team_b")
+
+        with DAG(
+            "test-dag",
+            schedule=wrapper_class(timetable=timetable_class(), assets=[Asset("a")]),
+        ) as dag:
+            BaseOperator(task_id="t1")
+
+        with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", timetable_class)]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_partition_mapper_held_in_a_dict_is_found(self, mock_manager_class):
+        """PartitionedAssetTimetable keeps author-supplied mappers in dicts, not attributes."""
+        from airflow.sdk.definitions.asset import Asset
+        from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+        from airflow.serialization.encoders import ensure_serialized_asset
+        from airflow.timetables.simple import PartitionedAssetTimetable
+
+        class TeamMapper(IdentityMapper):
+            """Stands in for a partition mapper a plugin ships."""
+
+        from airflow.plugins_manager import AirflowPlugin
+
+        plugin = AirflowPlugin()
+        plugin.name = "team_a_plugin"
+        plugin.team_name = "team_a"
+        plugin.partition_mappers = [TeamMapper]
+
+        asset = ensure_serialized_asset(Asset("a"))
+        mock_manager_class.return_value = self._bundle("team_b")
+        with DAG(
+            "test-dag",
+            schedule=PartitionedAssetTimetable(assets=asset, partition_mapper_config={asset: TeamMapper()}),
+        ) as dag:
+            BaseOperator(task_id="t1")
+
+        with mock_plugin_manager(plugins=[plugin]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_window_reached_through_a_partition_mapper_is_found(self, mock_manager_class):
+        """A window is two hops from the timetable, via the mapper holding it."""
+        from airflow.sdk.definitions.asset import Asset
+        from airflow.sdk.definitions.partition_mappers.base import RollupMapper
+        from airflow.sdk.definitions.partition_mappers.temporal import StartOfDayMapper
+        from airflow.sdk.definitions.partition_mappers.window import DayWindow
+        from airflow.serialization.encoders import ensure_serialized_asset
+        from airflow.timetables.simple import PartitionedAssetTimetable
+
+        class TeamWindow(DayWindow):
+            """Stands in for a window a plugin ships."""
+
+        from airflow.plugins_manager import AirflowPlugin
+
+        plugin = AirflowPlugin()
+        plugin.name = "team_a_plugin"
+        plugin.team_name = "team_a"
+        plugin.windows = [TeamWindow]
+
+        asset = ensure_serialized_asset(Asset("a"))
+        mapper = RollupMapper(window=TeamWindow(), upstream_mapper=StartOfDayMapper())
+        mock_manager_class.return_value = self._bundle("team_b")
+        with DAG(
+            "test-dag",
+            schedule=PartitionedAssetTimetable(assets=asset, partition_mapper_config={asset: mapper}),
+        ) as dag:
+            BaseOperator(task_id="t1")
+
+        with mock_plugin_manager(plugins=[plugin]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
