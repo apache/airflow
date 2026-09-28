@@ -34,7 +34,11 @@ from uuid6 import uuid7
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators.node import _bundle_reader as _reader
 from airflow.sdk.coordinators.node._bundle_reader import _digest_cache
+from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
 from airflow.sdk.coordinators.node.coordinator import NodeCoordinator, _Bundle
+from airflow.sdk.importers import DagImporterRegistry, reset_importer_registry
+
+from tests_common.test_utils.config import conf_vars
 
 SCHEMA_VERSION = "2026-06-16"
 
@@ -104,6 +108,67 @@ class TestNodeCoordinatorExecuteTaskCommand:
 
         assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
+
+
+class TestNodeCoordinatorParseDagCommand:
+    def test_returns_node_and_bundle_schema_version(self, tmp_path):
+        bundle = write_bundle(tmp_path / "typescript", "native_dag")
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
+
+        command, schema_version = coordinator._build_parse_dag_command(path=bundle)
+
+        assert command == ["/opt/node/bin/node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
+
+    def test_tampered_bundle_raises(self, tmp_path):
+        bundle = write_bundle(tmp_path, "native_dag")
+        mutate_byte(bundle, int(read_layout(bundle)["code"]["start"], 16))  # type: ignore[index, call-overload]
+
+        with pytest.raises(ValueError, match="code SHA-256 mismatch"):
+            NodeCoordinator()._build_parse_dag_command(path=bundle)
+
+
+class TestNodeCoordinatorDagImporter:
+    @pytest.fixture(autouse=True)
+    def _reset_registry(self):
+        reset_importer_registry()
+        yield
+        reset_importer_registry()
+
+    def test_hands_out_an_importer_bound_to_itself(self):
+        coordinator = NodeCoordinator()
+
+        importer = coordinator.get_dag_importer()
+
+        assert NodeCoordinator.get_dag_importer_class() is NodeDagImporter
+        assert isinstance(importer, NodeDagImporter)
+        assert importer.coordinator is coordinator
+        assert importer.supported_extensions == [".mjs"]
+        assert importer.can_handle("dags/bundle.min.mjs") is True
+        assert importer.can_handle("dags/helper.mjs") is False
+
+    @pytest.mark.parametrize(
+        ("kwargs", "parses"),
+        [({}, True), ({"dag_bundle_name": "ts-bundles"}, False)],
+        ids=["task-bundle", "other-named-bundle"],
+    )
+    def test_registry_routes_bundles_only_to_a_serving_coordinator(self, kwargs, parses):
+        coordinators = {
+            "ts": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinator", "kwargs": kwargs}
+        }
+        bundles = [
+            {"name": name, "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}}
+            for name in ("dags-folder", "ts-bundles")
+        ]
+        with conf_vars(
+            {
+                ("sdk", "coordinators"): json.dumps(coordinators),
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles),
+            }
+        ):
+            importer = DagImporterRegistry.from_config("dags-folder").get_importer("dags/bundle.min.mjs")
+
+        assert isinstance(importer, NodeDagImporter) is parses
 
 
 class TestBundleFind:
