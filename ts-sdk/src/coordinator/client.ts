@@ -25,11 +25,17 @@ import type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "../s
 import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
 import type {
   GetVariable,
+  PutVariable,
+  DeleteVariable,
   GetXCom,
   SetXCom,
   GetConnection,
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
+
+/** What a supervisor "row is absent" error means for an operation: only a lookup
+ *  can return `null`; for a `void` call a swallowed error would read as success. */
+type AbsentRowPolicy = "null" | "throw";
 
 function resolveWireMapIndex(
   requestedMapIndex: number | null | undefined,
@@ -88,12 +94,13 @@ export function createCoordinatorClient(
     expectedType: string | null,
     request: unknown,
     extract: (body: Record<string, unknown> | null) => T,
+    absent: AbsentRowPolicy,
   ): Promise<T | null> {
     logs?.debug(`${op} request`);
     const frame = await comm.request(request);
     const err = parseFrameError(frame);
     if (err) {
-      if (isNotFound(err)) {
+      if (absent === "null" && isNotFound(err)) {
         logs?.debug(`${op} not found`, { error: err.code });
         return null;
       }
@@ -117,13 +124,36 @@ export function createCoordinatorClient(
 
     async getVariable(key: string): Promise<string | null> {
       const msg: GetVariable = { type: "GetVariable", key };
-      return rpc("GetVariable", "VariableResult", msg, (body) => (body!.value as string) ?? null);
+      return rpc(
+        "GetVariable",
+        "VariableResult",
+        msg,
+        (body) => (body!.value as string) ?? null,
+        "null",
+      );
     },
 
     async getVariableOrThrow(key: string): Promise<string> {
       const value = await client.getVariable(key);
       if (value == null) throw new VariableNotFoundError(key);
       return value;
+    },
+
+    async setVariable(key: string, value: string, description?: string | null): Promise<void> {
+      // `description` is a required wire field the supervisor validates, so it
+      // is always sent; null is what Python's `Variable.set` stores by default.
+      const msg: PutVariable = {
+        type: "PutVariable",
+        key,
+        value,
+        description: description ?? null,
+      };
+      await rpc("PutVariable", null, msg, () => undefined, "throw");
+    },
+
+    async deleteVariable(key: string): Promise<void> {
+      const msg: DeleteVariable = { type: "DeleteVariable", key };
+      await rpc("DeleteVariable", "OKResponse", msg, () => undefined, "throw");
     },
 
     // ---- XCom ----
@@ -138,12 +168,18 @@ export function createCoordinatorClient(
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
         include_prior_dates: opts.includePriorDates ?? false,
       };
-      const entry = await rpc<XComEntry>("GetXCom", "XComResult", msg, (body) => ({
-        found: true,
-        // A row storing null arrives as an XComResult carrying null, so the
-        // result frame decides `found` rather than the value.
-        value: (body!.value ?? null) as JsonValue,
-      }));
+      const entry = await rpc<XComEntry>(
+        "GetXCom",
+        "XComResult",
+        msg,
+        (body) => ({
+          found: true,
+          // A row storing null arrives as an XComResult carrying null, so the
+          // result frame decides `found` rather than the value.
+          value: (body!.value ?? null) as JsonValue,
+        }),
+        "null",
+      );
       // `rpc` answers null for the supervisor's XCOM_NOT_FOUND.
       return entry ?? XCOM_ABSENT;
     },
@@ -163,15 +199,19 @@ export function createCoordinatorClient(
         run_id: opts.runId ?? ctx.runId,
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
-      await rpc("SetXCom", null, msg, () => undefined);
+      await rpc("SetXCom", null, msg, () => undefined, "throw");
     },
 
     // ---- Connections ----
 
     async getConnection(connId: string): Promise<ConnectionResult | null> {
       const msg: GetConnection = { type: "GetConnection", conn_id: connId };
-      return rpc("GetConnection", "ConnectionResult", msg, (body) =>
-        fromWireConnection(body as unknown as WireConnectionResult),
+      return rpc(
+        "GetConnection",
+        "ConnectionResult",
+        msg,
+        (body) => fromWireConnection(body as unknown as WireConnectionResult),
+        "null",
       );
     },
 
@@ -187,7 +227,7 @@ export function createCoordinatorClient(
 // -------- Error handling (two functions) --------
 //
 // parseFrameError: extract a structured error from the frame (once).
-// isNotFound: decide if the error means "absent" (return null to caller)
+// isNotFound: decide if the error means "absent" (a lookup returns null)
 //             or "failed" (throw).
 
 interface FrameError {
@@ -228,7 +268,7 @@ function isNotFound(err: FrameError): boolean {
   // The supervisor wraps API server 404s as API_SERVER_ERROR with
   // detail.status_code=404 (supervisor.py: WatchedSubprocess.handle_requests).
   // Dag / Dag run lookups hit this path.
-  // TODO: If the TS client adds APIs beyond variables, XCom, and connections,
+  // TODO: If the TS client adds lookups beyond variables, XCom, and connections,
   // make not-found handling operation-specific instead of treating every
   // API_SERVER_ERROR 404 as null.
   return err.code === "API_SERVER_ERROR" && err.statusCode === 404;

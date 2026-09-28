@@ -22,30 +22,16 @@ import (
 	"time"
 )
 
-// TIRunContext is the execution context handed to a task. It behaves as the
-// standard context.Context (cancellation, deadline, request-scoped values) and
-// additionally exposes the identifiers and scheduling timestamps of the task
-// instance that is executing, along with the Dag run it belongs to. It is the
-// Go equivalent of the execution context the Python and Java SDKs expose to
-// task authors.
+// TIRunContext is a context.Context that also exposes the identifiers and
+// scheduling timestamps of the task instance that is executing, along with the
+// Dag run it belongs to.
 //
-// The runtime injects it into a task function by parameter type, so declare it
-// as the task's context argument:
-//
-//	func myTask(ctx sdk.TIRunContext, log *slog.Logger) error {
-//		log.Info("running",
-//			"task_id", ctx.TaskInstance().TaskID,
-//			"run_id", ctx.DagRun().RunID,
-//		)
-//		return nil
-//	}
-//
-// Because it embeds context.Context it is usable wherever one is expected:
-// pass it straight to client calls, select on ctx.Done(), or hand it to
-// downstream helpers that take a context.Context.
+// The runtime uses it to carry those values on the task's context. Task
+// functions read them from the [github.com/apache/airflow/go-sdk/airflow.Context]
+// they take first, which exposes the same TaskInstance and DagRun next to the
+// logger and the client.
 //
 // It is an interface, and only this package implements it.
-// Build one in tests with NewTIRunContext.
 //
 // The context package's advice against storing a Context in a struct
 // (https://pkg.go.dev/context#hdr-Contexts_and_structs) is about domain types that would
@@ -63,15 +49,13 @@ type TIRunContext interface {
 
 // NewTIRunContext returns a TIRunContext that delegates context behaviour to
 // ctx and exposes ti and dagRun. It panics on a nil ctx, mirroring the context
-// package's own constructors. The runtime calls it when binding a task's
-// TIRunContext parameter; in unit tests, use it to hand-build the argument:
-//
-//	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{TaskID: "t1"}, sdk.DagRun{})
+// package's own constructors. The runtime calls it to record the task instance
+// and Dag run on the task's context.
 func NewTIRunContext(ctx context.Context, ti TaskInstance, dagRun DagRun) TIRunContext {
 	if ctx == nil {
-		// This cannot happen from the runtime: taskFunction.Execute always
-		// binds the live task context. A nil ctx is a programming error in
-		// the caller, so fail loudly instead of masking it.
+		// This cannot happen from the runtime, which always passes a non-nil
+		// base context. A nil ctx is a programming error in the caller, so
+		// fail loudly instead of masking it.
 		panic("sdk.NewTIRunContext: cannot create TIRunContext from nil context.Context")
 	}
 	return tiRunContext{Context: ctx, ti: ti, dagRun: dagRun}

@@ -309,11 +309,12 @@ Options:
 
 `getClient()` returns a `TaskClient` for task-time Airflow data access, for as long as a handler is running:
 
-| Method                                           | Description         |
-| ------------------------------------------------ | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow`        | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`                | XCom read/write     |
-| `getConnection(connId)` / `getConnectionOrThrow` | Airflow Connections |
+| Method                                                          | Description             |
+| --------------------------------------------------------------- | ----------------------- |
+| `getVariable(key)` / `getVariableOrThrow`                       | Airflow Variables       |
+| `setVariable(key, value, description?)` / `deleteVariable(key)` | Variable write / delete |
+| `getXCom(opts)` / `setXCom(opts)`                               | XCom read/write         |
+| `getConnection(connId)` / `getConnectionOrThrow`                | Airflow Connections     |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
@@ -353,7 +354,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
 | capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |
-| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `variable-read-write` | MUST | ✓ | 3.4 | getVariable / setVariable / deleteVariable |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |

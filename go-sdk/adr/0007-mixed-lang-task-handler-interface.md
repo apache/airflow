@@ -30,7 +30,7 @@ Proposed.
 1. **A "bundle" is a value the author builds.** `airflow.Bundle()` returns a `*airflow.BundleRef`;
    `main` reads build, register, serve, with `bundle.Serve()` as its last statement.
    It replaces `BundleProvider` and `Registry`, the callback and the write half of the same bundle.
-2. **`bundle.Register(items ...airflow.Registraterable)`** is the single registration verb, taking native Dags and task handlers.
+2. **`bundle.Register(items ...airflow.Registerable)`** is the single registration verb, taking native Dags and task handlers.
 3. **A Go bundle registers task handlers, not Dags**: `airflow.TaskHandler(dagId, taskId, fn)`, the Go body for a task Python declares with `@task.stub`.
 4. **Both dag_id and task_id are written out on TaskHandler definition**, because Python owns them; nothing is derived from the Go function name.
 5. **Every handler must take an `airflow.Context` first**: a struct embedding `context.Context`, exposing `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`.
@@ -75,7 +75,7 @@ func main() {
 }
 ```
 
-Registration can be spread across packages, either by passing the bundle along or by returning `[]airflow.Registraterable` for the caller: `bundle.Register(taskflowbinding.Handlers()...)`.
+Registration can be spread across packages, either by passing the bundle along or by returning `[]airflow.Registerable` for the caller: `bundle.Register(taskflowbinding.Handlers()...)`.
 
 Three ways a Go function receives a stub task's data, all live in `go-sdk/example/bundle/`.
 
@@ -126,15 +126,15 @@ package airflow
 
 func Bundle() *BundleRef
 
-func (b *BundleRef) Register(items ...Registraterable)
+func (b *BundleRef) Register(items ...Registerable)
 func (b *BundleRef) Serve() error
 
-// Registraterable is sealed: its only method is unexported, so the set of things a bundle
+// Registerable is sealed: its only method is unexported, so the set of things a bundle
 // accepts stays closed to the SDK's own types — task handlers today, a Dag authored in Go
 // once there is one.
-type Registraterable interface{ registraterable() }
+type Registerable interface{ registerable() }
 
-func TaskHandler(dagId, taskId string, fn any) Registraterable
+func TaskHandler(dagId, taskId string, fn any) Registerable
 
 // Context is what every handler takes first. It is a context, so it passes straight to the
 // logger and the client rather than being stored inside either of them.

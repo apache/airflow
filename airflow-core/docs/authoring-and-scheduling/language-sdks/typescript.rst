@@ -121,15 +121,11 @@ That top-level ``await`` makes the module a runnable bundle entry point.
 The ``dagId`` a handler binds must match the ``dag_id`` of the Python Dag, and the ``taskId`` a
 ``@task.stub`` function in that Dag, including any TaskGroup prefix.
 
-``register`` takes any number of task handlers and ``bundle.serve()`` serves exactly what is registered,
-so a task left out is not part of the packed bundle and is marked removed at runtime.
+``register`` takes any number of task handlers and Dags, and ``bundle.serve()`` serves exactly what is
+registered, so a task left out is not part of the packed bundle and is marked removed at runtime.
 A second ``bundle.serve()`` call is rejected.
 Registering holds no sockets and starts nothing, so a unit test can build a bundle and dispatch a handler
 through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
-
-``Dag`` is another interface, for a Dag declared in TypeScript rather than in Python, and is still a work
-in progress. ``new Dag`` and ``dag.task`` take a trailing options object (``spec`` on both, plus
-``inputs`` on a task) that is not used yet; do not set them.
 
 TaskFlow arguments
 ~~~~~~~~~~~~~~~~~~
@@ -242,6 +238,48 @@ task instance.
   inside the scheduler process, so they must be present where the scheduler can read them. The API server
   and Dag processor do not need them.
 
+.. _typescript-sdk/native-dag:
+
+Declaring a Dag in TypeScript
+-----------------------------
+
+A ``Dag`` is declared on this side rather than in Python: its schedule, its tasks, their options and
+the edges between them are all written in TypeScript. The surface is still growing, so a Dag declared
+this way is not served to Airflow yet.
+
+``dag.task(taskId, handler)`` returns a *factory*. Calling it places the task in the Dag and supplies the
+handler's arguments, so the call graph is the task graph:
+
+.. code-block:: typescript
+
+    import { Dag } from "apache-airflow-ts-sdk";
+
+    const dag = new Dag("ts_etl");
+
+    const extract = dag.task("extract", async (): Promise<number> => 42);
+    const transform = dag.task("transform", async (rows: number, region: string) => rows * 2);
+    const load = dag.task("load", async (total: number) => {});
+
+    load(transform(extract(), "us"));
+
+Arguments are passed in the order the handler declares them. A handler that declares a single object of
+named arguments can also be called with that object, which names each input instead of ordering it:
+
+.. code-block:: typescript
+
+    const store = dag.task("store", async ({ total }: { total: number }) => {});
+
+    store({ total: extract() });
+
+Each argument takes either an upstream reference or a literal JSON value. A reference has to be the
+argument itself: one buried inside an array or an object is a literal, and draws no edge.
+
+Every task has to be called exactly once. An uncalled task fails when the Dag is read, so none can be
+left out of the graph by accident.
+
+``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
+``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
+
 Writing tasks
 -------------
 
@@ -279,6 +317,9 @@ The ``TaskClient`` surface
 * ``getVariable(key)`` returns the Variable as a string, or ``null`` when it is missing;
   ``getVariableOrThrow(key)`` throws ``VariableNotFoundError`` instead, matching Python ``Variable.get``
   with no default.
+* ``setVariable(key, value, description?)`` stores a Variable, replacing any existing value, and
+  ``deleteVariable(key)`` removes one. Values are stored as strings, so serialize structured data (for
+  example with ``JSON.stringify``) before storing it.
 * ``getConnection(connId)`` returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
   missing or ``null``), or ``null`` when the connection does not exist;
@@ -288,6 +329,13 @@ The ``TaskClient`` surface
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.
 * ``setXCom({key, value, ...})`` publishes an XCom value.
+
+.. note::
+
+   A value supplied by a secrets backend (for example an ``AIRFLOW_VAR_*`` environment variable) still
+   takes precedence over the stored value when the Variable is read back. Calling ``setVariable`` without
+   a description clears the description the Variable had, and ``deleteVariable`` resolves even when the
+   key does not exist.
 
 Logging
 -------

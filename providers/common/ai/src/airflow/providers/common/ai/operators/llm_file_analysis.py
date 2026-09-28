@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
@@ -94,6 +94,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         "file_conn_id",
     )
 
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
+
     def __init__(
         self,
         *,
@@ -131,6 +134,11 @@ class LLMFileAnalysisOperator(LLMOperator):
     def execute(self, context: Context) -> Any:
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__} requires a string prompt (got {type(self.prompt).__name__}). "
+                "Supply images or PDFs via file_path with multi_modal=True instead."
+            )
 
         request = build_file_analysis_request(
             file_path=self.file_path,
@@ -161,7 +169,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             instructions=self._build_system_prompt(),
             **self.agent_params,
         )
-        result = agent.run_sync(request.user_content, usage_limits=usage_limits)
+        result = self.run_agent_sync(agent, request.user_content, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

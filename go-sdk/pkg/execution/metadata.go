@@ -20,13 +20,13 @@ package execution
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
 	"runtime/debug"
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // sdkModulePath is the import path of the SDK module. Used to identify the
@@ -62,39 +62,25 @@ func ParseMetadataFormat(s string) (MetadataFormat, error) {
 	}
 }
 
-// DumpAirflowMetadata writes the bundle's airflow-metadata manifest to stdout
-// (YAML by default, JSON when format is MetadataFormatJSON). It runs
-// RegisterDags against an in-memory recorder only — no task execution, no external
-// services. airflow-go-pack execs the binary with --airflow-metadata and
-// decodes this output to build the embedded manifest.
-func DumpAirflowMetadata(bundle bundlev1.BundleProvider, format MetadataFormat) error {
-	meta, err := collectManifest(bundle)
+// DumpAirflowMetadata writes the bundle's airflow-metadata manifest to w, as YAML
+// by default or as JSON when format is MetadataFormatJSON. It only reads the
+// registered Dag and task ids, without running a task or calling an external service.
+// airflow-go-pack execs the binary with --airflow-metadata and decodes this
+// output to build the embedded manifest.
+func DumpAirflowMetadata(
+	w io.Writer,
+	b bundle.EnumerableBundle,
+	format MetadataFormat,
+) error {
+	data, err := encodeManifest(collectManifest(b), format)
 	if err != nil {
 		return err
 	}
-	data, err := encodeManifest(meta, format)
-	if err != nil {
-		return err
-	}
-	_, err = os.Stdout.Write(data)
+	_, err = w.Write(data)
 	return err
 }
 
-// collectManifest builds the manifest by running RegisterDags against an
-// in-memory recorder and enumerating the recorded dags and tasks.
-func collectManifest(bundle bundlev1.BundleProvider) (airflowmetadata.Manifest, error) {
-	reg := bundlev1.New()
-	if err := bundle.RegisterDags(reg); err != nil {
-		return airflowmetadata.Manifest{}, fmt.Errorf("registering dags: %w", err)
-	}
-
-	enum, ok := reg.(bundlev1.EnumerableBundle)
-	if !ok {
-		return airflowmetadata.Manifest{}, fmt.Errorf(
-			"registry does not implement EnumerableBundle",
-		)
-	}
-
+func collectManifest(b bundle.EnumerableBundle) airflowmetadata.Manifest {
 	meta := airflowmetadata.Manifest{
 		AirflowBundleMetadataVersion: airflowmetadata.FormatVersion,
 		SDK: airflowmetadata.SDK{
@@ -104,14 +90,12 @@ func collectManifest(bundle bundlev1.BundleProvider) (airflowmetadata.Manifest, 
 		},
 		Dags: make(map[string]airflowmetadata.Dag),
 	}
-	for _, dag := range enum.OrderedDags() {
-		taskIDs := make([]string, 0, len(dag.Tasks))
-		for _, t := range dag.Tasks {
-			taskIDs = append(taskIDs, t.ID)
-		}
-		meta.Dags[dag.DagID] = airflowmetadata.Dag{Tasks: taskIDs}
+	for _, handler := range b.ListTaskHandlers() {
+		dag := meta.Dags[handler.DagID]
+		dag.Tasks = append(dag.Tasks, handler.TaskID)
+		meta.Dags[handler.DagID] = dag
 	}
-	return meta, nil
+	return meta
 }
 
 // encodeManifest renders the manifest, ensuring exactly one trailing newline

@@ -114,10 +114,14 @@ def _same_endpoint(requested: str | int | None, stored: str | int | None) -> boo
     The UI sends empty string for hidden unused host/port fields; the ORM stores
     those as NULL. Treat blank as unset so connection types that do not use
     host/port still reuse stored credentials.
+
+    Port arrives as ``0`` rather than blank, because the UI builds its body with
+    ``Number(connection.port)`` and ``Number(null)`` is ``0``. No connection addresses
+    port 0, so it means the same thing as blank here and is normalised with it.
     """
 
     def _norm(value: str | int | None) -> str | int | None:
-        return None if value is None or value == "" else value
+        return None if value in (None, "", 0) else value
 
     return _norm(requested) == _norm(stored)
 

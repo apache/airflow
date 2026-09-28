@@ -106,13 +106,6 @@ def _make_execution_api() -> InProcessExecutionAPI:
     return InProcessExecutionAPI()
 
 
-class DagParsingStat(NamedTuple):
-    """Information on processing progress."""
-
-    done: bool
-    all_files_processed: bool
-
-
 class BundleState(NamedTuple):
     """Persisted refresh state for a DAG bundle."""
 

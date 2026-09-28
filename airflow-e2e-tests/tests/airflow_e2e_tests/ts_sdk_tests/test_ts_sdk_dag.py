@@ -24,8 +24,8 @@ Run with::
 Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks, both served by the single
 ``airflow-ts-pack`` bundle, and each is triggered once via a module-scoped fixture.
 
-``typescript_example`` covers the runtime: Variable and Connection reads, Python <-> TypeScript XCom
-round-trips, and task logs reaching the log store.
+``typescript_example`` covers the runtime: Variable reads and writes, Connection reads,
+Python <-> TypeScript XCom round-trips, and task logs reaching the log store.
 
 ``typescript_taskflow_example`` covers TaskFlow arguments, including an upstream output pulled before
 the handler runs and a ``withArgNames`` rename on its ``report`` task, and shares a ``build_message``
@@ -38,8 +38,10 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from http import HTTPStatus
 
 import pytest
+import requests
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
@@ -52,6 +54,11 @@ _LOG_FETCH_TIMEOUT = 120
 
 _DAG_ID = "typescript_example"
 _TASKFLOW_DAG_ID = "typescript_taskflow_example"
+
+# Written by `write_and_delete_variable`; see ts-sdk/example/src/main.ts.
+_LAST_RUN_VARIABLE = "typescript_example_last_run"
+_LAST_RUN_DESCRIPTION = "Run id of the last typescript_example run"
+_SCRATCH_VARIABLE = "typescript_example_scratch"
 
 
 @dataclass
@@ -113,6 +120,7 @@ def test_task_states(completed_run: _CompletedRun):
         "python_start": "success",
         "build_message": "success",
         "read_connection": "success",
+        "write_and_delete_variable": "success",
     }
     for task_id, want in expected.items():
         assert completed_run.ti_states.get(task_id) == want, (
@@ -142,6 +150,27 @@ def test_read_connection_xcom(completed_run: _CompletedRun):
         "login": "user",
         "hasPassword": True,
     }, f"unexpected 'read_connection' return_value: {value!r}"
+
+
+def test_variable_written_by_typescript_task_is_readable(completed_run: _CompletedRun):
+    """``setVariable`` stores this run's id and the description alongside it."""
+    variable = completed_run.client.get_variable(_LAST_RUN_VARIABLE)
+    assert variable.get("value") == completed_run.run_id, (
+        f"{_LAST_RUN_VARIABLE} should hold this run's id {completed_run.run_id!r}, got {variable!r}"
+    )
+    assert variable.get("description") == _LAST_RUN_DESCRIPTION, (
+        f"{_LAST_RUN_VARIABLE} should carry the description set from TypeScript, got {variable!r}"
+    )
+
+
+def test_scratch_variable_deleted_by_typescript_task_is_gone(completed_run: _CompletedRun):
+    """A Variable written and then deleted from TypeScript no longer exists."""
+    with pytest.raises(requests.HTTPError) as excinfo:
+        completed_run.client.get_variable(_SCRATCH_VARIABLE)
+    assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+        f"{_SCRATCH_VARIABLE} should have been deleted by the TypeScript task, "
+        f"got HTTP {excinfo.value.response.status_code}"
+    )
 
 
 def test_coordinator_logs_reach_task_log_store(completed_run: _CompletedRun):

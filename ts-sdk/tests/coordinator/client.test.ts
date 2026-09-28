@@ -21,6 +21,7 @@ import { describe, it, expect } from "vitest";
 import { ConnectionNotFoundError } from "../../src/sdk/client.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
+import type { TaskClient } from "../../src/sdk/client.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 function fakeComm(frames: { body: unknown; error?: unknown }[]): CommChannel {
@@ -41,6 +42,18 @@ const FAKE_CTX: TaskContext = {
 
 function client(frames: { body: unknown; error?: unknown }[]) {
   return createCoordinatorClient(fakeComm(frames), FAKE_CTX);
+}
+
+/** Captures the request bodies sent, answering each one with `reply`. */
+function recordingClient(reply: unknown = null) {
+  const sent: Record<string, unknown>[] = [];
+  const comm = {
+    request: async (body: Record<string, unknown>) => {
+      sent.push(body);
+      return { body: reply };
+    },
+  } as unknown as CommChannel;
+  return { client: createCoordinatorClient(comm, FAKE_CTX), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -80,6 +93,57 @@ describe("getVariableOrThrow", () => {
   it("throws VariableNotFoundError on a null-valued result", async () => {
     const c = client([{ body: { type: "VariableResult", key: "x", value: null } }]);
     await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
+  });
+});
+
+describe("setVariable", () => {
+  it("sends the description the caller gave", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.setVariable("threshold", "42", "rows above this take the slow path");
+
+    expect(sent[0]).toEqual({
+      type: "PutVariable",
+      key: "threshold",
+      value: "42",
+      description: "rows above this take the slow path",
+    });
+  });
+
+  it("sends description as null when the caller gives none", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.setVariable("threshold", "42");
+
+    expect(sent[0]).toEqual({
+      type: "PutVariable",
+      key: "threshold",
+      value: "42",
+      description: null,
+    });
+  });
+});
+
+describe("deleteVariable", () => {
+  it("sends DeleteVariable and resolves on the supervisor's OKResponse", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.deleteVariable("threshold")).resolves.toBeUndefined();
+
+    expect(sent[0]).toEqual({ type: "DeleteVariable", key: "threshold" });
+  });
+});
+
+describe("writes do not read a supervisor 404 as absence", () => {
+  it.each([
+    ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],
+    ["deleteVariable", "DeleteVariable", (c: TaskClient) => c.deleteVariable("k")],
+    ["setXCom", "SetXCom", (c: TaskClient) => c.setXCom({ key: "k", value: 1 })],
+  ])("%s rejects", async (_name, op, call) => {
+    const c = client([
+      { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },
+    ]);
+    await expect(call(c)).rejects.toThrow(`${op} failed: API_SERVER_ERROR`);
   });
 });
 

@@ -293,7 +293,7 @@ class AssetsOperations(BaseOperations):
 
     def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
         """Materialize an asset."""
-        self.response = self.client.post(f"assets/{asset_id}/materialize")
+        self.response = self.client.post(f"assets/{asset_id}/materialize", json={})
         return DAGRunResponse.model_validate_json(self.response.content)
 
     def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:

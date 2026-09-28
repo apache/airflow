@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
+import jsonschema.validators
 import yaml
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
@@ -31,6 +32,8 @@ AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_PATH / "src"
 PROVIDER_DATA_SCHEMA_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "provider.yaml.schema.json"
 )
+# The C loader parses YAML several times faster than the pure-Python one; fall back when libyaml is absent.
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 
 
 @cache
@@ -65,24 +68,31 @@ def get_all_provider_yaml_paths() -> list[Path]:
 
 
 @cache
-def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
-    """
-    Load all data from providers files
+def _provider_yaml_validator() -> jsonschema.protocols.Validator:
+    """Return a validator compiled once for the provider.yaml schema.
 
-    :return: A list containing the contents of all provider.yaml files - old and new structure.
+    ``jsonschema.validate`` re-validates the schema itself on every call, which is the dominant
+    cost when validating ~100 provider.yaml files in a row (several seconds per Sphinx process).
     """
     schema = provider_yaml_schema()
+    validator_cls = jsonschema.validators.validator_for(schema)
+    validator_cls.check_schema(schema)
+    return validator_cls(schema)
+
+
+@cache
+def _load_all_provider_yamls() -> tuple[dict[str, Any], ...]:
+    """Parse and validate every provider.yaml once per process, suspended providers included."""
+    validator = _provider_yaml_validator()
     result = []
     for provider_yaml_path in get_all_provider_yaml_paths():
         with open(provider_yaml_path) as yaml_file:
-            provider = yaml.safe_load(yaml_file)
+            provider = yaml.load(yaml_file, Loader=_YAML_LOADER)
         try:
-            jsonschema.validate(provider, schema=schema)
+            validator.validate(provider)
         except jsonschema.ValidationError as ex:
             msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
             raise RuntimeError(msg)
-        if provider["state"] == "suspended" and not include_suspended:
-            continue
         provider_yaml_dir_str = os.path.dirname(provider_yaml_path)
         module = provider["package-name"][len("apache-") :].replace("-", ".")
         module_folder = module[len("airflow-providers-") :].replace(".", "/")
@@ -91,4 +101,18 @@ def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
         provider["docs-dir"] = os.path.dirname(provider_yaml_path.parent / "docs")
         provider["system-tests-dir"] = f"{provider_yaml_dir_str}/tests/system/{module_folder}"
         result.append(provider)
-    return result
+    return tuple(result)
+
+
+@cache
+def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
+    """
+    Load all data from providers files
+
+    :return: A list containing the contents of all provider.yaml files - old and new structure.
+    """
+    return [
+        provider
+        for provider in _load_all_provider_yamls()
+        if include_suspended or provider["state"] != "suspended"
+    ]

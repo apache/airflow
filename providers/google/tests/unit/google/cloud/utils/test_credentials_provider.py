@@ -526,6 +526,21 @@ class TestGetGcpCredentialsAndProjectId:
         mock_auth_default.assert_called_once_with(scopes=None)
         assert result == (mock_credentials, "")
 
+    @mock.patch("google.auth.load_credentials_from_dict", autospec=True)
+    def test_get_credentials_using_idp_no_project_id(self, mock_load_credentials_from_dict):
+        mock_credentials = mock.MagicMock()
+        mock_load_credentials_from_dict.return_value = (mock_credentials, None)
+
+        result = get_credentials_and_project_id(
+            credential_config_file=CREDENTIAL_CONFIG_STRING_FILE,
+            idp_issuer_url=IDP_LINK,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+        )
+
+        mock_load_credentials_from_dict.assert_called_once()
+        assert result == (mock_credentials, "")
+
 
 class TestGetScopes:
     def test_get_scopes_with_default(self):
