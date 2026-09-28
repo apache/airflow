@@ -85,9 +85,13 @@ class TestNodeCoordinatorAttributes:
         assert coordinator.bundles_root == []
         assert coordinator.dag_bundle_name is None
 
-    @pytest.mark.parametrize("bundles_root", [None, []], ids=["none", "empty-list"])
+    @pytest.mark.parametrize(
+        "bundles_root",
+        [None, [], "", "  ", [""]],
+        ids=["none", "empty-list", "empty-str", "blank-str", "list-of-empty-str"],
+    )
     def test_explicit_empty_bundles_root_raises(self, bundles_root):
-        with pytest.raises(ValueError, match="must contain at least one path when provided"):
+        with pytest.raises(ValueError, match="and each path must be non-empty"):
             NodeCoordinator(bundles_root=bundles_root)
 
     def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
