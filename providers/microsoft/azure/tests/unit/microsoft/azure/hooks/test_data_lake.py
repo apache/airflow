@@ -73,39 +73,66 @@ class TestAzureDataLakeHook:
             )
         )
 
-    @mock.patch(f"{MODULE}.lib", autospec=True)
-    def test_conn(self, mock_lib):
-        from azure.datalake.store import core
-
+    @mock.patch(f"{MODULE}._ADL_TAKES_TOKEN_CREDENTIAL", True)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
+    def test_conn_with_tenant_uses_client_secret_credential(self, mock_credential, mock_filesystem):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
         hook = AzureDataLakeHook(azure_data_lake_conn_id="adl_test_key")
-        assert hook._conn is None
-        assert hook.conn_id == "adl_test_key"
-        assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
-        assert mock_lib.auth.called
+
+        assert hook.get_conn() is mock_filesystem.return_value
+        mock_credential.assert_called_once_with(
+            tenant_id="tenant", client_id="client_id", client_secret="client secret"
+        )
+        mock_filesystem.assert_called_once_with(mock_credential.return_value, store_name="accountname")
+
+    # lib is patched without autospec because azure-datalake-store 1.x has no lib.auth.
+    @mock.patch(f"{MODULE}._ADL_TAKES_TOKEN_CREDENTIAL", False)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.lib")
+    def test_conn_with_tenant_uses_lib_auth_before_azure_datalake_store_1(self, mock_lib, mock_filesystem):
+        from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+
+        hook = AzureDataLakeHook(azure_data_lake_conn_id="adl_test_key")
+
+        assert hook.get_conn() is mock_filesystem.return_value
+        mock_lib.auth.assert_called_once_with(
+            tenant_id="tenant", client_secret="client secret", client_id="client_id"
+        )
+        mock_filesystem.assert_called_once_with(mock_lib.auth.return_value, store_name="accountname")
 
     @pytest.mark.usefixtures("connection_without_tenant")
-    @mock.patch(f"{MODULE}.lib")
-    @mock.patch(f"{MODULE}.AzureIdentityCredentialAdapter")
-    def test_fallback_to_azure_identity_credential_adppter_when_tenant_is_not_provided(
-        self,
-        mock_azure_identity_credential_adapter,
-        mock_datalake_store_lib,
-    ):
-        from azure.datalake.store import core
-
+    @mock.patch(f"{MODULE}._ADL_TAKES_TOKEN_CREDENTIAL", True)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
+    def test_conn_without_tenant_uses_default_azure_credential(self, mock_credential, mock_filesystem):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
         hook = AzureDataLakeHook(azure_data_lake_conn_id="adl_test_key_without_tenant")
-        assert hook._conn is None
-        assert hook.conn_id == "adl_test_key_without_tenant"
-        assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
-        mock_azure_identity_credential_adapter.assert_called()
-        args = mock_azure_identity_credential_adapter.call_args
-        assert args.kwargs["managed_identity_client_id"] is None
-        assert args.kwargs["workload_identity_tenant_id"] is None
-        mock_datalake_store_lib.auth.assert_not_called()
+
+        assert hook.get_conn() is mock_filesystem.return_value
+        mock_credential.assert_called_once_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
+        mock_filesystem.assert_called_once_with(mock_credential.return_value, store_name="accountname")
+
+    @pytest.mark.usefixtures("connection_without_tenant")
+    @mock.patch(f"{MODULE}._ADL_TAKES_TOKEN_CREDENTIAL", False)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.AzureIdentityCredentialAdapter", autospec=True)
+    def test_conn_without_tenant_uses_credential_adapter_before_azure_datalake_store_1(
+        self, mock_adapter, mock_filesystem
+    ):
+        from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+
+        hook = AzureDataLakeHook(azure_data_lake_conn_id="adl_test_key_without_tenant")
+
+        assert hook.get_conn() is mock_filesystem.return_value
+        mock_adapter.assert_called_once_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
+        mock_filesystem.assert_called_once_with(mock_adapter.return_value, store_name="accountname")
 
     @pytest.mark.usefixtures("connection")
     @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)

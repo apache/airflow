@@ -1667,7 +1667,6 @@ airbyte-api = "1.x breaks provider tests (#69081)"
 mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
 anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
 azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
-azure-datalake-store = "1.x removed lib.auth used by AzureDataLakeHook (#73795)"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py

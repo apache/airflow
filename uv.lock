@@ -6729,7 +6729,7 @@ requires-dist = [
     { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.15.0" },
-    { name = "azure-datalake-store", specifier = ">=0.0.45,<1" },
+    { name = "azure-datalake-store", specifier = ">=0.0.45" },
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-keyvault-secrets", specifier = ">=4.10.0" },
     { name = "azure-kusto-data", specifier = ">=4.1.0,!=5.0.0" },
@@ -10091,16 +10091,15 @@ wheels = [
 
 [[package]]
 name = "azure-datalake-store"
-version = "0.0.53"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
-    { name = "msal" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/ff/61369d06422b5ac48067215ff404841342651b14a89b46c8d8e1507c8f17/azure-datalake-store-0.0.53.tar.gz", hash = "sha256:05b6de62ee3f2a0a6e6941e6933b792b800c3e7f6ffce2fc324bc19875757393", size = 71430, upload-time = "2023-05-10T21:17:05.665Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/58/41042543710a3a0be3bd1b7851c790a3087cdbf4c8eb14efcd7a0a910ea7/azure_datalake_store-1.0.1.tar.gz", hash = "sha256:5364d4445aab154a1c7cb10215629c3ce46ce5c7aaaf16071890c03fae53a035", size = 69462, upload-time = "2025-06-11T15:43:07.211Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/2a/75f56b14f115189155cf12e46b366ad1fe3357af5a1a7c09f7446662d617/azure_datalake_store-0.0.53-py2.py3-none-any.whl", hash = "sha256:a30c902a6e360aa47d7f69f086b426729784e71c536f330b691647a51dc42b2b", size = 55308, upload-time = "2023-05-10T21:17:02.629Z" },
+    { url = "https://files.pythonhosted.org/packages/75/bd/9cc9f114dbf90717dac49f1f7365156a9a005ef7016df2d4eb28d6442b90/azure_datalake_store-1.0.1-py2.py3-none-any.whl", hash = "sha256:3772a2a247aaf9f5fa4b0f2cc0a0225072960cc245cfc8130588babb2b9fe705", size = 53141, upload-time = "2025-06-03T23:23:46.377Z" },
 ]
 
 [[package]]

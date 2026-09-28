@@ -117,7 +117,7 @@ PIP package                                 Version required
 ``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.15.0``
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
-``azure-datalake-store``                    ``>=0.0.45,<1``
+``azure-datalake-store``                    ``>=0.0.45``
 ``azure-identity``                          ``>=1.25.3``
 ``azure-keyvault-secrets``                  ``>=4.10.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
