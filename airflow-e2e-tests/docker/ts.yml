@@ -17,11 +17,12 @@
 
 # Docker Compose override for ts_sdk E2E test mode.
 #
-# The stock worker image ships no Node.js runtime, so node-provider copies the
+# The stock Airflow image ships no Node.js runtime, so node-provider copies the
 # node binary from the same image conftest builds the bundle with into a
 # shared volume. The bundle's directory is bind-mounted as the ts-bundles Dag
 # bundle, which NodeCoordinator scans, and the worker consumes the "typescript"
-# queue where @task.stub tasks are routed.
+# queue where TypeScript tasks are routed. The Dag processor gets node too, to
+# parse the bundle's native Dag from the Dags folder.
 ---
 services:
   node-provider:
@@ -33,6 +34,10 @@ services:
   airflow-dag-processor:
     volumes:
       - ./ts-bundles:/opt/airflow/ts-bundles:ro
+      - nodejs-bin:/opt/nodejs:ro
+    depends_on:
+      node-provider:
+        condition: service_completed_successfully
 
   airflow-worker:
     volumes:

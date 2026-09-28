@@ -19,8 +19,7 @@ End-to-end test of a Dag declared entirely in TypeScript.
 
 Run with::
 
-    E2E_TEST_MODE=ts_sdk RUN_TS_SDK_NATIVE_DAG_TESTS=true \\
-        uv run --project airflow-e2e-tests pytest \\
+    E2E_TEST_MODE=ts_sdk uv run --project airflow-e2e-tests pytest \\
         tests/airflow_e2e_tests/ts_sdk_tests/test_ts_sdk_native_dag.py -xvs
 
 Unlike ``test_ts_sdk_dag.py``, no Python file declares this Dag: the Dag processor asks the
@@ -29,22 +28,18 @@ Unlike ``test_ts_sdk_dag.py``, no Python file declares this Dag: the Dag process
 named fan-in, order-only edges, a conditional, a multi-way branch, and a task that triggers another
 Dag's run.
 
-Gated behind ``RUN_TS_SDK_NATIVE_DAG_TESTS`` because it needs a Dag processor that can dispatch a
-parse request to a language coordinator. Until that lands, the bundle answers a request nothing
-sends, and the Dag never appears.
+The bundle sits in the Dag bundle, where the ``ts-native`` coordinator claims it. Every task, the
+trigger included, runs in the TypeScript runtime.
 """
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import pytest
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
-
-_RUN_NATIVE = os.environ.get("RUN_TS_SDK_NATIVE_DAG_TESTS", "").lower() in ("true", "1")
 
 # Parsing the bundle launches node before the first task is even scheduled, so
 # allow the same headroom the mixed-language suite does.
@@ -58,12 +53,6 @@ _DOWNSTREAM_DAG_ID = "typescript_example"
 _NORTH_ROWS_VARIABLE = "typescript_native_north_rows"
 _SOUTH_ROWS_VARIABLE = "typescript_native_south_rows"
 _CADENCE_VARIABLE = "typescript_native_cadence"
-
-pytestmark = pytest.mark.skipif(
-    not _RUN_NATIVE,
-    reason="Needs a Dag processor that dispatches parse requests to a language coordinator "
-    "(RUN_TS_SDK_NATIVE_DAG_TESTS)",
-)
 
 
 @dataclass
