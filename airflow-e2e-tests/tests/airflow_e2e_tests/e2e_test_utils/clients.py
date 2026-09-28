@@ -144,11 +144,7 @@ class AirflowClient:
     def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=300, check_interval=5):
         start_time = time.time()
         while time.time() - start_time < timeout:
-            response = self._make_request(
-                method="GET",
-                endpoint=f"dags/{dag_id}/dagRuns/{run_id}",
-            )
-            state = response.get("state")
+            state = self.get_dag_run(dag_id=dag_id, run_id=run_id).get("state")
             if state in {"success", "failed"}:
                 return state
             time.sleep(check_interval)
@@ -190,6 +186,7 @@ class AirflowClient:
         return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
 
     def get_dag_run(self, dag_id: str, run_id: str):
+        """Get a Dag run, with its state, run type and conf."""
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
 
     def trigger_dag_and_wait(self, dag_id: str, json=None):

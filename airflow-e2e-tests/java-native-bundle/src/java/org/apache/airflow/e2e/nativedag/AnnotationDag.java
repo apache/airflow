@@ -20,34 +20,36 @@
 // "native" is a Java keyword, so the native Dags live in "nativedag".
 package org.apache.airflow.e2e.nativedag;
 
+import static org.apache.airflow.e2e.NativeBundleBuilder.QUEUE;
+
 import org.apache.airflow.sdk.*;
 
-/** A native Java Dag declared with annotations; its tasks set {@code queue} like the interface Dag's. */
+/** A native Java Dag declared with annotations; its tasks use the interface Dag's queue. */
 @Builder.Dag(
     id = "java_native_annotation_e2e",
     description = "Native Java Dag of the Airflow E2E tests, declared with annotations",
     catchup = false,
     tags = {"java-sdk", "native", "e2e"})
 public class AnnotationDag {
-  @Builder.Task(id = "extract", queue = "java-native")
+  @Builder.Task(id = "extract", queue = QUEUE)
   public long extract() {
     return 42L;
   }
 
-  @Builder.Task(id = "transform", queue = "java-native")
+  @Builder.Task(id = "transform", queue = QUEUE)
   public long transform(long extracted, double factor) {
     return (long) (extracted * factor);
   }
 
   /** Fails the run unless the value reached it, so a successful run proves the XCom flow. */
-  @Builder.Task(id = "load", queue = "java-native")
+  @Builder.Task(id = "load", queue = QUEUE)
   public void load(long transformed) {
     if (transformed != 63L) {
       throw new IllegalStateException("load expected 63 from transform, got " + transformed);
     }
   }
 
-  @Builder.Task(id = "audit", queue = "java-native")
+  @Builder.Task(id = "audit", queue = QUEUE)
   public void audit() {}
 
   @Builder.Deps
