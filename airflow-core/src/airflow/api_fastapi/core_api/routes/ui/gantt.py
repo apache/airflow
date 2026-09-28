@@ -108,13 +108,12 @@ def get_gantt_data(
     combined = union_all(current_tis, history_tis).subquery()
     query = select(combined).order_by(combined.c.task_id, combined.c.try_number)
     # Rebind the filters to the union subquery columns so they apply to both TI and TIH rows.
-    query = NullableDatetimeRangeFilter(start_date_range.value, combined.c.start_date).to_orm(query)  # type: ignore[arg-type]
-    query = NullableDatetimeRangeFilter(end_date_range.value, combined.c.end_date).to_orm(query)  # type: ignore[arg-type]
+    query = NullableDatetimeRangeFilter(start_date_range.value, combined.c.start_date).to_orm(query)
+    query = NullableDatetimeRangeFilter(end_date_range.value, combined.c.end_date).to_orm(query)
 
     results = session.execute(query).fetchall()
 
     if not results:
-        # With an active range filter, an existing run with all rows filtered out is not an error.
         filtered_existing_run = (
             start_date_range.is_active() or end_date_range.is_active()
         ) and session.scalar(
