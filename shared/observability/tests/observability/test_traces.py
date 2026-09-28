@@ -414,7 +414,7 @@ class TestForkSafeTracerProvider:
 
         assert provider._tracers_lock is not inherited_lock
 
-    @mock.patch("opentelemetry.sdk.trace._get_process_dependent_resource")
+    @mock.patch("opentelemetry.sdk.trace._get_process_dependent_resource", autospec=True)
     def test_handle_fork_does_not_detect_the_process_resource(self, mock_get_process_dependent_resource):
         _ForkSafeTracerProvider()._handle_fork()
 
