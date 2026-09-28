@@ -26,12 +26,16 @@ repos:
     hooks:
       - id: check-deferrable-default
         name: Check and fix default value of default_deferrable
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/check_deferrable_default.py
         pass_filenames: false
         files: ^(.*/)?airflow/.*/(sensors|operators)/.*\.py$
       - id: check-trigger-serialize-init
         name: Check trigger __init__ and serialize() are in sync
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Every trigger __init__ parameter must appear in its serialize() return dict
         language: python
         entry: ../scripts/ci/prek/check_trigger_serialize_init.py
@@ -39,6 +43,8 @@ repos:
         files: ^.*/src/airflow/providers/.*/triggers/[^/]+\.py$
       - id: check-migration-patterns
         name: Check migration files for anti-patterns and style (MIG001-MIG004)
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_migration_patterns.py
         language: python
         pass_filenames: true
@@ -47,12 +53,16 @@ repos:
         require_serial: true
       - id: update-providers-dependencies
         name: Update dependencies for providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/update_providers_dependencies.py
         language: python
         always_run: true
         pass_filenames: false
       - id: validate-operators-init
         name: Validate templated fields in operator __init__
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Require plain assignment of templated fields and forbid reading their un-rendered values
         language: python
         entry: ../scripts/ci/prek/validate_operators_init.py
@@ -60,6 +70,8 @@ repos:
         files: ^.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
       - id: check-conn-id-templated
         name: Check connection ids accepted by operators are in template_fields
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Every *conn_id argument an operator, sensor or notifier accepts must be templated
         language: python
         entry: ../scripts/ci/prek/check_conn_id_templated.py
@@ -69,6 +81,8 @@ repos:
         require_serial: true
       - id: update-providers-build-files
         name: Update providers build files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/update_providers_build_files.py
         language: python
         pass_filenames: true
@@ -84,24 +98,32 @@ repos:
         require_serial: true
       - id: check-airflow-v-imports-in-tests
         name: Check AIRFLOW_V imports in tests
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/check_airflow_v_imports_in_tests.py
         pass_filenames: true
         files: ^.*/tests/.+\.py$
       - id: check-sql-dependency-common-data-structure
         name: Check dependency of SQL providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Check dependency of SQL Providers with common data structure
         entry: ../scripts/ci/prek/check_common_sql_dependency.py
         language: python
         files: ^.*/src/airflow/providers/.*/hooks/.*\.py$
       - id: generate-volumes-for-sources
         name: Generate volumes for docker compose
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/generate_volumes_for_sources.py
         language: python
         files: ^.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
       - id: check-pytest-mark-db-test-in-providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: pygrep
         name: Check pytest.mark.db_test use in providers
         entry: pytest\.mark\.db_test
@@ -162,6 +184,8 @@ repos:
             ^zendesk/.*\.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
         name: Verify no hard-coded version in example dags
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: The links to example dags should use |version| as version specification
         language: pygrep
         entry: >
@@ -171,6 +195,8 @@ repos:
         pass_filenames: true
         files: ^.*/docs/.*\.rst
       - id: check-no-airflow-deprecation-in-providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: pygrep
         name: Do not use DeprecationWarning in providers
         description: Use AirflowProviderDeprecationWarning in providers
@@ -178,6 +204,8 @@ repos:
         pass_filenames: true
         files: ^.*/src/airflow/providers/.*\.py$
       - id: check-base-operator-usage
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: pygrep
         name: Check BaseOperator other imports
         description: Make sure BaseOperator is imported from airflow.models outside of core
@@ -186,6 +214,8 @@ repos:
         files: ^.*/src/airflow/providers/.*\.py$
         exclude: ^standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         name: Check providers import hook lineage code from compat
         description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
@@ -198,6 +228,8 @@ repos:
         exclude: ^common/compat/src/airflow/providers/common/compat/.*\.py$
       - id: check-aiobotocore-optional
         name: Check if aiobotocore is an optional dependency only
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_aiobotocore_optional.py
         language: python
         files: ^.*/provider\.yaml$
@@ -205,6 +237,8 @@ repos:
         require_serial: true
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         pass_filenames: false
         always_run: true
         entry: ../scripts/ci/prek/check_providers_subpackages_all_have_init.py
@@ -212,12 +246,16 @@ repos:
         require_serial: true
       - id: check-system-tests-tocs
         name: Check that system tests is properly added
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_system_tests_hidden_in_index.py
         language: python
         pass_filenames: true
         files: ^.*/docs/index\.rst$
       - id: check-provider-docs-valid
         name: Validate provider doc files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_provider_docs.py
         language: python
         files: ^.*/provider\.yaml$|^.*/docs/.*
@@ -225,6 +263,8 @@ repos:
         pass_filenames: false
       - id: check-connection-doc-labels
         name: Validate connection doc labels match provider.yaml
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_connection_doc_labels.py
         language: python
         files: ^.*/provider\.yaml$|^.*/docs/.*/connections.*\.rst$|^.*/docs/connections\.rst$
@@ -232,12 +272,16 @@ repos:
         pass_filenames: false
       - id: check-common-ai-operators-index
         name: Check common.ai operators are listed in the docs index
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_common_ai_operators_index.py
         language: python
         files: ^common/ai/(src/airflow/providers/common/ai/operators/.*\.py|docs/operators/index\.rst)$
         require_serial: true
         pass_filenames: false
       - id: mypy-providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         stages: ['pre-push']
         name: Run mypy for providers
         language: python
@@ -245,6 +289,8 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
@@ -254,6 +300,8 @@ repos:
         require_serial: true
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_provider_yaml_files.py
         language: python
         files: >
@@ -264,18 +312,24 @@ repos:
         require_serial: true
       - id: check-cli-definition-imports
         name: Check CLI definition files only import allowed modules
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_cli_definition_imports.py
         language: python
         files: ^.*/cli/definition\.py$
         require_serial: false
       - id: check-imports-in-providers
         name: Check imports in providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_imports_in_providers.py
         language: python
         files: ^.*/src/airflow/providers/.*version_compat.*\.py$
         require_serial: true
       - id: check-conf-import-in-providers
         name: Check conf is imported from compat SDK in providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_conf_import_in_providers.py
         language: python
         types: [python]
@@ -284,6 +338,8 @@ repos:
         require_serial: false
       - id: provider-version-compat
         name: Check for correct version_compat imports in providers
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_provider_version_compat.py
         language: python
         types: [python]
@@ -294,6 +350,8 @@ repos:
     hooks:
       - id: ast-grep
         name: Check providers import httpx2 rather than httpx
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         types: [python]
         # Pinned to the providers config rather than relying on ast-grep walking up
         # from the working directory, so a future root sgconfig.yml cannot shadow it.
