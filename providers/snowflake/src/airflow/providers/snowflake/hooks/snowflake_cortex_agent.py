@@ -325,7 +325,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             to complete. Defaults to ``600``.
         :return: JSON response confirming creation.
         """
-        payload = {
+        payload: dict[str, Any] = {
             "name": agent_name,
             **self._build_agent_payload(
                 comment=comment,
