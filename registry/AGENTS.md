@@ -469,10 +469,14 @@ generated API reference. `provider.yaml`'s `how-to-guide` fields are CI-enforced
 by `check_doc_files`, but they name a whole page, never a section, and cover only
 operators, sensors and transfers — not the toolset, hook and decorator pages this
 needs. So `registry_tools/docs_guides.py` reads the provider's own `docs/*.rst`
-and matches a class to a section when the section's title *opens with the class
-name as an inline literal* — ``` ``HookToolset`` ``` or ``` ``AgentOperator`` &
-``@task.agent`` ```. The anchor is derived from the whole title the way docutils
-derives its HTML id.
+and matches a class to a section when the section's title names it as an inline
+literal, either at the start — ``` ``MCPHook`` ``` or after a colon at the very
+end — ``` Airflow hooks as tools: ``HookToolset`` ``` or ``` Agents with tools:
+``AgentOperator`` and ``@task.agent`` ```. A literal elsewhere in a prose title
+does not count. The anchor is derived from the whole title the way docutils
+derives its HTML id. When a name is titled in more than one place, a page's own
+title wins over a subsection on any other page, so the link lands on the page
+dedicated to the class rather than on a passing section about it.
 
 That convention is what the guides already do, and it is deliberately the only
 signal this resolves a section from: a hand-maintained class-to-guide table
@@ -480,11 +484,11 @@ would keep pointing at sections that have since been renamed or split, and a
 link that lands on the wrong section is worse than no link. A class documented
 only in prose gets no Guide link.
 
-Growing the set of modules that get a Guide link means changing that provider's
-section titles to lead with an inline literal, not touching this extractor.
-`common/ai` follows the convention most thoroughly; a couple of other providers
-use the same title shape for a config option name or a single decorator rather
-than a class. Having the right title doesn't guarantee a link — that still
+Growing the set of modules that get a Guide link means titling that provider's
+sections in one of those two shapes, not touching this extractor. `common/ai`
+titles its dedicated operator, hook and toolset pages this way; a couple of other
+providers use the same shapes for a config option name or a single decorator
+rather than a class. Having the right title doesn't guarantee a link — that still
 depends on a same-named module existing in the catalog.
 
 Both extraction paths resolve it — `extract_parameters.py` from the working tree

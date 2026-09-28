@@ -36,8 +36,8 @@ Toolsets: Airflow hooks as AI agent tools
 
 Intro prose.
 
-``HookToolset``
----------------
+Airflow hooks as tools: ``HookToolset``
+----------------------------------------
 
 How to use it.
 
@@ -53,8 +53,8 @@ Bounded query results
 
 ``SQLToolset`` bounds that.
 
-``DataFusionToolset``
----------------------
+Files with DataFusion: ``DataFusionToolset``
+-----------------------------------------------
 
 Another one.
 """
@@ -81,8 +81,8 @@ def test_collect_guide_anchors_finds_class_named_sections_at_any_depth():
     anchors = collect_guide_anchors({"toolsets.rst": TOOLSETS_GUIDE})
 
     assert anchors == {
-        "HookToolset": "toolsets.html#hooktoolset",
-        "DataFusionToolset": "toolsets.html#datafusiontoolset",
+        "HookToolset": "toolsets.html#airflow-hooks-as-tools-hooktoolset",
+        "DataFusionToolset": "toolsets.html#files-with-datafusion-datafusiontoolset",
     }
 
 
@@ -101,25 +101,29 @@ def test_collect_guide_anchors_ignores_classes_only_mentioned_in_prose():
 
 
 def test_collect_guide_anchors_keeps_nested_page_paths():
-    guide = "``AgentOperator``\n-----------------\n\nProse.\n"
+    guide = "Agents with tools: ``AgentOperator``\n-------------------------------------\n\nProse.\n"
 
     assert collect_guide_anchors({"operators/agent.rst": guide}) == {
-        "AgentOperator": "operators/agent.html#agentoperator"
+        "AgentOperator": "operators/agent.html#agents-with-tools-agentoperator"
     }
 
 
-def test_collect_guide_anchors_prefers_first_page_in_sorted_order():
-    guide = "``SQLToolset``\n--------------\n\nProse.\n"
+def test_collect_guide_anchors_prefers_first_sorted_page_among_page_titles():
+    # Both pages title themselves after SQLToolset, so neither title beats the
+    # other on that basis alone; the tie is broken by sorted page order.
+    guide = "SQL databases: ``SQLToolset``\n------------------------------\n\nProse.\n"
 
     anchors = collect_guide_anchors({"toolsets.rst": guide, "operators/sql.rst": guide})
 
-    assert anchors["SQLToolset"] == "operators/sql.html#sqltoolset"
+    assert anchors["SQLToolset"] == "operators/sql.html#sql-databases-sqltoolset"
 
 
 def test_collect_guide_anchors_handles_a_title_covering_more_than_the_class():
     # Verified against the published guide: this heading is served at
     # .../operators/agent.html#agentoperator-task-agent, so the anchor comes from
     # the whole title while both the operator and its decorator get linked to it.
+    # This is the leading shape from before #73523; older release tags' docs
+    # (read by extract_versions.py) still use it, so it must keep working.
     guide = "``AgentOperator`` & ``@task.agent``\n===================================\n\nProse.\n"
 
     assert collect_guide_anchors({"operators/agent.rst": guide}) == {
@@ -131,7 +135,8 @@ def test_collect_guide_anchors_handles_a_title_covering_more_than_the_class():
 def test_collect_guide_anchors_links_a_decorator_name_with_underscores():
     # ``@task.llm_file_analysis`` is the real decorator name for the common.ai
     # provider's LLMFileAnalysisOperator; the leading-literal charset must admit
-    # "@" and "." for it to ever get a link.
+    # "@" and "." for it to ever get a link. Also a leading-shape fixture kept for
+    # the same reason as the test above: older release tags' docs still use it.
     guide = (
         "``LLMFileAnalysisOperator`` & ``@task.llm_file_analysis``\n"
         "==========================================================\n\n"
@@ -149,9 +154,9 @@ def test_collect_guide_anchors_links_a_decorator_name_with_underscores():
 
 
 def test_collect_guide_anchors_ignores_a_prose_title_mentioning_a_literal():
-    # The title doesn't *open* with the literal, so nothing after "Using" should
-    # ever be scanned for further inline literals -- a prose heading that happens
-    # to mention one in passing must not produce a link.
+    # The title neither opens with the literal nor ends a colon-led clause with
+    # it, so a prose heading that happens to mention one in passing -- anywhere
+    # in the title -- must not produce a link.
     guide = "Using ``foo`` in a pipeline\n============================\n\nProse.\n"
 
     assert collect_guide_anchors({"toolsets.rst": guide}) == {}
@@ -160,7 +165,118 @@ def test_collect_guide_anchors_ignores_a_prose_title_mentioning_a_literal():
 def test_collect_guide_anchors_requires_a_long_enough_underline():
     # An underline shorter than the title isn't a section in reST, so it must not
     # produce a link to an anchor Sphinx never emitted.
-    assert collect_guide_anchors({"toolsets.rst": "``HookToolset``\n---\n\nProse.\n"}) == {}
+    guide = "Airflow hooks as tools: ``HookToolset``\n---\n\nProse.\n"
+
+    assert collect_guide_anchors({"toolsets.rst": guide}) == {}
+
+
+def test_collect_guide_anchors_reads_a_name_trailing_a_colon():
+    guide = "Airflow hooks as tools: ``HookToolset``\n========================================\n\nProse.\n"
+
+    assert collect_guide_anchors({"toolsets/hook.rst": guide}) == {
+        "HookToolset": "toolsets/hook.html#airflow-hooks-as-tools-hooktoolset"
+    }
+
+
+def test_collect_guide_anchors_reads_two_names_joined_by_and():
+    guide = (
+        "Agents with tools: ``AgentOperator`` and ``@task.agent``\n"
+        "=========================================================\n\n"
+        "Prose.\n"
+    )
+
+    assert collect_guide_anchors({"operators/agent.rst": guide}) == {
+        "AgentOperator": "operators/agent.html#agents-with-tools-agentoperator-and-task-agent",
+        "@task.agent": "operators/agent.html#agents-with-tools-agentoperator-and-task-agent",
+    }
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        # Leading shape, one separator per case.
+        "``A`` & ``B``",
+        "``A``, ``B``",
+        "``A``/``B``",
+        "``A`` and ``B``",
+        # Trailing shape, one separator per case.
+        "Both: ``A`` & ``B``",
+        "Both: ``A``, ``B``",
+        "Both: ``A``/``B``",
+        "Both: ``A`` and ``B``",
+    ],
+)
+def test_collect_guide_anchors_accepts_every_separator_in_both_title_shapes(title):
+    underline = "=" * (len(title) + 1)
+
+    anchors = collect_guide_anchors({"page.rst": f"{title}\n{underline}\n\nProse.\n"})
+
+    expected_anchor = f"page.html#{slugify_section_anchor(title)}"
+    assert anchors == {"A": expected_anchor, "B": expected_anchor}
+
+
+def test_collect_guide_anchors_prefers_a_page_title_over_an_earlier_pages_subsection():
+    # The reviewer-reported case: a subsection on an unrelated page happens to
+    # be titled after the class, but a later page is dedicated to it.
+    docs = {
+        "agent_security.rst": (
+            "Securing agent tools\n"
+            "=====================\n\n"
+            "``HookToolset`` guidelines\n"
+            "^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n"
+            "Prose.\n"
+        ),
+        "toolsets/hook.rst": (
+            "Airflow hooks as tools: ``HookToolset``\n========================================\n\nProse.\n"
+        ),
+    }
+
+    assert collect_guide_anchors(docs) == {
+        "HookToolset": "toolsets/hook.html#airflow-hooks-as-tools-hooktoolset"
+    }
+
+
+def test_collect_guide_anchors_prefers_the_page_title_over_its_own_subsection():
+    guide = (
+        "Batch processing: ``LLMBatchOperator``\n"
+        "=======================================\n\n"
+        "How it works.\n\n"
+        "``LLMBatchOperator`` or the vendor batch operators?\n"
+        "----------------------------------------------------\n\n"
+        "Prose.\n"
+    )
+
+    assert collect_guide_anchors({"operators/llm_batch.rst": guide}) == {
+        "LLMBatchOperator": "operators/llm_batch.html#batch-processing-llmbatchoperator"
+    }
+
+
+def test_collect_guide_anchors_keeps_the_first_subsection_when_no_page_title_names_it():
+    docs = {
+        "a.rst": "Prose page\n===========\n\n``X`` notes\n------------\n",
+        "b.rst": "Other page\n===========\n\n``X`` details\n--------------\n",
+    }
+
+    assert collect_guide_anchors(docs) == {"X": "a.html#x-notes"}
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        # Colon present, but prose follows it before the literal -- must not be
+        # scanned for a literal anywhere after the colon.
+        "Role in a Dag: use ``MCPToolset``, not the hook directly",
+        # Title ends with the literal, but there's no colon to lead it.
+        "Using HITL review with ``AgentOperator``",
+        # Colon immediately precedes the literal, but prose follows it -- the
+        # literal doesn't reach the end of the title.
+        "Guidelines: ``HookToolset`` and its allow-list",
+    ],
+)
+def test_collect_guide_anchors_ignores_a_literal_that_does_not_end_the_title(title):
+    underline = "=" * (len(title) + 1)
+
+    assert collect_guide_anchors({"toolsets.rst": f"{title}\n{underline}\n\nProse.\n"}) == {}
 
 
 def test_attach_guide_urls_only_links_documented_classes():
