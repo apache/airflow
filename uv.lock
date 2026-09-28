@@ -3154,6 +3154,10 @@ cncf-kubernetes = [
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
+datafusion = [
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "datafusion" },
+]
 exasol = [
     { name = "apache-airflow-providers-exasol" },
 ]
@@ -3210,7 +3214,7 @@ standard = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "sqlalchemy"] },
+    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "datafusion", "sqlalchemy"] },
     { name = "apache-airflow-providers-apache-hive" },
     { name = "apache-airflow-providers-cncf-kubernetes" },
     { name = "apache-airflow-providers-common-compat" },
@@ -3253,6 +3257,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-common-sql", marker = "extra == 'datafusion'", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-exasol", marker = "extra == 'exasol'", editable = "providers/exasol" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
     { name = "apache-airflow-providers-ftp", marker = "extra == 'ftp'", editable = "providers/ftp" },
@@ -3270,6 +3275,7 @@ requires-dist = [
     { name = "aws-msk-iam-sasl-signer-python", marker = "extra == 'msk'", specifier = ">=1.0.1" },
     { name = "boto3", specifier = ">=1.42.79" },
     { name = "botocore", specifier = ">=1.42.79" },
+    { name = "datafusion", marker = "extra == 'datafusion'", specifier = ">=50.0.0,<52.0.0" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "jmespath", specifier = ">=0.7.0" },
     { name = "jsonpath-ng", specifier = ">=1.5.3" },
@@ -3288,13 +3294,14 @@ requires-dist = [
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
-provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "sqlalchemy"]
+provides-extras = ["aiobotocore", "cncf-kubernetes", "datafusion", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["datafusion"], editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["sqlalchemy"], editable = "providers/amazon" },
     { name = "apache-airflow-providers-apache-hive", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
@@ -5017,7 +5024,7 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
     { name = "sqlparse", specifier = ">=0.5.1" },
 ]
-provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "amazon", "datafusion", "pyiceberg-core", "apache-iceberg"]
+provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "datafusion", "pyiceberg-core", "apache-iceberg", "amazon"]
 
 [package.metadata.requires-dev]
 dev = [
