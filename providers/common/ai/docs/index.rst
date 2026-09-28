@@ -85,6 +85,7 @@ waits for the result, use that vendor's provider.
     Home <self>
     Changelog <changelog>
     Security <security>
+    Securing agent tools <agent_security>
 
 .. toctree::
     :titlesonly:
@@ -102,8 +103,9 @@ waits for the result, use that vendor's provider.
     :caption: Guides
 
     What you can build <use_cases/index>
+    Connections <connections/index>
     Models and providers <model_providers>
-    Operators <operators/index>
+    Operators and decorators <operators/index>
     Toolsets <toolsets/index>
     LLM and agent features <features>
     Document and RAG pipelines <rag_pipelines>
