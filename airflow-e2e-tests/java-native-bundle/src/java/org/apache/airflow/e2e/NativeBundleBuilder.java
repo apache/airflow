@@ -31,7 +31,7 @@ import org.apache.airflow.sdk.*;
  * {@code queue}, which routes it to the {@code java-native} coordinator.
  */
 public class NativeBundleBuilder {
-  private static final String QUEUE = "java-native";
+  public static final String QUEUE = "java-native";
 
   public static class Extract implements Task {
     @Override

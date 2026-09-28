@@ -218,6 +218,7 @@ class AirflowClient:
         return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
 
     def get_dag_run(self, dag_id: str, run_id: str):
+        """Get a Dag run, with its state, run type and conf."""
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
 
     def trigger_dag_and_wait(self, dag_id: str, json=None):
