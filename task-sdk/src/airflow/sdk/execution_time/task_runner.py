@@ -27,6 +27,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
@@ -1816,8 +1817,6 @@ def _evaluate_retry_policy(
     Returns ``None`` when no policy is configured so the caller falls through
     to the standard retry logic.
     """
-    from dataclasses import replace
-
     from airflow.sdk._shared.secrets_masker import redact
 
     policy = getattr(ti.task, "retry_policy", None)

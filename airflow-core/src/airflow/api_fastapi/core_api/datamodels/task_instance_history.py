@@ -75,6 +75,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     @field_validator("state_reason", mode="after")
     @classmethod
     def redact_state_reason(cls, v: str | None) -> str | None:
+        # See TaskInstanceResponse.
         if v is None:
             return None
         return cast("str", redact(v))

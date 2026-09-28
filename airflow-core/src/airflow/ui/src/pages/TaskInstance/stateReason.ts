@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+
+type StateReasonDisplay = { status: "error" | "warning"; titleKey: string };
 
 // The header banner and the per-try row both look the state up here, so a state added to one
-// surface cannot be forgotten on the other: it has to bring a title with it.
-const STATE_REASON_DISPLAY = {
+// surface cannot be forgotten on the other: it has to bring a title with it. Keyed by
+// TaskInstanceState so a misspelt state is a compile error rather than a row that never renders.
+const STATE_REASON_DISPLAY: Partial<Record<TaskInstanceState, StateReasonDisplay>> = {
   failed: { status: "error", titleKey: "failed" },
   up_for_retry: { status: "warning", titleKey: "upForRetry" },
-} as const satisfies Record<string, { status: "error" | "warning"; titleKey: string }>;
+};
 
-export const stateReasonDisplay = (state: string | null | undefined) =>
-  state === null || state === undefined
-    ? undefined
-    : (STATE_REASON_DISPLAY as Record<string, { status: "error" | "warning"; titleKey: string }>)[state];
+export const stateReasonDisplay = (state: TaskInstanceState | null | undefined) =>
+  state === null || state === undefined ? undefined : STATE_REASON_DISPLAY[state];

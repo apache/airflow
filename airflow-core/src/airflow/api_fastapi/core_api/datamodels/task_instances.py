@@ -101,9 +101,7 @@ class TaskInstanceResponse(BaseModel):
     @field_validator("state_reason", mode="after")
     @classmethod
     def redact_state_reason(cls, v: str | None) -> str | None:
-        # A retry policy composes this from the exception text, and a policy may opt out of the
-        # worker-side redaction, so the same string that would be masked in a task log can reach
-        # here unmasked.
+        # The worker already redacts this. Kept for rows written by an older task-sdk.
         if v is None:
             return None
         return cast("str", redact(v))
