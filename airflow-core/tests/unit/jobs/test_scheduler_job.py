@@ -9974,7 +9974,9 @@ class TestSchedulerJob:
 
         received = []
 
-        def record_failure(previous_state, task_instance, error):
+        def record_failure(previous_state, task_instance, error, failure_kind=None, reason=None):
+            assert failure_kind is None
+            assert reason is None
             received.append((task_instance.id, task_instance.try_number, task_instance.state))
 
         mocker.patch.object(

@@ -2423,7 +2423,9 @@ class TestEcsFailureClassification:
         ti.refresh_from_db(session=session)
 
         expected_state = TaskInstanceState.UP_FOR_RETRY if retries else TaskInstanceState.FAILED
-        assert (ti.state, ti.max_tries, ti.try_number) == (expected_state, retries, 1)
+        # A retry-eligible failure allocates the next attempt at once, so try_number moves to 2.
+        expected_try = 2 if retries else 1
+        assert (ti.state, ti.max_tries, ti.try_number) == (expected_state, retries, expected_try)
         assert received == [(expected_kind, stop_code)]
         assert mock_executor.get_task_failure_info(ti.key) is None
         failure_metrics = [
