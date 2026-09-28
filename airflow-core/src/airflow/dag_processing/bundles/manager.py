@@ -343,7 +343,11 @@ class DagBundlesManager(LoggingMixin):
             return new_template_, new_params_
 
         stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
-        bundle_to_team = DagBundleModel.get_team_names(stored.keys(), session=session)
+        bundle_to_team = (
+            DagBundleModel.get_team_names(stored.keys(), session=session)
+            if conf.getboolean("core", "multi_team")
+            else {}
+        )
 
         teams_by_name: dict[str, Team] = {}
         if configured_team_names := {
