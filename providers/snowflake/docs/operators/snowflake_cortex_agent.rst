@@ -82,3 +82,41 @@ See the :doc:`Snowflake connection </connections/snowflake>` page for the full f
 The resolved token is cached and renewed for as long as the hook instance lives, so a
 long-running agent run reuses the same key-pair JWT within its renewal window instead of signing
 a new one on every request.
+
+.. _howto/hook:SnowflakeCortexManagedAgentHook:
+
+Using a Cortex Agent from Common AI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To let an agent running under Common AI's ``AgentOperator`` consult a Cortex Agent as one of its
+tools, use
+:class:`~airflow.providers.snowflake.hooks.snowflake_cortex_managed_agent.SnowflakeCortexManagedAgentHook`.
+It implements the Common AI managed-agent contract, so ``hook.agent("DATABASE.SCHEMA.NAME")`` can
+be passed to a ``ManagedAgentToolset`` or combined with agents on other clouds in a
+``FailoverManagedAgentClient``. The hook needs the ``common.ai`` extra of this provider, which
+installs ``apache-airflow-providers-common-ai`` and therefore requires Airflow 3.
+
+The agent is ``DATABASE.SCHEMA.NAME`` (quoted identifiers containing their own ``.`` are not
+supported). This adoption does not support sessions -- a Cortex thread needs a
+``parent_message_id`` the contract has no field for -- so a request carrying ``session_id`` is
+refused. ``vendor_options`` may carry ``tool_choice``, ``models``, ``instructions``,
+``orchestration``, ``tools``, or ``tool_resources``, the optional payload fields ``run_agent``
+accepts; anything else is rejected. A 4xx response (other than 408 or 429, which propagate for
+Airflow's task-level retry to handle) is raised as a terminal
+``ManagedAgentInvocationError``.
+
+.. code-block:: python
+
+    from airflow.providers.snowflake.hooks.snowflake_cortex_managed_agent import (
+        SnowflakeCortexManagedAgentHook,
+    )
+    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
+
+    claims = SnowflakeCortexManagedAgentHook(snowflake_conn_id="snowflake_default").agent(
+        "MY_DB.MY_SCHEMA.CLAIMS_AGENT"
+    )
+    toolset = ManagedAgentToolset(
+        claims,
+        tool_name="ask_claims_agent",
+        description="Reviews an insurance claim and returns a coverage determination.",
+    )

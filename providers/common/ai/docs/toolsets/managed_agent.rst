@@ -61,9 +61,11 @@ contract to the calling model as one tool with a bare-prompt schema.
 Credentials keep flowing through the vendor's own hook and connection; no new
 connection types are involved. The vendor hooks that adopt the contract today are
 :class:`~airflow.providers.amazon.aws.hooks.bedrock_managed_agent.BedrockAgentCoreManagedAgentHook`
-(install ``apache-airflow-providers-amazon[common.ai]``) and
+(install ``apache-airflow-providers-amazon[common.ai]``),
 :class:`~airflow.providers.google.cloud.hooks.vertex_ai.managed_agent.AgentEngineManagedAgentHook`
-(install ``apache-airflow-providers-google[common.ai]``). Each provider documents
+(install ``apache-airflow-providers-google[common.ai]``), and
+:class:`~airflow.providers.snowflake.hooks.snowflake_cortex_managed_agent.SnowflakeCortexManagedAgentHook`
+(install ``apache-airflow-providers-snowflake[common.ai]``). Each provider documents
 how it maps the contract onto its service.
 
 ``tool_name`` is the required identifier: it is what the model emits when it
@@ -309,9 +311,11 @@ Airflow's job is to submit one request and read one answer.
   standby.
 
 **Which vendors.** Amazon Bedrock AgentCore through
-:class:`~airflow.providers.amazon.aws.hooks.bedrock_managed_agent.BedrockAgentCoreManagedAgentHook`
-and Vertex AI Agent Engine through
+:class:`~airflow.providers.amazon.aws.hooks.bedrock_managed_agent.BedrockAgentCoreManagedAgentHook`,
+Vertex AI Agent Engine through
 :class:`~airflow.providers.google.cloud.hooks.vertex_ai.managed_agent.AgentEngineManagedAgentHook`,
+and Snowflake Cortex Agents through
+:class:`~airflow.providers.snowflake.hooks.snowflake_cortex_managed_agent.SnowflakeCortexManagedAgentHook`,
 each behind that provider's ``common.ai`` extra. Other vendors adopt the same
 contract; `Implementing the contract for a new vendor`_ describes how.
 

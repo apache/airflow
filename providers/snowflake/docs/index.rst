@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection Types <connections/snowflake>
+    Connection Types <connections/index>
     Operators <operators/index>
     Decorators <decorators/index>
 
@@ -131,12 +131,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-snowflake[microsoft.azure]
+    pip install apache-airflow-providers-snowflake[common.ai]
 
 
 ======================================================================================================================  ===================
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
+`apache-airflow-providers-common-ai <https://airflow.apache.org/docs/apache-airflow-providers-common-ai>`_              ``common.ai``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 ======================================================================================================================  ===================
@@ -149,15 +150,16 @@ Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-snowflake[microsoft.azure]
+    pip install apache-airflow-providers-snowflake[common.ai]
 
 
-===================  ====================================================
+===================  =====================================================
 Extra                Dependencies
-===================  ====================================================
+===================  =====================================================
+``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.9.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
 ``openlineage``      ``apache-airflow-providers-openlineage>=2.3.0``
-===================  ====================================================
+===================  =====================================================
 
 Downloading official packages
 -----------------------------

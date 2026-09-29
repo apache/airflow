@@ -80,6 +80,8 @@ def get_provider_info():
                     "airflow.providers.snowflake.hooks.snowflake",
                     "airflow.providers.snowflake.hooks.snowflake_sql_api",
                     "airflow.providers.snowflake.hooks.snowflake_cortex_agent",
+                    "airflow.providers.snowflake.hooks.snowflake_cortex_model",
+                    "airflow.providers.snowflake.hooks.snowflake_cortex_managed_agent",
                 ],
             }
         ],
@@ -162,7 +164,37 @@ def get_provider_info():
                         "schema": {"type": ["string", "null"], "format": "password"},
                     },
                 },
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.snowflake.hooks.snowflake_cortex_model.PydanticAISnowflakeHook",
+                "hook-name": "Pydantic AI (Snowflake Cortex)",
+                "connection-type": "pydanticai_snowflake",
+                "external-services": ["Snowflake Cortex"],
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "extra": '{"model": "snowflake:claude-4-sonnet", "snowflake_conn_id": "snowflake_default"}'
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Cortex model identifier (e.g. snowflake:claude-4-sonnet)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
+                    "snowflake_conn_id": {
+                        "label": "Snowflake Connection ID",
+                        "description": "Connection ID of an existing Snowflake connection to source credentials from.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "triggers": [
             {
