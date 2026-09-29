@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import datetime
 from unittest.mock import patch
 
@@ -27,7 +28,7 @@ from airflow import macros
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
 
-from tests_common.test_utils.version_compat import timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
@@ -134,19 +135,60 @@ class TestDateTimeSensor:
         assert isinstance(op.target_time, datetime.datetime)
         assert op.poke(None) is True
 
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test only for AF < 3.2")
+    async def test_full_run_worker_path_templated_past_target_time(self):
+
+        dag = DAG(
+            dag_id="full_run_worker_path_dag",
+            start_date=pendulum.datetime(2020, 1, 1, tz="UTC"),
+            schedule=None,
+        )
+        op = DateTimeSensorAsync(
+            task_id="full_run_worker_path",
+            target_time="{{ data_interval_end }}",
+            start_from_trigger=True,
+            dag=dag,
+        )
+        ctx = {"data_interval_end": pendulum.datetime(2020, 1, 1, tz="UTC")}
+
+        from airflow.sdk.exceptions import TaskDeferred
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(ctx)
+        assert exc_info.value.method_name == "execute_complete"
+
+        from types import SimpleNamespace
+
+        exc_info.value.trigger.task_instance = SimpleNamespace(task_id=op.task_id, task=op)
+
+        exc_info.value.trigger.render_template_fields(ctx)
+
+        assert exc_info.value.trigger.target_time == "2020-01-01 00:00:00+00:00"
+
+        # Triggerer: run the trigger the task deferred to. The past moment fires immediately.
+        event = await asyncio.wait_for(exc_info.value.trigger.run().__anext__(), timeout=5)
+
+        assert op.execute_complete(context=ctx, event=event.payload) is None
+
     def test_moment_localizes_naive_datetime(self):
         """A naive datetime target_time is localized to UTC via _moment (mirrors old isoformat())."""
         op = DateTimeSensor(task_id="naive", target_time=datetime.datetime(2020, 1, 1), dag=self.dag)
         assert op._moment == pendulum.datetime(2020, 1, 1, tz="UTC")
 
-    def test_async_start_from_trigger_moment(self):
+    def test_async_start_from_trigger_molocalment(self):
         op = DateTimeSensorAsync(
             task_id="async",
             target_time="2020-01-01T00:00:00+00:00",
             start_from_trigger=True,
             dag=self.dag,
         )
-        assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse("2020-01-01T00:00:00+00:00")
+        if AIRFLOW_V_3_3_PLUS:
+            assert op.start_trigger_args.trigger_kwargs["target_time"] == "2020-01-01T00:00:00+00:00"
+        else:
+            assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
+                "2020-01-01T00:00:00+00:00"
+            )
 
     def test_async_start_from_trigger_localizes_naive_datetime(self):
         """DateTimeSensorAsync never pokes, so _moment must still localize a naive datetime."""
@@ -156,8 +198,13 @@ class TestDateTimeSensor:
             start_from_trigger=True,
             dag=self.dag,
         )
-        assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 1, 1, tz="UTC")
 
+        if AIRFLOW_V_3_3_PLUS:
+            assert op.start_trigger_args.trigger_kwargs["target_time"] == datetime.datetime(2020, 1, 1, 0, 0)
+        else:
+            assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 1, 1, tz="UTC")
+
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test only for AF < 3.2")
     def test_async_start_from_trigger_skips_templated_target_time(self):
         op = DateTimeSensorAsync(
             task_id="async_templated",
@@ -169,6 +216,18 @@ class TestDateTimeSensor:
         assert op.start_from_trigger is False
         # The class attribute must be left alone, not replaced with a copy built from the raw template.
         assert op.start_trigger_args is DateTimeSensorAsync.start_trigger_args
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test only for AF > 3.3")
+    def test_async_start_from_trigger_templated_target_time(self):
+        op = DateTimeSensorAsync(
+            task_id="async_templated",
+            target_time="{{ data_interval_end }}",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+
+        assert op.start_from_trigger is True
+        assert op.start_trigger_args.trigger_kwargs["target_time"] == "{{ data_interval_end }}"
 
     def test_start_trigger_args_are_not_shared_between_tasks(self):
         """Each task must carry its own trigger arguments.
@@ -190,12 +249,17 @@ class TestDateTimeSensor:
         )
 
         assert first.start_trigger_args is not second.start_trigger_args
-        assert first.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
-            "2030-01-01T00:00:00+00:00"
-        )
-        assert second.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
-            "2040-06-06T00:00:00+00:00"
-        )
+        if AIRFLOW_V_3_3_PLUS:
+            assert first.start_trigger_args.trigger_kwargs["target_time"] == "2030-01-01T00:00:00+00:00"
+            assert second.start_trigger_args.trigger_kwargs["target_time"] == "2040-06-06T00:00:00+00:00"
+        else:
+            assert first.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
+                "2030-01-01T00:00:00+00:00"
+            )
+            assert second.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
+                "2040-06-06T00:00:00+00:00"
+            )
+
         # the class level template must survive untouched for the next task built from it
         assert DateTimeSensorAsync.start_trigger_args.trigger_kwargs == {
             "moment": "",
