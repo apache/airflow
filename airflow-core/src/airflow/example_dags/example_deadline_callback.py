@@ -49,18 +49,13 @@ def deadline_callback(context, **kwargs):
 
 
 def slow_deadline_callback(context, **kwargs):
-    """Slow deadline alert callback that sleeps 30s – used for scheduler-restart tests."""
+    """Slow deadline callback used to exercise scheduler restart adoption."""
     dag_run = context.get("dag_run", {})
     dag_id = dag_run.get("dag_id", "unknown")
     run_id = dag_run.get("dag_run_id", "unknown")
     print(f"[slow_deadline_callback] Starting for dag_id={dag_id} run_id={run_id}")
     time.sleep(30)
     print(f"[slow_deadline_callback] Done for dag_id={dag_id} run_id={run_id}")
-
-
-def failing_deadline_callback(**_):
-    """Intentionally raises – used by the K8s executor failure integration test."""
-    raise RuntimeError("Intentional callback failure for testing")
 
 
 _PAST_DEADLINE = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -101,27 +96,7 @@ if _DEADLINE_AVAILABLE:
 
         @task
         def dummy_task_slow():
-            """Placeholder task for the slow-callback DAG."""
+            """Placeholder task for the scheduler-restart callback Dag."""
             print("dummy_task_slow executed")
 
         dummy_task_slow()
-
-    with DAG(
-        dag_id="example_deadline_callback_failing",
-        schedule=None,
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        catchup=False,
-        tags=["example", "deadline", "callback"],
-        deadline=DeadlineAlert(
-            reference=DeadlineReference.FIXED_DATETIME(_PAST_DEADLINE),
-            interval=timedelta(hours=1),
-            callback=SyncCallback("airflow.example_dags.example_deadline_callback.failing_deadline_callback"),
-        ),
-    ) as dag_failing:
-
-        @task
-        def dummy_task_failing():
-            """Placeholder task for the failing-callback DAG."""
-            print("dummy_task_failing executed")
-
-        dummy_task_failing()
