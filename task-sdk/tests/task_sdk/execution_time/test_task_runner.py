@@ -199,7 +199,10 @@ from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
+    from pydantic import JsonValue
 import time_machine
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
@@ -921,25 +924,32 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
         )
         time_machine.move_to(instant, tick=False)
 
+        trigger_kwargs: dict[str, JsonValue] = {
+            "moment": {
+                "__classname__": "pendulum.datetime.DateTime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1732233603.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            },
+            "end_from_trigger": False,
+        }
+        if AIRFLOW_V_3_3_PLUS:
+            trigger_kwargs = {
+                "target_time": str(instant + timedelta(seconds=3)),
+                "end_from_trigger": False,
+            }
+
         # Expected DeferTask, it is constructed by _defer_task from exception and is sent to supervisor
         expected_defer_task = DeferTask(
             state="deferred",
             classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-            trigger_kwargs={
-                "moment": {
-                    "__classname__": "pendulum.datetime.DateTime",
-                    "__version__": 2,
-                    "__data__": {
-                        "timestamp": 1732233603.0,
-                        "tz": {
-                            "__classname__": "builtins.tuple",
-                            "__version__": 1,
-                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
-                        },
-                    },
-                },
-                "end_from_trigger": False,
-            },
+            trigger_kwargs=trigger_kwargs,
             trigger_timeout=None,
             queue=deferred_queue,
             next_method="execute_complete",

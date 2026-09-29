@@ -182,6 +182,7 @@ from airflow.sdk.execution_time.supervisor import (
 from airflow.sdk.execution_time.task_runner import run
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     import kgb
@@ -810,6 +811,13 @@ class TestWatchedSubprocess:
         # Validate calls to the client
         mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
+
+        trigger_kwargs_key_name = "moment"
+        trigger_kwargs_class_name = "pendulum.datetime.DateTime"
+        if AIRFLOW_V_3_3_PLUS:
+            trigger_kwargs_key_name = "target_time"
+            trigger_kwargs_class_name = "datetime.datetime"
+
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,
             # Since the message as serialized in the client upon sending, we expect it to be already encoded
@@ -817,8 +825,8 @@ class TestWatchedSubprocess:
                 classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
                 next_method="execute_complete",
                 trigger_kwargs={
-                    "moment": {
-                        "__classname__": "pendulum.datetime.DateTime",
+                    trigger_kwargs_key_name: {
+                        "__classname__": trigger_kwargs_class_name,
                         "__version__": 2,
                         "__data__": {
                             "timestamp": 1730982899.0,
