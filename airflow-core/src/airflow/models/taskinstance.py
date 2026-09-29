@@ -526,7 +526,8 @@ def clear_task_instances(
             elif use_latest_version:
                 # Queued/running DagRun: update DR to latest version/bundle for workloads that use it.
                 dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
-                if dag_version and dr.created_dag_version_id != dag_version.id:
+                # A code-only bundle update reuses the DagVersion, so its ID cannot gate repinning.
+                if dag_version:
                     dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
                     if not dr_dag:
                         log.warning("No serialized dag found for dag '%s'", dr.dag_id)
