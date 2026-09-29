@@ -20,6 +20,11 @@
 Durable execution
 =================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Agent tasks can involve multiple LLM calls and tool invocations. If a task
 fails mid-run (network error, timeout, transient API failure), a plain retry
 re-executes every LLM call and tool call from scratch -- repeating work that

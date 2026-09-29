@@ -20,6 +20,11 @@
 LangChain models: ``LangChainHook``
 ===================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 .. toctree::
     :titlesonly:
     :hidden:

@@ -18,6 +18,12 @@
 Observability (OpenTelemetry tracing)
 =====================================
 
+.. note::
+
+    Experimental: the spans and their attributes can change in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
+
 pydantic-ai ships native OpenTelemetry instrumentation that emits GenAI spans
 for each agent run, model call, and tool call, following the
 `OpenTelemetry GenAI semantic conventions <https://opentelemetry.io/docs/specs/semconv/gen-ai/>`__.

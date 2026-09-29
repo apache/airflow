@@ -37,6 +37,11 @@ class LlamaIndexRetrievalOperator(BaseOperator):
     """
     Retrieve relevant document chunks from a persisted LlamaIndex index.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Loads a previously persisted vector store index (from
     ``LlamaIndexEmbeddingOperator(persist_dir=...)``) and performs similarity search
     against the provided query. Output is a list of chunks with text,

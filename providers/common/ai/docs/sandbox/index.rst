@@ -20,6 +20,11 @@
 Sandboxed execution for agents
 ==============================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 An agent that is asked to do open-ended work writes code, and then something has
 to run that code. By default that something is the Airflow worker: a skill
 script, a hand-written tool that shells out, or generated glue in

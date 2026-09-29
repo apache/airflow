@@ -42,6 +42,11 @@ class BatchRequest(TypedDict, total=False):
     """
     One input item for ``@task.llm_batch``.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     A bare string ``"foo"`` is shorthand for ``{"prompt": "foo"}``; the operator
     normalizes to this shape before anything else sees the input.
     """
@@ -137,6 +142,11 @@ class ExtractedOutput:
 class BatchAdapter(ABC):
     """
     Adapter contract between the common.ai batch surface and one provider's batch API.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     ``batch/dispatch.py`` selects a concrete subclass by the ``model_id`` prefix
     (request shape) and checks the connection type against
