@@ -6095,6 +6095,32 @@ class TestSchedulerJob:
         assert created_run.creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_do_scheduling_creates_asset_triggered_run_without_job_schedule(self, session, dag_maker):
+        """use_job_schedule=False turns off cron scheduling only; a queued asset event still creates a run."""
+        asset = Asset(uri="test://asset-no-job-schedule", name="asset-no-job-schedule")
+        with dag_maker(dag_id="asset-consumer-no-job-schedule", schedule=[asset], session=session):
+            pass
+        dag_model = dag_maker.dag_model
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(target_dag_id=dag_model.dag_id, asset_id=asset_id, asset_event_id=event.id)
+        )
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._do_scheduling(session)
+
+        dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+        assert [dr.run_type for dr in dag_runs] == [DagRunType.ASSET_TRIGGERED]
+        assert [e.id for e in dag_runs[0].consumed_asset_events] == [event.id]
+
+    @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
         ("catchup", "expects_old_event"),
         [
