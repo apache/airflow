@@ -233,6 +233,8 @@ behaves identically everywhere:
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
   replaces it on Modal and Boat.
 
+.. _sandbox-byo:
+
 Bringing your own backend
 -------------------------
 
