@@ -56,7 +56,7 @@ deployment process are the same. See :ref:`java-sdk/interface-api` for the inter
 
 The Python Dag source and the Java Gradle project are independent. They do not need to be in the same
 repository or have any particular relative filesystem layout. The Dag follows the deployment's normal Dag
-delivery process; only the compiled Java bundle is deployed from the Gradle project to ``jars_root``.
+delivery process; only the compiled Java bundle is deployed from the Gradle project to a Dag bundle.
 
 Define the Python Dag
 ~~~~~~~~~~~~~~~~~~~~~
@@ -245,20 +245,37 @@ Deploy ``sales_pipeline.py`` separately through the deployment's normal Dag deli
 that process might sync it to ``${AIRFLOW_HOME}/dags/`` or package it in a Dag bundle; neither location is
 inside or relative to ``sales-pipeline-java/``.
 
-Configure Airflow so the coordinator scans the parent JAR directory recursively and routes the ``java`` queue
-to it. Add the following ``[sdk]`` section to the file selected by ``AIRFLOW_CONFIG`` (by default,
-``${AIRFLOW_HOME}/airflow.cfg``), or set the equivalent ``AIRFLOW__SDK__*`` environment variables:
+Configure Airflow so the parent JAR directory is a Dag bundle, the coordinator scans it recursively, and the
+``java`` queue routes to the coordinator. Add the following sections to the file selected by ``AIRFLOW_CONFIG``
+(by default, ``${AIRFLOW_HOME}/airflow.cfg``), or set the equivalent ``AIRFLOW__*`` environment variables:
 
 .. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+      {
+        "name": "dags-folder",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {}
+      },
+      {
+        "name": "java-jars",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {"path": "/opt/airflow/jars"}
+      }
+    ]
 
     [sdk]
     coordinators = {
       "java": {
         "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-        "kwargs": {"jars_root": ["/opt/airflow/jars"]}
+        "kwargs": {"dag_bundle_name": "java-jars"}
       }
     }
     queue_to_coordinator = {"java": "java"}
+
+``dag_bundle_name`` names the Dag bundle that holds the JARs. You can instead omit it and ship the JARs in
+the same Dag bundle as ``sales_pipeline.py``.
 
 ``java`` is a user-chosen coordinator name, not a reserved value. The value assigned to the queue in
 ``queue_to_coordinator`` must match a key in ``coordinators``.
@@ -726,7 +743,6 @@ configuration):
       "java-jdk17": {
         "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
         "kwargs": {
-          "jars_root": ["/opt/airflow/jars"],
           "jvm_args": ["-Djava.util.logging.config.file=/opt/airflow/logging.properties"]
         }
       }
@@ -851,9 +867,9 @@ Then run:
 
     ./gradlew bundle
 
-The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the directory pointed to
-by ``jars_root`` in the coordinator configuration. :class:`~airflow.sdk.coordinators.java.JavaCoordinator`
-scans ``jars_root`` recursively and builds the classpath automatically.
+The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the Dag bundle the
+coordinator scans. :class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans that Dag bundle recursively
+and builds the classpath automatically.
 
 .. note::
 
@@ -865,8 +881,8 @@ scans ``jars_root`` recursively and builds the classpath automatically.
   The plugin generates a fat JAR with the `Shadow <https://gradleup.com/shadow/>`__ plugin by default. This is
   generally a good idea since you only deploy one JAR file to avoid dependency issues between projects. If this
   does not suit you, set ``fatJar = false`` in ``airflowBundle`` to produce thin JARs instead. The rest of the
-  process stays the same, but you will need to put all dependency JARs somewhere Airflow can find with
-  ``jars_root``.
+  process stays the same, but you will need to put all dependency JARs in the Dag bundle the coordinator
+  scans.
 
 .. _java-sdk/build/maven:
 
@@ -956,8 +972,8 @@ Then run:
 
     mvn package
 
-The fat JAR is written to ``target/<artifactId>-<version>.jar``. Copy it to the directory configured as
-``jars_root`` in your coordinator.
+The fat JAR is written to ``target/<artifactId>-<version>.jar``. Copy it into the Dag bundle your
+coordinator scans.
 
 **Option 2: thin JAR with separate dependencies**
 
@@ -1017,8 +1033,8 @@ Then run:
 
     mvn package
 
-``target/bundle/`` will contain the thin JAR and all runtime dependency JARs. Point ``jars_root`` at
-this directory.
+``target/bundle/`` will contain the thin JAR and all runtime dependency JARs. Copy this directory into
+the Dag bundle your coordinator scans.
 
 .. note::
 
@@ -1044,16 +1060,10 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - Parameter
      - Default
      - Description
-   * - ``jars_root``
-     - *(optional)*
-     - One or more directories scanned recursively for ``.jar`` files. Accepts a string,
-       a path, or a list of strings/paths. When omitted, JARs are located through a Dag
-       bundle instead (see the note below). Explicitly setting this option to ``null`` or
-       an empty list is invalid.
    * - ``dag_bundle_name``
      - *(auto: task's own bundle)*
-     - Name of a configured Dag bundle to load JARs from. Mutually exclusive with
-       ``jars_root``.
+     - Name of a configured Dag bundle to load JARs from. It must name a bundle in
+       ``[dag_processor] dag_bundle_config_list``.
    * - ``java_executable``
      - ``"java"``
      - Path to the ``java`` binary.  Defaults to ``java`` on ``$PATH``.
@@ -1063,9 +1073,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``main_class``
      - *(auto-detect)*
      - Explicit entry-point class. If omitted, the coordinator scans for a JAR whose
-       manifest sets ``Main-Class`` — in ``jars_root`` when set, otherwise across the
-       resolved Dag bundle. If multiple executable JARs match the result is
-       non-deterministic; set ``main_class`` explicitly in that case.
+       manifest sets ``Main-Class`` across the resolved Dag bundle. If multiple executable JARs
+       match the result is non-deterministic; set ``main_class`` explicitly in that case.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
@@ -1073,14 +1082,12 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  **Locating JARs.** ``jars_root`` and ``dag_bundle_name`` are mutually exclusive, and both
-  are optional:
+  **Locating JARs.** JARs always live in a Dag bundle:
 
-  * Set ``jars_root`` to scan explicit filesystem directories you manage yourself.
   * Set ``dag_bundle_name`` to load JARs from a configured Dag bundle, so they are delivered and
     versioned through the same bundle machinery as your Dags. The task uses the version that bundle
     is on when it starts, pinned for the whole task.
-  * Leave both unset (the default) to load JARs from the **task's own** Dag bundle, pinned to
+  * Leave it unset (the default) to load JARs from the **task's own** Dag bundle, pinned to
     the version the run was created with.
 
 .. note::
@@ -1110,7 +1117,6 @@ point ``java_executable`` at it explicitly:
       "java-jdk17": {
         "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
         "kwargs": {
-          "jars_root": ["/opt/airflow/jars"],
           "java_executable": "/opt/homebrew/opt/openjdk@17/bin/java"
         }
       }

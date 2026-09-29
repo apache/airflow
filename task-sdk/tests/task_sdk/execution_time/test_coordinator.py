@@ -52,6 +52,44 @@ class _ExplodingCoordinator(BaseCoordinator):
         raise RuntimeError("This coordinator must not be instantiated")
 
 
+class _BundleCoordinator(BaseCoordinator):
+    def __init__(self, *, bundles: list[str]):
+        self.bundles = bundles
+
+    def serves_bundle(self, bundle_name: str) -> bool:
+        return bundle_name in self.bundles
+
+
+class _JarImporter:
+    supported_extensions = [".jar"]
+
+
+class _MjsImporter:
+    supported_extensions = ["MJS"]
+
+
+class _ClaimingCoordinator(BaseCoordinator):
+    """Parses ``.jar`` files in the ``bundles`` kwarg, every bundle if unset; never built."""
+
+    importer_class: type = _JarImporter
+
+    def __init__(self, **kwargs):
+        raise RuntimeError("The claim check must not build a coordinator")
+
+    @classmethod
+    def get_dag_importer_class(cls):
+        return cls.importer_class
+
+    @classmethod
+    def get_parsed_bundles(cls, kwargs):
+        bundles = kwargs.get("bundles")
+        return None if bundles is None else frozenset(bundles)
+
+
+class _MjsClaimingCoordinator(_ClaimingCoordinator):
+    importer_class = _MjsImporter
+
+
 @pytest.fixture
 def sdk_config(monkeypatch):
     """Set the ``[sdk]`` env vars consumed by :meth:`CoordinatorManager.from_config`.
@@ -120,6 +158,57 @@ class TestCoordinatorManager:
         manager = CoordinatorManager.from_config()
         assert manager._coordinator_specs == {}
         assert manager._queue_to_coordinator == {}
+
+    @pytest.mark.parametrize(
+        ("second", "conflict"),
+        [
+            pytest.param({"bundles": ["dags"]}, True, id="same-bundle"),
+            pytest.param({}, True, id="every-bundle"),
+            pytest.param({"bundles": ["other"]}, False, id="other-bundle"),
+            pytest.param({"bundles": []}, False, id="no-bundle"),
+        ],
+    )
+    def test_from_config_checks_dag_file_claims_without_building(self, sdk_config, second, conflict):
+        classpath = f"{_ClaimingCoordinator.__module__}._ClaimingCoordinator"
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "jdk11": {"classpath": classpath, "kwargs": {"bundles": ["dags"]}},
+                    "jdk17": {"classpath": classpath, "kwargs": second},
+                }
+            )
+        )
+
+        if conflict:
+            with pytest.raises(
+                InvalidCoordinatorError, match=r"Coordinators 'jdk11' and 'jdk17' both parse \.jar files"
+            ):
+                CoordinatorManager.from_config()
+        else:
+            assert CoordinatorManager.from_config()._created_coordinators == {}
+
+    @pytest.mark.parametrize(
+        "other_spec",
+        [
+            pytest.param(
+                {"classpath": f"{_MjsClaimingCoordinator.__module__}._MjsClaimingCoordinator"},
+                id="other-extension",
+            ),
+            pytest.param({"classpath": f"{_CoordinatorB.__module__}._CoordinatorB"}, id="no-importer"),
+            pytest.param({"classpath": "nonexistent.module.MissingCoordinator"}, id="cannot-import"),
+        ],
+    )
+    def test_from_config_accepts_coordinators_without_shared_claims(self, sdk_config, other_spec):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "java": {"classpath": f"{_ClaimingCoordinator.__module__}._ClaimingCoordinator"},
+                    "other": other_spec,
+                }
+            )
+        )
+
+        assert set(CoordinatorManager.from_config()._coordinator_specs) == {"java", "other"}
 
     def test_from_config_rejects_invalid_queue_mapping(self, sdk_config):
         sdk_config(
@@ -258,11 +347,82 @@ class TestCoordinatorManager:
         assert manager._created_coordinators == {}
 
 
+class TestForBundle:
+    @pytest.fixture(autouse=True)
+    def _reset_cache(self):
+        reset_coordinator_manager()
+        yield
+        reset_coordinator_manager()
+
+    def test_base_coordinator_parses_no_native_dags(self):
+        coordinator = _CoordinatorB()
+
+        assert _CoordinatorB.get_dag_importer_class() is None
+        assert coordinator.get_dag_importer() is None
+        assert _CoordinatorB.get_parsed_bundles({}) == frozenset()
+        assert coordinator.serves_bundle("dags-folder") is False
+
+    def test_returns_serving_coordinators_in_config_order(self, sdk_config):
+        classpath = f"{_BundleCoordinator.__module__}._BundleCoordinator"
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "second": {"classpath": classpath, "kwargs": {"bundles": ["dags-folder"]}},
+                    "other": {"classpath": classpath, "kwargs": {"bundles": ["other-bundle"]}},
+                    "first": {"classpath": classpath, "kwargs": {"bundles": ["dags-folder"]}},
+                }
+            )
+        )
+        manager = CoordinatorManager.from_config()
+
+        coordinators = manager.for_bundle("dags-folder")
+
+        assert list(coordinators) == ["second", "first"]
+        assert coordinators["second"] is manager._created_coordinators["second"]
+
+    def test_skips_a_coordinator_that_cannot_be_built(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "broken": {"classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator"},
+                    "good": {
+                        "classpath": f"{_BundleCoordinator.__module__}._BundleCoordinator",
+                        "kwargs": {"bundles": ["dags-folder"]},
+                    },
+                }
+            )
+        )
+
+        with mock.patch("airflow.sdk.execution_time.coordinator.log") as log:
+            coordinators = CoordinatorManager.from_config().for_bundle("dags-folder")
+
+        assert list(coordinators) == ["good"]
+        log.exception.assert_called_once_with(
+            "Cannot load coordinator; skipping it for Dag parsing", coordinator="broken"
+        )
+
+    def test_reset_coordinator_manager_also_resets_importer_registries(self):
+        from airflow.sdk.importers import get_importer_registry
+
+        get_importer_registry("dags-folder")
+        reset_coordinator_manager()
+
+        assert get_importer_registry.cache_info().currsize == 0
+
+    def test_reset_importer_registry_also_resets_coordinator_manager(self):
+        from airflow.sdk.importers import reset_importer_registry
+
+        get_coordinator_manager()
+        reset_importer_registry()
+
+        assert get_coordinator_manager.cache_info().currsize == 0
+
+
 class TestConfigYamlCoordinatorsExample:
     """Guard the ``[sdk] coordinators`` example in ``config.yml`` against drift.
 
-    Nothing else exercises the example, so a broken one (e.g. dropping the
-    required ``jars_root`` kwarg) can ship unnoticed. Loading it through
+    Nothing else exercises the example, so a broken one (e.g. keeping a removed
+    kwarg) can ship unnoticed. Loading it through
     CoordinatorManager and constructing every entry keeps the example honest.
     """
 

@@ -19,7 +19,7 @@
 #
 # An init container stages the packed Go bundle from the localstack ``go-artifacts``
 # bucket into a shared emptyDir at /opt/airflow/artifacts via the DagBundle
-# interface (stage_artifacts.py). That path is the coordinator's executables_root.
+# interface (stage_artifacts.py). That path is the coordinator's go-artifacts Dag bundle.
 # The base image is the plain prod image: a Go bundle is a self-contained static
 # binary, so no extra runtime is needed. Image placeholders are rendered by the
 # ``breeze k8s setup-lang-sdk-test`` command.
