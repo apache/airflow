@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -125,3 +127,33 @@ def test_plain_checkout_allows_all_formats(plain_checkout_root: Path) -> None:
         check_flit_worktree_compatibility("sdist")
         check_flit_worktree_compatibility("both")
         check_flit_worktree_compatibility("wheel")
+
+
+@pytest.mark.parametrize("distribution_format", ["wheel", "sdist", "both"])
+@pytest.mark.parametrize("build_fails", [False, True])
+def test_flit_provider_build_disables_network(tmp_path: Path, distribution_format: str, build_fails: bool):
+    with (
+        patch.object(
+            provider_distributions, "get_provider_distributions_metadata", autospec=True
+        ) as metadata,
+        patch.object(provider_distributions, "get_provider_details", autospec=True) as details,
+        patch.object(provider_distributions, "run_command", autospec=True) as run_command,
+    ):
+        metadata.return_value = {"duckdb": {"build-system": "flit_core"}}
+        details.return_value.source_date_epoch = 1788600000
+        if build_fails:
+            run_command.side_effect = subprocess.CalledProcessError(1, "flit")
+            with pytest.raises(provider_distributions.PrepareReleasePackageErrorBuildingPackageException):
+                provider_distributions.build_provider_distribution("duckdb", tmp_path, distribution_format)
+        else:
+            provider_distributions.build_provider_distribution("duckdb", tmp_path, distribution_format)
+
+    command = [sys.executable, "-m", "flit", "build", "--use-vcs"]
+    if distribution_format == "sdist":
+        command.extend(["--format", "sdist"])
+    run_command.assert_called_once_with(
+        command,
+        check=True,
+        cwd=tmp_path,
+        env={"SOURCE_DATE_EPOCH": "1788600000", "FLIT_NO_NETWORK": "1"},
+    )

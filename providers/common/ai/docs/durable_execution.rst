@@ -154,6 +154,6 @@ cache. The task itself still succeeds.
 See also
 --------
 
-- :doc:`operators/agent` — the operator these settings apply to.
-- :doc:`retry_policies` — let a model decide whether a failure is worth retrying.
-- :doc:`troubleshooting` — the ``durable=True`` combinations the operator rejects.
+- :doc:`operators/agent`: the operator these settings apply to.
+- :doc:`retry_policies`: let a model decide whether a failure is worth retrying.
+- :doc:`troubleshooting`: the ``durable=True`` combinations the operator rejects.

@@ -40,10 +40,10 @@ Model
 
     The ``provider:`` prefix is required here: this generic connection type has
     no platform of its own (unlike the vendor connection types below), so a
-    bare name (e.g. ``gpt-5.6-sol`` without ``openai:``) raises ``ValueError``
+    bare name (e.g. ``gpt-5`` without ``openai:``) raises ``ValueError``
     naming this connection rather than being resolved automatically.
 
-    Examples: ``openai:gpt-5.6-sol``, ``anthropic:claude-sonnet-5``,
+    Examples: ``openai:gpt-5``, ``anthropic:claude-sonnet-5``,
     ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.5-flash``
 
     See `Anthropic's models overview <https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison>`__
@@ -76,7 +76,7 @@ Extra (JSON, optional)
 
     .. code-block:: json
 
-        {"model": "openai:gpt-5.6-sol"}
+        {"model": "openai:gpt-5"}
 
     When using the UI, the "Model" field above writes to this same location
     automatically.
@@ -100,7 +100,7 @@ OpenAI
     {
         "conn_type": "pydanticai",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-5.6-sol\"}"
+        "extra": "{\"model\": \"openai:gpt-5\"}"
     }
 
 .. _conn-example-anthropic:
@@ -113,7 +113,7 @@ Anthropic
     {
         "conn_type": "pydanticai",
         "password": "sk-ant-...",
-        "extra": "{\"model\": \"anthropic:claude-opus-4-6\"}"
+        "extra": "{\"model\": \"anthropic:claude-sonnet-5\"}"
     }
 
 .. _conn-example-ollama:
@@ -143,7 +143,7 @@ Leave password empty and configure ``AWS_PROFILE`` or IAM role in the environmen
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-6-v1:0\"}"
     }
 
-This still works — the ``bedrock:`` model prefix and the environment-variable
+This still works: the ``bedrock:`` model prefix and the environment-variable
 credential chain are unchanged. For AWS-specific fields with dedicated UI
 inputs (region, IAM keys, profile, bearer token, timeouts) instead of raw
 ``extra`` JSON, use the :doc:`pydantic_ai_bedrock` connection type.
@@ -163,14 +163,16 @@ in the environment:
         "extra": "{\"model\": \"google:gemini-2.5-flash\"}"
     }
 
-This connects to the Gemini API (Google AI Studio), not Vertex AI — pydantic-ai's
+This connects to the Gemini API (Google AI Studio), not Vertex AI: pydantic-ai's
 plain ``google:`` provider only reads an API key
 (``GOOGLE_API_KEY``/``GEMINI_API_KEY``); it does not fall back to
 ``GOOGLE_APPLICATION_CREDENTIALS`` or any other Application Default
-Credentials source. For project/location-scoped Vertex AI access — service
-account or Application Default Credentials — use the
+Credentials source. For project/location-scoped Vertex AI access (service
+account or Application Default Credentials), use the
 :doc:`pydantic_ai_vertex` connection type with a ``google-cloud:`` model
 prefix instead.
+
+.. _pydanticai-model-resolution:
 
 Model Resolution Order
 ----------------------
@@ -183,6 +185,11 @@ The hook reads the model from these sources in priority order:
    *bare* ``model_id`` forwarded from the primary connection (see :doc:`/provider_fallback`) --
    a forwarded name that already pins a platform is not applied here, since it names a
    model of the primary's own platform.
+4. With ``PydanticAIHook.create_agent(spec_file=...)``, the ``model`` declared in the
+   spec file, when neither ``model_id`` nor the connection's ``model`` extra is set. A
+   connection that declares
+   ``fallback_conn_ids`` but no model raises instead, because a spec-file model cannot
+   be wrapped in a fallback chain (see :doc:`/hooks/pydantic_ai`).
 
 Whichever name is chosen, a name that already pins a recognized platform (its segment
 before the first ``:`` is itself a pydantic-ai provider) is used verbatim; a bare name is

@@ -21,7 +21,7 @@ Branch on an answer: ``LLMBranchOperator``
 ==========================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
-for LLM-driven branching — where the LLM decides which downstream task(s) to
+for LLM-driven branching, where the LLM decides which downstream task(s) to
 execute.
 
 The operator discovers downstream tasks automatically from the Dag topology
@@ -79,8 +79,8 @@ misspelled key silently turning into an option with no description is
 exactly the problem this parameter exists to prevent. Descriptions support
 Jinja templating, and the mapping works with ``allow_multiple_branches=True``
 and with the ``@task.llm_branch`` decorator. Under the hood the options are
-pydantic-ai's ``Choices`` type (2.46+), or an equivalent enum on older
-releases, so the model can only answer with one of the task IDs.
+pydantic-ai's ``Choices`` type, or an equivalent enum on releases that predate
+it, so the model can only answer with one of the task IDs.
 
 Descriptions explain the choices; they do not make the model more certain,
 and a text model's structured output carries no confidence to read. With a
@@ -136,7 +136,7 @@ Set ``require_approval=True`` to pause the task after the LLM chooses the
 branch(es) and wait for a human reviewer to approve the choice before any
 downstream task is skipped. The review form shows the LLM's choice and the
 valid downstream task IDs. When ``allow_modifications=True``, the reviewer
-can also change the choice — rendered as a dropdown of the downstream task
+can also change the choice, rendered as a dropdown of the downstream task
 IDs, or a multi-select of them with ``allow_multiple_branches=True``. The
 reviewed branch(es) are validated
 against the downstream task IDs before branching:
@@ -224,13 +224,12 @@ review it opens is the same one ``require_approval`` opens: ``approval_timeout``
 ``on_approval_timeout``, ``allow_modifications``, ``approval_notifiers`` and
 ``approval_assigned_users`` all apply to it.
 
-TypeSafe's models need pydantic-ai 2.45 or later with its ``typesafe`` extra
-(``pip install "pydantic-ai-slim[typesafe]"``) and a ``pydanticai`` connection
-whose Model is ``typesafe:jev-1.13.0`` (or the ``model_id`` on the operator, as
-in the example).
+TypeSafe's models need the provider's ``typesafe`` extra and a ``pydanticai``
+connection whose Model is ``typesafe:jev-1.13.0`` (or the ``model_id`` on the
+operator, as in the example). :doc:`../classifier_models` covers the setup.
 
 The decision record
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 Whether or not a bar is set, the operator pushes a ``decision`` XCom next to
 its return value (suppressed by ``do_xcom_push=False`` like any other):
@@ -280,8 +279,8 @@ How It Works
 At execution time, the operator:
 
 1. Reads ``self.downstream_task_ids`` from the Dag topology.
-2. Builds the option type (pydantic-ai's ``Choices`` on 2.46+, an equivalent
-   enum before) with one option per downstream task ID, in sorted order so every
+2. Builds the option type (pydantic-ai's ``Choices``, or an equivalent enum on
+   releases that predate it) with one option per downstream task ID, in sorted order so every
    worker presents the options the same way. With
    descriptions in ``branches``, the schema is an ``anyOf`` of ``{"const":
    <task_id>, "description": <text>}`` entries, which is the one schema shape that
@@ -348,5 +347,5 @@ Logging
 -------
 
 After each LLM call, the operator logs a summary with model name, token usage,
-and request count at INFO level. See :ref:`AgentOperator — Logging <howto/operator:agent>`
+and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.

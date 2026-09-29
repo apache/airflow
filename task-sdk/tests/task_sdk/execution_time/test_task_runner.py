@@ -1196,6 +1196,101 @@ def test_handler_failure_counts_the_failure_once(create_runtime_ti, mock_supervi
     assert counted.count("operator_failures") == 1
 
 
+def test_retry_policy_fail_persists_reason(create_runtime_ti, mock_supervisor_comms):
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(
+        task_id="fail_with_reason",
+        retries=2,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=RuntimeError, action=RetryAction.FAIL, reason="do not retry")]
+        ),
+    )
+    ti = create_runtime_ti(task=task)
+
+    state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.retry_reason == "do not retry"
+
+
+@pytest.mark.parametrize(
+    ("task_id", "retries", "try_number"),
+    [
+        pytest.param("retry_exhausted", 2, 3, id="budget-exhausted"),
+        # `retries` defaults to 0, so this branch is reached on the very first attempt.
+        pytest.param("retry_no_budget", 0, 1, id="no-budget-configured"),
+    ],
+)
+def test_retry_policy_retry_without_budget_persists_policy_reason(
+    create_runtime_ti, mock_supervisor_comms, task_id, retries, try_number
+):
+    """A policy-chosen RETRY that cannot run fails, recording the reason with no counts appended."""
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(
+        task_id=task_id,
+        retries=retries,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
+        ),
+    )
+    ti = create_runtime_ti(task=task, try_number=try_number)
+
+    state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.retry_reason == "rate limit"
+
+
+def test_retry_policy_retry_exhausted_reason_is_truncated(create_runtime_ti, mock_supervisor_comms):
+    """A long reason is truncated to the column width."""
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    long_reason = "z" * 600
+    task = _AlwaysFails(
+        task_id="retry_exhausted_long_reason",
+        retries=2,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason=long_reason)]
+        ),
+    )
+    ti = create_runtime_ti(task=task, try_number=3)
+
+    state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.retry_reason == "z" * 500
+
+
+def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_supervisor_comms):
+    """Without a retry policy, exhausting the retry budget must not synthesize a reason."""
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(task_id="plain_exhausted", retries=2)
+    ti = create_runtime_ti(task=task, try_number=3)
+
+    state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.retry_reason is None
+
+
 def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms, listener_manager):
     listener = TestTaskRunnerCallsListeners.CustomListener()
     listener_manager(listener)
@@ -1305,6 +1400,33 @@ def test_retry_policy_decision_logged_outside_post_execute_group(create_runtime_
         "Retry policy decision",
         "::endgroup::",
     ]
+
+
+def test_exhausted_logs_about_retry_policy_decision(create_runtime_ti, mock_supervisor_comms):
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(
+        task_id="retry_exhausted_logging",
+        retries=2,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
+        ),
+    )
+    ti = create_runtime_ti(task=task, try_number=3)
+    log = mock.MagicMock(spec=["info", "debug", "warning", "error", "exception", "bind"])
+
+    run(ti, context=ti.get_template_context(), log=log)
+
+    events = [call.args[0] for call in log.info.call_args_list if call.args]
+    assert events.count("Retry policy decision") == 1
+    assert log.info.call_args_list[-1] == mock.call(
+        "Retry policy requested a retry but no attempts remain",
+        reason="rate limit",
+        try_number=3,
+        max_tries=2,
+    )
 
 
 def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
