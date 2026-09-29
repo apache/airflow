@@ -58,8 +58,9 @@ The three tools
     A text file a window of lines at a time. The model passes ``offset`` and ``limit``
     as line numbers, and a result that stops early says which ``offset`` to continue
     from, the same shape as the sandbox's ``read_file``. A Parquet or Avro file comes
-    back as its schema and its first 20 rows. Text compressed as ``.gz``, ``.bz2`` or
-    ``.xz`` is decompressed first.
+    back as its row count, its schema and its first 20 rows; ``offset`` and ``limit`` do
+    not apply to it. To query one, such as summing a column, use :doc:`datafusion`. Text
+    compressed as ``.gz``, ``.bz2`` or ``.xz`` is decompressed first.
 
 Every path the model supplies is relative to the root. An absolute path, a path with a
 scheme such as ``s3://``, and a path that climbs out with ``..`` are refused, and on a
