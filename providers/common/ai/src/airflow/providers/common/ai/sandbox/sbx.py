@@ -171,6 +171,22 @@ class SbxSandboxBackend(SandboxBackend):
             # "No requirements stated" -- see SandboxBackend.create. The toolset
             # always sends a concrete spec, so this is the direct-caller path.
             return
+        if spec.owner is not None:
+            # An owner exists so that a later task can attach to the sandbox, and a
+            # microVM on this worker cannot be reached from another task at all.
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, but an sbx sandbox lives on this worker and cannot "
+                "be attached to from another task, so recording one would promise nothing. Drop "
+                "owner, or provision the sandbox on a backend that supports attaching."
+            )
+        if spec.allow_egress_to_cidrs:
+            # ``sbx policy allow network`` takes hostnames. There is no per-sandbox
+            # address-range rule to map this onto, so it cannot be enforced here.
+            raise SandboxTerminalError(
+                "SandboxSpec names allow_egress_to_cidrs, which this backend cannot enforce: "
+                "sbx has no per-sandbox address-range rule. Use allow_egress_to with hostnames "
+                "on a deny-all host policy, or use a backend with an address-layer allowlist."
+            )
         if spec.allow_egress_to and self._host_network_policy != "deny-all":
             # A per-sandbox allow rule only means anything on top of a deny-all
             # global policy; against an open host policy it grants nothing and
