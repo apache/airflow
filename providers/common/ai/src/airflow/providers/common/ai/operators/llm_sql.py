@@ -63,7 +63,7 @@ class LLMSQLQueryOperator(LLMOperator):
 
     :param prompt: Natural language description of the desired query.
     :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-4o"``).
+    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when
         the primary provider is unavailable. Overrides the ``fallback_conn_ids``
@@ -162,7 +162,7 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
+        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 

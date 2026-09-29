@@ -49,7 +49,10 @@ class OpenAIEmbeddingOperator(BaseOperator):
         https://platform.openai.com/docs/api-reference/embeddings/create
     """
 
-    template_fields: Sequence[str] = ("input_text",)
+    template_fields: Sequence[str] = (
+        "input_text",
+        "conn_id",
+    )
 
     def __init__(
         self,
@@ -157,7 +160,13 @@ class OpenAIResponseOperator(BaseOperator):
     retries. Both XCom pushes are skipped when ``do_xcom_push=False``.
     """
 
-    template_fields: Sequence[str] = ("input_text", "response_kwargs", "max_output_tokens", "max_tool_calls")
+    template_fields: Sequence[str] = (
+        "input_text",
+        "response_kwargs",
+        "max_output_tokens",
+        "max_tool_calls",
+        "conn_id",
+    )
 
     _TOKEN_CEILING_PARAM_NAMES: ClassVar[tuple[str, ...]] = ("max_output_tokens", "max_tool_calls")
 
@@ -368,7 +377,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         :ref:`howto/operator:OpenAITriggerBatchOperator`
     """
 
-    template_fields: Sequence[str] = ("file_id", "endpoint", "metadata")
+    template_fields: Sequence[str] = ("file_id", "endpoint", "metadata", "conn_id")
     template_fields_renderers = {"metadata": "json"}
 
     def __init__(

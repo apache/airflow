@@ -31,6 +31,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -44,6 +45,126 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 class TestClearTasks:
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING])
+    def test_clear_running_attempt_preserves_identity_until_exit(self, dag_maker, session, state):
+        with dag_maker():
+            EmptyOperator(task_id="task", retries=2)
+        ti = dag_maker.create_dagrun(session=session).task_instances[0]
+        ti.state = state
+        ti.try_number = 4
+        ti.max_tries = 3
+        session.flush()
+        attempt_id = ti.id
+
+        for _ in range(2):
+            clear_task_instances([ti], session=session)
+            session.flush()
+            assert (ti.id, ti.try_number, ti.state) == (attempt_id, 4, TaskInstanceState.RESTARTING)
+            assert session.scalar(select(func.count()).select_from(TaskInstanceHistory)) == 0
+
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING]
+    )
+    def test_failure_allocates_next_attempt(self, dag_maker, session, state):
+        with dag_maker():
+            task = EmptyOperator(task_id="task", retries=2)
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.task_instances[0]
+        ti.task = task
+        ti.state = state
+        ti.try_number = 1
+        session.flush()
+        attempt_id = ti.id
+
+        ti.handle_failure("worker exited", session=session)
+
+        assert ti.state == TaskInstanceState.UP_FOR_RETRY
+        assert ti.id != attempt_id
+        assert ti.try_number == 2
+        history = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == attempt_id)
+        )
+        assert history.try_number == 1
+        dr.schedule_tis([ti], session=session)
+        session.expire_all()
+        assert ti.try_number == 2
+
+    @pytest.mark.parametrize("retries", [1, 2])
+    def test_clear_pending_retry_reuses_attempt_and_bypasses_delay(
+        self, create_task_instance, session, time_machine, retries
+    ):
+        time_machine.move_to(DEFAULT_DATE, tick=False)
+        ti = create_task_instance(
+            task=PythonSensor(
+                task_id="task",
+                python_callable=lambda: True,
+                retries=retries,
+                retry_delay=datetime.timedelta(days=1),
+            ),
+            state=TaskInstanceState.RUNNING,
+            hostname="worker",
+            pid=123,
+            session=session,
+            serialized=False,
+        )
+        dr = ti.dag_run
+        ti.try_number = 1
+        ti.start_date = DEFAULT_DATE - datetime.timedelta(minutes=1)
+        failed_id = ti.id
+        session.flush()
+
+        ti.handle_failure("worker exited", session=session)
+
+        pending_id = ti.id
+        assert pending_id != failed_id
+        assert (ti.try_number, ti.state) == (2, TaskInstanceState.UP_FOR_RETRY)
+        retry_dep = NotInRetryPeriodDep()
+        assert not retry_dep.is_met(ti, session=session)
+        history_query = select(TaskInstanceHistory.__table__).where(TaskInstanceHistory.dag_id == ti.dag_id)
+        history_before = session.execute(history_query).mappings().all()
+        assert [(row.task_instance_id, row.try_number) for row in history_before] == [(failed_id, 1)]
+
+        # Clearing again in None must preserve the pending attempt, history and retry budget.
+        for _ in range(2):
+            clear_task_instances([ti], session=session)
+            session.flush()
+            session.refresh(ti)
+            assert (ti.id, ti.try_number, ti.state, ti.max_tries) == (pending_id, 2, None, 1 + retries)
+            assert session.execute(history_query).mappings().all() == history_before
+            assert retry_dep.is_met(ti, session=session)
+
+        assert dr.schedule_tis([ti], session=session) == 1
+        session.refresh(ti)
+        assert (ti.id, ti.try_number, ti.state) == (pending_id, 2, TaskInstanceState.SCHEDULED)
+        assert session.execute(history_query).mappings().all() == history_before
+
+    @pytest.mark.parametrize("retries", [0, 2])
+    def test_clear_unstarted_task_preserves_identity(self, dag_maker, session, retries):
+        with dag_maker():
+            PythonSensor(task_id="task", python_callable=lambda: True, retries=retries)
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.task_instances[0]
+        attempt_id = ti.id
+        assert (ti.state, ti.try_number) == (None, 0)
+
+        for _ in range(2):
+            clear_task_instances([ti], session=session)
+            session.flush()
+            session.refresh(ti)
+            assert (ti.id, ti.try_number, ti.state, ti.max_tries) == (attempt_id, 0, None, retries)
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(TaskInstanceHistory)
+                    .where(TaskInstanceHistory.dag_id == ti.dag_id)
+                )
+                == 0
+            )
+
+        assert dr.schedule_tis([ti], session=session) == 1
+        session.refresh(ti)
+        assert (ti.id, ti.try_number, ti.state) == (attempt_id, 1, TaskInstanceState.SCHEDULED)
+
     @pytest.fixture(autouse=True, scope="class")
     def clean(self):
         db.clear_db_runs()
@@ -73,13 +194,6 @@ class TestClearTasks:
         ti1 = dag_maker.run_ti("1", dr)
 
         with create_session() as session:
-            # do the incrementing of try_number ordinarily handled by scheduler
-            ti0.try_number += 1
-            ti1.try_number += 1
-            ti0 = session.merge(ti0)
-            ti1 = session.merge(ti1)
-            session.commit()
-
             # we use order_by(task_id) here because for the test DAG structure of ours
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
@@ -92,10 +206,10 @@ class TestClearTasks:
 
         # Next try to run will be try 2
         assert ti0.state is None
-        assert ti0.try_number == 1
+        assert ti0.try_number == 2
         assert ti0.max_tries == 1
         assert ti1.state is None
-        assert ti1.try_number == 1
+        assert ti1.try_number == 2
         assert ti1.max_tries == 3
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
@@ -353,10 +467,10 @@ class TestClearTasks:
         # When no task is found, max_tries will be maximum of original max_tries or try_number.
         session.refresh(ti0)
         session.refresh(ti1)
-        assert ti0.try_number == 1
+        assert ti0.try_number == 2
         assert ti0.max_tries == 1
         assert ti0.state is None
-        assert ti1.try_number == 1
+        assert ti1.try_number == 2
         assert ti1.state is None
         if delete_tasks:
             assert ti1.max_tries == 2
@@ -406,9 +520,9 @@ class TestClearTasks:
 
         ti0.refresh_from_db(session=session)
         ti1.refresh_from_db(session=session)
-        assert ti0.try_number == 1
+        assert ti0.try_number == 2
         assert ti0.max_tries == 1
-        assert ti1.try_number == 1
+        assert ti1.try_number == 2
         assert ti1.max_tries == 3
 
     def test_clear_task_instances_in_multiple_dags(self, dag_maker, session):
@@ -431,10 +545,8 @@ class TestClearTasks:
         ti0 = dr0.task_instances[0]
         ti1 = dr1.task_instances[0]
 
-        # simulate running the task
-        # do the incrementing of try_number ordinarily handled by scheduler
-        ti0.try_number += 1
-        ti1.try_number += 1
+        ti0.try_number = ti1.try_number = 1
+        ti0.state = ti1.state = TaskInstanceState.SUCCESS
 
         session.commit()
 
@@ -443,9 +555,9 @@ class TestClearTasks:
         session.refresh(ti0)
         session.refresh(ti1)
 
-        assert ti0.try_number == 1
+        assert ti0.try_number == 2
         assert ti0.max_tries == 1
-        assert ti1.try_number == 1
+        assert ti1.try_number == 2
         assert ti1.max_tries == 3
 
     def test_clear_task_instances_with_task_reschedule(self, dag_maker):
@@ -507,13 +619,13 @@ class TestClearTasks:
             (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
             (TaskInstanceState.FAILED, TaskInstanceState.FAILED),
             (TaskInstanceState.SKIPPED, TaskInstanceState.SKIPPED),
-            (TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.FAILED),
+            (TaskInstanceState.UP_FOR_RETRY, None),
             (TaskInstanceState.UP_FOR_RESCHEDULE, TaskInstanceState.FAILED),
-            (TaskInstanceState.RUNNING, TaskInstanceState.FAILED),
+            (TaskInstanceState.RUNNING, None),
             (TaskInstanceState.QUEUED, TaskInstanceState.FAILED),
             (TaskInstanceState.SCHEDULED, TaskInstanceState.FAILED),
-            (None, TaskInstanceState.FAILED),
-            (TaskInstanceState.RESTARTING, TaskInstanceState.FAILED),
+            (None, None),
+            (TaskInstanceState.RESTARTING, None),
         ],
     )
     def test_task_instance_history_record(self, state, state_recorded, dag_maker):
@@ -544,7 +656,7 @@ class TestClearTasks:
         session.refresh(dr)
         ti_history = session.scalars(select(TaskInstanceHistory.state)).all()
 
-        assert [ti_history[0], ti_history[1]] == [str(state_recorded), str(state_recorded)]
+        assert ti_history == ([str(state_recorded)] * 2 if state_recorded else [])
 
     def test_dag_clear(self, dag_maker, session):
         with dag_maker("test_dag_clear") as dag:
@@ -558,33 +670,27 @@ class TestClearTasks:
 
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
 
-        ti0.try_number += 1
+        ti0.try_number = 1
+        ti0.state = TaskInstanceState.SUCCESS
         session.commit()
-
-        # Next try to run will be try 1
-        assert ti0.try_number == 1
 
         dag.clear(session=session)
         session.commit()
 
-        assert ti0.try_number == 1
+        assert ti0.try_number == 2
         assert ti0.state == State.NONE
         assert ti0.max_tries == 1
         assert ti1.max_tries == 2
 
-        ti1.try_number += 1
-        session.commit()
-
-        assert ti1.try_number == 1
-        assert ti1.max_tries == 2
+        assert ti1.try_number == 0
+        pending_ids = (ti0.id, ti1.id)
 
         dag.clear(session=session)
 
-        # after clear dag, we have 2 remaining tries
-        assert ti1.max_tries == 3
-        assert ti1.try_number == 1
-        # after clear dag, ti0 has no remaining tries
-        assert ti0.try_number == 1
+        assert (ti0.id, ti1.id) == pending_ids
+        assert ti1.max_tries == 2
+        assert ti1.try_number == 0
+        assert ti0.try_number == 2
         assert ti0.max_tries == 1
 
     def test_dags_clear(self, dag_maker, session):
@@ -640,14 +746,12 @@ class TestClearTasks:
         for i in range(num_of_dags):
             ti = _get_ti(tis[i])
             assert ti.state == State.NONE
-            assert ti.try_number == 1
+            assert ti.try_number == 2
             assert ti.max_tries == 1
 
         # test dry_run
         for i, dag in enumerate(ser_dags):
             ti = _get_ti(tis[i])
-            ti.try_number += 1
-            session.commit()
             ti.refresh_from_task(dag.get_task(ti.task_id))
             # Directly set state to SUCCESS instead of calling ti.run() to avoid timeout
             ti.state = State.SUCCESS
@@ -676,7 +780,7 @@ class TestClearTasks:
             ti = _get_ti(ti_in)
             if ti.dag_id == ti_fail.dag_id:
                 assert ti.state == State.NONE
-                assert ti.try_number == 2
+                assert ti.try_number == 3
                 assert ti.max_tries == 2
             else:
                 assert ti.state == State.SUCCESS

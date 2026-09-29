@@ -20,7 +20,7 @@ import subprocess
 import sys
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import ANY, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
@@ -241,7 +241,9 @@ class TestLLMSQLQueryOperator:
         result = op.execute(context=MagicMock())
 
         assert result == "SELECT id, name FROM users WHERE active = true"
-        mock_agent.run_sync.assert_called_once_with("Get active users", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Get active users", usage_limits=None, cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):

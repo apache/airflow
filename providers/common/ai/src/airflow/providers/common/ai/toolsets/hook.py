@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import copy
 import inspect
 import re
 import types
@@ -26,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hin
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
+from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
@@ -33,10 +35,11 @@ from airflow.providers.common.ai.utils.tool_definition import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from pydantic_ai._run_context import RunContext
 
+    from airflow.providers.common.ai.tools import AirflowTool
     from airflow.providers.common.compat.sdk import BaseHook
 
 # Maps Python types to JSON Schema fragments.
@@ -59,12 +62,21 @@ class HookToolset(AbstractToolset[Any]):
     hook to build :class:`~pydantic_ai.tools.ToolDefinition` objects that an LLM
     agent can call.
 
-    :param hook: An instantiated Airflow Hook.
+    :param hook: An instantiated Airflow Hook. Its connection ID -- the attribute
+        the hook's ``conn_name_attr`` names, such as ``postgres_conn_id`` -- is
+        templated when the toolset is passed to ``AgentOperator`` / ``@task.agent``,
+        so ``HookToolset(PostgresHook(postgres_conn_id="tenant_{{ ... }}"), ...)``
+        reaches a different database per task instance. The hook in the Dag file
+        is not modified; each task instance gets a copy.
     :param allowed_methods: Method names to expose as tools. Required —
         auto-discovery is intentionally not supported for safety.
     :param tool_name_prefix: Optional prefix prepended to each tool name
         (e.g. ``"s3_"`` → ``"s3_list_keys"``).
     """
+
+    # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
+    # Airflow's templater would render in place wherever the toolset is nested.
+    agent_template_fields: Sequence[str] = ("conn_id",)
 
     def __init__(
         self,
@@ -88,11 +100,49 @@ class HookToolset(AbstractToolset[Any]):
         self._hook = hook
         self._allowed_methods = allowed_methods
         self._tool_name_prefix = tool_name_prefix
-        self._id = f"hook-{type(hook).__name__}"
+        # The attribute holding the hook's connection ID, e.g. ``postgres_conn_id``. Some hooks
+        # name one attribute in conn_name_attr but keep the ID in ``conn_id`` (WasbHook,
+        # KubernetesHook), so fall back to that.
+        conn_attr: str | None = getattr(hook, "conn_name_attr", None)
+        if conn_attr is None or not hasattr(hook, conn_attr):
+            conn_attr = "conn_id" if hasattr(hook, "conn_id") else None
+        self._conn_attr = conn_attr
+
+    @property
+    def conn_id(self) -> str | None:
+        """The hook's connection ID, or ``None`` when the hook keeps it under neither attribute."""
+        return getattr(self._hook, self._conn_attr, None) if self._conn_attr else None
+
+    @conn_id.setter
+    def conn_id(self, value: str) -> None:
+        if self._conn_attr is None:
+            raise AttributeError(f"{type(self._hook).__name__} keeps no connection ID to set.")
+        # Set on a copy: the hook in the Dag file backs every task instance that shares this
+        # toolset, so writing the rendered ID onto it would carry one instance's connection
+        # into the next.
+        hook = copy.copy(self._hook)
+        setattr(hook, self._conn_attr, value)
+        self._hook = hook
 
     @property
     def id(self) -> str:
-        return self._id
+        name = type(self._hook).__name__
+        return f"hook-{name}-{self.conn_id}" if self.conn_id else f"hook-{name}"
+
+    def airflow_tools(self) -> list[AirflowTool]:
+        """
+        Return this toolset's tools as framework-neutral tools.
+
+        Each is an :class:`~airflow.providers.common.ai.tools.AirflowTool`. Use
+        them to give the tools to an agent framework other than pydantic-ai,
+        for example through
+        :func:`~airflow.providers.common.ai.tools.strands.as_strands_tools`. The
+        tools behave as they do in ``AgentOperator``, and every result and error
+        passes through Airflow's secret masker before the model sees it.
+
+        .. warning:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+        """
+        return airflow_tools_from_toolset(self)
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         tools: dict[str, ToolsetTool[Any]] = {}

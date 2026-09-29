@@ -58,5 +58,3 @@ run starts.
     ``agent_params`` is a templated field, which Airflow serializes by calling
     ``str()`` on values it doesn't natively understand. Capability instances
     are not yet round-trip-safe through Dag serialization, so the examples above construct them inside the ``@dag`` function -- not at module level.
-    First-class ``capabilities=`` support on ``AgentOperator`` (with proper
-    serializer hooks) is tracked as a follow-up.

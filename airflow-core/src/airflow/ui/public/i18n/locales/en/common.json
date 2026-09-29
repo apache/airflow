@@ -168,6 +168,11 @@
   "generateToken": "Generate Token",
   "includedIn": "Included in",
   "key": "Key",
+  "logLevel": {
+    "hide": "Hide Log Levels",
+    "hotkey": "l",
+    "show": "Show Log Levels"
+  },
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -297,6 +302,10 @@
         "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
         "label": "Default graph direction"
       },
+      "taskGroupsExpanded": {
+        "helper": "Expand task groups in Dags where you haven't saved a group selection. Existing selections are kept.",
+        "label": "Expand task groups by default"
+      },
       "title": "Graph"
     },
     "marking": {
@@ -348,6 +357,7 @@
       "toggleExpand": "Expand or collapse all groups",
       "toggleFullscreen": "Toggle fullscreen",
       "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleLogLevel": "Toggle log levels",
       "toggleSource": "Toggle source",
       "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
       "toggleTimestamp": "Toggle timestamps",

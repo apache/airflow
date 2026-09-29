@@ -20,12 +20,13 @@
 // The bundle: what a TypeScript bundle process provides, and how it serves it.
 
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
-import { Dag, getDagTaskRecords, isDag, type TaskRef } from "./dag.js";
+import { Dag, finalizeDag, getDagTaskRecords, isDag } from "./dag.js";
 import { getTaskHandlerFunction, isTaskHandler, TaskHandler } from "./task-handler.js";
 import type { TaskFunction } from "./task.js";
 
 // Assigned inside Bundle's static block, as Dag does for its tasks.
-let entriesOf: (bundle: Bundle) => ReadonlyMap<string, BundleEntry>;
+let dagsOf: (bundle: Bundle) => ReadonlyMap<string, Dag>;
+let taskHandlersOf: (bundle: Bundle) => ReadonlyMap<string, ReadonlyMap<string, TaskFunction>>;
 
 /**
  * What {@link Bundle.register} and the {@link Bundle} constructor accept: a
@@ -37,30 +38,9 @@ let entriesOf: (bundle: Bundle) => ReadonlyMap<string, BundleEntry>;
 // is assignable to, `TaskHandler<TransformArgs>` included.
 export type Registerable = Dag | TaskHandler<never, unknown>;
 
-// What a bundle holds per dag_id. The two arms are exclusive by construction:
-// a Dag is the native case and owns its own tasks, while task handlers supply
-// bodies for a Dag that Python declares, so one dag_id is never both.
-type BundleEntry =
-  | { readonly kind: "dag"; readonly dag: Dag }
-  | { readonly kind: "handlers"; readonly handlers: Map<string, TaskFunction> };
-
-function entryTaskIds(entry: BundleEntry): string[] {
-  return entry.kind === "dag" ? [...entry.dag.taskIds] : [...entry.handlers.keys()];
-}
-
 /** Internal: whether `value` is a Bundle built by any copy of this package. */
 export function isBundle(value: unknown): value is Bundle {
   return hasBrand(value, "Bundle");
-}
-
-/** Internal: a Dag this bundle provides for, with its task IDs, as
- *  {@link listBundleDags} reports it. A task-less native Dag is included, so
- *  the bundle manifest keeps it visible. */
-export interface RegisteredDag {
-  /** Identifier of the registered Dag. */
-  readonly dagId: string;
-  /** Airflow task IDs, including any TaskGroup prefix. */
-  readonly tasks: string[];
 }
 
 /**
@@ -87,12 +67,15 @@ export interface RegisteredDag {
  * a snapshot of its tasks.
  */
 export class Bundle {
-  // Keyed by dag_id and insertion-ordered, so the bundle manifest lists what
-  // this process provides in the order the entry point registered it.
-  readonly #entries = new Map<string, BundleEntry>();
+  // Dags declared in TypeScript, keyed by dag_id in registration order.
+  #dags = new Map<string, Dag>();
+  // Handlers for the tasks a Python Dag declares, keyed by dag_id and then by
+  // task_id, both in registration order.
+  #taskHandlers = new Map<string, Map<string, TaskFunction>>();
 
   static {
-    entriesOf = (bundle) => bundle.#entries;
+    dagsOf = (bundle) => bundle.#dags;
+    taskHandlersOf = (bundle) => bundle.#taskHandlers;
   }
 
   /** Registers `items`, on the same terms as {@link register}. */
@@ -107,11 +90,13 @@ export class Bundle {
    *  The constructor covers the common case; this is for a bundle that
    *  collects what it provides across several modules. */
   register(...items: Registerable[]): void {
-    // Validated against what is already held *and* against this call, in full,
-    // before anything is written: a call that throws registers none of its
-    // items, so a bundle never half-provides what its author listed once.
-    const incomingDags = new Set<string>();
-    const incomingTaskHandlers = new Set<string>();
+    // Staged on copies and committed once every item is accepted, so a call
+    // that throws registers none of its items and a bundle never
+    // half-provides what its author listed in one call.
+    const dags = new Map(this.#dags);
+    const taskHandlers = new Map(
+      [...this.#taskHandlers].map(([dagId, handlers]) => [dagId, new Map(handlers)] as const),
+    );
     for (const item of items) {
       // Typed as Registerable, so narrowing it would collapse to never; these
       // guard callers reaching this from plain JavaScript.
@@ -119,9 +104,9 @@ export class Bundle {
       // Another copy's value cannot be registered, since both kinds read
       // private state keyed to this copy's class, so it is rejected by its cause.
       if (candidate instanceof Dag) {
-        this.#checkDag(candidate, incomingDags);
+        stageDag(dags, taskHandlers, candidate);
       } else if (candidate instanceof TaskHandler) {
-        this.#checkTaskHandler(candidate, incomingDags, incomingTaskHandlers);
+        stageTaskHandler(dags, taskHandlers, candidate);
       } else if (isDag(candidate)) {
         throw new Error(`Dag "${(candidate as Dag).dagId}" ${DUPLICATE_COPY_HINT}`);
       } else if (isTaskHandler(candidate)) {
@@ -133,61 +118,8 @@ export class Bundle {
         throw new Error("only Dag and TaskHandler instances can be registered");
       }
     }
-    for (const item of items) {
-      if (item instanceof Dag) {
-        this.#entries.set(item.dagId, { kind: "dag", dag: item });
-      } else {
-        const existing = this.#entries.get(item.dagId);
-        const handlers =
-          existing?.kind === "handlers" ? existing.handlers : new Map<string, TaskFunction>();
-        handlers.set(item.taskId, getTaskHandlerFunction(item));
-        if (existing === undefined) {
-          this.#entries.set(item.dagId, { kind: "handlers", handlers });
-        }
-      }
-    }
-  }
-
-  #checkDag(dag: Dag, incomingDags: Set<string>): void {
-    if (this.#entries.get(dag.dagId)?.kind === "handlers") {
-      throw new Error(
-        `Dag "${dag.dagId}" already has registered task handlers; a Dag declared in ` +
-          "TypeScript owns its own tasks, so one Dag ID cannot have both",
-      );
-    }
-    if (this.#entries.has(dag.dagId) || incomingDags.has(dag.dagId)) {
-      throw new Error(`Dag "${dag.dagId}" is already registered`);
-    }
-    incomingDags.add(dag.dagId);
-  }
-
-  #checkTaskHandler(
-    handler: TaskHandler,
-    incomingDags: Set<string>,
-    incomingTaskHandlers: Set<string>,
-  ): void {
-    // A native Dag attaches its tasks with dag.task(...), so a task handler for
-    // the same Dag ID would be a second, disagreeing source for its task list.
-    if (this.#entries.get(handler.dagId)?.kind === "dag" || incomingDags.has(handler.dagId)) {
-      throw new Error(
-        `Dag "${handler.dagId}" is declared in TypeScript; attach its tasks with ` +
-          "dag.task(...) rather than registering task handlers for them",
-      );
-    }
-    const entry = this.#entries.get(handler.dagId);
-    // Keyed on the pair, not the task ID: one bundle serves several Dags, and
-    // the same task_id under two of them is two different handlers.
-    const pair = `${handler.dagId}\u0000${handler.taskId}`;
-    if (
-      entry?.kind === "handlers"
-        ? entry.handlers.has(handler.taskId)
-        : incomingTaskHandlers.has(pair)
-    ) {
-      throw new Error(
-        `A handler for Dag "${handler.dagId}" task "${handler.taskId}" is already registered`,
-      );
-    }
-    incomingTaskHandlers.add(pair);
+    this.#dags = dags;
+    this.#taskHandlers = taskHandlers;
   }
 
   /**
@@ -218,12 +150,54 @@ export class Bundle {
   /** Look up a registered handler, the way the runtime dispatches a task.
    *  Returns `undefined` when no handler exists. */
   getTaskHandler(dagId: string, taskId: string): TaskFunction | undefined {
-    const entry = this.#entries.get(dagId);
-    if (entry === undefined) return undefined;
-    return entry.kind === "dag"
-      ? getDagTaskRecords(entry.dag).get(taskId)?.fn
-      : entry.handlers.get(taskId);
+    const dag = this.#dags.get(dagId);
+    return dag === undefined
+      ? this.#taskHandlers.get(dagId)?.get(taskId)
+      : getDagTaskRecords(dag).get(taskId)?.fn;
   }
+}
+
+// A Dag declared in TypeScript owns its own tasks, so a dag_id it holds and a
+// dag_id task handlers hold are two disagreeing sources for one task list.
+// Each kind is therefore rejected for a dag_id the other one already holds,
+// whichever order they were registered in.
+
+function stageDag(
+  dags: Map<string, Dag>,
+  taskHandlers: ReadonlyMap<string, ReadonlyMap<string, TaskFunction>>,
+  dag: Dag,
+): void {
+  if (taskHandlers.has(dag.dagId)) {
+    throw new Error(
+      `Dag "${dag.dagId}" already has registered task handlers; a Dag declared in ` +
+        "TypeScript owns its own tasks, so one Dag ID cannot have both",
+    );
+  }
+  if (dags.has(dag.dagId)) {
+    throw new Error(`Dag "${dag.dagId}" is already registered`);
+  }
+  dags.set(dag.dagId, dag);
+}
+
+function stageTaskHandler(
+  dags: ReadonlyMap<string, Dag>,
+  taskHandlers: Map<string, Map<string, TaskFunction>>,
+  handler: TaskHandler,
+): void {
+  if (dags.has(handler.dagId)) {
+    throw new Error(
+      `Dag "${handler.dagId}" is declared in TypeScript; attach its tasks with ` +
+        "dag.task(...) rather than registering task handlers for them",
+    );
+  }
+  const forDag = taskHandlers.get(handler.dagId) ?? new Map<string, TaskFunction>();
+  if (forDag.has(handler.taskId)) {
+    throw new Error(
+      `A handler for Dag "${handler.dagId}" task "${handler.taskId}" is already registered`,
+    );
+  }
+  forDag.set(handler.taskId, getTaskHandlerFunction(handler));
+  taskHandlers.set(handler.dagId, forDag);
 }
 
 /** Internal: reject a `this` that is not a Bundle built by this copy, naming
@@ -237,21 +211,24 @@ export function validateOwnBundle(value: unknown, accessor: string): asserts val
   );
 }
 
-/** Internal: every task handle this bundle can dispatch, across both kinds. Not
- *  re-exported from the package root: enumerating what the runtime dispatches
- *  is the runtime's job. */
-export function listBundleTasks(bundle: Bundle): TaskRef[] {
-  return [...entriesOf(bundle)].flatMap(([dagId, entry]) =>
-    entryTaskIds(entry).map((taskId) => ({ dagId, taskId })),
-  );
+/** Internal: finalize every Dag this bundle declared in TypeScript, so no task
+ *  can be added or wired afterwards. */
+export function finalizeBundleDags(bundle: Bundle): void {
+  for (const dag of dagsOf(bundle).values()) {
+    finalizeDag(dag);
+  }
 }
 
-/** Internal: every Dag this bundle provides for, with its task IDs. A native
- *  Dag with no tasks is included; a Dag known only through task handlers always
- *  has at least one, since a handler is what put it here. */
-export function listBundleDags(bundle: Bundle): RegisteredDag[] {
-  return [...entriesOf(bundle)].map(([dagId, entry]) => ({
-    dagId,
-    tasks: entryTaskIds(entry),
-  }));
+/** Internal: the task IDs this bundle can dispatch, per Dag: the Dags declared
+ *  in TypeScript first, then the Dags its task handlers name, each in
+ *  registration order. A Dag declared in TypeScript with no tasks is included. */
+export function bundleDagTaskIds(bundle: Bundle): Map<string, string[]> {
+  const byDag = new Map<string, string[]>();
+  for (const [dagId, dag] of dagsOf(bundle)) {
+    byDag.set(dagId, [...dag.taskIds]);
+  }
+  for (const [dagId, handlers] of taskHandlersOf(bundle)) {
+    byDag.set(dagId, [...handlers.keys()]);
+  }
+  return byDag;
 }

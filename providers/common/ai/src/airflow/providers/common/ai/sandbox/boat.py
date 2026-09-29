@@ -22,6 +22,7 @@ import base64
 import json
 import logging
 import math
+import os
 import shlex
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
@@ -101,7 +102,7 @@ def _translate_boat_errors(
             from boat_sdk.exceptions import ApiException
         except ImportError:
             raise SandboxTerminalError(
-                'The Boat SDK is not installed. Install "apache-airflow-providers-common-ai[sandbox-boat]".'
+                'The Boat SDK is not installed. Install "apache-airflow-providers-common-ai[boat]".'
             ) from e
         if isinstance(e, ApiException):
             status_code = e.status if isinstance(e.status, int) else None
@@ -165,7 +166,7 @@ class BoatSandboxBackend(SandboxBackend):
         environment.
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
-    :param ttl_seconds: Server-side auto-stop TTL in seconds after which the
+    :param ttl_seconds: Server-side archive TTL in seconds after which the
         sandbox is archived even if the worker never destroyed it. Default ``3600``.
     :param ready_timeout: Seconds to wait for a newly created sandbox to become
         ready. Default ``300``.
@@ -189,7 +190,7 @@ class BoatSandboxBackend(SandboxBackend):
             raise ValueError(f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}.")
         _validate_positive_finite(ttl_seconds, "ttl_seconds")
         # int() would floor a fractional value, and the API reads 0 as "never
-        # auto-stop" -- silently discarding the only backstop against a leak.
+        # archive" -- silently discarding the only backstop against a leak.
         if int(ttl_seconds) != ttl_seconds:
             raise ValueError(f"ttl_seconds must be a whole number of seconds, got {ttl_seconds!r}.")
         _validate_positive_finite(ready_timeout, "ready_timeout")
@@ -202,13 +203,12 @@ class BoatSandboxBackend(SandboxBackend):
         self._request_timeout: float | None = None
         self._api_client: ApiClient | None = None
         self._boat_api: BoatApi | None = None
+        self._sandbox_env: dict[str, dict[str, str]] = {}
 
     def _get_api(self) -> BoatApi:
         if self._boat_api is not None:
             return self._boat_api
         with _translate_boat_errors("initialize its client"):
-            import os
-
             from boat_sdk import ApiClient, Configuration
             from boat_sdk.api.boat_api import BoatApi
 
@@ -272,6 +272,11 @@ class BoatSandboxBackend(SandboxBackend):
                 "The Boat backend cannot apply a per-domain egress allowlist. "
                 "Drop allow_egress_to, or use a backend with per-domain network rules."
             )
+        if spec is not None and spec.allow_egress_to_cidrs:
+            raise SandboxTerminalError(
+                "The Boat backend cannot apply a CIDR egress allowlist. "
+                "Drop allow_egress_to_cidrs, or use a backend with network rules."
+            )
         if spec is not None and spec.block_network:
             raise SandboxTerminalError(
                 "The Boat backend cannot deny outbound network access. Pass "
@@ -297,12 +302,14 @@ class BoatSandboxBackend(SandboxBackend):
         try:
             self._name_sandbox(sandbox_id)
             self._wait_until_ready(sandbox_id)
+            self._sandbox_env[sandbox_id] = dict(spec.env) if spec is not None and spec.env else {}
         except BaseException:
             # The id has not reached the toolset yet, so nothing else can tear
             # this sandbox down. The server-side TTL would archive it eventually,
             # but that leaves a billed machine idling for an hour by default.
             with suppress(Exception):
                 self.destroy(sandbox_id)
+            self._sandbox_env.pop(sandbox_id, None)
             raise
         return sandbox_id
 
@@ -349,6 +356,16 @@ class BoatSandboxBackend(SandboxBackend):
             )
         timeout_seconds = max(1, math.ceil(timeout))
         api = self._get_api()
+        env = self._sandbox_env.get(sandbox, {})
+        if env:
+            exports = "; ".join(f"export {shlex.quote(key)}={shlex.quote(value)}" for key, value in env)
+            command = f"{exports}; {command}"
+        command = (
+            'tmp_dir=$(mktemp -d); trap \'rm -rf "$tmp_dir"\' EXIT; '
+            f'({command}) >"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
+            'command_pid=$!; wait "$command_pid"; command_status=$?; '
+            'cat "$tmp_dir/stdout"; cat "$tmp_dir/stderr" >&2; exit "$command_status"'
+        )
         with _translate_boat_errors("run a sandbox command"):
             from boat_sdk.models.command_request import CommandRequest
             from boat_sdk.models.command_response import CommandResponse
@@ -488,5 +505,7 @@ class BoatSandboxBackend(SandboxBackend):
                     raise ApiException.from_response(http_resp=response_data, body=None, data=None)
             except ApiException as e:
                 if e.status == 404:
+                    self._sandbox_env.pop(sandbox, None)
                     return
                 raise
+        self._sandbox_env.pop(sandbox, None)

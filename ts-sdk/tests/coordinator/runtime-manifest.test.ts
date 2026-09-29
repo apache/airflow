@@ -28,7 +28,7 @@ import { Bundle } from "../../src/sdk/bundle.js";
 function buildDag(dagId: string, ...taskIds: string[]): Dag {
   const dag = new Dag(dagId);
   for (const taskId of taskIds) {
-    dag.task(taskId, async () => undefined);
+    dag.task(taskId, async () => undefined)();
   }
   return dag;
 }
@@ -87,7 +87,7 @@ describe("buildBundleManifest", () => {
 
   it("rejects a non-string dagId before object-key coercion hides it", () => {
     const dag = new Dag(123 as unknown as string);
-    dag.task("t1", async () => undefined);
+    dag.task("t1", async () => undefined)();
     expect(() => buildBundleManifest(new Bundle(dag))).toThrowError(/Dag ID must be a string/);
   });
 });

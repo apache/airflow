@@ -27,11 +27,44 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
 .. warning::
   ``EdgeExecutor`` now counts the tasks and callbacks it has queued against ``[core] parallelism``, as the
   other executors do. Until now that limit had no effect on Edge. If a scheduler keeps more than
   ``parallelism`` (default 32) workloads in flight on Edge, raise ``[core] parallelism``. Otherwise the
   scheduler leaves the rest in ``scheduled`` state until slots free up.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Make EdgeExecutor respect [core] parallelism (#72048)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix airflow edge list-workers always showing null concurrency (#72959)``
+
+Misc
+~~~~
+
+* ``Unify executor workload queues (#63491)``
+* ``Bump the Edge UI packages: react and react-dom to 19.3.0, the @typescript-eslint packages to 8.70.0, eslint to 10.10.0, @types/node to 26.5.1, @types/react and @types/react-dom to 19.3.0, eslint-plugin-react-refresh to 0.5.7 and happy-dom to 20.14.5 (#73342)``
+* ``Bump the Edge UI packages: the @typescript-eslint packages to 8.69.0, @eslint/compat to 2.1.1, @rolldown/plugin-babel to 0.2.4, @types/node to 26.5.0, @types/react-dom to 19.2.7, eslint-plugin-react-refresh to 0.5.6, globals to 17.12.0, happy-dom to 20.14.0 and vite-plugin-dts to 5.1.0 (#72998)``
+* ``Add TypedDict type hints for AirflowPlugin list fields (#69761)``
+
+Doc-only
+~~~~~~~~
+
+* ``Render the database ERD as a searchable Mermaid diagram instead of an image (#72006)``
+* ``Clarify that AccessView.JOBS is the Edge worker management permission (#72627)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add missing test modules for the edge3 provider (#73111)``
 
 4.3.2
 .....
