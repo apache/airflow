@@ -24,6 +24,12 @@ End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success
 `[sdk] coordinators` config. The test lives at
 `kubernetes-tests/tests/kubernetes_tests/test_lang_sdk_coordinator_executor.py`.
 
+The same file also holds `TestNativeTypeScriptDagOnKubernetes`, which runs a Dag with **no Python
+file at all**: the Dag processor asks the packed TypeScript bundle to parse itself. It is gated on
+`RUN_TS_SDK_NATIVE_DAG_K8S_TESTS` as well as `RUN_LANG_SDK_K8S_TESTS`, because dispatching a parse
+request to a language coordinator is not in Airflow yet — the provisioning below is in place, so the
+test becomes real as soon as it is.
+
 ## How it fits together
 
 ```
@@ -57,11 +63,18 @@ coordinator scans.
 | `stage_artifacts.py` | Init-container entrypoint; stages an artifact bucket via DagBundle. |
 | `pod_templates/lang_sdk_golang.yaml` | `golang` queue worker pod: prod image + go-artifacts init container. |
 | `pod_templates/lang_sdk_java.yaml` | `java` queue worker pod: JVM image + java-artifacts init container. |
+| `pod_templates/lang_sdk_typescript.yaml` | `typescript` queue worker pod: Node image + ts-artifacts init container. |
+| `Dockerfile.typescript` | Prod image plus Node.js, which `NodeCoordinator` execs. |
 | `manifests/localstack.yaml` | In-cluster S3 (localstack). |
 | `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, AWS conn, scheduler pod-template mount. |
 
-The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
-**separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).
+The Go binary, Java jar, TypeScript bundle and the Dag files share one object store (localstack)
+but live in **separate buckets** (`go-artifacts`, `java-artifacts`, `ts-artifacts`, `dags`).
+
+The TypeScript bundle is `ts-sdk/example`, packed by `airflow-ts-pack`. It carries both halves of
+that example: the handlers for the Python-declared `typescript_example` Dag, and the natively
+declared `typescript_native_example`. `typescript_example.py` is uploaded to the `dags` bucket too,
+because the native Dag's trigger task targets it.
 
 ## Which SDK sources get built
 
