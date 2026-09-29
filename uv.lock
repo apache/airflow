@@ -4766,7 +4766,7 @@ requires-dist = [
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "code-mode", "shields", "skills", "boat", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
