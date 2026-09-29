@@ -28,7 +28,7 @@ import { Bundle } from "../../src/sdk/bundle.js";
 function buildDag(dagId: string, ...taskIds: string[]): Dag {
   const dag = new Dag(dagId);
   for (const taskId of taskIds) {
-    dag.task(taskId, async () => undefined);
+    dag.task(taskId, async () => undefined)();
   }
   return dag;
 }
@@ -38,7 +38,7 @@ describe("buildBundleManifest", () => {
     const bundle = new Bundle(buildDag("dag_a", "t1", "t3"), buildDag("dag_b", "t2"));
     expect(buildBundleManifest(bundle)).toEqual({
       supervisor_schema_version: SUPERVISOR_API_VERSION,
-      dags: {
+      task_handlers: {
         dag_a: { tasks: ["t1", "t3"] },
         dag_b: { tasks: ["t2"] },
       },
@@ -46,14 +46,14 @@ describe("buildBundleManifest", () => {
   });
 
   it("keeps a registered Dag without tasks visible in the manifest", () => {
-    expect(buildBundleManifest(new Bundle(buildDag("empty_dag"))).dags).toEqual({
+    expect(buildBundleManifest(new Bundle(buildDag("empty_dag"))).task_handlers).toEqual({
       empty_dag: { tasks: [] },
     });
   });
 
   it("keeps a Dag named __proto__ visible in serialized metadata", () => {
     const manifest = buildBundleManifest(new Bundle(buildDag("__proto__", "task")));
-    const serializedDags = JSON.parse(JSON.stringify(manifest)).dags;
+    const serializedDags = JSON.parse(JSON.stringify(manifest)).task_handlers;
 
     expect(Object.keys(serializedDags)).toEqual(["__proto__"]);
     expect(serializedDags["__proto__"]).toEqual({ tasks: ["task"] });
@@ -62,7 +62,7 @@ describe("buildBundleManifest", () => {
   it("reports only the Dags the bundle was given", () => {
     const bundle = new Bundle(buildDag("dag_a", "t1"));
     buildDag("dag_b", "t2");
-    expect(Object.keys(buildBundleManifest(bundle).dags)).toEqual(["dag_a"]);
+    expect(Object.keys(buildBundleManifest(bundle).task_handlers)).toEqual(["dag_a"]);
   });
 
   // The server would reject these ids. The manifest keeps them and
@@ -71,7 +71,7 @@ describe("buildBundleManifest", () => {
     "keeps a dagId the server would reject visible in the manifest: %j",
     (dagId) => {
       const manifest = buildBundleManifest(new Bundle(buildDag(dagId, "t1")));
-      expect(manifest.dags[dagId]).toEqual({ tasks: ["t1"] });
+      expect(manifest.task_handlers[dagId]).toEqual({ tasks: ["t1"] });
     },
   );
 
@@ -81,13 +81,13 @@ describe("buildBundleManifest", () => {
     "keeps a taskId the server would reject visible in the manifest: %j",
     (taskId) => {
       const manifest = buildBundleManifest(new Bundle(buildDag("example_dag", taskId)));
-      expect(manifest.dags["example_dag"]).toEqual({ tasks: [taskId] });
+      expect(manifest.task_handlers["example_dag"]).toEqual({ tasks: [taskId] });
     },
   );
 
   it("rejects a non-string dagId before object-key coercion hides it", () => {
     const dag = new Dag(123 as unknown as string);
-    dag.task("t1", async () => undefined);
+    dag.task("t1", async () => undefined)();
     expect(() => buildBundleManifest(new Bundle(dag))).toThrowError(/Dag ID must be a string/);
   });
 });
@@ -109,6 +109,6 @@ describe("startCoordinator --airflow-metadata", () => {
     expect(written.startsWith(AIRFLOW_METADATA_SENTINEL)).toBe(true);
     const payload = JSON.parse(written.slice(AIRFLOW_METADATA_SENTINEL.length));
     expect(payload.supervisor_schema_version).toBe(SUPERVISOR_API_VERSION);
-    expect(payload.dags).toEqual({ metadata_dag: { tasks: ["only"] } });
+    expect(payload.task_handlers).toEqual({ metadata_dag: { tasks: ["only"] } });
   });
 });

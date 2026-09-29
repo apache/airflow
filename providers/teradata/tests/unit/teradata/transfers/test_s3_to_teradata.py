@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from unittest import mock
 
@@ -77,3 +78,85 @@ class TestS3ToTeradataTransfer:
         op.execute(None)
 
         assert mock_run.call_count == 1
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.teradata.hooks.teradata.TeradataHook.run")
+    def test_execute_keeps_inline_credentials_out_of_the_log(
+        self, mock_run, mock_session, mock_connection, mock_hook, caplog
+    ):
+        access_key = "aws_access_key_id"
+        access_secret = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, access_secret)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = access_secret
+        mock_session.return_value.token = None
+
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
+
+        op = S3ToTeradataOperator(
+            s3_source_key=S3_SOURCE_KEY,
+            teradata_table=TERADATA_TABLE,
+            aws_conn_id=AWS_CONN_ID,
+            teradata_conn_id=TERADATA_CONN_ID,
+            task_id=TASK_ID,
+            dag=None,
+        )
+        with caplog.at_level(logging.INFO):
+            op.execute(None)
+
+        assert access_secret not in caplog.text
+        assert "ACCESS_ID= '***' ACCESS_KEY= '***'" in caplog.text
+
+        # The statement actually sent still carries the real credentials.
+        sent_sql = mock_run.call_args.args[0]
+        assert f"ACCESS_KEY= '{access_secret}'" in sent_sql
+
+    @mock.patch("airflow.providers.teradata.transfers.s3_to_teradata.TeradataHook")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    def test_execute_disables_hook_sql_logging_for_inline_credentials(
+        self, mock_session, mock_connection, mock_s3_conn, mock_teradata_hook
+    ):
+        mock_session.return_value = Session("k", "s")
+        mock_session.return_value.access_key = "k"
+        mock_session.return_value.secret_key = "s"
+        mock_session.return_value.token = None
+        mock_connection.return_value = Connection()
+        mock_s3_conn.return_value = Connection()
+
+        S3ToTeradataOperator(
+            s3_source_key=S3_SOURCE_KEY,
+            teradata_table=TERADATA_TABLE,
+            aws_conn_id=AWS_CONN_ID,
+            teradata_conn_id=TERADATA_CONN_ID,
+            task_id=TASK_ID,
+            dag=None,
+        ).execute(None)
+
+        assert mock_teradata_hook.return_value.log_sql is False
+
+    @mock.patch("airflow.providers.teradata.transfers.s3_to_teradata.TeradataHook")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    def test_execute_leaves_sql_logging_alone_with_authorization_object(
+        self, mock_session, mock_connection, mock_s3_conn, mock_teradata_hook
+    ):
+        mock_connection.return_value = Connection()
+        mock_s3_conn.return_value = Connection()
+
+        S3ToTeradataOperator(
+            s3_source_key=S3_SOURCE_KEY,
+            teradata_table=TERADATA_TABLE,
+            aws_conn_id=AWS_CONN_ID,
+            teradata_conn_id=TERADATA_CONN_ID,
+            teradata_authorization_name="auth_obj",
+            task_id=TASK_ID,
+            dag=None,
+        ).execute(None)
+
+        assert mock_teradata_hook.return_value.log_sql is not False

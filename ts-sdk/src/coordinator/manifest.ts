@@ -18,30 +18,32 @@
  */
 
 import { SUPERVISOR_API_VERSION } from "./protocol.js";
-import { listBundleDags, type Bundle } from "../sdk/bundle.js";
+import { bundleDagTaskIds, finalizeBundleDags, type Bundle } from "../sdk/bundle.js";
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
 /** Marks the manifest line on stdout, which import-time logging may also reach. */
 export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
 
-/** Bundle manifest fields only the built bundle itself knows: the schema
- *  version it was compiled against and the Dag/task pairs it registered.
- *  Registered Dags without tasks appear with an empty `tasks` list so
- *  `airflow-ts-pack` (which runs `node bundle.mjs --airflow-metadata` to
- *  read this) can warn about them instead of silently dropping them. */
+/** Bundle manifest fields only the built bundle itself knows: the schema version it was compiled
+ *  against, and the task handlers it registered grouped by Dag. Named `task_handlers` because a
+ *  TypeScript bundle provides handlers for Dags declared elsewhere, not Dag definitions. A Dag with
+ *  no handlers keeps an empty `tasks` list so `airflow-ts-pack` can warn instead of dropping it. */
 export interface BundleManifest {
   supervisor_schema_version: string;
-  dags: Record<string, { tasks: string[] }>;
+  task_handlers: Record<string, { tasks: string[] }>;
 }
 
 export function buildBundleManifest(bundle: Bundle): BundleManifest {
-  const dags: BundleManifest["dags"] = {};
-  for (const { dagId, tasks } of listBundleDags(bundle)) {
+  const taskHandlers: BundleManifest["task_handlers"] = {};
+  // The manifest is the bundle reporting what it provides, so this is where its
+  // Dags are finalized: a Dag missing an edge is reported here rather than packed.
+  finalizeBundleDags(bundle);
+  for (const [dagId, tasks] of bundleDagTaskIds(bundle)) {
     if (typeof dagId !== "string") {
       throw new Error("Dag ID must be a string");
     }
-    Object.defineProperty(dags, dagId, {
+    Object.defineProperty(taskHandlers, dagId, {
       configurable: true,
       enumerable: true,
       value: { tasks: [...tasks] },
@@ -50,6 +52,6 @@ export function buildBundleManifest(bundle: Bundle): BundleManifest {
   }
   return {
     supervisor_schema_version: SUPERVISOR_API_VERSION,
-    dags,
+    task_handlers: taskHandlers,
   };
 }

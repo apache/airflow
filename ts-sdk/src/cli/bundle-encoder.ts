@@ -25,14 +25,15 @@
  *
  *   airflowBundle header
  *   -> airflowMetadata
+ *   -> airflowSource
  *   -> executable JavaScript
  *
- * The header tells Airflow where each region begins and ends and carries the
- * digest used to verify each one. Metadata describes what the bundle can serve,
- * and executable JavaScript runs its task handlers.
+ * The header records each region's byte range and digest. Metadata describes what the bundle can
+ * serve, the source region carries the entrypoint as written, and the executable JavaScript runs
+ * the task handlers.
  *
- * This module owns the on-disk encoding. Readers must use the header's named
- * byte ranges rather than relying on incidental line positions.
+ * This module owns the on-disk encoding. Readers must use the header's named byte ranges rather
+ * than incidental line positions.
  */
 
 import { createHash } from "node:crypto";
@@ -41,15 +42,20 @@ import type { BundleManifest } from "../coordinator/manifest.js";
 
 const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024;
+const EMBEDDED_SOURCE_MAX_BYTES = 1024 * 1024;
 const OFFSET_HEX_WIDTH = 16;
 
 export const EMBEDDED_METADATA_PREFIX = "//# airflowMetadata=";
 export const EMBEDDED_LAYOUT_PREFIX = "//# airflowBundle=";
+/** A block comment, because the entrypoint spans more than one line. */
+export const EMBEDDED_SOURCE_OPEN = "/*# airflowSource\n";
+export const EMBEDDED_SOURCE_CLOSE = "\n#*/\n";
 
 export interface BundleEncoderInput {
   bundleManifest: BundleManifest;
   sdkVersion: string;
   entrypointName: string;
+  entrypointSource: string;
   executable: Uint8Array;
 }
 
@@ -57,7 +63,7 @@ interface BundleMetadata {
   airflow_bundle_metadata_version: string;
   sdk: { language: string; version: string; supervisor_schema_version: string };
   source: string;
-  dags: BundleManifest["dags"];
+  task_handlers: BundleManifest["task_handlers"];
 }
 
 interface VerifiedByteRange {
@@ -69,33 +75,45 @@ interface VerifiedByteRange {
 interface BundleHeader {
   code: VerifiedByteRange;
   metadata: VerifiedByteRange;
+  source: VerifiedByteRange;
 }
 
 export function encodeBundle(input: BundleEncoderInput): Buffer {
   const metadata = encodeMetadata(input);
+  const source = encodeSource(input.entrypointSource);
   const executable = encodeExecutable(input.executable);
-  const header = encodeHeader({ metadata, executable });
+  const header = encodeHeader({ metadata, source, executable });
 
-  return Buffer.concat([header, metadata, executable]);
+  return Buffer.concat([header, metadata, source, executable]);
 }
 
-function encodeHeader(regions: { metadata: Buffer; executable: Buffer }): Buffer {
+function encodeHeader(regions: { metadata: Buffer; source: Buffer; executable: Buffer }): Buffer {
+  // Each digest covers the payload only. The framing markers and newlines are re-derived.
   const metadataPayload = regions.metadata.subarray(
     Buffer.byteLength(EMBEDDED_METADATA_PREFIX),
     -1,
   );
+  const sourcePayload = regions.source.subarray(
+    Buffer.byteLength(EMBEDDED_SOURCE_OPEN),
+    -Buffer.byteLength(EMBEDDED_SOURCE_CLOSE),
+  );
   const digests = {
     code: computeSha256(regions.executable),
     metadata: computeSha256(metadataPayload),
+    source: computeSha256(sourcePayload),
   };
   const zeroOffset = "0".repeat(OFFSET_HEX_WIDTH);
   const placeholderHeader = renderHeader({
     code: { start: zeroOffset, end: zeroOffset, sha256: digests.code },
     metadata: { start: zeroOffset, end: zeroOffset, sha256: digests.metadata },
+    source: { start: zeroOffset, end: zeroOffset, sha256: digests.source },
   });
   const metadataStart = placeholderHeader.length + Buffer.byteLength(EMBEDDED_METADATA_PREFIX);
   const metadataEnd = metadataStart + metadataPayload.length;
-  const codeStart = placeholderHeader.length + regions.metadata.length;
+  const sourceStart =
+    placeholderHeader.length + regions.metadata.length + Buffer.byteLength(EMBEDDED_SOURCE_OPEN);
+  const sourceEnd = sourceStart + sourcePayload.length;
+  const codeStart = placeholderHeader.length + regions.metadata.length + regions.source.length;
   const codeEnd = codeStart + regions.executable.length;
   const header = renderHeader({
     code: {
@@ -108,11 +126,43 @@ function encodeHeader(regions: { metadata: Buffer; executable: Buffer }): Buffer
       end: formatOffset(metadataEnd),
       sha256: digests.metadata,
     },
+    source: {
+      start: formatOffset(sourceStart),
+      end: formatOffset(sourceEnd),
+      sha256: digests.source,
+    },
   });
   if (header.length !== placeholderHeader.length) {
     throw new Error("Bundle header changed length while resolving section offsets");
   }
   return header;
+}
+
+/**
+ * Wrap the entrypoint as written in a block comment.
+ *
+ * A comment terminator would splice the rest of the payload into executable position, so it is
+ * escaped. `*\\` is escaped too, which keeps the transformation reversible.
+ */
+function encodeSource(entrypointSource: string): Buffer {
+  const payload = Buffer.from(escapeBlockComment(entrypointSource), "utf-8");
+  const source = Buffer.concat([
+    Buffer.from(EMBEDDED_SOURCE_OPEN, "ascii"),
+    payload,
+    Buffer.from(EMBEDDED_SOURCE_CLOSE, "ascii"),
+  ]);
+  if (source.length > EMBEDDED_SOURCE_MAX_BYTES) {
+    throw new Error(
+      `Embedded entrypoint source is ${source.length} bytes, ` +
+        `over the ${EMBEDDED_SOURCE_MAX_BYTES} byte limit; move code out of the entrypoint ` +
+        `into imported modules`,
+    );
+  }
+  return source;
+}
+
+function escapeBlockComment(source: string): string {
+  return source.replaceAll(/\*([\\/])/g, "*\\$1");
 }
 
 function encodeMetadata(input: BundleEncoderInput): Buffer {
@@ -152,7 +202,7 @@ function buildBundleMetadata(input: BundleEncoderInput): BundleMetadata {
       supervisor_schema_version: input.bundleManifest.supervisor_schema_version,
     },
     source: input.entrypointName,
-    dags: input.bundleManifest.dags,
+    task_handlers: input.bundleManifest.task_handlers,
   };
 }
 

@@ -17,8 +17,8 @@
 
 .. _howto/operator:llamaindex_retrieval:
 
-LlamaIndex ``LlamaIndexRetrievalOperator``
-==========================================
+Retrieve context: ``LlamaIndexRetrievalOperator``
+=================================================
 
 Load a persisted LlamaIndex index and run similarity search. Designed to
 sit between

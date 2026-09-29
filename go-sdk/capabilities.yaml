@@ -59,6 +59,9 @@ capabilities:
     supported: true
     since: "3.3"
     note: "@task.stub"
+  taskflow-binding:
+    supported: false
+    note: "bind @task.stub literal/XCom args to the native handler"
   task-logging:
     supported: true
     since: "3.3"
@@ -72,8 +75,8 @@ capabilities:
     since: "3.3"
     note: "GetConnection"
   variable-read-write:
-    supported: false
-    note: "GetVariable only; no write over the comm socket yet"
+    supported: true
+    since: "3.4"
   self-contained-bundle:
     supported: true
     since: "3.3"

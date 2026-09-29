@@ -36,6 +36,7 @@
 //        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
+import { resolveArgs, type BoundArgs } from "./arg-binding.js";
 import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
@@ -53,7 +54,8 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
+import { getArgNames } from "../sdk/arg-names.js";
+import { bundleDagTaskIds, type Bundle } from "../sdk/bundle.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -146,10 +148,10 @@ export async function startCoordinator(
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = listBundleTasks(bundle);
+    const byDag = bundleDagTaskIds(bundle);
     runtimeLogs.info("Coordinator runtime started", {
-      registered_tasks: tasks,
-      count: tasks.length,
+      registered_tasks: Object.fromEntries(byDag),
+      count: [...byDag.values()].reduce((total, tasks) => total + tasks.length, 0),
       // Cadwyn schema version this SDK was generated against. Logged
       // for operator visibility; not sent on the wire.
       supervisor_api_version: SUPERVISOR_API_VERSION,
@@ -268,7 +270,7 @@ function handleParse(
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: listBundleTasks(bundle),
+    registered_tasks: Object.fromEntries(bundleDagTaskIds(bundle)),
   });
   const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
@@ -293,7 +295,7 @@ async function handleTask(
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: listBundleTasks(bundle),
+      available: Object.fromEntries(bundleDagTaskIds(bundle)),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.
@@ -307,15 +309,33 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, clientLogs);
+
+  let bound: BoundArgs;
+  try {
+    bound = await resolveArgs(details.ti_context?.arg_bindings, {
+      client,
+      signal: ctx.signal,
+      logs,
+      argNames: getArgNames(handler),
+    });
+  } catch (err) {
+    // Before the handler ran, so nothing it might have written is at stake.
+    const message = (err as Error).message ?? String(err);
+    logs.error("Cannot bind this task's call arguments", {
+      task_id: ctx.taskId,
+      error: message,
+    });
+    return buildFailureResponse(details, message);
+  }
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
-  logs.debug("Dispatching to handler", { task_id: ctx.taskId });
+  logs.debug("Dispatching to handler", { task_id: ctx.taskId, bound_args: bound.names });
 
   try {
     // The scope is installed around the call, not awaited inside it: the store
     // follows the handler across every `await` it makes, so `getContext()` and
     // `getClient()` work at any depth without the handler being handed either.
-    const result = await runInTaskScope({ ctx, client }, () => handler());
+    const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
@@ -335,6 +355,10 @@ async function handleTask(
       task_id: ctx.taskId,
       error: message,
       stack: (err as Error).stack ?? null,
+      // A handler that destructured a bound argument under a name nothing
+      // folds to gets no error of its own, so a failing task says what its
+      // call actually delivered.
+      bound_args: bound.names,
     });
     return buildFailureResponse(details, message);
   }

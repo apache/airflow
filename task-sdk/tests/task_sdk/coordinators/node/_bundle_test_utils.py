@@ -21,10 +21,14 @@ from __future__ import annotations
 import hashlib
 import json
 import pathlib
+import re
 
 SCHEMA_VERSION = "2026-06-16"
+BUNDLE_NAME = "bundle.min.mjs"
 LAYOUT_PREFIX = b"//# airflowBundle="
 METADATA_PREFIX = b"//# airflowMetadata="
+SOURCE_OPEN = b"/*# airflowSource\n"
+SOURCE_CLOSE = b"\n#*/\n"
 OFFSET_WIDTH = 16
 
 
@@ -40,7 +44,7 @@ def metadata_json(
             "supervisor_schema_version": schema_version,
         },
         "source": "main.ts",
-        "dags": {dag_id: {"tasks": ["test_task"]} for dag_id in dag_ids},
+        "task_handlers": {dag_id: {"tasks": ["test_task"]} for dag_id in dag_ids},
     }
     if metadata_version is not None:
         metadata = {"airflow_bundle_metadata_version": metadata_version, **metadata}
@@ -60,6 +64,11 @@ def _layout_line(layout: dict[str, object]) -> bytes:
     return LAYOUT_PREFIX + payload + b"\n"
 
 
+def escape_source(source: bytes) -> bytes:
+    """Escape a block-comment terminator the way the TypeScript encoder does."""
+    return re.sub(rb"\*([\\/])", rb"*\\\1", source)
+
+
 def write_bundle(
     root: pathlib.Path,
     *dag_ids: str,
@@ -67,6 +76,9 @@ def write_bundle(
     schema_version: str = SCHEMA_VERSION,
     metadata_version: str | None = "1.0",
     metadata_payload: bytes | None = None,
+    source: bytes = b"export {};\n",
+    source_payload: bytes | None = None,
+    name: str = BUNDLE_NAME,
 ) -> pathlib.Path:
     if metadata_payload is None:
         metadata_payload = metadata_json(
@@ -74,26 +86,34 @@ def write_bundle(
             schema_version=schema_version,
             metadata_version=metadata_version,
         )
+    if source_payload is None:
+        source_payload = escape_source(source)
     metadata_line = METADATA_PREFIX + metadata_payload + b"\n"
+    source_region = SOURCE_OPEN + source_payload + SOURCE_CLOSE
     placeholder = _layout_line(
         {
             "code": _section(0, 0, code),
             "metadata": _section(0, 0, metadata_payload),
+            "source": _section(0, 0, source_payload),
         }
     )
     metadata_start = len(placeholder) + len(METADATA_PREFIX)
     metadata_end = metadata_start + len(metadata_payload)
-    code_start = len(placeholder) + len(metadata_line)
+    source_start = len(placeholder) + len(metadata_line) + len(SOURCE_OPEN)
+    source_end = source_start + len(source_payload)
+    code_start = len(placeholder) + len(metadata_line) + len(source_region)
     layout_line = _layout_line(
         {
             "code": _section(code_start, code_start + len(code), code),
             "metadata": _section(metadata_start, metadata_end, metadata_payload),
+            "source": _section(source_start, source_end, source_payload),
         }
     )
     assert len(layout_line) == len(placeholder)
 
-    bundle = root / "bundle.mjs"
-    bundle.write_bytes(layout_line + metadata_line + code)
+    bundle = root / name
+    bundle.parent.mkdir(parents=True, exist_ok=True)
+    bundle.write_bytes(layout_line + metadata_line + source_region + code)
     return bundle
 
 

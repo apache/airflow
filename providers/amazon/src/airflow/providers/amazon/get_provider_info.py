@@ -34,6 +34,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst",
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst",
                 ],
                 "tags": ["aws"],
             },
@@ -396,7 +397,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.athena",
+                    "airflow.providers.amazon.aws.operators.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
@@ -1580,5 +1584,8 @@ def get_provider_info():
         ],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
-        "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
+        "queues": [
+            "airflow.providers.amazon.aws.queues.kinesis.KinesisMessageQueueProvider",
+            "airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider",
+        ],
     }

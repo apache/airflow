@@ -96,6 +96,16 @@ class TestSQLToolsetInit:
         ts = SQLToolset("my_pg")
         assert ts.id == "sql-my_pg"
 
+    @pytest.mark.parametrize("value", [None, []], ids=["none", "empty-list"])
+    def test_falsy_allowed_tables_raises(self, value):
+        """Only omitting the argument grants allow-all; no explicit value does."""
+        with pytest.raises(ValueError, match="allowed_tables must name at least one table"):
+            SQLToolset("my_pg", allowed_tables=value)
+
+    def test_omitted_allowed_tables_means_no_restriction(self):
+        ts = SQLToolset("my_pg")
+        assert ts._allowed_tables is None
+
 
 class TestSQLToolsetGetTools:
     def test_returns_four_tools(self):

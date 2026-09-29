@@ -20,20 +20,76 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
+import click
 import pytest
 import yaml
+from click.testing import CliRunner
 from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.global_constants import PYCACHE_PREFIX_IN_CONTAINER
+from airflow_breeze.commands.common_options import option_project_name
+from airflow_breeze.global_constants import MOUNT_SELECTED, PYCACHE_PREFIX_IN_CONTAINER
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
 )
 
 console = Console(width=400, color_system="standard")
+
+
+@pytest.mark.parametrize("linked_worktree", [False, True])
+@pytest.mark.parametrize("explicit_project", [None, "foobar", "breeze"])
+def test_worktree_project_default_and_override(tmp_path, linked_worktree, explicit_project):
+    root = tmp_path / "My Worktree"
+    with (
+        patch("airflow_breeze.utils.path_utils.AIRFLOW_ROOT_PATH", root),
+        patch(
+            "airflow_breeze.utils.path_utils.get_main_git_dir_for_worktree",
+            autospec=True,
+            return_value=tmp_path / ".git" if linked_worktree else None,
+        ),
+    ):
+        params = ShellParams(**({"project_name": explicit_project} if explicit_project else {}))
+        sqlite_file = params.get_backend_compose_files("sqlite")[0].name
+
+        @click.command()
+        @option_project_name
+        def command(project_name):
+            click.echo(project_name)
+
+        result = CliRunner().invoke(
+            command,
+            ["--project-name", explicit_project] if explicit_project else [],
+            env={"PROJECT_NAME": None},
+        )
+    assert params.project_name == (
+        explicit_project or ("breeze-my-worktree" if linked_worktree else "breeze")
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == params.project_name
+    assert sqlite_file == (
+        "backend-sqlite-no-volume.yml" if explicit_project == "foobar" else "backend-sqlite.yml"
+    )
+
+
+@pytest.mark.parametrize("linked_worktree", [False, True])
+def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, linked_worktree):
+    monkeypatch.setenv("BREEZE_WORKTREE_PATH", "/another/checkout")
+    with (
+        patch("airflow_breeze.params.shell_params.AIRFLOW_ROOT_PATH", tmp_path),
+        patch(
+            "airflow_breeze.params.shell_params.get_main_git_dir_for_worktree",
+            autospec=True,
+            return_value=tmp_path / ".git" if linked_worktree else None,
+        ),
+    ):
+        env = ShellParams().env_variables_for_docker_commands
+
+    assert env["BREEZE_WORKTREE_PATH"] == (str(tmp_path.resolve()) if linked_worktree else "")
 
 
 @pytest.mark.parametrize(
@@ -285,3 +341,26 @@ def test_pycache_volume_compose_file_is_included_only_when_requested(
 def test_include_mypy_volume_adds_mypy_compose_file():
     compose_files = ShellParams(include_mypy_volume=True).compose_file.split(":")
     assert str(SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml") in compose_files
+
+
+@pytest.mark.parametrize(("force_lowest_dependencies", "expected_count"), [(True, 0), (False, 1)])
+def test_uv_lock_is_not_mounted_for_lowest_dependencies(force_lowest_dependencies: bool, expected_count: int):
+    """The lowest-direct ``uv sync`` rewrites uv.lock, so its mount is dropped for that run."""
+    compose_files = ShellParams(
+        mount_sources=MOUNT_SELECTED, force_lowest_dependencies=force_lowest_dependencies
+    ).compose_file.split(os.pathsep)
+    assert compose_files.count(str(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH)) == expected_count
+
+
+def test_uv_lock_is_mounted_only_by_its_own_compose_file():
+    """Guards the split: a stray uv.lock bind in local.yml would defeat the skip above."""
+    local_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH.read_text())
+    # local.yml mixes named volumes (plain "source:target" strings) with bind mappings.
+    local_volumes = local_compose_file["services"]["airflow"]["volumes"]
+    targets = [volume["target"] if isinstance(volume, dict) else volume for volume in local_volumes]
+    assert not any("uv.lock" in target for target in targets)
+
+    uv_lock_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH.read_text())
+    assert uv_lock_compose_file["services"]["airflow"]["volumes"] == [
+        {"type": "bind", "source": "../../../uv.lock", "target": "/opt/airflow/uv.lock"}
+    ]

@@ -24,8 +24,11 @@ import time_machine
 from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import TaskInstanceKey
-from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.models.edge_job import EdgeJobModel, build_job_key
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -61,6 +64,30 @@ def test_key_builds_task_instance_key():
     job = _make_job(map_index=3, try_number=2)
 
     assert job.key == TaskInstanceKey("test_dag", "test_task", "test_run", 2, 3)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Callback workloads need Airflow 3.3+")
+def test_build_job_key_maps_callback_row_to_callback_key():
+    from airflow.models.callback import CallbackKey
+
+    key = build_job_key(EXECUTE_CALLBACK_TAG, "abc", f"{EXECUTE_CALLBACK_TAG}-abc", 0, -1)
+
+    assert key == CallbackKey(id="abc")
+
+
+@pytest.mark.parametrize(
+    ("dag_id", "run_id", "try_number", "map_index"),
+    [
+        pytest.param("test_dag", f"{EXECUTE_CALLBACK_TAG}-abc", 0, -1, id="other_dag"),
+        pytest.param(EXECUTE_CALLBACK_TAG, "manual__2026-01-01T00:00:00+00:00", 0, -1, id="task_run_id"),
+        pytest.param(EXECUTE_CALLBACK_TAG, f"{EXECUTE_CALLBACK_TAG}-abc", 1, -1, id="try_number"),
+        pytest.param(EXECUTE_CALLBACK_TAG, f"{EXECUTE_CALLBACK_TAG}-abc", 0, 2, id="map_index"),
+    ],
+)
+def test_build_job_key_keeps_task_key_unless_full_callback_identity(dag_id, run_id, try_number, map_index):
+    key = build_job_key(dag_id, "abc", run_id, try_number, map_index)
+
+    assert key == TaskInstanceKey(dag_id, "abc", run_id, try_number, map_index)
 
 
 @time_machine.travel(datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc), tick=False)

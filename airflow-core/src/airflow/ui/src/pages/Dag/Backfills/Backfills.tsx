@@ -149,7 +149,7 @@ const getColumns = ({
 ];
 
 export const Backfills = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "components"]);
   const { formatElapsed } = useDurationFormat();
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();

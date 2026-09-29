@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Musi zakończyć się w ciągu {{interval}} od momentu: {{reference}}",
+    "completionRuleDynamic": "Musi zakończyć się w zmiennym interwale liczonym od momentu: {{reference}}",
     "count_few": "{{count}} terminy",
     "count_many": "{{count}} terminów",
     "count_one": "{{count}} termin",
@@ -157,13 +158,7 @@
       "label": "Liczba wykonań Daga"
     },
     "dependencies": {
-      "label": "Zależności",
-      "options": {
-        "allDagDependencies": "Wszystkie zależności Daga",
-        "externalConditions": "Warunki zewnętrzne",
-        "onlyTasks": "Tylko zadania"
-      },
-      "placeholder": "Zależności"
+      "allDagDependencies": "Wszystkie zależności Daga"
     },
     "graphDirection": {
       "label": "Kierunek grafu"
@@ -258,6 +253,10 @@
     "deleteWarning": "Zadanie utraci te zachowane dane. Jeśli używa tego klucza do śledzenia pracy zewnętrznej (np. zewnętrznego ID zadania), nie będzie mogło jej wznowić.",
     "edit": "Edytuj wpis magazynu stanu zadania",
     "emptyStore": "Magazyn stanu zadania przechowuje wartości zachowywane pomiędzy ponownymi próbami. Workery mogą zapisywać do magazynu stanu zadania przez Task SDK.",
+    "entry_few": "Wpisy",
+    "entry_many": "Wpisów",
+    "entry_one": "Wpis",
+    "entry_other": "Wpisy",
     "expiresAt": {
       "column": "Wygasa o",
       "custom": "Niestandardowy",

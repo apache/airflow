@@ -2326,6 +2326,63 @@ class TestDagProcessingMessageTypes:
 
 
 class TestDagFileProcessorProcess:
+    def test_registered_message_types(self):
+        expected = set(typing.get_args(typing.get_args(ToManager)[0]))
+        assert set(DagFileProcessorProcess._request_handlers) == expected
+
+    @pytest.mark.parametrize(
+        "message_type",
+        sorted(set(typing.get_args(typing.get_args(ToManager)[0])) - {DagFileParsingResult}, key=str),
+        ids=lambda message_type: message_type.__name__,
+    )
+    def test_reuses_shared_request_handlers(self, message_type):
+        handler = DagFileProcessorProcess._request_handlers[message_type]
+        assert handler is supervisor.ActivitySubprocess._request_handlers[message_type]
+        assert handler is supervisor.WatchedSubprocess._shared_request_handlers[message_type]
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    @pytest.mark.parametrize(
+        "message_type",
+        sorted(
+            set(typing.get_args(typing.get_args(ToSupervisor)[0]))
+            - set(typing.get_args(typing.get_args(ToManager)[0])),
+            key=str,
+        ),
+        ids=lambda message_type: message_type.__name__,
+    )
+    def test_rejects_task_only_messages(self, send_msg, proc, message_type):
+        proc._handle_request(message_type.model_construct(), structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(
+            proc,
+            None,
+            request_id=42,
+            error=comms.ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
+        )
+        assert not proc.client.mock_calls
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_dispatch_parsing_result(self, send_msg, proc):
+        result = DagFileParsingResult(fileloc="test_dag.py", serialized_dags=[])
+        proc._handle_request(result, structlog.get_logger(), req_id=42)
+
+        assert proc.parsing_result is result
+        send_msg.assert_called_once_with(proc, None, request_id=42, error=None)
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_previous_successful_run_uses_process_id(self, send_msg, proc):
+        proc.client.task_instances.get_previous_successful_dagrun.return_value = (
+            comms.PrevSuccessfulDagRunResult()
+        )
+        proc._handle_request(
+            comms.GetPrevSuccessfulDagRun(ti_id=uuid.uuid4()), structlog.get_logger(), req_id=42
+        )
+
+        proc.client.task_instances.get_previous_successful_dagrun.assert_called_once_with(proc.id)
+        send_msg.assert_called_once_with(
+            proc, comms.PrevSuccessfulDagRunResult(), request_id=42, error=None, exclude_unset=True
+        )
+
     @pytest.fixture
     def proc(self):
         from socket import socketpair
@@ -2388,7 +2445,9 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch(
+                "airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True
+            ) as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(
@@ -2429,7 +2488,9 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch(
+                "airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True
+            ) as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(

@@ -722,7 +722,8 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     # version from the metadata airflow-ts-pack embedded in the bundle.
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
-    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
+    # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
 
     # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
     # and the tests check that dispatch tells their same-named tasks apart.

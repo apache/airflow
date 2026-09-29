@@ -25,7 +25,7 @@ This example shows the coordinator-mode shape for TypeScript task handlers:
 - `src/main.ts` and `src/taskflow.ts` register a `TaskHandler` per stub task and start the coordinator runtime.
   One bundle provides for both Dags, and both declare a task called `build_message`.
   A handler binds the `(dag_id, task_id)` pair, so the two are different tasks with different bodies.
-- `dist/bundle.mjs` is the generated Node.js bundle that Airflow launches.
+- `dist/bundle.min.mjs` is the generated Node.js bundle that Airflow launches.
 
 The build uses the SDK's `airflow-ts-pack` tool, which bundles the entrypoint
 with esbuild and embeds the Airflow metadata generated from the bundle's
@@ -53,7 +53,7 @@ The coordinator expects this layout:
 
 ```text
 ts-sdk/example/dist/
-  bundle.mjs
+  bundle.min.mjs
 ```
 
 ## Airflow Configuration
@@ -73,7 +73,7 @@ export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 
 Copy both files in `dags/` into your Airflow Dags folder.
 
-The example also uses one Variable and one Connection:
+The example also reads one Variable and one Connection:
 
 ```bash
 airflow variables set typescript_example_greeting "hello from Airflow"
@@ -83,6 +83,9 @@ airflow connections add typescript_example_http \
   --conn-login user \
   --conn-password pass
 ```
+
+`write_and_delete_variable` writes the Variables it needs: it records the run id in
+`typescript_example_last_run` and deletes the `typescript_example_scratch` Variable it has just written.
 
 Then start Airflow and trigger the Dag:
 

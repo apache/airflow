@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+7.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add environments and trigger named parameters to Databricks operators (#72505)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Skip Dag params with no value when forwarding them to Databricks (#71782)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix grammar in the Databricks submit-run guide and operator docstring (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 7.20.0
 .......
 

@@ -2450,10 +2450,14 @@ components:
     AssetExpressionAssetInfo:
       properties:
         uri:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Uri
         name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Name
         group:
           type: string
@@ -2463,6 +2467,10 @@ components:
           - type: integer
           - type: 'null'
           title: Id
+        hidden:
+          type: boolean
+          title: Hidden
+          default: false
       type: object
       required:
       - uri
@@ -2481,7 +2489,16 @@ components:
         optional so a row persisted before id-enrichment (or migrated from the pre-3.0
         dataset format)
 
-        degrades gracefully instead of failing response validation.'
+        degrades gracefully instead of failing response validation.
+
+
+        A leaf the caller is not authorized to read is served with ``hidden`` set
+        and ``uri``, ``name``
+
+        and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``),
+        so the shape of the
+
+        schedule stays visible without revealing which asset it waits on.'
     AssetExpressionRef:
       properties:
         asset_ref:
@@ -4090,11 +4107,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
-        team_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
+        team_names:
+          items:
+            type: string
+          type: array
+          title: Team Names
         bundle_names:
           anyOf:
           - items:
@@ -4820,6 +4837,15 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id

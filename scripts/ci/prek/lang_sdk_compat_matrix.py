@@ -77,6 +77,7 @@ class Capability(NamedTuple):
 # whole Dag in the target language and are gated by NATIVE_DAG_GATE (except the gate itself).
 CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("mixed-lang-stub-target", "MUST", "runtime", False),
+    Capability("taskflow-binding", "MUST", "runtime", False),
     Capability("task-logging", "MUST", "runtime", False),
     Capability("xcom-read-write", "MUST", "runtime", False),
     Capability("connection-read", "MUST", "runtime", False),

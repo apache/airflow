@@ -118,7 +118,9 @@ other packages that can be used by airflow or some of its providers.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | amazon-aws-auth     | ``pip install apache-airflow[amazon-aws-auth]``     | Amazon-aws-auth AWS authentication                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| cloudpickle         | ``pip install apache-airflow[cloudpickle]``         | Cloudpickle hooks and operators                                            |
+| cloudpickle         | ``pip install apache-airflow[cloudpickle]``         | Cloudpickle serialization support                                          |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| fab-oauth           | ``pip install 'apache-airflow[fab-oauth]'``         | FAB OAuth authentication (authlib)                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github-enterprise   | ``pip install 'apache-airflow[github-enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -252,6 +254,8 @@ These are extras that add dependencies needed for integration with external serv
 | atlassian-jira      | ``pip install 'apache-airflow[atlassian-jira]'``    | Jira hooks and operators                            |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | microsoft-azure     | ``pip install 'apache-airflow[microsoft-azure]'``   | Microsoft Azure                                     |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| modal               | ``pip install 'apache-airflow[modal]'``             | Modal hook and connection                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | clickhousedb        | ``pip install 'apache-airflow[clickhousedb]'``      | ClickHouse hooks and operators                      |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+

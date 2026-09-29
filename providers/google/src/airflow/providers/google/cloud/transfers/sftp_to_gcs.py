@@ -92,6 +92,8 @@ class SFTPToGCSOperator(BaseOperator):
         "destination_path",
         "destination_bucket",
         "impersonation_chain",
+        "gcp_conn_id",
+        "sftp_conn_id",
     )
 
     def __init__(

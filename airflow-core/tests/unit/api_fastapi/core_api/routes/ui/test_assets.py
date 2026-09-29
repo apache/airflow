@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -83,7 +84,8 @@ class TestNextRunAssets:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        with assert_queries_count(4):
+        # 4 queries for the endpoint plus 1 to resolve the assets the caller may read.
+        with assert_queries_count(5):
             response = test_client.get("/next_run_assets/upstream")
 
         assert response.status_code == 200
@@ -96,6 +98,7 @@ class TestNextRunAssets:
                             "name": "asset1",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     }
                 ]
@@ -117,6 +120,47 @@ class TestNextRunAssets:
             ],
             "pending_partition_count": None,
         }
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_asset_expression_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        with dag_maker(
+            dag_id="hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/visible", name="visible_asset"),
+                Asset(uri="s3://bucket/hidden", name="hidden_asset"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible_asset"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        response = test_client.get("/next_run_assets/hidden_upstream")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible_asset",
+                        "group": "asset",
+                        "id": visible_id,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
+        redacted = json.dumps(response.json()["asset_expression"])
+        assert "hidden_asset" not in redacted
+        assert "s3://bucket/hidden" not in redacted
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/next_run_assets/upstream")
@@ -170,6 +214,7 @@ class TestNextRunAssets:
                             "name": "A",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     },
                     {
@@ -178,6 +223,7 @@ class TestNextRunAssets:
                             "name": "B",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     },
                 ]
