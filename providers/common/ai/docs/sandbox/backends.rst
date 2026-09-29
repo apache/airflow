@@ -169,7 +169,8 @@ Writes use Boat's native file API. Reads deliberately keep the inherited bounded
 shell implementation, so ``max_bytes`` is enforced inside the guest before file
 contents reach worker memory. Command timeouts are capped at 600 seconds; a
 sandbox whose command times out, or that never becomes ready, is torn down
-immediately, with the server-side TTL as the orphan-cleanup backstop.
+immediately. If the worker dies first, the server-side TTL archives the sandbox
+rather than deleting it, preserving its snapshot until an operator removes it.
 
 sbx (Docker Sandboxes, local)
 -----------------------------
