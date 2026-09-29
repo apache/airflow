@@ -692,6 +692,39 @@ class TestWasbHook:
         assert f"Downloaded dag_03.py to {sync_local_dir.as_posix()}/dag_03.py" in logs_string
         hook.get_file.assert_called_once()
 
+    @pytest.mark.parametrize("prefix", ["project1/dags", "project1/dags/"])
+    def test_sync_to_local_dir_with_prefix(self, mocked_blob_service_client, tmp_path, prefix):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
+        blob = mock.MagicMock()
+        blob.name = "project1/dags/dag_a.py"
+        mock_container.list_blobs.return_value = [blob]
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook.get_file = mock.MagicMock()
+
+        hook.sync_to_local_dir(container_name="test_container", local_dir=tmp_path, prefix=prefix)
+
+        mock_container.list_blobs.assert_called_once_with(name_starts_with="project1/dags/")
+        hook.get_file.assert_called_once_with(
+            file_path=str(tmp_path / "dag_a.py"), container_name="test_container", blob_name=blob.name
+        )
+
+    def test_sync_to_local_dir_rejects_blob_path_traversal(self, mocked_blob_service_client, tmp_path):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
+        blob = mock.MagicMock()
+        blob.name = "dags/../../outside.py"
+        mock_container.list_blobs.return_value = [blob]
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook.get_file = mock.MagicMock()
+
+        with pytest.raises(ValueError, match="resolves outside local directory"):
+            hook.sync_to_local_dir(
+                container_name="test_container", local_dir=tmp_path / "bundle", prefix="dags"
+            )
+        assert not (tmp_path / "outside.py").exists()
+        hook.get_file.assert_not_called()
+
     def test_get_container_client(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook._get_container_client("mycontainer")
