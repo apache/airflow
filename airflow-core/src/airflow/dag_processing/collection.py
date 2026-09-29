@@ -167,24 +167,19 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
 
 class _RunInfo(NamedTuple):
     latest_run: DagRun | None
-    num_active_runs: int
 
     @classmethod
-    def calculate(cls, dag: LazyDeserializedDAG, *, num_active_runs: int, session: Session) -> Self:
+    def calculate(cls, dag: LazyDeserializedDAG, *, session: Session) -> Self:
         """
         Query the latest-run info from the db.
 
         :param dag: the Dag to calculate run info for
-        :param num_active_runs: active run count for this Dag, pre-computed by the caller in one
-            batched query across every Dag in the current update so this doesn't become an N+1.
         :param session: DB session
         """
-        # The latest-run lookup below is only used to calculate the *next* scheduled run, so it
-        # can be skipped for Dags that can never be scheduled in the first place. num_active_runs
-        # is still meaningful for such Dags (e.g. a schedule=None Dag triggered manually more
-        # often than its max_active_runs allows) and must always be computed.
+        # Only used to calculate the *next* scheduled run, so it can be skipped for Dags that can
+        # never be scheduled in the first place.
         if not dag.timetable.can_be_scheduled:
-            return cls(None, num_active_runs)
+            return cls(None)
 
         if dag.timetable.partitioned:
             log.debug("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
@@ -201,7 +196,7 @@ class _RunInfo(NamedTuple):
             )
         else:
             log.debug("no latest run found", dag_id=dag.dag_id)
-        return cls(latest_run, num_active_runs)
+        return cls(latest_run)
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -631,11 +626,7 @@ class DagModelOperation(NamedTuple):
             dag_ids=list(orm_dags), exclude_backfill=True, session=session
         )
         for dag_id, dm in sorted(orm_dags.items()):
-            run_info = _RunInfo.calculate(
-                dag=self.dags[dag_id],
-                num_active_runs=active_run_counts.get(dag_id, 0),
-                session=session,
-            )
+            run_info = _RunInfo.calculate(dag=self.dags[dag_id], session=session)
             dag = self.dags[dag_id]
             dm.fileloc = dag.fileloc
             dm.relative_fileloc = dag.relative_fileloc
@@ -701,7 +692,7 @@ class DagModelOperation(NamedTuple):
             dm.bundle_version = self.bundle_version
 
             reference_run: DagRun | None = run_info.latest_run
-            dm.exceeds_max_non_backfill = run_info.num_active_runs >= dm.max_active_runs
+            dm.exceeds_max_non_backfill = active_run_counts.get(dag_id, 0) >= dm.max_active_runs
             dm.calculate_dagrun_date_fields(dag, reference_run=reference_run)
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []

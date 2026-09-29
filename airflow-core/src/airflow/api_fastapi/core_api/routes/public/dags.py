@@ -274,9 +274,20 @@ def get_dag_details(
         or 0
     )
 
-    # Add is_favorite and active_runs_count fields to the Dag model
+    # Computed fresh here rather than read from DagModel.exceeds_max_non_backfill: that column
+    # is a scheduler-side cache written on parse and on a handful of scheduler events, but never
+    # by a manual/API/operator trigger -- so for a schedule=None Dag it can stay stale (wrong in
+    # either direction) for as long as min_file_process_interval, or for a run's entire lifetime
+    # if it finishes before the next parse.
+    non_backfill_active_runs_count = DagRun.active_runs_of_dags(
+        dag_ids=[dag_id], exclude_backfill=True, session=session
+    ).get(dag_id, 0)
+    is_at_max_active_runs = non_backfill_active_runs_count >= (dag_model.max_active_runs or 0)
+
+    # Add is_favorite, active_runs_count, and is_at_max_active_runs fields to the Dag model
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+    setattr(dag_model, "is_at_max_active_runs", is_at_max_active_runs)
 
     return DAGDetailsResponse.model_validate(dag_model)
 

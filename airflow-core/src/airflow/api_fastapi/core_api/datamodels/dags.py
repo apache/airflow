@@ -28,6 +28,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -199,7 +200,6 @@ class DAGDetailsResponse(DAGResponse):
                 "dag_run_timeout": "dagrun_timeout",
                 "last_parsed": "last_loaded",
                 "template_search_path": "template_searchpath",
-                "is_at_max_active_runs": "exceeds_max_non_backfill",
                 **DAG_ALIAS_MAPPING,
             }.get(field_name, field_name),
         ),
@@ -222,7 +222,18 @@ class DAGDetailsResponse(DAGResponse):
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
     active_runs_count: int = 0
-    is_at_max_active_runs: bool
+    is_at_max_active_runs: bool = Field(
+        description=(
+            "Whether this Dag currently has as many active runs as its max_active_runs allows. "
+            "Counted differently from active_runs_count above: this counts RUNNING and QUEUED "
+            "runs (excluding backfill runs), matching the scheduler's own promotion check, while "
+            "active_runs_count counts RUNNING runs only and includes backfill runs. A Dag with "
+            "one running backfill run and no others can show active_runs_count: 1 alongside "
+            "is_at_max_active_runs: false, and a Dag with one queued (non-backfill) run and "
+            "otherwise no active runs can show active_runs_count: 0 alongside "
+            "is_at_max_active_runs: true."
+        )
+    )
     team_name: str | None = None
 
     @field_validator("timezone", mode="before")
