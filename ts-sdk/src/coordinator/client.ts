@@ -30,6 +30,7 @@ import type {
   GetXCom,
   SetXCom,
   GetConnection,
+  SkipDownstreamTasks,
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
 
@@ -200,6 +201,16 @@ export function createCoordinatorClient(
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
+    },
+
+    // ---- Control flow ----
+
+    async skipDownstreamTasks(taskIds: readonly string[]): Promise<void> {
+      // The supervisor treats an empty list as "skip nothing", and sending it
+      // would cost a round trip to say so.
+      if (taskIds.length === 0) return;
+      const msg: SkipDownstreamTasks = { type: "SkipDownstreamTasks", tasks: [...taskIds] };
+      await rpc("SkipDownstreamTasks", null, msg, () => undefined, "throw");
     },
 
     // ---- Connections ----
