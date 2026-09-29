@@ -602,7 +602,7 @@ class TestWasbHook:
             return "".join([args[0][0] % args[0][1:] for args in call_args_list])
 
         def make_blob(name, size=9, last_modified=None):
-            blob = mock.MagicMock(name=f"BLOB:{name}")
+            blob = mock.MagicMock(spec=BlobProperties)
             blob.name = name
             blob.size = size
             blob.last_modified = last_modified or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
@@ -696,7 +696,7 @@ class TestWasbHook:
     def test_sync_to_local_dir_with_prefix(self, mocked_blob_service_client, tmp_path, prefix):
         mock_container = create_autospec(ContainerClient, instance=True)
         mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
-        blob = mock.MagicMock()
+        blob = mock.MagicMock(spec=BlobProperties)
         blob.name = "project1/dags/dag_a.py"
         mock_container.list_blobs.return_value = [blob]
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
@@ -712,7 +712,7 @@ class TestWasbHook:
     def test_sync_to_local_dir_rejects_blob_path_traversal(self, mocked_blob_service_client, tmp_path):
         mock_container = create_autospec(ContainerClient, instance=True)
         mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
-        blob = mock.MagicMock()
+        blob = mock.MagicMock(spec=BlobProperties)
         blob.name = "dags/../../outside.py"
         mock_container.list_blobs.return_value = [blob]
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
