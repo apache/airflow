@@ -1638,9 +1638,20 @@ class TestDagDetails(TestDagEndpoint):
         assert body["is_at_max_active_runs"] is True
 
     def test_dag_details_is_at_max_active_runs_excludes_backfill_runs(self, session, test_client):
-        """A running backfill run doesn't count toward the Dag's own is_at_max_active_runs."""
+        """A running backfill run doesn't count toward the Dag's own active-run stats."""
         dag_model = session.get(DagModel, DAG2_ID)
-        dag_model.max_active_runs = 1
+        dag_model.max_active_runs = 2
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="is_at_max_active_runs_manual_running",
+                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
         session.add(
             DagRun(
                 dag_id=DAG2_ID,
@@ -1658,7 +1669,8 @@ class TestDagDetails(TestDagEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        # active_runs_count includes the backfill run; is_at_max_active_runs excludes it.
+        # The manual run counts; the backfill run on top of it doesn't push either field to 2
+        # (which would make is_at_max_active_runs true, since max_active_runs is 2).
         assert body["active_runs_count"] == 1
         assert body["is_at_max_active_runs"] is False
 
