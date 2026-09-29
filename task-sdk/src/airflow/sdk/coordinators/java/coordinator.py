@@ -209,9 +209,7 @@ class JavaCoordinator(SubprocessCoordinator):
     )
     main_class: str = ""
 
-    @property
-    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
-        return "jars_root", self.jars_root
+    _explicit_root_kwarg = "jars_root"
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         # Without main_class, the first executable JAR in walk order wins; tracked at

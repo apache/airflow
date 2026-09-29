@@ -351,9 +351,7 @@ class ExecutableCoordinator(SubprocessCoordinator):
         converter=convert_configured_roots,
     )
 
-    @property
-    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
-        return "executables_root", self.executables_root
+    _explicit_root_kwarg = "executables_root"
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         roots = self._get_scan_roots()
