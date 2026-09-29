@@ -452,6 +452,56 @@ Finally the fourth section shows advanced form elements.
     ``description_html`` is now superseded with the attribute ``description_md``. ``description_html`` is not supported anymore.
     Custom form elements using the attribute ``custom_html_form`` was deprecated in version 2.8.0 and support was removed in 3.0.0.
 
+Offer Param Presets in the Trigger UI Form
+------------------------------------------
+
+.. versionadded:: 3.4.0
+
+When one Dag serves several well-known configurations, declare them as ``param_presets`` so people
+triggering the Dag can load a whole set of values at once instead of retyping them. Each preset maps
+a name to the param values it applies:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="train_model",
+        schedule=None,
+        params={
+            "dataset": Param("cifar10", type="string", enum=["cifar10", "imagenet", "mnist"]),
+            "batch_size": Param(128, type="integer", minimum=1),
+            "augmentations": Param(
+                {"flip": True, "rotate": 15, "crop": None},
+                type="object",
+                title="Augmentation settings",
+            ),
+        },
+        param_presets={
+            "ImageNet (heavy augmentation)": {
+                "dataset": "imagenet",
+                "batch_size": 512,
+                "augmentations": {"flip": True, "rotate": 45, "crop": 224},
+            },
+            "Smoke test": {"batch_size": 1},
+        },
+    ) as dag: ...
+
+A ``Preset`` drop-down then appears above the trigger form. Picking one loads the Dag's param
+defaults and applies that preset's values on top, so a preset always produces the same starting
+point no matter what was edited before it was picked. Every field stays editable afterwards, which
+is the point: start from a known-good configuration and tweak the one or two values that differ for
+this run.
+
+A preset only lists the params it changes; every other param keeps its default. Preset names are
+shown verbatim in the drop-down, in the order you declare them.
+
+Presets are validated while the Dag is parsed, so a typo fails fast rather than at trigger time:
+
+- Each key must name a param declared in ``params``.
+- Each value must satisfy that param's schema, exactly as if it were typed into the form.
+
+Presets seed the trigger form only. They do not change the Dag's param defaults, and a Dag run
+started by a schedule or by the API without ``conf`` still uses the defaults declared in ``params``.
+
 Disabling Runtime Param Modification
 ------------------------------------
 
