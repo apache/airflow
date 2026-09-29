@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.configuration import secrets_backends
 from airflow._shared.secrets_backend.base import BaseSecretsBackend as _BaseSecretsBackend
 
 
@@ -35,6 +34,6 @@ class BaseSecretsBackend(_BaseSecretsBackend):
 
 # Server side default secrets backend search path used by server components (scheduler, API server)
 DEFAULT_SECRETS_SEARCH_PATH = [
-    secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
-    secrets_backends.METASTORE_BACKEND_PATH,
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.secrets.metastore.MetastoreBackend",
 ]
