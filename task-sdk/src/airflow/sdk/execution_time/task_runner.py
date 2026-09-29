@@ -58,7 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
-from airflow.sdk.bases.operatorlink import build_xcom_key_for_try, is_link_xcom_key
+from airflow.sdk.bases.operatorlink import build_xcom_key_for_try
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -1570,11 +1570,7 @@ def _run_task_and_map_outcome(
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
-            link_xcom_keys = {oe.xcom_key for oe in ti.task.operator_extra_links}
             for x in keys_to_delete:
-                if is_link_xcom_key(x, link_xcom_keys):
-                    # skip clearing this key as it is an operator link
-                    continue
                 log.debug("Clearing XCom with key", key=x)
                 XCom.delete(
                     key=x,

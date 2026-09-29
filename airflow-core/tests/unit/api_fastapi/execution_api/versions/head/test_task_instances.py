@@ -54,6 +54,7 @@ from airflow.models.log import Log
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.state.metastore import MetastoreBackend
@@ -69,6 +70,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
+from tests_common.test_utils.mock_operators import CustomOperator
 from unit.listeners import asset_listener
 
 if TYPE_CHECKING:
@@ -239,6 +241,49 @@ class TestTIRunState:
             "reason": "not_found",
             "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
         }
+
+    def test_ti_run_keeps_operator_link_xcom_keys(self, client, session, create_task_instance):
+        """A retry clears the task's xComs but must leave the links earlier tries recorded."""
+        ti = create_task_instance(
+            task=CustomOperator(task_id="custom", bash_command=None),
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+        for key in (
+            "return_value",
+            "_link_CustomOpLink",
+            "_link_CustomOpLink__try_1",
+            "_link_CustomOpLink_lookalike",
+        ):
+            XComModel.set(
+                key=key,
+                value="value",
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                session=session,
+            )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        assert sorted(response.json()["xcom_keys_to_clear"]) == [
+            "_link_CustomOpLink_lookalike",
+            "return_value",
+        ]
 
     @pytest.mark.parametrize(
         ("max_tries", "should_retry"),

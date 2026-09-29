@@ -28,6 +28,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from sqlalchemy import Row
     from sqlalchemy.orm import Session
 
@@ -40,6 +42,11 @@ LINK_TRY_SUFFIX = "__try_"
 def build_xcom_key_for_try(xcom_key: str, try_number: int) -> str:
     """Build the per try xcom key a link value is stored under."""
     return f"{xcom_key}{LINK_TRY_SUFFIX}{try_number}"
+
+
+def is_link_xcom_key(key: str, link_xcom_keys: Collection[str]) -> bool:
+    """Whether ``key`` holds an operator link value for one of ``link_xcom_keys``."""
+    return any(key == k or key.startswith(f"{k}{LINK_TRY_SUFFIX}") for k in link_xcom_keys)
 
 
 @attrs.define()

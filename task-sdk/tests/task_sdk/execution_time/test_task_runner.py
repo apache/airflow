@@ -3025,39 +3025,6 @@ class TestRuntimeTaskInstance:
 
         assert [c.kwargs["key"] for c in mock_xcom_set.mock_calls] == [f"_link_AirflowLink__try_{try_number}"]
 
-    def test_xcom_clearing_keeps_operator_link_keys(self, create_runtime_ti, mock_supervisor_comms):
-        """A retry must not wipe the links earlier attempts recorded."""
-
-        class DummyTestOperator(BaseOperator):
-            operator_extra_links = (AirflowLink(),)
-
-            def execute(self, context):
-                pass
-
-        runtime_ti = create_runtime_ti(
-            task=DummyTestOperator(task_id="task_with_operator_extra_links"), try_number=2
-        )
-        runtime_ti._ti_context_from_server = TIRunContext(
-            dag_run=runtime_ti._ti_context_from_server.dag_run,
-            task_reschedule_count=0,
-            max_tries=2,
-            should_retry=False,
-            xcom_keys_to_clear=[
-                "return_value",
-                "_link_AirflowLink",
-                "_link_AirflowLink__try_1",
-                "_link_AirflowLink_lookalike",
-            ],
-        )
-
-        with mock.patch.object(XCom, "delete") as mock_delete:
-            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-
-        assert [c.kwargs["key"] for c in mock_delete.mock_calls] == [
-            "return_value",
-            "_link_AirflowLink_lookalike",
-        ]
-
     @pytest.mark.parametrize(
         ("cmd", "rendered_cmd"),
         [

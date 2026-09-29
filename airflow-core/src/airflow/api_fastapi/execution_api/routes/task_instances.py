@@ -79,6 +79,7 @@ from airflow.api_fastapi.execution_api.security import (
 )
 from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
+    drop_operator_link_keys,
     get_arg_bindings,
 )
 from airflow.configuration import conf
@@ -298,6 +299,8 @@ def ti_run(
                 xcom_query = xcom_query.where(XComModel.map_index == map_index)
 
             xcom_keys = list(session.scalars(xcom_query))
+            if xcom_keys:
+                xcom_keys = drop_operator_link_keys(xcom_keys, dag_bag, ti, session=session)
         task_reschedule_count = (
             session.scalar(
                 select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
