@@ -358,7 +358,9 @@ class BoatSandboxBackend(SandboxBackend):
         api = self._get_api()
         env = self._sandbox_env.get(sandbox, {})
         if env:
-            exports = "; ".join(f"export {shlex.quote(key)}={shlex.quote(value)}" for key, value in env)
+            exports = "; ".join(
+                f"export {shlex.quote(key)}={shlex.quote(value)}" for key, value in env.items()
+            )
             command = f"{exports}; {command}"
         command = (
             'tmp_dir=$(mktemp -d); trap \'rm -rf "$tmp_dir"\' EXIT; '
