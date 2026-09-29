@@ -24,6 +24,8 @@
 // unclaimed argument as a whole value.
 //
 // Analyze validates a function once. Resolve binds each execution.
+// AnalyzePositional builds a plan in which a sole struct binds positionally too, as one whole
+// argument.
 package binding
 
 import (
@@ -101,25 +103,9 @@ type Plan struct {
 
 // Analyze validates a task function and builds its binding plan.
 func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
-	if fnType.NumIn() == 0 {
-		return nil, fmt.Errorf(
-			"task function %s: takes no parameters, but the first parameter must be "+
-				"airflow.Context",
-			fnName,
-		)
-	}
-	p := &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
-	var dataIdxs []int
-	for i := range fnType.NumIn() {
-		plan, err := classifyParam(fnName, fnType.In(i), i)
-		if err != nil {
-			return nil, err
-		}
-		if plan.kind == paramData {
-			p.numData++
-			dataIdxs = append(dataIdxs, i)
-		}
-		p.params[i] = plan
+	p, dataIdxs, err := analyzeParams(fnType, fnName)
+	if err != nil {
+		return nil, err
 	}
 
 	if p.numData == 1 {
@@ -150,6 +136,38 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 		}
 	}
 	return p, nil
+}
+
+// AnalyzePositional checks each parameter of a task function as Analyze does, but builds a plan
+// in which every data parameter takes one whole argument, in order. A sole struct takes one
+// whole argument too, where Analyze would bind its fields by name. So AnalyzePositional does
+// not check the fields of a struct, and `arg:` tags have no effect.
+func AnalyzePositional(fnType reflect.Type, fnName string) (*Plan, error) {
+	p, _, err := analyzeParams(fnType, fnName)
+	return p, err
+}
+
+func analyzeParams(fnType reflect.Type, fnName string) (p *Plan, dataIdxs []int, err error) {
+	if fnType.NumIn() == 0 {
+		return nil, nil, fmt.Errorf(
+			"task function %s: takes no parameters, but the first parameter must be "+
+				"airflow.Context",
+			fnName,
+		)
+	}
+	p = &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
+	for i := range fnType.NumIn() {
+		plan, err := classifyParam(fnName, fnType.In(i), i)
+		if err != nil {
+			return nil, nil, err
+		}
+		if plan.kind == paramData {
+			p.numData++
+			dataIdxs = append(dataIdxs, i)
+		}
+		p.params[i] = plan
+	}
+	return p, dataIdxs, nil
 }
 
 // Resolve builds the ordered values for one task call.

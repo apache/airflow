@@ -31,8 +31,8 @@ import (
 )
 
 // Task is one registered task that the coordinator runtime can execute. Bundle
-// authors do not implement this directly. airflow.TaskHandler wraps a plain Go
-// function into a Task.
+// authors do not implement this directly. airflow.TaskHandler and
+// airflow.DagRef.Task wrap a plain Go function into a Task.
 type Task interface {
 	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
 }
@@ -66,14 +66,25 @@ type taskFunction struct {
 var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
-func NewTaskFunction(fn any) (Task, error) {
+func NewTaskFunction(fn any) (Task, error) { return newTaskFunction(fn, binding.Analyze) }
+
+// NewPositionalTaskFunction is like NewTaskFunction, but the Task binds each argument to one
+// parameter, in order, as binding.AnalyzePositional describes.
+func NewPositionalTaskFunction(fn any) (Task, error) {
+	return newTaskFunction(fn, binding.AnalyzePositional)
+}
+
+func newTaskFunction(
+	fn any,
+	analyze func(fnType reflect.Type, fnName string) (*binding.Plan, error),
+) (Task, error) {
 	// The kind comes first: Value.Pointer panics on an int, and Value.Type on an untyped nil.
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func {
 		return nil, fmt.Errorf("expected a func as input but was %s", v.Kind())
 	}
 	f := &taskFunction{fn: v, fullName: runtime.FuncForPC(v.Pointer()).Name()}
-	if err := f.validateFn(v.Type()); err != nil {
+	if err := f.validateFn(v.Type(), analyze); err != nil {
 		return nil, err
 	}
 	return f, nil
@@ -154,8 +165,11 @@ func (f *taskFunction) sendXcom(
 	}
 }
 
-func (f *taskFunction) validateFn(fnType reflect.Type) error {
-	// binding.Analyze turns a ... tail into one []T parameter, so Execute would have to call
+func (f *taskFunction) validateFn(
+	fnType reflect.Type,
+	analyze func(fnType reflect.Type, fnName string) (*binding.Plan, error),
+) error {
+	// analyze turns a ... tail into one []T parameter, so Execute would have to call
 	// the function with CallSlice rather than Call to fill it. That is only worth doing for a
 	// signature []T cannot already express, and ...T is not one: both take a single argument.
 	if fnType.IsVariadic() {
@@ -189,7 +203,7 @@ func (f *taskFunction) validateFn(fnType reflect.Type) error {
 		)
 	}
 
-	plan, err := binding.Analyze(fnType, f.fullName)
+	plan, err := analyze(fnType, f.fullName)
 	if err != nil {
 		return err
 	}
