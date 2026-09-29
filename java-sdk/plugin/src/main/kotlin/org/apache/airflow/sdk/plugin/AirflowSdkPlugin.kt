@@ -83,8 +83,8 @@ abstract class AirflowBundleExtension {
  *
  * The plugin automatically sets the `Main-Class` metadata, and provides a new
  * task `bundle` to create a Dag bundle in one command. This builds deploy-ready
- * artifacts to `build/bundle/` that can be copied directly into an Airflow Java
- * coordinator's `jars_root`.
+ * artifacts to `build/bundle/` that can be copied directly into the Dag bundle an
+ * Airflow Java coordinator scans.
  *
  * By default, plugin `com.github.johnrengelman.shadow` is applied automatically
  * to enable fat JAR build. In this mode, one single JAR with user code and all

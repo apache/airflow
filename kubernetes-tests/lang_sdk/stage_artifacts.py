@@ -24,9 +24,9 @@ parse), so the Go binary / Java jar stored in an S3 (localstack) bucket is pulle
 into ``bundle.path`` = ``{dag_bundle_storage_path}/{name}``.
 
 That path is the ``emptyDir`` shared with the worker container and is exactly the
-``executables_root`` / ``jars_root`` the coordinator scans. Coordinator mode never
-runs the Python task-runner in the worker pod, so without this step the artifact
-would never reach the pod.
+path of the ``go-artifacts`` / ``java-artifacts`` Dag bundle the coordinator
+scans. Coordinator mode never runs the Python task-runner in the worker pod, so
+without this step the artifact would never reach the pod.
 
 Configuration is read from the environment (set by the pod template):
 

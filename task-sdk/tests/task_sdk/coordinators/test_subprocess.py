@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import os
 import pathlib
+import signal
 import socket
 import subprocess
 import sys
@@ -38,8 +39,8 @@ from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
     _accept_connections,
-    _ArtifactSource,
     _connection_owned_by_process_tree,
+    _is_connection_from_pid,
     _is_connection_from_process,
     _PopenActivitySubprocess,
     _ResourceTracker,
@@ -495,13 +496,22 @@ class TestConnectionFromProcess:
             )
 
     def test_owned_by_tree_returns_false_when_process_gone(self):
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.pid = 999999
         with patch(
             "airflow.sdk.coordinators._subprocess.psutil.Process",
             side_effect=psutil.NoSuchProcess(999999),
         ):
-            assert _connection_owned_by_process_tree(("127.0.0.1", 1), ("127.0.0.1", 2), mock_proc) is False
+            assert _connection_owned_by_process_tree(("127.0.0.1", 1), ("127.0.0.1", 2), 999999) is False
+
+    @pytest.mark.parametrize("owned", [True, False])
+    @patch("airflow.sdk.coordinators._subprocess._connection_owned_by_process_tree", autospec=True)
+    def test_is_connection_from_pid_checks_once(self, mock_owned, owned):
+        conn = MagicMock(spec=socket.socket)
+        conn.getpeername.return_value = ("127.0.0.1", 5000)
+        conn.getsockname.return_value = ("127.0.0.1", 6000)
+        mock_owned.return_value = owned
+
+        assert _is_connection_from_pid(conn, 999) is owned
+        mock_owned.assert_called_once_with(("127.0.0.1", 5000), ("127.0.0.1", 6000), 999)
 
 
 class TestResourceTracker:
@@ -573,20 +583,23 @@ class TestResourceTracker:
 class _StubSubprocessCoordinator(SubprocessCoordinator):
     """Minimal SubprocessCoordinator subclass used to exercise the base machinery.
 
-    ``explicit_roots`` defaults to a real path so the coordinator classifies as
-    EXPLICIT_ROOT and execute_task resolves without touching a Dag bundle; pass
-    ``explicit_roots=[]`` to exercise TASK_BUNDLE mode. Roots handed to the
-    command builder are recorded in ``recorded_roots`` so wiring can be asserted.
+    ``artifact_root`` defaults to a real path, used as an unversioned Dag bundle so
+    execute_task resolves without loading one; pass ``artifact_root=None`` to resolve
+    the bundle for real. Roots handed to the command builder are recorded in
+    ``recorded_roots`` so wiring can be asserted.
     """
 
     command: list[str]
     schema_version: str | None = None
-    explicit_roots: list[pathlib.Path] = attrs.field(factory=lambda: [pathlib.Path(".")])
+    artifact_root: pathlib.Path | None = attrs.field(factory=lambda: pathlib.Path("."))
     recorded_roots: list[list[pathlib.Path]] = attrs.field(init=False, factory=list)
 
-    @property
-    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
-        return "explicit_roots", self.explicit_roots
+    def _init_root_source(self, bundle_info, logger):
+        if self.artifact_root is None:
+            return super()._init_root_source(bundle_info, logger)
+        bundle = MagicMock(version=None)
+        bundle.name = "stub"
+        return self.artifact_root, bundle
 
     def _build_execute_task_command(self, *, what):
         self.recorded_roots.append(list(self._get_scan_roots()))
@@ -837,6 +850,40 @@ class TestPopenActivitySubprocessStart:
         env = popen_mock.call_args.kwargs["env"]
         assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == ""
 
+    @pytest.mark.parametrize(
+        ("config", "expected"),
+        [
+            pytest.param(
+                {("api", "base_url"): None},
+                {
+                    "AIRFLOW__API__BASE_URL": "/",
+                    "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": "False",
+                    "AIRFLOW__TRIGGERER__QUEUES_ENABLED": "False",
+                },
+                id="defaults",
+            ),
+            pytest.param(
+                {
+                    ("api", "base_url"): "https://airflow.example.com/sub/",
+                    ("operators", "default_deferrable"): "true",
+                    ("triggerer", "queues_enabled"): "1",
+                },
+                {
+                    "AIRFLOW__API__BASE_URL": "https://airflow.example.com/sub/",
+                    "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": "True",
+                    "AIRFLOW__TRIGGERER__QUEUES_ENABLED": "True",
+                },
+                id="set",
+            ),
+        ],
+    )
+    def test_resolved_options_passed_to_subprocess_env(self, mock_client, config, expected):
+        """The runtime gets the options as Python reads them, and each boolean as True or False."""
+        with conf_vars(config):
+            _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert {key: env[key] for key in expected} == expected
+
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
         with (
@@ -863,75 +910,58 @@ class TestPopenActivitySubprocessStart:
         assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
 
 
-class TestClassifyArtifactSource:
-    """Construction-time classification and per-mode validation.
-
-    Classification runs from the base ``__attrs_post_init__``, so it is exercised
-    through construction rather than by calling the helper directly.
-    """
-
-    def test_explicit_root_classified_and_recorded(self):
-        configured = [pathlib.Path("/artifacts")]
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=configured)
-        assert coordinator._artifact_source is _ArtifactSource.EXPLICIT_ROOT
-        assert coordinator._configured_roots == configured
-
-    def test_task_bundle_classified_when_neither_set(self):
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
-        assert coordinator._artifact_source is _ArtifactSource.TASK_BUNDLE
-
-    def test_subclass_without_overrides_defaults_to_task_bundle(self):
-        """A subclass that overrides neither hook is classified, not left to error at execute time."""
-
-        @attrs.define(kw_only=True)
-        class _Bare(SubprocessCoordinator):
-            def _build_execute_task_command(self, *, what):
-                return [], None
-
-        assert _Bare()._artifact_source is _ArtifactSource.TASK_BUNDLE
-
-    def test_rejects_explicit_root_and_dag_bundle_name_together(self):
-        with pytest.raises(ValueError, match="at most one of 'explicit_roots' or 'dag_bundle_name'"):
-            _StubSubprocessCoordinator(
-                command=["x"], explicit_roots=[pathlib.Path("/artifacts")], dag_bundle_name="artifacts"
-            )
-
+class TestDagBundleName:
     @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_rejects_unconfigured_dag_bundle_name(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = False
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
-            _StubSubprocessCoordinator(command=["x"], explicit_roots=[], dag_bundle_name="ghost")
+            _StubSubprocessCoordinator(command=["x"], dag_bundle_name="ghost")
 
     @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_accepts_configured_dag_bundle_name(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = True
-        coordinator = _StubSubprocessCoordinator(
-            command=["x"], explicit_roots=[], dag_bundle_name="artifacts"
-        )
-        assert coordinator._artifact_source is _ArtifactSource.NAMED_BUNDLE
+        coordinator = _StubSubprocessCoordinator(command=["x"], dag_bundle_name="artifacts")
+        assert coordinator.dag_bundle_name == "artifacts"
         mock_manager.is_bundle_configured.assert_called_once_with("artifacts")
 
 
-class TestInitRootSource:
-    """Execute-time root resolution, dispatched on the classified mode."""
+class TestServesBundle:
+    def test_task_bundle_serves_every_bundle(self):
+        coordinator = _StubSubprocessCoordinator(command=["x"])
+        assert coordinator.serves_bundle("dags-folder") is True
+        assert coordinator.serves_bundle("other-bundle") is True
 
-    def test_returns_configured_root_and_no_bundle_in_explicit_mode(self):
-        configured = [pathlib.Path("/a"), pathlib.Path("/b")]
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=configured)
-        roots, bundle = coordinator._init_root_source(MagicMock(), log)
-        assert roots == configured
-        assert bundle is None
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
+    def test_named_bundle_serves_only_its_bundle(self, mock_manager):
+        mock_manager.is_bundle_configured.return_value = True
+        coordinator = _StubSubprocessCoordinator(command=["x"], dag_bundle_name="artifacts")
+        assert coordinator.serves_bundle("artifacts") is True
+        assert coordinator.serves_bundle("dags-folder") is False
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            pytest.param({}, None, id="task-bundle"),
+            pytest.param({"dag_bundle_name": "artifacts"}, {"artifacts"}, id="named"),
+        ],
+    )
+    def test_get_parsed_bundles_reads_the_kwargs(self, kwargs, expected):
+        assert _StubSubprocessCoordinator.get_parsed_bundles(kwargs) == expected
+
+
+class TestInitRootSource:
+    """Execute-time resolution of the Dag bundle to scan."""
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
     def test_task_bundle_mode_uses_passed_task_bundle(self, mock_initialize, tmp_path):
         resolved = MagicMock(path=tmp_path, version="v3")
         mock_initialize.return_value = resolved
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
+        coordinator = _StubSubprocessCoordinator(command=["x"], artifact_root=None)
         bundle_info = BundleInfo(name="dags", version="v3", version_data={"k": "v"})
 
-        roots, bundle = coordinator._init_root_source(bundle_info, log)
+        root, bundle = coordinator._init_root_source(bundle_info, log)
 
-        assert roots == [tmp_path]
+        assert root == tmp_path
         assert bundle is resolved
         mock_initialize.assert_called_once_with(bundle_info)
 
@@ -952,13 +982,12 @@ class TestInitRootSource:
         pinned = MagicMock(path=pinned_tree, version="sha-abc")
         mock_initialize.side_effect = [unpinned, pinned]
 
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
+        coordinator = _StubSubprocessCoordinator(command=["x"], artifact_root=None)
         coordinator.dag_bundle_name = "artifacts"
-        coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
 
-        roots, bundle = coordinator._init_root_source(MagicMock(), log)
+        root, bundle = coordinator._init_root_source(MagicMock(), log)
 
-        assert roots == [pinned_tree]
+        assert root == pinned_tree
         assert bundle is pinned
         assert mock_initialize.call_args_list == [
             call(BundleInfo(name="artifacts")),
@@ -971,13 +1000,12 @@ class TestInitRootSource:
         resolved.get_current_version.return_value = None
         mock_initialize.return_value = resolved
 
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
+        coordinator = _StubSubprocessCoordinator(command=["x"], artifact_root=None)
         coordinator.dag_bundle_name = "artifacts"
-        coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
 
-        roots, bundle = coordinator._init_root_source(MagicMock(), log)
+        root, bundle = coordinator._init_root_source(MagicMock(), log)
 
-        assert roots == [tmp_path]
+        assert root == tmp_path
         assert bundle is resolved
         mock_initialize.assert_called_once_with(BundleInfo(name="artifacts"))
 
@@ -985,9 +1013,8 @@ class TestInitRootSource:
     def test_missing_resolved_path_raises(self, mock_initialize, tmp_path):
         missing = tmp_path / "nope"
         mock_initialize.return_value = MagicMock(path=missing, version="v1")
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
+        coordinator = _StubSubprocessCoordinator(command=["x"], artifact_root=None)
         coordinator.dag_bundle_name = "artifacts"
-        coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
 
         with pytest.raises(FileNotFoundError, match="does not exist"):
             coordinator._init_root_source(MagicMock(), log)
@@ -1007,7 +1034,7 @@ class TestExecuteTaskBundleWiring:
         mock_initialize.return_value = resolved
         mock_start.return_value.wait.return_value = 0
 
-        coordinator = _StubSubprocessCoordinator(command=["/runtime"], explicit_roots=[])
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], artifact_root=None)
         bundle_info = BundleInfo(name="dags", version="v9")
 
         coordinator.execute_task(
@@ -1023,25 +1050,6 @@ class TestExecuteTaskBundleWiring:
         mock_lock.assert_called_once_with(bundle_name="dags", bundle_version="v9")
         mock_lock.return_value.__enter__.assert_called_once()
         mock_lock.return_value.__exit__.assert_called_once()
-
-    @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock")
-    @patch.object(_PopenActivitySubprocess, "start")
-    def test_explicit_root_mode_forwards_roots_without_locking(
-        self, mock_start, mock_lock, mock_client, tmp_path
-    ):
-        mock_start.return_value.wait.return_value = 0
-        coordinator = _StubSubprocessCoordinator(command=["/runtime"], explicit_roots=[tmp_path])
-
-        coordinator.execute_task(
-            what=_make_ti(),
-            dag_rel_path="dag.py",
-            bundle_info=MagicMock(),
-            client=mock_client,
-            subprocess_logs_to_stdout=False,
-        )
-
-        assert coordinator.recorded_roots == [[tmp_path]]
-        mock_lock.assert_not_called()
 
     @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock")
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
@@ -1060,9 +1068,8 @@ class TestExecuteTaskBundleWiring:
         mock_initialize.side_effect = [unpinned, pinned]
         mock_start.return_value.wait.return_value = 0
 
-        coordinator = _StubSubprocessCoordinator(command=["/runtime"], explicit_roots=[])
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], artifact_root=None)
         coordinator.dag_bundle_name = "artifacts"
-        coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
 
         coordinator.execute_task(
             what=_make_ti(),
@@ -1104,3 +1111,71 @@ class TestGetScanRoots:
                     client=mock_client,
                     subprocess_logs_to_stdout=False,
                 )
+
+
+@attrs.define(kw_only=True)
+class _ParsingCoordinator(_StubSubprocessCoordinator):
+    def _build_parse_dag_command(self, *, path):
+        self.recorded_roots.append(list(self._get_scan_roots()))
+        return [*self.command, os.fspath(path)], self.schema_version
+
+
+class TestParseDag:
+    def test_build_parse_dag_command_default_raises(self, tmp_path):
+        with pytest.raises(NotImplementedError):
+            _StubSubprocessCoordinator(command=["x"])._build_parse_dag_command(path=tmp_path / "dag.native")
+
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch(
+        "airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec failed")
+    )
+    def test_resolves_the_command_under_the_bundle_root_then_execs_it(
+        self, mock_execvpe, mock_signal, tmp_path
+    ):
+        coordinator = _ParsingCoordinator(
+            command=["runtime"], artifact_root=None, schema_version="2026-06-16"
+        )
+        reported: list[str | None] = []
+
+        with pytest.raises(OSError, match="exec failed"):
+            coordinator.parse_dag(
+                path=tmp_path / "dag.native",
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert coordinator.recorded_roots == [[tmp_path]]
+        assert coordinator._active_scan_roots is None
+        assert reported == ["2026-06-16"]
+        argv = [
+            "runtime",
+            os.fspath(tmp_path / "dag.native"),
+            "--comm=127.0.0.1:1001",
+            "--logs=127.0.0.1:1002",
+        ]
+        mock_execvpe.assert_called_once_with("runtime", argv, ANY)
+        assert "AIRFLOW__LOGGING__LOGGING_LEVEL" in mock_execvpe.call_args.args[2]
+        restored = {c.args[0] for c in mock_signal.call_args_list if c.args[1] == signal.SIG_DFL}
+        assert {signal.SIGPIPE, signal.SIGXFSZ} <= restored
+
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_rejects_an_unknown_schema_version_before_reporting(self, mock_execvpe, mock_signal, tmp_path):
+        coordinator = _ParsingCoordinator(
+            command=["runtime"], artifact_root=None, schema_version="1999-01-01"
+        )
+        reported: list[str | None] = []
+
+        with pytest.raises(ValueError, match="'1999-01-01' not found"):
+            coordinator.parse_dag(
+                path=tmp_path / "dag.native",
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert reported == []
+        mock_execvpe.assert_not_called()

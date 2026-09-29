@@ -19,8 +19,9 @@
 #
 # The stock worker image ships no Node.js runtime, so node-provider copies the
 # node binary from the same image conftest builds the bundle with into a
-# shared volume. The bundle is bind-mounted where NodeCoordinator scans, and
-# the worker consumes the "typescript" queue where @task.stub tasks are routed.
+# shared volume. The bundle's directory is bind-mounted as the ts-bundles Dag
+# bundle, which NodeCoordinator scans, and the worker consumes the "typescript"
+# queue where @task.stub tasks are routed.
 ---
 services:
   node-provider:
@@ -28,6 +29,10 @@ services:
     command: ["cp", "/usr/local/bin/node", "/opt/nodejs/node"]
     volumes:
       - nodejs-bin:/opt/nodejs
+
+  airflow-dag-processor:
+    volumes:
+      - ./ts-bundles:/opt/airflow/ts-bundles:ro
 
   airflow-worker:
     volumes:
