@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-======================================
+===============================
 Amazon Elastic Container Service (ECS)
-======================================
+===============================
 
 `Amazon Elastic Container Service (Amazon ECS) <https://aws.amazon.com/ecs/>`__  is a fully
 managed container orchestration service that makes it easy for you to deploy, manage, and
@@ -40,7 +40,7 @@ Operators
 .. _howto/operator:EcsCreateClusterOperator:
 
 Create an AWS ECS Cluster
-=========================
+==================
 
 To create an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsCreateClusterOperator`.
@@ -57,7 +57,7 @@ passed in the 'create_cluster_kwargs' dict.
 .. _howto/operator:EcsDeleteClusterOperator:
 
 Delete an AWS ECS Cluster
-=========================
+==================
 
 To delete an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeleteClusterOperator`.
@@ -72,7 +72,7 @@ To delete an Amazon ECS cluster you can use
 .. _howto/operator:EcsRegisterTaskDefinitionOperator:
 
 Register a Task Definition
-==========================
+===================
 
 To register a task definition you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsRegisterTaskDefinitionOperator`.
@@ -90,7 +90,7 @@ passed in the 'register_task_kwargs' dict.
 .. _howto/operator:EcsDeregisterTaskDefinitionOperator:
 
 Deregister a Task Definition
-=============================
+======================
 
 To deregister a task definition you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeregisterTaskDefinitionOperator`.
@@ -105,7 +105,7 @@ To deregister a task definition you can use
 .. _howto/operator:EcsRunTaskOperator:
 
 Run a Task Definition
-=====================
+==============
 
 To run a Task Definition defined in an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.
@@ -172,6 +172,42 @@ variable defined in the task definition is still passed to the container.
 all replace the task definition's value rather than adding to it. See
 `ContainerOverride <https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerOverride.html>`__
 in the Amazon ECS API reference for the full list of fields.
+
+Control retries for container exit codes
+""""""""""""""""""""""""""""""""""""""""
+
+Use ``fail_on_exit_code`` when a known application failure should fail the Airflow task
+without consuming its remaining retries. Other failures continue to use the task's
+normal retry settings. For example, if your application uses exit code ``2`` for an
+invalid input that will not succeed on retry:
+
+.. code-block:: python
+
+    EcsRunTaskOperator(
+        task_id="run_application",
+        cluster="application_cluster",
+        task_definition="application_task",
+        overrides={},
+        retries=2,
+        fail_on_exit_code=2,
+    )
+
+The option accepts an integer or a container of integers. Its default is ``None``,
+which preserves the existing retry behavior. Exit code ``0`` remains successful;
+a missing exit code does not match this option.
+
+If any stopped container explicitly reports a matching non-zero code, the task fails
+without retrying, even if another container reports a different failure or a code in
+``skip_on_exit_code``. This result does not depend on container order. When the same
+code appears in both options, ``fail_on_exit_code`` takes precedence. Task-level
+startup failures, host termination checks, and AWS API errors retain their existing
+handling.
+
+This behavior applies to synchronous execution and resumed deferrable execution.
+The option has no effect when ``wait_for_completion=False`` and ``deferrable=False``:
+the operator returns before checking exit codes. On Airflow versions supporting
+``retry_policy``, a matching code raises ``AirflowFailException``, which bypasses
+retry policies, including a policy that would otherwise retry the task.
 
 Stream logs to AWS CloudWatch
 """""""""""""""""""""""""""""
@@ -252,7 +288,7 @@ Sensors
 .. _howto/sensor:EcsClusterStateSensor:
 
 AWS ECS Cluster State Sensor
-============================
+=====================
 
 To poll the cluster state until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsClusterStateSensor`.
@@ -272,7 +308,7 @@ before the target state.
 .. _howto/sensor:EcsTaskDefinitionStateSensor:
 
 AWS ECS Task Definition State Sensor
-=====================================
+==============================
 
 To poll the task definition state until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsTaskDefinitionStateSensor`.
@@ -292,7 +328,7 @@ is reached before the target state.
 .. _howto/sensor:EcsTaskStateSensor:
 
 AWS ECS Task State Sensor
-=========================
+==================
 
 To poll the task state until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsTaskStateSensor`.
