@@ -76,9 +76,12 @@ class SbxSandboxBackend(SandboxBackend):
     driving it from an Airflow worker is off-label use. A production worker would
     need the ``sbx`` binary on the host, an authenticated Docker account
     (``sbx login``), a one-time ``sbx policy init``, and on Linux, KVM or nested
-    virtualization -- which an unprivileged container cannot provide. No hosted
-    backend ships with the provider yet; add one behind :class:`SandboxBackend`
-    if you need Kubernetes.
+    virtualization -- which an unprivileged container cannot provide. If you need
+    Kubernetes, use a remote backend --
+    :class:`~airflow.providers.common.ai.sandbox.ModalSandboxBackend` for a
+    managed service or
+    :class:`~airflow.providers.common.ai.sandbox.OpenSandboxBackend` for a
+    self-hosted one -- or add your own behind :class:`SandboxBackend`.
 
     **Network policy is layered on a host-level setting, not independent of
     one.** ``sbx`` governs egress through a host-level ``sbx policy``.
@@ -169,6 +172,14 @@ class SbxSandboxBackend(SandboxBackend):
             # "No requirements stated" -- see SandboxBackend.create. The toolset
             # always sends a concrete spec, so this is the direct-caller path.
             return
+        if spec.owner is not None:
+            # An owner exists so that a later task can attach to the sandbox, and a
+            # microVM on this worker cannot be reached from another task at all.
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, but an sbx sandbox lives on this worker and cannot "
+                "be attached to from another task, so recording one would promise nothing. Drop "
+                "owner, or provision the sandbox on a backend that supports attaching."
+            )
         if spec.allow_egress_to_cidrs:
             # ``sbx policy allow network`` takes hostnames. There is no per-sandbox
             # address-range rule to map this onto, so it cannot be enforced here.
