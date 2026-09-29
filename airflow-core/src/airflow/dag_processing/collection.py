@@ -610,7 +610,12 @@ def update_dag_parsing_results_in_db(
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
     """
-    dags = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    if len(accepted) != len(dags):
+        # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
+        rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
+        warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
+    dags = accepted
 
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors

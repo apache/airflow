@@ -1782,18 +1782,7 @@ class TestRejectOtherTeamsPluginClasses:
 
     @pytest.fixture(autouse=True)
     def _clean(self):
-        # mock_plugin_manager leaves these cached, and serializing a Dag reads them, so a
-        # registry left over from another test would make serialization reject the Dag.
-        getters = (
-            plugins_manager.get_partition_mapper_plugins,
-            plugins_manager.get_windows_plugins,
-            plugins_manager.get_deadline_references_plugins,
-        )
-        for getter in getters:
-            getter.cache_clear()
         yield
-        for getter in getters:
-            getter.cache_clear()
         clear_db_serialized_dags()
         clear_db_dags()
         clear_db_import_errors()
@@ -1830,7 +1819,7 @@ class TestRejectOtherTeamsPluginClasses:
         return LazyDeserializedDAG.from_dag(dag)
 
     @staticmethod
-    def _store(bundle_name, dags, session):
+    def _store(bundle_name, dags, session, warnings=frozenset()):
         import_errors: dict[tuple[str, str], str] = {}
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
@@ -1838,7 +1827,7 @@ class TestRejectOtherTeamsPluginClasses:
             dags=dags,
             import_errors=import_errors,
             parse_duration=None,
-            warnings=set(),
+            warnings=set(warnings),
             session=session,
         )
         stored = set(session.scalars(select(SerializedDagModel.dag_id)))
@@ -1905,6 +1894,30 @@ class TestRejectOtherTeamsPluginClasses:
         assert list(errors) == [(bundle_name, "rejected.py")]
 
     @conf_vars({("core", "multi_team"): "True"})
+    def test_warning_for_a_rejected_new_dag_is_dropped(self, bundle, session):
+        """
+        The stability check warns about every Dag in a file, including one being rejected.
+
+        A new Dag has no ``dag`` row to hang that warning on, so storing it would break the
+        foreign key and fail the whole write.
+        """
+        bundle_name = bundle(True)
+        warnings = {
+            DagWarning("rejected", DagWarningType.RUNTIME_VARYING_VALUE.value, "datetime.now() in args"),
+            DagWarning("accepted", DagWarningType.RUNTIME_VARYING_VALUE.value, "datetime.now() in args"),
+        }
+        with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", AfterWorkdayTimetable)]):
+            dags = [
+                self._serialized("rejected", schedule=AfterWorkdayTimetable()),
+                self._serialized("accepted"),
+            ]
+            stored, errors = self._store(bundle_name, dags, session, warnings=warnings)
+
+        assert stored == {"accepted"}
+        assert list(errors) == [(bundle_name, "rejected.py")]
+        assert set(session.scalars(select(DagWarning.dag_id))) == {"accepted"}
+
+    @conf_vars({("core", "multi_team"): "True"})
     def test_error_is_a_plain_message(self, bundle, session):
         """The UI shows this as-is, so it must read as an explanation, not a traceback."""
         bundle_name = bundle(True)
@@ -1937,10 +1950,19 @@ class TestRejectOtherTeamsPluginClasses:
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_airflow_class_listed_by_a_team_plugin_stays_available(self, bundle, session):
-        """Every team's cron Dags keep working even if one team's plugin lists the cron timetable."""
+        """
+        Every team's cron Dags keep working even if one team's plugin lists the cron timetable.
+
+        The timetable is explicit: a cron string can serialize to a different class, depending on
+        ``create_cron_data_intervals``, which would leave the plugin's class out of the Dag.
+        """
         bundle_name = bundle(True)
         with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", CronTriggerTimetable)]):
-            stored, errors = self._store(bundle_name, [self._serialized(schedule="0 0 * * *")], session)
+            stored, errors = self._store(
+                bundle_name,
+                [self._serialized(schedule=CronTriggerTimetable("0 0 * * *", timezone="UTC"))],
+                session,
+            )
 
         assert stored == {"team_dag"}
         assert errors == {}
@@ -1957,7 +1979,7 @@ class TestRejectOtherTeamsPluginClasses:
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_class_reloaded_by_the_plugin_loader_is_still_recognised(
-        self, bundle, session, tmp_path, monkeypatch
+        self, bundle, session, tmp_path, monkeypatch, request
     ):
         """
         A Dag importing from a plugin file holds a different class from the one registered.
@@ -1984,7 +2006,10 @@ class TestRejectOtherTeamsPluginClasses:
             )
         )
         monkeypatch.syspath_prepend(os.fspath(tmp_path))
-        monkeypatch.delitem(sys.modules, "workday", raising=False)
+        # Both the import below and the plugin loader put a "workday" module in sys.modules, and
+        # monkeypatch would restore the loader's at teardown, so remove it outright instead.
+        sys.modules.pop("workday", None)
+        request.addfinalizer(lambda: sys.modules.pop("workday", None))
         dag_side_class = importlib.import_module("workday").WorkdayTimetable
         plugins, import_errors = plugins_manager._load_plugins_from_plugin_directory(
             plugins_folder=os.fspath(tmp_path)
@@ -1995,7 +2020,6 @@ class TestRejectOtherTeamsPluginClasses:
         bundle_name = bundle(True)
         with mock_plugin_manager(plugins=plugins):
             stored, errors = self._store(bundle_name, [self._serialized(schedule=dag_side_class())], session)
-        monkeypatch.delitem(sys.modules, "workday", raising=False)
 
         assert stored == set()
         assert "belonging to other_team" in errors[(bundle_name, "team_dag.py")]
