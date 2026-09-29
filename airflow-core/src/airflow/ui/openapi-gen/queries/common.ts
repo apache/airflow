@@ -2,7 +2,7 @@
 
 import { UseQueryResult } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagSchedulingState, DagWarningType, ReprocessBehavior } from "../requests/types.gen";
+import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
@@ -345,7 +345,7 @@ export const UseDagWarningServiceListDagWarningsKeyFn = ({ dagId, limit, offset,
   limit?: number;
   offset?: number;
   orderBy?: string[];
-  warningType?: DagWarningType;
+  warningType?: string;
 } = {}, queryKey?: Array<unknown>) => [useDagWarningServiceListDagWarningsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }])];
 export type DagServiceGetDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDags>>;
 export type DagServiceGetDagsQueryResult<TData = DagServiceGetDagsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -1191,6 +1191,7 @@ export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof D
 export type DagRunServiceBulkDagRunsMutationResult = Awaited<ReturnType<typeof DagRunService.bulkDagRuns>>;
 export type DagServicePatchDagsMutationResult = Awaited<ReturnType<typeof DagService.patchDags>>;
 export type DagServicePatchDagMutationResult = Awaited<ReturnType<typeof DagService.patchDag>>;
+export type DagServiceBulkDagsMutationResult = Awaited<ReturnType<typeof DagService.bulkDags>>;
 export type TaskInstanceServicePatchTaskInstanceMutationResult = Awaited<ReturnType<typeof TaskInstanceService.patchTaskInstance>>;
 export type TaskInstanceServicePatchTaskInstanceByMapIndexMutationResult = Awaited<ReturnType<typeof TaskInstanceService.patchTaskInstanceByMapIndex>>;
 export type TaskInstanceServiceBulkTaskInstancesMutationResult = Awaited<ReturnType<typeof TaskInstanceService.bulkTaskInstances>>;

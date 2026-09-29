@@ -231,9 +231,10 @@ costs. How much is saved depends on the driver: with a server-side cursor the
 remaining rows are never sent, while a client-buffering driver (psycopg2's default
 cursor, MySQLdb) has already received them and only the per-row conversion is skipped.
 Hooks whose cursor is not DBAPI 2.0 (``ExasolHook`` passes a pyexasol statement) fall
-back to a full fetch, and ``DataFusionToolset`` materializes the full result in the
-engine before the toolset sees it; in both the payload is bounded but the transfer is
-not.
+back to a full fetch, where the payload is bounded but the transfer is not.
+``DataFusionToolset`` pushes the bound into the query instead: it runs the statement
+with a DataFusion ``LIMIT`` of ``max_rows + 1``, so the engine never materializes more
+than that and the extra row only signals truncation.
 
 **A byte budget bounds the payload.** ``max_rows`` caps rows, which says nothing about
 size -- one row of a 3000-column table is larger than a thousand rows of a narrow one.
@@ -251,7 +252,9 @@ it. The result says which limit it hit:
 or the column names alone exceed the budget, the result carries a ``hint`` telling the
 agent to narrow its projection -- the only move that helps. ``total_rows`` is present
 when the driver reports a row count for the query; several (SQLite, some warehouse
-drivers) do not, and it is then omitted rather than guessed.
+drivers) do not, and it is then omitted rather than guessed. ``DataFusionToolset``
+never reports it, because it reads only ``max_rows + 1`` rows and so has no total to
+report; an agent that needs one runs ``COUNT(*)``.
 
 The default budget is deliberately generous: the columnar shape alone shrinks a wide
 result several-fold, so results that fit before still fit. Lower ``max_result_bytes``

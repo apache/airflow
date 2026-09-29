@@ -760,10 +760,11 @@ class TestEksDeleteClusterOperator:
         with pytest.raises(TaskDeferred):
             self.delete_cluster_operator.execute({})
 
-    def test_execute_complete_logs_success_when_cluster_deleted(self, caplog):
-        # EksDeleteClusterTrigger reports a deleted cluster with the status "deleted".
-        self.delete_cluster_operator.execute_complete({}, event={"status": "deleted"})
-
+    @pytest.mark.parametrize("status", ["deleted", "success"])
+    def test_execute_complete_when_trigger_yields_deleted(self, caplog, status):
+        # EksDeleteClusterTrigger reports a deleted cluster with status "deleted".
+        # Also accept "success" for forward-compat with the usual event.
+        self.delete_cluster_operator.execute_complete(context={}, event={"status": status})
         assert "Cluster deleted successfully." in caplog.messages
 
     @mock.patch("time.sleep", return_value=None)

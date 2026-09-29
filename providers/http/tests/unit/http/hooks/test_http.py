@@ -696,14 +696,18 @@ class TestHttpHook:
 @pytest.fixture
 def stable_dns_import():
     """
-    Re-import the ``dns`` submodules so ``sys.modules`` and the package attributes agree.
+    Point the ``dns`` package attributes at the submodules in ``sys.modules``, so the two agree.
 
-    In CI, Python 3.10's ``mock.patch`` resolves dotted targets attribute-first, so a stale attribute left
-    by another test's ``patch.dict(sys.modules, ...)`` gets patched while the hook re-imports a
-    fresh module — bypassing the mock and hitting real DNS.
+    Another test's ``patch.dict(sys.modules, ...)`` can leave ``dns.resolver`` (the package attribute)
+    and ``sys.modules["dns.resolver"]`` referring to different module objects.
+    ``mock.patch("dns.resolver.resolve")`` and the hook's ``import dns.resolver`` then resolve to
+    different objects - which one each picks depends on the Python version - so the mock is bypassed
+    and the test hits real DNS. Importing the submodules again does not help, because they are already
+    in ``sys.modules``; the package attributes must be reset.
     """
-    importlib.import_module("dns.resolver")
-    importlib.import_module("dns.asyncresolver")
+    dns = importlib.import_module("dns")
+    for name in ("exception", "resolver", "asyncresolver"):
+        setattr(dns, name, importlib.import_module(f"dns.{name}"))
 
 
 @pytest.mark.usefixtures("stable_dns_import")
@@ -1106,7 +1110,6 @@ class TestHttpAsyncHook:
                 "verify": False,
                 "allow_redirects": False,
                 "max_redirects": 3,
-                "trust_env": False,
             }
         ],
         indirect=True,
@@ -1138,7 +1141,60 @@ class TestHttpAsyncHook:
                 assert mocked_function.call_args.kwargs.get("verify_ssl") is False
                 assert mocked_function.call_args.kwargs.get("allow_redirects") is False
                 assert mocked_function.call_args.kwargs.get("max_redirects") == 3
-                assert mocked_function.call_args.kwargs.get("trust_env") is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "setup_connections_with_extras",
+        [{"stream": True, "cert": "client.pem", "trust_env": True}],
+        indirect=True,
+    )
+    async def test_async_request_ignores_unsupported_extra_options(
+        self, setup_connections_with_extras, caplog
+    ):
+        """stream/cert/trust_env have no aiohttp equivalent and must not reach the request call."""
+        hook = HttpAsyncHook(http_conn_id="http_conn_with_extras")
+
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+            mocked_function.return_value = MockAiohttpClientResponse(
+                status=200,
+                payload={"status": {"status": 200}},
+                method="POST",
+                url="http://test:8080/v1/test",
+            )
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="v1/test")
+
+        kwargs = mocked_function.call_args.kwargs
+        assert "stream" not in kwargs
+        assert "cert" not in kwargs
+        assert "trust_env" not in kwargs
+        assert (
+            "Ignoring connection extra option(s) cert, stream, trust_env: not supported by HttpAsyncHook."
+            in caplog.messages
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "setup_connections_with_extras",
+        [{"check_response": False}],
+        indirect=True,
+    )
+    async def test_async_request_does_not_raise_for_status_if_check_response_is_false(
+        self, setup_connections_with_extras
+    ):
+        hook = HttpAsyncHook(http_conn_id="http_conn_with_extras", method="GET")
+
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            mocked_get.return_value = MockAiohttpClientResponse(
+                status=500,
+                reason="Internal Server Error",
+                method="GET",
+                url="http://test:8080/v1/test",
+            )
+            async with aiohttp.ClientSession() as session:
+                resp = await hook.run(session=session, endpoint="v1/test")
+
+        assert resp.status == 500
 
     @pytest.mark.asyncio
     async def test_build_request_url_from_connection(self):
