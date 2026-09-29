@@ -4640,11 +4640,11 @@ anthropic = [
 avro = [
     { name = "fastavro" },
 ]
-boat = [
-    { name = "boat-sdk" },
-]
 bedrock = [
     { name = "pydantic-ai-slim", extra = ["bedrock"] },
+]
+boat = [
+    { name = "boat-sdk" },
 ]
 code-mode = [
     { name = "pydantic-ai-harness", extra = ["codemode"] },
@@ -4779,6 +4779,7 @@ dev = [
     { name = "apache-airflow-providers-git", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "boat-sdk", specifier = ">=1.0.0" },
     { name = "langchain", specifier = ">=1.0.0" },
     { name = "llama-index-core", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
