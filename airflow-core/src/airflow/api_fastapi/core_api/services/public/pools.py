@@ -74,20 +74,26 @@ def update_orm_from_pydantic(
                 "Only slots and included_deferred can be modified on Default Pool",
             )
     else:
-        fields_to_update = patch_body.model_fields_set
         try:
-            # Dump with both input + output aliases handled
+            validation_dict = {
+                "pool": pool.pool,
+                "slots": pool.slots,
+                "description": pool.description,
+                "include_deferred": pool.include_deferred,
+            }
+            if update_mask:
+                fields_to_update = {mask.strip() for mask in update_mask}
+            else:
+                fields_to_update = patch_body.model_fields_set
             body_dict = patch_body.model_dump(
                 include=fields_to_update,
-                by_alias=True,  # ensures we get the API-facing alias keys
+                exclude_unset=True,
+                by_alias=True,
             )
-
-            # Normalize keys for BasePool (expects "pool")
             if "name" in body_dict and "pool" not in body_dict:
                 body_dict["pool"] = body_dict.pop("name")
-
-            BasePool.model_validate(body_dict)
-
+            validation_dict.update(body_dict)
+            BasePool.model_validate(validation_dict)
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 

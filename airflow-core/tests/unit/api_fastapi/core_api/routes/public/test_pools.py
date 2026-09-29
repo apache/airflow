@@ -359,6 +359,26 @@ class TestPatchPool(TestPoolsEndpoint):
                     "team_name": None,
                 },
             ),
+            # Partial body on a non-default pool with update_mask
+            (
+                POOL1_NAME,
+                {"update_mask": ["slots"]},
+                {"slots": 8},
+                200,
+                {
+                    "deferred_slots": 0,
+                    "description": None,
+                    "include_deferred": True,
+                    "name": POOL1_NAME,
+                    "occupied_slots": 0,
+                    "open_slots": 8,
+                    "queued_slots": 0,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 8,
+                    "team_name": None,
+                },
+            ),
             # Partial body on default_pool alternate
             (
                 Pool.DEFAULT_POOL_NAME,
