@@ -223,7 +223,8 @@ class SFTPHook(SSHHook):
             remote_host=self.remote_host,
             username=self.username,
             password=self.password,
-            key_file=self.key_file,
+            # Re-resolve key_file when pkey is set to avoid the key_file/private_key guard.
+            key_file=None if self.pkey else self.key_file,
             port=self.port,
             conn_timeout=self.conn_timeout,
             cmd_timeout=self.cmd_timeout,

@@ -644,7 +644,7 @@ class TestSFTPHook:
         onto the worker hook it builds for concurrent transfers, not just
         ssh_conn_id / no_host_key_check.
         """
-        mock_connection = MagicMock()
+        mock_connection = MagicMock(spec=Connection)
         mock_connection.login = "conn_user"
         mock_connection.password = "conn_pass"
         mock_connection.host = "conn.example.com"
@@ -710,11 +710,10 @@ class TestSFTPHook:
                 local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR),
                 workers=workers,
             )
+            # Value-level assertions (remote_host/port/username/etc.) are covered by
+            # test_build_worker_hook_inherits_parent_overrides; this test only checks
+            # that every worker hook is built via self._build_worker_hook().
             assert mock_build.call_count == workers
-            for worker_hook in built_hooks:
-                assert worker_hook.remote_host == self.hook.remote_host
-                assert worker_hook.port == self.hook.port
-                assert worker_hook.username == self.hook.username
 
             built_hooks.clear()
             mock_build.reset_mock()
@@ -726,10 +725,6 @@ class TestSFTPHook:
                 workers=workers,
             )
             assert mock_build.call_count == workers
-            for worker_hook in built_hooks:
-                assert worker_hook.remote_host == self.hook.remote_host
-                assert worker_hook.port == self.hook.port
-                assert worker_hook.username == self.hook.username
 
     def test_validate_within_directory_rejects_escape(self):
         base = os.path.join(self.temp_dir, "download")
