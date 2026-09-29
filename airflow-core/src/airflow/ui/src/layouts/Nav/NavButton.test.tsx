@@ -95,6 +95,21 @@ describe("NavButton", () => {
     });
   });
 
+  describe("isExternal", () => {
+    it("renders as an anchor link with target=_blank", () => {
+      render(
+        <NavButton icon={FiHome} isExternal title="Cloudera" to="https://example.com" />,
+        { wrapper: wrapperAt("/") },
+      );
+
+      const link = screen.getByRole("link", { name: "Cloudera" });
+
+      expect(link).toHaveAttribute("href", "https://example.com");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    });
+  });
+
   describe("matchPaths", () => {
     it("is active on an extra match path even though `to` points elsewhere", () => {
       render(<NavButton icon={FiHome} matchPaths={["dag_runs", "task_instances"]} title="Dags" to="dags" />, {
