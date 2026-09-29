@@ -49,7 +49,10 @@ You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
 
     logged_toolset = LoggingToolset(wrapped=SQLToolset(db_conn_id="my_db"))
 
-Each call logs the tool's name and how long it took at INFO, inside a collapsible
-``::group::`` block in the task log, and its arguments at DEBUG. A call that raises
-is logged with its traceback and the exception is re-raised. Pass ``logger`` to
-send the lines to a logger other than the toolset module's own.
+Each tool call logs its name and timing at INFO, inside a collapsible
+``::group::`` block in the task log, and its arguments at DEBUG. Control-flow
+signals that let the model retry, report a failed tool result, defer or skip a
+call, or wait for approval are logged at INFO and re-raised. Other exceptions,
+including ``SkipToolValidation`` raised by a tool body, are logged at ERROR
+with a traceback and re-raised. Pass ``logger`` to send the lines to a logger
+other than the toolset module's own.

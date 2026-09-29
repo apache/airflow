@@ -27,6 +27,7 @@ from pydantic_ai.exceptions import (
     ModelRetry,
     SkipToolExecution,
     SkipToolValidation,
+    ToolFailed,
 )
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
@@ -112,10 +113,9 @@ class TestLoggingToolset:
         "signal",
         [
             ModelRetry("retry"),
-            ApprovalRequired(),
+            ToolFailed("failed"),
             CallDeferred(),
             SkipToolExecution("result"),
-            SkipToolValidation({"value": 1}),
         ],
         ids=lambda signal: type(signal).__name__,
     )
@@ -133,6 +133,32 @@ class TestLoggingToolset:
         )
         assert not any(record.levelno >= logging.ERROR for record in caplog.records)
         assert caplog.records[-1].message == "::endgroup::"
+
+    @pytest.mark.asyncio
+    async def test_logs_control_flow_reason(self, logging_toolset, wrapped_toolset, logger, caplog):
+        wrapped_toolset.call_tool = AsyncMock(side_effect=ModelRetry("column X not found"))
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(ModelRetry, match="column X not found"):
+                await logging_toolset.call_tool("retrying_tool", {}, MagicMock(), MagicMock())
+
+        assert any("column X not found" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_skip_tool_validation_is_logged_as_error(
+        self, logging_toolset, wrapped_toolset, logger, caplog
+    ):
+        signal = SkipToolValidation({"value": 1})
+        wrapped_toolset.call_tool = AsyncMock(side_effect=signal)
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(SkipToolValidation):
+                await logging_toolset.call_tool("invalid_tool", {"value": 1}, MagicMock(), MagicMock())
+
+        assert any(
+            record.message.startswith("Tool invalid_tool failed after") and record.levelno == logging.ERROR
+            for record in caplog.records
+        )
 
     @pytest.mark.asyncio
     async def test_a_call_waiting_for_approval_is_not_logged_as_a_failure(
@@ -178,6 +204,9 @@ class TestToolLoggingCapability:
         assert isinstance(wrapped, LoggingToolset)
         assert wrapped.wrapped is toolset
         assert wrapped.logger is logger
+
+    def test_ordering_is_innermost(self, logger):
+        assert ToolLoggingCapability(logger=logger).get_ordering().position == "innermost"
 
     def test_is_not_serializable(self):
         assert ToolLoggingCapability.get_serialization_name() is None
