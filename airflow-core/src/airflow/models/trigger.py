@@ -257,20 +257,19 @@ class Trigger(Base):
                     cls._delete_unused_batch(batch_size, session=session)
 
     @classmethod
-    def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> int:
+    def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
         unreferenced = (~cls.assets.any(), ~cls.callback.has(), ~cls.task_instance.has())
         ids = select(cls.id).where(*unreferenced).order_by(cls.id).limit(batch_size)
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
         ids_list = list(session.scalars(ids))
         if not ids_list:
-            return 0
+            return
 
         session.execute(
             delete(cls)
             .where(cls.id.in_(ids_list), *unreferenced)
             .execution_options(synchronize_session=False)
         )
-        return len(ids_list)
 
     @classmethod
     @provide_session

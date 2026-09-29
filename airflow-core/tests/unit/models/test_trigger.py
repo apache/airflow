@@ -282,7 +282,7 @@ def test_clean_unused_deletes_one_batch_per_call(session):
         pytest.param(1, [1], 0, id="below-batch-size"),
         pytest.param(2, [2], 0, id="exactly-batch-size"),
         pytest.param(3, [2], 1, id="above-batch-size"),
-        pytest.param(5, [2], 3, id="multiple-batches"),
+        pytest.param(5, [2], 3, id="backlog-larger-than-batch"),
     ],
 )
 def test_clean_unused_deletes_at_most_one_batch(

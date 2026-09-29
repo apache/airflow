@@ -3074,7 +3074,7 @@ triggerer:
       default: "50"
     unreferenced_triggers_cleanup_batch_size:
       description: |
-        Maximum number of unreferenced triggers deleted in one cleanup invocation and database
+        Maximum number of unreferenced triggers deleted in one triggerer loop and database
         transaction. Remaining triggers are handled in later triggerer loops. This value must be at least 1.
       version_added: 3.4.0
       type: integer
