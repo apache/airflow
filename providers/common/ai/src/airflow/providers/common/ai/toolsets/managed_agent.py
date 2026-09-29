@@ -55,6 +55,11 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
     """
     Base class exposing a vendor-managed agent as a single pydantic-ai tool.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     A managed agent runs its own reasoning loop on the vendor's infrastructure
     (Snowflake Cortex Agents, Amazon Bedrock AgentCore, Azure AI Foundry hosted
     agents, Vertex AI Agent Engine). Airflow submits one request and reads one
@@ -241,6 +246,11 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
 class FailoverManagedAgentToolset(BaseManagedAgentToolset):
     """
     Present several interchangeable managed agents to the model as one tool.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     Active/passive failover for a managed agent: members are tried in order and
     the first answer wins. Because this is itself a

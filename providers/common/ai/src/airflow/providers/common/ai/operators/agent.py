@@ -242,7 +242,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         request cap. See :ref:`howto/operator:llm` for the full set of caveats,
         and :ref:`howto/operator:agent` for the ``durable=True`` replay
         double-counting warning.
-    :param durable: When ``True``, enables step-level caching of model
+    :param durable: Experimental. When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
         steps are replayed instead of re-executing.  Each cached step is
         verified against the current request before replay: if the prompt,
@@ -264,7 +264,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         not: a replayed tool result describes a workspace state the replay did
         not reproduce, and the first call that misses the cache runs against
         whatever the sandbox holds now.
-    :param code_mode: When ``True``, wraps the agent's tools in a single
+    :param code_mode: Experimental. When ``True``, wraps the agent's tools in a single
         ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
         ``CodeMode``). Instead of one model round-trip per tool call, the model
         writes Python that calls the tools as functions, with loops and
@@ -318,7 +318,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
 
-    **Per-tool approval** (Airflow 3.3+):
+    **Per-tool approval** (Airflow 3.3+, experimental):
 
     Mark the tools a human must approve with pydantic-ai's own API --
     ``toolset.approval_required(...)``, or ``requires_approval=True`` on a function
@@ -334,13 +334,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     requires approval fails the task as before. A ``SandboxToolset`` attached to a
     sandbox another task owns is fine: the sandbox outlives the pause.
 
-    :param tool_approval_timeout: How long the pause waits for a decision.
+    :param tool_approval_timeout: Experimental. How long the pause waits for a decision.
         ``None`` (default) waits indefinitely. Must be positive.
-    :param on_tool_approval_timeout: What a timed-out pause does: ``"fail"``
+    :param on_tool_approval_timeout: Experimental. What a timed-out pause does: ``"fail"``
         (default) fails the task, ``"deny"`` rejects the pending calls so the agent
         carries on without them, and needs a ``tool_approval_timeout``. There is no
         approve-on-timeout.
-    :param tool_approval_assigned_users: Users allowed to decide. ``None`` (default)
+    :param tool_approval_assigned_users: Experimental. Users allowed to decide. ``None`` (default)
         leaves it to anyone who can act on the task's Required Actions.
 
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic

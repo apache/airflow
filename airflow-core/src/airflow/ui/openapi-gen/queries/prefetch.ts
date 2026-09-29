@@ -1561,10 +1561,11 @@ export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryC
 * @param data.jobType
 * @param data.hostname
 * @param data.executorClass
+* @param data.teams
 * @returns JobCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }: {
+export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }: {
   dagId?: string;
   endDateGt?: string;
   endDateGte?: string;
@@ -1582,7 +1583,8 @@ export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { dagId, 
   startDateGte?: string;
   startDateLt?: string;
   startDateLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseJobServiceGetJobsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => JobService.getJobs({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }) });
+  teams?: string[];
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseJobServiceGetJobsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }), queryFn: () => JobService.getJobs({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }) });
 /**
 * Get Plugins
 * @param data The data for the request.

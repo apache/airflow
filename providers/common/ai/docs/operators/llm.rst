@@ -212,6 +212,11 @@ reviewer. The full guide, including timeouts, notifiers and assigned reviewers, 
 Reviewing uncertain output
 --------------------------
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 A ``decision_policy`` with a confidence bar sends output the model is unsure about to the
 same review flow. See :doc:`../approval_gates`.
 

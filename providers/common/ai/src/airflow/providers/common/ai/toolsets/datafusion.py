@@ -85,6 +85,11 @@ class DataFusionToolset(AbstractToolset[Any]):
     """
     Curated toolset that gives an LLM agent SQL access to object-storage data via Apache DataFusion.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Provides three tools — ``list_tables``, ``get_schema``, and ``query`` —
     backed by
     :class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`.
