@@ -773,12 +773,10 @@ from airflow.sdk import DAG, BaseOperator, TaskGroup
 
 for dag_id in ("cyclic", "acyclic", "unserializable"):
     with DAG(dag_id, schedule=None):
-        with TaskGroup("group"):
+        with TaskGroup("group") as group:
             a = BaseOperator(task_id="a")
             b = BaseOperator(task_id="b")
-            if dag_id == "acyclic":
-                a >> b
-        a >> BaseOperator(task_id="bridge") >> b
+        a >> BaseOperator(task_id="bridge", task_group=group if dag_id == "acyclic" else None) >> b
 """
 
 

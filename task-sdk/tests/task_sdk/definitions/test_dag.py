@@ -892,6 +892,31 @@ def _make_group_bridged_by_outside_task_dag():
     return dag
 
 
+def _make_group_reentered_after_in_group_upstream_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group"):
+            a = DoNothingOperator(task_id="a")
+            b = DoNothingOperator(task_id="b")
+            a >> b
+        a >> DoNothingOperator(task_id="bridge") >> b
+    return dag
+
+
+def _make_sibling_groups_cycle_through_non_roots_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group1"):
+            a1 = DoNothingOperator(task_id="a1")
+            a2 = DoNothingOperator(task_id="a2")
+            a1 >> a2
+        with TaskGroup("group2"):
+            b1 = DoNothingOperator(task_id="b1")
+            b2 = DoNothingOperator(task_id="b2")
+            b1 >> b2
+        a1 >> b2
+        b1 >> a2
+    return dag
+
+
 def _make_three_group_ring_dag():
     with DAG("dag", schedule=None) as dag:
         tasks = {}
@@ -1056,6 +1081,16 @@ class TestCycleTester:
         [
             pytest.param(_make_sibling_groups_cycle_dag, "group1 and group2", id="sibling-groups"),
             pytest.param(_make_group_bridged_by_outside_task_dag, "group and bridge", id="bridged-group"),
+            pytest.param(
+                _make_group_reentered_after_in_group_upstream_dag,
+                "group and bridge",
+                id="group-reentered-after-in-group-upstream",
+            ),
+            pytest.param(
+                _make_sibling_groups_cycle_through_non_roots_dag,
+                "group1 and group2",
+                id="sibling-groups-through-non-roots",
+            ),
             pytest.param(_make_three_group_ring_dag, "g0, g1 and g2", id="three-group-ring"),
             pytest.param(
                 _make_two_cycles_dag,

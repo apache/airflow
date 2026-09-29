@@ -1268,12 +1268,10 @@ with airflow.DAG(
     @staticmethod
     def _make_task_group_cycle_dag(*, cyclic: bool) -> DAG:
         with DAG(dag_id="test") as dag:
-            with TaskGroup("group"):
+            with TaskGroup("group") as group:
                 a = BaseOperator(task_id="a")
                 b = BaseOperator(task_id="b")
-                if not cyclic:
-                    a >> b
-            a >> BaseOperator(task_id="bridge") >> b
+            a >> BaseOperator(task_id="bridge", task_group=None if cyclic else group) >> b
         return dag
 
     def test_dag_warnings_task_group_cycle(self):
