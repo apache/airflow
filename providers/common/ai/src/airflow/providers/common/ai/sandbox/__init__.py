@@ -25,6 +25,7 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxFileTooLargeError,
     SandboxSpec,
     SandboxTerminalError,
+    dag_run_owner,
 )
 
 # Both backends import their vendor dependency lazily, on first use, so the
@@ -43,6 +44,7 @@ __all__ = [
     "SandboxSpec",
     "SandboxTerminalError",
     "SbxSandboxBackend",
+    "dag_run_owner",
 ]
 
 

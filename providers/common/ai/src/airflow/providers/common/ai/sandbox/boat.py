@@ -364,7 +364,7 @@ class BoatSandboxBackend(SandboxBackend):
             )
             command = f"{exports}; {command}"
         command = (
-            'tmp_dir=$(mktemp -d); trap \'rm -rf "$tmp_dir"\' EXIT; '
+            "tmp_dir=$(mktemp -d); trap 'rm -rf \"$tmp_dir\"' EXIT; "
             f'({command}) >"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
             'command_pid=$!; wait "$command_pid"; command_status=$?; '
             'cat "$tmp_dir/stdout"; cat "$tmp_dir/stderr" >&2; exit "$command_status"'
