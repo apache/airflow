@@ -41,6 +41,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
     EksPodTrigger,
 )
+from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.common.compat.sdk import TaskDeferred
 
@@ -1278,6 +1279,47 @@ class TestEksPodOperator:
         assert trigger._aws_conn_id == "aws_default"
         assert trigger.pod_name == "test-pod-abc123"
         assert trigger.pod_namespace == "default"
+
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.EksPodOperator.trigger_reentry")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
+    )
+    def test_invoke_defer_method_returns_trigger_reentry_result_when_pod_already_terminal(
+        self, mock_convert_config, mock_trigger_reentry
+    ):
+        """The shortcut path must return trigger_reentry()'s value, not discard it.
+
+        When the pod reaches a terminal state before the operator gets to defer,
+        invoke_defer_method calls trigger_reentry() inline instead of deferring.
+        trigger_reentry() is what returns the XCom value for do_xcom_push=True,
+        so dropping its return value silently loses the task result: the task
+        still succeeds, but return_value never makes it into XCom.
+        """
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+            do_xcom_push=True,
+        )
+
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = "test-pod-abc123"
+        mock_pod.metadata.namespace = "default"
+        op.pod = mock_pod
+
+        context = mock.MagicMock(name="context")
+        with mock.patch.object(
+            EksPodTrigger, "define_container_state", return_value=ContainerState.TERMINATED
+        ):
+            result = op.invoke_defer_method(context=context)
+
+        assert result is mock_trigger_reentry.return_value
+        mock_trigger_reentry.assert_called_once()
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
