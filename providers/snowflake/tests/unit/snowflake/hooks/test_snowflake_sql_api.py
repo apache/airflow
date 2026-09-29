@@ -20,6 +20,7 @@ import asyncio
 import base64
 import uuid
 from collections.abc import Mapping
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import AsyncMock, call
@@ -525,6 +526,20 @@ class TestSnowflakeSqlApiHook:
         result = hook.get_headers()
         assert result == HEADERS
 
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    @mock.patch(
+        "airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token", autospec=True
+    )
+    def test_get_headers_uses_key_pair_for_workload_identity_connection_with_private_key(
+        self, mock_get_token, mock_conn_param, mock_private_key
+    ):
+        mock_get_token.return_value = "newT0k3n"
+        mock_conn_param.return_value = {**CONN_PARAMS, "workload_identity_provider": "AWS"}
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        result = hook.get_headers()
+        assert result["X-Snowflake-Authorization-Token-Type"] == "KEYPAIR_JWT"
+
     @pytest.mark.parametrize(
         "extra",
         [
@@ -559,6 +574,82 @@ class TestSnowflakeSqlApiHook:
         mock_conn_param.return_value = conn_params_pat_no_password
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
         with pytest.raises(ValueError, match="Programmatic Access Token"):
+            hook.get_headers()
+
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    def test_get_headers_reuses_jwt_within_renewal_window(
+        self, mock_conn_param, mock_private_key, time_machine
+    ):
+        """The hook must reuse the same JWT across calls within the renewal window, and mint a
+        new one once the window has passed -- pinned with real elapsed time, not call count,
+        since two back-to-back calls produce byte-identical JWTs on the old mint-every-call code
+        too (RS256 signing is deterministic and `iat` only has one-second resolution)."""
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        mock_private_key.return_value = key
+        mock_conn_param.return_value = CONN_PARAMS
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+
+        time_machine.move_to("2024-01-01T00:00:00+00:00", tick=False)
+        first = hook.get_headers()
+
+        time_machine.move_to("2024-01-01T00:10:00+00:00", tick=False)
+        second = hook.get_headers()
+
+        assert first["Authorization"] == second["Authorization"]
+        assert mock_private_key.call_count == 1
+
+        time_machine.move_to("2024-01-01T01:00:00+00:00", tick=False)
+        third = hook.get_headers()
+
+        assert third["Authorization"] != first["Authorization"]
+
+    @pytest.mark.parametrize(
+        ("token_life_time", "token_renewal_delta", "expected_renewal_delay"),
+        [
+            pytest.param(timedelta(minutes=30), timedelta(minutes=10), timedelta(minutes=10), id="custom"),
+            pytest.param(timedelta(minutes=30), timedelta(minutes=30), timedelta(0), id="equal_to_lifetime"),
+            pytest.param(timedelta(minutes=30), timedelta(minutes=45), timedelta(0), id="above_lifetime"),
+        ],
+    )
+    @mock.patch("airflow.providers.snowflake.utils._rest_auth.JWTGenerator", autospec=True)
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    def test_get_headers_forwards_token_lifetimes_to_jwt_generator(
+        self,
+        mock_conn_param,
+        mock_private_key,
+        mock_jwt_generator,
+        token_life_time,
+        token_renewal_delta,
+        expected_renewal_delay,
+    ):
+        mock_conn_param.return_value = CONN_PARAMS
+        mock_jwt_generator.return_value.get_token.return_value = "newT0k3n"
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="mock_conn_id",
+            token_life_time=token_life_time,
+            token_renewal_delta=token_renewal_delta,
+        )
+
+        hook.get_headers()
+        hook.get_headers()
+
+        mock_jwt_generator.assert_called_once_with(
+            "airflow",
+            "user",
+            private_key=mock_private_key.return_value,
+            lifetime=token_life_time,
+            renewal_delay=expected_renewal_delay,
+        )
+
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True, return_value=None)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    def test_get_headers_raises_value_error_when_no_private_key(self, mock_conn_param, mock_private_key):
+        """No OAuth token, no PAT, and no private key must raise ValueError, not AttributeError."""
+        mock_conn_param.return_value = CONN_PARAMS
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        with pytest.raises(ValueError, match="key-pair JWT"):
             hook.get_headers()
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
@@ -1400,11 +1491,12 @@ class TestSnowflakeSqlApiHook:
             },
         )
 
+    @mock.patch(f"{HOOK_PATH}.get_headers", autospec=True, return_value="partition-header")
     @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
     @mock.patch(f"{HOOK_PATH}._process_response")
     @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
     def test_get_result_from_successful_sql_api_query_multiple_partitions(
-        self, mock_get_url, mock_process_response, mock_api_call
+        self, mock_get_url, mock_process_response, mock_api_call, mock_get_headers
     ):
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
 
@@ -1445,9 +1537,42 @@ class TestSnowflakeSqlApiHook:
         # Two API calls: first for the initial query, second for partition 1
         assert mock_api_call.call_count == 2
         mock_api_call.assert_any_call("GET", "https://example.com/api/query", "header", "params")
-        mock_api_call.assert_any_call("GET", "https://example.com/api/query?partition=1", "header", "params")
+        mock_api_call.assert_any_call(
+            "GET", "https://example.com/api/query?partition=1", "partition-header", "params"
+        )
         mock_get_url.assert_called_once_with("qid-5")
         mock_process_response.assert_called_once()
+
+    @mock.patch(f"{HOOK_PATH}.get_headers", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
+    @mock.patch(f"{HOOK_PATH}._process_response")
+    @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
+    def test_get_result_from_successful_sql_api_query_fetches_fresh_headers_per_partition(
+        self, mock_get_url, mock_process_response, mock_api_call, mock_get_headers
+    ):
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        metadata = {
+            "rowType": [{"name": "id"}],
+            "partitionInfo": [{"p0": "p0"}, {"p1": "p1"}, {"p2": "p2"}],
+        }
+        mock_get_url.return_value = ("initial-header", "params", "https://example.com/api/query")
+        mock_process_response.return_value = {"status": "success"}
+        mock_get_headers.side_effect = [{"Authorization": "jwt-1"}, {"Authorization": "jwt-2"}]
+        mock_api_call.side_effect = [
+            (200, {"data": [[1]], "resultSetMetaData": metadata}),
+            (200, {"data": [[2]]}),
+            (200, {"data": [[3]]}),
+        ]
+
+        result = hook.get_result_from_successful_sql_api_query(query_id="qid-6")
+
+        assert result == [{"id": 1}, {"id": 2}, {"id": 3}]
+        assert mock_api_call.call_args_list == [
+            call("GET", "https://example.com/api/query", "initial-header", "params"),
+            call("GET", "https://example.com/api/query?partition=1", {"Authorization": "jwt-1"}, "params"),
+            call("GET", "https://example.com/api/query?partition=2", {"Authorization": "jwt-2"}, "params"),
+        ]
+        assert mock_get_headers.call_count == 2
 
     @pytest.mark.asyncio
     async def test_make_api_call_with_retries_async_success(self, mock_async_request):
