@@ -19,16 +19,19 @@ from __future__ import annotations
 import asyncio
 import gzip
 import json
+import uuid
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+from fsspec.implementations.memory import MemoryFileSystem
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ToolFailed
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.toolsets.object_storage import ObjectStorageToolset
+from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
 
 
 @pytest.fixture
@@ -47,6 +50,24 @@ def storage(tmp_path):
     (secret / "key.txt").write_text("do not read\n")
     (root / "link").symlink_to(secret / "key.txt")
     return root
+
+
+@pytest.fixture
+def object_store(monkeypatch):
+    """
+    A root on an in-memory object store, with a file above it the agent must not reach.
+
+    No symlinks and no local disk, so only the toolset's own path check keeps a path inside.
+    """
+    conn_id = f"memory-{uuid.uuid4().hex}"
+    fs = MemoryFileSystem()
+    monkeypatch.setitem(_STORE_CACHE, f"memory-{conn_id}", ObjectStore("memory", conn_id, fs=fs))
+    bucket = f"/{conn_id}"
+    fs.pipe(f"{bucket}/reports/a/ok.txt", b"inside\n")
+    fs.pipe(f"{bucket}/secret.txt", b"do not read\n")
+    fs.pipe(f"{bucket}/reports/..%2Fsecret.txt", b"a key inside the root\n")
+    yield ObjectStorageToolset(f"memory:/{bucket}/reports", conn_id=conn_id)
+    fs.rm(bucket, recursive=True)
 
 
 def _call(toolset: ObjectStorageToolset, name: str, arguments: dict[str, Any]) -> Any:
@@ -170,6 +191,26 @@ class TestPathsStayUnderTheRoot:
             _call(ObjectStorageToolset(str(storage)), "read_file", {"path": "near"})
 
 
+class TestPathsStayUnderAnObjectStoreRoot:
+    """An object store has no directories to climb out of: a key is only ever a string."""
+
+    def test_dot_dot_is_refused(self, object_store):
+        with pytest.raises(ToolFailed, match="leaves the storage root"):
+            _call(object_store, "read_file", {"path": "../secret.txt"})
+
+    @pytest.mark.parametrize(
+        "path",
+        ["%2e%2e/secret.txt", "a/%2e%2e/%2e%2e/secret.txt", "..\\secret.txt", "a\\..\\..\\secret.txt"],
+    )
+    def test_encoded_dots_and_backslashes_do_not_climb_out(self, object_store, path):
+        """Neither is decoded or treated as a separator, so the key sits under the root and is missing."""
+        with pytest.raises(ToolFailed, match="is not a file"):
+            _call(object_store, "read_file", {"path": path})
+
+    def test_a_key_that_looks_encoded_is_read_under_the_root(self, object_store):
+        assert _call(object_store, "read_file", {"path": "..%2Fsecret.txt"}) == "a key inside the root"
+
+
 class TestReadFile:
     def test_reads_a_text_file(self, storage):
         result = _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": "2026/09/summary.md"})
@@ -199,6 +240,23 @@ class TestReadFile:
 
         with pytest.raises(ToolFailed, match="cannot be read"):
             _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": "broken.txt.gz"})
+
+    @pytest.mark.parametrize(
+        ("path", "module", "error"),
+        [
+            pytest.param("broken.parquet", "pyarrow.parquet", "ArrowInvalid", id="parquet"),
+            pytest.param("broken.avro", "fastavro", "ValueError", id="avro"),
+        ],
+    )
+    def test_a_corrupt_columnar_file_is_refused_instead_of_failing_the_run(
+        self, storage, path, module, error
+    ):
+        """pyarrow's ArrowInvalid is a ValueError, so the refusal covers Parquet as well as gzip."""
+        pytest.importorskip(module)
+        (storage / path).write_bytes(b"neither parquet nor avro")
+
+        with pytest.raises(ToolFailed, match=f"cannot be read: {error}"):
+            _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": path})
 
     def test_reads_the_schema_and_first_rows_of_a_parquet_file(self, storage):
         pq = pytest.importorskip("pyarrow.parquet")
