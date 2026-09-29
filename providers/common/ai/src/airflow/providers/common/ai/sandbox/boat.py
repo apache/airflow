@@ -149,12 +149,13 @@ class BoatSandboxBackend(SandboxBackend):
     override the API base URL. The extra may set ``timeout`` (request timeout in
     seconds) and ``no_env`` (withhold account secrets; default ``true``).
 
-    Boat cannot enforce a deny-all or per-domain egress policy. ``create``
+    Boat cannot enforce a deny-all, per-domain, or CIDR egress policy. ``create``
     therefore refuses a :class:`~airflow.providers.common.ai.sandbox.SandboxSpec`
-    that asks for ``block_network=True`` or ``allow_egress_to``, preserving the
-    fail-closed contract. Pass ``SandboxSpec(block_network=False)`` (and set
-    that on :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`)
-    when open egress is acceptable.
+    that asks for ``block_network=True``, ``allow_egress_to``, or
+    ``allow_egress_to_cidrs``, preserving the fail-closed contract. Pass
+    ``SandboxSpec(block_network=False)`` (and set that on
+    :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`) when
+    open egress is acceptable.
 
     Writes use Boat's native file API; reads use the inherited shell
     implementation, because the native read API takes no size parameter and

@@ -158,12 +158,12 @@ Constructor parameters:
 - ``no_env``: explicit override for the connection's ``no_env`` setting.
 
 ``SandboxSpec.env`` is passed when the sandbox is created. **Boat cannot enforce
-a deny-all network policy or a per-domain egress allowlist**, so the backend
-refuses ``block_network=True`` and ``allow_egress_to`` rather than silently
-provisioning something weaker than the spec asked for. Since ``block_network``
-defaults to ``True``, that includes a bare ``SandboxSpec()``: pass
-``SandboxSpec(block_network=False)`` to state that open egress is acceptable, or
-use Modal when it is not.
+a deny-all network policy, a per-domain egress allowlist, or a CIDR egress
+allowlist**, so the backend refuses ``block_network=True``, ``allow_egress_to``,
+and ``allow_egress_to_cidrs`` rather than silently provisioning something weaker
+than the spec asked for. Since ``block_network`` defaults to ``True``, that
+includes a bare ``SandboxSpec()``: pass ``SandboxSpec(block_network=False)`` to
+state that open egress is acceptable, or use Modal when it is not.
 
 Writes use Boat's native file API. Reads deliberately keep the inherited bounded
 shell implementation, so ``max_bytes`` is enforced inside the guest before file
