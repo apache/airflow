@@ -18,6 +18,11 @@
 Files with DataFusion: ``DataFusionToolset``
 ============================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Curated toolset wrapping
 :class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
 with three tools (``list_tables``, ``get_schema``, and ``query``) for

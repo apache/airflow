@@ -54,6 +54,11 @@ def airflow_toolset_to_langchain_tools(
     """
     Convert a pydantic-ai toolset into a list of LangChain ``StructuredTool`` objects.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Each returned tool is backed by ``toolset.call_tool`` and carries the
     ``args_schema`` derived from the tool's JSON schema, so a LangChain agent or
     chain can call it the same way it calls any native LangChain tool.

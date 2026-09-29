@@ -159,6 +159,11 @@ class OpenSandboxBackend(SandboxBackend):
     """
     Run sandbox tools through an OpenSandbox server.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     OpenSandbox supports Docker and Kubernetes runtimes behind the same API.
     Airflow workers need only network access to that API; the OpenSandbox
     deployment owns container provisioning and isolation.

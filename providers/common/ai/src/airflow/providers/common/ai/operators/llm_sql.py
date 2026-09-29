@@ -50,6 +50,11 @@ class LLMSQLQueryOperator(LLMOperator):
     """
     Generate SQL queries from natural language using an LLM.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Inherits from :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     for LLM access and optionally uses a
     :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`
