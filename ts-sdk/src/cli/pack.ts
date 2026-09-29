@@ -347,8 +347,8 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       bundleManifest: manifest,
       sdkVersion: readSdkVersion(),
       entrypointPath,
-      // One source file per native Dag, plus the entrypoint as a fallback for Dags with no
-      // attributed file (dynamically built, or mixed-lang Dags owned by Python).
+      // One source file per native Dag, plus the entrypoint: a reader falls back to it for a
+      // native Dag the packer could not attribute to a file (one built dynamically in a callback).
       sourceFiles: readSourceFiles(
         [entrypointPath, ...Object.values(manifest.dag_source_paths)],
         cwd,

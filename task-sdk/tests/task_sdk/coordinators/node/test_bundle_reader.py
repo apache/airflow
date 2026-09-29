@@ -365,10 +365,16 @@ class TestBundleReader:
         assert read_bundle_source(bundle, "sales") == "export const sales = 1;\n"
         assert read_bundle_source(bundle, "inventory") == "export const inv = 2;\n"
 
-    def test_returns_none_for_dag_without_embedded_source(self, tmp_path):
-        # A mixed-language Dag (owned by Python) or a native Dag the packer could not attribute has
-        # no dag_source_paths entry. Its owner shows the source, so the reader returns None rather
-        # than an unrelated TypeScript file. A dag_id never registered returns None too.
+    def test_returns_none_without_a_dag_id(self, tmp_path):
+        # A Dag owned by another language (Python) shows its own source; the caller omits dag_id
+        # and gets None rather than an unrelated TypeScript file such as the entrypoint.
+        bundle = write_bundle(tmp_path, "sales")
+
+        assert read_bundle_source(bundle) is None
+
+    def test_falls_back_to_entrypoint_for_unattributed_dag(self, tmp_path):
+        # A native Dag the packer could not attribute (built dynamically) is absent from
+        # dag_source_paths; a source read for it falls back to the always-embedded entrypoint.
         bundle = write_bundle(
             tmp_path,
             "sales",
@@ -378,19 +384,18 @@ class TestBundleReader:
         )
 
         assert read_bundle(bundle).dag_ids == frozenset({"sales"})
-        assert read_bundle_source(bundle, "sales") is None
-        assert read_bundle_source(bundle, "unknown") is None
+        assert read_bundle_source(bundle, "dynamic_dag") == "export const entry = 1;\n"
 
-    def test_returns_none_when_dag_source_paths_absent(self, tmp_path):
+    def test_falls_back_to_entrypoint_when_dag_source_paths_absent(self, tmp_path):
         metadata = json.loads(_metadata_json("sales", entrypoint_path="main.ts"))
         del metadata["dag_source_paths"]
         bundle = write_bundle(tmp_path, "sales", metadata_payload=json.dumps(metadata).encode())
 
-        assert read_bundle_source(bundle, "sales") is None
+        assert read_bundle_source(bundle, "sales") == "export {};\n"
 
-    def test_reads_bundle_without_source_regions(self, tmp_path):
-        # Defensive: a layout may carry an empty sources array. read_bundle still verifies and
-        # returns metadata, and a source read for a Dag with no region returns None.
+    def test_returns_none_for_unmapped_dag_without_entrypoint(self, tmp_path):
+        # No per-Dag source and no entrypoint to fall back to. read_bundle still verifies and
+        # returns metadata from a layout with an empty sources array.
         bundle = write_bundle(tmp_path, "sales", sources=[], dag_source_paths={}, entrypoint_path=None)
 
         assert read_bundle(bundle).dag_ids == frozenset({"sales"})

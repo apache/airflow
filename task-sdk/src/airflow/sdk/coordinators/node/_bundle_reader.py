@@ -131,14 +131,18 @@ def read_bundle(bundle_path: pathlib.Path) -> BundleMetadata:
     return _parse_bundle_metadata(_read_verified_payloads(bundle_path).metadata)
 
 
-def read_bundle_source(bundle_path: pathlib.Path, dag_id: str) -> str | None:
+def read_bundle_source(bundle_path: pathlib.Path, dag_id: str | None = None) -> str | None:
     """
     Return the author source ``airflow-ts-pack`` embedded for *dag_id*, or ``None``.
 
-    A native TypeScript Dag returns its own source file. A Dag the bundle only supplies task
-    handlers for is owned by another language (Python), which owns its source, so the result is
-    ``None`` rather than an unrelated TypeScript file such as the bundle entrypoint.
+    Pass *dag_id* only for a Dag the bundle defines in TypeScript. Omit it for a Dag owned by
+    another language (Python), which shows its own source; the result is then ``None`` rather than
+    an unrelated TypeScript file. When given, a Dag mapped in ``dag_source_paths`` returns its own
+    file; a Dag that is not (one constructed dynamically, which the packer could not attribute)
+    falls back to the always-embedded entrypoint source.
     """
+    if dag_id is None:
+        return None
     payloads = _read_verified_payloads(bundle_path)
     source_path = _resolve_source_path(payloads.metadata, dag_id)
     if source_path is None:
@@ -449,11 +453,11 @@ def _parse_bundle_metadata(payload: bytes) -> BundleMetadata:
 
 def _resolve_source_path(payload: bytes, dag_id: str) -> str | None:
     """
-    Return *dag_id*'s embedded source path via ``dag_source_paths``, or ``None`` when it has none.
+    Return the embedded source path for *dag_id*, or ``None``.
 
-    Only native TypeScript Dags carry a source path. A Dag the bundle merely supplies handlers for
-    is absent from the map; the language that owns it owns its source, so this returns ``None``
-    rather than pointing at the entrypoint.
+    A native TypeScript Dag maps to its own file through ``dag_source_paths``. A Dag that is not
+    mapped (one constructed dynamically, so the packer could not attribute a file) falls back to
+    ``entrypoint_path``. Absent both, there is nothing to show and the result is ``None``.
     """
     try:
         metadata = json.loads(payload.decode("utf-8"))
@@ -466,6 +470,9 @@ def _resolve_source_path(payload: bytes, dag_id: str) -> str | None:
         mapped = dag_source_paths.get(dag_id)
         if isinstance(mapped, str):
             return mapped
+    entrypoint_path = metadata.get("entrypoint_path")
+    if isinstance(entrypoint_path, str):
+        return entrypoint_path
     return None
 
 
