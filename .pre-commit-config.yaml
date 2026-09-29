@@ -667,12 +667,6 @@ repos:
           ^providers/.*/src/.*\.py$|
           ^task-sdk/src/.*\.py$|
           ^shared/.*/src/.*\.py$
-      - id: check-secrets-search-path-sync
-        name: Check sync between sdk and core
-        entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
-        language: python
-        pass_filenames: false
-        files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
       - id: check-registry-types-json-sync
         name: Check registry types.json in sync with types.py
         entry: ./scripts/ci/prek/check_registry_types_json_sync.py

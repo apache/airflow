@@ -34,7 +34,4 @@ class BaseSecretsBackend(_BaseSecretsBackend):
 
 
 # Server side default secrets backend search path used by server components (scheduler, API server)
-DEFAULT_SECRETS_SEARCH_PATH = [
-    secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
-    secrets_backends.METASTORE_BACKEND_PATH,
-]
+DEFAULT_SECRETS_SEARCH_PATH = list(secrets_backends.SERVER_DEFAULT_SECRETS_SEARCH_PATH)
