@@ -131,15 +131,18 @@ def read_bundle(bundle_path: pathlib.Path) -> BundleMetadata:
     return _parse_bundle_metadata(_read_verified_payloads(bundle_path).metadata)
 
 
-def read_bundle_source(bundle_path: pathlib.Path, dag_id: str) -> str:
+def read_bundle_source(bundle_path: pathlib.Path, dag_id: str) -> str | None:
     """
-    Return the author source ``airflow-ts-pack`` embedded for *dag_id* in *bundle_path*.
+    Return the author source ``airflow-ts-pack`` embedded for *dag_id*, or ``None``.
 
-    A Dag maps to its own file when the packer could attribute one; otherwise the always-embedded
-    entrypoint source is returned as a fallback.
+    A native TypeScript Dag returns its own source file. A Dag the bundle only supplies task
+    handlers for is owned by another language (Python), which owns its source, so the result is
+    ``None`` rather than an unrelated TypeScript file such as the bundle entrypoint.
     """
     payloads = _read_verified_payloads(bundle_path)
     source_path = _resolve_source_path(payloads.metadata, dag_id)
+    if source_path is None:
+        return None
     try:
         payload = payloads.sources[source_path]
     except KeyError:
@@ -444,13 +447,13 @@ def _parse_bundle_metadata(payload: bytes) -> BundleMetadata:
     )
 
 
-def _resolve_source_path(payload: bytes, dag_id: str) -> str:
+def _resolve_source_path(payload: bytes, dag_id: str) -> str | None:
     """
-    Resolve *dag_id* to an embedded source path, falling back to the entrypoint.
+    Return *dag_id*'s embedded source path via ``dag_source_paths``, or ``None`` when it has none.
 
-    A Dag maps to its own file through ``dag_source_paths`` when the packer could attribute one;
-    otherwise (a dynamically constructed Dag, or a mixed-language Dag owned by Python) it falls back
-    to ``entrypoint_path``, which the packer always embeds.
+    Only native TypeScript Dags carry a source path. A Dag the bundle merely supplies handlers for
+    is absent from the map; the language that owns it owns its source, so this returns ``None``
+    rather than pointing at the entrypoint.
     """
     try:
         metadata = json.loads(payload.decode("utf-8"))
@@ -463,12 +466,7 @@ def _resolve_source_path(payload: bytes, dag_id: str) -> str:
         mapped = dag_source_paths.get(dag_id)
         if isinstance(mapped, str):
             return mapped
-    entrypoint_path = metadata.get("entrypoint_path")
-    if isinstance(entrypoint_path, str):
-        return entrypoint_path
-    raise ValueError(
-        f"embedded airflow metadata has no source path for dag_id {dag_id!r} and no entrypoint_path"
-    )
+    return None
 
 
 def _read_bundle_headers(
