@@ -1105,6 +1105,32 @@ The response includes a list of successful keys and any errors encountered durin
 This structure helps users understand which key actions succeeded and which failed.`
 } as const;
 
+export const $BulkBody_BulkDAGBody_ = {
+    properties: {
+        actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/BulkCreateAction_BulkDAGBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkUpdateAction_BulkDAGBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteAction_BulkDAGBody_'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Actions'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['actions'],
+    title: 'BulkBody[BulkDAGBody]'
+} as const;
+
 export const $BulkBody_BulkDAGRunBody_ = {
     properties: {
         actions: {
@@ -1233,6 +1259,33 @@ export const $BulkBody_VariableBody_ = {
     type: 'object',
     required: ['actions'],
     title: 'BulkBody[VariableBody]'
+} as const;
+
+export const $BulkCreateAction_BulkDAGBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'create',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be created.'
+        },
+        action_on_existence: {
+            '$ref': '#/components/schemas/BulkActionOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkCreateAction[BulkDAGBody]'
 } as const;
 
 export const $BulkCreateAction_BulkDAGRunBody_ = {
@@ -1368,6 +1421,41 @@ export const $BulkCreateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkCreateAction[VariableBody]'
+} as const;
+
+export const $BulkDAGBody = {
+    properties: {
+        is_paused: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Paused'
+        },
+        scheduling_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagSchedulingState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['dag_id'],
+    title: 'BulkDAGBody',
+    description: 'Request body for bulk update of Dags.'
 } as const;
 
 export const $BulkDAGRunBody = {
@@ -1509,6 +1597,40 @@ export const $BulkDAGRunClearBody = {
     type: 'object',
     title: 'BulkDAGRunClearBody',
     description: 'Request body for the bulk clear Dag Runs endpoint.'
+} as const;
+
+export const $BulkDeleteAction_BulkDAGBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDAGBody'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entity id/key or entity objects to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteAction[BulkDAGBody]'
 } as const;
 
 export const $BulkDeleteAction_BulkDAGRunBody_ = {
@@ -1813,6 +1935,48 @@ export const $BulkTaskInstanceBody = {
     required: ['task_id'],
     title: 'BulkTaskInstanceBody',
     description: 'Request body for bulk update, and delete task instances.'
+} as const;
+
+export const $BulkUpdateAction_BulkDAGBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'update',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkUpdateAction[BulkDAGBody]'
 } as const;
 
 export const $BulkUpdateAction_BulkDAGRunBody_ = {
@@ -4349,6 +4513,17 @@ export const $DAGSourceResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        language: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Language'
         }
     },
     type: 'object',
@@ -4424,7 +4599,17 @@ export const $DAGWarningResponse = {
             title: 'Dag Id'
         },
         warning_type: {
-            '$ref': '#/components/schemas/DagWarningType'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagWarningType'
+                },
+                {
+                    type: 'string',
+                    maxLength: 50,
+                    pattern: '^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$'
+                }
+            ],
+            title: 'Warning Type'
         },
         message: {
             type: 'string',
@@ -5966,6 +6151,17 @@ export const $ImportErrorResponse = {
             type: 'string',
             title: 'Filename'
         },
+        source_reference: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Source Reference'
+        },
         bundle_name: {
             anyOf: [
                 {
@@ -5989,7 +6185,7 @@ export const $ImportErrorResponse = {
         }
     },
     type: 'object',
-    required: ['import_error_id', 'timestamp', 'filename', 'bundle_name', 'stack_trace', 'file_token'],
+    required: ['import_error_id', 'timestamp', 'filename', 'source_reference', 'bundle_name', 'stack_trace', 'file_token'],
     title: 'ImportErrorResponse',
     description: 'Import Error Response.'
 } as const;
@@ -7516,6 +7712,18 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
+        },
+        state_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State Reason',
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
         }
     },
     type: 'object',
@@ -7816,6 +8024,18 @@ export const $TaskInstanceResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        state_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State Reason',
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
         }
     },
     type: 'object',

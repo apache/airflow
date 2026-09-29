@@ -1151,6 +1151,7 @@ class TestDagOperations:
         import_error_id=0,
         timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
         filename="filename",
+        source_reference=None,
         bundle_name="bundle_name",
         stack_trace="stack_trace",
         file_token="file_token",

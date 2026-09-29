@@ -48,6 +48,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
 )
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -509,7 +510,7 @@ class TestTaskInstance:
         ti = dag_maker.run_ti(task.task_id, dag_run_kwargs={"logical_date": timezone.utcnow()})
         assert ti.state == State.SKIPPED
 
-    def test_retry_delay(self, dag_maker, time_machine):
+    def test_retry_delay(self, dag_maker, time_machine, session):
         """
         Test that retry delays are respected
         """
@@ -529,16 +530,10 @@ class TestTaskInstance:
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = dag_maker.serialized_dag.get_task(ti.task_id)
-        with create_session() as session:
-            session.get(TaskInstance, ti.id).try_number += 1
-
         # first run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 1
-
-        with create_session() as session:
-            session.get(TaskInstance, ti.id).try_number += 1
+        assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
         time_machine.shift(3)
@@ -546,14 +541,11 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
 
-        with create_session() as session:
-            session.get(TaskInstance, ti.id).try_number += 1
-
         # third run -- failed
         time_machine.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
-        assert ti.try_number == 3
+        assert ti.try_number == 2
 
     def test_retry_handling(self, dag_maker, session):
         """
@@ -576,21 +568,15 @@ class TestTaskInstance:
         def run_with_error():
             with contextlib.suppress(AirflowException):
                 dag_maker.run_ti(ti.task_id, dag_run)
-            return session.get(TaskInstance, ti.id)
+            return dag_run.get_task_instance(ti.task_id, session=session)
 
         dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         ti = dag_run.task_instances[0]
         assert ti.try_number == 0
-        session.get(TaskInstance, ti.id).try_number += 1
-        session.commit()
-
         # first run -- up for retry
         ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 1
-
-        session.get(TaskInstance, ti.id).try_number += 1
-        session.commit()
+        assert ti.try_number == 2
 
         # second run -- fail
         ti = run_with_error()
@@ -602,23 +588,56 @@ class TestTaskInstance:
         dag.clear()
 
         ti.refresh_from_db()
-        ti.try_number += 1
-        session.add(ti)
-        session.commit()
+        assert ti.try_number == 3
 
         # third run -- up for retry
         ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 3
-
-        session.get(TaskInstance, ti.id).try_number += 1
-        session.commit()
+        assert ti.try_number == 4
 
         # fourth run -- fail
         ti = run_with_error()
         assert ti.state == State.FAILED
         assert ti.try_number == 4
         assert RenderedTaskInstanceFields.get_templated_fields(ti) == expected_rendered_ti_fields
+
+    @pytest.mark.parametrize("try_number", [1, 3, 50, 10000])
+    @pytest.mark.parametrize(
+        ("multiplier", "max_delay", "override"),
+        [(1, None, None), (2, None, None), (3, 60, None), (2, 60, 7), (2, 60, 0)],
+    )
+    def test_prepare_next_try_preserves_retry_deadline(
+        self, dag_maker, session, try_number, multiplier, max_delay, override
+    ):
+        with dag_maker():
+            task = BashOperator(
+                task_id="retry",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(seconds=30),
+                retry_exponential_backoff=multiplier,
+                max_retry_delay=datetime.timedelta(seconds=max_delay) if max_delay else None,
+            )
+        ti = dag_maker.create_dagrun(session=session).task_instances[0]
+        ti.task = task
+        ti.state = State.RUNNING
+        ti.try_number = try_number
+        ti.end_date = timezone.utcnow()
+        ti.retry_delay_override = override
+        old_id = ti.id
+        deadline = ti.next_retry_datetime()
+
+        ti.prepare_db_for_next_try(session)
+        ti.state = State.UP_FOR_RETRY
+        session.flush()
+
+        assert ti.id != old_id
+        assert ti.try_number == try_number + 1
+        assert ti.next_retry_datetime() == deadline
+        history = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+        )
+        assert history.try_number == try_number
 
     def test_next_retry_datetime(self, dag_maker):
         delay = datetime.timedelta(seconds=30)
@@ -819,7 +838,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti.try_number == 0
+        assert ti.try_number == 1
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
@@ -882,7 +901,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti.try_number == 0
+        assert ti.try_number == 1
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
@@ -907,10 +926,12 @@ class TestTaskInstance:
         # depends_on_past prevents the run
         ti = dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         assert ti.state is None
+        assert ti.try_number == 0
 
         # ignore first depends_on_past to allow the run
         ti = dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         assert ti.state == State.SUCCESS
+        assert ti.try_number == 1
 
     def test_depends_on_past_catchup_false(self, dag_maker):
         class CustomOp(BaseOperator):
@@ -2355,17 +2376,16 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
     @provide_session
-    def test_handle_failure_calls_listener(self, dag_maker, *, session: Session):
+    def test_handle_failure_calls_listener(self, dag_maker, mocker, *, session: Session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
-        from airflow.listeners.listener import get_listener_manager
-
-        listener_callback_on_error = mock.MagicMock()
-        get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
+        listener_callback_on_error = mocker.patch.object(
+            get_listener_manager().pm.hook, "on_task_instance_failed", autospec=True
+        )
 
         with dag_maker(dag_id="test_handle_failure", start_date=start_date, schedule=None) as dag:
             task1 = CustomOp(
@@ -2441,8 +2461,7 @@ class TestTaskInstance:
 
         ti.handle_failure("test queued ti", test_mode=False)
         assert ti.state == State.UP_FOR_RETRY
-        # try_number remains at 1
-        assert ti.try_number == 1
+        assert ti.try_number == 2
 
         mock_backend.incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
@@ -3003,26 +3022,19 @@ def test_defer_task_with_trigger_timeout(create_task_instance):
 
 
 @pytest.mark.parametrize(
-    ("initial_state", "initial_try_number", "expected_try_number", "msg"),
+    ("initial_state", "initial_try_number", "expected_try_number"),
     [
-        (TaskInstanceState.DEFERRED, 1, 2, "try_number should increment if state is not UP_FOR_RESCHEDULE"),
-        (
-            TaskInstanceState.UP_FOR_RESCHEDULE,
-            5,
-            5,
-            "try_number should NOT increment if state is UP_FOR_RESCHEDULE",
-        ),
+        (None, 0, 1),
+        (None, 3, 3),
+        (TaskInstanceState.UP_FOR_RETRY, 3, 3),
+        (TaskInstanceState.DEFERRED, 1, 1),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 5, 5),
     ],
 )
-def test_defer_task_try_number_increment_on_state(
-    create_task_instance, initial_state, initial_try_number, expected_try_number, msg
+def test_defer_task_initializes_only_first_attempt(
+    create_task_instance, session, initial_state, initial_try_number, expected_try_number
 ):
-    """
-    Test that defer_task increments try_number only if the pre-deferral state is not UP_FOR_RESCHEDULE.
-    """
     from airflow.triggers.base import StartTriggerArgs
-
-    session = mock.MagicMock()
 
     ti = create_task_instance(
         dag_id="test_defer_task_try_number",
@@ -3037,7 +3049,7 @@ def test_defer_task_try_number_increment_on_state(
     ti.state = initial_state
     ti.try_number = initial_try_number
     ti.defer_task(session=session)
-    assert ti.try_number == expected_try_number, msg
+    assert ti.try_number == expected_try_number
 
 
 def _defer_ti_in_testing_bundle(create_task_instance, session, *, with_team):
@@ -4531,3 +4543,49 @@ class TestTaskInstanceStatsTagsTeamName:
             mock.ANY,
             tags=expected_tags,
         )
+
+
+@pytest.mark.parametrize("retries", [0, 1])
+@pytest.mark.parametrize("listener_raises", [False, True])
+def test_failure_listener_receives_failed_try_before_rotation(
+    dag_maker, session, mocker, retries, listener_raises
+):
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="task", retries=retries)
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", session=session)
+    ti.task = dag.get_task("task")
+    ti.try_number = 1
+    ti.state = State.RUNNING
+    session.commit()
+    original_id = ti.id
+    received = []
+
+    def record_failure(previous_state, task_instance, error):
+        received.append(
+            (task_instance.id, task_instance.try_number, task_instance.state, previous_state, error)
+        )
+        if listener_raises:
+            raise RuntimeError("listener failed")
+
+    mocker.patch.object(
+        get_listener_manager().hook, "on_task_instance_failed", autospec=True, side_effect=record_failure
+    )
+
+    ti.handle_failure("worker lost", session=session)
+
+    expected_state = State.UP_FOR_RETRY if retries else State.FAILED
+    assert received == [(original_id, 1, expected_state, State.RUNNING, "worker lost")]
+    ti.refresh_from_db(session=session)
+    assert ti.state == expected_state
+    if retries:
+        assert ti.id != original_id
+        assert ti.try_number == 2
+        history = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == original_id)
+        )
+        assert history.try_number == 1
+        assert history.state == State.FAILED
+    else:
+        assert ti.id == original_id
+        assert ti.try_number == 1

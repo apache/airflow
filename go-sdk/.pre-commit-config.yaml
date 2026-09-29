@@ -66,3 +66,10 @@ repos:
         additional_dependencies: [github.com/segmentio/golines@latest, mvdan.cc/gofumpt@v0.8.0]
         types: [go]
         language: golang
+      - id: staticcheck
+        name: Check naming in Go code
+        entry: staticcheck -checks ST1003 ./...
+        additional_dependencies: [honnef.co/go/tools/cmd/staticcheck@v0.7.0]
+        types: [go]
+        pass_filenames: false
+        language: golang
