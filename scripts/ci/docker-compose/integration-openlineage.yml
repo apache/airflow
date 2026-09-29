@@ -19,6 +19,8 @@ services:
   marquez:
     image: marquezproject/marquez:0.49.0
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Openlineage hooks."
     environment:
       - POSTGRES_USER=marquez
@@ -33,6 +35,9 @@ services:
     entrypoint: ["./entrypoint.sh"]
 
   marquez_web:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: marquezproject/marquez-web:0.49.0
     environment:
       - MARQUEZ_HOST=marquez
