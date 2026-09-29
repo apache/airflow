@@ -326,6 +326,26 @@ def test_sync_bundles_to_db_skips_team_queries_without_multi_team(clear_db, sess
 
 
 @pytest.mark.db_test
+@pytest.mark.backend("mysql")
+@conf_vars({("core", "LOAD_EXAMPLES"): "False", ("core", "multi_team"): "True"})
+def test_sync_bundles_to_db_resolves_team_configured_in_a_different_case_on_mysql(clear_db, session):
+    session.add(Team(name="team-a"))
+    session.commit()
+    bundle_config = [
+        {
+            "name": "bundle-0",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": "/tmp/bundle-0", "refresh_interval": 1},
+            "team_name": "Team-A",
+        }
+    ]
+
+    _sync_and_count_team_queries(bundle_config, session)
+
+    assert [team.name for team in session.scalars(select(DagBundleModel)).one().teams] == ["team-a"]
+
+
+@pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db_partial_config_does_not_disable_other_bundles(clear_db, session):
     """
