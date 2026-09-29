@@ -2723,6 +2723,42 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
+    def test_dags_needing_dagruns_without_scheduled(self, dag_maker, session):
+        """include_scheduled=False leaves out a Dag due by its schedule but keeps an asset-triggered one."""
+        asset = Asset(uri="test://asset-without-scheduled", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="due_by_schedule",
+            schedule="@daily",
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+        assert dag_maker.dag_model.next_dagrun_create_after <= timezone.utcnow()
+        with dag_maker(
+            session=session,
+            dag_id="asset_triggered",
+            schedule=[asset],
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+        asset_model = dag_maker.dag_model.schedule_assets[0]
+        event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(
+                asset_id=asset_model.id, target_dag_id="asset_triggered", asset_event_id=event.id
+            )
+        )
+        session.flush()
+
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert sorted(dag_model.dag_id for dag_model in query) == ["asset_triggered", "due_by_schedule"]
+
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session, include_scheduled=False)
+        assert [dag_model.dag_id for dag_model in query] == ["asset_triggered"]
+        assert list(triggered_date_by_dag) == ["asset_triggered"]
+
     def test_dags_needing_dagruns_skips_adrq_when_serialized_dag_missing(
         self, session, caplog, testing_dag_bundle
     ):

@@ -702,7 +702,9 @@ class DagModel(Base):
         return any_deactivated
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime]]:
+    def dags_needing_dagruns(
+        cls, session: Session, *, include_scheduled: bool = True
+    ) -> tuple[Any, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -714,6 +716,9 @@ class DagModel(Base):
         but no matching ``SerializedDagModel`` row are omitted from the asset-aware scheduling
         buckets until serialization exists; ADRQs are **not** deleted here so the scheduler can
         re-evaluate on a later run.
+
+        With ``include_scheduled=False`` (``[scheduler] use_job_schedule`` turned off), only asset-triggered
+        Dags are returned, not Dags that are due by their timetable.
 
         :meta private:
         """
@@ -836,6 +841,9 @@ class DagModel(Base):
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
+        if not include_scheduled:
+            # Dags due by their timetable get no run, so they would stay due and could fill the batch.
+            query = query.where(cls.dag_id.in_(asset_triggered_dag_ids))
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
