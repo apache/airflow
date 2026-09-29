@@ -849,16 +849,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
                 output,
                 message_history=result.all_messages(),
             )
-            if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-                return rehydrate_pydantic_output(
-                    self.output_type,
-                    result_str,
-                    serialize_output=self._serialize_model_output,
-                )
-            try:
-                return json.loads(result_str)
-            except (ValueError, TypeError):
-                return result_str
+            return rehydrate_pydantic_output(
+                self.output_type,
+                result_str,
+                serialize_output=self._serialize_model_output,
+            )
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
