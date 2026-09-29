@@ -3223,8 +3223,9 @@ dag_processor:
 
         The default is the dags folder dag bundle.
 
-        A backend config may also supply ``importers``: Dag importers for that bundle only, in
-        the format of ``[dag_processor] dag_importer_configs``, taking precedence over it.
+        A backend config may also supply ``importers`` (experimental): Dag importers for that
+        bundle only, in the format of ``[dag_processor] dag_importer_configs``, taking precedence
+        over it.
 
         Note: As shown below, you can split your json config over multiple lines by indenting.
         See configparser documentation for an example:
@@ -3254,6 +3255,8 @@ dag_processor:
 
     dag_importer_configs:
       description: |
+        .. note:: |experimental|
+
         List of Dag importer configs. Each entry must supply ``classpath`` and may supply
         ``extensions`` and ``kwargs``.
 
