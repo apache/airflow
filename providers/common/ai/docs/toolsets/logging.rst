@@ -51,4 +51,8 @@ You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
     logged_toolset = LoggingToolset(wrapped=sql_toolset, logger=my_logger)
 
 Each tool call produces two INFO log lines (name + timing) and optional
-DEBUG-level argument logging. Exceptions are logged and re-raised.
+DEBUG-level argument logging. Control-flow signals that let the model retry,
+report a failed tool result, defer or skip a call, or wait for approval are
+logged at INFO and re-raised. Other exceptions, including
+``SkipToolValidation`` raised by a tool body, are logged at ERROR with a
+traceback and re-raised.

@@ -679,8 +679,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if self.code_mode:
             capabilities.append(_build_code_mode())
         if self.enable_tool_logging:
-            # Keep logging last because CombinedCapability applies wrappers in reverse order,
-            # placing LoggingToolset inside CodeModeToolset where code mode expects wrapped tools.
+            # ToolLoggingCapability's innermost ordering keeps logging inside capability wrappers,
+            # including CodeModeToolset where code mode expects the wrapped tools.
             capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
