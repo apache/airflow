@@ -388,6 +388,7 @@ def _get_serialized_diff_data(
                 "reference": alert.reference,
                 "interval": alert.interval,
                 "callback": alert.callback_def,
+                "fire_on_failure": alert.fire_on_failure,
             }
         )
     # Stored UUIDs differ between versions even when the alert definitions are identical.

@@ -322,12 +322,17 @@ class TestDagVersionGetDiff:
         bundle_name = "version_diff_deadlines"
 
         def create_versions(
-            *, name="completion", target_interval=timedelta(minutes=5), target_callback_kwargs=None
+            *,
+            name="completion",
+            target_interval=timedelta(minutes=5),
+            target_callback_kwargs=None,
+            target_fire_on_failure=False,
         ):
             definitions = []
             for version_number in (1, 2):
                 deadline = DeadlineAlert(
                     name=name,
+                    fire_on_failure=version_number == 2 and target_fire_on_failure,
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(minutes=5) if version_number == 1 else target_interval,
                     callback=AsyncCallback(
@@ -577,13 +582,14 @@ class TestDagVersionGetDiff:
         assert result["values"] == {"status": "unavailable"}
 
     @pytest.mark.parametrize("values_status", ["unavailable", "available"])
-    @pytest.mark.parametrize("changed_field", [None, "interval", "callback"])
+    @pytest.mark.parametrize("changed_field", [None, "interval", "callback", "fire_on_failure"])
     def test_compares_stored_deadline_definitions(
         self, create_deadline_versions, session, values_status, changed_field
     ):
         dag_id, definitions = create_deadline_versions(
             target_interval=timedelta(minutes=10 if changed_field == "interval" else 5),
             target_callback_kwargs={"message": "changed"} if changed_field == "callback" else None,
+            target_fire_on_failure=changed_field == "fire_on_failure",
         )
         versions = [DagVersion.get_version(dag_id, number, session=session) for number in (1, 2)]
         stored_payloads = [copy.deepcopy(version.serialized_dag.data) for version in versions]
@@ -649,7 +655,7 @@ class TestDagVersionGetDiff:
             assert result["unavailable_reason"] == expected_reason
 
     @pytest.mark.parametrize("inline_format", ["plain", "wrapped", "legacy"])
-    @pytest.mark.parametrize("changed_field", [None, "interval", "callback"])
+    @pytest.mark.parametrize("changed_field", [None, "interval", "callback", "fire_on_failure"])
     def test_compares_inline_and_referenced_deadline_definitions(
         self, create_deadline_versions, session, inline_format, changed_field
     ):
@@ -657,12 +663,14 @@ class TestDagVersionGetDiff:
             name=None if inline_format == "legacy" else "completion",
             target_interval=timedelta(minutes=10 if changed_field == "interval" else 5),
             target_callback_kwargs={"message": "changed"} if changed_field == "callback" else None,
+            target_fire_on_failure=changed_field == "fire_on_failure",
         )
         base = DagVersion.get_version(dag_id, 1, session=session).serialized_dag
         inline_data = copy.deepcopy(base.data)
         definition = copy.deepcopy(definitions[0])
         if inline_format == "legacy":
             definition.pop("name")
+            definition.pop("fire_on_failure")
             definition["interval"] = 300.0
         if inline_format != "plain":
             definition = {"__type": "deadline_alert", "__var": definition}
