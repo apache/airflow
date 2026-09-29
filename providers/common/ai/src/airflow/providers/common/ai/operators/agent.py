@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import collections
 import copy
 import hashlib
 import json
@@ -728,6 +729,38 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             rewrapped.append(capability)
         return rewrapped
 
+    def _log_durable_summary(self, counter: DurableStepCounter) -> None:
+        """
+        Log what this attempt replayed and cached, and which steps it could not cache.
+
+        A step whose cache write was skipped (a tool result that is not
+        JSON-serializable, a store write that fails) ran live but is not cached,
+        so a retry runs it again. For a tool with side effects the side effect
+        repeats, so those tools are named rather than counted as cached.
+        """
+        self.log.info(
+            "Durable: replayed %d cached steps (%d model, %d tool), cached %d new steps (%d model, %d tool)",
+            counter.replayed_model + counter.replayed_tool,
+            counter.replayed_model,
+            counter.replayed_tool,
+            counter.cached_model + counter.cached_tool,
+            counter.cached_model,
+            counter.cached_tool,
+        )
+        if counter.skipped_tools:
+            calls = collections.Counter(counter.skipped_tools)
+            self.log.warning(
+                "Durable: %d tool results were not cached, and a retry runs them again: %s",
+                len(counter.skipped_tools),
+                ", ".join(name if n == 1 else f"{name} (x{n})" for name, n in calls.items()),
+            )
+        if counter.skipped_model:
+            self.log.warning(
+                "Durable: %d model responses were not cached, and a retry re-runs them "
+                "and every step after the first of them",
+                counter.skipped_model,
+            )
+
     def _build_durable_storage(self, context: Context) -> DurableStorageProtocol:
         """
         Return the durable storage backend for the current task instance.
@@ -809,7 +842,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             resolved_model = infer_model(agent.model)
             caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
             with agent.override(model=caching_model):
-                result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
+                try:
+                    result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
+                finally:
+                    # Also on a raise: the failed attempt is the one Airflow retries.
+                    self._log_durable_summary(counter)
         else:
             result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
 
@@ -821,22 +858,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if isinstance(result.output, DeferredToolRequests):
             self._pause_for_tool_approval(context, result)
         self._emit_run_metadata(context, result)
-
-        if self._durable_counter is not None:
-            c = self._durable_counter
-            replayed = c.replayed_model + c.replayed_tool
-            cached = c.cached_model + c.cached_tool
-            if replayed:
-                self.log.info(
-                    "Durable: replayed %d cached steps (%d model, %d tool), "
-                    "executed %d new steps (%d model, %d tool)",
-                    replayed,
-                    c.replayed_model,
-                    c.replayed_tool,
-                    cached,
-                    c.cached_model,
-                    c.cached_tool,
-                )
 
         if self.message_history is not None:
             self._emit_message_history(context, result)
