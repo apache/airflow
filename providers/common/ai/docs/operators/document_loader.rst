@@ -73,14 +73,28 @@ Install the ``docx`` extra to parse Word documents via
 
     pip install "apache-airflow-providers-common-ai[docx]"
 
-All non-empty paragraphs are concatenated into a single document per file.
+Paragraphs and tables in the document body are concatenated, in document
+order, into a single document per file. Empty paragraphs and table rows are
+skipped. Each table row becomes one line:
+
+.. code-block:: text
+
+    Quarterly results
+
+    | Region | Revenue |
+    | EMEA | 1.2M |
+
+A cell merged across columns appears once. A cell merged down several rows is
+repeated on each of those rows, so every row still reads on its own. A table
+nested inside a cell is flattened into that cell, with ``/`` between its cells
+and ``;`` between its rows.
 
 .. note::
 
-   DOCX extraction reads paragraph text only. Tables, headers, footers, and
-   footnotes are not included. For richer DOCX parsing, use a dedicated
-   extraction tool (``Unstructured``, ``docling``) as a custom parser
-   backend.
+   Headers, footers, footnotes, and content controls are not included. For
+   richer DOCX parsing, use a dedicated extraction tool (``Unstructured``,
+   ``docling``) in a ``@task`` that returns the same
+   ``list[dict(text, metadata)]`` shape.
 
 Directory mode and filtering
 ----------------------------

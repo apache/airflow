@@ -30,6 +30,8 @@ from airflow.providers.common.compat.sdk import (
 )
 
 if TYPE_CHECKING:
+    from docx.table import Table, _Cell
+
     from airflow.sdk import Context
 
 
@@ -452,19 +454,56 @@ class DocumentLoaderOperator(BaseOperator):
 
     def _parse_docx_stream(self, stream: BinaryIO) -> list[dict[str, Any]]:
         """
-        Parse a DOCX stream into documents.
+        Parse a DOCX stream into a single document.
 
-        Extracts paragraph text only. Tables, headers, footers, and footnotes
-        are not included. For richer DOCX parsing, plug in a dedicated
-        extraction tool (``Unstructured``, ``docling``) as a custom parser
-        backend.
+        Paragraphs and tables in the document body are extracted in document
+        order. Each table row becomes one "| cell | cell |" line, and a nested
+        table is flattened into its cell. Headers, footers, footnotes, and
+        content controls are not included.
         """
         try:
             from docx import Document
+            from docx.table import Table
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
 
         doc = Document(stream)
-        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-        text = "\n\n".join(paragraphs)
+        blocks = []
+        for block in doc.iter_inner_content():
+            if isinstance(block, Table):
+                text = "\n".join(f"| {' | '.join(cells)} |" for cells in self._get_docx_table_rows(block))
+            else:
+                text = block.text
+            if text.strip():
+                blocks.append(text)
+        text = "\n\n".join(blocks)
         return [{"text": text, "metadata": {}}]
+
+    def _get_docx_table_rows(self, table: Table) -> list[list[str]]:
+        rows = []
+        for row in table.rows:
+            cells: list[str] = []
+            previous_cell = None
+            for cell in row.cells:
+                # python-docx repeats the same _Cell object for every grid column a
+                # horizontal merge spans. A vertical merge repeats on each row it spans.
+                if cell is previous_cell:
+                    continue
+                previous_cell = cell
+                cells.append(self._get_docx_cell_text(cell))
+            if any(cells):
+                rows.append(cells)
+        return rows
+
+    def _get_docx_cell_text(self, cell: _Cell) -> str:
+        from docx.table import Table
+
+        parts = []
+        for item in cell.iter_inner_content():
+            if isinstance(item, Table):
+                text = "; ".join(" / ".join(cells) for cells in self._get_docx_table_rows(item))
+            else:
+                text = " ".join(item.text.split())
+            if text:
+                parts.append(text)
+        return " ".join(parts)
