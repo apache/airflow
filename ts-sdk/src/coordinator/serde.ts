@@ -154,6 +154,7 @@ export function serializeDag(
         withDagQueue(record.spec, dag.spec.queue),
         graph.downstreamTaskIds.get(taskId),
         inputs.get(taskId),
+        record.canSkipDownstream === true,
       ),
     ),
     dag_dependencies: [],
@@ -191,6 +192,7 @@ function serializeTask(
   spec: object,
   downstream: ReadonlySet<string> | undefined,
   inputs: RecordedInputs | undefined,
+  canSkipDownstream: boolean,
 ): SerializedValue {
   const data: Record<string, SerializedValue> = {
     task_id: taskId,
@@ -208,6 +210,10 @@ function serializeTask(
   };
   const bindings = serializeArgBindings(inputs);
   if (bindings) data["_arg_bindings"] = bindings;
+  // What Python writes for a SkipMixin operator, and what makes
+  // `NotPreviouslySkippedDep` consult this task's `skipmixin_key` XCom when one
+  // of its skipped downstream tasks is cleared.
+  if (canSkipDownstream) data["_can_skip_downstream"] = true;
   applySchemaFields(data, spec, TASK_FIELD_RULES, `task "${taskId}" of Dag "${dagId}"`);
   if (downstream?.size) {
     data["downstream_task_ids"] = [...downstream].sort();
