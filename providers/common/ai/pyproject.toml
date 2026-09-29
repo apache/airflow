@@ -172,7 +172,7 @@ dependencies = [
     "llama-index-llms-openai>=0.6.8",
 ]
 "pdf" = ["pypdf>=4.0.0"]
-"docx" = ["python-docx>=1.0.0"]
+"docx" = ["python-docx>=1.1.0"]
 "git" = [
     "apache-airflow-providers-git"
 ]
@@ -208,6 +208,8 @@ dev = [
     "openshell>=0.1.2,<0.2",
     "grpcio>=1.78.0",
     "protobuf>=6.31.1",
+    # The DOCX parser tests build real documents in memory instead of mocking python-docx.
+    "python-docx>=1.1.0",
 ]
 
 # To build docs:
