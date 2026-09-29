@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
+import copy
 import datetime
 import enum
 import itertools
@@ -41,6 +42,7 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow._shared.dagnode.cycle import detect_cycle
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -2130,6 +2132,41 @@ class DagSerialization(BaseSerialization):
 
         # Pass client_defaults directly to deserialize_dag
         return cls.deserialize_dag(serialized_obj["dag"], client_defaults)
+
+    @classmethod
+    def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> None:
+        """
+        Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
+
+        It must match the JSON schema, deserialize, and have no cycle in its task graph.
+        *serialized_obj* is not changed.
+
+        :raises DeserializationError: if it does not.
+        """
+        from jsonschema import ValidationError
+
+        dag = serialized_obj.get("dag")
+        dag_id = dag.get("dag_id") if isinstance(dag, dict) else None
+        try:
+            cls.validate_schema(serialized_obj)
+        except ValidationError as e:
+            raise DeserializationError(
+                dag_id, f"Dag {dag_id!r} does not match the schema: {e.message}"
+            ) from e
+        try:
+            cls.from_dict(copy.deepcopy(serialized_obj))
+        except Exception as e:
+            cause = e.__cause__ if isinstance(e, DeserializationError) and e.__cause__ else e
+            raise DeserializationError(
+                dag_id, f"Dag {dag_id!r} cannot be deserialized: {type(cause).__name__}: {cause}"
+            ) from e
+        downstream = {
+            task[Encoding.VAR]["task_id"]: task[Encoding.VAR].get("downstream_task_ids") or ()
+            for task in serialized_obj["dag"]["tasks"]
+            if task.get(Encoding.TYPE) == DAT.OP
+        }
+        if (task_id := detect_cycle(downstream, downstream.__getitem__)) is not None:
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} has a cycle through task {task_id!r}")
 
 
 class TaskGroupSerialization(BaseSerialization):
