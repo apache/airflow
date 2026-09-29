@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 import structlog
 from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session, joinedload, load_only
+from sqlalchemy.orm import Session, load_only, selectinload
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -895,16 +895,23 @@ class DagModelOperation(NamedTuple):
     enforce_bundle_ownership: bool = False
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
-        """Find existing DagModel objects from DAG objects."""
+        """
+        Find existing DagModel objects from DAG objects.
+
+        One-to-many collections are loaded with ``selectinload``: eager-joining
+        several of them in one query multiplies rows per DAG (a cartesian
+        product across collections), which dominates DagModel sync time on
+        deployments with many DAGs.
+        """
         stmt = (
             select(DagModel)
-            .options(joinedload(DagModel.tags, innerjoin=False))
+            .options(selectinload(DagModel.tags))
             .where(DagModel.dag_id.in_(self.dags))
             .order_by(DagModel.dag_id)
-            .options(joinedload(DagModel.schedule_asset_references))
-            .options(joinedload(DagModel.schedule_asset_alias_references))
-            .options(joinedload(DagModel.task_outlet_asset_references))
-            .options(joinedload(DagModel.dag_owner_links))
+            .options(selectinload(DagModel.schedule_asset_references))
+            .options(selectinload(DagModel.schedule_asset_alias_references))
+            .options(selectinload(DagModel.task_outlet_asset_references))
+            .options(selectinload(DagModel.dag_owner_links))
         )
         if self.enforce_bundle_ownership:
             stmt = stmt.with_for_update(of=DagModel, key_share=True).execution_options(populate_existing=True)
