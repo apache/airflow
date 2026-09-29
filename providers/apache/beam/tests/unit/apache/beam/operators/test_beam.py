@@ -452,7 +452,9 @@ class TestBeamRunJavaPipelineOperator:
         start_java_dataflow.
         """
         dataflow_config = DataflowConfiguration(
-            impersonation_chain="test@impersonation.com", service_account=TEST_SERVICE_ACCOUNT
+            impersonation_chain="test@impersonation.com",
+            service_account=TEST_SERVICE_ACCOUNT,
+            max_num_workers=7,
         )
         op = BeamRunJavaPipelineOperator(
             **self.default_op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
@@ -482,6 +484,7 @@ class TestBeamRunJavaPipelineOperator:
             "output": "gs://test/output",
             "serviceAccount": TEST_SERVICE_ACCOUNT,
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
+            "max_num_workers": 7,
         }
         persist_link_mock.assert_called_once_with(
             context={},
