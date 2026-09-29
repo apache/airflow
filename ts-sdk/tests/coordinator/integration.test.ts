@@ -942,4 +942,345 @@ describe("coordinator runtime integration", () => {
     const setXComReqs = result.runtimeRequests.filter((r) => r.type === "SetXCom");
     expect(setXComReqs).toHaveLength(0);
   });
+
+  describe("triggerDagRun", () => {
+    const DAG_STATE_TRIGGER = "airflow.providers.standard.triggers.external_task.DagStateTrigger";
+    const OK = { body: { type: "OKResponse", ok: true } };
+
+    /** Answers each request type with the next queued reply, acking the rest. */
+    function replies(queued: Record<string, { body: unknown }[]>): Responder {
+      return (msgType) => queued[msgType]?.shift() ?? { body: null };
+    }
+
+    function requestsOf(result: MockResult, type: string) {
+      return result.runtimeRequests.filter((r) => r.type === type).map((r) => r.body);
+    }
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("triggers the run, pushes the link and run id, and succeeds", async () => {
+      testDag.triggerDagRun({
+        taskId: "trigger",
+        dagId: "downstream",
+        conf: { source: "ts" },
+        note: "from ts",
+      });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests.map((r) => r.type)).toEqual([
+        "SetXCom",
+        "TriggerDagRun",
+        "SetXCom",
+      ]);
+      const [sent] = requestsOf(result, "TriggerDagRun");
+      const runId = sent!["run_id"] as string;
+      // `DagRun.generate_run_id` for a set logical date: manual__<isoformat()>.
+      expect(runId).toMatch(/^manual__\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{6})?\+00:00$/);
+      expect(new Date(sent!["logical_date"] as string).getTime()).toBe(
+        new Date(runId.slice("manual__".length)).getTime(),
+      );
+      expect(sent).toMatchObject({
+        dag_id: "downstream",
+        conf: { source: "ts" },
+        reset_dag_run: false,
+        note: "from ts",
+        run_after: null,
+      });
+      expect(requestsOf(result, "SetXCom")).toEqual([
+        expect.objectContaining({
+          key: "_link_TriggerDagRunLink",
+          value: `/dags/downstream/runs/${runId}`,
+          task_id: "trigger",
+        }),
+        expect.objectContaining({ key: "trigger_run_id", value: runId, task_id: "trigger" }),
+      ]);
+    });
+
+    it("builds the link on AIRFLOW__API__BASE_URL when the environment sets it", async () => {
+      vi.stubEnv("AIRFLOW__API__BASE_URL", "https://airflow.example.com/sub/");
+      testDag.triggerDagRun({ taskId: "trigger", dagId: "downstream", runId: "given" });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      expect(requestsOf(result, "TriggerDagRun")[0]).toMatchObject({ run_id: "given" });
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        value: "https://airflow.example.com/sub/dags/downstream/runs/given",
+      });
+    });
+
+    it.each([
+      [true, "skipped"],
+      [false, "failed"],
+    ])(
+      "with skipWhenAlreadyExists=%s, ends %s when the run exists, retries or not",
+      async (skip, state) => {
+        testDag.triggerDagRun({
+          taskId: "trigger",
+          dagId: "downstream",
+          skipWhenAlreadyExists: skip,
+        });
+
+        const result = await driveSupervisor(
+          makeStartupDetails("trigger", "test_dag", "r1", { should_retry: true }),
+          replies({
+            TriggerDagRun: [{ body: { type: "ErrorResponse", error: "DAGRUN_ALREADY_EXISTS" } }],
+          }),
+        );
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state });
+        expect(requestsOf(result, "SetXCom").map((b) => b["key"])).toEqual([
+          "_link_TriggerDagRunLink",
+        ]);
+      },
+    );
+
+    it("fails like any task error when the trigger request itself fails", async () => {
+      testDag.triggerDagRun({ taskId: "trigger", dagId: "missing" });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", { should_retry: true }),
+        replies({
+          TriggerDagRun: [
+            {
+              body: {
+                type: "ErrorResponse",
+                error: "API_SERVER_ERROR",
+                detail: { status_code: 404 },
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "TriggerDagRun failed: API_SERVER_ERROR",
+      });
+    });
+
+    it("refuses to trigger a paused Dag when failWhenDagIsPaused is set", async () => {
+      testDag.triggerDagRun({ taskId: "trigger", dagId: "downstream", failWhenDagIsPaused: true });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({
+          GetDag: [{ body: { type: "DagResult", dag_id: "downstream", is_paused: true } }],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(requestsOf(result, "GetDag")).toEqual([{ type: "GetDag", dag_id: "downstream" }]);
+      expect(requestsOf(result, "TriggerDagRun")).toEqual([]);
+    });
+
+    it("polls the run's state until it reaches an allowed state", async () => {
+      testDag.triggerDagRun({
+        taskId: "trigger",
+        dagId: "downstream",
+        waitForCompletion: true,
+        pokeInterval: 0,
+      });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({
+          TriggerDagRun: [OK],
+          GetDagRunState: [
+            { body: { type: "DagRunStateResult", state: "queued" } },
+            { body: { type: "DagRunStateResult", state: "running" } },
+            { body: { type: "DagRunStateResult", state: "success" } },
+          ],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      const runId = requestsOf(result, "TriggerDagRun")[0]!["run_id"];
+      expect(requestsOf(result, "GetDagRunState")).toEqual(
+        Array(3).fill({ type: "GetDagRunState", dag_id: "downstream", run_id: runId }),
+      );
+    });
+
+    it("fails, with retries honoured, when the polled run reaches a failed state", async () => {
+      testDag.triggerDagRun({
+        taskId: "trigger",
+        dagId: "downstream",
+        waitForCompletion: true,
+        pokeInterval: 0,
+      });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", { should_retry: true }),
+        replies({
+          TriggerDagRun: [OK],
+          GetDagRunState: [{ body: { type: "DagRunStateResult", state: "failed" } }],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "downstream failed with failed state failed",
+      });
+    });
+
+    it("defers to DagStateTrigger with the kwargs Python's serializer writes", async () => {
+      testDag.triggerDagRun({
+        taskId: "trigger",
+        dagId: "downstream",
+        waitForCompletion: true,
+        deferrable: true,
+        pokeInterval: 5,
+        allowedStates: ["success"],
+        failedStates: ["failed", "queued"],
+      });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      const runId = requestsOf(result, "TriggerDagRun")[0]!["run_id"];
+      expect(result.firstResponse!.body).toEqual({
+        type: "DeferTask",
+        state: "deferred",
+        classpath: DAG_STATE_TRIGGER,
+        trigger_kwargs: {
+          dag_id: "downstream",
+          states: ["success", "failed", "queued"],
+          poll_interval: 5,
+          run_ids: [runId],
+          execution_dates: null,
+        },
+        trigger_timeout: null,
+        queue: null,
+        next_method: "execute_complete",
+        next_kwargs: {},
+      });
+      expect(requestsOf(result, "GetDagRunState")).toEqual([]);
+    });
+
+    it.each([
+      ["False", null],
+      ["True", "default"],
+    ])(
+      "with AIRFLOW__TRIGGERER__QUEUES_ENABLED=%s, hands the trigger the queue %s",
+      async (enabled, queue) => {
+        vi.stubEnv("AIRFLOW__TRIGGERER__QUEUES_ENABLED", enabled);
+        testDag.triggerDagRun({
+          taskId: "trigger",
+          dagId: "downstream",
+          waitForCompletion: true,
+          deferrable: true,
+        });
+
+        const result = await driveSupervisor(
+          makeStartupDetails("trigger"),
+          replies({ TriggerDagRun: [OK] }),
+        );
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "DeferTask", queue });
+      },
+    );
+
+    it("ignores deferrable without waitForCompletion, as Python does", async () => {
+      testDag.triggerDagRun({ taskId: "trigger", dagId: "downstream", deferrable: true });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    });
+
+    /** `next_kwargs` as `handle_event_submit` stores DagStateTrigger's event. */
+    function resumedWith(state: string, runId = "manual__2026-09-29T12:00:00+00:00") {
+      return {
+        next_method: "execute_complete",
+        next_kwargs: {
+          event: {
+            __classname__: "builtins.tuple",
+            __version__: 1,
+            __data__: [
+              DAG_STATE_TRIGGER,
+              {
+                dag_id: "downstream",
+                states: ["success", "failed"],
+                poll_interval: 60,
+                run_ids: [runId],
+                execution_dates: null,
+                [runId]: state,
+              },
+            ],
+          },
+        },
+      };
+    }
+
+    it("succeeds on resume when the triggered run finished in an allowed state", async () => {
+      testDag.triggerDagRun({
+        taskId: "trigger",
+        dagId: "downstream",
+        waitForCompletion: true,
+        deferrable: true,
+      });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", resumedWith("success")),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      // Resuming runs execute_complete only: nothing is triggered or pushed again.
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("fails on resume when the triggered run finished in a failed state", async () => {
+      testDag.triggerDagRun({
+        taskId: "trigger",
+        dagId: "downstream",
+        waitForCompletion: true,
+        deferrable: true,
+      });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", resumedWith("failed")),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    });
+
+    it("fails on resume through __fail__, when the trigger failed or timed out", async () => {
+      testDag.triggerDagRun({
+        taskId: "trigger",
+        dagId: "downstream",
+        waitForCompletion: true,
+        deferrable: true,
+      });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", {
+          should_retry: true,
+          next_method: "__fail__",
+          next_kwargs: { error: "Trigger timeout", traceback: ["Traceback", "TimeoutError"] },
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "Trigger timeout",
+      });
+      expect(
+        result.logRecords.some((r) => String(r["event"]).includes("Trigger failed:\nTraceback")),
+      ).toBe(true);
+    });
+  });
 });
