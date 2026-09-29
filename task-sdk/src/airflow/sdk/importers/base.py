@@ -410,8 +410,16 @@ class DagImporterRegistry:
 
     @classmethod
     def from_config(cls, bundle_name: str | None = None) -> Self:
-        """Create and configure a DagImporterRegistry with 3-tier precedence."""
+        """
+        Create and configure a DagImporterRegistry.
+
+        Importers are registered in this order, a later one taking over an extension from an
+        earlier one: the defaults, the importers of the coordinators that parse the bundle, the
+        global ``dag_importer_configs``, then the bundle's own ``importers``.
+        """
         registry = cls(register_defaults=True)
+        if bundle_name:
+            registry._register_coordinator_importers(bundle_name)
 
         global_importers = conf.getjson("dag_processor", "dag_importer_configs", fallback=None)
         if global_importers:
@@ -428,6 +436,31 @@ class DagImporterRegistry:
                 registry.register_specs(bundle_importers, context=f"bundle '{bundle_name}'")
 
         return registry
+
+    def _register_coordinator_importers(self, bundle_name: str) -> None:
+        """
+        Register the Dag importers of the coordinators that parse Dag files in *bundle_name*.
+
+        A coordinator configuration that cannot be loaded registers no coordinator importers, so
+        the bundle's other importers keep working. Two coordinators that claim the same extension
+        are a configuration error, which is raised.
+        """
+        from airflow.sdk.execution_time.coordinator import InvalidCoordinatorError, get_coordinator_manager
+
+        try:
+            coordinators = get_coordinator_manager().for_bundle(bundle_name)
+        except InvalidCoordinatorError:
+            raise
+        except Exception:
+            log.exception(
+                "Cannot load the [sdk] coordinators configuration; Dag bundle %r gets no coordinator "
+                "Dag importers",
+                bundle_name,
+            )
+            return
+        for coordinator in coordinators.values():
+            if (importer := coordinator.get_dag_importer()) is not None:
+                self.register(importer)
 
     def register(self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None) -> None:
         """
@@ -599,5 +632,12 @@ def get_importer_registry(bundle_name: str | None = None) -> DagImporterRegistry
 
 
 def reset_importer_registry() -> None:
-    """Reset cached importer registries."""
+    """
+    Reset cached importer registries.
+
+    The coordinators their Dag importers are bound to are cached too, so they are cleared as well.
+    """
+    from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+
     get_importer_registry.cache_clear()
+    get_coordinator_manager.cache_clear()

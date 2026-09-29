@@ -293,6 +293,34 @@ _SPARK_JAVA_MODULE_OPTIONS = [
 ]
 
 
+def _build_artifact_bundle_config(tmp_dir: Path, *names: str) -> str:
+    """
+    Return a Dag bundle config list with the Dags folder and one Dag bundle per artifact directory.
+
+    Each ``tmp_dir / name`` is mounted at ``/opt/airflow/<name>`` and holds only task artifacts,
+    so an ``.airflowignore`` keeps the Dag processor from parsing it.
+    """
+    for name in names:
+        (tmp_dir / name / ".airflowignore").write_text("*\n")
+    return json.dumps(
+        [
+            {
+                "name": "dags-folder",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {},
+            },
+            *(
+                {
+                    "name": name,
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {"path": f"/opt/airflow/{name}"},
+                }
+                for name in names
+            ),
+        ]
+    )
+
+
 def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=False):
     """Run the Java SDK Gradle wrapper natively or inside the pinned JDK container.
 
@@ -416,7 +444,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
 
     # Copy each bundle's JARs into its own directory; the compose bind-mounts
-    # expose them to the worker, and each JavaCoordinator globs its own dir.
+    # expose each one as a Dag bundle, and each JavaCoordinator scans its own.
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
     copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
     copytree(JAVA_TEST_BUNDLE_LIBS_PATH, tmp_dir / "java-test-jars")
@@ -455,8 +483,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # One JavaCoordinator per queue on the same worker image, each serving its
-    # own bundle. The scala-jdk entry pins main_class (Spark's large classpath
+    # One JavaCoordinator per queue on the same worker image, each reading its
+    # own Dag bundle. The scala-jdk entry pins main_class (Spark's large classpath
     # makes Main-Class discovery ambiguous) and carries Spark's Java 17 module
     # openings, a small driver heap, and a longer startup timeout for its large
     # dependency classpath.
@@ -464,12 +492,12 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         {
             "java-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"jars_root": ["/opt/airflow/java-jars"]},
+                "kwargs": {"dag_bundle_name": "java-jars"},
             },
             "scala-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {
-                    "jars_root": ["/opt/airflow/scala-jars"],
+                    "dag_bundle_name": "scala-jars",
                     "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
                     "jvm_args": ["-Xmx512m", *_SPARK_JAVA_MODULE_OPTIONS],
                     "task_startup_timeout": 60.0,
@@ -477,13 +505,14 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             },
             "java-test-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"jars_root": ["/opt/airflow/java-test-jars"]},
+                "kwargs": {"dag_bundle_name": "java-test-jars"},
             },
         }
     )
     queue_to_coordinator = json.dumps(
         {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk"}
     )
+    bundle_config = _build_artifact_bundle_config(tmp_dir, "java-jars", "scala-jars", "java-test-jars")
 
     # Connection expected by the Java example bundle tasks. The JSON form
     # covers all connection fields, in particular the port: wire integers
@@ -504,6 +533,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         # Single-quote the JSON values so Docker Compose reads them literally.
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{bundle_config}'\n"
         f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
         # Variable expected by the Java example bundle tasks.
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
@@ -612,7 +642,7 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
 
     # Place the packed bundle where the compose bind-mount (./go-bundles) exposes
-    # it to the worker at /opt/airflow/go-bundles. The bundle scanner requires
+    # it as the go-bundles Dag bundle at /opt/airflow/go-bundles. The bundle scanner requires
     # the file to be executable, so preserve the exec bit.
     go_bundles_dir = tmp_dir / "go-bundles"
     go_bundles_dir.mkdir()
@@ -624,23 +654,25 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
 
     # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
-    # which scans executables_root for the packed bundle by dag_id.
+    # which scans the go-bundles Dag bundle for the packed bundle by dag_id.
     # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
     coordinator_config = json.dumps(
         {
             "go-sdk": {
                 "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-                "kwargs": {"executables_root": ["/opt/airflow/go-bundles"]},
+                "kwargs": {"dag_bundle_name": "go-bundles"},
             }
         }
     )
     queue_to_coordinator = json.dumps({"golang": "go-sdk"})
+    bundle_config = _build_artifact_bundle_config(tmp_dir, "go-bundles")
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         # Single-quote the JSON values so Docker Compose reads them literally.
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{bundle_config}'\n"
         # Connection and variable read by the Go example bundle tasks.
         "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
@@ -735,13 +767,14 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
             "ts": {
                 "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
                 "kwargs": {
-                    "bundles_root": ["/opt/airflow/ts-bundles"],
+                    "dag_bundle_name": "ts-bundles",
                     "node_executable": "/opt/nodejs/node",
                 },
             }
         }
     )
     queue_to_coordinator = json.dumps({"typescript": "ts"})
+    bundle_config = _build_artifact_bundle_config(tmp_dir, "ts-bundles")
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
@@ -749,6 +782,7 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         # single-quoted so Docker Compose reads the JSON literally
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{bundle_config}'\n"
         "AIRFLOW_CONN_TYPESCRIPT_EXAMPLE_HTTP=http://user:pass@example.com/\n"
         "AIRFLOW_VAR_TYPESCRIPT_EXAMPLE_GREETING=greetings from e2e\n"
     )

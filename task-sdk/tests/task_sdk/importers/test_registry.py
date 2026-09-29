@@ -27,6 +27,7 @@ from types import SimpleNamespace
 import pytest
 
 from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, InvalidCoordinatorError
 from airflow.sdk.importers import (
     AbstractDagImporter,
     DagDefinition,
@@ -82,6 +83,44 @@ class LazyTestImporter(PythonDagImporter):
         super().__init__()
         self.kwargs = kwargs
         LazyTestImporter.instances += 1
+
+
+class NativeDagImporter(CustomBundleNonExtensionImporter):
+    """An importer a coordinator hands out for its native Dag files."""
+
+    supported_extensions = [".native"]
+
+
+class NativeCoordinator(BaseCoordinator):
+    def __init__(self, *, bundles: list[str] | None = None):
+        self.bundles = bundles or ["test_bundle"]
+
+    @classmethod
+    def get_dag_importer_class(cls) -> type[NativeDagImporter]:
+        return NativeDagImporter
+
+    def get_dag_importer(self) -> NativeDagImporter:
+        return NativeDagImporter()
+
+    @classmethod
+    def get_parsed_bundles(cls, kwargs) -> frozenset[str]:
+        return frozenset(kwargs.get("bundles") or ["test_bundle"])
+
+    def serves_bundle(self, bundle_name: str) -> bool:
+        return bundle_name in self.bundles
+
+
+class NoImporterCoordinator(BaseCoordinator):
+    def serves_bundle(self, bundle_name: str) -> bool:
+        return True
+
+
+def _coordinators(**kwargs_by_key: dict) -> dict[tuple[str, str], str]:
+    specs = {
+        key: {"classpath": f"{__name__}.{kwargs.pop('cls', 'NativeCoordinator')}", "kwargs": kwargs}
+        for key, kwargs in kwargs_by_key.items()
+    }
+    return {("sdk", "coordinators"): json.dumps(specs)}
 
 
 class TestDagImporterRegistry:
@@ -600,3 +639,66 @@ class TestDagImporterRegistry:
         items = [item for _, item in registry.list_dag_definitions(_bundle(tmp_path))]
         assert [type(item) for item in items] == [DagImportError]
         assert items[0].error_type == "zip_read_error"
+
+
+class TestCoordinatorDagImporters:
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self):
+        reset_importer_registry()
+        yield
+        reset_importer_registry()
+
+    def test_registers_the_importer_of_a_coordinator_serving_the_bundle(self):
+        with conf_vars(_coordinators(native={})):
+            importer = DagImporterRegistry.from_config("test_bundle").get_importer("dag.native")
+
+        assert isinstance(importer, NativeDagImporter)
+
+    def test_skips_a_coordinator_without_an_importer(self):
+        with conf_vars(_coordinators(native={"cls": "NoImporterCoordinator"})):
+            registry = DagImporterRegistry.from_config("test_bundle")
+
+        assert registry.get_importer("dag.native") is None
+
+    @pytest.mark.parametrize("bundle_name", [None, "other_bundle"])
+    def test_skips_coordinators_that_do_not_serve_the_bundle(self, bundle_name):
+        with conf_vars(_coordinators(native={})):
+            registry = DagImporterRegistry.from_config(bundle_name)
+
+        assert registry.get_importer("dag.native") is None
+
+    def test_importer_configs_override_a_coordinator_importer(self):
+        with conf_vars(
+            {
+                **_coordinators(native={}),
+                ("dag_processor", "dag_importer_configs"): json.dumps(
+                    [{"classpath": f"{__name__}.GlobalDagImporter", "extensions": [".native"]}]
+                ),
+            }
+        ):
+            importer = DagImporterRegistry.from_config("test_bundle").get_importer("dag.native")
+
+        assert isinstance(importer, GlobalDagImporter)
+
+    def test_two_coordinators_claiming_one_extension_raise(self):
+        with conf_vars(_coordinators(jdk11={}, jdk17={})):
+            with pytest.raises(InvalidCoordinatorError, match=r"Coordinators 'jdk11' and 'jdk17' both parse"):
+                DagImporterRegistry.from_config("test_bundle")
+
+    def test_a_broken_coordinator_configuration_keeps_the_other_importers(self, caplog):
+        config = {
+            **_coordinators(native={}),
+            ("sdk", "queue_to_coordinator"): json.dumps({"java": "missing"}),
+            ("dag_processor", "dag_importer_configs"): json.dumps(
+                [{"classpath": f"{__name__}.GlobalDagImporter", "extensions": [".custom"]}]
+            ),
+        }
+        with conf_vars(config), caplog.at_level(logging.ERROR, logger="airflow.sdk.importers.base"):
+            registry = DagImporterRegistry.from_config("test_bundle")
+
+        assert isinstance(registry.get_importer("dag.custom"), GlobalDagImporter)
+        assert registry.get_importer("dag.native") is None
+        assert [r.getMessage() for r in caplog.records if r.name == "airflow.sdk.importers.base"] == [
+            "Cannot load the [sdk] coordinators configuration; Dag bundle 'test_bundle' gets no "
+            "coordinator Dag importers"
+        ]

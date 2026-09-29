@@ -361,32 +361,8 @@ class TestBundleFind:
 
 
 class TestExecutableCoordinatorAttributes:
-    def test_executables_root_accepts_single_path(self, tmp_path):
-        coordinator = ExecutableCoordinator(executables_root=str(tmp_path))
-        assert coordinator.executables_root == [tmp_path]
-
-    def test_executables_root_accepts_list(self, tmp_path):
-        other = tmp_path / "other"
-        coordinator = ExecutableCoordinator(executables_root=[str(tmp_path), other])
-        assert coordinator.executables_root == [tmp_path, other]
-
-    def test_executables_root_optional_defaults_to_empty(self):
-        coordinator = ExecutableCoordinator()
-        assert coordinator.executables_root == []
-        assert coordinator.dag_bundle_name is None
-
-    @pytest.mark.parametrize(
-        "executables_root",
-        [None, [], "", "  ", [""]],
-        ids=["none", "empty-list", "empty-str", "blank-str", "list-of-empty-str"],
-    )
-    def test_explicit_empty_executables_root_raises(self, executables_root):
-        with pytest.raises(ValueError, match="and each path must be non-empty"):
-            ExecutableCoordinator(executables_root=executables_root)
-
-    def test_root_and_dag_bundle_name_are_mutually_exclusive(self, tmp_path):
-        with pytest.raises(ValueError, match="at most one of 'executables_root' or 'dag_bundle_name'"):
-            ExecutableCoordinator(executables_root=[tmp_path], dag_bundle_name="artifacts")
+    def test_default_kwargs(self):
+        assert ExecutableCoordinator().dag_bundle_name is None
 
     @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
@@ -417,7 +393,7 @@ class TestBuildExecuteTaskCommand:
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
         ti = _make_ti(dag_id="tutorial_dag")
 
-        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
+        coordinator = ExecutableCoordinator()
         with coordinator._set_scan_roots([tmp_path]):
             command, schema_version = coordinator._build_execute_task_command(what=ti)
         assert command == [str(binary.resolve())]
@@ -429,7 +405,7 @@ class TestBuildExecuteTaskCommand:
         _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"], metadata=metadata)
         ti = _make_ti(dag_id="tutorial_dag")
 
-        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
+        coordinator = ExecutableCoordinator()
         with (
             coordinator._set_scan_roots([tmp_path]),
             pytest.raises(FileNotFoundError, match="matching bundles were rejected"),
@@ -440,7 +416,7 @@ class TestBuildExecuteTaskCommand:
         _build_bundle(tmp_path / "my_bundle", dag_ids=["other_dag"])
         ti = _make_ti(dag_id="tutorial_dag")
 
-        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
+        coordinator = ExecutableCoordinator()
         with (
             coordinator._set_scan_roots([tmp_path]),
             pytest.raises(FileNotFoundError, match="cannot find executable bundle"),
@@ -450,8 +426,12 @@ class TestBuildExecuteTaskCommand:
 
 @pytest.fixture
 def bundles_dir(tmp_path):
+    """Resolve the task's Dag bundle to *tmp_path*, which holds an executable bundle."""
     _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
-    return tmp_path
+    bundle = MagicMock(path=tmp_path, version=None)
+    bundle.name = "dags-folder"
+    with patch("airflow.sdk.coordinators._subprocess._initialize_pinned_bundle", return_value=bundle):
+        yield tmp_path
 
 
 @pytest.fixture
@@ -465,7 +445,7 @@ class TestExecutableCoordinatorExecuteTask:
     def _captured_popen_cmd(self, bundles_dir: pathlib.Path, mock_client) -> list[str]:
         """Run execute_task with mocked subprocess and return the command list."""
         ti = _make_ti(dag_id="tutorial_dag")
-        coordinator = ExecutableCoordinator(executables_root=[bundles_dir])
+        coordinator = ExecutableCoordinator()
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 12345
@@ -512,7 +492,7 @@ class TestExecutableCoordinatorExecuteTask:
 
     def test_returns_execution_result(self, bundles_dir, mock_client):
         ti = _make_ti(dag_id="tutorial_dag")
-        coordinator = ExecutableCoordinator(executables_root=[bundles_dir])
+        coordinator = ExecutableCoordinator()
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 99999

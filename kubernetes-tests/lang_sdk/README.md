@@ -36,7 +36,7 @@ End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success
                           worker pod (from that pod template):
                           initContainer  stage_artifacts.py  ── S3DagBundle.initialize() ──►
                               pulls go-artifacts / java-artifacts bucket into the shared
-                              emptyDir = executables_root / jars_root
+                              emptyDir = go-artifacts / java-artifacts Dag bundle
                           base container  supervisor → coordinator forks the Go binary / Java jar
 ```
 

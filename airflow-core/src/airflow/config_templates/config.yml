@@ -2191,6 +2191,11 @@ sdk:
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
 
+        A coordinator finds its artifacts in the task's own Dag bundle, or in the
+        Dag bundle named by its ``dag_bundle_name`` kwarg. Two coordinators whose
+        Dag importers parse the same file extension need different
+        ``dag_bundle_name`` values.
+
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself
         does not receive; other components read it as needed. For example,
@@ -2205,7 +2210,6 @@ sdk:
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-              "jars_root": ["/opt/airflow/java-bundles"],
               "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
               "jvm_args": ["-Xmx1024m"]
             },
@@ -2217,9 +2221,7 @@ sdk:
           },
           "go-sdk": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-            "kwargs": {
-              "executables_root": ["/opt/airflow/executable-bundles"]
-            }
+            "kwargs": {}
           }
         }
       default: ~
