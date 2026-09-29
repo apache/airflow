@@ -483,6 +483,12 @@ Some of what ``TriggerDagRunOperator`` does is not offered:
 - OpenLineage parent injection (``openlineage_inject_parent_info``). The runtime does not add the
   parent task's OpenLineage details to ``conf``.
 
+A worked example
+~~~~~~~~~~~~~~~~
+
+``ts-sdk/example/src/native.ts`` puts the constructs above into one Dag, registered on the same
+bundle as the mixed-language handlers beside it, so a single artifact serves both authoring modes.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
