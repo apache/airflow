@@ -78,7 +78,7 @@ class WasbDagBundle(BaseDagBundle):
 
             if self.prefix:
                 if not self.wasb_hook.check_for_prefix(
-                    container_name=self.container_name, prefix=self.prefix, delimiter="/"
+                    container_name=self.container_name, prefix=f"{self.prefix.rstrip('/')}/", delimiter="/"
                 ):
                     raise ValueError(
                         f"WASB prefix 'wasb://{self.container_name}/{self.prefix}' does not exist."
@@ -147,8 +147,8 @@ class WasbDagBundle(BaseDagBundle):
         if hasattr(self, "_view_url_template") and self._view_url_template:
             return self._view_url_template
         account_url = self.wasb_hook.blob_service_client.url
-        scheme, netloc, path, query, fragment = urlsplit(account_url)
+        scheme, netloc, path, _, _ = urlsplit(account_url)
         path = f"{path.rstrip('/')}/{self.container_name}"
         if self.prefix:
             path = f"{path}/{self.prefix}"
-        return urlunsplit((scheme, netloc, path, query, fragment))
+        return urlunsplit((scheme, netloc, path, "", ""))

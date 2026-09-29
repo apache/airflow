@@ -88,6 +88,22 @@ class TestWasbDagBundle:
         url: str = bundle.view_url_template()
         assert url == f"{ACCOUNT_URL}/{CONTAINER_NAME}/{CONTAINER_PREFIX}"
 
+    @patch(
+        "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
+    )
+    def test_view_url_template_strips_sas_token(self, mock_wasb_hook_property):
+        mock_hook = MagicMock()
+        mock_hook.blob_service_client.url = f"{ACCOUNT_URL}/?sv=2021-08-06&sp=r&sig=samplesignature"
+        mock_wasb_hook_property.return_value = mock_hook
+
+        bundle = WasbDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            prefix=CONTAINER_PREFIX,
+            container_name=CONTAINER_NAME,
+        )
+        assert bundle.view_url_template() == f"{ACCOUNT_URL}/{CONTAINER_NAME}/{CONTAINER_PREFIX}"
+
     def test_supports_versioning(self):
         bundle = WasbDagBundle(
             name="test",
@@ -159,7 +175,7 @@ class TestWasbDagBundle:
         ):
             bundle.initialize()
         mock_hook.check_for_prefix.assert_called_once_with(
-            container_name=CONTAINER_NAME, prefix="non-existing-prefix", delimiter="/"
+            container_name=CONTAINER_NAME, prefix="non-existing-prefix/", delimiter="/"
         )
 
         mock_hook.check_for_prefix.return_value = True

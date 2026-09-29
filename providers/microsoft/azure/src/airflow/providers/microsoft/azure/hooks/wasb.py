@@ -546,6 +546,7 @@ class WasbHook(BaseHook):
         self.check_for_variable_type("container", container, ContainerClient)
         container = cast("ContainerClient", container)
 
+        local_dir_resolved = local_dir.resolve()
         list_prefix = f"{prefix.rstrip('/')}/" if prefix else prefix
         for blob in container.list_blobs(name_starts_with=list_prefix):
             if blob.name.endswith("/"):
@@ -555,6 +556,8 @@ class WasbHook(BaseHook):
                 local_target_path = local_dir.joinpath(blob_path.relative_to(prefix))
             else:
                 local_target_path = local_dir.joinpath(blob_path)
+            if not local_target_path.resolve().is_relative_to(local_dir_resolved):
+                raise ValueError(f"Blob name {blob.name!r} resolves outside local directory {local_dir}")
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)
