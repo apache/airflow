@@ -19,9 +19,8 @@
 
 # Apache Airflow TypeScript SDK
 
-The Apache Airflow TypeScript SDK provides the public TypeScript interfaces for
-writing Apache Airflow task handlers and the coordinator runtime that executes
-registered TypeScript handlers from an Airflow worker.
+Write Apache Airflow Dags and tasks in TypeScript. Declare a whole Dag in TypeScript, or implement
+mixed-language tasks: TypeScript bodies for the stub tasks of a Python Dag.
 
 > **Note**
 > This package is **0.1.0-beta1**: the API may change, it requires **Node 22+**, and
@@ -29,17 +28,32 @@ registered TypeScript handlers from an Airflow worker.
 
 ## Getting Started
 
-Install the beta package from npm:
+Install the beta package from npm, and `esbuild` to build the bundle:
 
 ```bash
 npm install apache-airflow-ts-sdk@0.1.0-beta1
+npm install --save-dev esbuild
 ```
 
-Bind a handler to the Python-owned task it implements, register it on a `Bundle`, and serve it.
-A handler is a plain function: `getContext()` returns the `TaskContext` and `getClient()` the `TaskClient`
-for as long as it runs, so neither is a parameter.
-Any non-`undefined` return value is pushed to XCom under the `"return_value"` key by the active runtime,
-matching Python `@task` behavior:
+Declare a Dag with `Dag`, and its tasks with `dag.task`. Calling a task names its inputs, which is how the
+tasks depend on each other:
+
+```ts
+import { Bundle, Dag } from "apache-airflow-ts-sdk";
+
+const dag = new Dag("ts_etl", { schedule: "@daily", queue: "typescript" });
+
+const extract = dag.task("extract", async (): Promise<number> => 42);
+const load = dag.task("load", async ({ rows }: { rows: number }) => {
+  console.log(`loading ${rows} rows`);
+});
+
+load({ rows: extract() });
+
+await new Bundle(dag).serve();
+```
+
+For a mixed-language task, bind a function to the stub task's `dag_id` and `task_id` with `TaskHandler`:
 
 ```ts
 import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
@@ -49,41 +63,15 @@ export async function sayHello() {
   return { message: `Hello from ${getContext().taskId}: ${greeting}` };
 }
 
-const bundle = new Bundle();
-bundle.register(new TaskHandler("example_dag", "say_hello", sayHello));
-await bundle.serve();
+await new Bundle(new TaskHandler("example_dag", "say_hello", sayHello)).serve();
 ```
 
-`register` takes any number of items, so one bundle can provide for several `TaskHandler`s.
+In both cases a handler is a plain function. `getContext()` returns the `TaskContext` and `getClient()` the
+`TaskClient` while it runs, and a value it returns becomes the task's `return_value` XCom.
 
-When the Python Dag calls a stub task TaskFlow-style, those arguments reach the
-handler by name. Names bind by folding on both sides, lowercased with underscores removed,
-so a Python `region_code` reaches a handler's `regionCode` with nothing declared:
-
-```ts
-interface TransformArgs {
-  regionCode: string;
-  threshold: number;
-}
-
-export async function transform({ regionCode, threshold }: TransformArgs) {
-  // ...
-}
-```
-
-`withArgNames` states a binding folding cannot reach, for a name the Python side never used.
-It should be rare, since folding covers ordinary spelling differences.
-
-`Dag` is another interface, for a Dag declared in TypeScript rather than in Python, and is still a work in progress.
-
-## Coordinators
-
-Airflow runs TypeScript task bundles through the Python-side `NodeCoordinator`
-(`airflow.sdk.coordinators.node.NodeCoordinator`). A Python Dag declares the
-scheduling shape with stub tasks and owns the task dependencies between them,
-and the TypeScript module registers handlers with matching task IDs. See the
-[Non-Python Task SDKs guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/index.html)
-for the conceptual overview of language SDKs.
+See the
+[TypeScript SDK guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
+for building and deploying a bundle, and for everything a Dag declared in TypeScript can do.
 
 ## API Reference
 
