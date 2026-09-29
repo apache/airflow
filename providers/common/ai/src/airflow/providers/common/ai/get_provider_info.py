@@ -72,11 +72,20 @@ def get_provider_info():
                 "tags": ["software"],
             },
             {
-                "integration-name": "Modal",
+                "integration-name": "Modal Sandboxes",
                 "external-doc-url": "https://modal.com/docs/guide/sandbox",
                 "tags": ["service"],
             },
-            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
+            {
+                "integration-name": "OpenSandbox",
+                "external-doc-url": "https://open-sandbox.ai/",
+                "tags": ["software"],
+            },
+            {
+                "integration-name": "Boat",
+                "external-doc-url": "https://docs.boat.dev/",
+                "tags": ["service"],
+            },
         ],
         "hooks": [
             {
@@ -148,7 +157,7 @@ def get_provider_info():
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
                         "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                        "extra": '{"model": "openai:gpt-5.6-sol"}',
+                        "extra": '{"model": "openai:gpt-5"}',
                     },
                 },
                 "conn-fields": {
@@ -174,13 +183,13 @@ def get_provider_info():
                     "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
                     "placeholders": {
                         "host": "https://<resource>.openai.azure.com/openai/v1",
-                        "extra": '{"model": "azure:gpt-4o"}',
+                        "extra": '{"model": "azure:gpt-5"}',
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Azure model identifier (e.g. azure:gpt-4o)",
+                        "description": "Azure model identifier (e.g. azure:gpt-5)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "fallback_conn_ids": {
@@ -365,18 +374,18 @@ def get_provider_info():
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
                         "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                        "extra": '{"model": "openai:gpt-4o", "embed_model": "openai:text-embedding-3-small"}',
+                        "extra": '{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}',
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Chat Model",
-                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-sonnet-5).\n",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-5, anthropic:claude-sonnet-5).\n",
                         "schema": {"type": ["string", "null"]},
                     },
                     "embed_model": {
                         "label": "Embedding Model",
-                        "description": "Embedding model in provider:name format dispatched via langchain.embeddings.init_embeddings (e.g. openai:text-embedding-3-small, cohere:embed-english-v3.0).\n",
+                        "description": "Embedding model in provider:name format dispatched via langchain.embeddings.init_embeddings (e.g. openai:text-embedding-3-small).\n",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
@@ -391,7 +400,7 @@ def get_provider_info():
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
                         "host": "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)",
-                        "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
+                        "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}',
                     },
                 },
                 "conn-fields": {
@@ -402,7 +411,7 @@ def get_provider_info():
                     },
                     "llm_model": {
                         "label": "LLM Model",
-                        "description": "Default LlamaIndex LLM model name (e.g. gpt-4o). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
+                        "description": "Default LlamaIndex LLM model name (e.g. gpt-5). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
