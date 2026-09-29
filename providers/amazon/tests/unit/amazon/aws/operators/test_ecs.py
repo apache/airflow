@@ -42,6 +42,7 @@ from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetche
 from airflow.providers.amazon.version_compat import NOTSET
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_NAME = "test_cluster"
@@ -828,16 +829,21 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert self.ecs.execute(mock_context) is None
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(EcsRunTaskOperator, "client")
-    def test_with_defer(self, client_mock):
+    def test_with_defer(self, client_mock, wait_for_completion):
         self.ecs.deferrable = True
+        self.ecs.wait_for_completion = wait_for_completion
 
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        with pytest.raises(TaskDeferred) as deferred:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as deferred,
+        ):
             self.ecs.execute(mock_context)
 
         assert isinstance(deferred.value.trigger, TaskDoneTrigger)
@@ -1114,12 +1120,14 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
         mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(EcsCreateClusterOperator, "client")
-    def test_execute_deferrable(self, mock_client: MagicMock):
+    def test_execute_deferrable(self, mock_client: MagicMock, wait_for_completion):
         op = EcsCreateClusterOperator(
             task_id="task",
             cluster_name=CLUSTER_NAME,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             waiter_delay=12,
             waiter_max_attempts=34,
         )
@@ -1127,7 +1135,10 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
             "cluster": {"status": EcsClusterStates.PROVISIONING, "clusterArn": "my arn"}
         }
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12
@@ -1189,12 +1200,14 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(EcsDeleteClusterOperator, "client")
-    def test_execute_deferrable(self, mock_client: MagicMock):
+    def test_execute_deferrable(self, mock_client: MagicMock, wait_for_completion):
         op = EcsDeleteClusterOperator(
             task_id="task",
             cluster_name=CLUSTER_NAME,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             waiter_delay=12,
             waiter_max_attempts=34,
         )
@@ -1202,7 +1215,10 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
             "cluster": {"status": EcsClusterStates.DEPROVISIONING, "clusterArn": "my arn"}
         }
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12

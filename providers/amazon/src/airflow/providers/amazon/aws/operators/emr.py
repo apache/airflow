@@ -53,6 +53,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter import (
     WAITER_POLICY_NAME_MAPPING,
@@ -538,6 +539,8 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
     :param tags: The tags assigned to job runs.
         Defaults to None
     :param deferrable: Run operator in the deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param cancel_on_kill: Flag to indicate whether to cancel the job
         when the task is killed while in deferrable mode.
     :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
@@ -634,7 +637,7 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
             self.tags,
             self.job_retry_max_attempts,
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             query_status = self.hook.check_query_status(job_id=self.job_id)
             self.check_failure(query_status)
             if query_status in EmrContainerHook.SUCCESS_STATES:
@@ -755,9 +758,9 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         (default: None)
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
-    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+    :param deferrable: If True, the operator will wait asynchronously for the job flow to complete.
+        Has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     :param terminate_job_flow_on_failure: If True, attempts best-effort termination of the EMR job flow
         when a failure occurs after the job flow has been created. Cleanup failures do not mask the
         original exception. (default: True)
@@ -1142,7 +1145,9 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
     :param waiter_delay: Number of seconds between polling the state of the application.
         Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for application to be created.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
@@ -1188,7 +1193,7 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
             raise AirflowException(f"Application Creation failed: {response}")
 
         self.log.info("EMR serverless application created: %s", application_id)
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=EmrServerlessCreateApplicationTrigger(
                     application_id=application_id,
@@ -1292,8 +1297,9 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the job run.
         Defaults to 60 seconds if not set.
-    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+    :param deferrable: If True, the operator will wait asynchronously for the job run to complete.
+        When ``wait_for_completion`` is False, this only affects waiting for the application to start.
+        This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param enable_application_ui_links: If True, the operator will generate one-time links to EMR Serverless
         application UIs. The generated links will allow any user with access to the Dag to see the Spark or
@@ -1668,7 +1674,9 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
     :param waiter_delay: Number of seconds between polling the state of the application.
         Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for the application to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
@@ -1694,7 +1702,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
         waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
 
         self.application_id = application_id
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        self.wait_for_completion = wait_for_completion
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.force_stop = force_stop
@@ -1737,7 +1745,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                 self.log.info("no running jobs found with application ID %s", self.application_id)
 
         self.hook.conn.stop_application(applicationId=self.application_id)
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=EmrServerlessStopApplicationTrigger(
                     application_id=self.application_id,
@@ -1751,7 +1759,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name=self.stop_complete_method_name,
             )
-        if self.wait_for_completion:
+        elif self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_app_stopped")
             wait(
                 waiter=waiter,
@@ -1771,19 +1779,20 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
         if event["status"] != "success":
             raise AirflowException(f"Error cancelling EMR Serverless jobs: {event}")
         self.hook.conn.stop_application(applicationId=self.application_id)
-        self.defer(
-            trigger=EmrServerlessStopApplicationTrigger(
-                application_id=self.application_id,
-                aws_conn_id=self.aws_conn_id,
-                region_name=self.region_name,
-                verify=self.verify,
-                botocore_config=self.botocore_config,
-                waiter_delay=self.waiter_delay,
-                waiter_max_attempts=self.waiter_max_attempts,
-            ),
-            timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-            method_name=self.stop_complete_method_name,
-        )
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
+            self.defer(
+                trigger=EmrServerlessStopApplicationTrigger(
+                    application_id=self.application_id,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                method_name=self.stop_complete_method_name,
+            )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
@@ -1817,7 +1826,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param waiter_delay: Number of seconds between polling the state of the application.
         Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for application to be deleted.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to delete an app with running jobs will return an error.
@@ -1855,7 +1866,6 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             **kwargs,
         )
         self.deferrable = deferrable
-        self.wait_for_delete_completion = False if deferrable else wait_for_completion
 
     def execute(self, context: Context) -> None:
         # super stops the app (or makes sure it's already stopped). In deferrable mode it defers
@@ -1876,7 +1886,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Application deletion failed: {response}")
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_delete_completion):
             self.defer(
                 trigger=EmrServerlessDeleteApplicationTrigger(
                     application_id=self.application_id,

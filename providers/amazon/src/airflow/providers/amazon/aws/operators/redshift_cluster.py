@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftResumeClusterTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
@@ -837,6 +838,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param deferrable: Run operator in the deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param max_attempts: The maximum number of attempts to be made, both when retrying the delete while
         the cluster is busy and when waiting for deletion to complete; combined with ``poll_interval``
         the default gives a ~15 minute window, long enough to outlast a pause/resize.
@@ -871,7 +874,7 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         self.max_attempts = max_attempts
 
     def execute(self, context: Context):
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self._delete_or_defer_until_settled()
             return
 

@@ -42,6 +42,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 
@@ -789,9 +790,12 @@ class TestDeleteClusterOperator:
 
         assert mock_delete_cluster.call_count == 3
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
-    def test_delete_cluster_deferrable_mode(self, mock_delete_cluster, mock_cluster_status):
+    def test_delete_cluster_deferrable_mode(
+        self, mock_delete_cluster, mock_cluster_status, wait_for_completion
+    ):
         """When the delete is accepted, deferrable mode waits for deletion to complete."""
         mock_delete_cluster.return_value = True
         mock_cluster_status.return_value = "deleting"
@@ -799,10 +803,13 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=wait_for_completion,
         )
 
-        with pytest.raises(TaskDeferred) as exc:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             delete_cluster.execute(context=None)
 
         assert isinstance(exc.value.trigger, RedshiftDeleteClusterTrigger), (
@@ -821,7 +828,7 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=True,
         )
 
         # No TaskDeferred is raised; the operator returns normally.
@@ -842,7 +849,7 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=True,
         )
 
         with pytest.raises(TaskDeferred) as exc:

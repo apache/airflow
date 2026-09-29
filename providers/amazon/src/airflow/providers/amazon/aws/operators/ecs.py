@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     TaskDoneTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -90,7 +91,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     """
 
@@ -134,7 +137,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             # In some circumstances the ECS Cluster is created immediately,
             # and there is no reason to wait for completion.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
-        elif self.deferrable:
+        elif should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=ClusterActiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
@@ -180,7 +183,9 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     """
 
@@ -213,7 +218,7 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
             # if the cluster doesn't have capacity providers that are associated with it,
             # the deletion is instantaneous, and we don't need to wait for it.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
-        elif self.deferrable:
+        elif should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=ClusterInactiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
@@ -399,7 +404,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
@@ -552,7 +559,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             if self.do_xcom_push:
                 context["ti"].xcom_push(key="ecs_task_arn", value=self.arn)
 
-            if self.deferrable:
+            if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
                 self.defer(
                     trigger=TaskDoneTrigger(
                         cluster=self.cluster,
