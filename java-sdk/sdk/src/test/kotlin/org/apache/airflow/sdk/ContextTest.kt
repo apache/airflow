@@ -26,6 +26,7 @@ import org.apache.airflow.sdk.execution.comm.TIRunContext
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.OffsetDateTime
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ContextTest {
   @Test
@@ -94,6 +95,25 @@ class ContextTest {
     Assertions.assertEquals(true, dr.conf["dry_run"])
     Assertions.assertNull(dr.logicalDate)
     Assertions.assertNull(dr.runType)
+  }
+
+  @Test
+  fun shutdownRequestedIsVisibleToTaskCode() {
+    val shutdownRequested = AtomicBoolean(true)
+    val ti =
+      org.apache.airflow.sdk.execution.comm.TaskInstance().apply {
+        dagId = "d"
+        runId = "r"
+        taskId = "t"
+        tryNumber = 1
+      }
+    val request =
+      StartupDetails().apply {
+        this.ti = ti
+        tiContext = TIRunContext()
+      }
+
+    Assertions.assertTrue(Context.from(request, shutdownRequested).isShutdownRequested())
   }
 
   @Test

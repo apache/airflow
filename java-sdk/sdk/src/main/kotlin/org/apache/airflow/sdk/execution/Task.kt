@@ -20,6 +20,7 @@
 package org.apache.airflow.sdk.execution
 
 import kotlinx.coroutines.CancellationException
+import java.util.concurrent.atomic.AtomicBoolean
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
@@ -73,6 +74,7 @@ internal object TaskRunner {
     bundle: Bundle,
     request: StartupDetails,
     client: Client,
+    shutdownRequested: AtomicBoolean = AtomicBoolean(false),
   ): Any {
     val definition =
       bundle.taskDef(request.ti.dagId, request.ti.taskId)?.definition
@@ -103,7 +105,7 @@ internal object TaskRunner {
         return TaskResult.failure(request.tiContext.shouldRetry)
       }
     return try {
-      instance.execute(Context.from(request), client)
+      instance.execute(Context.from(request, shutdownRequested), client)
       TaskResult.success()
     } catch (e: CancellationException) {
       throw e // Let coroutine cancellation propagate so the task coroutine unwinds.
@@ -118,10 +120,18 @@ internal fun runTask(
   bundle: Bundle,
   request: StartupDetails,
   comm: CoordinatorComm,
-): Any = TaskRunner.runTask(bundle, request, Client(request, CoordinatorClient(comm)))
+  shutdownRequested: AtomicBoolean = AtomicBoolean(false),
+): Any =
+  TaskRunner.runTask(
+    bundle,
+    request,
+    Client(request, CoordinatorClient(comm)),
+    shutdownRequested,
+  )
 
 internal fun runTask(
   bundle: Bundle,
   request: StartupDetails,
   client: Client,
-) = TaskRunner.runTask(bundle, request, client)
+  shutdownRequested: AtomicBoolean = AtomicBoolean(false),
+) = TaskRunner.runTask(bundle, request, client, shutdownRequested)

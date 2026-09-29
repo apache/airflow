@@ -22,6 +22,7 @@ package org.apache.airflow.sdk
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import java.time.OffsetDateTime
+import java.util.concurrent.atomic.AtomicBoolean
 import org.apache.airflow.sdk.execution.comm.DagRun.DagRunType as CommDagRunType
 
 private val logger = Logger(Context::class)
@@ -123,9 +124,13 @@ data class TaskInstance(
 data class Context(
   @JvmField val dagRun: DagRun,
   @JvmField val ti: TaskInstance,
+  private val shutdownRequested: AtomicBoolean = AtomicBoolean(false),
 ) {
+  /** Whether the supervisor sent SIGINT/SIGTERM and the task should stop cooperatively. */
+  fun isShutdownRequested(): Boolean = shutdownRequested.get()
+
   internal companion object {
-    fun from(request: StartupDetails) =
+    fun from(request: StartupDetails, shutdownRequested: AtomicBoolean = AtomicBoolean(false)) =
       Context(
         dagRun =
           with(request.tiContext.dagRun) {
@@ -141,6 +146,7 @@ data class Context(
             )
           },
         ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },
+        shutdownRequested = shutdownRequested,
       )
   }
 }

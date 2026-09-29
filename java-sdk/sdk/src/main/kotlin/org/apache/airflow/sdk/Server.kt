@@ -27,6 +27,7 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -191,7 +192,18 @@ class Server(
     startup: StartupDetails,
     coordinator: CoordinatorComm,
   ) {
-    val result = runTask(bundle, startup, coordinator)
-    coordinator.communicate<Unit>(result)
+    val shutdownRequested = AtomicBoolean(false)
+    val shutdownHook =
+      Thread {
+        shutdownRequested.set(true)
+        logger.info("Shutdown signal received; task should stop cooperatively")
+      }
+    Runtime.getRuntime().addShutdownHook(shutdownHook)
+    try {
+      val result = runTask(bundle, startup, coordinator, shutdownRequested)
+      coordinator.communicate<Unit>(result)
+    } finally {
+      Runtime.getRuntime().removeShutdownHook(shutdownHook)
+    }
   }
 }
