@@ -114,7 +114,9 @@ class TestNeptuneGraphPrivateEndpointAvailableTrigger:
         generator = trigger.run()
         resp = await generator.asend(None)
 
-        assert resp == TriggerEvent({"status": "success", "graph_id": GRAPH_ID})
+        assert resp == TriggerEvent(
+            {"status": "success", "private_endpoint": {"graph_id": GRAPH_ID, "vpc_id": VPC_ID}}
+        )
         assert mock_get_waiter().wait.call_count == 1
 
     @pytest.mark.asyncio
@@ -134,7 +136,7 @@ class TestNeptuneGraphPrivateEndpointAvailableTrigger:
         resp = await generator.asend(None)
 
         assert resp.payload["status"] == "error"
-        assert resp.payload["graph_id"] == GRAPH_ID
+        assert resp.payload["private_endpoint"] == {"graph_id": GRAPH_ID, "vpc_id": VPC_ID}
         assert "Failed to create Neptune graph endpoint" in resp.payload["message"]
 
 

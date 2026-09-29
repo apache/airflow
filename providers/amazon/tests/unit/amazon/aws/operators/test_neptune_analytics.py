@@ -439,7 +439,8 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
         )
 
         result = operator.execute_complete(
-            context=None, event={"status": "success", "graph_id": GRAPH_ID}, vpc_id=VPC_ID
+            context=None,
+            event={"status": "success", "private_endpoint": {"graph_id": GRAPH_ID, "vpc_id": VPC_ID}},
         )
 
         # mock_conn.get_private_graph_endpoint.assert_called_once_with(
