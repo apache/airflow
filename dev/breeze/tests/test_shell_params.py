@@ -268,15 +268,21 @@ def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, lin
         ),
         pytest.param(
             {},
-            {"postgres_version": "17"},
+            {"backend": "postgres", "postgres_version": "17"},
             {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
             id="POSTGRES_DATA_VOLUME_PATH is the data directory up to Postgres 17",
         ),
         pytest.param(
             {},
-            {"postgres_version": "18"},
+            {"backend": "postgres", "postgres_version": "18"},
             {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql"},
             id="POSTGRES_DATA_VOLUME_PATH is its parent from Postgres 18",
+        ),
+        pytest.param(
+            {},
+            {"backend": "none", "postgres_version": ""},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
+            id="POSTGRES_DATA_VOLUME_PATH ignores the empty version of non-postgres backends",
         ),
     ],
 )
