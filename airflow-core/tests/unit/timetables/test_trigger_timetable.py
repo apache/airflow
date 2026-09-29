@@ -1149,3 +1149,10 @@ def test_iter_partition_dagrun_infos_dst_america_new_york_spring_forward() -> No
     # run_after == partition_date for both ticks.
     for info in infos:
         assert info.run_after == info.partition_date
+
+
+def test_cron_timetables_are_hashable():
+    timetable = CronTriggerTimetable("0 0 * * *", timezone="UTC")
+    same = CronTriggerTimetable("0 0 * * *", timezone="UTC")
+    assert timetable == same
+    assert hash(timetable) == hash(same)
