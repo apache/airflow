@@ -336,6 +336,8 @@ Pass ``{ prefixGroupId: false }`` to keep the ids declared in a group as written
 does in Python; they then have to be unique across the Dag. A group id is made of letters, digits, dashes and
 underscores, and is at most 200 characters.
 
+.. warning:: A cycle is not allowed. The Dag is rejected when it is read, naming the tasks on the cycle.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
