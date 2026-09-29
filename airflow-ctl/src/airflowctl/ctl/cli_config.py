@@ -356,8 +356,8 @@ ARG_TASKS_LOGS_DAG_RUN_ID = Arg(
 ARG_TRY_NUMBER = Arg(
     flags=("--try-number",),
     type=int,
-    default=-1,
-    help="The try number of the task instance logs to fetch; -1 fetches the latest attempt",
+    required=True,
+    help="The try number of the task instance logs to fetch",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -1231,10 +1231,7 @@ TASK_COMMANDS = (
     ActionCommand(
         name="logs",
         help="Get the logs of a task instance",
-        description=(
-            "Get the logs of a task instance for a given try number. "
-            "The latest attempt is fetched when --try-number is not provided."
-        ),
+        description="Get the logs of a task instance for a given try number.",
         func=lazy_load_command("airflowctl.ctl.commands.task_command.logs"),
         args=(
             ARG_DAG_ID,

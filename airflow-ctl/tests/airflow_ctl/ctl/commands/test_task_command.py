@@ -656,12 +656,14 @@ class TestLogs:
             ),
         ]
 
-    def test_logs_defaults_to_latest_attempt(self, capsys):
+    def test_logs_with_try_number(self, capsys):
         api_client = mock.MagicMock()
         api_client.task_instances.logs.return_value = self._make_log_response(self._make_structured_content())
 
         task_command.logs(
-            self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+            self.parser.parse_args(
+                ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+            ),
             api_client=api_client,
         )
 
@@ -669,18 +671,25 @@ class TestLogs:
             dag_id=self.dag_id,
             dag_run_id=self.run_id,
             task_id=self.task_id,
-            try_number=-1,
+            try_number=1,
             map_index=-1,
             suppress_error_log=True,
         )
         assert capsys.readouterr().out == "INFO - hello\nplain line\n"
+
+    def test_logs_requires_try_number(self, capsys):
+        with pytest.raises(SystemExit, match="2"):
+            self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id])
+        assert "--try-number" in capsys.readouterr().err
 
     def test_logs_prints_plain_string_entries(self, capsys):
         api_client = mock.MagicMock()
         api_client.task_instances.logs.return_value = self._make_log_response(["plain line"])
 
         task_command.logs(
-            self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+            self.parser.parse_args(
+                ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+            ),
             api_client=api_client,
         )
 
@@ -722,7 +731,9 @@ class TestLogs:
 
         with pytest.raises(SystemExit, match="1"):
             task_command.logs(
-                self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+                self.parser.parse_args(
+                    ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+                ),
                 api_client=api_client,
             )
 
@@ -736,6 +747,8 @@ class TestLogs:
 
         with pytest.raises(ServerResponseError):
             task_command.logs(
-                self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+                self.parser.parse_args(
+                    ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+                ),
                 api_client=api_client,
             )
