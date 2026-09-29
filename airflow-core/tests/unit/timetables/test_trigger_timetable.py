@@ -1199,7 +1199,6 @@ def test_run_immediately_does_not_pick_future_run(get_info: typing.Callable[[], 
 
 
 def test_cron_timetables_are_hashable():
-    """pendulum ``Timezone`` is unhashable, so hashing the timezone object made ``hash()`` raise."""
     timetable = CronTriggerTimetable("0 0 * * *", timezone="UTC")
     same = CronTriggerTimetable("0 0 * * *", timezone="UTC")
     assert timetable == same
