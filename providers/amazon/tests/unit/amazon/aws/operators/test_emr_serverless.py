@@ -21,7 +21,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from botocore.exceptions import ClientError, WaiterError
+from botocore.exceptions import BotoCoreError, ClientError, WaiterError
 
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
@@ -701,12 +701,19 @@ class TestEmrServerlessStartJobOperator:
             operator.execute_complete(mock.MagicMock(), failed_event)
         mock_conn.cancel_job_run.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "cancel_error",
+        [
+            ClientError(
+                {"Error": {"Code": "ValidationException", "Message": "run is not in a cancellable state"}},
+                "CancelJobRun",
+            ),
+            BotoCoreError(),
+        ],
+    )
     @mock.patch.object(EmrServerlessHook, "conn")
-    def test_execute_complete_timeout_cancel_error_does_not_mask_reason(self, mock_conn):
-        mock_conn.cancel_job_run.side_effect = ClientError(
-            {"Error": {"Code": "ValidationException", "Message": "run is not in a cancellable state"}},
-            "CancelJobRun",
-        )
+    def test_execute_complete_timeout_cancel_error_does_not_mask_reason(self, mock_conn, cancel_error):
+        mock_conn.cancel_job_run.side_effect = cancel_error
         operator = self._deferrable_operator()
         timeout_event = {
             "status": "failure",

@@ -25,7 +25,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from botocore.exceptions import ClientError, WaiterError
+from botocore.exceptions import BotoCoreError, ClientError, WaiterError
 
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
@@ -1512,7 +1512,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                 self.log.info("Cancelling EMR Serverless job %s after the poll timed out", job_id)
                 try:
                     self.hook.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
-                except ClientError:
+                except (BotoCoreError, ClientError):
                     self.log.exception("Failed to cancel EMR Serverless job %s", job_id)
             raise RuntimeError(f"EMR Serverless job {job_id} timed out in deferrable mode: {message}")
         raise RuntimeError(f"EMR Serverless job {job_id} failed in deferrable mode: {message}")
