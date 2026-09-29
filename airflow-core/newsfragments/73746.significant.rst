@@ -5,17 +5,15 @@ now issues a ``TaskGroupCycleDeprecationWarning`` at parse time and shows a Dag 
 names the TaskGroups and tasks involved. These Dags still parse and run, because their task dependencies
 are acyclic, but Airflow 3.5 is planned to reject them at parse time.
 
-A task with no upstream task inside its own TaskGroup counts as a root of that group, even when a task
-outside the group is its upstream. For example, ``a >> bridge >> b``, with ``a`` and ``b`` in the same
-TaskGroup and ``bridge`` outside it, makes the group depend on ``bridge`` and ``bridge`` depend on the
-group.
+A dependency into or out of any task in a TaskGroup counts as a dependency of the whole group, so a path
+that leaves a TaskGroup and comes back into it is a cycle. For example, ``a >> bridge >> b``, with ``a``
+and ``b`` in the same TaskGroup and ``bridge`` outside it, makes the group depend on ``bridge`` and
+``bridge`` depend on the group, even if ``a >> b`` is also set.
 
 **Migration:**
 
-- If the tasks inside the group already run in order through a task outside it, as in the example above,
-  add that order inside the group (``a >> b``). It doesn't change when anything runs.
-- Otherwise, move tasks between TaskGroups, or out of them, so that each group depends on the others in
-  one direction only.
+- Move tasks between TaskGroups, or out of them, so that each group depends on the others in one direction
+  only. In the example above, move ``bridge`` into the group, or move ``b`` out of it.
 - To catch these Dags in CI, run your Dag tests with
   ``-W error::airflow.sdk.exceptions.TaskGroupCycleDeprecationWarning``.
 

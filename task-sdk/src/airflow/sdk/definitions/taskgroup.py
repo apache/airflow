@@ -23,7 +23,7 @@ import copy
 import re
 import weakref
 from collections import deque
-from collections.abc import Generator, Iterator, Sequence
+from collections.abc import Collection, Generator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -595,7 +595,15 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         id_to_idx: dict[str, int],
         group_dict: dict[str, TaskGroup],
     ) -> tuple[int, ...]:
-        upstream_ids = child._topological_upstream_ids
+        return self._project_upstream_ids(child_idx, child._topological_upstream_ids, id_to_idx, group_dict)
+
+    def _project_upstream_ids(
+        self,
+        child_idx: int,
+        upstream_ids: Collection[str],
+        id_to_idx: dict[str, int],
+        group_dict: dict[str, TaskGroup],
+    ) -> tuple[int, ...]:
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
@@ -673,21 +681,31 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         """
         Find children that depend on each other in a cycle when each child TaskGroup is one unit.
 
-        A task with no upstream inside its own group counts as a root of that group, so edges
-        routed through tasks outside a group can make siblings depend on each other even though
-        the task-level graph is acyclic. ``topological_sort`` raises for such cycles.
+        An edge into any task of a child group counts as an edge into the group, so a path that
+        leaves a group and comes back into it is a cycle even though the task-level graph is
+        acyclic. This is stricter than the ordering ``topological_sort`` needs, which only looks
+        at edges into a group's roots.
 
         :return: one list of child node ids per cycle, each in insertion order
         """
         nodes = list(self.children.values())
         id_to_idx = {nid: i for i, nid in enumerate(self.children)}
         projected = [
-            self._project_child_deps(i, child, id_to_idx, group_dict) for i, child in enumerate(nodes)
+            self._project_upstream_ids(i, self._get_unit_upstream_ids(child), id_to_idx, group_dict)
+            for i, child in enumerate(nodes)
         ]
         members: dict[int, list[str]] = {}
         for i, component in enumerate(self._find_projection_components(projected)):
             members.setdefault(component, []).append(nodes[i].node_id)
         return [node_ids for node_ids in members.values() if len(node_ids) > 1]
+
+    @staticmethod
+    def _get_unit_upstream_ids(child: DAGNode) -> Collection[str]:
+        if not isinstance(child, TaskGroup):
+            return child._topological_upstream_ids
+        upstream_ids = set(child._topological_upstream_ids)
+        upstream_ids.update(edge_id for task in child for edge_id in task.upstream_task_ids)
+        return upstream_ids
 
     @staticmethod
     def _find_projection_components(projected: list[tuple[int, ...]]) -> list[int]:
