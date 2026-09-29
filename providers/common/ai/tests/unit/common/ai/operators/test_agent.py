@@ -971,6 +971,42 @@ class TestAgentOperatorExecute:
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
+    @pytest.mark.parametrize(
+        ("output_type", "approved", "expected"),
+        [
+            pytest.param(str, "42", "42", id="str-that-parses-as-a-number"),
+            pytest.param(str, '{"total": 1}', '{"total": 1}', id="str-that-parses-as-an-object"),
+            pytest.param(list[str], '["a", "b"]', ["a", "b"], id="list"),
+            pytest.param(int, "not a number", "not a number", id="edit-the-type-rejects"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_returns_the_approved_output_as_output_type(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result, output_type, approved, expected
+    ):
+        """The approved text comes back as ``output_type``, as it does from ``@task.llm``."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = approved
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=output_type,
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == expected
+        assert type(result) is type(expected)
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_propagates_hitl_max_iterations_error(
