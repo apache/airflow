@@ -27,6 +27,7 @@ import (
 	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/example/bundle/concurrentxcom"
 	"github.com/apache/airflow/go-sdk/example/bundle/taskflowbinding"
+	"github.com/apache/airflow/go-sdk/example/bundle/taskstate"
 	"github.com/apache/airflow/go-sdk/example/bundle/variablewrite"
 )
 
@@ -73,6 +74,8 @@ func main() {
 			"write_and_delete_variable",
 			variablewrite.WriteAndDeleteVariable,
 		),
+
+		airflow.TaskHandler("task_state_dag", "roundtrip_task_state", taskstate.RoundtripTaskState),
 	)
 
 	if err := bundle.Serve(); err != nil {

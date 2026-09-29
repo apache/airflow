@@ -61,7 +61,7 @@ func RunTask(
 		}
 	}
 
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, details.TI.ID)
 
 	// runtimeContext carries the task instance and Dag run that binding puts
 	// on the task's airflow.Context. The scheduling timestamps live on the

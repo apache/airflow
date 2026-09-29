@@ -820,6 +820,13 @@ class TestPopenActivitySubprocessStart:
         env = popen_mock.call_args.kwargs["env"]
         assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == ""
 
+    @conf_vars({("state_store", "default_retention_days"): "7"})
+    def test_state_store_retention_passed_to_subprocess_env(self, mock_client):
+        """A language SDK runtime gets the resolved state store retention via the environment at launch."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS"] == "7"
+
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
         with (

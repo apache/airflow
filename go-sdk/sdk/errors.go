@@ -38,3 +38,9 @@ var ConnectionNotFound = errors.New("connection not found")
 //
 // See the “GetXCom“ method of [XComClient] for an example
 var XComNotFound = errors.New("xcom not found")
+
+// TaskStateNotFound is an error value used to signal that a task state value could not be found (and that
+// there were no communication issues with the API server).
+//
+// See the “GetTaskState“ method of [TaskStateStoreClient] for an example
+var TaskStateNotFound = errors.New("task state not found")
