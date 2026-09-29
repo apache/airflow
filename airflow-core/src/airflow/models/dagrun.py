@@ -341,15 +341,16 @@ class DagRun(Base, LoggingMixin):
             postgresql_where=text("state='running'"),
             sqlite_where=text("state='running'"),
         ),
-        # since mysql lacks filtered/partial indices, this creates a
-        # duplicate index on mysql. Not the end of the world
+        # MySQL has no partial indexes, so there this would duplicate idx_dag_run_running_dags,
+        # which is the one kept because get_running_dag_runs_to_examine names it in USE INDEX.
+        # SQLAlchemy documents a tuple for ddl_if's dialect but types it as str.
         Index(
             "idx_dag_run_queued_dags",
             "state",
             "dag_id",
             postgresql_where=text("state='queued'"),
             sqlite_where=text("state='queued'"),
-        ),
+        ).ddl_if(dialect=("postgresql", "sqlite")),  # type: ignore[arg-type]
     )
 
     task_instances = relationship(
