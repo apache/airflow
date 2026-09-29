@@ -193,103 +193,45 @@ describe("Dag", () => {
     );
   });
 
-  it("records a positional call in argument order", () => {
-    const dag = new Dag("example_dag");
-    const extract = dag.task("extract", async (): Promise<number> => 1);
-    const transform = dag.task("transform", async (rows: number, region: string) => `${region}`);
-
-    const extracted = extract();
-    transform(extracted, "us");
-
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ arg0: extracted, arg1: "us" });
-    expect(Object.keys(getDagTaskInputs(dag).get("transform")!)).toEqual(["arg0", "arg1"]);
-  });
-
-  it("names positional arguments from argBindings", () => {
-    const dag = new Dag("example_dag");
-    const extract = dag.task("extract", async (): Promise<number> => 1);
-    const transform = dag.task("transform", async (rows: number, region: string) => `${region}`, {
-      argBindings: ["rows", "region"],
-    });
-
-    const extracted = extract();
-    transform(extracted, "us");
-
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ rows: extracted, region: "us" });
-  });
-
-  it("labels the arguments argBindings does not reach", () => {
-    const dag = new Dag("example_dag");
-    const transform = dag.task("transform", async (rows: number, region: string) => `${region}`, {
-      argBindings: ["rows"],
-    });
-
-    transform(1, "us");
-
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ rows: 1, arg1: "us" });
-  });
-
   it.each([
-    [
-      "not an array",
-      { argBindings: 1 },
-      /argBindings for Dag "d" task "t" must be an array of names/,
-    ],
-    ["not a string", { argBindings: [1] }, /holds 1; each name must be a non-empty string/],
-    ["empty", { argBindings: [""] }, /holds ""; each name must be a non-empty string/],
-    ["a number", { argBindings: ["0"] }, /holds "0"; each name must be a non-empty string/],
-    [
-      "a duplicate",
-      { argBindings: ["a", "a"] },
-      /argBindings for Dag "d" task "t" names "a" twice/,
-    ],
-  ])("rejects argBindings that are %s", (_label, options, expected) => {
-    const dag = new Dag("d");
+    ["a bare value", 7],
+    ["an array of values", [1, "us"]],
+  ])("rejects %s where a task's inputs belong", (_label, inputs) => {
+    const dag = new Dag("example_dag");
+    const load = dag.task("load", async ({ total }: { total: number }) => total);
 
-    expect(() => dag.task("t", async (a: number) => a, options as never)).toThrowError(expected);
+    expect(() => load(inputs as never)).toThrowError(
+      /takes one object naming its inputs: myTask\({ rows, region }\)/,
+    );
   });
 
-  it("reads a single argument that is not a map of names as one positional input", () => {
+  it("rejects inputs given as more than one argument", () => {
     const dag = new Dag("example_dag");
-    const when = new Date();
-    const transform = dag.task("transform", async (at: Date) => at);
-
-    transform(when as never);
-
-    expect(getDagTaskInputs(dag).get("transform")).toEqual({ arg0: when });
-  });
-
-  it("reads a single reference as one positional input rather than a map of names", () => {
-    const dag = new Dag("example_dag");
-    const extract = dag.task("extract", async (): Promise<{ rows: number }> => ({ rows: 1 }));
-    const load = dag.task("load", async (totals: { rows: number }) => totals.rows);
-
-    const extracted = extract();
-    load(extracted);
-
-    expect(getDagTaskInputs(dag).get("load")).toEqual({ arg0: extracted });
-  });
-
-  it("spreads a positional task's bound arguments back into its argument list", async () => {
-    const dag = new Dag("example_dag");
-    const seen: unknown[] = [];
     const transform = dag.task(
       "transform",
-      async (rows: number, region: string) => {
-        seen.push(rows, region);
-      },
-      { argBindings: ["rows", "region"] },
+      async ({ rows, region }: { rows: number; region: string }) => `${region}${rows}`,
     );
 
-    transform(1, "us");
-    // The order the runtime hands the bound arguments over in, which is the
-    // order they were recorded.
-    await new Bundle(dag).getTaskHandler("example_dag", "transform")!({
-      rows: 1,
-      region: "us",
-    } as never);
+    // A positional call from plain JavaScript; TypeScript rejects it.
+    expect(() => (transform as (...inputs: unknown[]) => unknown)({ rows: 1 }, "us")).toThrowError(
+      /was given 2 arguments; it takes one object naming its inputs/,
+    );
+  });
 
-    expect(seen).toEqual([1, "us"]);
+  it("rejects a bare reference where a task's inputs belong", () => {
+    const dag = new Dag("example_dag");
+    const extract = dag.task("extract", async (): Promise<{ rows: number }> => ({ rows: 1 }));
+    const load = dag.task("load", async ({ totals }: { totals: { rows: number } }) => totals.rows);
+
+    expect(() => load(extract() as never)).toThrowError(/takes one object naming its inputs/);
+  });
+
+  it("rejects a handler that declares more than one parameter", () => {
+    const dag = new Dag("example_dag");
+
+    expect(() =>
+      dag.task("transform", ((rows: number, region: string) => `${region}${rows}`) as never),
+    ).toThrowError(/declares 2 parameters; a handler takes one object of named arguments/);
   });
 
   it("calls a task declaring one object of named arguments with that object", async () => {
@@ -447,7 +389,6 @@ describe("Dag", () => {
   it.each([
     ["a misspelling", "retry"],
     ["the raw schema key", "retry_delay"],
-    ["the positional task_id", "taskId"],
   ])("rejects %s in the task spec", (_label, key) => {
     const dag = new Dag("example_dag");
     expect(() =>
@@ -478,6 +419,96 @@ describe("Dag", () => {
       dag.task("transform", async () => undefined, spec as unknown as TaskSpec),
     ).toThrowError(/spec for Dag "example_dag" task "transform" must be an object/);
     expect(dag.taskIds).toEqual([]);
+  });
+
+  describe("an omitted task id", () => {
+    it("takes the handler's function name", () => {
+      const dag = new Dag("named_dag");
+      dag.task(async function extract() {})();
+
+      expect(dag.taskIds).toEqual(["extract"]);
+    });
+
+    it("takes the name of a handler declared elsewhere", () => {
+      async function transform() {}
+      const dag = new Dag("named_dag");
+      dag.task(transform)();
+
+      expect(dag.taskIds).toEqual(["transform"]);
+    });
+
+    it("still accepts a spec as the second argument", () => {
+      const dag = new Dag("named_dag");
+      dag.task(async function extract() {}, { retries: 2 })();
+
+      expect(getDagTaskRecords(dag).get("extract")?.spec).toEqual({ retries: 2 });
+    });
+
+    it("is taken from the spec when one names the task", () => {
+      const dag = new Dag("specced_id_dag");
+      dag.task(async function extract() {}, { taskId: "extract_rows" })();
+
+      expect(dag.taskIds).toEqual(["extract_rows"]);
+    });
+
+    it("prefers the positional id over the handler name", () => {
+      const dag = new Dag("positional_dag");
+      dag.task("extract_rows", async function extract() {})();
+
+      expect(dag.taskIds).toEqual(["extract_rows"]);
+    });
+
+    it("rejects a positional id and a spec id together", () => {
+      // The positional one used to win and the spec's was dropped in silence.
+      const dag = new Dag("two_ids_dag");
+
+      expect(() =>
+        dag.task("extract_rows", async function extract() {}, { taskId: "from_spec" }),
+      ).toThrowError(
+        /Task "extract_rows" of Dag "two_ids_dag" also carries taskId "from_spec" in its spec/,
+      );
+      expect(dag.taskIds).toEqual([]);
+    });
+
+    it("fails for an anonymous handler, naming the two ways to give it an id", () => {
+      const dag = new Dag("anonymous_dag");
+
+      expect(() => dag.task(async () => 42)).toThrowError(
+        /A task of Dag "anonymous_dag" has no id: its handler has no name/,
+      );
+      expect(dag.taskIds).toEqual([]);
+    });
+
+    it("points at the bundler when a handler's name was minified away", () => {
+      const dag = new Dag("minified_dag");
+      // What a bundle built by something other than airflow-ts-pack can hold:
+      // the function is real, but the bundler took its name.
+      const minified = Object.defineProperty(async () => 42, "name", { value: "" });
+
+      expect(() => dag.task(minified)).toThrowError(
+        /A bundler that drops function names also lands here/,
+      );
+    });
+
+    it("rejects a handler name Airflow would not accept as an id", () => {
+      const dag = new Dag("bound_dag");
+      async function extract({ rows }: { rows: number }) {
+        return rows;
+      }
+
+      // `bind` names the result "bound extract", which has a space in it.
+      expect(() => dag.task(extract.bind(null))).toThrowError(
+        /would take the id "bound extract" from its handler's name, which Airflow does not accept/,
+      );
+    });
+
+    it("rejects a non-function where a handler belongs", () => {
+      const dag = new Dag("bad_handler_dag");
+
+      expect(() => dag.task("x", 42 as unknown as () => Promise<void>)).toThrowError(
+        /handler for Dag "bad_handler_dag" task "x" must be a function/,
+      );
+    });
   });
 
   it("exposes its task IDs in attachment order", () => {
