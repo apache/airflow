@@ -318,6 +318,18 @@ repos:
           (?x)
           ^airflow-core/src/airflow/serialization/schema\.json$|
           ^ts-sdk/schema/dag-schema\.json$
+      - id: check-ts-sdk-conformance-recording
+        name: Check the recorded Python Dag serialization the TS SDK is compared against
+        description: "Re-run Airflow's serializer over the conformance fixtures and fail if the recording drifted"
+        entry: ./ts-sdk/scripts/ci/prek/check_conformance_recording.py
+        language: python
+        pass_filenames: false
+        require_serial: true
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^ts-sdk/tests/conformance/.*$
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
