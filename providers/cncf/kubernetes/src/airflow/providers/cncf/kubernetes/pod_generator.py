@@ -468,8 +468,6 @@ class PodGenerator:
         namespace: str,
         scheduler_job_id: str,
         callback_id: str,
-        dag_id: str,
-        run_id: str,
         kube_image: str,
         args: list[str],
         base_worker_pod: k8s.V1Pod,
@@ -485,17 +483,8 @@ class PodGenerator:
         short_id = callback_id.replace("-", "")[:8]
         pod_id = add_unique_suffix(name=f"callback-{short_id}", rand_len=8, max_len=POD_NAME_MAX_LENGTH)
 
-        try:
-            image = base_worker_pod.spec.containers[0].image
-            if not image:
-                image = kube_image
-        except Exception:
-            image = kube_image
-
         annotations = {
             CALLBACK_POD_ANNOTATION_KEY: callback_id,
-            "dag_id": dag_id,
-            "run_id": run_id,
         }
 
         labels = {
@@ -507,7 +496,7 @@ class PodGenerator:
         main_container = k8s.V1Container(
             name="base",
             args=args,
-            image=image,
+            image=kube_image,
             env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
         )
 
