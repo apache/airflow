@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import importlib
 import inspect
 import logging
 import os
@@ -36,54 +35,26 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
-from airflow import plugins_manager, settings
-from airflow._shared.module_loading import qualname
+from airflow import settings
 from airflow.dag_processing.dagbag import (
     BundleDagBag,
     DagBag,
     _capture_with_reraise,
     _validate_executor_fields,
-    sync_bag_to_db,
-    validate_serialized_plugin_teams,
 )
-from airflow.example_dags.plugins.business_day_window import BusinessDayWindow
-from airflow.example_dags.plugins.custom_partition_mapper import PrefixStripMapper
-from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.plugins_manager import AirflowPlugin
-from airflow.sdk import (
-    DAG,
-    Asset,
-    AssetOrTimeSchedule,
-    BaseOperator,
-    ChainMapper,
-    IdentityMapper,
-    PartitionedAssetTimetable,
-    RollupMapper,
-    StartOfMonthMapper,
-)
-from airflow.sdk.definitions.deadline import (
-    AsyncCallback,
-    BaseDeadlineReference,
-    DeadlineAlert,
-    deadline_reference,
-)
-from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.serialized_objects import DagSerialization
-from airflow.timetables.assets import AssetOrTimeSchedule as CoreAssetOrTimeSchedule
+from airflow.sdk import DAG, BaseOperator
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from unit import cluster_policies
 from unit.models import TEST_DAGS_FOLDER
-from unit.plugins.priority_weight_strategy import StaticTestPriorityWeightStrategy
 
 pytestmark = pytest.mark.db_test
 
@@ -1494,280 +1465,3 @@ class TestBundlePathSysPath:
 
         assert str(tmp_path) not in dag.description
         assert sys.path == syspath_before
-
-
-@deadline_reference
-class TeamDeadlineReference(BaseDeadlineReference):
-    """A deadline reference a team-scoped plugin ships; Airflow has no example one to reuse."""
-
-    def _evaluate_with(self, *, session, **kwargs):
-        raise NotImplementedError
-
-
-async def _deadline_callback():
-    raise NotImplementedError
-
-
-def _nested_chain_mapper(depth):
-    mapper = PrefixStripMapper("eu")
-    for _ in range(depth):
-        mapper = ChainMapper(mapper, IdentityMapper())
-    return mapper
-
-
-# Airflow's example plugins subclass the Core bases, and the docs hand them to the Task SDK
-# composites, whose annotations name only the SDK bases; hence the type ignores below.
-# Each case: the registry the plugin fills, the class it registers, and a Dag using that
-# class in one of the ways a Dag author can.
-SCHEDULING_CLASS_USES = [
-    pytest.param(
-        "timetables", AfterWorkdayTimetable, lambda: {"schedule": AfterWorkdayTimetable()}, id="timetable"
-    ),
-    pytest.param(
-        "timetables",
-        AfterWorkdayTimetable,
-        lambda: {
-            "schedule": CoreAssetOrTimeSchedule(
-                timetable=AfterWorkdayTimetable(), assets=[ensure_serialized_asset(Asset("a"))]
-            )
-        },
-        id="timetable-in-core-asset-or-time",
-    ),
-    pytest.param(
-        "timetables",
-        AfterWorkdayTimetable,
-        lambda: {"schedule": AssetOrTimeSchedule(timetable=AfterWorkdayTimetable(), assets=[Asset("a")])},  # type: ignore[arg-type]
-        id="timetable-in-sdk-asset-or-time",
-    ),
-    pytest.param(
-        "partition_mappers",
-        PrefixStripMapper,
-        lambda: {
-            "schedule": PartitionedAssetTimetable(
-                assets=Asset("a"),
-                default_partition_mapper=PrefixStripMapper("eu"),  # type: ignore[arg-type]
-            )
-        },
-        id="default-partition-mapper",
-    ),
-    pytest.param(
-        "partition_mappers",
-        PrefixStripMapper,
-        lambda: {
-            "schedule": PartitionedAssetTimetable(
-                assets=Asset("a"),
-                partition_mapper_config={Asset("a"): PrefixStripMapper("eu")},  # type: ignore[dict-item]
-            )
-        },
-        id="partition-mapper-in-config",
-    ),
-    pytest.param(
-        "partition_mappers",
-        PrefixStripMapper,
-        lambda: {
-            "schedule": PartitionedAssetTimetable(
-                assets=Asset("a"), partition_mapper_config={Asset("a"): _nested_chain_mapper(6)}
-            )
-        },
-        id="partition-mapper-deep-in-chain",
-    ),
-    pytest.param(
-        "windows",
-        BusinessDayWindow,
-        lambda: {
-            "schedule": PartitionedAssetTimetable(
-                assets=Asset("a"),
-                partition_mapper_config={
-                    Asset("a"): RollupMapper(window=BusinessDayWindow(), upstream_mapper=StartOfMonthMapper())  # type: ignore[arg-type]
-                },
-            )
-        },
-        id="window-in-rollup-mapper",
-    ),
-    pytest.param(
-        "deadline_references",
-        TeamDeadlineReference,
-        lambda: {
-            "deadline": DeadlineAlert(
-                reference=TeamDeadlineReference(),
-                interval=timedelta(hours=1),
-                callback=AsyncCallback(_deadline_callback),
-            )
-        },
-        id="deadline-reference",
-    ),
-]
-
-
-class TestValidateSerializedPluginTeams:
-    """A team-scoped plugin's scheduling classes may only be used by that team's Dags."""
-
-    @pytest.fixture(autouse=True)
-    def _reset_scheduling_registries(self):
-        # mock_plugin_manager leaves these cached, and serializing a Dag reads them, so a
-        # registry left over from another test would make serialization reject the Dag.
-        getters = (
-            plugins_manager.get_partition_mapper_plugins,
-            plugins_manager.get_windows_plugins,
-            plugins_manager.get_deadline_references_plugins,
-        )
-        for getter in getters:
-            getter.cache_clear()
-        yield
-        for getter in getters:
-            getter.cache_clear()
-
-    @staticmethod
-    def _plugin(team_name, registry, scheduling_class, name="scheduling_plugin"):
-        plugin = AirflowPlugin()
-        plugin.name = name
-        plugin.team_name = team_name
-        setattr(plugin, registry, [scheduling_class])
-        return plugin
-
-    @staticmethod
-    def _bundle(team_name):
-        bundle_config = mock.MagicMock()
-        bundle_config.team_name = team_name
-        manager = mock.MagicMock()
-        manager._bundle_config = {"test_bundle": bundle_config}
-        return manager
-
-    @staticmethod
-    def _serialize(dag_kwargs):
-        with DAG("test-dag", **{"schedule": None, **dag_kwargs}) as dag:
-            BaseOperator(task_id="t1")
-        return DagSerialization.to_dict(dag)
-
-    @conf_vars({("core", "multi_team"): "True"})
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
-    @pytest.mark.parametrize(("registry", "scheduling_class", "dag_kwargs"), SCHEDULING_CLASS_USES)
-    @pytest.mark.parametrize(
-        ("dag_team", "allowed"),
-        [("team_a", True), ("team_b", False), (None, False)],
-        ids=["owning-team", "other-team", "teamless"],
-    )
-    def test_team_class_is_only_available_to_its_team(
-        self, mock_manager_class, dag_team, allowed, registry, scheduling_class, dag_kwargs
-    ):
-        mock_manager_class.return_value = self._bundle(dag_team)
-        with mock_plugin_manager(plugins=[self._plugin("team_a", registry, scheduling_class)]):
-            serialized = self._serialize(dag_kwargs())
-            if allowed:
-                validate_serialized_plugin_teams(serialized, "test_bundle")
-            else:
-                with pytest.raises(ValueError, match=r"belonging to team_a"):
-                    validate_serialized_plugin_teams(serialized, "test_bundle")
-
-    @conf_vars({("core", "multi_team"): "True"})
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
-    @pytest.mark.parametrize(
-        "weight_rule",
-        [StaticTestPriorityWeightStrategy(), qualname(StaticTestPriorityWeightStrategy)],
-        ids=["instance", "dotted-path"],
-    )
-    def test_weight_rule_is_checked_in_both_spellings(self, mock_manager_class, weight_rule):
-        mock_manager_class.return_value = self._bundle("team_b")
-        plugin = self._plugin("team_a", "priority_weight_strategies", StaticTestPriorityWeightStrategy)
-        with mock_plugin_manager(plugins=[plugin]):
-            with DAG("test-dag", schedule=None) as dag:
-                BaseOperator(task_id="t1", weight_rule=weight_rule)
-            serialized = DagSerialization.to_dict(dag)
-            with pytest.raises(ValueError, match=r"belonging to team_a"):
-                validate_serialized_plugin_teams(serialized, "test_bundle")
-
-    @conf_vars({("core", "multi_team"): "True"})
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
-    @pytest.mark.parametrize(
-        "plugin_teams",
-        [[None], [None, "team_a"]],
-        ids=["global-plugin", "also-registered-globally"],
-    )
-    def test_class_registered_globally_is_available_to_every_dag(self, mock_manager_class, plugin_teams):
-        mock_manager_class.return_value = self._bundle("team_b")
-        plugins = [
-            self._plugin(team, "timetables", AfterWorkdayTimetable, name=f"plugin_{i}")
-            for i, team in enumerate(plugin_teams)
-        ]
-        with mock_plugin_manager(plugins=plugins):
-            validate_serialized_plugin_teams(
-                self._serialize({"schedule": AfterWorkdayTimetable()}), "test_bundle"
-            )
-
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
-    def test_nothing_is_rejected_when_multi_team_is_off(self, mock_manager_class):
-        mock_manager_class.return_value = self._bundle("team_b")
-        with mock_plugin_manager(plugins=[self._plugin("team_a", "timetables", AfterWorkdayTimetable)]):
-            validate_serialized_plugin_teams(
-                self._serialize({"schedule": AfterWorkdayTimetable()}), "test_bundle"
-            )
-
-    @conf_vars({("core", "multi_team"): "True"})
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
-    def test_class_reloaded_by_the_plugin_loader_is_still_recognised(
-        self, mock_manager_class, tmp_path, monkeypatch
-    ):
-        """
-        A Dag importing from a plugin file holds a different class from the one registered.
-
-        The plugin loader executes the file again under its own module entry, so the two
-        classes share a qualname but not an identity.
-        """
-        (tmp_path / "workday.py").write_text(
-            textwrap.dedent(
-                """\
-                from airflow.plugins_manager import AirflowPlugin
-                from airflow.timetables.simple import NullTimetable
-
-
-                class WorkdayTimetable(NullTimetable):
-                    pass
-
-
-                class WorkdayPlugin(AirflowPlugin):
-                    name = "workday"
-                    team_name = "team_a"
-                    timetables = [WorkdayTimetable]
-                """
-            )
-        )
-        monkeypatch.syspath_prepend(os.fspath(tmp_path))
-        monkeypatch.delitem(sys.modules, "workday", raising=False)
-        dag_side_class = importlib.import_module("workday").WorkdayTimetable
-        plugins, import_errors = plugins_manager._load_plugins_from_plugin_directory(
-            plugins_folder=os.fspath(tmp_path)
-        )
-        assert not import_errors
-        assert plugins[0].timetables[0] is not dag_side_class
-
-        mock_manager_class.return_value = self._bundle("team_b")
-        with mock_plugin_manager(plugins=plugins):
-            serialized = self._serialize({"schedule": dag_side_class()})
-            with pytest.raises(ValueError, match=r"belonging to team_a"):
-                validate_serialized_plugin_teams(serialized, "test_bundle")
-        monkeypatch.delitem(sys.modules, "workday", raising=False)
-
-    @conf_vars({("core", "multi_team"): "True"})
-    @patch("airflow.dag_processing.collection.update_dag_parsing_results_in_db", autospec=True)
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
-    def test_sync_bag_to_db_records_a_rejected_dag_as_an_import_error(self, mock_manager_class, mock_update):
-        mock_manager_class.return_value = self._bundle("team_b")
-        with mock_plugin_manager(plugins=[self._plugin("team_a", "timetables", AfterWorkdayTimetable)]):
-            with DAG("rejected", schedule=AfterWorkdayTimetable()) as rejected:
-                BaseOperator(task_id="t1")
-            with DAG("accepted", schedule=None) as accepted:
-                BaseOperator(task_id="t1")
-            dagbag = mock.MagicMock(spec=DagBag)
-            dagbag.dags = {"rejected": rejected, "accepted": accepted}
-            dagbag.import_errors = {}
-            dagbag.bundle_path = None
-            dagbag.file_last_changed = {}
-            dagbag.dag_warnings = set()
-            dagbag._get_relative_fileloc.side_effect = lambda path: path
-
-            sync_bag_to_db(dagbag, "test_bundle", None, session=mock.MagicMock())
-
-        _, _, stored_dags, import_errors, *_ = mock_update.call_args.args
-        assert [dag.dag_id for dag in stored_dags] == ["accepted"]
-        assert import_errors[("test_bundle", rejected.fileloc)].startswith("ValueError: ")
-        assert ("test_bundle", rejected.fileloc) in mock_update.call_args.kwargs["files_parsed"]

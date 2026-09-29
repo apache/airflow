@@ -44,6 +44,10 @@ from airflow._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.configuration import conf
+from airflow.serialization.helpers import (
+    is_core_partition_mapper_import_path,
+    is_core_timetable_import_path,
+)
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
@@ -535,6 +539,10 @@ def get_scheduling_class_teams() -> dict[str, frozenset[str | None]]:
 
     A qualname registered by several plugins maps to all of their teams, and is then
     resolved least restrictively.
+
+    Airflow's own timetables, partition mappers and windows are left out even if a plugin
+    lists them: the decoder imports anything under those core paths directly and never
+    consults plugins, so a plugin cannot own them.
     """
     teams: dict[str, set[str | None]] = {}
     for plugin in _get_plugins()[0]:
@@ -545,7 +553,11 @@ def get_scheduling_class_teams() -> dict[str, frozenset[str | None]]:
             *plugin.deadline_references,
             *plugin.priority_weight_strategies,
         ):
-            teams.setdefault(qualname(scheduling_class), set()).add(plugin.team_name)
+            name = qualname(scheduling_class)
+            # The partition mapper prefix also covers core windows.
+            if is_core_timetable_import_path(name) or is_core_partition_mapper_import_path(name):
+                continue
+            teams.setdefault(name, set()).add(plugin.team_name)
     return {name: frozenset(team_names) for name, team_names in teams.items()}
 
 

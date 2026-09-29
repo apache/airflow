@@ -22,7 +22,7 @@ import os
 import sys
 import textwrap
 import warnings
-from collections.abc import Generator, Iterator
+from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -44,7 +44,6 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
-from airflow.plugins_manager import get_scheduling_class_teams
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.file import correct_maybe_zipped
@@ -121,30 +120,27 @@ def _executor_exists(executor_name: str, team_name: str | None) -> bool:
     return False
 
 
-def _bundle_team_name(bundle_name: str | None) -> str | None:
-    """
-    Team owning ``bundle_name``, or ``None`` when multi-team is off or the bundle is global.
-
-    A Dag inherits its team from the bundle it was parsed from, which is the only team
-    signal available at parse time.
-    """
-    if not bundle_name or not conf.getboolean("core", "multi_team"):
-        return None
-
-    from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-    return DagBundlesManager()._bundle_config[bundle_name].team_name
-
-
 def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
     log = logging.getLogger(__name__)
+    dag_team_name = None
 
-    dag_team_name = _bundle_team_name(bundle_name)
-    if dag_team_name:
-        log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
+    # Check if multi team is available by reading the multi_team configuration (which is boolean)
+    if conf.getboolean("core", "multi_team"):
+        # Get team name from bundle configuration if available
+        if bundle_name:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle_manager = DagBundlesManager()
+            bundle_config = bundle_manager._bundle_config[bundle_name]
+
+            dag_team_name = bundle_config.team_name
+            if dag_team_name:
+                log.debug(
+                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
+                )
 
     for task in dag.tasks:
         if not task.executor:
@@ -171,7 +167,16 @@ def _assign_default_team_pools(
     bundle_name: str | None = None,
 ) -> None:
     """Assign the default team pool to tasks that do not explicitly specify a pool."""
-    dag_team_name = _bundle_team_name(bundle_name)
+    dag_team_name = None
+
+    if conf.getboolean("core", "multi_team"):
+        if bundle_name:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle_manager = DagBundlesManager()
+            bundle_config = bundle_manager._bundle_config[bundle_name]
+
+            dag_team_name = bundle_config.team_name
 
     if not dag_team_name:
         return
@@ -179,74 +184,6 @@ def _assign_default_team_pools(
     for task in dag.tasks:
         if task.pool == Pool.DEFAULT_POOL_NAME:
             task.pool = Pool.get_default_team_pool_name(dag_team_name)
-
-
-def _iter_serialized_class_names(data: Any) -> Iterator[str]:
-    """
-    Yield every class name recorded in a serialized Dag.
-
-    Timetables, partition mappers and windows are encoded as ``{"__type": <qualname>, ...}``,
-    a custom deadline reference carries ``"__class_path"``, and a task's ``weight_rule`` is
-    stored as the strategy's qualname. Every string is yielded, not only those under known
-    keys, so where the encoders put a name does not matter; ordinary strings simply match
-    nothing in the plugin map.
-
-    This is what ``DagSerialization.to_dict`` returns, before it is dumped to JSON, so it
-    holds tuples as well as lists (a partition mapper config is a list of pairs), and names
-    can sit in keys as well as values. None of it is cyclic.
-    """
-    stack = [data]
-    while stack:
-        item = stack.pop()
-        if isinstance(item, str):
-            yield item
-        elif isinstance(item, dict):
-            stack.extend(item.keys())
-            stack.extend(item.values())
-        elif isinstance(item, (list, tuple, set, frozenset)):
-            stack.extend(item)
-
-
-def validate_serialized_plugin_teams(serialized: dict[str, Any], bundle_name: str | None) -> None:
-    """
-    Reject a serialized Dag that names a scheduling class belonging to another team's plugin.
-
-    Timetables, partition mappers, windows, deadline references and priority weight
-    strategies are all named by the Dag itself, with no team-aware lookup in between, so this
-    is the only thing keeping a team-scoped plugin's scheduling classes to that team. It
-    checks the serialized Dag because that is exactly what the scheduler will resolve.
-
-    A partition mapper a timetable picks inside ``get_partition_mapper()`` is not covered,
-    because nothing decides it until the timetable runs.
-    """
-    if not conf.getboolean("core", "multi_team"):
-        return
-
-    # A class registered by any global plugin is available to every Dag, so only classes
-    # that every registering plugin scoped to a team can be refused.
-    restricted: dict[str, frozenset[str]] = {
-        name: frozenset(team for team in teams if team is not None)
-        for name, teams in get_scheduling_class_teams().items()
-        if None not in teams
-    }
-    if not restricted:
-        return
-
-    dag_team_name = _bundle_team_name(bundle_name)
-    for name in _iter_serialized_class_names(serialized):
-        owning_teams = restricted.get(name)
-        if owning_teams is None or dag_team_name in owning_teams:
-            continue
-
-        owners = ", ".join(sorted(owning_teams))
-        belongs_to = f"team '{dag_team_name}'" if dag_team_name else "no team"
-        dag_id = serialized.get("dag", {}).get("dag_id")
-        raise ValueError(
-            f"Dag '{dag_id}' uses {name}, which is provided by a plugin belonging to {owners}. "
-            f"This Dag belongs to {belongs_to}, so it cannot use it. Move the Dag into a bundle "
-            f"owned by {owners}, or have the plugin provide the class globally instead of for a "
-            "single team."
-        )
 
 
 class DagBag(LoggingMixin):
@@ -658,22 +595,10 @@ def sync_bag_to_db(
             for abs_filepath in dagbag.file_last_changed
         )
 
-    serialized_dags = []
-    for dag in dagbag.dags.values():
-        serialized = LazyDeserializedDAG.from_dag(dag)
-        try:
-            validate_serialized_plugin_teams(serialized.data, bundle_name)
-        except ValueError as e:
-            rel_path = dagbag._get_relative_fileloc(dag.fileloc)
-            import_errors[(bundle_name, rel_path)] = f"{type(e).__name__}: {e}"
-            files_parsed.add((bundle_name, rel_path))
-            continue
-        serialized_dags.append(serialized)
-
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
-        serialized_dags,
+        [LazyDeserializedDAG.from_dag(dag) for dag in dagbag.dags.values()],
         import_errors,
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
