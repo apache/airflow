@@ -4513,6 +4513,17 @@ export const $DAGSourceResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        language: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Language'
         }
     },
     type: 'object',
@@ -4588,7 +4599,17 @@ export const $DAGWarningResponse = {
             title: 'Dag Id'
         },
         warning_type: {
-            '$ref': '#/components/schemas/DagWarningType'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagWarningType'
+                },
+                {
+                    type: 'string',
+                    maxLength: 50,
+                    pattern: '^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$'
+                }
+            ],
+            title: 'Warning Type'
         },
         message: {
             type: 'string',
@@ -6130,6 +6151,17 @@ export const $ImportErrorResponse = {
             type: 'string',
             title: 'Filename'
         },
+        source_reference: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Source Reference'
+        },
         bundle_name: {
             anyOf: [
                 {
@@ -6153,7 +6185,7 @@ export const $ImportErrorResponse = {
         }
     },
     type: 'object',
-    required: ['import_error_id', 'timestamp', 'filename', 'bundle_name', 'stack_trace', 'file_token'],
+    required: ['import_error_id', 'timestamp', 'filename', 'source_reference', 'bundle_name', 'stack_trace', 'file_token'],
     title: 'ImportErrorResponse',
     description: 'Import Error Response.'
 } as const;
@@ -7680,6 +7712,18 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
+        },
+        state_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State Reason',
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
         }
     },
     type: 'object',
@@ -7980,6 +8024,18 @@ export const $TaskInstanceResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        state_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State Reason',
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
         }
     },
     type: 'object',

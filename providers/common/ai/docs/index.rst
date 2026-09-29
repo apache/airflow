@@ -85,6 +85,7 @@ waits for the result, use that vendor's provider.
     Home <self>
     Changelog <changelog>
     Security <security>
+    Securing agent tools <agent_security>
 
 .. toctree::
     :titlesonly:
@@ -102,9 +103,11 @@ waits for the result, use that vendor's provider.
     :caption: Guides
 
     What you can build <use_cases/index>
+    Connections <connections/index>
     Models and providers <model_providers>
-    Operators <operators/index>
+    Operators and decorators <operators/index>
     Toolsets <toolsets/index>
+    Agent frameworks <frameworks/index>
     LLM and agent features <features>
     Document and RAG pipelines <rag_pipelines>
     Reliability and operations <operations>
@@ -210,29 +213,30 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-common-ai[anthropic]
 
 
-==============  =======================================================================================================================================
-Extra           Dependencies
-==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.33.0``, ``anthropic>=1.0.0``
-``bedrock``     ``pydantic-ai-slim[bedrock]>=2.33.0``
-``google``      ``pydantic-ai-slim[google]>=2.33.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
-``typesafe``    ``typesafe-sdk>=0.6.0``
-``mcp``         ``pydantic-ai-slim[mcp]>=2.33.0``
-``modal``       ``modal>=1.5.0``
-``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
-``shields``     ``pydantic-ai-shields>=0.3.4``
-``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
-``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
-``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
-``sql``         ``apache-airflow-providers-common-sql>=1.33.0``, ``sqlglot>=30.0.0``
-``common.sql``  ``apache-airflow-providers-common-sql>=1.33.0``
-``langchain``   ``langchain>=1.0.0``
-``llamaindex``  ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.14.5``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.8``
-``pdf``         ``pypdf>=4.0.0``
-``docx``        ``python-docx>=1.0.0``
-``git``         ``apache-airflow-providers-git``
-==============  =======================================================================================================================================
+===============  =======================================================================================================================================
+Extra            Dependencies
+===============  =======================================================================================================================================
+``anthropic``    ``pydantic-ai-slim[anthropic]>=2.33.0``, ``anthropic>=1.0.0``
+``bedrock``      ``pydantic-ai-slim[bedrock]>=2.33.0``
+``google``       ``pydantic-ai-slim[google]>=2.33.0``
+``openai``       ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
+``typesafe``     ``typesafe-sdk>=0.6.0``
+``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
+``modal``        ``modal>=1.5.2``
+``opensandbox``  ``opensandbox>=1.1.0``
+``code-mode``    ``pydantic-ai-harness[codemode]>=0.3.0``
+``shields``      ``pydantic-ai-shields>=0.3.4``
+``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
+``avro``         ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
+``parquet``      ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
+``sql``          ``apache-airflow-providers-common-sql>=2.2.0``, ``sqlglot>=30.0.0``
+``common.sql``   ``apache-airflow-providers-common-sql>=2.2.0``
+``langchain``    ``langchain>=1.0.0``
+``llamaindex``   ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.14.5``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.8``
+``pdf``          ``pypdf>=4.0.0``
+``docx``         ``python-docx>=1.0.0``
+``git``          ``apache-airflow-providers-git``
+===============  =======================================================================================================================================
 
 Downloading official packages
 -----------------------------

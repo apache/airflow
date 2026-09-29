@@ -144,7 +144,7 @@ Extra                Dependencies
 ===================  ============================================
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure``
 ``amazon``           ``apache-airflow-providers-amazon``
-``sqlalchemy``       ``sqlalchemy>=1.4.54``
+``sqlalchemy``       ``sqlalchemy>=1.4.54,!=2.1.0``
 ``ssh``              ``apache-airflow-providers-ssh``
 ===================  ============================================
 

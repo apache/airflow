@@ -27,10 +27,11 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import quote
 
 import attrs
@@ -1816,6 +1817,8 @@ def _evaluate_retry_policy(
     Returns ``None`` when no policy is configured so the caller falls through
     to the standard retry logic.
     """
+    from airflow.sdk._shared.secrets_masker import redact
+
     policy = getattr(ti.task, "retry_policy", None)
     if policy is None:
         return None
@@ -1828,6 +1831,9 @@ def _evaluate_retry_policy(
             context=context,
         )
         if decision.reason:
+            # Mask here, where mask_secret() registered the value: the API server rendering this
+            # later has its own masker and does not know the worker's secrets.
+            decision = replace(decision, reason=cast("str", redact(decision.reason)))
             # Close the group so the retry policy decision is not hidden inside "Post Execute".
             log.info("::endgroup::")
             log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
