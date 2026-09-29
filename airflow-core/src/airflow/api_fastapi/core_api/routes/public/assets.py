@@ -450,7 +450,7 @@ def materialize_asset(
     dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
-    body: MaterializeAssetBody | None = None,
+    body: MaterializeAssetBody,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
@@ -486,18 +486,16 @@ def materialize_asset(
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    resolved_body = body or MaterializeAssetBody()
-
     try:
         preloaded_dag_version = None
         context_dag = dag
-        if resolved_body.bundle_version is not None and not dag.disable_bundle_versioning:
+        if body.bundle_version is not None and not dag.disable_bundle_versioning:
             preloaded_dag_version = DagVersion.get_latest_version(
-                dag_id, bundle_version=resolved_body.bundle_version, load_serialized_dag=True, session=session
+                dag_id, bundle_version=body.bundle_version, load_serialized_dag=True, session=session
             )
             if not preloaded_dag_version:
                 raise DagVersionNotFound(
-                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{resolved_body.bundle_version}'"
+                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{body.bundle_version}'"
                 )
             context_dag = preloaded_dag_version.serialized_dag.dag
 
@@ -510,7 +508,7 @@ def materialize_asset(
                 f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
             )
 
-        params = resolved_body.validate_context(context_dag)
+        params = body.validate_context(context_dag)
         return dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -525,7 +523,7 @@ def materialize_asset(
             partition_date=params["partition_date"],
             note=params["note"],
             session=session,
-            bundle_version=resolved_body.bundle_version,
+            bundle_version=body.bundle_version,
             dag_version=preloaded_dag_version,
         )
     except (ParamValidationError, ValueError) as e:

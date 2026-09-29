@@ -20,3 +20,4 @@ toolsets.rst toolsets/index.rst
 choosing_a_toolset.rst toolsets/index.rst
 sandbox.rst sandbox/index.rst
 hooks/index.rst concepts.rst
+end_to_end_pipelines.rst use_cases/index.rst

@@ -97,7 +97,7 @@ def test_missing_sdk_error_is_actionable():
     backend = BoatSandboxBackend(boat_conn_id=None)
     with mock.patch.dict("os.environ", {"BOAT_API_KEY": "boat_key"}, clear=False):
         with mock.patch("builtins.__import__", side_effect=blocked_import):
-            with pytest.raises(SandboxTerminalError, match="sandbox-boat"):
+            with pytest.raises(SandboxTerminalError, match=r"\[boat\]"):
                 backend._get_api()
 
 
@@ -192,6 +192,12 @@ class TestCreate:
 
         with pytest.raises(SandboxTerminalError, match="cannot deny outbound network access"):
             backend.create(spec=SandboxSpec(block_network=True))
+
+    def test_refuses_cidr_egress_allowlist(self):
+        backend, _ = _backend_with_api()
+
+        with pytest.raises(SandboxTerminalError, match="CIDR egress allowlist"):
+            backend.create(spec=SandboxSpec(block_network=False, allow_egress_to_cidrs=["203.0.113.0/24"]))
 
     @mock.patch("boat_sdk.wait_until_ready", autospec=True)
     def test_spec_and_sizing_are_passed_at_creation(self, wait_ready):
@@ -307,12 +313,26 @@ class TestRunCommand:
         result = backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
 
         request = api.command.call_args.args[1]
-        assert request.command == "echo hi"
+        assert "echo hi" in request.command
+        assert "mktemp -d" in request.command
         assert request.timeout_seconds == 5
         assert result.stdout == "0" * 8
         assert result.stdout_truncated
         assert result.stderr == "err"
         assert result.exit_code == 0
+
+    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
+    def test_spec_environment_is_exported_after_shell_profile(self, _wait_ready):
+        backend, api = _backend_with_api()
+        api.create.return_value = _created("bx_env01")
+        api.command.return_value = _command_response()
+
+        backend.create(spec=SandboxSpec(block_network=False, env={"SPEC_MARKER": "kept"}))
+        backend.run_command("bx_env01", "printf '%s' \"$SPEC_MARKER\"", timeout=5, max_output_bytes=1024)
+
+        command = api.command.call_args.args[1].command
+        assert "export SPEC_MARKER=kept" in command
+        assert "mktemp -d" in command
 
     def test_a_detached_command_response_is_terminal(self):
         backend, api = _backend_with_api()

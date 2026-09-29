@@ -126,7 +126,7 @@ Install the SDK extra:
 
 .. code-block:: bash
 
-    pip install "apache-airflow-providers-common-ai[sandbox-boat]"
+    pip install "apache-airflow-providers-common-ai[boat]"
 
 .. code-block:: python
 
@@ -153,7 +153,7 @@ Constructor parameters:
   reads ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the worker
   environment instead.
 - ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
-- ``ttl_seconds``: server-side auto-stop TTL. Default ``3600``.
+- ``ttl_seconds``: server-side archive TTL. Default ``3600``.
 - ``ready_timeout``: provisioning deadline. Default ``300``.
 - ``no_env``: explicit override for the connection's ``no_env`` setting.
 

@@ -22,7 +22,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
-from airflow.providers.influxdb.utils import _convert_dataframe_to_records
+from airflow.providers.influxdb.utils import _convert_dataframe_to_records, _first_cell_is_truthy
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -76,3 +76,53 @@ class InfluxDB3QueryTrigger(BaseTrigger):
             return
 
         yield TriggerEvent({"status": "success", "records": records})
+
+
+class InfluxDB3SensorTrigger(BaseTrigger):
+    """Poll an InfluxDB 3.x SQL query until its first cell meets the sensor condition."""
+
+    def __init__(
+        self,
+        sql: str,
+        influxdb3_conn_id: str = "influxdb3_default",
+        poll_interval: float = 60,
+        fail_on_empty: bool = False,
+    ) -> None:
+        super().__init__()
+        self.sql = sql
+        self.influxdb3_conn_id = influxdb3_conn_id
+        self.poll_interval = poll_interval
+        self.fail_on_empty = fail_on_empty
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.influxdb.triggers.influxdb3.InfluxDB3SensorTrigger",
+            {
+                "sql": self.sql,
+                "influxdb3_conn_id": self.influxdb3_conn_id,
+                "poll_interval": self.poll_interval,
+                "fail_on_empty": self.fail_on_empty,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        hook = InfluxDB3Hook(conn_id=self.influxdb3_conn_id)
+        while True:
+            try:
+                dataframe = await hook.query_async(self.sql)
+            except Exception as error:
+                self.log.exception("InfluxDB 3 sensor query failed")
+                yield TriggerEvent({"status": "error", "message": str(error)})
+                return
+
+            if dataframe.empty and self.fail_on_empty:
+                yield TriggerEvent(
+                    {"status": "fail", "message": "No rows returned, raising as per fail_on_empty flag"}
+                )
+                return
+
+            if _first_cell_is_truthy(dataframe):
+                yield TriggerEvent({"status": "success"})
+                return
+
+            await asyncio.sleep(self.poll_interval)

@@ -320,7 +320,7 @@ whether or not code mode is on. See :ref:`code-mode` and
   :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` behind
   the ``modal`` extra or
   :class:`~airflow.providers.common.ai.sandbox.boat.BoatSandboxBackend` behind
-  ``sandbox-boat``; neither installs anything on the worker, and both reclaim a
+  ``boat``; neither installs anything on the worker, and both reclaim a
   sandbox at its own lifetime if the worker dies. All implement
   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and another vendor
   can too.

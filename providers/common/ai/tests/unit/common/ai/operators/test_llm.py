@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -133,7 +133,9 @@ class TestLLMOperator:
         result = op.execute(context=MagicMock())
 
         assert result == "Paris is the capital of France."
-        mock_agent.run_sync.assert_called_once_with("What is the capital of France?", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "What is the capital of France?", usage_limits=None, cancellation_token=ANY
+        )
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions=""
         )
@@ -157,7 +159,7 @@ class TestLLMOperator:
         )
         op.execute(context=MagicMock())
 
-        mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
+        mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits, cancellation_token=ANY)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):

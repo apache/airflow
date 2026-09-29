@@ -23,6 +23,7 @@ import datetime
 import json
 import time
 import uuid
+from collections.abc import Sequence
 from decimal import Decimal
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -95,6 +96,8 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         For detailed info, check https://www.psycopg.org/docs/usage.html#server-side-cursors
     :param cursor_itersize: How many records are fetched at a time in case of server-side cursor.
     """
+
+    template_fields: Sequence[str] = (*BaseSQLToGCSOperator.template_fields, "postgres_conn_id")
 
     ui_color = "#a0e08c"
 

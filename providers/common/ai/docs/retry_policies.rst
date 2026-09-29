@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-LLM retry policies
-==================
+Retry policies
+==============
 
 .. note::
     Requires Airflow >= 3.3.0.
@@ -85,7 +85,7 @@ Setup
    - **Connection Id**: ``pydanticai_default``
    - **Connection Type**: ``Pydantic AI``
    - **Password**: Your API key
-   - **Extra**: ``{"model": "anthropic:claude-haiku-4-5"}``
+   - **Extra**: ``{"model": "anthropic:claude-haiku-4-5-20251001"}``
 
 Usage
 -----
@@ -129,9 +129,9 @@ When a task fails, either policy:
    it is the picked category's ``retry`` and ``delay``, unless the policy has a
    confidence bar and the answer is under it, in which case the answer is
    discarded (see `Confidence`_ below).
-4. The decision is logged in the task logs and, on a RETRY, written to the task
-   instance's ``retry_reason``: ``<category>: <reasoning>`` from
-   ``LLMRetryPolicy``, or one line such as
+4. The decision is logged in the task logs and written to the task instance's
+   ``retry_reason``, on a FAIL as well as a RETRY: ``<category>: <reasoning>``
+   from ``LLMRetryPolicy``, or one line such as
    ``category=network confidence=0.91 threshold=0.60 action=retry delay=10s``
    from ``ClassifierRetryPolicy``.
 
@@ -153,7 +153,7 @@ classifier decision or a plain rule match. ``LLMRetryPolicy``'s fallback
 decision is what ``fallback_rules`` returned, as it always was.
 
 This policy decides *between* attempts. Failing over to another vendor *within*
-an attempt is a separate mechanism on the connection — see
+an attempt is a separate mechanism on the connection; see
 :doc:`provider_fallback`, which also sets out how the two layers compose.
 
 ClassifierRetryPolicy
@@ -234,25 +234,24 @@ on them differently:
 
 .. code-block:: python
 
-    snowflake_policy = ClassifierRetryPolicy(
-        llm_conn_id="pydanticai_default",
-        categories={
-            "queued": ErrorCategory(
-                "Statement queued or a concurrency limit reached; the warehouse is busy.",
-                delay=timedelta(seconds=120),
-            ),
-            "warehouse_suspended": ErrorCategory(
-                "The warehouse is suspended and will auto-resume.", delay=timedelta(seconds=30)
-            ),
-            "token_expired": ErrorCategory(
-                "A JWT or session token expired; the token rotates on its own.", delay=timedelta(seconds=30)
-            ),
-            "schema_drift": ErrorCategory(
-                "A referenced column, table or view does not exist; a person has to fix the schema.",
-                retry=False,
-            ),
-        },
-    )
+    SNOWFLAKE_CATEGORIES = {
+        "queued": ErrorCategory(
+            "Statement queued or a concurrency limit reached; the warehouse is busy.",
+            delay=timedelta(seconds=120),
+        ),
+        "warehouse_suspended": ErrorCategory(
+            "The warehouse is suspended and will auto-resume.", delay=timedelta(seconds=30)
+        ),
+        "token_expired": ErrorCategory(
+            "A JWT or session token expired; the token rotates on its own.", delay=timedelta(seconds=30)
+        ),
+        "schema_drift": ErrorCategory(
+            "A referenced column, table or view does not exist; a person has to fix the schema.",
+            retry=False,
+        ),
+    }
+
+    snowflake_policy = ClassifierRetryPolicy(llm_conn_id="pydanticai_default", categories=SNOWFLAKE_CATEGORIES)
 
 Write descriptions as the boundary between categories: what belongs here and what
 does not. That is the whole of what the model reads about a category; the name
@@ -312,11 +311,8 @@ model returned: concentrated on one category is high, spread out is low. It is
 not the probability that the answer is correct. Pick the bar from the confidence
 values your own failures produce: run the policy with no bar first, read the
 logged ``confidence=`` values per category, and set the bar where the wrong
-answers start. For orientation, a calibration run of the two example taxonomies
-on ``jev-1.13.0`` over 31 realistic exception messages put every correct pick at
-0.89 or above and three of the four wrong picks between 0.47 and 0.69; the
-fourth wrong pick was a ``permanent`` at 0.90, which is why a bar reduces wrong
-actions and does not eliminate them. Pin the model version
+answers start. A bar reduces wrong actions and does not eliminate them: a wrong
+pick can arrive with high confidence. Pin the model version
 (``typesafe:jev-1.13.0``, not ``jev-latest``): a bar tuned against one release
 is not guaranteed to mean the same thing after the next. See
 :doc:`classifier_models` for what these models answer well and badly.
@@ -406,8 +402,14 @@ Under ``LLMRetryPolicy`` it answers four fields: ``category``, ``should_retry``,
 ``suggested_delay_seconds`` and ``reasoning``, and the first two after
 ``category`` decide the run. A positive delay is used as returned, with no
 upper limit; zero or negative means no override, so the task's own
-``retry_delay`` and backoff apply. ``category`` and ``reasoning`` become the
-``retry_reason``.
+``retry_delay`` and backoff apply.
+
+``category`` and ``reasoning`` become the ``retry_reason`` (truncated to 500
+characters), recorded on both outcomes. On a RETRY the value is cleared once the next attempt starts running;
+a FAIL is terminal, so there is no next attempt to clear it and the reason stays
+on the row. Only the model's own words are stored -- attempt counts are left to
+whatever displays the reason. Recording on a FAIL requires Airflow 3.4.0; on
+earlier versions only the RETRY outcome is recorded.
 
 Under ``ClassifierRetryPolicy`` it answers the category name and nothing else. It does not
 decide whether to retry, it does not choose the delay, and it does not explain
@@ -416,11 +418,6 @@ the generated line in the task log, which says what mattered (the category,
 the confidence, the bar, the action). A model cannot return a category the
 policy does not recognize, and it cannot return a category paired with an
 action that contradicts it.
-
-The ``retry_reason`` is only recorded on a RETRY. It is written to the task
-instance (truncated to 500 characters), then cleared once the next attempt
-starts running. On a FAIL it is not written anywhere -- it only shows up in the
-task log.
 
 RETRY cannot give a task more attempts than ``retries`` allows. FAIL ends the
 task straight away even when attempts were left, so a wrong classification into
@@ -476,7 +473,7 @@ not decide the action:
     snowflake_policy = ClassifierRetryPolicy(
         llm_conn_id="pydanticai_default",
         instructions=SNOWFLAKE_HINTS,
-        categories={...},  # the same names the hints use
+        categories=SNOWFLAKE_CATEGORIES,  # the table above; the hints use the same names
         fallback_rules=[
             RetryRule(
                 exception=ConnectionError,
@@ -524,7 +521,7 @@ Both policies share every parameter below except ``categories``,
      - Airflow connection ID for the LLM provider.
    * - ``model_id``
      - None
-     - Override the model from the connection (e.g., ``"openai:gpt-4o-mini"``).
+     - Override the model from the connection (e.g., ``"openai:gpt-5-mini"``).
    * - ``instructions``
      - (built-in)
      - Custom system prompt for error classification. On ``LLMRetryPolicy`` it

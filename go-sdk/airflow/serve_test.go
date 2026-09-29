@@ -144,6 +144,24 @@ func TestServeRejectsBundleFlagWithReservedName(t *testing.T) {
 	}
 }
 
+// pflag prints a deprecation warning while it parses, so it must not reach the writer that
+// carries the --airflow-metadata manifest.
+func TestServeKeepsDeprecationWarningOutOfTheManifest(t *testing.T) {
+	saved := flag.CommandLine
+	t.Cleanup(func() { flag.CommandLine = saved })
+	flag.CommandLine = flag.NewFlagSet("bundle", flag.ContinueOnError)
+	flag.String("region", "", "a flag the bundle author defined")
+	require.NoError(t, flag.CommandLine.MarkDeprecated("region", "use --zone"))
+
+	var stdout bytes.Buffer
+	args := []string{"--region", "us", "--airflow-metadata", "--format", "json"}
+	require.NoError(t, etlBundle().serve(args, &stdout))
+
+	assert.NotContains(t, stdout.String(), "deprecated")
+	var got manifest
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &got))
+}
+
 func TestServeRejectsBadFlags(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -195,7 +213,10 @@ func TestServeRejectsBadFlags(t *testing.T) {
 }
 
 func TestServeHelpIsNotAnError(t *testing.T) {
-	assert.NoError(t, etlBundle().serve([]string{"--help"}, io.Discard))
+	var stdout bytes.Buffer
+	require.NoError(t, etlBundle().serve([]string{"--help"}, &stdout))
+
+	assert.Contains(t, stdout.String(), "--airflow-metadata")
 }
 
 // A fake supervisor sends StartupDetails over the comm socket, as the Python
