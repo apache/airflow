@@ -20,6 +20,11 @@
 Code mode
 =========
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Set ``code_mode=True`` to collapse the agent's tools into a single ``run_code``
 tool powered by the `Monty <https://github.com/pydantic/monty>`__ sandbox (via
 pydantic-ai-harness). Instead of one model round-trip per tool call, the model

@@ -21,6 +21,19 @@ Securing agent tools
 LLM agents call tools based on natural-language reasoning. This makes them
 powerful but introduces risks that don't exist with deterministic operators.
 
+Securing an agent has two sides. The first is what the agent can reach: the
+tools you register, the connections behind them, and the limits on each. Most
+of this page is about that side, because it is where the provider gives you
+controls. The second side is what reaches the agent and what leaves it, and
+that one belongs to the Dag author: keep sensitive data out of the prompt and
+the tool results when the agent can also reach an untrusted system such as the
+web, and treat the agent's output as untrusted input for whatever consumes it
+downstream. The :ref:`checklist <agent-security-checklist>` at the end covers
+both.
+
+The :doc:`security` page is the provider's vulnerability-reporting policy, not a
+guide to securing agents.
+
 What the agent can and cannot reach
 -------------------------------------
 
@@ -241,6 +254,8 @@ Recommended configuration
         max_rows=100,
     )
 
+.. _agent-security-checklist:
+
 Production checklist
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -264,4 +279,9 @@ Before deploying an agent task to production:
    "Only query tables related to the question. Never modify data.").
 8. **Prompt injection**: Be cautious when the prompt includes untrusted data
    (user input, external API responses, upstream XCom). Consider sanitizing
-   inputs before passing them to the agent.
+   inputs before passing them to the agent. A tool that reads an untrusted
+   source, a web page or a shared inbox for example, brings that text into the
+   context too, so do not pair such a tool with sensitive data in the same run.
+9. **Output handling**: The agent's answer is model output. Validate it with
+   ``output_type`` where a shape is expected, and treat free text as untrusted
+   before a downstream task acts on it, posts it, or writes it somewhere.

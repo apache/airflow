@@ -129,6 +129,11 @@ class ErrorCategory:
     """
     One kind of failure a :class:`ClassifierRetryPolicy` may name, and what it does when it does.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The value of the policy's ``categories`` mapping, keyed by the category name the model
     answers with.
 
@@ -428,6 +433,11 @@ class LLMRetryPolicy(_ModelRetryPolicy):
 class ClassifierRetryPolicy(_ModelRetryPolicy):
     """
     Retry policy where the model names the kind of failure and the author's table decides.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The model's only job is to pick one of ``categories``; it reads each one's description
     from the output schema. Whether that category is retried, after how long, and how sure

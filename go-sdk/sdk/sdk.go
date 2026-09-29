@@ -103,14 +103,14 @@ type ConnectionClient interface {
 // another task's XCom, or to push under a custom key.
 type XComClient interface {
 	// GetXCom returns the value stored under key by the task identified by
-	// dagId/runId/taskId. For a mapped task instance pass its mapIndex,
+	// dagID/runID/taskID. For a mapped task instance pass its mapIndex,
 	// otherwise pass nil. If no value exists the error wraps XComNotFound.
 	//
 	// value is reserved for future typed decoding and is currently ignored; the
 	// stored value is returned as the first result instead.
 	GetXCom(
 		ctx context.Context,
-		dagId, runId, taskId string,
+		dagID, runID, taskID string,
 		mapIndex *int,
 		key string,
 		value any,

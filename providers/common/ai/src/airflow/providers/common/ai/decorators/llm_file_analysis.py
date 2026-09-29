@@ -101,6 +101,11 @@ def llm_file_analysis_task(
     """
     Wrap a callable that returns a prompt into an LLM-backed file-analysis task.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Any file-analysis keyword arguments accepted by
     :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`,
     including ``sample_rows``, can be passed through this decorator.
