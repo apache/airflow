@@ -66,6 +66,13 @@ export const Header = ({
   const { dagId } = useParams();
   const showTeam = useShowTeam(dag?.team_name);
   const isStale = dag?.is_stale;
+  const hasQueuedRuns = (dag?.queued_runs_count ?? 0) > 0;
+  // Queued runs alone don't mean anything is stuck: on a busy deployment the scheduler may
+  // simply not have picked them up yet, and a paused Dag never promotes queued runs at all.
+  // Only warn once active runs are actually at (or over) the limit.
+  const isBlockedByMaxActiveRuns =
+    (dag?.active_runs_count ?? 0) >= (dag?.max_active_runs ?? Number.POSITIVE_INFINITY) &&
+    dag?.is_paused !== true;
 
   const nextRunStat = isStale
     ? []
@@ -114,11 +121,12 @@ export const Header = ({
     },
     ...nextRunStat,
     {
+      key: "activeRuns",
       label:
-        (dag?.queued_runs_count ?? 0) > 0 ? (
+        isBlockedByMaxActiveRuns && hasQueuedRuns ? (
           <HStack gap={1}>
             {translate("dagDetails.activeRuns")}
-            <Tooltip content={translate("dagDetails.activeRunsExceedsMaxTooltip")}>
+            <Tooltip content={translate("dagDetails.activeRunsExceedsMaxTooltip")} portalled>
               <FiInfo data-testid="active-runs-exceeds-max-info" />
             </Tooltip>
           </HStack>
@@ -128,7 +136,7 @@ export const Header = ({
       value:
         dag?.max_active_runs === undefined
           ? undefined
-          : (dag.queued_runs_count ?? 0) > 0
+          : hasQueuedRuns
             ? translate("dagDetails.activeRunsWithQueued", {
                 activeRuns: dag.active_runs_count ?? 0,
                 maxActiveRuns: dag.max_active_runs,
