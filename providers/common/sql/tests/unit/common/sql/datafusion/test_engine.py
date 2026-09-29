@@ -497,7 +497,9 @@ class TestDataFusionEngine:
         assert credentials == {}
         assert extra_config == {}
 
-    def test_get_credentials_azure_sas_token_takes_priority_over_shared_access_key(self):
+    def test_get_credentials_azure_shared_access_key_takes_priority_over_sas_token(self):
+        """Matches WasbHook.get_conn, which checks the `shared_access_key` extra before
+        `sas_token`."""
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
         mock_conn.host = None
@@ -511,8 +513,8 @@ class TestDataFusionEngine:
 
         credentials, extra_config = engine._get_credentials(mock_conn)
 
-        assert "sas_query_pairs" in credentials
-        assert "access_key" not in credentials
+        assert credentials == {"account": "myaccount", "access_key": "extra-key"}
+        assert extra_config == {}
 
     def test_get_credentials_azure_with_sas_token(self):
         mock_conn = MagicMock()
@@ -608,7 +610,7 @@ class TestDataFusionEngine:
             "AZURE_FEDERATED_TOKEN_FILE",
             "AZURE_STORAGE_ACCOUNT_KEY",
             "AZURE_STORAGE_ACCESS_KEY",
-            "AZURE_STORAGE_SAS_KEY",
+            "AZURE_STORAGE_MASTER_KEY",
             "AZURE_STORAGE_TOKEN",
         ],
     )
@@ -617,7 +619,7 @@ class TestDataFusionEngine:
     ):
         """DataFusion's binding always reads these AZURE_* vars via from_env() before overlaying
         an explicit credential, and object_store checks the env-derived slots before the
-        connection's SAS/client-secret slots -- so any of these would silently win."""
+        connection's SAS slot -- so any of these would silently win."""
         monkeypatch.setenv(env_var, "some-value")
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
@@ -629,6 +631,58 @@ class TestDataFusionEngine:
 
         with pytest.raises(ValueError, match=env_var):
             engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_ignores_sas_key_env_var(self, monkeypatch):
+        """AZURE_STORAGE_SAS_KEY sits below every explicit credential in object_store's
+        precedence order, so it can never outrank a connection's credential and must not raise."""
+        monkeypatch.setenv("AZURE_STORAGE_SAS_KEY", "some-value")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert "sas_query_pairs" in credentials
+        assert extra_config == {}
+
+    def test_get_credentials_azure_rejects_when_env_client_secret_triple_would_outrank_sas(self, monkeypatch):
+        """A full client_id+client_secret+tenant_id triple in env sits above SAS in
+        object_store's precedence order, so it would silently win over a connection's SAS
+        credential."""
+        monkeypatch.setenv("AZURE_CLIENT_ID", "some-client-id")
+        monkeypatch.setenv("AZURE_CLIENT_SECRET", "some-client-secret")
+        monkeypatch.setenv("AZURE_TENANT_ID", "some-tenant-id")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_ignores_partial_env_client_secret_triple(self, monkeypatch):
+        """Only a complete client_id+client_secret+tenant_id triple can form a credential in
+        object_store; a single leftover variable must not raise on its own."""
+        monkeypatch.setenv("AZURE_CLIENT_ID", "some-client-id")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert "sas_query_pairs" in credentials
+        assert extra_config == {}
 
     def test_get_credentials_azure_env_precedence_guard_ignores_pure_ambient_auth(self, monkeypatch):
         """The guard only fires for an explicit connection credential -- a connection with none
@@ -675,6 +729,17 @@ class TestDataFusionEngine:
         same name."""
         with pytest.raises(ValueError, match="does not resolve to the public"):
             DataFusionEngine._resolve_wasb_account(host, None)
+
+    @pytest.mark.parametrize("env_var", ["AZURE_STORAGE_ENDPOINT", "AZURE_ENDPOINT"])
+    def test_resolve_wasb_account_allows_non_public_cloud_host_when_endpoint_set(self, env_var, monkeypatch):
+        """Once the worker sets an endpoint override, object_store uses it verbatim instead of
+        deriving the URL from the account name, so the host no longer needs to match
+        *.blob.core.windows.net."""
+        monkeypatch.setenv(env_var, "https://myaccount.blob.core.chinacloudapi.cn")
+
+        account = DataFusionEngine._resolve_wasb_account("myaccount.blob.core.chinacloudapi.cn", None)
+
+        assert account == "myaccount"
 
     def test_get_credentials_unknown_type(self):
         mock_conn = MagicMock()
