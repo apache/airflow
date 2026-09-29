@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import datetime
 import random
+from unittest import mock
 
 import pytest
 from sqlalchemy import func, select, update
 
+from airflow.executors.workloads.task import ExecuteTask
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -981,6 +983,53 @@ class TestClearTasks:
             assert TaskInstanceState.REMOVED not in [ti.state for ti in dr.task_instances]
             for ti in dr.task_instances:
                 assert ti.dag_version_id == old_dag_version.id
+
+    @pytest.mark.parametrize("run_on_latest_version", [False, True])
+    @pytest.mark.parametrize(
+        "run_state", [DagRunState.SUCCESS, DagRunState.FAILED, DagRunState.QUEUED, DagRunState.RUNNING]
+    )
+    @pytest.mark.parametrize("task_state", [TaskInstanceState.FAILED, TaskInstanceState.RUNNING])
+    @mock.patch.object(ExecuteTask, "generate_token", autospec=True, return_value="test-token")
+    def test_clear_bundle_only_update(
+        self, mock_token, dag_maker, session, run_on_latest_version, run_state, task_state
+    ):
+        with dag_maker("clear_bundle_only_update", bundle_version="v1", session=session) as dag:
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(state=run_state, session=session)
+        version_id = dr.created_dag_version_id
+        ti = dr.task_instances[0]
+        ti.state = task_state
+        attempt_id = ti.id
+        session.flush()
+
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG(data=dag_maker.get_serialized_data()),
+            bundle_name="dag_maker",
+            bundle_version="v2",
+            session=session,
+        )
+        session.get(DagModel, dag.dag_id).bundle_version = "v2"
+        session.flush()
+        session.expire_all()
+
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.id == version_id
+        assert latest.bundle_version == "v2"
+        assert dr.bundle_version == "v1"
+        assert ExecuteTask.make(ti).bundle_info.version == "v1"
+
+        clear_task_instances([ti], session=session, run_on_latest_version=run_on_latest_version)
+        session.flush()
+        session.expire_all()
+
+        expected_bundle = "v2" if run_on_latest_version else "v1"
+        assert dr.created_dag_version_id == version_id
+        assert ti.dag_version_id == version_id
+        assert dr.bundle_version == expected_bundle
+        assert ExecuteTask.make(ti).bundle_info.version == expected_bundle
+        if task_state == TaskInstanceState.RUNNING:
+            assert ti.state == TaskInstanceState.RESTARTING
+            assert ti.id == attempt_id
 
     def test_clear_task_instances_without_dag_version_forces_latest(self, dag_maker, session):
         """A Dag run carried over from Airflow 2 has no version, so clearing must pin it to the latest."""
