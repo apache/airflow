@@ -26,10 +26,15 @@ export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js"
 export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
 export type { ArgNameMap } from "./sdk/arg-names.js";
 export type { Registerable } from "./sdk/bundle.js";
+export type { TriggerDagRunOptions, TriggerDagRunSpec } from "./sdk/operators.js";
 export type {
+  Branch,
+  Condition,
+  ConditionElse,
   DagSpec,
-  PositionalInputs,
+  Node,
   TaskFactory,
+  TaskGroupRef,
   TaskInput,
   TaskInputs,
   TaskOptions,

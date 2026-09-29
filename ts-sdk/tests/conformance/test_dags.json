@@ -1,0 +1,249 @@
+{
+  "$comment": [
+    "Logical Dag fixtures shared by this SDK's serializer and Python's, in the",
+    "spirit of the `test_dags.yaml` that airflow-core/adr/lang-sdk/0004-dag-parsing.md",
+    "describes. That cross-SDK harness does not exist in tree yet, so this is a",
+    "local stand-in: JSON rather than YAML so both sides read it without a",
+    "parser dependency.",
+    "",
+    "Keys are the serialized-Dag schema's own snake_case names. serialize_python.py",
+    "turns them into DAG()/operator kwargs; conformance.test.ts maps them onto the",
+    "SDK's camelCase authoring fields through the generated DAG_SCHEMA_FIELDS and",
+    "TASK_SCHEMA_FIELDS tables, so neither side hand-maintains a name map.",
+    "",
+    "Values are plain JSON except the two types JSON has no literal for:",
+    "  {\"__datetime\": \"<ISO 8601>\"}  and  {\"__timedelta\": <seconds>}.",
+    "",
+    "Regenerate the recorded Python output after changing this file:",
+    "  uv run --project airflow-core python ts-sdk/tests/conformance/serialize_python.py"
+  ],
+  "dags": [
+    {
+      "dag_id": "conformance_minimal",
+      "covers": "No schedule and no options: NullTimetable plus the fields Python always emits.",
+      "spec": {},
+      "tasks": [
+        {
+          "task_id": "solo",
+          "upstream": [],
+          "spec": {}
+        }
+      ]
+    },
+    {
+      "dag_id": "conformance_cron",
+      "covers": "A cron schedule with every Dag option set, and one fully configured task followed by one left entirely at its schema defaults.",
+      "spec": {
+        "schedule": "0 3 * * *",
+        "description": "a Dag that sets everything",
+        "dag_display_name": "Conformance Cron",
+        "doc_md": "# notes",
+        "tags": ["gamma", "alpha", "gamma"],
+        "start_date": {
+          "__datetime": "2026-01-01T00:00:00+00:00"
+        },
+        "end_date": {
+          "__datetime": "2026-12-31T23:30:15+00:00"
+        },
+        "dagrun_timeout": {
+          "__timedelta": 300
+        },
+        "catchup": true,
+        "render_template_as_native_obj": true,
+        "disable_bundle_versioning": true,
+        "is_paused_upon_creation": true,
+        "max_active_tasks": 8,
+        "max_active_runs": 3,
+        "max_consecutive_failed_dag_runs": 2
+      },
+      "tasks": [
+        {
+          "task_id": "extract",
+          "upstream": [],
+          "spec": {
+            "owner": "data-team",
+            "start_date": {
+              "__datetime": "2026-02-01T00:00:00+00:00"
+            },
+            "end_date": {
+              "__datetime": "2026-11-30T00:00:00+00:00"
+            },
+            "trigger_rule": "all_done",
+            "depends_on_past": true,
+            "ignore_first_depends_on_past": true,
+            "wait_for_past_depends_before_skipping": true,
+            "wait_for_downstream": true,
+            "retries": 2,
+            "queue": "typescript",
+            "pool": "tiny",
+            "pool_slots": 2,
+            "execution_timeout": {
+              "__timedelta": 120
+            },
+            "retry_delay": {
+              "__timedelta": 600
+            },
+            "retry_exponential_backoff": 2,
+            "max_retry_delay": {
+              "__timedelta": 900
+            },
+            "priority_weight": 5,
+            "weight_rule": "upstream",
+            "executor": "LocalExecutor",
+            "do_xcom_push": false,
+            "email_on_failure": false,
+            "email_on_retry": false,
+            "doc_md": "extracts things",
+            "map_index_template": "{{ task.task_id }}",
+            "max_active_tis_per_dag": 3,
+            "max_active_tis_per_dagrun": 4
+          }
+        },
+        {
+          "task_id": "transform",
+          "upstream": ["extract"],
+          "covers": "Every value explicitly at its schema default, so all of them are omitted.",
+          "spec": {
+            "owner": "airflow",
+            "trigger_rule": "all_success",
+            "depends_on_past": false,
+            "ignore_first_depends_on_past": false,
+            "wait_for_past_depends_before_skipping": false,
+            "wait_for_downstream": false,
+            "retries": 0,
+            "queue": "default",
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "retry_delay": {
+              "__timedelta": 300
+            },
+            "retry_exponential_backoff": 0,
+            "priority_weight": 1,
+            "weight_rule": "downstream",
+            "do_xcom_push": true,
+            "email_on_failure": true,
+            "email_on_retry": true
+          }
+        }
+      ]
+    },
+    {
+      "dag_id": "conformance_once",
+      "covers": "The @once preset, fail_fast, and a task feeding two downstreams. fail_fast lives here rather than on conformance_cron because Airflow only allows it on a Dag whose tasks all use the all_success trigger rule.",
+      "spec": {
+        "schedule": "@once",
+        "fail_fast": true
+      },
+      "tasks": [
+        {
+          "task_id": "seed",
+          "upstream": [],
+          "spec": {}
+        },
+        {
+          "task_id": "beta",
+          "upstream": ["seed"],
+          "spec": {}
+        },
+        {
+          "task_id": "alpha",
+          "upstream": ["seed"],
+          "spec": {}
+        }
+      ]
+    },
+    {
+      "dag_id": "conformance_continuous",
+      "covers": "The @continuous preset. Airflow caps a continuous Dag at one active run, so max_active_runs is set rather than left at the default of 16.",
+      "spec": {
+        "schedule": "@continuous",
+        "max_active_runs": 1
+      },
+      "tasks": [
+        {
+          "task_id": "watch",
+          "upstream": [],
+          "spec": {}
+        }
+      ]
+    },
+    {
+      "dag_id": "conformance_diamond",
+      "covers": "Fan-out and fan-in, so downstream_task_ids has to be sorted rather than in wiring order. The schedule is spelled out rather than written \"@daily\" because Python expands a preset before serializing it, which serde.test.ts covers separately.",
+      "spec": {
+        "schedule": "0 0 * * *"
+      },
+      "tasks": [
+        {
+          "task_id": "root",
+          "upstream": [],
+          "spec": {}
+        },
+        {
+          "task_id": "right",
+          "upstream": ["root"],
+          "spec": {}
+        },
+        {
+          "task_id": "left",
+          "upstream": ["root"],
+          "spec": {}
+        },
+        {
+          "task_id": "join",
+          "upstream": ["right", "left"],
+          "spec": {}
+        }
+      ]
+    },
+    {
+      "dag_id": "conformance_groups",
+      "covers": "Nested task groups and order-only edges. A group edge is recorded on the group object and also expanded onto the task graph, where it reaches the group's roots and leaves rather than every task it holds -- staging.stage feeds staging.checks.nulls, so only the latter is a leaf. Both sides have to agree on that expansion and on the local _group_id a nested group carries.",
+      "spec": {
+        "schedule": "@once"
+      },
+      "groups": ["staging", "staging.checks", "publish"],
+      "tasks": [
+        {
+          "task_id": "extract",
+          "upstream": [],
+          "spec": {}
+        },
+        {
+          "task_id": "stage",
+          "group": "staging",
+          "upstream": [],
+          "spec": {}
+        },
+        {
+          "task_id": "nulls",
+          "group": "staging.checks",
+          "upstream": ["staging.stage"],
+          "spec": {}
+        },
+        {
+          "task_id": "push",
+          "group": "publish",
+          "upstream": [],
+          "spec": {}
+        },
+        {
+          "task_id": "load",
+          "upstream": [],
+          "spec": {}
+        },
+        {
+          "task_id": "notify",
+          "upstream": [],
+          "spec": {}
+        }
+      ],
+      "order_edges": [
+        ["extract", "staging"],
+        ["staging", "publish"],
+        ["publish", "load"],
+        ["load", "notify"]
+      ]
+    }
+  ]
+}
