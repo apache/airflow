@@ -26,6 +26,13 @@ export type RunStateLookback = "168" | "24" | "720" | "any" | "latest";
 export const TIME_LOOKBACKS: ReadonlyArray<RunStateLookback> = ["24", "168", "720"];
 export const RUN_STATE_LOOKBACKS: ReadonlyArray<RunStateLookback> = ["latest", ...TIME_LOOKBACKS, "any"];
 
+const lookbackValues = new Set<string>(RUN_STATE_LOOKBACKS);
+const timeLookbackValues = new Set<string>(TIME_LOOKBACKS);
+
+export const isLookback = (value: string): value is RunStateLookback => lookbackValues.has(value);
+
+const isTimeLookback = (value: string): value is RunStateLookback => timeLookbackValues.has(value);
+
 export type RunStateValue = {
   lookback: RunStateLookback;
   state: string;
@@ -63,9 +70,7 @@ export const runStateFromSearchParams = (params: URLSearchParams): RunStateValue
     return undefined;
   }
 
-  const lookback = (TIME_LOOKBACKS as ReadonlyArray<string>).includes(withinHours ?? "")
-    ? (withinHours as RunStateLookback)
-    : "any";
+  const lookback = withinHours !== null && isTimeLookback(withinHours) ? withinHours : "any";
 
   return { lookback, state: anyRunState };
 };

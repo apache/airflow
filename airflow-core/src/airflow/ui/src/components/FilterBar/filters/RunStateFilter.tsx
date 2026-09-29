@@ -26,7 +26,7 @@ import { Select } from "src/system-components";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterConfig, FilterPluginProps } from "../types";
-import { RUN_STATE_LOOKBACKS, isRunStateValue, type RunStateLookback } from "./runStateParams";
+import { RUN_STATE_LOOKBACKS, isLookback, isRunStateValue, type RunStateLookback } from "./runStateParams";
 
 const LOOKBACK_LABEL_KEYS: Record<RunStateLookback, string> = {
   "24": "last24Hours",
@@ -83,9 +83,9 @@ export const RunStateFilter = ({ filter, onChange, onRemove }: FilterPluginProps
   };
 
   const handleLookbackChange = ({ value: selected }: { value: Array<string> }) => {
-    const [newLookback] = selected as Array<RunStateLookback>;
+    const [newLookback] = selected;
 
-    if (newLookback === undefined) {
+    if (newLookback === undefined || !isLookback(newLookback)) {
       return;
     }
     hasJustSelected.current = true;
