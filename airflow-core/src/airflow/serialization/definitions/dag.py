@@ -136,6 +136,7 @@ class SerializedDAG:
     max_consecutive_failed_dag_runs: int = 0
     owner_links: dict[str, str] = attrs.field(factory=dict)
     params: SerializedParamsDict = attrs.field(factory=SerializedParamsDict)
+    param_presets: dict[str, dict[str, Any]] = attrs.field(factory=dict)
     partial: bool = False
     render_template_as_native_obj: bool = False
     start_date: datetime.datetime | None = None

@@ -24,11 +24,12 @@ import { useTranslation } from "react-i18next";
 
 import { Accordion } from "src/system-components";
 
-import type { ParamsSpec } from "src/queries/useDagParams";
+import type { ParamPresets, ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import { FlexibleForm, flexibleFormDefaultSection } from "./FlexibleForm";
 import { JsonEditor } from "./JsonEditor";
+import { ParamPresetSelect } from "./ParamPresetSelect";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
   readonly children?: ReactNode;
@@ -37,7 +38,7 @@ type ConfigFormProps<T extends FieldValues = FieldValues> = {
     conf?: string;
     date?: unknown;
   };
-  readonly initialParamsDict: { paramsDict: ParamsSpec };
+  readonly initialParamsDict: { paramPresets?: ParamPresets; paramsDict: ParamsSpec };
   readonly setErrors: Dispatch<
     SetStateAction<{
       conf?: string;
@@ -84,48 +85,54 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   };
 
   return (
-    <Accordion.Root
-      collapsible
-      data-testid="config-form"
-      defaultValue={[flexibleFormDefaultSection]}
-      mb={4}
-      overflow="visible"
-      size="lg"
-      variant="enclosed"
-    >
-      <FlexibleForm
-        flexibleFormDefaultSection={flexibleFormDefaultSection}
-        initialParamsDict={initialParamsDict}
-        setError={setFormError}
+    <>
+      <ParamPresetSelect
+        paramPresets={initialParamsDict.paramPresets}
+        paramsDict={initialParamsDict.paramsDict}
       />
-      <Accordion.Item key="advancedOptions" value="advancedOptions">
-        <Accordion.ItemTrigger cursor="button">
-          {translate("configForm.advancedOptions")}
-        </Accordion.ItemTrigger>
-        <Accordion.ItemContent>
-          <Box p={4}>
-            {children}
-            <Controller
-              control={control}
-              name={"conf" as Path<T>}
-              render={({ field }) => (
-                <Field.Root invalid={Boolean(errors.conf)} mt={6}>
-                  <Field.Label fontSize="md">{translate("configForm.configJson")}</Field.Label>
-                  <JsonEditor
-                    onBlur={() => {
-                      field.onChange(validateAndPrettifyJson(field.value));
-                    }}
-                    onChange={field.onChange}
-                    value={field.value}
-                  />
-                  {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
-                </Field.Root>
-              )}
-            />
-          </Box>
-        </Accordion.ItemContent>
-      </Accordion.Item>
-    </Accordion.Root>
+      <Accordion.Root
+        collapsible
+        data-testid="config-form"
+        defaultValue={[flexibleFormDefaultSection]}
+        mb={4}
+        overflow="visible"
+        size="lg"
+        variant="enclosed"
+      >
+        <FlexibleForm
+          flexibleFormDefaultSection={flexibleFormDefaultSection}
+          initialParamsDict={initialParamsDict}
+          setError={setFormError}
+        />
+        <Accordion.Item key="advancedOptions" value="advancedOptions">
+          <Accordion.ItemTrigger cursor="button">
+            {translate("configForm.advancedOptions")}
+          </Accordion.ItemTrigger>
+          <Accordion.ItemContent>
+            <Box p={4}>
+              {children}
+              <Controller
+                control={control}
+                name={"conf" as Path<T>}
+                render={({ field }) => (
+                  <Field.Root invalid={Boolean(errors.conf)} mt={6}>
+                    <Field.Label fontSize="md">{translate("configForm.configJson")}</Field.Label>
+                    <JsonEditor
+                      onBlur={() => {
+                        field.onChange(validateAndPrettifyJson(field.value));
+                      }}
+                      onChange={field.onChange}
+                      value={field.value}
+                    />
+                    {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                  </Field.Root>
+                )}
+              />
+            </Box>
+          </Accordion.ItemContent>
+        </Accordion.Item>
+      </Accordion.Root>
+    </>
   );
 };
 

@@ -285,6 +285,7 @@ class TestDagEndpoint:
                 "retry_delay": timedelta(minutes=5),
             },
             params={"foo": 1},
+            param_presets={"Doubled": {"foo": 2}},
             max_active_tasks=16,
             max_active_runs=16,
         ):
@@ -1716,6 +1717,7 @@ class TestDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
+            "param_presets": {"Doubled": {"foo": 2}},
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "rerun_with_latest_version": None,
