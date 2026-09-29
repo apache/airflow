@@ -1,0 +1,5 @@
+Fix external plugin nav links not navigating on click.
+
+When configuring the external plugin navigation links, the links were not navigating
+to the specified URL when clicked. This issue has been resolved by ensuring that the
+click event properly triggers the navigation to the intended destination.
