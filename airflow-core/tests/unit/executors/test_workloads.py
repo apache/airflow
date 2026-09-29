@@ -20,7 +20,7 @@ from __future__ import annotations
 import dataclasses
 from pathlib import PurePosixPath
 from typing import get_args
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import jwt
 import pytest
@@ -34,6 +34,7 @@ from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.trigger import RunTrigger
 from airflow.executors.workloads.types import (
     SchedulerWorkload,
+    TaskInstanceUuid,
     WorkloadKey,
     WorkloadState,
     state_class_for_key,
@@ -76,7 +77,7 @@ def test_workload_families_track_every_workload_type():
     assert {schema.model_fields["type"].default for schema in schemas} == set(WorkloadType)
     assert _union_members(workloads.ExecutorWorkload) == schemas
     assert _union_members(workloads.All) == schemas | {RunTrigger}
-    assert _union_members(WorkloadKey) == keys | {UUID}
+    assert _union_members(WorkloadKey) == keys | {TaskInstanceUuid}
     assert _union_members(WorkloadState) == states
     assert _union_members(SchedulerWorkload) == models
 
@@ -85,6 +86,19 @@ def test_task_instance_alias_keeps_backwards_compat():
     assert TaskInstance is TaskInstanceDTO
     assert workloads.TaskInstance is TaskInstanceDTO
     assert workloads.TaskInstanceDTO is TaskInstanceDTO
+
+
+def test_task_instance_uuid_distinguishes_task_from_other_workloads():
+    task_id = uuid4()
+    key = TaskInstanceUuid(task_id)
+
+    assert str(key) == str(task_id)
+    assert key == TaskInstanceUuid(task_id)
+    assert key != task_id
+    assert len({key, CallbackKey(str(task_id)), ConnectionTestKey(str(task_id))}) == 3
+    assert state_class_for_key(key) is TaskInstanceState
+    with pytest.raises(TypeError, match="Unknown workload key type"):
+        state_class_for_key(task_id)
 
 
 def test_token_excluded_from_workload_repr():

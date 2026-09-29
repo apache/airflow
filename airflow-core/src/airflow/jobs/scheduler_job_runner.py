@@ -69,6 +69,7 @@ from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.exceptions import DagNotFound, TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
@@ -1468,15 +1469,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
         executors as well.
         """
-        event_buffer = executor.get_event_buffer_with_task_ids()
+        event_buffer, event_coordinates = executor._drain_events_with_task_ids()
         num_events = len(event_buffer)
-        tis_with_right_state: list[UUID] = []
+        tis_with_right_state: list[TaskInstanceUuid] = []
         callback_keys_with_events: list[CallbackKey] = []
 
         # Report execution - handle both task and callback events
         for key, (state, _) in event_buffer.items():
-            if isinstance(key, UUID):
-                cls.logger().info("Received executor event with state %s for task instance %s", state, key)
+            if isinstance(key, TaskInstanceUuid):
+                cls.logger().info(
+                    "Received executor event with state %s for task instance %s (coordinates=%s)",
+                    state,
+                    key,
+                    event_coordinates.get(key),
+                )
                 if state in (
                     TaskInstanceState.FAILED,
                     TaskInstanceState.SUCCESS,
@@ -1525,7 +1531,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
-            .where(TI.id.in_(tis_with_right_state))
+            .where(TI.id.in_([key.id for key in tis_with_right_state]))
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
@@ -1543,7 +1549,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
         tis: Iterator[TI] = session.scalars(locked_query.execution_options(populate_existing=True))
         for ti in tis:
-            buffer_key = ti.id
+            buffer_key = TaskInstanceUuid(ti.id)
             try_number = ti.try_number
             state, info = event_buffer.pop(buffer_key)
 
@@ -1741,6 +1747,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
+        for task_id in tis_with_right_state:
+            if task_id in event_buffer:
+                cls.logger().warning(
+                    "Discarding executor event for task instance %s (coordinates=%s): no matching task instance was "
+                    "returned; it may no longer exist or may be locked by another scheduler",
+                    task_id,
+                    event_coordinates.get(task_id),
+                )
         cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)
 
@@ -3920,7 +3934,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.executor,
                 )
                 continue
-            failed_key = failed_id if executor.supports_task_instance_uuid else failed_coordinates
+            failed_key = (
+                TaskInstanceUuid(failed_id) if executor.supports_task_instance_uuid else failed_coordinates
+            )
             executor.change_state(failed_key, TaskInstanceState.FAILED, remove_running=True)
             stats.incr(
                 "task_instances_without_heartbeats_killed",
