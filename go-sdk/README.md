@@ -250,15 +250,15 @@ the full range of task states, and alternate XCom backends without implementing 
   go tool airflow-go-pack ./example/bundle -- -trimpath -tags=prod
   ```
 
-  Use `--output <path>` to write the packed bundle straight into a directory the coordinator scans
-  (`executables_root`), and pass extra `go build` flags after `--`.
+  Use `--output <path>` to write the packed bundle straight into the Dag bundle the coordinator scans,
+  and pass extra `go build` flags after `--`.
 
   For cross-compiling (e.g. deploy to a Linux host from an Apple-silicon (darwin/arm64) machine), pass `--goos`/`--goarch` and the
   packer cross-builds for you:
 
   ```bash
   go tool airflow-go-pack --goos linux --goarch amd64 \
-    --output ~/airflow/executable-bundles/sample-dag-bundle \
+    --output /opt/airflow/executable-bundles/sample-dag-bundle \
     ./example/bundle
   ```
 
@@ -280,21 +280,25 @@ the full range of task states, and alternate XCom backends without implementing 
   > `tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack` to your bundle module's `go.mod` and run
   > it with `go tool airflow-go-pack`. This pins the packer version per project.
 
-- Register the coordinator and route the queue to it, under `[sdk]` in `airflow.cfg` (or the equivalent
-  `AIRFLOW__SDK__*` env vars):
+- Add a Dag bundle for the executable bundles, register the coordinator, and route the queue to it in
+  `airflow.cfg` (or the equivalent `AIRFLOW__*` env vars):
 
   ```ini
+  [dag_processor]
+  dag_bundle_config_list = [{"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}}, {"name": "executable-bundles", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {"path": "/opt/airflow/executable-bundles"}}]
+
   [sdk]
-  coordinators = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["~/airflow/executable-bundles"]}}}
+  coordinators = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"dag_bundle_name": "executable-bundles"}}}
   queue_to_coordinator = {"golang": "go"}
   ```
 
-  `executables_root` is one or more directories the coordinator scans for bundles; `queue_to_coordinator`
-  routes stub tasks with `queue="golang"` to this Go coordinator.
+  `dag_bundle_name` names the Dag bundle the coordinator scans for executable bundles. Omit it to ship
+  them in the same Dag bundle as the Python stub Dag. `queue_to_coordinator` routes stub tasks with
+  `queue="golang"` to this Go coordinator.
 
   > [!IMPORTANT]
-  > The coordinator is part of the Airflow worker, so the `[sdk]` config (and the bundle files in
-  > `executables_root`) only need to be present wherever tasks actually execute. With `CeleryExecutor`,
+  > The coordinator is part of the Airflow worker, so the `[sdk]` config (and the executable bundle
+  > files) only need to be present wherever tasks actually execute. With `CeleryExecutor`,
   > setting it on the Celery workers is sufficient. With `LocalExecutor`, tasks run inside the scheduler
   > process, so it must be set where the scheduler can read it. The API server and Dag processor do not
   > need it.
