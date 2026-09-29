@@ -87,7 +87,7 @@ func (b *BundleRef) Register(items ...Registerable) {
 	for _, item := range items {
 		switch item := item.(type) {
 		case *taskHandler:
-			b.taskHandlers.add(item.dagId, item.taskId, item.task)
+			b.taskHandlers.add(item.dagID, item.taskID, item.task)
 		case *DagRef:
 			if item == nil {
 				panic("airflow.BundleRef.Register: cannot register a nil *airflow.DagRef")
@@ -114,32 +114,32 @@ var (
 	_ bundle.EnumerableBundle = (*taskHandlerMap)(nil)
 )
 
-func (m *taskHandlerMap) add(dagId, taskId string, task bundle.Task) {
+func (m *taskHandlerMap) add(dagID, taskID string, task bundle.Task) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.handlers == nil {
 		m.handlers = make(map[string]map[string]bundle.Task)
 	}
-	dagHandlers, exists := m.handlers[dagId]
+	dagHandlers, exists := m.handlers[dagID]
 	if !exists {
 		dagHandlers = make(map[string]bundle.Task)
-		m.handlers[dagId] = dagHandlers
+		m.handlers[dagID] = dagHandlers
 	}
-	if _, exists := dagHandlers[taskId]; exists {
+	if _, exists := dagHandlers[taskID]; exists {
 		panic(fmt.Sprintf(
-			"airflow.BundleRef.Register: task %q of Dag %q is already registered", taskId, dagId,
+			"airflow.BundleRef.Register: task %q of Dag %q is already registered", taskID, dagID,
 		))
 	}
-	dagHandlers[taskId] = task
-	m.order = append(m.order, bundle.TaskHandlerInfo{DagID: dagId, TaskID: taskId})
+	dagHandlers[taskID] = task
+	m.order = append(m.order, bundle.TaskHandlerInfo{DagID: dagID, TaskID: taskID})
 }
 
-func (m *taskHandlerMap) LookupTask(dagId, taskId string) (bundle.Task, bool) {
+func (m *taskHandlerMap) LookupTask(dagID, taskID string) (bundle.Task, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	task, exists := m.handlers[dagId][taskId]
+	task, exists := m.handlers[dagID][taskID]
 	return task, exists
 }
 

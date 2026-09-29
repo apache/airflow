@@ -42,15 +42,15 @@ func literalArg(name, jsonType string, value any) map[string]any {
 }
 
 func startupDetails(
-	dagId, taskId string,
+	dagID, taskID string,
 	args ...genmodels.TaskArgBinding,
 ) *genmodels.StartupDetails {
 	mapIndex := -1
 	details := &genmodels.StartupDetails{
 		TI: genmodels.TaskInstance{
 			ID:        "550e8400-e29b-41d4-a716-446655440000",
-			DagID:     dagId,
-			TaskID:    taskId,
+			DagID:     dagID,
+			TaskID:    taskID,
 			RunID:     "run1",
 			TryNumber: 2,
 			MapIndex:  &mapIndex,
