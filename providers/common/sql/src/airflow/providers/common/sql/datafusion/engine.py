@@ -141,6 +141,23 @@ class DataFusionEngine(LoggingMixin):
             extra_config=extra_config,
         )
 
+    # Used by the wasb branch's env-precedence guard below.
+    _AZURE_ENV_SINGLE_VAR_CREDENTIALS = (
+        "AZURE_STORAGE_TOKEN",
+        "AZURE_STORAGE_ACCOUNT_KEY",
+        "AZURE_STORAGE_ACCESS_KEY",
+        "AZURE_STORAGE_MASTER_KEY",
+        "AZURE_FEDERATED_TOKEN_FILE",
+    )
+    _AZURE_ENV_CLIENT_ID_VARS = ("AZURE_STORAGE_CLIENT_ID", "AZURE_CLIENT_ID")
+    _AZURE_ENV_CLIENT_SECRET_VARS = ("AZURE_STORAGE_CLIENT_SECRET", "AZURE_CLIENT_SECRET")
+    _AZURE_ENV_TENANT_ID_VARS = (
+        "AZURE_STORAGE_TENANT_ID",
+        "AZURE_STORAGE_AUTHORITY_ID",
+        "AZURE_TENANT_ID",
+        "AZURE_AUTHORITY_ID",
+    )
+
     def _get_credentials(self, conn: Connection) -> tuple[dict[str, Any], dict[str, Any]]:
 
         credentials = {}
@@ -301,23 +318,6 @@ class DataFusionEngine(LoggingMixin):
         return {k: v for k, v in params.items() if v is not None}
 
     _AZURE_PUBLIC_SUFFIX = ".blob.core.windows.net"
-
-    # Used by the wasb branch's env-precedence guard in _get_credentials.
-    _AZURE_ENV_SINGLE_VAR_CREDENTIALS = (
-        "AZURE_STORAGE_TOKEN",
-        "AZURE_STORAGE_ACCOUNT_KEY",
-        "AZURE_STORAGE_ACCESS_KEY",
-        "AZURE_STORAGE_MASTER_KEY",
-        "AZURE_FEDERATED_TOKEN_FILE",
-    )
-    _AZURE_ENV_CLIENT_ID_VARS = ("AZURE_STORAGE_CLIENT_ID", "AZURE_CLIENT_ID")
-    _AZURE_ENV_CLIENT_SECRET_VARS = ("AZURE_STORAGE_CLIENT_SECRET", "AZURE_CLIENT_SECRET")
-    _AZURE_ENV_TENANT_ID_VARS = (
-        "AZURE_STORAGE_TENANT_ID",
-        "AZURE_STORAGE_AUTHORITY_ID",
-        "AZURE_TENANT_ID",
-        "AZURE_AUTHORITY_ID",
-    )
 
     @classmethod
     def _resolve_wasb_account(cls, host: str | None, login: str | None) -> str | None:
