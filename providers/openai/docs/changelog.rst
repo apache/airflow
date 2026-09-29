@@ -20,6 +20,25 @@
 Changelog
 ---------
 
+.. warning::
+    A deferred ``OpenAITriggerBatchOperator`` that times out now raises ``OpenAIBatchTimeout``
+    instead of ``OpenAIBatchJobException``, which is what 1.8.2 and earlier raised for the same
+    condition. ``OpenAIBatchTimeout`` is not a subclass of ``OpenAIBatchJobException``, so an
+    ``on_failure_callback``, ``except`` clause, or retry rule keyed on
+    ``OpenAIBatchJobException`` no longer matches a deferred timeout. Catch or check for
+    ``OpenAIBatchTimeout`` as well to keep handling timeouts.
+
+    A cancelled batch now raises ``OpenAIBatchCancelled``, a subclass of
+    ``OpenAIBatchJobException``, so existing code that catches ``OpenAIBatchJobException`` keeps
+    matching cancellations unchanged.
+
+.. note::
+    A deferred ``OpenAITriggerBatchOperator`` that times out now requests cancellation of the
+    batch, matching the non-deferrable path. Previously a deferred timeout only failed the
+    task and left the batch running (and billing) on OpenAI's side. Cancellation on OpenAI's
+    side is asynchronous, so the batch reports ``cancelling`` for a while before it settles as
+    ``cancelled``.
+
 2.0.0
 .....
 
@@ -50,13 +69,6 @@ Changelog
     any tool schema — are written to ``rendered_task_instance_fields`` in the
     metadata DB on every run, regardless of the operator's ``do_xcom_push``
     setting.
-
-.. note::
-    A deferred ``OpenAITriggerBatchOperator`` that times out now requests cancellation of the
-    batch, matching the non-deferrable path. Previously a deferred timeout only failed the
-    task and left the batch running (and billing) on OpenAI's side. Cancellation on OpenAI's
-    side is asynchronous, so the batch reports ``cancelling`` for a while before it settles as
-    ``cancelled``.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
