@@ -19,6 +19,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 from functools import cached_property
+from http import HTTPStatus
 
 import boto3
 import requests
@@ -162,6 +163,21 @@ class AirflowClient:
     def get_variable(self, key: str):
         """Get an Airflow Variable via API."""
         return self._make_request(method="GET", endpoint=f"variables/{key}")
+
+    def set_variable(self, key: str, value: str, description: str | None = None):
+        """Create or replace an Airflow Variable via API."""
+        body = {"key": key, "value": value, "description": description}
+        try:
+            return self._make_request(method="POST", endpoint="variables", json=body)
+        except requests.HTTPError as exc:
+            # 409 == it already exists, from an earlier run of the same suite.
+            if exc.response is None or exc.response.status_code != HTTPStatus.CONFLICT:
+                raise
+            return self._make_request(method="PATCH", endpoint=f"variables/{key}", json=body)
+
+    def get_tasks(self, dag_id: str):
+        """List a Dag's tasks, with the edges each one carries."""
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
 
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
