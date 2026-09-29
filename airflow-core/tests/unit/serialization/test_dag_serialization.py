@@ -5155,3 +5155,50 @@ class TestWeightRule:
         op = BaseOperator(task_id="empty_task", weight_rule=NotRegisteredPriorityWeightStrategy())
         with pytest.raises(ValueError, match="Unknown priority strategy"):
             OperatorSerialization.serialize(op)
+
+
+class TestValidateSerializedDag:
+    @staticmethod
+    def _serialize() -> dict:
+        with DAG(dag_id="checked_dag", schedule=None) as dag:
+            BaseOperator(task_id="extract") >> BaseOperator(task_id="load")
+        return DagSerialization.to_dict(dag)
+
+    def test_accepts_a_dag_that_loads(self):
+        data = self._serialize()
+        data["__version"] = 2
+        before = copy.deepcopy(data)
+
+        DagSerialization.validate_serialized_dag(data)
+
+        assert data == before
+
+    @pytest.mark.parametrize(
+        ("change", "error"),
+        [
+            pytest.param(
+                {"max_active_runs": "many"},
+                "Dag 'checked_dag' does not match the schema: 'many' is not of type 'number'",
+                id="schema",
+            ),
+            pytest.param(
+                {"timetable": {"__type": "no.such.Timetable", "__var": {}}},
+                "Dag 'checked_dag' cannot be deserialized: TimetableNotRegistered: ",
+                id="deserialize",
+            ),
+        ],
+    )
+    def test_rejects_a_dag_that_does_not_load(self, change, error):
+        data = self._serialize()
+        data["dag"].update(change)
+
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}"):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_a_dag_with_a_cycle(self):
+        data = self._serialize()
+        load = next(task for task in data["dag"]["tasks"] if task["__var"]["task_id"] == "load")
+        load["__var"]["downstream_task_ids"] = ["extract"]
+
+        with pytest.raises(DeserializationError, match="^Dag 'checked_dag' has a cycle through task 'load'$"):
+            DagSerialization.validate_serialized_dag(data)
