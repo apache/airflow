@@ -28,6 +28,7 @@ from sqlalchemy import Delete, select
 from airflow._shared.state import AssetStateStoreWriterKind
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.exceptions import DagRunNotFound
 from airflow.models.asset import AssetModel
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.dagrun import DagRun, DagRunType
@@ -201,7 +202,7 @@ class TestMetastoreBackendTaskScope:
 
     def test_set_raises_for_missing_dag_run(self, session: Session, backend: MetastoreBackend):
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
-        with pytest.raises(ValueError, match="No DagRun found"):
+        with pytest.raises(DagRunNotFound, match="No DagRun found"):
             backend.set(scope, "job_id", "app_1234", session=session)
 
     def test_clear_scoped_to_map_index(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
@@ -663,7 +664,7 @@ class TestMetastoreBackendAsync:
 
     async def test_aset_task_raises_for_missing_dag_run(self, backend: MetastoreBackend):
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
-        with pytest.raises(ValueError, match="No DagRun found"):
+        with pytest.raises(DagRunNotFound, match="No DagRun found"):
             await backend.aset(scope, "job_id", "app_async")
 
     async def test_aset_and_aget_with_provided_session(
