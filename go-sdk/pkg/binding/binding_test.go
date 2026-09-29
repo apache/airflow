@@ -770,7 +770,8 @@ func (s *BindingSuite) TestAnalyzeStructValidation() {
 		Bad chan int `arg:"bad"`
 	}
 	type foldedDuplicateArgNames struct {
-		RegionCode  string
+		RegionCode string
+		//lint:ignore ST1003 the test needs a field that differs from RegionCode only by an underscore
 		Region_code string
 	}
 

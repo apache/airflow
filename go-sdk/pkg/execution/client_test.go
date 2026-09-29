@@ -137,7 +137,7 @@ func TestCoordinatorClientErrorTranslation(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientErrorPassThrough verifies that unrelated *ApiError
+// TestCoordinatorClientErrorPassThrough verifies that unrelated *APIError
 // values (e.g. a generic API_SERVER_ERROR) are returned unchanged.
 func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
@@ -156,7 +156,7 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, sdk.VariableNotFound),
 		"generic supervisor errors must not be translated to VariableNotFound")
-	var apiErr *ApiError
+	var apiErr *APIError
 	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 }
@@ -267,7 +267,7 @@ func TestCoordinatorClientVariableWriteErrors(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
 			client := NewCoordinatorClient(comm)
 
-			var apiErr *ApiError
+			var apiErr *APIError
 			require.ErrorAs(t, tc.call(client), &apiErr)
 			assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 		})
