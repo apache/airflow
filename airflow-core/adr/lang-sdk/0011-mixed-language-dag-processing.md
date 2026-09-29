@@ -27,10 +27,10 @@ Proposed
 
 A Lang-SDK artifact can serve either of the two authoring features the Language SDK spec fixes, or both at once:
 
-| Feature                         | Who owns the graph         | Author writes                    | Artifact contributes |
-|---------------------------------|----------------------------|----------------------------------|----------------------|
-| **Mixed Language Task Handler** | Python, via `@task.stub`   | `TaskHandler(dagId, taskId, fn)` | Only task bodies     |
-| **Native Dag**                  | the Lang-SDK source itself | `Dag(spec)`                      | The entire Dag       |
+| Feature                         | Who owns the graph         | Author writes                | Artifact contributes |
+|---------------------------------|----------------------------|------------------------------|----------------------|
+| **Mixed Language Task Handler** | Python, via `@task.stub`   | `TaskHandler(dag, task, fn)` | Only task bodies     |
+| **Native Dag**                  | the Lang-SDK source itself | `Dag(spec)`                  | The entire Dag       |
 
 In the mixed-language role the artifact used to author a Dag too, under the same `dag_id` the Python file already owns. Two conflicting definitions reached persistence and
 something downstream had to choose between them. This ADR removes the conflict at the authoring interface, and defines where a stub task is validated against the handler that
@@ -51,7 +51,7 @@ Terms follow the Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`, spec vers
 │                                                                          │
 │  Per-registration (Lang-SDK): which interface the author wrote           │
 │    Dag(spec)                       → DagRef                              │
-│    TaskHandler(dagId, taskId, fn)  → TaskHandlerRef                      │
+│    TaskHandler(dag, task, fn)      → TaskHandlerRef                      │
 │                                                                          │
 │  Both kinds go into one bundle, through one verb:                        │
 │    bundle.register(dag, handler, ...)  →  bundle.serve()                 │
