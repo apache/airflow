@@ -174,13 +174,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in annotations:
                 # Callback pod: forward only the annotations that process_watcher_task needs.
                 # Callback pods carry callback_id instead of task_id/try_number.
-                task_instance_related_annotations = {
+                workload_related_annotations = {
                     CALLBACK_POD_ANNOTATION_KEY: annotations[CALLBACK_POD_ANNOTATION_KEY],
-                    "dag_id": annotations.get("dag_id", ""),
-                    "run_id": annotations.get("run_id", ""),
                 }
             else:
-                task_instance_related_annotations = {
+                workload_related_annotations = {
                     "dag_id": annotations["dag_id"],
                     "task_id": annotations["task_id"],
                     logical_date_key: annotations.get(logical_date_key),
@@ -189,13 +187,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 }
                 map_index = annotations.get("map_index")
                 if map_index is not None:
-                    task_instance_related_annotations["map_index"] = map_index
+                    workload_related_annotations["map_index"] = map_index
 
             self.process_status(
                 pod_name=task.metadata.name,
                 namespace=task.metadata.namespace,
                 status=task.status.phase,
-                annotations=task_instance_related_annotations,
+                annotations=workload_related_annotations,
                 resource_version=task.metadata.resource_version,
                 event=event,
             )
@@ -234,6 +232,12 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             return
 
         annotations_string = annotations_for_logging_task_metadata(annotations)
+        if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in annotations:
+            from airflow.utils.state import CallbackState
+
+            failure_state = CallbackState.FAILED
+        else:
+            failure_state = TaskInstanceState.FAILED
         if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
             # This will happen only when the task pods are adopted by another executor.
             # So, there is no change in the pod state.
@@ -255,7 +259,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 KubernetesWatch(
                     pod_name,
                     namespace,
-                    TaskInstanceState.FAILED,
+                    failure_state,
                     annotations,
                     resource_version,
                     None,
@@ -299,7 +303,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 KubernetesWatch(
                                     pod_name,
                                     namespace,
-                                    TaskInstanceState.FAILED,
+                                    failure_state,
                                     annotations,
                                     resource_version,
                                     None,
@@ -327,7 +331,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 KubernetesWatch(
                     pod_name,
                     namespace,
-                    TaskInstanceState.FAILED,
+                    failure_state,
                     annotations,
                     resource_version,
                     failure_details,
@@ -351,7 +355,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     KubernetesWatch(
                         pod_name,
                         namespace,
-                        TaskInstanceState.FAILED,
+                        failure_state,
                         annotations,
                         resource_version,
                         None,
@@ -606,25 +610,16 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def run_next(self, next_job: KubernetesJob) -> None:
         """Receives the next job to run, builds the pod, and creates it."""
         pod = self._build_pod_request(next_job)
-        if pod is None:
-            # Callback workloads build and submit their own pod inside _build_pod_request
-            # (via _run_next_callback) and return None; there is nothing left to create here.
-            return
         # the watcher will monitor pods, so we do not block.
         self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
-    def _build_pod_request(self, next_job: KubernetesJob) -> k8s.V1Pod | None:
+    def _build_pod_request(self, next_job: KubernetesJob) -> k8s.V1Pod:
         """
         Build the worker pod request object for a job.
 
-        Performs no API calls (aside from callback workloads -- see below). May raise
-        ``PodMutationHookException`` or ``PodReconciliationError`` from the pod-mutation
-        hook / reconciliation.
-
-        Returns ``None`` for callback workloads: those build *and submit* their own pod via
-        ``_run_next_callback`` because callbacks are not batched through ``run_next_batch``'s
-        async-creation path, so the caller must not attempt to create a pod for a ``None`` result.
+        Performs no API calls. May raise ``PodMutationHookException`` or
+        ``PodReconciliationError`` from the pod-mutation hook / reconciliation.
         """
         key = next_job.key
         command = next_job.command
@@ -638,8 +633,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
             workload = command[0]
             if isinstance(workload, ExecuteCallback):
-                self._run_next_callback(workload.key, workload, pod_template_file)
-                return None
+                return self._run_next_callback(workload.key, workload, pod_template_file, kube_image)
 
         from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -777,16 +771,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self._async_pod_client = None
 
     def _run_next_callback(
-        self, key: CallbackKey, workload: ExecuteCallback, pod_template_file: str | None
-    ) -> None:
-        """Build and submit a callback pod for an ExecuteCallback workload."""
+        self, key: CallbackKey, workload: ExecuteCallback, pod_template_file: str | None, kube_image: str
+    ) -> k8s.V1Pod:
+        """Build a callback pod for an ExecuteCallback workload."""
         base_worker_pod = self._get_base_worker_pod(pod_template_file)
-
-        # Extract dag_id and run_id from the standardised log_path:
-        # "executor_callbacks/<dag_id>/<run_id>/<callback_id>"
-        log_parts = (workload.log_path or "").split("/")
-        dag_id = log_parts[1] if len(log_parts) >= 4 else ""
-        run_id = log_parts[2] if len(log_parts) >= 4 else ""
 
         args = workload_to_command_args(workload)
 
@@ -794,9 +782,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             namespace=self.namespace,
             scheduler_job_id=self.scheduler_job_id,
             callback_id=workload.callback.id,
-            dag_id=dag_id,
-            run_id=run_id,
-            kube_image=self.kube_config.kube_image,
+            kube_image=kube_image,
             args=args,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,
@@ -808,9 +794,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             pod.metadata.name,
             annotations_for_logging_task_metadata(pod.metadata.annotations),
         )
-
-        self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
-        self.log.debug("Kubernetes callback pod created!")
+        return pod
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
         """Delete Pod from a namespace; does not raise if it does not exist."""
