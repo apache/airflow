@@ -591,5 +591,3 @@ definition whose author can act) naming both artifact paths, since the fix is in
   not invalidate an artifact fingerprint.
 - Mixed-language stays Python-primary. A Lang-SDK runtime cannot declare stub tasks, and a native Dag
   cannot delegate a task to Python.
-
-

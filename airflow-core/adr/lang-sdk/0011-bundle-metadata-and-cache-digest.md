@@ -120,5 +120,3 @@ something; consumers compare for equality and interpret nothing.
 - Dynamic Dag rendering works.
 - The canonical schema drops the identifier mapping entirely, the coordinator task execution side will rely on persisted rel_path instead of discovering the artifact every time.
 - The packer no longer needs to execute the artifact at all. `supervisor_schema_version` is a compile-time constant of the SDK.
-
-
