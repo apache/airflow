@@ -65,6 +65,20 @@ def validate_key(k: str, max_length: int = 250):
         raise ValueError(f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal")
 
 
+def validate_group_key(k: str, max_length: int = 200):
+    """Validate value used as a task group key."""
+    if not isinstance(k, str):
+        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
+    if (length := len(k)) > max_length:
+        raise ValueError(f"The key has to be less than {max_length} characters, not {length}")
+    if not GROUP_KEY_REGEX.match(k):
+        raise ValueError(
+            f"The key {k!r} has to be made of alphanumeric characters, dashes, and underscores exclusively"
+        )
+    if ".." in k and not conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+        raise ValueError(f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal")
+
+
 def ask_yesno(question: str, default: bool | None = None, output_fn=print) -> bool:
     """Get a yes or no answer from the user."""
     yes = {"yes", "y"}

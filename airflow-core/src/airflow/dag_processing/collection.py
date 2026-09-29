@@ -503,6 +503,31 @@ def _iter_serialized_class_names(data: Any) -> Iterator[str]:
             stack.extend(item)
 
 
+def _reject_invalid_serialized_dag_ids(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+) -> list[LazyDeserializedDAG]:
+    """Reject serialized Dags whose ids fail the shared server-side validation rules."""
+    from airflow.dag_processing.id_validation import validate_serialized_dag_ids
+
+    accepted: list[LazyDeserializedDAG] = []
+    for dag in dags:
+        try:
+            validate_serialized_dag_ids(dag)
+        except ValueError as e:
+            log.warning(
+                "Refusing Dag with invalid id",
+                dag_id=dag.data["dag"].get("dag_id"),
+                bundle_name=bundle_name,
+                relative_fileloc=dag.relative_fileloc,
+            )
+            import_errors[(bundle_name, dag.relative_fileloc)] = f"{type(e).__name__}: {e}"
+        else:
+            accepted.append(dag)
+    return accepted
+
+
 def _reject_other_teams_plugin_classes(
     bundle_name: str,
     dags: Collection[LazyDeserializedDAG],
@@ -610,6 +635,12 @@ def update_dag_parsing_results_in_db(
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
     """
+    accepted = _reject_invalid_serialized_dag_ids(bundle_name, dags, import_errors)
+    if len(accepted) != len(dags):
+        rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
+        warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
+    dags = accepted
+
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
     if len(accepted) != len(dags):
         # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
