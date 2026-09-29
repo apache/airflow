@@ -25,6 +25,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
 
+import commonLocale from "../../../public/i18n/locales/en/common.json";
 import { Header } from "./Header";
 
 // Action buttons and note preview pull in mutation/permission wiring that is
@@ -75,5 +76,58 @@ describe("Header", () => {
     render(<Header taskInstance={{ ...baseTaskInstance, team_name: "team-a" }} />, { wrapper: Wrapper });
 
     expect(screen.queryByText(i18n.t("common:dagDetails.team"))).not.toBeInTheDocument();
+  });
+});
+
+const renderHeader = (overrides: Partial<TaskInstanceResponse>) =>
+  render(<Header taskInstance={{ ...baseTaskInstance, ...overrides }} />, { wrapper: Wrapper });
+
+describe("Header state reason banner", () => {
+  // Without the bundle i18n.t() echoes the key, so the titles below would assert nothing.
+  beforeEach(() => {
+    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  });
+
+  it("does not render when there is no reason", () => {
+    renderHeader({ state: "failed", state_reason: null });
+
+    expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
+  });
+
+  // Cleared only once the task next reaches RUNNING, so these states still carry a stale reason.
+  it.each(["queued", "running", "success", null] as const)(
+    "does not render for a %s task that still carries a reason",
+    (state) => {
+      renderHeader({ state, state_reason: "auth error, do not retry" });
+
+      expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    { maxTries: 2, state: "failed", titleKey: "failed", totalTries: 3, tryNumber: 3 },
+    // Differing numbers are what make a swapped or off-by-one interpolation visible.
+    { maxTries: 3, state: "up_for_retry", titleKey: "upForRetry", totalTries: 4, tryNumber: 2 },
+  ] as const)(
+    "titles the banner for a $state task",
+    ({ maxTries, state, titleKey, totalTries, tryNumber }) => {
+      renderHeader({ max_tries: maxTries, state, state_reason: "auth error", try_number: tryNumber });
+
+      expect(screen.getByTestId("state-reason-alert")).toHaveTextContent(
+        i18n.t(`common:taskInstance.stateReasonSummary.${titleKey}`, { totalTries, tryNumber }),
+      );
+      expect(screen.getByTestId("state-reason-alert")).toHaveTextContent("auth error");
+    },
+  );
+
+  // Chakra puts `status` in a generated class, so "not identical" is all that can be asserted.
+  it("styles a failed banner differently from an up_for_retry one", () => {
+    const { unmount } = renderHeader({ state: "failed", state_reason: "auth error" });
+    const failedClass = screen.getByTestId("state-reason-alert").className;
+
+    unmount();
+    renderHeader({ state: "up_for_retry", state_reason: "auth error" });
+
+    expect(screen.getByTestId("state-reason-alert").className).not.toBe(failedClass);
   });
 });

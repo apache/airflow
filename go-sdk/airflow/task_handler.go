@@ -25,7 +25,7 @@ import (
 )
 
 type taskHandler struct {
-	dagId, taskId string
+	dagID, taskID string
 	task          bundle.Task
 }
 
@@ -34,7 +34,7 @@ func (*taskHandler) registerable() {}
 // TaskHandler makes fn the Go body of a task that a Python Dag declares with @task.stub.
 // Pass what it returns to [BundleRef.Register].
 //
-// dagId is the dag_id of that Python Dag, and taskId is the task_id of the stub task.
+// dagID is the dag_id of that Python Dag, and taskID is the task_id of the stub task.
 //
 // fn takes a [Context] first, as the package documentation describes. Every parameter after
 // the Context is data, filled from the arguments of the Python stub's TaskFlow call.
@@ -45,12 +45,12 @@ func (*taskHandler) registerable() {}
 // not a function, does not take a Context first, or does not return an error.
 // main calls TaskHandler before Serve, so a handler that fails the check stops the executable as
 // soon as it starts instead of when the task first runs.
-func TaskHandler(dagId, taskId string, fn any) Registerable {
+func TaskHandler(dagID, taskID string, fn any) Registerable {
 	task, err := newTaskFunction(fn)
 	if err != nil {
-		panic(fmt.Sprintf("airflow.TaskHandler(%q, %q): %v", dagId, taskId, err))
+		panic(fmt.Sprintf("airflow.TaskHandler(%q, %q): %v", dagID, taskID, err))
 	}
-	return &taskHandler{dagId: dagId, taskId: taskId, task: task}
+	return &taskHandler{dagID: dagID, taskID: taskID, task: task}
 }
 
 // newTaskFunction checks fn before bundle.NewTaskFunction does, so that the error names the Go

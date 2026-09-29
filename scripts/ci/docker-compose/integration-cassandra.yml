@@ -19,6 +19,8 @@ services:
   cassandra:
     image: cassandra:3.0
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Cassandra hooks."
     environment:
       HEAP_NEWSIZE: 128M
@@ -45,3 +47,6 @@ services:
 
 volumes:
   cassandra-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

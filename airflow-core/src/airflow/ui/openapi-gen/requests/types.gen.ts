@@ -2050,6 +2050,10 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -2093,6 +2097,10 @@ export type TaskInstanceResponse = {
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -3732,12 +3740,6 @@ export type GetConfigValueData = {
 export type GetConfigValueResponse = Config;
 
 export type GetConfigsResponse = ConfigResponse;
-
-export type GetBackendsOrderValueData = {
-    accept?: 'application/json' | 'text/plain' | '*/*';
-};
-
-export type GetBackendsOrderValueResponse = Config;
 
 export type ListDagWarningsData = {
     dagId?: string | null;
@@ -6652,29 +6654,6 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
-            };
-        };
-    };
-    '/ui/backends_order': {
-        get: {
-            req: GetBackendsOrderValueData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: Config;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Not Acceptable
-                 */
-                406: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
             };
         };
     };
