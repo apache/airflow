@@ -62,13 +62,13 @@ dagProcessor:
         aws_conn_id: "aws_localstack"
 
 config:
-  # Route the golang/java queues to their coordinators, each carrying an
-  # extra.pod_template_file (the worktree-1 feature) so the worker pod is
-  # launched from a coordinator-specific template that stages the artifact and,
-  # for Java, runs on the JVM-bearing image.
+  # Route the golang/java/typescript queues to their coordinators, each carrying
+  # an extra.pod_template_file so the worker pod is launched from a
+  # coordinator-specific template that stages the artifact and, for Java and
+  # TypeScript, runs on the image carrying that runtime.
   sdk:
     # Single-line JSON: airflow.cfg is an ini file, so a value with embedded
     # newlines would break the rendered configmap.
     # yamllint disable-line rule:line-length
-    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["/opt/airflow/artifacts/go-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"jars_root": ["/opt/airflow/artifacts/java-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}}'
-    queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk"}'
+    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["/opt/airflow/artifacts/go-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"jars_root": ["/opt/airflow/artifacts/java-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}, "ts-sdk": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinator", "kwargs": {"bundles_root": ["/opt/airflow/artifacts/ts-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_typescript.yaml", "worker_container_repository": "lang-sdk-ts-worker", "worker_container_tag": "latest"}}}'
+    queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk", "typescript": "ts-sdk"}'
