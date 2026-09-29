@@ -38,6 +38,14 @@ after successful completion.
 Durable execution only helps when the task has retries configured. Without
 retries there is nothing to replay.
 
+Replayed model responses and tool calls count toward ``usage_limits`` like live
+ones, so a retry of a run that reached its limit usually stops at the same step.
+Raise the limit rather than relying on retries; an unset ``usage_limits`` still
+caps a run at pydantic-ai's default of 50 requests. Two cases differ: usage that
+an agent run inside a tool adds with ``usage=ctx.usage`` is not re-counted on
+replay, and a limit set on such a run is its own, not the task's
+``usage_limits``. The task log warns when a durable run reaches a usage limit.
+
 This page is about making an ``AgentOperator`` retry cheap. Deciding *whether* a task
 should retry at all is :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches
 to its running batch instead of resubmitting (:ref:`llm-batch-reattach`).

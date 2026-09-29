@@ -1402,7 +1402,47 @@ class TestAgentOperatorDurable:
             op.execute(context=_make_context())
 
         assert "cached 2 new steps (2 model, 0 tool)" in caplog.text
+        assert "reached a usage limit" not in caplog.text
         assert "1 tool results were not cached, and a retry runs them again: send_email" in caplog.text
+
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_storage")
+    def test_usage_limit_warns_and_the_retry_replays_to_the_same_limit(self, mock_build_storage, caplog):
+        """Replayed steps count toward usage_limits: the retry reaches the same limit with no
+        live model call. The log says so, and the error still propagates, so Airflow's
+        retries apply as configured."""
+        mock_build_storage.return_value = _InMemoryDurableStorage()
+        calls = {"model": 0}
+
+        def lookup() -> str:
+            return "row"
+
+        def model_fn(messages, info):
+            calls["model"] += 1
+            return ModelResponse(parts=[ToolCallPart(tool_name="lookup", args={}, tool_call_id="c1")])
+
+        def attempt():
+            op = AgentOperator(
+                task_id="t",
+                prompt="hi",
+                llm_conn_id="c",
+                durable=True,
+                enable_tool_logging=False,
+                toolsets=[FunctionToolset(tools=[lookup])],
+                usage_limits={"request_limit": 1},
+            )
+            hook = MagicMock(spec=["create_agent"])
+            hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+            op.llm_hook = hook
+            with pytest.raises(UsageLimitExceeded, match="request_limit of 1"):
+                op.execute(context=_make_context())
+
+        with caplog.at_level("WARNING"):
+            attempt()
+            live_calls = calls["model"]
+            attempt()
+
+        assert calls["model"] == live_calls
+        assert caplog.text.count("Durable: the run reached a usage limit: The next request would exceed") == 2
 
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)

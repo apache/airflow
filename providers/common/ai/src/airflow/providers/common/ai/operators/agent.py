@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn
 from pydantic import BaseModel, TypeAdapter
 from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
 from pydantic_ai.capabilities import Toolset
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.usage import RunUsage
@@ -844,6 +845,16 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             with agent.override(model=caching_model):
                 try:
                     result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
+                except UsageLimitExceeded as err:
+                    self.log.warning(
+                        "Durable: the run reached a usage limit: %s Replayed model responses and tool "
+                        "calls count toward this task's usage_limits like live ones, so if that is the "
+                        "limit reached, a retry will likely stop at the same step; raise usage_limits to "
+                        "let it go further. A limit set on an agent run inside a tool is separate, and "
+                        "usage such a run adds is not replayed.",
+                        err,
+                    )
+                    raise
                 finally:
                     # Also on a raise: the failed attempt is the one Airflow retries.
                     self._log_durable_summary(counter)
