@@ -364,17 +364,10 @@ class OpenAITriggerBatchOperator(BaseOperator):
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
         Defaults to 3 seconds.
-    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
-        Applies in both deferrable and non-deferrable mode: in the synchronous path it bounds
-        ``wait_for_batch``; in the deferrable path it bounds the trigger's poll loop. When the
-        deferrable path times out, the operator requests cancellation of the batch using the
-        batch id carried by the trigger event, mirroring the synchronous path. Cancellation on
-        OpenAI's side is asynchronous — the batch reports ``cancelling`` for up to 10 minutes
-        before it settles as ``cancelled`` — so this only *requests* cancellation, it does not
-        wait for it. If ``execution_timeout`` is set shorter than ``timeout``, the scheduler's
-        deferral timeout fires first: the task is failed with ``TaskDeferralTimeout`` before the
-        trigger ever times out, ``execute_complete`` is never called, and this cancellation path
-        does not run. Defaults to 24 hours, which is the SLA for OpenAI Batch API.
+    :param timeout: Optional. The number of seconds to wait for the batch to complete, in both
+        deferrable and non-deferrable mode. Defaults to 24 hours, the SLA for OpenAI Batch API.
+        In deferrable mode, if ``execution_timeout`` is set shorter than ``timeout``, the task is
+        failed with ``TaskDeferralTimeout`` before the trigger times out, and the batch is not cancelled.
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
     :param metadata: Optional. A set of key-value pairs that can be attached to the batch. (templated)
@@ -383,13 +376,6 @@ class OpenAITriggerBatchOperator(BaseOperator):
         error files. Defaults to None.
     :param poll_interval: Optional. Number of seconds between checks. Only used when ``deferrable`` is True.
         Defaults to 60 seconds.
-
-    When ``deferrable`` is True and the batch does not reach a terminal state, ``execute_complete``
-    raises :class:`~airflow.providers.openai.exceptions.OpenAIBatchTimeout`, matching the exception
-    raised by the synchronous path for the same condition. A cancelled batch raises
-    :class:`~airflow.providers.openai.exceptions.OpenAIBatchCancelled` (a subclass of
-    :class:`~airflow.providers.openai.exceptions.OpenAIBatchJobException`), and any other failure
-    raises :class:`~airflow.providers.openai.exceptions.OpenAIBatchJobException`.
 
     .. seealso::
         For more information on how to use this operator, please take a look at the guide:
@@ -475,9 +461,13 @@ class OpenAITriggerBatchOperator(BaseOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful. The exception raised depends on the event's ``termination_reason``:
-        ``OpenAIBatchTimeout`` for a timeout, ``OpenAIBatchCancelled`` for a cancellation,
-        and ``OpenAIBatchJobException`` for any other failure (including events from a
-        trigger serialized before ``termination_reason`` existed).
+        :class:`~airflow.providers.openai.exceptions.OpenAIBatchTimeout` for a timeout
+        (matching the exception the synchronous path raises for the same condition),
+        :class:`~airflow.providers.openai.exceptions.OpenAIBatchCancelled` for a cancellation
+        (a subclass of :class:`~airflow.providers.openai.exceptions.OpenAIBatchJobException`),
+        and :class:`~airflow.providers.openai.exceptions.OpenAIBatchJobException` for any
+        other failure (including events from a trigger serialized before
+        ``termination_reason`` existed).
 
         On a timeout, cancellation of the batch is requested before the timeout is raised
         (see :meth:`_cancel_batch_quietly`). No other termination reason triggers
