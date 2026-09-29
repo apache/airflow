@@ -215,4 +215,74 @@ describe("TriggerDAGForm", () => {
     await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
     expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
   });
+
+  it("does not offer a preset drop-down when the Dag declares no presets", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Params Trigger UI"
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("loads a preset's values into the form fields and the JSON on top of the Dag defaults", async () => {
+    useDagParamsMock.mockReturnValue({
+      paramPresets: { Nightly: { message: "Nightly message" } },
+      paramsDict: dagParams.paramsDict,
+    });
+
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Params Trigger UI"
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toBeInTheDocument(),
+    );
+    expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toHaveValue("Hello");
+
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByText("Nightly"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toHaveValue(
+        "Nightly message",
+      ),
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() => {
+      const configJson = screen.getByLabelText("Configuration JSON");
+
+      if (!(configJson instanceof HTMLTextAreaElement)) {
+        throw new TypeError("Expected Configuration JSON to render as a textarea");
+      }
+
+      expect(configJson.value).toContain('"Nightly message"');
+    });
+  });
 });

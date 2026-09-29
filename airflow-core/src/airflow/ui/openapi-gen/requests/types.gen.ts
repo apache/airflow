@@ -951,6 +951,11 @@ export type DAGDetailsResponse = {
     params: {
     [key: string]: unknown;
 } | null;
+    param_presets?: {
+        [key: string]: {
+            [key: string]: unknown;
+        };
+    };
     render_template_as_native_obj: boolean;
     template_search_path: Array<(string)> | null;
     timezone: string | null;

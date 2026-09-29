@@ -3361,6 +3361,14 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Params'
         },
+        param_presets: {
+            additionalProperties: {
+                additionalProperties: true,
+                type: 'object'
+            },
+            type: 'object',
+            title: 'Param Presets'
+        },
         render_template_as_native_obj: {
             type: 'boolean',
             title: 'Render Template As Native Obj'

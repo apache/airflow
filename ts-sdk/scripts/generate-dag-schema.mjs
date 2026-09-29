@@ -183,6 +183,8 @@ export const EXCLUDED_DAG_FIELDS = {
  */
 export const UNEXPRESSIBLE_DAG_FIELDS = {
   params: "a params object of arbitrary shape",
+  param_presets:
+    "a dict of preset names to param values of arbitrary shape, and unusable without params",
   timezone: "a timezone object; the schedule and the dates carry their own",
   owner_links: "a dict of owner names to links",
   allowed_run_types: "an anyOf the generator cannot narrow to one type",

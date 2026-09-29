@@ -3009,6 +3009,7 @@ class DAGDetailsResponse(BaseModel):
     end_date: Annotated[datetime | None, Field(title="End Date")]
     is_paused_upon_creation: Annotated[bool | None, Field(title="Is Paused Upon Creation")]
     params: Annotated[dict[str, Any] | None, Field(title="Params")]
+    param_presets: Annotated[dict[str, dict[str, Any]] | None, Field(title="Param Presets")] = None
     render_template_as_native_obj: Annotated[bool, Field(title="Render Template As Native Obj")]
     template_search_path: Annotated[list[str] | None, Field(title="Template Search Path")]
     timezone: Annotated[str | None, Field(title="Timezone")]

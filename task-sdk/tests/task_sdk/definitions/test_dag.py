@@ -227,6 +227,79 @@ class TestDag:
         ):
             DAG("my-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE, params=params)
 
+    def test_param_presets_not_passed_is_empty_dict(self):
+        dag = DAG("test-dag", schedule=None)
+
+        assert dag.param_presets == {}
+
+    def test_param_presets_none_is_empty_dict(self):
+        dag = DAG("test-dag", schedule=None, param_presets=None)
+
+        assert dag.param_presets == {}
+
+    def test_param_presets_kept_verbatim(self):
+        presets = {"Nightly": {"batch_size": 512}, "Debug": {"batch_size": 1}}
+
+        dag = DAG(
+            "test-dag",
+            schedule=None,
+            params={"batch_size": Param(128, type="integer", minimum=1)},
+            param_presets=presets,
+        )
+
+        assert dag.param_presets == presets
+
+    def test_param_presets_do_not_change_param_defaults(self):
+        """A preset must not overwrite the default the Dag author declared for the param."""
+        dag = DAG(
+            "test-dag",
+            schedule=None,
+            params={"batch_size": Param(128, type="integer", minimum=1)},
+            param_presets={"Nightly": {"batch_size": 512}},
+        )
+
+        assert dag.params["batch_size"] == 128
+
+    def test_param_presets_reject_unknown_param(self):
+        with pytest.raises(
+            ValueError,
+            match=re.escape("Param preset 'Nightly' of Dag 'my-dag' sets unknown param 'typo'."),
+        ):
+            DAG(
+                "my-dag",
+                schedule=None,
+                params={"batch_size": Param(128, type="integer")},
+                param_presets={"Nightly": {"typo": 512}},
+            )
+
+    def test_param_presets_reject_value_failing_param_schema(self):
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Param preset 'Nightly' of Dag 'my-dag' has an invalid value for param 'batch_size'"
+            ),
+        ):
+            DAG(
+                "my-dag",
+                schedule=None,
+                params={"batch_size": Param(128, type="integer", minimum=1)},
+                param_presets={"Nightly": {"batch_size": 0}},
+            )
+
+    def test_param_presets_reject_non_dict_preset(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Param preset 'Nightly' of Dag 'my-dag' must be a dict of param names to values, got str."
+            ),
+        ):
+            DAG(
+                "my-dag",
+                schedule=None,
+                params={"batch_size": Param(128, type="integer")},
+                param_presets={"Nightly": "batch_size=512"},
+            )
+
     def test_roots(self):
         """Verify if dag.roots returns the root tasks of a Dag."""
         with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
