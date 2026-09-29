@@ -117,7 +117,7 @@ The option also applies to ``breeze testing providers-tests``.
     breeze testing core-tests --project-name breeze-history --backend postgres
     breeze testing core-tests --project-name breeze-clearing --backend postgres
 
-If you use this mode you will have to clean up old projects manually: 
+If you use this mode you will have to clean up old projects manually:
 
 .. code-block:: bash
     breeze down --project-name breeze-history
