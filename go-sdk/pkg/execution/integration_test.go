@@ -83,21 +83,21 @@ type testBundle map[string]testDag
 
 type testDag map[string]bundle.Task
 
-func (b testBundle) AddDag(dagId string) testDag {
-	b[dagId] = testDag{}
-	return b[dagId]
+func (b testBundle) AddDag(dagID string) testDag {
+	b[dagID] = testDag{}
+	return b[dagID]
 }
 
-func (d testDag) AddTaskWithName(taskId string, fn any) {
+func (d testDag) AddTaskWithName(taskID string, fn any) {
 	task, err := bundle.NewTaskFunction(fn)
 	if err != nil {
 		panic(err)
 	}
-	d[taskId] = task
+	d[taskID] = task
 }
 
-func (b testBundle) LookupTask(dagId, taskId string) (bundle.Task, bool) {
-	task, ok := b[dagId][taskId]
+func (b testBundle) LookupTask(dagID, taskID string) (bundle.Task, bool) {
+	task, ok := b[dagID][taskID]
 	return task, ok
 }
 
