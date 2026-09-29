@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
@@ -289,7 +289,11 @@ class GitDagBundle(BaseDagBundle):
 
     @retry(
         retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
-        stop=stop_after_attempt(2),
+        # GitHub rejects a just-issued App installation token with "Repository not found" for a
+        # few seconds. Back off between attempts so one lands after the token has propagated,
+        # instead of failing the task on an immediate second attempt.
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, max=15),
         reraise=True,
     )
     def _clone_bare_repo_if_required(self) -> None:

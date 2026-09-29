@@ -48,6 +48,13 @@ def _version_str(version_result):
 
 
 @pytest.fixture(autouse=True)
+def no_retry_wait():
+    """The bare clone backs off between retries; do not spend that wall-clock time in tests."""
+    with mock.patch.object(GitDagBundle._clone_bare_repo_if_required.retry, "sleep"):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def bundle_temp_dir(tmp_path):
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
         yield tmp_path
@@ -1707,12 +1714,43 @@ class TestGitDagBundle:
             with pytest.raises(InvalidGitRepositoryError, match="Invalid git repository"):
                 bundle._clone_bare_repo_if_required()
 
-            # Verify cleanup was called twice (once for each failed attempt)
-            assert mock_rmtree.call_count == 2
+            # Verify cleanup was called once for each failed attempt
+            assert mock_rmtree.call_count == 5
             mock_rmtree.assert_called_with(bundle.bare_repo_path)
 
-            # Verify Repo was called twice (failed attempt + failed retry)
-            assert mock_repo_class.call_count == 2
+            # Verify Repo was called once per attempt (failed attempt + four failed retries)
+            assert mock_repo_class.call_count == 5
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_clone_bare_repo_waits_out_transient_repository_not_found(self, mock_githook):
+        """GitHub rejects a just-issued App installation token with "Repository not found" for a few
+        seconds. The bare clone must back off and retry until it lands after the token has propagated,
+        not fail the task on an immediate second attempt."""
+        mock_githook.return_value.repo_url = AIRFLOW_HTTPS_URL
+        mock_githook.return_value.env = {}
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+
+        attempts = []
+        sleeps = []
+
+        def _clone_from(url, to_path, bare, env):
+            attempts.append(url)
+            if len(attempts) < 3:
+                raise GitCommandError(["git", "clone"], 128, stderr="remote: Repository not found.")
+            Repo.init(to_path, bare=True)
+
+        with (
+            mock.patch("airflow.providers.git.bundles.git.Repo.clone_from", side_effect=_clone_from),
+            mock.patch.object(bundle, "_fetch_bare_repo"),
+            mock.patch.object(GitDagBundle._clone_bare_repo_if_required.retry, "sleep", sleeps.append),
+        ):
+            bundle._clone_bare_repo_if_required()
+
+        assert len(attempts) == 3
+        assert bundle.bare_repo.git_dir == str(bundle.bare_repo_path)
+        assert len(sleeps) == 2, "each retry must wait for the token to become usable"
+        assert all(s > 0 for s in sleeps)
+        assert sleeps == sorted(sleeps), "backoff must not shrink between attempts"
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_survives_upstream_tag_deletion(self, mock_githook, git_repo):
