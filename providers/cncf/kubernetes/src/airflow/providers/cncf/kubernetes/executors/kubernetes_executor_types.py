@@ -67,7 +67,7 @@ class FailureDetails(TypedDict, total=False):
 
 
 class KubernetesResults(NamedTuple):
-    """Results from Kubernetes task execution."""
+    """Results from Kubernetes workload execution."""
 
     key: WorkloadKey
     state: WorkloadState | str | None
