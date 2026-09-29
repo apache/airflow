@@ -1655,10 +1655,10 @@ voters as follows:
 
 * Binding `+1` votes are listed by name only. The heading already says they are binding, so do not
   add `(binding)` after each name.
-* Non-binding `+1` votes are split into two lists. A vote counts for specific providers only when
-  its vote line names them, for example `+1 (non-binding) for amazon and google`. Add those
-  providers in brackets after the voter's name. A plain `+1` counts for the whole set, even when the
-  voter adds that they only tested their own changes.
+* Non-binding `+1` votes for specific providers go in a separate list, with the providers in
+  brackets after the voter's name. A vote counts for specific providers only when its vote line
+  names them, for example `+1 (non-binding) for amazon and google`. A plain `+1` goes in the main
+  non-binding list, even when the voter adds that they only tested their own changes.
 * For every excluded provider, tally its `-1` votes, both binding and non-binding, with the voters'
   names. Leave out a part whose count is zero.
 
@@ -1695,7 +1695,7 @@ Apache Airflow Providers prepared on ${RELEASE_DATE} have been accepted.
 - FIRST LAST NAME
 - FIRST LAST NAME
 
-2 "+1" non-binding votes received for the whole set:
+2 "+1" non-binding votes received:
 - FIRST LAST NAME
 - FIRST LAST NAME
 

@@ -54,8 +54,8 @@ Use the email template and listing rules in
 instead of the skill's default body. In short:
 
 - List binding `+1` voters by name only, without `(binding)` after each name.
-- Split non-binding `+1` voters into a whole-set list and a specific-providers list, with the
-  providers in brackets after each name.
+- List non-binding `+1` voters for specific providers separately from the main non-binding
+  list, with the providers in brackets after each name.
 - For every excluded provider, give its binding and non-binding `-1` counts with the voters'
   names, and leave out a part whose count is zero.
 - Keep the exclusion reason and the plan for the next RC, and let the release manager choose
