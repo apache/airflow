@@ -315,6 +315,8 @@ class TestRunCommand:
         request = api.command.call_args.args[1]
         assert "echo hi" in request.command
         assert "mktemp -d" in request.command
+        assert '>"$tmp_dir/stdout" 2>"$tmp_dir/stderr"' in request.command
+        assert 'command_pid=$!; wait "$command_pid"' in request.command
         assert request.timeout_seconds == 5
         assert result.stdout == "0" * 8
         assert result.stdout_truncated
