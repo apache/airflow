@@ -34,9 +34,9 @@ import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
-import PausedDagOptions, { type PausedDagAction } from "./PausedDagOptions";
+import PausedDagOptions from "./PausedDagOptions";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
-import { dataIntervalModeOptions, type DagRunTriggerParams } from "./types";
+import { dataIntervalModeOptions, type DagRunTriggerParams, type PausedDagAction } from "./types";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;

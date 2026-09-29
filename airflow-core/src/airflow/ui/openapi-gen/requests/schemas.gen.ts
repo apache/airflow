@@ -959,7 +959,7 @@ export const $BackfillPostBody = {
         drain_dag: {
             type: 'boolean',
             title: 'Drain Dag',
-            description: 'Drain the Dag together with the backfill. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.',
+            description: 'Drain the Dag together with the backfill. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.',
             default: false
         }
     },
@@ -6512,7 +6512,7 @@ export const $MaterializeAssetBody = {
         drain_dag: {
             type: 'boolean',
             title: 'Drain Dag',
-            description: 'Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.',
+            description: 'Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.',
             default: false
         }
     },
@@ -9048,7 +9048,7 @@ export const $TriggerDAGRunPostBody = {
         drain_dag: {
             type: 'boolean',
             title: 'Drain Dag',
-            description: 'Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.',
+            description: 'Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.',
             default: false
         }
     },

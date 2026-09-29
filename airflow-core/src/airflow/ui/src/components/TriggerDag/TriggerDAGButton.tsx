@@ -34,7 +34,6 @@ type TriggerDAGButtonProps = {
   readonly allowedRunTypes?: Array<DagRunType> | null;
   readonly dagDisplayName: string;
   readonly dagId: string;
-  readonly isPaused: boolean;
   readonly variant?: "ghost" | "outline";
   readonly withText?: boolean;
 };
@@ -43,7 +42,6 @@ export const TriggerDAGButton = ({
   allowedRunTypes,
   dagDisplayName,
   dagId,
-  isPaused,
   variant = "ghost",
   withText = false,
 }: TriggerDAGButtonProps) => {
@@ -123,7 +121,6 @@ export const TriggerDAGButton = ({
         <TriggerDAGModal
           dagDisplayName={dagDisplayName}
           dagId={dagId}
-          isPaused={isPaused}
           onClose={handleModalClose}
           open={open}
           prefillConfig={prefillConfig}
@@ -166,7 +163,6 @@ export const TriggerDAGButton = ({
       <TriggerDAGModal
         dagDisplayName={dagDisplayName}
         dagId={dagId}
-        isPaused={isPaused}
         onClose={handleModalClose}
         open={open}
         prefillConfig={undefined}

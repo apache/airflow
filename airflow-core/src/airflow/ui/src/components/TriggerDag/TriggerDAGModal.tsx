@@ -38,7 +38,6 @@ enum RunMode {
 type TriggerDAGModalProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
-  readonly isPaused: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
   readonly prefillConfig?:
@@ -50,14 +49,7 @@ type TriggerDAGModalProps = {
     | undefined;
 };
 
-const TriggerDAGModal = ({
-  dagDisplayName,
-  dagId,
-  isPaused,
-  onClose,
-  open,
-  prefillConfig,
-}: TriggerDAGModalProps) => {
+const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }: TriggerDAGModalProps) => {
   const { t: translate } = useTranslation("components");
   const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
   const {
@@ -77,6 +69,7 @@ const TriggerDAGModal = ({
   );
 
   const isBackfillable = dag?.is_backfillable ?? false;
+  const isPaused = dag?.is_paused ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
   const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
@@ -145,7 +138,7 @@ const TriggerDAGModal = ({
               error={error}
               hasSchedule={hasSchedule}
               isPartitioned={isPartitioned}
-              isPaused={dag?.is_paused ?? isPaused}
+              isPaused={isPaused}
               isPending={isPending}
               onSubmitTrigger={triggerDagRun}
               open={open}

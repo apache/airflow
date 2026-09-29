@@ -132,14 +132,14 @@
   },
   "pausedDag": {
     "drain": "Drain",
-    "drainDescription": "Queued runs start, but no scheduled runs are created. The Dag pauses again once they finish.",
+    "drainDescription": "Unfinished runs continue, but no scheduled runs are created. The Dag pauses again once they finish.",
     "keepPaused": "Keep paused",
-    "keepPausedDescription": "Runs stay queued until the Dag is unpaused.",
+    "keepPausedDescription": "New and unfinished runs wait until the Dag is unpaused.",
     "title": "Dag is paused",
-    "unfinishedRunsWillRun_one": "This Dag already has 1 unfinished Dag run. It will run as well.",
-    "unfinishedRunsWillRun_other": "This Dag already has {{count}} unfinished Dag runs. They will run as well.",
+    "unfinishedRunsWillRun_one": "1 unfinished Dag run will start or resume.",
+    "unfinishedRunsWillRun_other": "{{count}} unfinished Dag runs will start or resume.",
     "unpause": "Unpause",
-    "unpauseDescription": "The Dag becomes active: queued runs start and the schedule resumes."
+    "unpauseDescription": "The Dag becomes active: unfinished runs continue and the schedule resumes."
   },
   "reparseDag": "Reparse Dag",
   "slowestTaskInstances": {

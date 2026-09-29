@@ -1008,7 +1008,7 @@ class MaterializeAssetBody(BaseModel):
     drain_dag: Annotated[
         bool | None,
         Field(
-            description="Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.",
+            description="Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.",
             title="Drain Dag",
         ),
     ] = False
@@ -1366,7 +1366,7 @@ class TriggerDAGRunPostBody(BaseModel):
     drain_dag: Annotated[
         bool | None,
         Field(
-            description="Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.",
+            description="Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.",
             title="Drain Dag",
         ),
     ] = False
@@ -1668,7 +1668,7 @@ class BackfillPostBody(BaseModel):
     drain_dag: Annotated[
         bool | None,
         Field(
-            description="Drain the Dag together with the backfill. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.",
+            description="Drain the Dag together with the backfill. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.",
             title="Drain Dag",
         ),
     ] = False

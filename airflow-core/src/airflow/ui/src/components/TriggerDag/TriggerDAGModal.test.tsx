@@ -56,23 +56,23 @@ vi.mock("openapi/queries", async (importOriginal) => {
 
 const { useDagServiceGetDag } = await import("openapi/queries");
 
-const DAG_ID = "unpaused_since";
+const DAG_ID = "paused_dag";
 
 describe("TriggerDAGModal", () => {
   beforeEach(() => {
     vi.mocked(useDagServiceGetDag).mockReturnValue({
-      data: { dag_id: DAG_ID, is_backfillable: false, is_paused: false, timetable_summary: null },
+      data: { dag_id: DAG_ID, is_backfillable: false, is_paused: true, timetable_summary: null },
       isError: false,
       isLoading: false,
     } as unknown as ReturnType<typeof useDagServiceGetDag>);
   });
 
-  it("uses the paused state fetched on open over the one the caller had cached", () => {
-    render(<TriggerDAGModal dagDisplayName={DAG_ID} dagId={DAG_ID} isPaused onClose={vi.fn()} open />, {
+  it("passes the paused state it fetches on open to the form", () => {
+    render(<TriggerDAGModal dagDisplayName={DAG_ID} dagId={DAG_ID} onClose={vi.fn()} open />, {
       wrapper: Wrapper,
     });
 
-    expect(screen.getByText("form isPaused=false")).toBeInTheDocument();
+    expect(screen.getByText("form isPaused=true")).toBeInTheDocument();
     expect(useDagServiceGetDag).toHaveBeenCalledWith(
       { dagId: DAG_ID },
       undefined,

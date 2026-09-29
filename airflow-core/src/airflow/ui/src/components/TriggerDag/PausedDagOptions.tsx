@@ -16,15 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useBackfillServiceListBackfillsUi, useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DagRunType } from "openapi/requests/types.gen";
 
-import { Accordion, Alert, RadioCardItem, RadioCardRoot } from "src/system-components";
+import { RadioCardItem, RadioCardRoot } from "src/system-components";
 
-export type PausedDagAction = "drain" | "keepPaused" | "unpause";
+import type { PausedDagAction } from "./types";
+
+const PAUSED_DAG_OPTIONS = [
+  { description: "pausedDag.unpauseDescription", label: "pausedDag.unpause", value: "unpause" },
+  { description: "pausedDag.drainDescription", label: "pausedDag.drain", value: "drain" },
+  { description: "pausedDag.keepPausedDescription", label: "pausedDag.keepPaused", value: "keepPaused" },
+] as const satisfies Array<{ description: string; label: string; value: PausedDagAction }>;
 
 const NON_BACKFILL_RUN_TYPES: Array<Exclude<DagRunType, "backfill">> = [
   "scheduled",
@@ -42,14 +48,13 @@ type PausedDagOptionsProps = {
 
 const PausedDagOptions = ({ dagId, onChange, value }: PausedDagOptionsProps) => {
   const { t: translate } = useTranslation("components");
-  // Draining a paused Dag lets every unfinished run proceed, not only the one being created. The
-  // cached count can predate runs that have since finished (e.g. the run of an earlier drain), so
-  // it is refetched and only trusted once fetched for this form.
+  // Unpausing or draining lets every unfinished run proceed, not only the one being created. The cached
+  // count can predate runs that have since finished (e.g. the run of an earlier drain), so it is
+  // refetched and only trusted once fetched for this form.
   const { data: activeBackfills } = useBackfillServiceListBackfillsUi({ active: true, dagId }, undefined, {
-    enabled: value === "drain",
     staleTime: 0,
   });
-  // A paused backfill's runs do not start while it stays paused, draining or not.
+  // A paused backfill's runs do not start while it stays paused, whichever option is chosen.
   const isBackfillPaused = activeBackfills?.backfills.some((backfill) => backfill.is_paused) ?? false;
   const { data: unfinishedRuns, isFetchedAfterMount } = useDagRunServiceGetDagRuns(
     {
@@ -59,57 +64,48 @@ const PausedDagOptions = ({ dagId, onChange, value }: PausedDagOptionsProps) => 
       state: ["queued", "running"],
     },
     undefined,
-    { enabled: value === "drain", staleTime: 0 },
+    { staleTime: 0 },
   );
   const unfinishedRunCount = isFetchedAfterMount ? (unfinishedRuns?.total_entries ?? 0) : 0;
 
   return (
-    <VStack alignItems="stretch" gap={2}>
-      <Accordion.Root collapsible data-testid="paused-dag-options" size="lg" variant="enclosed">
-        <Accordion.Item value="pausedDag">
-          <Accordion.ItemTrigger cursor="button">
-            {translate("pausedDag.title")}
-            {/* The section starts collapsed, so keep the choice that will be applied visible. */}
-            <Text color="fg.muted" fontSize="sm" fontWeight="normal">
-              {translate(`pausedDag.${value}`)}
-            </Text>
-          </Accordion.ItemTrigger>
-          <Accordion.ItemContent>
-            <RadioCardRoot
-              onChange={(event) => onChange((event.target as HTMLInputElement).value as PausedDagAction)}
-              size="sm"
-              value={value}
-            >
-              <VStack align="stretch" gap={2}>
-                <RadioCardItem
-                  description={translate("pausedDag.unpauseDescription")}
-                  indicatorPlacement="start"
-                  label={translate("pausedDag.unpause")}
-                  value="unpause"
-                />
-                <RadioCardItem
-                  description={translate("pausedDag.drainDescription")}
-                  indicatorPlacement="start"
-                  label={translate("pausedDag.drain")}
-                  value="drain"
-                />
-                <RadioCardItem
-                  description={translate("pausedDag.keepPausedDescription")}
-                  indicatorPlacement="start"
-                  label={translate("pausedDag.keepPaused")}
-                  value="keepPaused"
-                />
-              </VStack>
-            </RadioCardRoot>
-          </Accordion.ItemContent>
-        </Accordion.Item>
-      </Accordion.Root>
-      {value === "drain" && unfinishedRunCount > 0 ? (
-        <Alert status="warning">
-          {translate("pausedDag.unfinishedRunsWillRun", { count: unfinishedRunCount })}
-        </Alert>
-      ) : undefined}
-    </VStack>
+    <Box data-testid="paused-dag-options">
+      <Text fontSize="md" fontWeight="semibold" mb={3}>
+        {translate("pausedDag.title")}
+      </Text>
+      <RadioCardRoot
+        onValueChange={({ value: selected }) => {
+          const option = PAUSED_DAG_OPTIONS.find((candidate) => candidate.value === selected);
+
+          if (option !== undefined) {
+            onChange(option.value);
+          }
+        }}
+        size="sm"
+        value={value}
+      >
+        <HStack align="stretch">
+          {PAUSED_DAG_OPTIONS.map((option) => (
+            <RadioCardItem
+              description={
+                <>
+                  {translate(option.description)}
+                  {option.value !== "keepPaused" && unfinishedRunCount > 0 ? (
+                    <Text color="fg.warning" fontWeight="medium" mt={1}>
+                      {translate("pausedDag.unfinishedRunsWillRun", { count: unfinishedRunCount })}
+                    </Text>
+                  ) : undefined}
+                </>
+              }
+              indicatorPlacement="start"
+              key={option.value}
+              label={translate(option.label)}
+              value={option.value}
+            />
+          ))}
+        </HStack>
+      </RadioCardRoot>
+    </Box>
   );
 };
 

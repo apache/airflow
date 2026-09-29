@@ -21,7 +21,7 @@ import type { ReactNode } from "react";
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UseDagRunServiceGetDagRunsKeyFn } from "openapi/queries";
@@ -68,53 +68,69 @@ beforeEach(() => serveActiveBackfills([]));
 
 afterEach(() => vi.restoreAllMocks());
 
+const COUNT_TEXT = /pausedDag\.unfinishedRunsWillRun/u;
+
+const getOptionCard = (label: string) => {
+  const card = screen.getByText(label).closest("label");
+
+  if (card === null) {
+    throw new Error(`No option card for ${label}`);
+  }
+
+  return card;
+};
+
 describe("PausedDagOptions", () => {
-  it("starts collapsed and shows the choice that will be applied", () => {
-    render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="keepPaused" />, {
+  it("shows every option without expanding a section", () => {
+    render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="unpause" />, {
       wrapper: createWrapper(createQueryClient()),
     });
 
-    const trigger = screen.getByRole("button", { name: /pausedDag\.title/u });
-
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(trigger).toHaveTextContent("pausedDag.keepPaused");
+    expect(screen.getByText("pausedDag.unpause")).toBeVisible();
+    expect(screen.getByText("pausedDag.drain")).toBeVisible();
+    expect(screen.getByText("pausedDag.keepPaused")).toBeVisible();
   });
 
-  it("reports the option the user picks", () => {
+  it("reports the option the user picks", async () => {
     const onChange = vi.fn();
 
     render(<PausedDagOptions dagId={DAG_ID} onChange={onChange} value="unpause" />, {
       wrapper: createWrapper(createQueryClient()),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /pausedDag\.title/u }));
     fireEvent.click(screen.getByText("pausedDag.drain"));
 
-    expect(onChange).toHaveBeenCalledWith("drain");
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("drain"));
   });
 
-  it("only looks up unfinished runs once draining is selected", async () => {
-    const getDagRuns = serveUnfinishedRuns(0);
-    const { rerender } = render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="unpause" />, {
+  it("shows the unfinished-run count on the options that let those runs proceed", async () => {
+    const getDagRuns = serveUnfinishedRuns(3);
+
+    render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="unpause" />, {
       wrapper: createWrapper(createQueryClient()),
     });
 
-    expect(getDagRuns).not.toHaveBeenCalled();
-
-    rerender(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="drain" />);
-
-    await waitFor(() => expect(getDagRuns).toHaveBeenCalledTimes(1));
-    expect(getDagRuns).toHaveBeenCalledWith(expect.objectContaining(UNFINISHED_RUNS_QUERY));
+    await waitFor(() =>
+      expect(getDagRuns).toHaveBeenCalledWith(expect.objectContaining(UNFINISHED_RUNS_QUERY)),
+    );
+    expect(
+      await within(getOptionCard("pausedDag.unpause")).findByText("pausedDag.unfinishedRunsWillRun:3"),
+    ).toBeInTheDocument();
+    expect(
+      within(getOptionCard("pausedDag.drain")).getByText("pausedDag.unfinishedRunsWillRun:3"),
+    ).toBeInTheDocument();
+    expect(within(getOptionCard("pausedDag.keepPaused")).queryByText(COUNT_TEXT)).not.toBeInTheDocument();
   });
 
-  it("warns that unfinished runs will run as well when draining", async () => {
-    serveUnfinishedRuns(3);
+  it("shows no count when the Dag has no unfinished runs", async () => {
+    const getDagRuns = serveUnfinishedRuns(0);
 
     render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="drain" />, {
       wrapper: createWrapper(createQueryClient()),
     });
 
-    expect(await screen.findByText("pausedDag.unfinishedRunsWillRun:3")).toBeInTheDocument();
+    await waitFor(() => expect(getDagRuns).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(COUNT_TEXT)).not.toBeInTheDocument();
   });
 
   it.each([
@@ -144,7 +160,7 @@ describe("PausedDagOptions", () => {
           expect.objectContaining({ ...UNFINISHED_RUNS_QUERY, runType: expectedRunType }),
         ),
       );
-      expect(await screen.findByText("pausedDag.unfinishedRunsWillRun:2")).toBeInTheDocument();
+      expect(await screen.findAllByText("pausedDag.unfinishedRunsWillRun:2")).toHaveLength(2);
     },
   );
 
@@ -156,17 +172,15 @@ describe("PausedDagOptions", () => {
     // Left behind by an earlier drained trigger, while its run was still queued.
     queryClient.setQueryData<DAGRunCollectionResponse>(queryKey, { dag_runs: [], total_entries: 1 });
 
-    const { rerender } = render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="unpause" />, {
+    render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="drain" />, {
       wrapper: createWrapper(queryClient),
     });
 
-    rerender(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="drain" />);
-
-    expect(screen.queryByText(/pausedDag\.unfinishedRunsWillRun/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(COUNT_TEXT)).not.toBeInTheDocument();
     await waitFor(() => expect(getDagRuns).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(queryClient.getQueryData<DAGRunCollectionResponse>(queryKey)?.total_entries).toBe(0),
     );
-    expect(screen.queryByText(/pausedDag\.unfinishedRunsWillRun/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(COUNT_TEXT)).not.toBeInTheDocument();
   });
 });

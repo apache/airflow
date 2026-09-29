@@ -125,8 +125,8 @@ describe("TriggerDAGForm", () => {
       );
 
       if (action !== undefined) {
-        fireEvent.click(screen.getByText("pausedDag.title"));
         fireEvent.click(screen.getByText(action));
+        await waitFor(() => expect(screen.getByRole("radio", { name: action })).toBeChecked());
       }
       fireEvent.click(screen.getByTestId("trigger-dag-submit"));
 

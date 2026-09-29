@@ -19,6 +19,8 @@
 
 export type DataIntervalMode = "auto" | "manual";
 
+export type PausedDagAction = "drain" | "keepPaused" | "unpause";
+
 export type DagRunTriggerParams = {
   conf: string;
   dagRunId: string;

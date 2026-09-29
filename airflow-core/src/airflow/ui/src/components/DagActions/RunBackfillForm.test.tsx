@@ -151,8 +151,8 @@ describe("RunBackfillForm", () => {
       render(<RunBackfillForm dag={pausedDag as never} onClose={vi.fn()} />, { wrapper: Wrapper });
 
       if (action !== undefined) {
-        fireEvent.click(screen.getByText("pausedDag.title"));
         fireEvent.click(screen.getByText(action));
+        await waitFor(() => expect(screen.getByRole("radio", { name: action })).toBeChecked());
       }
       fireEvent.click(screen.getByText("Run Backfill"));
 

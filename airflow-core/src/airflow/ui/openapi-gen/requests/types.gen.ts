@@ -283,7 +283,7 @@ export type BackfillPostBody = {
      */
     run_on_latest_version?: boolean | null;
     /**
-     * Drain the Dag together with the backfill. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.
+     * Drain the Dag together with the backfill. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.
      */
     drain_dag?: boolean;
 };
@@ -1733,7 +1733,7 @@ export type MaterializeAssetBody = {
     partition_key?: string | null;
     bundle_version?: string | null;
     /**
-     * Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.
+     * Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.
      */
     drain_dag?: boolean;
 };
@@ -2282,7 +2282,7 @@ export type TriggerDAGRunPostBody = {
     partition_key?: string | null;
     bundle_version?: string | null;
     /**
-     * Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, including runs already queued on a paused Dag, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.
+     * Drain the Dag together with this run. Draining changes the whole Dag: every unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.
      */
     drain_dag?: boolean;
 };

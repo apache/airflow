@@ -40,8 +40,8 @@ import { useTogglePause } from "src/queries/useTogglePause";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
-import PausedDagOptions, { type PausedDagAction } from "../TriggerDag/PausedDagOptions";
-import type { DagRunTriggerParams } from "../TriggerDag/types";
+import PausedDagOptions from "../TriggerDag/PausedDagOptions";
+import type { DagRunTriggerParams, PausedDagAction } from "../TriggerDag/types";
 import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
