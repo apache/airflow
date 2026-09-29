@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0010: Persisted Task-Handler Bindings (Resolving Lang-SDK Artifacts at Parse Time
+# ADR-0010: Persisted Task-Handler Bindings (Resolving Lang-SDK Artifacts at Parse Time)
 
 ## Status
 
@@ -26,7 +26,7 @@ Proposed
 ## Context
 
 A mixed-language Dag is authored in Python with `@task.stub` tasks whose bodies live in a Lang-SDK
-artifact) a packed Go binary, a JAR, a minified `.min.mjs`. Nothing in the Dag says *which* artifact.
+artifact (a packed Go binary, a JAR, a minified `.min.mjs`). Nothing in the Dag says *which* artifact.
 Nothing is recorded about that artifact when the Dag is processed, so the link has to be
 rediscovered on every single task execution by scanning a filesystem root:
 
@@ -334,7 +334,7 @@ class StartupDetails(BaseModel):
     ...
 ```
 
-`None` means "this task needs no Lang-SDK artifact" (an ordinary Python task. It never means
+`None` means "this task needs no Lang-SDK artifact" (an ordinary Python task). It never means
 "unknown": a stub task that failed to resolve is not queued at all (see "Failure handling").
 
 ### Flow 1) Dag processing: the write path
@@ -431,7 +431,7 @@ Artifact rows are **never** evicted from one file's result. One artifact backs h
 Python files, so this file seeing fewer candidates says nothing about another file's. They are a
 cache; they are reclaimed by orphan sweep or by `db clean`, never by a per-file reconcile.
 
-### Flow 2 (Scheduling: the read path
+### Flow 2) Scheduling: the read path
 
 ```
 SchedulerJobRunner._executable_task_instances_to_queued        [reads DB]
