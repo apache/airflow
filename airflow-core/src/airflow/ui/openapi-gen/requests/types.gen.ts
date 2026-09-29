@@ -4558,6 +4558,7 @@ export type GetJobsData = {
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetJobsResponse = JobCollectionResponse;
