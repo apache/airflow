@@ -234,25 +234,24 @@ on them differently:
 
 .. code-block:: python
 
-    snowflake_policy = ClassifierRetryPolicy(
-        llm_conn_id="pydanticai_default",
-        categories={
-            "queued": ErrorCategory(
-                "Statement queued or a concurrency limit reached; the warehouse is busy.",
-                delay=timedelta(seconds=120),
-            ),
-            "warehouse_suspended": ErrorCategory(
-                "The warehouse is suspended and will auto-resume.", delay=timedelta(seconds=30)
-            ),
-            "token_expired": ErrorCategory(
-                "A JWT or session token expired; the token rotates on its own.", delay=timedelta(seconds=30)
-            ),
-            "schema_drift": ErrorCategory(
-                "A referenced column, table or view does not exist; a person has to fix the schema.",
-                retry=False,
-            ),
-        },
-    )
+    SNOWFLAKE_CATEGORIES = {
+        "queued": ErrorCategory(
+            "Statement queued or a concurrency limit reached; the warehouse is busy.",
+            delay=timedelta(seconds=120),
+        ),
+        "warehouse_suspended": ErrorCategory(
+            "The warehouse is suspended and will auto-resume.", delay=timedelta(seconds=30)
+        ),
+        "token_expired": ErrorCategory(
+            "A JWT or session token expired; the token rotates on its own.", delay=timedelta(seconds=30)
+        ),
+        "schema_drift": ErrorCategory(
+            "A referenced column, table or view does not exist; a person has to fix the schema.",
+            retry=False,
+        ),
+    }
+
+    snowflake_policy = ClassifierRetryPolicy(llm_conn_id="pydanticai_default", categories=SNOWFLAKE_CATEGORIES)
 
 Write descriptions as the boundary between categories: what belongs here and what
 does not. That is the whole of what the model reads about a category; the name
@@ -474,7 +473,7 @@ not decide the action:
     snowflake_policy = ClassifierRetryPolicy(
         llm_conn_id="pydanticai_default",
         instructions=SNOWFLAKE_HINTS,
-        categories={...},  # the same names the hints use
+        categories=SNOWFLAKE_CATEGORIES,  # the table above; the hints use the same names
         fallback_rules=[
             RetryRule(
                 exception=ConnectionError,

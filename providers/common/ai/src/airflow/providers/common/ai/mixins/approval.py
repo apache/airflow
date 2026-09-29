@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
@@ -40,6 +41,35 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
+
+
+def normalize_assigned_users(value: Any, *, param: str) -> list[HITLUser]:
+    """
+    Return *value* as a list of ``{'id': str, 'name': str}`` users.
+
+    Accepts ``None``, a single user dict, or an iterable of them, and raises ``TypeError``
+    naming *param* for anything else, so a malformed list fails when the Dag is parsed
+    rather than when the task first asks for a review.
+    """
+    users: list[Any]
+    if value is None:
+        users = []
+    elif isinstance(value, dict):
+        users = [value]
+    elif isinstance(value, str) or not isinstance(value, Iterable):
+        raise TypeError(
+            f"{param} must be a {{'id': str, 'name': str}} dict or an iterable of them, got {value!r}"
+        )
+    else:
+        users = list(value)
+    for user in users:
+        if (
+            not isinstance(user, dict)
+            or not isinstance(user.get("id"), str)
+            or not isinstance(user.get("name"), str)
+        ):
+            raise TypeError(f"{param} entries must be {{'id': str, 'name': str}} dicts, got {user!r}")
+    return users
 
 
 class DeferForApprovalProtocol(Protocol):

@@ -2,7 +2,7 @@
 
 import { UseQueryResult } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagSchedulingState, DagWarningType, ReprocessBehavior } from "../requests/types.gen";
+import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
@@ -337,6 +337,12 @@ export type ConfigServiceGetConfigsDefaultResponse = Awaited<ReturnType<typeof C
 export type ConfigServiceGetConfigsQueryResult<TData = ConfigServiceGetConfigsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConfigServiceGetConfigsKey = "ConfigServiceGetConfigs";
 export const UseConfigServiceGetConfigsKeyFn = (queryKey?: Array<unknown>) => [useConfigServiceGetConfigsKey, ...(queryKey ?? [])];
+export type ConfigServiceGetBackendsOrderValueDefaultResponse = Awaited<ReturnType<typeof ConfigService.getBackendsOrderValue>>;
+export type ConfigServiceGetBackendsOrderValueQueryResult<TData = ConfigServiceGetBackendsOrderValueDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetBackendsOrderValueKey = "ConfigServiceGetBackendsOrderValue";
+export const UseConfigServiceGetBackendsOrderValueKeyFn = ({ accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}, queryKey?: Array<unknown>) => [useConfigServiceGetBackendsOrderValueKey, ...(queryKey ?? [{ accept }])];
 export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<ReturnType<typeof DagWarningService.listDagWarnings>>;
 export type DagWarningServiceListDagWarningsQueryResult<TData = DagWarningServiceListDagWarningsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagWarningServiceListDagWarningsKey = "DagWarningServiceListDagWarnings";
@@ -345,7 +351,7 @@ export const UseDagWarningServiceListDagWarningsKeyFn = ({ dagId, limit, offset,
   limit?: number;
   offset?: number;
   orderBy?: string[];
-  warningType?: DagWarningType;
+  warningType?: string;
 } = {}, queryKey?: Array<unknown>) => [useDagWarningServiceListDagWarningsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }])];
 export type DagServiceGetDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDags>>;
 export type DagServiceGetDagsQueryResult<TData = DagServiceGetDagsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
