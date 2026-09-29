@@ -965,27 +965,38 @@ class TestOpenAITriggerBatchOperatorExecuteComplete:
             self._operator().execute_complete(Context(), event)
 
     @pytest.mark.parametrize(
-        ("termination_reason", "expected_exc"),
+        ("termination_reason", "expected_exc", "cancel_expected"),
         [
-            pytest.param("timeout", OpenAIBatchTimeout, id="timeout"),
-            pytest.param("cancelled", OpenAIBatchCancelled, id="cancelled"),
-            pytest.param("failed", OpenAIBatchJobException, id="failed"),
-            pytest.param("expired", OpenAIBatchJobException, id="expired"),
-            pytest.param("unexpected_status", OpenAIBatchJobException, id="unexpected-status"),
-            pytest.param("polling_error", OpenAIBatchJobException, id="polling-error"),
+            pytest.param("timeout", OpenAIBatchTimeout, True, id="timeout"),
+            pytest.param("cancelled", OpenAIBatchCancelled, False, id="cancelled"),
+            pytest.param("failed", OpenAIBatchJobException, False, id="failed"),
+            pytest.param("expired", OpenAIBatchJobException, False, id="expired"),
+            pytest.param("unexpected_status", OpenAIBatchJobException, False, id="unexpected-status"),
+            pytest.param("polling_error", OpenAIBatchJobException, False, id="polling-error"),
+            pytest.param(None, OpenAIBatchJobException, False, id="missing-reason"),
         ],
     )
     def test_execute_complete_raises_exception_matching_termination_reason(
-        self, termination_reason, expected_exc
+        self, termination_reason, expected_exc, cancel_expected
     ):
-        event = {
-            "status": "error",
-            "termination_reason": termination_reason,
-            "message": "boom",
-            "batch_id": BATCH_ID,
-        }
+        """Covers both which exception a termination reason maps to, and whether it triggers
+        cancellation, off a mocked hook so the assertions never depend on ``_cancel_batch_quietly``
+        falling through to a real ``OpenAIHook`` looking up ``test_conn_id``.
+        """
+        operator = self._operator()
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        operator.hook = mock_hook_instance
+        event = {"status": "error", "message": "boom", "batch_id": BATCH_ID}
+        if termination_reason is not None:
+            event["termination_reason"] = termination_reason
+
         with pytest.raises(expected_exc, match="boom"):
-            self._operator().execute_complete(Context(), event)
+            operator.execute_complete(Context(), event)
+
+        if cancel_expected:
+            mock_hook_instance.cancel_batch.assert_called_once_with(BATCH_ID)
+        else:
+            mock_hook_instance.cancel_batch.assert_not_called()
 
     @pytest.mark.parametrize("status", ["error", "cancelled"])
     def test_execute_complete_missing_termination_reason_falls_back(self, status):
@@ -1036,27 +1047,3 @@ class TestOpenAITriggerBatchOperatorExecuteComplete:
             operator.execute_complete(Context(), event)
 
         mock_hook_instance.cancel_batch.assert_called_once_with(BATCH_ID)
-
-    @pytest.mark.parametrize(
-        "termination_reason",
-        [
-            "failed",
-            "cancelled",
-            "expired",
-            "polling_error",
-            "unexpected_status",
-            None,  # a trigger serialized before `termination_reason` existed sends no such key
-        ],
-    )
-    def test_non_timeout_termination_reasons_do_not_cancel(self, termination_reason):
-        operator = self._operator()
-        mock_hook_instance = Mock(spec=OpenAIHook)
-        operator.hook = mock_hook_instance
-        event = {"status": "error", "message": "boom", "batch_id": BATCH_ID}
-        if termination_reason is not None:
-            event["termination_reason"] = termination_reason
-
-        with pytest.raises(OpenAIBatchJobException):
-            operator.execute_complete(Context(), event)
-
-        mock_hook_instance.cancel_batch.assert_not_called()
