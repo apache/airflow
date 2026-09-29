@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0010: Persisted Task-Handler Bindings (Resolving Lang-SDK Artifacts at Parse Time)
+# ADR-0013: Persisted Task-Handler Bindings (Resolving Lang-SDK Artifacts at Parse Time)
 
 ## Status
 

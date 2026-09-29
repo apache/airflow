@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0011: Bundle Metadata — Retiring the Build-Time Inventory, Converging on a Cache Digest
+# ADR-0014: Bundle Metadata — Retiring the Build-Time Inventory, Converging on a Cache Digest
 
 ## Status
 
@@ -25,7 +25,7 @@ Proposed
 
 ## Context
 
-[ADR-0010](0010-persisted-task-handler-bindings.md) resolves a stub task to its artifact during Dag
+[ADR-0013](0013-persisted-task-handler-bindings.md) resolves a stub task to its artifact during Dag
 processing and persists the result, so nothing searches for an artifact at execution time. Two
 consequences land on the artifact format: the build-time Dag inventory loses its only purpose, and
 the Dag processor gains a new need — a stable value it can compare cheaply to decide whether
