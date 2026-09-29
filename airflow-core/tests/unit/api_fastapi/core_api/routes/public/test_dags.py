@@ -1457,9 +1457,11 @@ class TestDagDetails(TestDagEndpoint):
         assert response.status_code == 200
         assert response.json()["asset_expression"] is None
 
-    def test_dag_details_includes_active_runs_count(self, session, test_client):
+    def test_dag_details_includes_active_runs_count_and_queued_runs_count(self, session, test_client):
         """Test that DAG details include the active_runs_count and queued_runs_count fields."""
-        # Create running and queued DAG runs for DAG2
+        # One running, two queued, and one successful (uncounted) run for DAG2 -- two queued
+        # runs (not one) so a query that accidentally filters on RUNNING instead of QUEUED for
+        # queued_runs_count can't coincidentally match active_runs_count's value of 1.
         session.add(
             DagRun(
                 dag_id=DAG2_ID,
@@ -1477,6 +1479,17 @@ class TestDagDetails(TestDagEndpoint):
                 run_id="queued_run_1",
                 logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
                 start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="queued_run_2",
+                logical_date=datetime(2021, 6, 15, 2, 30, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 2, 30, 0, tzinfo=timezone.utc),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.QUEUED,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1500,28 +1513,75 @@ class TestDagDetails(TestDagEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        # Verify active_runs_count field is present and correct
-        assert "active_runs_count" in body
-        assert isinstance(body["active_runs_count"], int)
-        assert body["active_runs_count"] == 1  # only running counts, queued does not
-
-        # Verify queued_runs_count field is present and correct
-        assert "queued_runs_count" in body
-        assert isinstance(body["queued_runs_count"], int)
-        assert body["queued_runs_count"] == 1  # only queued counts, running/success do not
+        assert body["active_runs_count"] == 1  # only running counts, queued/success do not
+        assert body["queued_runs_count"] == 2  # only queued counts, running/success do not
 
         # Test with DAG that has no active runs
         response = test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 200
         body = response.json()
 
-        assert "active_runs_count" in body
-        assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
-
-        assert "queued_runs_count" in body
-        assert isinstance(body["queued_runs_count"], int)
         assert body["queued_runs_count"] == 0
+
+    def test_dag_details_active_runs_count_and_queued_runs_count_exclude_backfill_runs(
+        self, session, test_client
+    ):
+        """Backfill runs don't count against the Dag's own max_active_runs, so they're excluded."""
+        from airflow.models.backfill import Backfill
+
+        backfill = Backfill(
+            dag_id=DAG2_ID,
+            from_date=datetime(2021, 6, 15, tzinfo=timezone.utc),
+            to_date=datetime(2021, 6, 16, tzinfo=timezone.utc),
+            dag_run_conf=None,
+        )
+        session.add(backfill)
+        session.flush()
+
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="manual_running_run",
+                logical_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="backfill_running_run",
+                logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.BACKFILL_JOB,
+                state=DagRunState.RUNNING,
+                backfill_id=backfill.id,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="backfill_queued_run",
+                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.BACKFILL_JOB,
+                state=DagRunState.QUEUED,
+                backfill_id=backfill.id,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["active_runs_count"] == 1  # the backfill's running run is excluded
+        assert body["queued_runs_count"] == 0  # the backfill's queued run is excluded
 
     def test_dag_details_includes_is_at_max_active_runs(self, session, test_client):
         """is_at_max_active_runs is computed fresh from real DagRuns, not a stale cached column."""

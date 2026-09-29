@@ -265,21 +265,32 @@ def get_dag_details(
     )
 
     # Count only running Dag runs: this stat shows runs that are actually executing right now.
+    # Excludes backfill runs -- those are gated by Backfill.max_active_runs, not the Dag's own
+    # max_active_runs, so a backfill with a higher limit would otherwise render as exceeding it.
     active_runs_count = (
         session.scalar(
             select(func.count())
             .select_from(DagRun)
-            .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.RUNNING)
+            .where(
+                DagRun.dag_id == dag_id,
+                DagRun.state == DagRunState.RUNNING,
+                DagRun.backfill_id.is_(None),
+            )
         )
         or 0
     )
 
     # Count queued Dag runs: these are waiting for an active run to finish before they can start.
+    # Excludes backfill runs for the same reason as active_runs_count above.
     queued_runs_count = (
         session.scalar(
             select(func.count())
             .select_from(DagRun)
-            .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.QUEUED)
+            .where(
+                DagRun.dag_id == dag_id,
+                DagRun.state == DagRunState.QUEUED,
+                DagRun.backfill_id.is_(None),
+            )
         )
         or 0
     )
