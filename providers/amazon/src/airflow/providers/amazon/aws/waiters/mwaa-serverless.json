@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "waiters": {
+    "workflow_run_complete": {
+      "delay": 60,
+      "maxAttempts": 720,
+      "operation": "GetWorkflowRun",
+      "acceptors": [
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "STARTING",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "QUEUED",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "RUNNING",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "STOPPING",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "SUCCESS",
+          "state": "success"
+        },
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "FAILED",
+          "state": "failure"
+        },
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "TIMEOUT",
+          "state": "failure"
+        },
+        {
+          "matcher": "path",
+          "argument": "RunDetail.RunState",
+          "expected": "STOPPED",
+          "state": "failure"
+        }
+      ]
+    }
+  }
+}
