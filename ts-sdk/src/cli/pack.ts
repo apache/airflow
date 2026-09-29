@@ -25,7 +25,7 @@
 // bundle's own Dag registry and schema version, never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { readFile as readFileAsync } from "node:fs/promises";
 import path from "node:path";
 
@@ -284,15 +284,12 @@ function loaderFor(file: string): "ts" | "tsx" | "js" | "jsx" {
   return "js";
 }
 
-/** Reads every unique source path the manifest names into a map the encoder embeds. Files
- *  imported by these but declaring no Dag stay out — the Code tab shows what defines each Dag,
- *  not what it depends on. */
-function readDagSources(
-  dagSourcePaths: BundleManifest["dag_source_paths"],
-  cwd: string,
-): Record<string, string> {
+/** Reads every unique source path into a map the encoder embeds: one file per native Dag, plus the
+ *  entrypoint so a reader always has a fallback source. Files imported by these but declaring no Dag
+ *  stay out — the Code tab shows what defines each Dag, not what it depends on. */
+function readSourceFiles(relativePaths: Iterable<string>, cwd: string): Record<string, string> {
   const sources: Record<string, string> = {};
-  for (const relative of new Set(Object.values(dagSourcePaths))) {
+  for (const relative of new Set(relativePaths)) {
     sources[relative] = readFileSync(path.resolve(cwd, relative), "utf-8");
   }
   return sources;
@@ -342,12 +339,20 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     }
     warnOnSuspiciousIds(manifest.task_handlers);
 
+    // Project-relative, matching how the module-source tag keys `dag_source_paths`: esbuild resolves
+    // the entry through its real path, so realpath here too or a symlinked entry (e.g. a macOS
+    // tmpdir) would not coincide with its own Dag region and would duplicate it.
+    const entrypointPath = path.relative(cwd, realpathSync(path.resolve(cwd, args.entry)));
     const bundle = encodeBundle({
       bundleManifest: manifest,
       sdkVersion: readSdkVersion(),
-      // One source file per native Dag. A bundle with mixed-lang Dags only
-      // (owned by Python) has none, and this stays empty.
-      sourceFiles: readDagSources(manifest.dag_source_paths, cwd),
+      entrypointPath,
+      // One source file per native Dag, plus the entrypoint as a fallback for Dags with no
+      // attributed file (dynamically built, or mixed-lang Dags owned by Python).
+      sourceFiles: readSourceFiles(
+        [entrypointPath, ...Object.values(manifest.dag_source_paths)],
+        cwd,
+      ),
       executable: readFileSync(stagingPath),
     });
     writeFileSync(bundlePath, bundle);

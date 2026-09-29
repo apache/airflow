@@ -356,38 +356,48 @@ class TestBundleReader:
                 ("inventory.ts", b"export const inv = 2;\n"),
             ],
             dag_source_paths={"sales": "sales.ts", "inventory": "inventory.ts"},
+            entrypoint_path="sales.ts",
         )
 
         assert read_bundle(bundle).dag_ids == frozenset({"sales", "inventory"})
         assert read_bundle_source(bundle, "sales") == "export const sales = 1;\n"
         assert read_bundle_source(bundle, "inventory") == "export const inv = 2;\n"
 
-    def test_reads_bundle_without_source_regions(self, tmp_path):
-        # A mixed-language bundle ships handlers for Dags authored elsewhere and embeds no source.
-        bundle = write_bundle(tmp_path, "sales", sources=[], dag_source_paths={})
+    def test_falls_back_to_entrypoint_source_for_unattributed_dag(self, tmp_path):
+        # A dynamically built or mixed-language Dag has no dag_source_paths entry; its source read
+        # falls back to the always-embedded entrypoint. A dag_id never registered falls back too.
+        bundle = write_bundle(
+            tmp_path,
+            "sales",
+            sources=[("main.ts", b"export const entry = 1;\n")],
+            dag_source_paths={},
+            entrypoint_path="main.ts",
+        )
 
         assert read_bundle(bundle).dag_ids == frozenset({"sales"})
-        with pytest.raises(ValueError, match="no source path for dag_id 'sales'"):
+        assert read_bundle_source(bundle, "sales") == "export const entry = 1;\n"
+        assert read_bundle_source(bundle, "unknown") == "export const entry = 1;\n"
+
+    def test_falls_back_to_entrypoint_when_dag_source_paths_absent(self, tmp_path):
+        metadata = json.loads(_metadata_json("sales", entrypoint_path="main.ts"))
+        del metadata["dag_source_paths"]
+        bundle = write_bundle(tmp_path, "sales", metadata_payload=json.dumps(metadata).encode())
+
+        assert read_bundle_source(bundle, "sales") == "export {};\n"
+
+    def test_reads_bundle_without_source_regions(self, tmp_path):
+        # Defensive: a layout may carry an empty sources array. read_bundle still verifies and
+        # returns metadata, and a source read with nothing to fall back to fails clearly.
+        bundle = write_bundle(tmp_path, "sales", sources=[], dag_source_paths={}, entrypoint_path=None)
+
+        assert read_bundle(bundle).dag_ids == frozenset({"sales"})
+        with pytest.raises(ValueError, match="no source path for dag_id 'sales' and no entrypoint_path"):
             read_bundle_source(bundle, "sales")
-
-    def test_rejects_source_read_for_unknown_dag(self, tmp_path):
-        bundle = write_bundle(tmp_path, "sales")
-
-        with pytest.raises(ValueError, match="no source path for dag_id 'unknown'"):
-            read_bundle_source(bundle, "unknown")
 
     def test_rejects_source_read_when_dag_maps_to_absent_region(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales", dag_source_paths={"sales": "ghost.ts"})
 
         with pytest.raises(ValueError, match="no source region at path 'ghost.ts'"):
-            read_bundle_source(bundle, "sales")
-
-    def test_rejects_source_read_without_dag_source_paths(self, tmp_path):
-        metadata = json.loads(_metadata_json("sales"))
-        del metadata["dag_source_paths"]
-        bundle = write_bundle(tmp_path, "sales", metadata_payload=json.dumps(metadata).encode())
-
-        with pytest.raises(ValueError, match="must contain a dag_source_paths mapping"):
             read_bundle_source(bundle, "sales")
 
     def test_rejects_duplicate_source_paths(self, tmp_path):

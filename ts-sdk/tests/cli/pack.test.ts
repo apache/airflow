@@ -143,6 +143,7 @@ describe("encodeBundle", () => {
         dag_source_paths: { my_dag: "src/my_dag.ts" },
       },
       sdkVersion: "0.1.0",
+      entrypointPath: "src/my_dag.ts",
       sourceFiles: { "src/my_dag.ts": source },
       executable,
     });
@@ -169,7 +170,7 @@ describe("encodeBundle", () => {
 
     const metadata = bundle.subarray(metadataStart, metadataEnd).toString("utf-8");
     expect(metadata).toBe(
-      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"dag_source_paths":{"my_dag":"src/my_dag.ts"},"task_handlers":{"my_dag":{"tasks":["a","b\\"c"]}}}',
+      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"entrypoint_path":"src/my_dag.ts","dag_source_paths":{"my_dag":"src/my_dag.ts"},"task_handlers":{"my_dag":{"tasks":["a","b\\"c"]}}}',
     );
 
     expect(header).not.toHaveProperty("version");
@@ -190,6 +191,7 @@ describe("encodeBundle", () => {
         },
       },
       sdkVersion: "0.1.0",
+      entrypointPath: "src/main.ts",
       sourceFiles: {
         "src/main.ts": "// orders\nconst orders = 1;\n",
         "src/dags/reports.ts": "// reports\nconst reports = 2;\n",
@@ -219,26 +221,49 @@ describe("encodeBundle", () => {
     }
   });
 
-  it("carries no source region when a bundle serves only task handlers", () => {
+  it("embeds only the entrypoint region when a bundle serves only task handlers", () => {
     const bundle = encodeBundle({
       bundleManifest: {
         supervisor_schema_version: "2026-06-16",
         task_handlers: { py_dag: { tasks: ["stub"] } },
-        // Mixed-language: the Dag lives in Python, so no TS source to embed.
+        // Mixed-language: the Dag lives in Python, so no Dag carries a source path.
         dag_source_paths: {},
       },
       sdkVersion: "0.1.0",
-      sourceFiles: {},
+      // The entrypoint is still embedded, so a reader has a fallback source.
+      entrypointPath: "src/main.ts",
+      sourceFiles: { "src/main.ts": "// registers handlers\n" },
       executable: Buffer.from("export {};\n"),
     });
     const header = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("ascii"));
 
-    expect(header.sources).toEqual([]);
-    // Executable starts immediately after metadata; no bytes between them.
-    const metadataEnd = Number.parseInt(header.metadata.end, 16);
-    const codeStart = Number.parseInt(header.code.start, 16);
-    // One newline between the metadata payload and the executable.
-    expect(codeStart).toBe(metadataEnd + 1);
+    expect(header.sources.map((region) => region.path)).toEqual(["src/main.ts"]);
+    const region = header.sources[0]!;
+    const offset = (value: string): number => Number.parseInt(value, 16);
+    expect(bundle.subarray(offset(region.start), offset(region.end)).toString("utf-8")).toBe(
+      "// registers handlers\n",
+    );
+    const metadata = JSON.parse(
+      bundle.subarray(offset(header.metadata.start), offset(header.metadata.end)).toString("utf-8"),
+    );
+    expect(metadata.entrypoint_path).toBe("src/main.ts");
+    expect(metadata.dag_source_paths).toEqual({});
+  });
+
+  it("rejects an entrypoint missing from the packed source files", () => {
+    expect(() =>
+      encodeBundle({
+        bundleManifest: {
+          supervisor_schema_version: "2026-06-16",
+          task_handlers: { d: { tasks: ["a"] } },
+          dag_source_paths: {},
+        },
+        sdkVersion: "0.1.0",
+        entrypointPath: "src/main.ts",
+        sourceFiles: {},
+        executable: Buffer.from("export {};\n"),
+      }),
+    ).toThrow("must be among the packed source files");
   });
 
   it.each([
@@ -253,6 +278,7 @@ describe("encodeBundle", () => {
         dag_source_paths: { d: "entry.ts" },
       },
       sdkVersion: "0.1.0",
+      entrypointPath: "entry.ts",
       sourceFiles: { "entry.ts": source },
       executable: Buffer.from("export {};\n"),
     });
@@ -277,6 +303,7 @@ describe("encodeBundle", () => {
           dag_source_paths: { d: "entry.ts" },
         },
         sdkVersion: "0.1.0",
+        entrypointPath: "entry.ts",
         sourceFiles: { "entry.ts": "x".repeat(1024 * 1024 + 1) },
         executable: Buffer.from("export {};\n"),
       }),
@@ -291,6 +318,7 @@ describe("encodeBundle", () => {
         dag_source_paths: { test_dag: "entry.ts" },
       },
       sdkVersion: "0.1.0",
+      entrypointPath: "entry.ts",
       sourceFiles: { "entry.ts": GOLDEN_SOURCE },
       executable: GOLDEN_CODE,
     });
@@ -324,7 +352,8 @@ describe("encodeBundle", () => {
         dag_source_paths: {},
       },
       sdkVersion: "0.1.0",
-      sourceFiles: {},
+      entrypointPath: "entry.ts",
+      sourceFiles: { "entry.ts": "export {};\n" },
       executable: Buffer.from("export {};\n"),
     });
     const metadataLine = bundle.toString("utf-8").split("\n")[1]!;
@@ -386,6 +415,8 @@ describe("runPack", () => {
         version: SDK_VERSION,
         supervisor_schema_version: SUPERVISOR_API_VERSION,
       },
+      // The entry file is always embedded, so its path is recorded for fallback.
+      entrypoint_path: expect.stringMatching(/entry\.ts$/) as unknown as string,
       // The one native Dag declared in the entry file gets its source path
       // recorded. Task-handler-only Dags (`fixture_dag`) live in Python and are
       // absent here.
@@ -754,6 +785,38 @@ describe("runPack", () => {
     const metadata = JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")));
     expect(metadata).toHaveProperty("task_handlers.sales_dag");
     expect(metadata).not.toHaveProperty("task_handlers.billing_dag");
+  });
+
+  it("embeds the entrypoint source for a mixed-language bundle with no native Dag", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "mixed-lang-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, TaskHandler } from ${JSON.stringify(SDK_INDEX)};`,
+        "const bundle = new Bundle();",
+        'bundle.register(new TaskHandler("py_dag", "build", async () => undefined));',
+        "await bundle.serve();",
+      ].join("\n"),
+    );
+
+    await runPack([entry, "--outdir", outdir]);
+
+    const bundlePath = path.join(outdir, "bundle.min.mjs");
+    const bundle = readFileSync(bundlePath);
+    const layout = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("utf-8"));
+    const metadata = JSON.parse(readEmbeddedMetadata(bundlePath));
+
+    // No native Dag, so nothing is attributed a file, but the entrypoint is still embedded.
+    expect(metadata.dag_source_paths).toEqual({});
+    const entrypointPath = metadata.entrypoint_path as string;
+    expect(entrypointPath).toMatch(/mixed-lang-entry\.ts$/);
+    expect(layout.sources.map((region) => region.path)).toEqual([entrypointPath]);
+    const region = layout.sources[0]!;
+    const content = bundle
+      .subarray(Number.parseInt(region.start, 16), Number.parseInt(region.end, 16))
+      .toString("utf-8");
+    expect(content).toContain("new TaskHandler");
   });
 
   it("embeds one source region per Dag file when Dags are spread across imports", async () => {

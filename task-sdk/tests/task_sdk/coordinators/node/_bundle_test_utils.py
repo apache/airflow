@@ -40,18 +40,21 @@ def metadata_json(
     schema_version: str = SCHEMA_VERSION,
     metadata_version: str | None = "1.0",
     dag_source_paths: dict[str, str] | None = None,
+    entrypoint_path: str | None = DEFAULT_SOURCE_PATH,
 ) -> bytes:
     if dag_source_paths is None:
         dag_source_paths = {dag_id: DEFAULT_SOURCE_PATH for dag_id in dag_ids}
-    metadata = {
+    metadata: dict[str, object] = {
         "sdk": {
             "language": "typescript",
             "version": "0.1.0",
             "supervisor_schema_version": schema_version,
         },
-        "dag_source_paths": dag_source_paths,
-        "task_handlers": {dag_id: {"tasks": ["test_task"]} for dag_id in dag_ids},
     }
+    if entrypoint_path is not None:
+        metadata["entrypoint_path"] = entrypoint_path
+    metadata["dag_source_paths"] = dag_source_paths
+    metadata["task_handlers"] = {dag_id: {"tasks": ["test_task"]} for dag_id in dag_ids}
     if metadata_version is not None:
         metadata = {"airflow_bundle_metadata_version": metadata_version, **metadata}
     return json.dumps(metadata, separators=(",", ":"), ensure_ascii=False).encode()
@@ -90,6 +93,7 @@ def write_bundle(
     source_payload: bytes | None = None,
     sources: list[tuple[str, bytes]] | None = None,
     dag_source_paths: dict[str, str] | None = None,
+    entrypoint_path: str | None = DEFAULT_SOURCE_PATH,
     name: str = BUNDLE_NAME,
 ) -> pathlib.Path:
     # ``sources`` gives raw content per path for multi-file or mixed-language bundles; the default is
@@ -105,6 +109,7 @@ def write_bundle(
             schema_version=schema_version,
             metadata_version=metadata_version,
             dag_source_paths=dag_source_paths,
+            entrypoint_path=entrypoint_path,
         )
     metadata_line = METADATA_PREFIX + metadata_payload + b"\n"
     placeholder = _layout_line(

@@ -132,9 +132,14 @@ def read_bundle(bundle_path: pathlib.Path) -> BundleMetadata:
 
 
 def read_bundle_source(bundle_path: pathlib.Path, dag_id: str) -> str:
-    """Return the author source ``airflow-ts-pack`` embedded for *dag_id* in *bundle_path*."""
+    """
+    Return the author source ``airflow-ts-pack`` embedded for *dag_id* in *bundle_path*.
+
+    A Dag maps to its own file when the packer could attribute one; otherwise the always-embedded
+    entrypoint source is returned as a fallback.
+    """
     payloads = _read_verified_payloads(bundle_path)
-    source_path = _resolve_dag_source_path(payloads.metadata, dag_id)
+    source_path = _resolve_source_path(payloads.metadata, dag_id)
     try:
         payload = payloads.sources[source_path]
     except KeyError:
@@ -439,19 +444,31 @@ def _parse_bundle_metadata(payload: bytes) -> BundleMetadata:
     )
 
 
-def _resolve_dag_source_path(payload: bytes, dag_id: str) -> str:
-    """Map *dag_id* to its embedded source path via the metadata ``dag_source_paths``."""
+def _resolve_source_path(payload: bytes, dag_id: str) -> str:
+    """
+    Resolve *dag_id* to an embedded source path, falling back to the entrypoint.
+
+    A Dag maps to its own file through ``dag_source_paths`` when the packer could attribute one;
+    otherwise (a dynamically constructed Dag, or a mixed-language Dag owned by Python) it falls back
+    to ``entrypoint_path``, which the packer always embeds.
+    """
     try:
         metadata = json.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
         raise ValueError(f"cannot parse embedded airflow metadata: {exc}") from exc
-    dag_source_paths = metadata.get("dag_source_paths") if isinstance(metadata, dict) else None
-    if not isinstance(dag_source_paths, dict):
-        raise ValueError("embedded airflow metadata must contain a dag_source_paths mapping")
-    source_path = dag_source_paths.get(dag_id)
-    if not isinstance(source_path, str):
-        raise ValueError(f"embedded airflow metadata declares no source path for dag_id {dag_id!r}")
-    return source_path
+    if not isinstance(metadata, dict):
+        raise ValueError("embedded airflow metadata must contain a mapping")
+    dag_source_paths = metadata.get("dag_source_paths")
+    if isinstance(dag_source_paths, dict):
+        mapped = dag_source_paths.get(dag_id)
+        if isinstance(mapped, str):
+            return mapped
+    entrypoint_path = metadata.get("entrypoint_path")
+    if isinstance(entrypoint_path, str):
+        return entrypoint_path
+    raise ValueError(
+        f"embedded airflow metadata has no source path for dag_id {dag_id!r} and no entrypoint_path"
+    )
 
 
 def _read_bundle_headers(

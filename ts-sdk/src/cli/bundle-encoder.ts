@@ -56,8 +56,12 @@ export const EMBEDDED_SOURCE_CLOSE = "\n#*/\n";
 export interface BundleEncoderInput {
   bundleManifest: BundleManifest;
   sdkVersion: string;
+  /** Project-relative path of the entry file `airflow-ts-pack` bundled. Always present among
+   *  `sourceFiles`, so a reader has a source to fall back to for a Dag with no attributed file
+   *  (dynamically constructed, or a mixed-lang Dag owned by Python). */
+  entrypointPath: string;
   /** Author-owned source file per native Dag, keyed by its path in
-   *  `BundleManifest.dag_source_paths`. Empty for a mixed-lang bundle. */
+   *  `BundleManifest.dag_source_paths`, plus the entrypoint. */
   sourceFiles: Record<string, string>;
   executable: Uint8Array;
 }
@@ -65,6 +69,7 @@ export interface BundleEncoderInput {
 interface BundleMetadata {
   airflow_bundle_metadata_version: string;
   sdk: { language: string; version: string; supervisor_schema_version: string };
+  entrypoint_path: string;
   dag_source_paths: BundleManifest["dag_source_paths"];
   task_handlers: BundleManifest["task_handlers"];
 }
@@ -99,6 +104,12 @@ interface EncodedSources {
 }
 
 export function encodeBundle(input: BundleEncoderInput): Buffer {
+  // The reader falls back to the entrypoint's source, so it must be one of the embedded regions.
+  if (!Object.hasOwn(input.sourceFiles, input.entrypointPath)) {
+    throw new Error(
+      `entrypoint ${JSON.stringify(input.entrypointPath)} must be among the packed source files`,
+    );
+  }
   const metadata = encodeMetadata(input);
   const sources = encodeSources(input.sourceFiles);
   const executable = encodeExecutable(input.executable);
@@ -255,6 +266,7 @@ function buildBundleMetadata(input: BundleEncoderInput): BundleMetadata {
       version: input.sdkVersion,
       supervisor_schema_version: input.bundleManifest.supervisor_schema_version,
     },
+    entrypoint_path: input.entrypointPath,
     dag_source_paths: input.bundleManifest.dag_source_paths,
     task_handlers: input.bundleManifest.task_handlers,
   };
