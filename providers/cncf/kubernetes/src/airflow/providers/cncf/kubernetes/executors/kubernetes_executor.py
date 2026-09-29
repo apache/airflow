@@ -60,7 +60,12 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
@@ -416,6 +421,7 @@ class KubernetesExecutor(BaseExecutor):
             self.queued_callbacks[workload.callback.key] = workload
             return
         raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+
     # TODO: Remove this once the minimum supported Airflow version is 3.1+ and defer to BaseExecutor.queue_workload.
     if not AIRFLOW_V_3_1_PLUS:
 
@@ -452,12 +458,6 @@ class KubernetesExecutor(BaseExecutor):
                 self.running.add(callback_key)
             else:
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-            if AIRFLOW_V_3_4_PLUS:
-                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
-            else:
-                del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
 
     def _should_create_pod_for_job(self, task: KubernetesJob) -> bool:
         """
@@ -1230,6 +1230,8 @@ class KubernetesExecutor(BaseExecutor):
             assert self.scheduler_job_id
 
         if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations:
+            from airflow.models.callback import CallbackKey
+
             new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
             from kubernetes.client.rest import ApiException
 
@@ -1241,6 +1243,9 @@ class KubernetesExecutor(BaseExecutor):
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+                return
+
+            self.running.add(CallbackKey(id=pod.metadata.annotations[CALLBACK_POD_ANNOTATION_KEY]))
             return
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
         ti_key = annotations_to_key(pod.metadata.annotations)
@@ -1394,8 +1399,9 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
                 continue
 
+            is_callback = AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations
             ti_id: TaskInstanceKey | CallbackKey
-            if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations:
+            if is_callback:
                 from airflow.models.callback import CallbackKey
 
                 ti_id = CallbackKey(id=pod.metadata.annotations[CALLBACK_POD_ANNOTATION_KEY])
@@ -1411,6 +1417,8 @@ class KubernetesExecutor(BaseExecutor):
                 resource_version=pod.metadata.resource_version,
                 failure_details=None,
             )
+            if is_callback:
+                self.running.add(ti_id)
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:
