@@ -27,6 +27,8 @@ export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
 export type { ArgNameMap } from "./sdk/arg-names.js";
 export type { Registerable } from "./sdk/bundle.js";
 export type {
+  Condition,
+  ConditionElse,
   DagSpec,
   Node,
   TaskFactory,
