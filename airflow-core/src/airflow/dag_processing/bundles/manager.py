@@ -343,20 +343,17 @@ class DagBundlesManager(LoggingMixin):
             return new_template_, new_params_
 
         stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
-        bundle_to_team = (
-            DagBundleModel.get_team_names(stored.keys(), session=session)
-            if conf.getboolean("core", "multi_team")
-            else {}
-        )
-
+        bundle_to_team: dict[str, str | None] = {}
         teams_by_name: dict[str, Team] = {}
-        if configured_team_names := {
-            config.team_name for config in self._bundle_config.values() if config.team_name
-        }:
-            teams_by_name = {
-                team.name: team
-                for team in session.scalars(select(Team).where(Team.name.in_(configured_team_names)))
-            }
+        if conf.getboolean("core", "multi_team"):
+            bundle_to_team = DagBundleModel.get_team_names(stored.keys(), session=session)
+            if configured_team_names := {
+                config.team_name for config in self._bundle_config.values() if config.team_name
+            }:
+                teams_by_name = {
+                    team.name: team
+                    for team in session.scalars(select(Team).where(Team.name.in_(configured_team_names)))
+                }
 
         for name, config in self._bundle_config.items():
             team: Team | None = None

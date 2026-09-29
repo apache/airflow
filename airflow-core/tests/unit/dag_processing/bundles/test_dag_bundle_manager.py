@@ -260,8 +260,8 @@ def _sync_and_count_team_queries(bundle_config: list[dict], session) -> int:
     team_selects: list[str] = []
 
     def _record(conn, cursor, statement, parameters, context, executemany):
-        # The batched lookups read ``team`` through a FROM, a lazy-loaded
-        # ``DagBundleModel.teams`` through a JOIN.
+        # ``team`` follows FROM in the ``Team`` lookup and in a lazy load of
+        # ``DagBundleModel.teams``, and JOIN in ``get_team_names``.
         if re.search(r"\b(?:FROM|JOIN) team\b", statement):
             team_selects.append(statement)
 
