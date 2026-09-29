@@ -1,0 +1,215 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+// `dag.triggerDagRun(...)`: a task that starts another Dag's run.
+//
+// It carries no handler. The runtime runs it the way Python's task runner runs
+// `TriggerDagRunOperator`: it sends the `TriggerDagRun` request itself, then
+// waits, defers or returns. See `runTriggerDagRun` in
+// `../coordinator/trigger-runner.ts`.
+//
+// Hand-written rather than generated, because triggering a Dag run is control
+// flow (`airflow-core/adr/lang-sdk/0008-control-flow-constructs.md`, decision 4).
+
+import { brand, hasBrand } from "./brand.js";
+import type { JsonValue } from "./client-types.js";
+
+/** A Dag run state, as `allowedStates` and `failedStates` name one. */
+export type DagRunState = "queued" | "running" | "success" | "failed";
+
+const DAG_RUN_STATES: ReadonlySet<string> = new Set<DagRunState>([
+  "queued",
+  "running",
+  "success",
+  "failed",
+]);
+
+/** The `TriggerDagRunOperator` options, named as TypeScript spells them. */
+export interface TriggerDagRunOptions {
+  /** Identifier of the Dag to trigger. */
+  readonly dagId: string;
+  /** Run ID for the triggered run; generated from the trigger time when unset. */
+  readonly runId?: string;
+  /** Configuration the triggered run is started with. */
+  readonly conf?: Readonly<Record<string, JsonValue>>;
+  /** Clear an existing run with the same ID instead of failing. */
+  readonly resetDagRun?: boolean;
+  /** Hold this task open until the triggered run finishes. */
+  readonly waitForCompletion?: boolean;
+  /** Seconds between checks while waiting. Defaults to 60. */
+  readonly pokeInterval?: number;
+  /** Run states that count as success when waiting. Defaults to `["success"]`. */
+  readonly allowedStates?: readonly DagRunState[];
+  /** Run states that count as failure when waiting. Defaults to `["failed"]`. */
+  readonly failedStates?: readonly DagRunState[];
+  /** Skip rather than fail when the run already exists. */
+  readonly skipWhenAlreadyExists?: boolean;
+  /** Fail rather than trigger when the target Dag is paused. */
+  readonly failWhenDagIsPaused?: boolean;
+  /** Note recorded against the triggered run. */
+  readonly note?: string;
+  /**
+   * While waiting, free the worker slot and defer to `DagStateTrigger`, which
+   * the Python triggerer runs. Defaults to `[operators] default_deferrable`, or
+   * to false when that is unset.
+   */
+  readonly deferrable?: boolean;
+}
+
+/**
+ * What `dag.triggerDagRun(...)` takes: the operator's options, plus the task ID
+ * the trigger takes in the Dag that declares it.
+ */
+export interface TriggerDagRunSpec extends TriggerDagRunOptions {
+  /** Airflow task ID of the trigger task itself. */
+  readonly taskId: string;
+}
+
+/** Internal: a trigger task's options with `TriggerDagRunOperator`'s defaults applied. */
+export interface TriggerDagRunTask {
+  readonly dagId: string;
+  readonly runId: string | undefined;
+  readonly conf: Readonly<Record<string, JsonValue>> | undefined;
+  readonly resetDagRun: boolean;
+  readonly waitForCompletion: boolean;
+  readonly pokeInterval: number;
+  readonly allowedStates: readonly DagRunState[];
+  readonly failedStates: readonly DagRunState[];
+  readonly skipWhenAlreadyExists: boolean;
+  readonly failWhenDagIsPaused: boolean;
+  readonly note: string | undefined;
+  readonly deferrable: boolean;
+}
+
+/** Internal: whether `value` is a trigger task built by any copy of this package. */
+export function isTriggerDagRunTask(value: unknown): value is TriggerDagRunTask {
+  return hasBrand(value, "TriggerDagRunTask");
+}
+
+const OPTION_NAMES: ReadonlySet<string> = new Set<keyof TriggerDagRunOptions>([
+  "dagId",
+  "runId",
+  "conf",
+  "resetDagRun",
+  "waitForCompletion",
+  "pokeInterval",
+  "allowedStates",
+  "failedStates",
+  "skipWhenAlreadyExists",
+  "failWhenDagIsPaused",
+  "note",
+  "deferrable",
+]);
+
+function checkStates(name: string, states: unknown): DagRunState[] | undefined {
+  if (states === undefined) return undefined;
+  if (!Array.isArray(states)) {
+    throw new Error(`triggerDagRun(...) option "${name}" must be an array of Dag run states`);
+  }
+  for (const state of states) {
+    if (typeof state !== "string" || !DAG_RUN_STATES.has(state)) {
+      throw new Error(
+        `triggerDagRun(...) option "${name}" holds ${JSON.stringify(state)}, which is not a Dag ` +
+          `run state; use one of ${[...DAG_RUN_STATES].join(", ")}`,
+      );
+    }
+  }
+  return [...(states as DagRunState[])];
+}
+
+function checkType(name: string, value: unknown, type: "string" | "boolean"): void {
+  if (value !== undefined && typeof value !== type) {
+    throw new Error(`triggerDagRun(...) option "${name}" must be a ${type}`);
+  }
+}
+
+/**
+ * Internal: a boolean Airflow option from the environment, such as
+ * `AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE`, or `fallback` when it is unset. The
+ * runtime cannot read airflow.cfg, so the coordinator passes these on. It
+ * accepts the values `conf.getboolean` accepts.
+ */
+export function getBooleanEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const value = raw.trim().toLowerCase();
+  if (value === "t" || value === "true" || value === "1") return true;
+  if (value === "f" || value === "false" || value === "0") return false;
+  throw new Error(`${name} is ${JSON.stringify(raw)}, which is not a boolean; use true or false`);
+}
+
+/**
+ * Internal: `Dag.triggerDagRun` is the authoring surface, and it strips the
+ * `taskId` before calling this. Defaults are those of `TriggerDagRunOperator`.
+ */
+export function triggerDagRun(spec: TriggerDagRunOptions): TriggerDagRunTask {
+  const value: unknown = spec;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("triggerDagRun(...) takes an options object");
+  }
+  const options = value as Record<string, unknown>;
+  for (const name of Object.keys(options)) {
+    if (!OPTION_NAMES.has(name)) throw new Error(`Unknown option "${name}" for triggerDagRun(...)`);
+  }
+  if (typeof options["dagId"] !== "string" || options["dagId"].length === 0) {
+    throw new Error("triggerDagRun(...) needs the dagId of the Dag to trigger");
+  }
+  const conf = options["conf"];
+  if (conf !== undefined && (typeof conf !== "object" || conf === null || Array.isArray(conf))) {
+    throw new Error('triggerDagRun(...) option "conf" must be an object');
+  }
+  checkType("runId", options["runId"], "string");
+  checkType("note", options["note"], "string");
+  for (const flag of [
+    "resetDagRun",
+    "waitForCompletion",
+    "skipWhenAlreadyExists",
+    "failWhenDagIsPaused",
+    "deferrable",
+  ]) {
+    checkType(flag, options[flag], "boolean");
+  }
+  const pokeInterval = options["pokeInterval"] ?? 60;
+  if (typeof pokeInterval !== "number" || !Number.isFinite(pokeInterval) || pokeInterval < 0) {
+    throw new Error('triggerDagRun(...) option "pokeInterval" must be a non-negative number');
+  }
+  const allowedStates = checkStates("allowedStates", options["allowedStates"]);
+  const failedStates = checkStates("failedStates", options["failedStates"]);
+  const task: TriggerDagRunTask = {
+    dagId: options["dagId"],
+    runId: (options["runId"] as string | undefined) || undefined,
+    conf: conf as TriggerDagRunTask["conf"],
+    resetDagRun: options["resetDagRun"] === true,
+    waitForCompletion: options["waitForCompletion"] === true,
+    pokeInterval,
+    // Python falls back on an empty `allowed_states` too, but keeps an empty
+    // `failed_states` as given.
+    allowedStates: allowedStates?.length ? allowedStates : ["success"],
+    failedStates: failedStates ?? ["failed"],
+    skipWhenAlreadyExists: options["skipWhenAlreadyExists"] === true,
+    failWhenDagIsPaused: options["failWhenDagIsPaused"] === true,
+    note: (options["note"] as string | undefined) || undefined,
+    // Read where the Dag is built, as Python reads it for the operator's default.
+    deferrable:
+      (options["deferrable"] as boolean | undefined) ??
+      getBooleanEnv("AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE", false),
+  };
+  brand(task, "TriggerDagRunTask");
+  return Object.freeze(task);
+}

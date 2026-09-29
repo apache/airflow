@@ -50,6 +50,7 @@ import {
   type Dag,
   type RecordedInputs,
   type TaskGroupRecord,
+  type TaskRecord,
 } from "../sdk/dag.js";
 
 /** A serialized Dag: JSON, by the time it reaches the supervisor as msgpack. */
@@ -82,6 +83,39 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  * wants to tell language-native tasks apart without parsing `_task_module`.
  */
 const TASK_LANGUAGE = "typescript";
+
+/**
+ * The Dags this one reaches, as the UI's dependency graph and
+ * `airflow dags show-dependencies` read them.
+ *
+ * Python derives these from the live operator with `detect_dependencies`. Only
+ * a trigger task creates one here.
+ */
+function serializeDagDependencies(dag: Dag): SerializedValue {
+  const dependencies: SerializedValue[] = [];
+  for (const [taskId, record] of getDagTaskRecords(dag)) {
+    if (!record.trigger) continue;
+    dependencies.push({
+      source: dag.dagId,
+      target: record.trigger.dagId,
+      label: taskId,
+      dependency_type: "trigger",
+      dependency_id: taskId,
+    });
+  }
+  return dependencies;
+}
+
+/**
+ * What a trigger task adds to a TypeScript task, so the UI draws it as
+ * `TriggerDagRunOperator` and shows its "Triggered DAG" link. The runtime
+ * pushes the link's XCom under the key named here.
+ */
+const TRIGGER_DAG_RUN_FIELDS: Readonly<Record<string, SerializedValue>> = {
+  _operator_name: "TriggerDagRunOperator",
+  ui_color: "#ffefeb",
+  _operator_extra_links: { "Triggered DAG": "_link_TriggerDagRunLink" },
+};
 
 /** How one set of authoring fields is written into a serialized object. */
 interface FieldRules {
@@ -144,13 +178,13 @@ export function serializeDag(
       serializeTask(
         dag.dagId,
         taskId,
-        withDagQueue(record.spec, dag.spec.queue),
+        record,
         graph.downstreamTaskIds.get(taskId),
         inputs.get(taskId),
-        record.canSkipDownstream === true,
+        dag.spec.queue,
       ),
     ),
-    dag_dependencies: [],
+    dag_dependencies: serializeDagDependencies(dag),
     task_group: serializeTaskGroups(dag, graph),
     edge_info: {},
     params: [],
@@ -182,10 +216,10 @@ function withDagQueue(spec: object, dagQueue: string | undefined): object {
 function serializeTask(
   dagId: string,
   taskId: string,
-  spec: object,
+  record: TaskRecord,
   downstream: ReadonlySet<string> | undefined,
   inputs: RecordedInputs | undefined,
-  canSkipDownstream: boolean,
+  dagQueue: string | undefined,
 ): SerializedValue {
   const data: Record<string, SerializedValue> = {
     task_id: taskId,
@@ -201,18 +235,61 @@ function serializeTask(
     // `get_arg_bindings` reads nothing without it.
     is_stub: true,
   };
+  if (record.trigger) {
+    // `conf` reaches Airflow at run time rather than in the Dag JSON, so a
+    // value it cannot store is caught here, as this Dag's import error.
+    if (record.trigger.conf !== undefined) {
+      plainJsonArg(record.trigger.conf, `conf of task "${taskId}" of Dag "${dagId}"`);
+    }
+    Object.assign(data, structuredClone(TRIGGER_DAG_RUN_FIELDS));
+  }
   const label = `task "${taskId}" of Dag "${dagId}"`;
   const bindings = serializeArgBindings(inputs, label);
   if (bindings) data["_arg_bindings"] = bindings;
   // What Python writes for a SkipMixin operator, and what makes
   // `NotPreviouslySkippedDep` consult this task's `skipmixin_key` XCom when one
   // of its skipped downstream tasks is cleared.
-  if (canSkipDownstream) data["_can_skip_downstream"] = true;
+  if (record.canSkipDownstream === true) data["_can_skip_downstream"] = true;
+  const spec = withDagQueue(record.spec, dagQueue);
   applySchemaFields(data, spec, TASK_FIELD_RULES, label);
   if (downstream?.size) {
     data["downstream_task_ids"] = [...downstream].sort();
   }
   return { __type: "operator", __var: data };
+}
+
+/**
+ * A trigger task's `conf`, checked to be plain JSON.
+ *
+ * A value JSON cannot carry, such as a `Date`, a `Map` or a function, is
+ * rejected, because msgpack would otherwise hand Airflow something it cannot
+ * store as a Dag run's conf.
+ */
+function plainJsonArg(value: unknown, label: string): SerializedValue {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${label} is not a finite number`);
+    return value;
+  }
+  if (Array.isArray(value))
+    return value.map((item, index) => plainJsonArg(item, `${label}[${index}]`));
+  if (isPlainObject(value)) {
+    const copy: Record<string, SerializedValue> = {};
+    for (const [key, item] of Object.entries(value))
+      copy[key] = plainJsonArg(item, `${label}.${key}`);
+    return copy;
+  }
+  throw new Error(
+    `${label} is ${describeType(value)}, which a Dag run's conf cannot carry; ` +
+      "pass a string, a number, a boolean, null, an array or a plain object",
+  );
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 /**
