@@ -292,9 +292,9 @@ SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout
 # like listeners after task is complete.
 TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
 
-# How long a task process gets to stop itself (raise AirflowTaskTimeout, run on_kill, report its state) after
-# execution_timeout elapses before the supervisor sends SIGTERM, and again before it escalates to SIGKILL.
-EXECUTION_TIMEOUT_GRACE_PERIOD: float = conf.getfloat("core", "killed_task_cleanup_time")
+# How long a task process gets to clean up when the supervisor stops it: after the server says it should no
+# longer run, SIGTERM to SIGKILL; after execution_timeout elapses, both before SIGTERM and before SIGKILL.
+KILLED_TASK_CLEANUP_TIME: float = conf.getfloat("core", "killed_task_cleanup_time")
 
 SERVER_TERMINATED = TerminalStateNonSuccess.SERVER_TERMINATED.value
 
@@ -1964,7 +1964,7 @@ class ActivitySubprocess(WatchedSubprocess):
             self.process_log.error(
                 "Task did not stop after execution_timeout elapsed; terminating process",
                 timeout_seconds=self._execution_timeout_seconds,
-                grace_period_seconds=EXECUTION_TIMEOUT_GRACE_PERIOD,
+                grace_period_seconds=KILLED_TASK_CLEANUP_TIME,
             )
             try:
                 self._signal_subprocess(signal.SIGTERM)
@@ -1973,7 +1973,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._execution_timeout_enforce_at = None
                 return
             self._execution_timeout_next_signal = signal.SIGKILL
-            self._execution_timeout_enforce_at = time.monotonic() + EXECUTION_TIMEOUT_GRACE_PERIOD
+            self._execution_timeout_enforce_at = time.monotonic() + KILLED_TASK_CLEANUP_TIME
             return
 
         if next_signal != signal.SIGKILL:
@@ -2021,7 +2021,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 # kill() drains worker messages while waiting for the process to exit.
                 self._terminal_state = SERVER_TERMINATED
                 self._pending_terminal_state_msg = None
-                self.kill(signal.SIGTERM, force=True)
+                self.kill(signal.SIGTERM, force=True, escalation_delay=KILLED_TASK_CLEANUP_TIME)
                 self.process_log.error("Task killed!")
             else:
                 # If we get any other error, we'll just log it and try again next time
@@ -2124,9 +2124,7 @@ class ActivitySubprocess(WatchedSubprocess):
     ) -> RequestResult:
         self._execution_timeout_seconds = msg.timeout_seconds
         self._execution_timeout_next_signal = signal.SIGTERM
-        self._execution_timeout_enforce_at = (
-            time.monotonic() + msg.timeout_seconds + EXECUTION_TIMEOUT_GRACE_PERIOD
-        )
+        self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
         return None, {}
 
     def _handle_set_rendered_fields(

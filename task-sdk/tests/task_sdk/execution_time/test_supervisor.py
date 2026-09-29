@@ -1304,8 +1304,33 @@ class TestWatchedSubprocess:
             mock_kill.assert_not_called()
             mock_logger.warning.assert_not_called()
 
+    def test_server_terminated_task_gets_killed_task_cleanup_time(self, mocker, monkeypatch):
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 42.0)
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        client = mocker.Mock()
+        client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
+            httpx.Response(
+                409,
+                request=httpx.Request("PUT", "http://server/heartbeat"),
+                json={"detail": {"reason": "not_running", "current_state": "failed"}},
+            )
+        )
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=client,
+        )
+
+        proc._send_heartbeat_if_needed()
+
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=42.0)
+
     def test_set_execution_timeout_schedules_enforcement(self, mocker, monkeypatch):
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.EXECUTION_TIMEOUT_GRACE_PERIOD", 5.0)
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mocker.patch("time.monotonic", return_value=100.0)
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1346,7 +1371,7 @@ class TestWatchedSubprocess:
         pending_terminal_msg,
         expected_action,
     ):
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.EXECUTION_TIMEOUT_GRACE_PERIOD", 5.0)
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mocker.patch("time.monotonic", return_value=20.0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         mock_signal = mocker.patch(
@@ -1431,7 +1456,7 @@ class TestWatchedSubprocess:
     def test_execution_timeout_enforced_by_supervisor(
         self, stops_on_sigterm, expected_exit_code, monkeypatch, captured_logs, client_with_ti_start
     ):
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.EXECUTION_TIMEOUT_GRACE_PERIOD", 0.3)
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 0.3)
         # Far longer than the test may take: the monitor loop has to wake up for the timeout on its own
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 30)
 
@@ -3727,7 +3752,7 @@ class TestHandleRequest:
         )
         observed_at_kill = []
 
-        def terminate(self, signal_to_send, force):
+        def terminate(self, signal_to_send, force, escalation_delay):
             observed_at_kill.append((self._terminal_state, self._pending_terminal_state_msg))
             if arrival == "during_kill":
                 self._handle_request(msg, structlog.get_logger(), req_id=2)
