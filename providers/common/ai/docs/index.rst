@@ -175,7 +175,7 @@ Getting started
     :caption: Examples
 
     Examples by scenario <examples>
-    End-to-end pipelines <end_to_end_pipelines>
+    Use cases <use_cases/index>
 
 .. toctree::
     :hidden:
@@ -199,6 +199,19 @@ Getting started
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-ai/>
     Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Additional guides
+
+    Connections <connections/index>
+    Features <features>
+    Agent frameworks <frameworks/index>
+    Local development <local_development>
+    Model providers <model_providers>
+    Operations <operations>
+    Retrieval pipelines <rag_pipelines>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
