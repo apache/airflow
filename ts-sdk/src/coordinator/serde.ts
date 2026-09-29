@@ -49,7 +49,9 @@ import {
   type Dag,
   type RecordedInputs,
   type TaskGroupRecord,
+  type TaskRecord,
 } from "../sdk/dag.js";
+import type { OperatorRef } from "../sdk/operators.js";
 
 /** A serialized Dag: JSON, by the time it reaches the supervisor as msgpack. */
 type SerializedValue = JsonValue;
@@ -81,6 +83,73 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  * wants to tell language-native tasks apart without parsing `_task_module`.
  */
 const TASK_LANGUAGE = "typescript";
+
+/**
+ * The Dags this one reaches, as the UI's dependency graph and
+ * `airflow dags show-dependencies` read them.
+ *
+ * Python derives these from the live operator with `detect_dependencies`. Only
+ * a trigger task creates one here, since it is the one operator this SDK
+ * declares that names another Dag.
+ */
+function serializeDagDependencies(dag: Dag): SerializedValue {
+  const dependencies: SerializedValue[] = [];
+  for (const [taskId, record] of getDagTaskRecords(dag)) {
+    const target = record.operator && PYTHON_OPERATORS[record.operator.taskType]?.triggersDagIn;
+    if (!target) continue;
+    const triggered = record.operator?.args[target];
+    if (typeof triggered !== "string") continue;
+    dependencies.push({
+      source: dag.dagId,
+      target: triggered,
+      label: taskId,
+      dependency_type: "trigger",
+      dependency_id: taskId,
+    });
+  }
+  return dependencies;
+}
+
+/** What a serialized task needs from a Python operator class this SDK declares. */
+interface PythonOperator {
+  /** Fields the server renders Jinja in, as the class lists them. */
+  readonly templateFields: readonly string[];
+  /** Node colour in the graph view. */
+  readonly uiColor: string;
+  /** How the UI renders a field's value, keyed by field. */
+  readonly templateFieldsRenderers?: Readonly<Record<string, string>>;
+  /** Extra links on the task, as `_serialize_operator_extra_links` writes them. */
+  readonly extraLinks?: Readonly<Record<string, string>>;
+  /** Argument naming the Dag this operator triggers, for `dag_dependencies`. */
+  readonly triggersDagIn?: string;
+}
+
+/**
+ * Each Python operator this SDK can declare, as Airflow would serialize it.
+ *
+ * Python's serializer reads all of this off the live operator class. A
+ * TypeScript bundle cannot import one, and the Dag processor takes these from
+ * the serialized task rather than re-importing, so they are written here. Keep
+ * in step with the class the DSL is written against; the values are those of
+ * the Python class of the same name.
+ */
+const PYTHON_OPERATORS: Readonly<Record<string, PythonOperator>> = {
+  // airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator
+  TriggerDagRunOperator: {
+    templateFields: [
+      "trigger_dag_id",
+      "trigger_run_id",
+      "logical_date",
+      "conf",
+      "wait_for_completion",
+      "skip_when_already_exists",
+    ],
+    uiColor: "#ffefeb",
+    templateFieldsRenderers: { conf: "py" },
+    extraLinks: { "Triggered DAG": "_link_TriggerDagRunLink" },
+    triggersDagIn: "trigger_dag_id",
+  },
+};
 
 // Python resolves these from [core]/[scheduler] config when the Dag leaves them
 // unset, and its serializer always writes the resolved value — there is no
@@ -151,13 +220,13 @@ export function serializeDag(
       serializeTask(
         dag.dagId,
         taskId,
-        withDagQueue(record.spec, dag.spec.queue),
+        record,
         graph.downstreamTaskIds.get(taskId),
         inputs.get(taskId),
-        record.canSkipDownstream === true,
+        dag.spec.queue,
       ),
     ),
-    dag_dependencies: [],
+    dag_dependencies: serializeDagDependencies(dag),
     task_group: serializeTaskGroups(dag, graph),
     edge_info: {},
     params: [],
@@ -189,36 +258,127 @@ function withDagQueue(spec: object, dagQueue: string | undefined): object {
 function serializeTask(
   dagId: string,
   taskId: string,
-  spec: object,
+  record: TaskRecord,
   downstream: ReadonlySet<string> | undefined,
   inputs: RecordedInputs | undefined,
-  canSkipDownstream: boolean,
+  dagQueue: string | undefined,
 ): SerializedValue {
-  const data: Record<string, SerializedValue> = {
-    task_id: taskId,
-    task_type: TASK_TYPE,
-    _task_module: TASK_MODULE,
-    language: TASK_LANGUAGE,
-    // Python's operator serializer always emits this — its list value never
-    // matches the tuple default it is compared against. A TypeScript task has
-    // no Jinja templating, so the list is empty rather than absent.
-    template_fields: [],
-    // What marks a task whose arguments the API server resolves per instance
-    // and sends to a foreign runtime, as `@task.stub` does on the Python side.
-    // `get_arg_bindings` reads nothing without it.
-    is_stub: true,
-  };
-  const bindings = serializeArgBindings(inputs);
-  if (bindings) data["_arg_bindings"] = bindings;
+  const { operator } = record;
+  const data: Record<string, SerializedValue> = operator
+    ? {
+        task_id: taskId,
+        // The Python class the worker imports, and the arguments it is built
+        // with. No `language` marker: this task does not run in TypeScript.
+        task_type: operator.taskType,
+        _task_module: operator.taskModule,
+        ...serializePythonOperator(operator, taskId, dagId),
+      }
+    : {
+        task_id: taskId,
+        task_type: TASK_TYPE,
+        _task_module: TASK_MODULE,
+        language: TASK_LANGUAGE,
+        // Python's operator serializer always emits this — its list value never
+        // matches the tuple default it is compared against. A TypeScript task has
+        // no Jinja templating, so the list is empty rather than absent.
+        template_fields: [],
+        // What marks a task whose arguments the API server resolves per instance
+        // and sends to a foreign runtime, as `@task.stub` does on the Python side.
+        // `get_arg_bindings` reads nothing without it.
+        is_stub: true,
+      };
+  if (!operator) {
+    const bindings = serializeArgBindings(inputs);
+    if (bindings) data["_arg_bindings"] = bindings;
+  }
   // What Python writes for a SkipMixin operator, and what makes
   // `NotPreviouslySkippedDep` consult this task's `skipmixin_key` XCom when one
   // of its skipped downstream tasks is cleared.
-  if (canSkipDownstream) data["_can_skip_downstream"] = true;
+  if (record.canSkipDownstream === true) data["_can_skip_downstream"] = true;
+  // A Python worker has to be able to pick an operator task up, so it inherits
+  // no queue from a Dag whose other tasks are routed to this coordinator. An
+  // explicit `queue` on its own spec still stands.
+  const spec = operator ? record.spec : withDagQueue(record.spec, dagQueue);
   applySchemaFields(data, spec, TASK_FIELD_RULES, `task "${taskId}" of Dag "${dagId}"`);
   if (downstream?.size) {
     data["downstream_task_ids"] = [...downstream].sort();
   }
   return { __type: "operator", __var: data };
+}
+
+/**
+ * The fields a Python operator task carries beyond its class: the arguments it
+ * is built with, and what the UI needs to draw it.
+ *
+ * Python's serializer takes the last three off the live operator class, which a
+ * TypeScript bundle cannot import, so they come from the same table the
+ * operator's own `template_fields` do. Every argument goes through
+ * {@link serializeValue}, so a value the Dag JSON cannot carry is rejected here
+ * rather than reaching the scheduler.
+ */
+function serializePythonOperator(
+  operator: OperatorRef,
+  taskId: string,
+  dagId: string,
+): Record<string, SerializedValue> {
+  const python = PYTHON_OPERATORS[operator.taskType];
+  if (python === undefined) {
+    throw new Error(
+      `Task "${taskId}" of Dag "${dagId}" names the Python operator "${operator.taskType}", ` +
+        "which this SDK has no serialization table for",
+    );
+  }
+  const args: Record<string, SerializedValue> = {};
+  for (const [keyword, value] of Object.entries(operator.args)) {
+    args[keyword] = plainJsonArg(value, `${keyword} of task "${taskId}" of Dag "${dagId}"`);
+  }
+  return {
+    // Rendering stays server-side, where it already happens, so a Jinja string
+    // in an argument passes through untouched.
+    template_fields: [...python.templateFields],
+    ui_color: python.uiColor,
+    ...(python.templateFieldsRenderers && {
+      template_fields_renderers: { ...python.templateFieldsRenderers },
+    }),
+    ...(python.extraLinks && { _operator_extra_links: { ...python.extraLinks } }),
+    ...args,
+  };
+}
+
+/**
+ * One Python operator argument, checked to be JSON the Dag JSON can carry.
+ *
+ * Plain JSON, not {@link serializeValue}'s `{__type, __var}` encoding: Python's
+ * serializer writes an operator's arguments through as they are, so a `conf`
+ * dict is a dict on the wire. A value JSON cannot carry — a `Date`, a `Map`,
+ * a function — is rejected here, because msgpack would otherwise hand Airflow
+ * something it cannot store.
+ */
+function plainJsonArg(value: unknown, label: string): SerializedValue {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${label} is not a finite number`);
+    return value;
+  }
+  if (Array.isArray(value))
+    return value.map((item, index) => plainJsonArg(item, `${label}[${index}]`));
+  if (isPlainObject(value)) {
+    const copy: Record<string, SerializedValue> = {};
+    for (const [key, item] of Object.entries(value))
+      copy[key] = plainJsonArg(item, `${label}.${key}`);
+    return copy;
+  }
+  throw new Error(
+    `${label} is ${describeType(value)}, which a Python operator argument cannot carry; ` +
+      "pass a string, a number, a boolean, null, an array or a plain object",
+  );
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 /**
