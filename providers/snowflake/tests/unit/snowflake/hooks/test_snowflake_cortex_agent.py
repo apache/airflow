@@ -20,6 +20,8 @@ from unittest import mock
 
 import pytest
 import requests
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.providers.snowflake.hooks.snowflake_cortex_agent import (
     JsonResponse,
@@ -42,6 +44,7 @@ ENCODED_AGENT_NAME = "TEST%23AGENT"
 CONN_PARAMS = {
     "account": ACCOUNT,
     "token": ACCESS_TOKEN,
+    "authenticator": "oauth",
 }
 
 STATIC_CONN_PARAMS = {
@@ -174,6 +177,7 @@ class TestSnowflakeCortexAgentHook:
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
                 "Content-Type": "application/json",
             },
             json={
@@ -312,20 +316,157 @@ class TestSnowflakeCortexAgentHook:
                 messages=[],
             )
 
-    @mock.patch(f"{HOOK_PATH}._get_conn_params")
-    def test_get_access_token_raises_when_token_missing(
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True, return_value=None)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_request_raises_when_no_rest_credentials_available(
         self,
+        mock_static_conn_params,
         mock_conn_params,
+        mock_private_key,
     ):
-        mock_conn_params.return_value = {}
+        """Neither OAuth, PAT, nor a private key is configured: this must raise ValueError."""
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_conn_params.return_value = {"account": ACCOUNT}
 
         hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
 
         with pytest.raises(
             ValueError,
-            match="access token",
+            match="key-pair JWT",
         ):
-            hook._get_access_token()
+            hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
+
+    @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_request_sends_pat_headers(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+    ):
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_conn_params.return_value = {
+            "account": ACCOUNT,
+            "authenticator": "programmatic_access_token",
+            "password": "my-pat-value",
+        }
+        mock_request.return_value = create_response(json_body={"name": AGENT_NAME})
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
+
+        headers = mock_request.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer my-pat-value"
+        assert headers["X-Snowflake-Authorization-Token-Type"] == "PROGRAMMATIC_ACCESS_TOKEN"
+
+    @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_request_raises_for_workload_identity_connections(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+    ):
+        """WORKLOAD_IDENTITY connections are not supported for REST APIs -- SnowflakeHook sets a
+        ``token`` in extras for this authenticator, but it is not one of the three REST-accepted
+        credential types, so this must be an explicit, actionable error rather than silently
+        falling into (and failing) the key-pair branch."""
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_conn_params.return_value = {
+            "account": ACCOUNT,
+            "workload_identity_provider": "AWS",
+            "token": "wif-token",
+        }
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="Workload identity federation"):
+            hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
+
+        mock_request.assert_not_called()
+
+    @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_request_sends_key_pair_headers(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_private_key,
+        mock_request,
+    ):
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        mock_private_key.return_value = key
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_conn_params.return_value = {"account": ACCOUNT, "user": "user"}
+        mock_request.return_value = create_response(json_body={"name": AGENT_NAME})
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
+
+        headers = mock_request.call_args.kwargs["headers"]
+        assert headers["Authorization"].startswith("Bearer ")
+        assert headers["X-Snowflake-Authorization-Token-Type"] == "KEYPAIR_JWT"
+
+    @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_request_reuses_jwt_within_renewal_window(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_private_key,
+        mock_request,
+        time_machine,
+    ):
+        """A single hook instance must reuse its JWT within the renewal window and mint a new
+        one once it has passed -- pinned with real elapsed time, not call count, since two
+        back-to-back calls produce byte-identical JWTs on the old mint-every-call code too
+        (RS256 signing is deterministic and `iat` only has one-second resolution)."""
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        mock_private_key.return_value = key
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_conn_params.return_value = {"account": ACCOUNT, "user": "user"}
+        mock_request.return_value = create_response(json_body={"name": AGENT_NAME})
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        time_machine.move_to("2024-01-01T00:00:00+00:00", tick=False)
+        hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
+
+        time_machine.move_to("2024-01-01T00:10:00+00:00", tick=False)
+        hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
+
+        first_auth = mock_request.call_args_list[0].kwargs["headers"]["Authorization"]
+        second_auth = mock_request.call_args_list[1].kwargs["headers"]["Authorization"]
+        assert first_auth == second_auth
+        assert mock_private_key.call_count == 1
+
+        time_machine.move_to("2024-01-01T01:00:00+00:00", tick=False)
+        hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
+
+        third_auth = mock_request.call_args_list[2].kwargs["headers"]["Authorization"]
+        assert third_auth != first_auth
 
     @pytest.mark.parametrize(
         ("response", "expected"),
@@ -421,6 +562,7 @@ class TestSnowflakeCortexAgentHook:
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
                 "Content-Type": "application/json",
             },
             json=None,
@@ -470,6 +612,7 @@ class TestSnowflakeCortexAgentHook:
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
                 "Content-Type": "application/json",
             },
             json=None,
@@ -531,6 +674,7 @@ class TestSnowflakeCortexAgentHook:
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
                 "Content-Type": "application/json",
             },
             json=None,

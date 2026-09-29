@@ -22,7 +22,8 @@ from urllib.parse import quote
 
 import requests
 
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook, _validate_account_component
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.utils.rest_auth import SnowflakeRestTokenProvider, get_cortex_base_url
 
 JsonDict = dict[str, Any]
 JsonList = list[JsonDict]
@@ -30,29 +31,31 @@ JsonResponse = JsonDict | JsonList
 
 
 class SnowflakeCortexAgentHook(SnowflakeHook):
-    """Hook for interacting with Snowflake Cortex Agents."""
+    """
+    Hook for interacting with Snowflake Cortex Agents.
+
+    Authenticates the same three ways as ``SnowflakeSqlApiHook``, chosen by the connection's
+    ``authenticator`` extra:
+
+    1. OAuth: set ``authenticator`` to ``oauth`` and configure a refresh token, client
+       credentials grant, or ``azure_conn_id``, as on ``SnowflakeHook``.
+    2. PAT (Programmatic Access Token): set ``authenticator`` to ``programmatic_access_token``
+       and put the PAT value in the connection ``password`` field.
+    3. Key-pair JWT: the default when neither of the above is set. Configure
+       ``private_key_file`` or ``private_key_content`` (optionally with a passphrase in
+       ``password``), as on ``SnowflakeHook``.
+
+    The resolved token is cached and renewed the same way as ``SnowflakeSqlApiHook`` -- see
+    :class:`~airflow.providers.snowflake.utils.rest_auth.SnowflakeRestTokenProvider`, one
+    instance per hook, so a long-running agent reuses the same JWT within its renewal window.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._rest_token_provider: SnowflakeRestTokenProvider | None = None
 
     def _get_base_url(self) -> str:
-        conn_config = self._get_static_conn_params
-
-        host = conn_config.get("host")
-        if host:
-            return f"https://{host}"
-
-        account = _validate_account_component(conn_config["account"], "account")
-        return f"https://{account}.snowflakecomputing.com"
-
-    def _get_access_token(self) -> str:
-        conn_config = self._get_conn_params()
-
-        token = conn_config.get("token")
-        if not token:
-            raise ValueError(
-                "Snowflake connection does not provide an OAuth access token. "
-                "This hook currently requires an OAuth access token."
-            )
-
-        return token
+        return get_cortex_base_url(self._get_static_conn_params)
 
     @overload
     def _request(
@@ -89,11 +92,14 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         response_type: Literal["dict", "list"],
     ) -> JsonResponse:
 
+        if self._rest_token_provider is None:
+            self._rest_token_provider = SnowflakeRestTokenProvider(self)
+
         response = requests.request(
             method=method,
             url=f"{self._get_base_url()}{endpoint}",
             headers={
-                "Authorization": f"Bearer {self._get_access_token()}",
+                **self._rest_token_provider.build_auth_headers(),
                 "Content-Type": "application/json",
             },
             json=payload,

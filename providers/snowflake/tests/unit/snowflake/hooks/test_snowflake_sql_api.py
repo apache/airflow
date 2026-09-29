@@ -561,6 +561,43 @@ class TestSnowflakeSqlApiHook:
         with pytest.raises(ValueError, match="Programmatic Access Token"):
             hook.get_headers()
 
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    def test_get_headers_reuses_jwt_within_renewal_window(
+        self, mock_conn_param, mock_private_key, time_machine
+    ):
+        """The hook must reuse the same JWT across calls within the renewal window, and mint a
+        new one once the window has passed -- pinned with real elapsed time, not call count,
+        since two back-to-back calls produce byte-identical JWTs on the old mint-every-call code
+        too (RS256 signing is deterministic and `iat` only has one-second resolution)."""
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        mock_private_key.return_value = key
+        mock_conn_param.return_value = CONN_PARAMS
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+
+        time_machine.move_to("2024-01-01T00:00:00+00:00", tick=False)
+        first = hook.get_headers()
+
+        time_machine.move_to("2024-01-01T00:10:00+00:00", tick=False)
+        second = hook.get_headers()
+
+        assert first["Authorization"] == second["Authorization"]
+        assert mock_private_key.call_count == 1
+
+        time_machine.move_to("2024-01-01T01:00:00+00:00", tick=False)
+        third = hook.get_headers()
+
+        assert third["Authorization"] != first["Authorization"]
+
+    @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True, return_value=None)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
+    def test_get_headers_raises_value_error_when_no_private_key(self, mock_conn_param, mock_private_key):
+        """No OAuth token, no PAT, and no private key must raise ValueError, not AttributeError."""
+        mock_conn_param.return_value = CONN_PARAMS
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        with pytest.raises(ValueError, match="key-pair JWT"):
+            hook.get_headers()
+
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")

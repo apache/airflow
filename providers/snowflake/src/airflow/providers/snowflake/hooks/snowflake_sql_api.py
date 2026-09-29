@@ -39,7 +39,7 @@ from tenacity import (
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
+from airflow.providers.snowflake.utils.rest_auth import SnowflakeRestTokenProvider
 
 
 class SnowflakeSqlApiHook(SnowflakeHook):
@@ -120,6 +120,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
         super().__init__(snowflake_conn_id, *args, **kwargs)
         self.private_key: Any = None
+        self._rest_token_provider: SnowflakeRestTokenProvider | None = None
 
         self.retry_config = {
             "retry": retry_if_exception(self._should_retry_on_error),
@@ -230,53 +231,25 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     def get_headers(self) -> dict[str, Any]:
         """Form auth headers based on OAuth token, PAT, or JWT token from private key."""
-        conn_config = self._get_conn_params()
-
-        # _get_conn_params() already fetched the OAuth access token for any grant type or azure_conn_id.
-        if conn_config.get("authenticator") == "oauth":
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {conn_config['token']}",
-                "Accept": "application/json",
-                "User-Agent": "snowflakeSQLAPI/1.0",
-                "X-Snowflake-Authorization-Token-Type": "OAUTH",
-            }
-
-        # Use PAT (Programmatic Access Token) when authenticator is set to programmatic_access_token
-        if conn_config.get("authenticator") == "programmatic_access_token":
-            pat = conn_config.get("password")
-            if not pat:
-                raise ValueError(
-                    "Programmatic Access Token (PAT) authentication requires the connection password "
-                    "field to contain the PAT token value."
-                )
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {pat}",
-                "Accept": "application/json",
-                "User-Agent": "snowflakeSQLAPI/1.0",
-                "X-Snowflake-Authorization-Token-Type": "PROGRAMMATIC_ACCESS_TOKEN",
-            }
-
-        # Fall back to JWT token from the connection details and the private key
-        if not self.private_key:
-            self.private_key = self.get_private_key()
-
-        token = JWTGenerator(
-            conn_config["account"],  # type: ignore[arg-type]
-            conn_config["user"],  # type: ignore[arg-type]
-            private_key=self.private_key,
-            lifetime=self.token_life_time,
-            renewal_delay=self.token_renewal_delta,
-        ).get_token()
-
+        if self._rest_token_provider is None:
+            self._rest_token_provider = SnowflakeRestTokenProvider(
+                self,
+                token_life_time=self.token_life_time,
+                token_renewal_delta=self.token_renewal_delta,
+                private_key_loader=self._load_private_key,
+            )
         return {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {token}",
             "Accept": "application/json",
             "User-Agent": "snowflakeSQLAPI/1.0",
-            "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+            **self._rest_token_provider.build_auth_headers(),
         }
+
+    def _load_private_key(self) -> Any:
+        """Load ``self.private_key`` on first use, preserving its existing public attribute semantics."""
+        if not self.private_key:
+            self.private_key = self.get_private_key()
+        return self.private_key
 
     def get_oauth_token(
         self,
