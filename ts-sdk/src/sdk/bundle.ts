@@ -232,3 +232,21 @@ export function bundleDagTaskIds(bundle: Bundle): Map<string, string[]> {
   }
   return byDag;
 }
+
+/**
+ * Internal: the Dags this bundle declared in TypeScript, in registration order.
+ *
+ * What a parse request answers with, and what closes each of them: a Dag known
+ * only through task handlers is not one of them, because its graph belongs to
+ * the Python Dag file that declares it, and serializing it here would register
+ * a second Dag with the same `dag_id` from a different `fileloc`.
+ *
+ * Supersedes {@link finalizeBundleDags} for a caller that also wants the Dags.
+ */
+export function listBundleNativeDags(bundle: Bundle): Dag[] {
+  const dags = [...dagsOf(bundle).values()];
+  for (const dag of dags) {
+    finalizeDag(dag);
+  }
+  return dags;
+}

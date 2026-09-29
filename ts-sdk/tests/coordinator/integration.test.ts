@@ -798,18 +798,125 @@ describe("coordinator runtime integration", () => {
     expect(calledSecondDag).toBe(false);
   });
 
-  it("returns empty serialized_dags for DagFileParseRequest", async () => {
+  describe("DagFileParseRequest", () => {
     const parseRequest = {
       type: "DagFileParseRequest",
       file: "/dags/test.mjs",
       bundle_path: "/dags",
     };
 
-    const result = await driveSupervisor(parseRequest);
+    async function parse(): Promise<Record<string, unknown>> {
+      const result = await driveSupervisor(parseRequest);
+      return result.firstResponse!.body as Record<string, unknown>;
+    }
 
-    const body = result.firstResponse!.body as Record<string, unknown>;
-    expect(body.type).toBe("DagFileParsingResult");
-    expect(body.serialized_dags).toEqual([]);
+    it("answers with the Dags the bundle declared in TypeScript", async () => {
+      testDag.task("extract", async () => undefined)();
+      otherDag.task("stage", async () => undefined)();
+
+      const body = await parse();
+
+      expect(body.type).toBe("DagFileParsingResult");
+      expect(body.fileloc).toBe("/dags/test.mjs");
+      const dags = body.serialized_dags as { data: Record<string, unknown> }[];
+      expect(dags.map((entry) => (entry.data.dag as Record<string, unknown>).dag_id)).toEqual([
+        "test_dag",
+        "other_dag",
+      ]);
+      expect(dags[0]!.data.__version).toBe(3);
+      expect((dags[0]!.data.dag as Record<string, unknown>).relative_fileloc).toBe("test.mjs");
+      expect(body.import_errors).toBeUndefined();
+    });
+
+    it("runs no handler body while parsing", async () => {
+      let ran = false;
+      testDag.task("extract", async () => {
+        ran = true;
+      })();
+      otherDag.task("stage", async () => undefined)();
+
+      await parse();
+
+      expect(ran).toBe(false);
+    });
+
+    it("answers with nothing when the bundle only binds handlers to Python Dags", async () => {
+      // A Python Dag's graph belongs to the Python file that declares it, so a
+      // bundle of task handlers has no Dag of its own to serialize.
+      bundle = new Bundle(new TaskHandler("py_dag", "transform", async () => undefined));
+
+      const body = await parse();
+
+      expect(body.serialized_dags).toEqual([]);
+      expect(body.import_errors).toBeUndefined();
+    });
+
+    it("reports an uncalled task as an import error rather than failing the parse", async () => {
+      testDag.task("extract", async () => undefined)();
+      testDag.task("orphan", async () => undefined);
+
+      const body = await parse();
+
+      expect(body.serialized_dags).toEqual([]);
+      // Keyed by the bundle-relative path, which is how Airflow ties the row
+      // to the file it came from.
+      expect(body.import_errors).toEqual({
+        "test.mjs": expect.stringContaining('Task "orphan" of Dag "test_dag" is never called'),
+      });
+    });
+
+    it("reports a cycle as an import error", async () => {
+      const a = testDag.task("a", async () => undefined)();
+      const b = testDag.task("b", async () => undefined)();
+      a.before(b);
+      b.before(a);
+
+      const body = await parse();
+
+      expect(body.import_errors).toEqual({
+        "test.mjs": expect.stringContaining('Dag "test_dag" has a cycle'),
+      });
+    });
+
+    it("merges several failing Dags into the one row Airflow keeps per file", async () => {
+      testDag.task("extract", async () => undefined)();
+      for (const dagId of ["broken_a", "broken_b"]) {
+        const broken = new Dag(dagId, { schedule: "" });
+        broken.task("t", async () => undefined)();
+        bundle.register(broken);
+      }
+
+      const body = await parse();
+
+      const errors = body.import_errors as Record<string, string>;
+      expect(Object.keys(errors)).toEqual(["test.mjs"]);
+      expect(errors["test.mjs"]).toContain('Dag "broken_a"');
+      expect(errors["test.mjs"]).toContain('Dag "broken_b"');
+    });
+
+    it("keeps the Dags it can serialize when one of them cannot be", async () => {
+      testDag.task("extract", async () => undefined)();
+      // An empty schedule is rejected by the serializer, and only that Dag is
+      // lost: the rest of the bundle still parses.
+      const broken = new Dag("broken_dag", { schedule: "" });
+      broken.task("t", async () => undefined)();
+      bundle.register(broken);
+
+      const body = await parse();
+
+      const dags = body.serialized_dags as { data: Record<string, unknown> }[];
+      expect(dags.map((entry) => (entry.data.dag as Record<string, unknown>).dag_id)).toEqual([
+        "test_dag",
+        "other_dag",
+      ]);
+      // One row per file, so the failing Dag is named in the message rather
+      // than appended to the key.
+      expect(body.import_errors).toEqual({
+        "test.mjs": expect.stringContaining(
+          'Dag "broken_dag": schedule for Dag "broken_dag" is empty',
+        ),
+      });
+    });
   });
 
   it("auto-pushes return_value XCom when handler returns a value", async () => {
