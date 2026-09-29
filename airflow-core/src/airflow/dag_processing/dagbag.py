@@ -22,7 +22,7 @@ import os
 import sys
 import textwrap
 import warnings
-from collections.abc import Generator, Iterator, Mapping
+from collections.abc import Generator, Iterator
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -44,10 +44,9 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
-from airflow.plugins_manager import owning_teams_of_scheduling_class
+from airflow.plugins_manager import get_scheduling_class_teams
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -182,125 +181,71 @@ def _assign_default_team_pools(
             task.pool = Pool.get_default_team_pool_name(dag_team_name)
 
 
-# A Dag's schedule is a shallow object graph; this only bounds the pathological case.
-_MAX_SCHEDULE_DEPTH = 8
-# Values that cannot hold a plugin class, skipped before walking or recording them.
-_LEAF_TYPES = (str, bytes, bytearray, bool, int, float, complex, datetime, timedelta, type(None))
-
-
-def _iter_members(obj: Any) -> Iterator[Any]:
+def _iter_serialized_class_names(data: Any) -> Iterator[str]:
     """
-    Yield the objects ``obj`` holds, whether as container members or as attributes.
+    Yield every class name recorded in a serialized Dag.
 
-    Attributes come from both ``__dict__`` and slots: the Task SDK scheduling classes are
-    ``attrs.define`` classes, which are slotted, so their fields are absent from
-    ``__dict__``, while inherited attributes may still live in a ``__dict__`` beside them.
+    Timetables, partition mappers and windows are encoded as ``{"__type": <qualname>, ...}``,
+    a custom deadline reference carries ``"__class_path"``, and a task's ``weight_rule`` is
+    stored as the strategy's qualname. Every string is yielded, not only those under known
+    keys, so where the encoders put a name does not matter; ordinary strings simply match
+    nothing in the plugin map.
+
+    This is what ``DagSerialization.to_dict`` returns, before it is dumped to JSON, so it
+    holds tuples as well as lists (a partition mapper config is a list of pairs), and names
+    can sit in keys as well as values. None of it is cyclic.
     """
-    if isinstance(obj, Mapping):
-        yield from obj.keys()
-        yield from obj.values()
-        return
-    if isinstance(obj, (list, tuple, set, frozenset)):
-        yield from obj
-        return
-
-    yield from getattr(obj, "__dict__", {}).values()
-    for klass in type(obj).__mro__:
-        slots = getattr(klass, "__slots__", ())
-        for name in (slots,) if isinstance(slots, str) else slots:
-            try:
-                yield getattr(obj, name)
-            except AttributeError:
-                # A declared slot need not be filled in.
-                continue
+    stack = [data]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            yield item
+        elif isinstance(item, dict):
+            stack.extend(item.keys())
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple, set, frozenset)):
+            stack.extend(item)
 
 
-def _iter_plugin_classes(obj: Any, seen: set[int], depth: int = 0) -> Iterator[Any]:
+def validate_serialized_plugin_teams(serialized: dict[str, Any], bundle_name: str | None) -> None:
     """
-    Yield everything in ``obj``'s object graph whose class a plugin registered.
-
-    Asking which classes a Dag reaches, rather than which attributes hold a particular
-    kind of class, is what keeps this honest: a timetable wraps another timetable, holds
-    partition mappers in a dict, and those hold windows, so any check written per kind of
-    class or per known attribute goes blind the moment one of those shapes changes.
-
-    The graph being walked is a Dag's schedule, which is small. ``seen`` stops cycles and
-    repeated work, and the depth limit bounds anything unexpectedly deep.
-    """
-    if depth > _MAX_SCHEDULE_DEPTH or isinstance(obj, _LEAF_TYPES) or id(obj) in seen:
-        return
-    seen.add(id(obj))
-
-    if owning_teams_of_scheduling_class(obj) is not None:
-        yield obj
-
-    for member in _iter_members(obj):
-        yield from _iter_plugin_classes(member, seen, depth + 1)
-
-
-def _iter_scheduling_classes(dag: DAG) -> Iterator[tuple[str, Any]]:
-    """Yield ``(location, instance)`` for each plugin-provided class the Dag uses."""
-    seen: set[int] = set()
-    for found in _iter_plugin_classes(dag.timetable, seen):
-        yield "its schedule", found
-
-    for task in dag.tasks:
-        weight_rule = getattr(task, "weight_rule", None)
-        if weight_rule is None:
-            continue
-        # weight_rule is either a strategy instance or a string, and the string can be a
-        # dotted path to a plugin's class or a built-in name, so resolve it the same way
-        # serialization will.
-        # An unresolvable value is not a team problem. Leave that error to serialization.
-        with contextlib.suppress(ValueError):
-            strategy = validate_and_load_priority_weight_strategy(weight_rule)
-            if owning_teams_of_scheduling_class(strategy) is not None:
-                yield f"the weight_rule of task {task.task_id!r}", strategy
-
-    deadline = dag.deadline
-    for alert in deadline if isinstance(deadline, list) else filter(None, [deadline]):
-        for found in _iter_plugin_classes(alert, seen):
-            yield "its deadline", found
-
-
-def _validate_plugin_scheduling_classes(dag: DAG, bundle_name: str | None = None) -> None:
-    """
-    Reject a Dag that uses scheduling classes belonging to another team's plugin.
+    Reject a serialized Dag that names a scheduling class belonging to another team's plugin.
 
     Timetables, partition mappers, windows, deadline references and priority weight
-    strategies are all chosen by the Dag author, by importing the class or naming its
-    path, so unlike executors or pools there is no team-aware lookup in the way. This
-    check is the only thing keeping a team-scoped plugin's scheduling classes from being
-    used by Dags outside that team.
+    strategies are all named by the Dag itself, with no team-aware lookup in between, so this
+    is the only thing keeping a team-scoped plugin's scheduling classes to that team. It
+    checks the serialized Dag because that is exactly what the scheduler will resolve.
 
-    A partition mapper that a timetable picks inside ``get_partition_mapper()`` from the
-    asset it is asked about is not covered, because nothing decides it until the timetable
-    runs. One handed to the timetable by the Dag is covered like anything else.
-
-    Raising here surfaces as an import error for the Dag, leaving the rest of the bundle
-    to parse normally.
+    A partition mapper a timetable picks inside ``get_partition_mapper()`` is not covered,
+    because nothing decides it until the timetable runs.
     """
     if not conf.getboolean("core", "multi_team"):
         return
 
+    # A class registered by any global plugin is available to every Dag, so only classes
+    # that every registering plugin scoped to a team can be refused.
+    restricted: dict[str, frozenset[str]] = {
+        name: frozenset(team for team in teams if team is not None)
+        for name, teams in get_scheduling_class_teams().items()
+        if None not in teams
+    }
+    if not restricted:
+        return
+
     dag_team_name = _bundle_team_name(bundle_name)
-
-    for location, candidate in _iter_scheduling_classes(dag):
-        owning_teams = owning_teams_of_scheduling_class(candidate)
-        # Registered by at least one global plugin, so not tied to a team, whatever team
-        # owns this Dag.
-        if owning_teams is None or None in owning_teams:
-            continue
-        if dag_team_name in owning_teams:
+    for name in _iter_serialized_class_names(serialized):
+        owning_teams = restricted.get(name)
+        if owning_teams is None or dag_team_name in owning_teams:
             continue
 
-        owners = ", ".join(sorted(team for team in owning_teams if team))
+        owners = ", ".join(sorted(owning_teams))
         belongs_to = f"team '{dag_team_name}'" if dag_team_name else "no team"
+        dag_id = serialized.get("dag", {}).get("dag_id")
         raise ValueError(
-            f"Dag '{dag.dag_id}' uses {type(candidate).__name__} in {location}, which is "
-            f"provided by a plugin belonging to {owners}. This Dag belongs to {belongs_to}, "
-            f"so it cannot use it. Move the Dag into a bundle owned by {owners}, or have the "
-            "plugin provide the class globally instead of for a single team."
+            f"Dag '{dag_id}' uses {name}, which is provided by a plugin belonging to {owners}. "
+            f"This Dag belongs to {belongs_to}, so it cannot use it. Move the Dag into a bundle "
+            f"owned by {owners}, or have the plugin provide the class globally instead of for a "
+            "single team."
         )
 
 
@@ -487,7 +432,6 @@ class DagBag(LoggingMixin):
                 # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
                 _validate_executor_fields(dag, self.bundle_name)
-                _validate_plugin_scheduling_classes(dag, self.bundle_name)
                 _assign_default_team_pools(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
@@ -714,10 +658,22 @@ def sync_bag_to_db(
             for abs_filepath in dagbag.file_last_changed
         )
 
+    serialized_dags = []
+    for dag in dagbag.dags.values():
+        serialized = LazyDeserializedDAG.from_dag(dag)
+        try:
+            validate_serialized_plugin_teams(serialized.data, bundle_name)
+        except ValueError as e:
+            rel_path = dagbag._get_relative_fileloc(dag.fileloc)
+            import_errors[(bundle_name, rel_path)] = f"{type(e).__name__}: {e}"
+            files_parsed.add((bundle_name, rel_path))
+            continue
+        serialized_dags.append(serialized)
+
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
-        [LazyDeserializedDAG.from_dag(dag) for dag in dagbag.dags.values()],
+        serialized_dags,
         import_errors,
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,

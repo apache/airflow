@@ -64,6 +64,7 @@ from airflow.dag_processing.processor import (
     _parse_file,
     _parse_file_entrypoint,
     _pre_import_airflow_modules,
+    _serialize_dags,
 )
 from airflow.models import DagRun
 from airflow.sdk import DAG, BaseOperator
@@ -89,6 +90,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -798,6 +800,35 @@ def test_normal_parsing_updates_timestamps():
     assert stat.last_finish_time == finish_time
     assert stat.run_count == 4
     assert stat.import_errors == 0
+
+
+@conf_vars({("core", "multi_team"): "True"})
+@patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+def test_serialize_dags_rejects_another_teams_plugin_class(mock_manager_class):
+    """A rejected Dag becomes an import error for its file, and the other Dags still serialize."""
+    from airflow.example_dags.plugins.workday import AfterWorkdayTimetable, WorkdayTimetablePlugin
+
+    bundle_config = MagicMock()
+    bundle_config.team_name = "team_b"
+    mock_manager_class.return_value._bundle_config = {"testing": bundle_config}
+
+    plugin = WorkdayTimetablePlugin()
+    plugin.team_name = "team_a"
+    with mock_plugin_manager(plugins=[plugin]):
+        with DAG("rejected", schedule=AfterWorkdayTimetable()) as rejected:
+            BaseOperator(task_id="t1")
+        rejected.relative_fileloc = "rejected.py"
+        with DAG("accepted", schedule=None) as accepted:
+            BaseOperator(task_id="t1")
+        bag = MagicMock(spec=DagBag)
+        bag.bundle_name = "testing"
+        bag.dags = {"rejected": rejected, "accepted": accepted}
+
+        serialized_dags, import_errors = _serialize_dags(bag, log=structlog.get_logger())
+
+    assert [dag.dag_id for dag in serialized_dags] == ["accepted"]
+    assert list(import_errors) == ["rejected.py"]
+    assert "belonging to team_a" in import_errors["rejected.py"]
 
 
 def test_import_error_updates_timestamps():

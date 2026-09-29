@@ -520,18 +520,23 @@ def is_extra_link_visible_to_team(link: Any, team_name: str | None) -> bool:
 
 
 @cache
-def _get_scheduling_class_teams() -> dict[type, frozenset[str | None]]:
+def get_scheduling_class_teams() -> dict[str, frozenset[str | None]]:
     """
-    Map every plugin-registered scheduling class to the teams that registered it.
+    Map the qualname of every plugin-registered scheduling class to the teams that registered it.
 
-    Covers the registries a Dag author uses by importing the class and instantiating it
-    themselves, so the reference is not mediated by any team-aware lookup: timetables,
-    partition mappers, windows, deadline references and priority weight strategies.
+    Covers timetables, partition mappers, windows, deadline references and priority weight
+    strategies: the registries a Dag names directly, with no team-aware lookup in between.
 
-    Keyed by class, as in :func:`_get_extra_link_class_teams`; a class registered by
-    several plugins maps to all of their teams and is resolved least restrictively.
+    Keyed by qualname because that is what a serialized Dag records and what the scheduler
+    resolves through ``get_timetables_plugins()`` and its siblings. Class identity is not
+    stable enough to key on: the plugin loader executes a plugin file again under its own
+    module entry, so a Dag importing a class from that file can hold a different class
+    object with the same qualname as the one that was registered.
+
+    A qualname registered by several plugins maps to all of their teams, and is then
+    resolved least restrictively.
     """
-    teams: dict[type, set[str | None]] = {}
+    teams: dict[str, set[str | None]] = {}
     for plugin in _get_plugins()[0]:
         for scheduling_class in (
             *plugin.timetables,
@@ -540,23 +545,8 @@ def _get_scheduling_class_teams() -> dict[type, frozenset[str | None]]:
             *plugin.deadline_references,
             *plugin.priority_weight_strategies,
         ):
-            teams.setdefault(scheduling_class, set()).add(plugin.team_name)
-    return {scheduling_class: frozenset(team_names) for scheduling_class, team_names in teams.items()}
-
-
-def owning_teams_of_scheduling_class(obj: Any) -> frozenset[str | None] | None:
-    """
-    Teams whose plugins registered ``obj``'s class as a scheduling class.
-
-    ``None`` means no plugin registered this class, which in practice means it is one of
-    Airflow's own: a custom class has to be registered by a plugin to survive
-    deserialization at all. There is then no plugin ownership to honour, so callers treat
-    it as unrestricted.
-
-    Accepts an instance or the class itself.
-    """
-    scheduling_class = obj if isinstance(obj, type) else type(obj)
-    return _get_scheduling_class_teams().get(scheduling_class)
+            teams.setdefault(qualname(scheduling_class), set()).add(plugin.team_name)
+    return {name: frozenset(team_names) for name, team_names in teams.items()}
 
 
 @cache

@@ -37,7 +37,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
-from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag, validate_serialized_plugin_teams
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor
@@ -267,6 +267,7 @@ def _serialize_dags(
     for dag in bag.dags.values():
         try:
             data = DagSerialization.to_dict(dag)
+            validate_serialized_plugin_teams(data, bag.bundle_name)
             serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
             log.exception("Failed to serialize DAG: %s", dag.fileloc)
