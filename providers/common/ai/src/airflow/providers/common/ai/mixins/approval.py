@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
+from jinja2 import TemplateError
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
@@ -34,7 +36,40 @@ if AIRFLOW_V_3_3_PLUS:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
+    from airflow.sdk.execution_time.hitl import HITLUser
+
+
+def normalize_assigned_users(value: Any, *, param: str) -> list[HITLUser]:
+    """
+    Return *value* as a list of ``{'id': str, 'name': str}`` users.
+
+    Accepts ``None``, a single user dict, or an iterable of them, and raises ``TypeError``
+    naming *param* for anything else, so a malformed list fails when the Dag is parsed
+    rather than when the task first asks for a review.
+    """
+    users: list[Any]
+    if value is None:
+        users = []
+    elif isinstance(value, dict):
+        users = [value]
+    elif isinstance(value, str) or not isinstance(value, Iterable):
+        raise TypeError(
+            f"{param} must be a {{'id': str, 'name': str}} dict or an iterable of them, got {value!r}"
+        )
+    else:
+        users = list(value)
+    for user in users:
+        if (
+            not isinstance(user, dict)
+            or not isinstance(user.get("id"), str)
+            or not isinstance(user.get("name"), str)
+        ):
+            raise TypeError(f"{param} entries must be {{'id': str, 'name': str}} dicts, got {user!r}")
+    return users
 
 
 class DeferForApprovalProtocol(Protocol):
@@ -43,6 +78,8 @@ class DeferForApprovalProtocol(Protocol):
     approval_timeout: timedelta | None
     allow_modifications: bool
     on_approval_timeout: Literal["fail", "approve", "reject"]
+    approval_notifiers: Sequence[BaseNotifier]
+    approval_assigned_users: list[HITLUser]
     prompt: str
     task_id: str
     defer: Any
@@ -69,12 +106,31 @@ class LLMApprovalMixin:
     task resumes as if a reviewer had chosen it.  The chosen option is also
     pre-highlighted for the reviewer in the HITL form.
 
+    ``approval_notifiers`` are called once the review is open, so a reviewer
+    learns about it without watching the Required Actions page, the way
+    :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+    ``notifiers``.  The review ``subject`` and ``body`` are exposed as
+    ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates.  A
+    notifier whose delivery raises is logged without failing the task, while a
+    template error fails the task.  A retry re-runs the LLM and re-notifies
+    with the regenerated output, while the open review keeps the original
+    subject and body.
+
+    ``approval_assigned_users`` restricts the review to the named users, the way
+    :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+    ``assigned_users``.  Leaving it empty lets any user with the permission
+    respond.  The list is stored when the review is first created; clearing
+    the task re-runs it against the existing review row, so a changed list
+    does not take effect.
+
     Operators that use this mixin must set the following attributes:
 
     - ``require_approval`` (``bool``)
     - ``allow_modifications`` (``bool``)
     - ``approval_timeout`` (``timedelta | None``)
     - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
+    - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
+    - ``approval_assigned_users`` (``list[HITLUser]``)
     - ``prompt`` (``str``)
     """
 
@@ -102,6 +158,7 @@ class LLMApprovalMixin:
         subject: str | None = None,
         body: str | None = None,
         modification_schema: dict[str, Any] | None = None,
+        decision: dict[str, Any] | None = None,
     ) -> None:
         """
         Write HITL detail, then pause the task for human review.
@@ -125,6 +182,10 @@ class LLMApprovalMixin:
             multi-select (JSON Schema forbids ``enum`` at the array level, so the
             options come from ``examples``); a list submitted by the reviewer is
             returned from ``execute_complete`` re-serialized as a compact JSON string.
+        :param decision: The pending decision record, when the operator wrote one. It is carried in
+            the continuation the task resumes from, next to ``generated_output``, so
+            ``execute_complete`` finalizes the record from what was checkpointed with the pause and
+            not from a copy a reader could have edited or deleted in the meantime.
         """
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
@@ -174,14 +235,29 @@ class LLMApprovalMixin:
             defaults=timeout_defaults,
             multiple=False,
             params=hitl_params,
+            assigned_users=self.approval_assigned_users,
         )
+
+        self.subject = subject
+        self.body = body
+        for notifier in self.approval_notifiers:
+            try:
+                notifier({**context})
+            except TemplateError:
+                raise
+            except Exception:
+                log.exception("Approval notifier %s failed; the review stays open", notifier)
+
+        continuation: dict[str, Any] = {"generated_output": output}
+        if decision is not None:
+            continuation["decision"] = decision
 
         if AIRFLOW_V_3_3_PLUS:
             # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The
             # task is resumed by the Core API response handler or the scheduler timeout sweep.
             raise TaskAwaitingInput(
                 method_name="execute_complete",
-                kwargs={"generated_output": output},
+                kwargs=continuation,
                 timeout=self.approval_timeout,
             )
 
@@ -198,7 +274,7 @@ class LLMApprovalMixin:
                 ),
             ),
             method_name="execute_complete",
-            kwargs={"generated_output": output},
+            kwargs=continuation,
         )
 
     @staticmethod
@@ -208,7 +284,13 @@ class LLMApprovalMixin:
             return "the approval timeout default"
         return responded_by_user["name"]
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+    def execute_complete(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None = None,
+    ) -> str:
         """
         Resume after human review.
 
@@ -219,6 +301,8 @@ class LLMApprovalMixin:
         :param generated_output: The output that was deferred for review.
         :param event: Trigger event payload containing ``chosen_options``,
             ``params_input``, ``responded_by_user``, and ``timedout``.
+        :param decision: The pending decision record passed to ``defer_for_approval``, if any.
+            The mixin does not read it; an operator that writes a record finalizes it.
         :raises HITLRejectException: If the reviewer, or the
             ``on_approval_timeout="reject"`` default, rejected the output.
         :raises HITLTriggerEventError: If the trigger reported an error.

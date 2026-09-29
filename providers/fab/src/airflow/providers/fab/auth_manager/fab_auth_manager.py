@@ -60,6 +60,7 @@ from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.common.compat.security.access_view import (
     AUDIT_LOGS_ALL_ACCESS_VIEW,
     IMPORT_ERRORS_ALL_ACCESS_VIEW,
+    REPARSE_ALL_ACCESS_VIEW,
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
@@ -88,6 +89,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_PLUGIN,
     RESOURCE_POOL,
     RESOURCE_PROVIDER,
+    RESOURCE_REPARSE_ALL,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TASK_LOG,
     RESOURCE_TRIGGER,
@@ -154,12 +156,14 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 }
 
 # ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` only exist on
-# core >= 3.4.0; the compat shim yields ``None`` on older core so this provider still
-# imports there.
+# core >= 3.4.0, and ``AccessView.REPARSE_ALL`` after it; the compat shim yields ``None``
+# on older core so this provider still imports there.
 if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
 if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[AUDIT_LOGS_ALL_ACCESS_VIEW] = RESOURCE_AUDIT_LOG_ALL
+if REPARSE_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[REPARSE_ALL_ACCESS_VIEW] = RESOURCE_REPARSE_ALL
 
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,

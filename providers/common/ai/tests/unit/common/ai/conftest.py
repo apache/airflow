@@ -20,6 +20,40 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.log import mask_secret
+
+REGISTERED_SECRET = "db-password-91c3"
+
+
+@pytest.fixture
+def register_secret():
+    """
+    Return a function that registers a secret with Airflow's secret masker for one test.
+
+    The test also needs ``@pytest.mark.enable_redact``, since masking is otherwise stubbed out
+    in unit tests.
+    """
+    if not AIRFLOW_V_3_1_PLUS:
+        pytest.skip("Registering a secret in a unit test needs the Task SDK masker of Airflow 3.1+")
+    reset_secrets_masker()
+
+    def register(secret: str) -> str:
+        mask_secret(secret)
+        return secret
+
+    yield register
+    reset_secrets_masker()
+
+
+@pytest.fixture
+def registered_secret(register_secret):
+    """Register ``REGISTERED_SECRET`` with Airflow's secret masker for one test."""
+    return register_secret(REGISTERED_SECRET)
+
 
 @pytest.fixture(autouse=True)
 def isolate_hook_lineage_collector(hook_lineage_collector):

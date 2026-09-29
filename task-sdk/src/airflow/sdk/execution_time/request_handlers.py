@@ -21,8 +21,10 @@ Shared request handlers for supervised subprocess comms channels.
 These functions implement the supervisor-side logic for message types that are
 used by more than one subprocess type (tasks, callbacks, triggerer).  Each
 handler accepts a ``Client`` and a request message and returns
-``(response_model | None, dump_opts)`` so the caller can forward the result
-via ``send_msg``.
+``(response_model | None, dump_opts)``. The caller owns the wire acknowledgment:
+asset-state-store mutation handlers return ``(None, {})``, but callers that
+acknowledge those operations with ``OKResponse(ok=True)`` must construct that
+response instead of forwarding the empty result via ``send_msg``.
 """
 
 from __future__ import annotations

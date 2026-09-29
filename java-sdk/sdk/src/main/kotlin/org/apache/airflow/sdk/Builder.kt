@@ -36,9 +36,14 @@ package org.apache.airflow.sdk
  *     public long extract(Client client) { ... }
  *
  *     @Builder.Task(id = "transform")
- *     public long transform(Client client, @Builder.XCom(task = "extract") long extracted) { ... }
+ *     public long transform(Client client, long extracted) { ... }
  * }
  * ```
+ *
+ * A task method's data parameters — everything other than the injected
+ * [Client] and [Context] — receive the arguments the Python `@task.stub` call
+ * site bound, by position. Keyword arguments bind by name instead through a
+ * single [TaskInput] parameter.
  *
  * The processor generates `MyPipelineBuilder.build()`, which returns a
  * fully wired-up [DagDef] ready to add to a [Bundle].
@@ -75,14 +80,30 @@ class Builder internal constructor() {
   )
 
   /**
-   * Annotation to mark a task definition's method parameter as an XCom input.
+   * Marks a method as the Java body of a task the Python Dag file declares
+   * with `@task.stub`.
    *
-   * @param task The task ID to pull. If empty or not given, the annotated
-   *    parameter's name is used by default.
+   * This is not [Task] under another name. Python declares the task and Java
+   * supplies only its body, so the handler names the pair it binds to rather
+   * than an id it owns — Python owns both, and the processor generates the
+   * registration from them:
+   *
+   * ```java
+   * @Builder.TaskHandler(dag = "etl", task = "score")
+   * public long score(Client client, long rows, double threshold) { ... }
+   * ```
+   *
+   * Register every handler a class holds with [Bundle.register]; there is no
+   * [Dag] annotation on this surface, because the Dag is the Python file's.
+   *
+   * @param dag Dag ID as declared in the Python Dag file.
+   * @param task Task ID as declared by the `@task.stub` function. Empty
+   *    derives it from the annotated method's name.
    */
-  @Target(AnnotationTarget.VALUE_PARAMETER)
+  @Target(AnnotationTarget.FUNCTION)
   @MustBeDocumented
-  annotation class XCom(
+  annotation class TaskHandler(
+    val dag: String,
     val task: String = "",
   )
 }

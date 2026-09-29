@@ -79,6 +79,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
         "directory_path",
         "prefix",
         "dest_gcs",
+        "azure_fileshare_conn_id",
+        "gcp_conn_id",
     )
 
     def __init__(

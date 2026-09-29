@@ -30,7 +30,7 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import and_, column, func, inspect, literal, literal_column, or_, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
@@ -52,6 +52,7 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Select
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
     from airflow.models import Base
@@ -257,7 +258,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom"],
+        dependent_tables=["task_instance_history", "xcom", "task_reschedule"],
         dag_id_column_name="dag_id",
     ),
     _TableConfig(
@@ -282,12 +283,9 @@ config_list: list[_TableConfig] = [
         table_name="callback",
         recency_column_name="created_at",
         extra_columns=["id", "state"],
-        # Purging a callback cascades to its deadline row, so only finished callbacks are purged;
-        # a state this code does not know keeps its rows. An unfired deadline's callback sits in
-        # SCHEDULED, which is neither active nor terminal, until the deadline is missed; it is
-        # purged only once no deadline references it, as deleting a Dag run cascades away the
-        # deadline at the database level and leaves the callback behind. Dag-processor callbacks
-        # carry no state and are deleted as they are dispatched.
+        # Callback deletion cascades to deadlines, so preserve active or unknown states and
+        # SCHEDULED callbacks still referenced by a deadline. Stateless Dag-processor
+        # callbacks are eligible even while pending, once older than the cleanup cutoff.
         extra_filters=[
             or_(
                 column("state").in_(sorted(TERMINAL_STATES)),
@@ -386,7 +384,14 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
 
 
 def _do_delete(
-    *, query: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+    *,
+    query: Select,
+    orm_model: Base,
+    skip_archive: bool,
+    session: Session,
+    batch_size: int | None,
+    skip_if_referenced: list[tuple[str, str]] | None = None,
+    referenced_pk_column: str = "id",
 ) -> None:
     import itertools
     import re
@@ -457,9 +462,36 @@ def _do_delete(
                 delete = source_table.delete().where(
                     and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
                 )
+            # Re-apply skip_if_referenced on the DELETE to guard against a race where a new
+            # referencing row is created after the archive INSERT committed but before the DELETE
+            # runs. Without this the DELETE would violate the ON DELETE RESTRICT FK and fail.
+            if skip_if_referenced:
+                pk_col = source_table.c[referenced_pk_column]
+                for referencing_table_name, fk_column in skip_if_referenced:
+                    referencing = table(referencing_table_name, column(fk_column))
+                    delete = delete.where(
+                        ~select(literal(1))
+                        .select_from(referencing)
+                        .where(referencing.c[fk_column] == pk_col)
+                        .correlate(source_table)
+                        .exists()
+                    )
             logger.debug("delete statement:\n%s", delete.compile())
-            session.execute(delete)
+            deleted = cast("CursorResult", session.execute(delete)).rowcount
             session.commit()
+
+            # A guarded DELETE (skip_if_referenced) may delete fewer rows than the SELECT
+            # found. The SELECT includes the same NOT EXISTS guard, so the skipped row is
+            # excluded on the next pass too and the loop drains naturally. With --batch-size
+            # set, continuing lets subsequent batches clean rows unaffected by the race.
+            if deleted == 0:
+                logger.warning(
+                    "Some rows from %s are still referenced by another table and were not "
+                    "deleted; they remain in %s and will be retried on the next cleanup run.",
+                    source_table_name,
+                    target_table_name if not skip_archive else "the archive (which is being dropped)",
+                )
+                continue
 
         except BaseException:
             error_raised = True
@@ -681,6 +713,8 @@ def _cleanup_table(
             skip_archive=skip_archive,
             session=session,
             batch_size=batch_size,
+            skip_if_referenced=skip_if_referenced,
+            referenced_pk_column=referenced_pk_column,
         )
 
     session.commit()

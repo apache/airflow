@@ -810,9 +810,15 @@ class KubernetesPodOperator(BaseOperator):
                 self._read_pod_events(pod, reraise=False)
             raise
 
-    def extract_xcom(self, pod: k8s.V1Pod) -> dict[Any, Any] | None:
-        """Retrieve xcom value and kill xcom sidecar container."""
-        result = self.pod_manager.extract_xcom(pod)
+    def extract_xcom(self, pod: k8s.V1Pod, *, ignore_kill_failure: bool = True) -> dict[Any, Any] | None:
+        """
+        Retrieve xcom value and kill xcom sidecar container.
+
+        :param pod: the pod to read the XCom result from.
+        :param ignore_kill_failure: when True (the default), a failure to kill the sidecar
+            container does not discard the XCom value that was already read.
+        """
+        result = self.pod_manager.extract_xcom(pod, ignore_kill_failure=ignore_kill_failure)
         if isinstance(result, str) and result.rstrip() == EMPTY_XCOM_RESULT:
             self.log.info("xcom result file is empty.")
             return None

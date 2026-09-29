@@ -74,7 +74,7 @@ You can see all the extra links available via community-managed providers in
 Add or override Links to Existing Operators
 -------------------------------------------
 
-You can also add (or override) an extra link to an existing operators
+You can also add (or override) an extra link to existing operators
 through an Airflow plugin or custom provider.
 
 For example, the following Airflow plugin will add an Operator Link on all

@@ -154,6 +154,7 @@ body:
         - dingding
         - discord
         - docker
+        - duckdb
         - edge3
         - elasticsearch
         - exasol
@@ -178,6 +179,7 @@ body:
         - microsoft-mssql
         - microsoft-psrp
         - microsoft-winrm
+        - modal
         - mongo
         - mysql
         - neo4j

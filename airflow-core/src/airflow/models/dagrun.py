@@ -91,7 +91,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
-from airflow.models.taskmap import TaskMap
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -120,7 +119,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import Case, ColumnElement
     from sqlalchemy.sql.selectable import Select
 
-    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        DagRun as DRDataModel,
+        TaskInstance as TIDataModel,
+    )
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
@@ -1333,6 +1335,7 @@ class DagRun(Base, LoggingMixin):
                     relevant_ti=ti_causing_failure,
                     reason="task_failure",
                     execute=execute_callbacks,
+                    session=session,
                 )
 
             # Check if the max_consecutive_failed_dag_runs has been provided and not 0
@@ -1363,6 +1366,7 @@ class DagRun(Base, LoggingMixin):
                     relevant_ti=last_succeeded_ti,
                     reason="success",
                     execute=execute_callbacks,
+                    session=session,
                 )
 
             if dag.deadline:
@@ -1400,6 +1404,7 @@ class DagRun(Base, LoggingMixin):
                     relevant_ti=blocking_ti,
                     reason="all_tasks_deadlocked",
                     execute=execute_callbacks,
+                    session=session,
                 )
 
         # finally, if the leaves aren't done, the dag is still running
@@ -1508,6 +1513,60 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
+    def _build_callback_last_ti(self, relevant_ti: TI, *, session: Session) -> TIDataModel | None:
+        """
+        Build a callback context's ``last_ti``, standing in a Dag version if the record has none.
+
+        ``session`` is required, not defaulted: ``settings.Session`` is a ``scoped_session``,
+        so acquiring one here would hand back the caller's own and then commit and close it.
+
+        Unlike ``_ensure_ti_has_dag_version_id`` in the scheduler, the stand-in is reported
+        but never written back: this path only describes a task instance to a callback, and
+        healing the row belongs to the paths that own it. The consequence is that a purge
+        which heals the row to the latest version first wins, and the run's own version is
+        then never reported here.
+        """
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
+        from airflow.models.dag_version import DagVersion
+
+        if relevant_ti.dag_version_id is not None:
+            return TIDataModel.model_validate(relevant_ti, from_attributes=True)
+
+        dag_version_id = self.created_dag_version_id
+        if dag_version_id is not None:
+            self.log.info(
+                "Task instance %s has no dag_version_id; reporting it under the run's version %s "
+                "in the Dag callback context.",
+                relevant_ti,
+                dag_version_id,
+            )
+        else:
+            latest_dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+            if latest_dag_version is None:
+                self.log.warning(
+                    "Task instance %s has no dag_version_id and Dag %s has no version to stand in; "
+                    "omitting last_ti from the Dag callback context.",
+                    relevant_ti,
+                    self.dag_id,
+                )
+                return None
+            dag_version_id = latest_dag_version.id
+            self.log.info(
+                "Task instance %s and its run both have no dag_version_id (pre-versioning records); "
+                "reporting it under the latest version %s in the Dag callback context.",
+                relevant_ti,
+                dag_version_id,
+            )
+        # The datamodel rejects a null version, so the stand-in has to be spliced in
+        # before validation rather than copied onto a validated model.
+        values = {
+            name: getattr(relevant_ti, name)
+            for name in TIDataModel.model_fields
+            if hasattr(relevant_ti, name)
+        }
+        values["dag_version_id"] = dag_version_id
+        return TIDataModel.model_validate(values)
+
     def produce_dag_callback(
         self,
         dag: SerializedDAG,
@@ -1515,23 +1574,18 @@ class DagRun(Base, LoggingMixin):
         relevant_ti: TI | None = None,
         reason: str = "success",
         execute: bool = False,
+        *,
+        session: Session,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
-        # Historical task instances created before the dag_version table existed (migration
-        # 0047_3_0_0_add_dag_versioning) have dag_version_id=None. The TaskInstance datamodel used to
-        # build the callback context requires a non-null UUID, so passing such a TI as last_ti would
-        # raise a ValidationError and crash the scheduler. Drop last_ti in that case; the callback still
-        # fires with a minimal context (dag, run_id, reason).
-        if relevant_ti is not None and relevant_ti.dag_version_id is None:
-            self.log.warning(
-                "Task instance %s has no dag_version_id (pre-versioning record); "
-                "omitting last_ti from the dag callback context.",
-                relevant_ti,
-            )
-            relevant_ti = None
         if not execute:
             from airflow.models.dag_version import _resolve_version_data
 
+            last_ti = (
+                self._build_callback_last_ti(relevant_ti, session=session)
+                if relevant_ti is not None
+                else None
+            )
             # Only carry version_data for pinned runs so the callback initializes the bundle
             # against the same version the run used.
             version_data = _resolve_version_data(self.created_dag_version, self.bundle_version)
@@ -1544,7 +1598,7 @@ class DagRun(Base, LoggingMixin):
                 version_data=version_data,
                 context_from_server=DagRunContext(
                     dag_run=self,
-                    last_ti=relevant_ti,
+                    last_ti=last_ti,
                 ),
                 is_failure_callback=(not success),
                 msg=reason,
@@ -1554,22 +1608,25 @@ class DagRun(Base, LoggingMixin):
             success=success,
             relevant_ti=relevant_ti,
             reason=reason,
+            session=session,
         )
         return None
 
     def execute_dag_callbacks(
-        self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"
+        self,
+        dag: SDKDAG,
+        success: bool = True,
+        relevant_ti: TI | None = None,
+        reason: str = "success",
+        *,
+        session: Session,
     ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
-        from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-            TaskInstance as TIDataModel,
-            TIRunContext,
-        )
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
         from airflow.models.dag import DagModel
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        if relevant_ti:
-            last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
+        if relevant_ti and (last_ti_model := self._build_callback_last_ti(relevant_ti, session=session)):
             task = dag.get_task(relevant_ti.task_id)
 
             runtime_ti = RuntimeTaskInstance.model_construct(
@@ -1671,7 +1728,7 @@ class DagRun(Base, LoggingMixin):
                 # the db references.
                 ti.clear_db_references(session=session)
             try:
-                expanded_tis, _ = TaskMap.expand_mapped_task(ti.task, self.run_id, session=session)
+                expanded_tis, _ = ti.expand_mapped_task(session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
             if expanded_tis:
@@ -1891,15 +1948,6 @@ class DagRun(Base, LoggingMixin):
             task_ids.add(ti.task_id)
             try:
                 task = dag.get_task(ti.task_id)
-
-                should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
-                if should_restore_task:
-                    self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    stats.incr(
-                        "task_restored_to_dag",
-                        tags={**self.stats_tags, "dag_id": dag.dag_id},
-                    )
-                    ti.state = None
             except AirflowException:
                 if ti.state == TaskInstanceState.REMOVED:
                     pass  # ti has already been removed, just ignore it
@@ -1915,7 +1963,7 @@ class DagRun(Base, LoggingMixin):
             try:
                 num_mapped_tis = task.get_parse_time_mapped_ti_count()
             except NotMapped:
-                continue
+                pass
             except NotFullyPopulated:
                 # What if it is _now_ dynamically mapped, but wasn't before?
                 try:
@@ -1927,15 +1975,17 @@ class DagRun(Base, LoggingMixin):
                             "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
                         )
                         ti.state = TaskInstanceState.REMOVED
-                    continue
-                # Upstreams finished, check there aren't any extras
-                if ti.map_index >= total_length:
-                    self.log.debug(
-                        "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
-                        ti,
-                        total_length,
-                    )
-                    ti.state = TaskInstanceState.REMOVED
+                        continue
+                else:
+                    # Upstreams finished, check there aren't any extras
+                    if ti.map_index >= total_length:
+                        self.log.debug(
+                            "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
+                            ti,
+                            total_length,
+                        )
+                        ti.state = TaskInstanceState.REMOVED
+                        continue
             else:
                 # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
@@ -1945,9 +1995,21 @@ class DagRun(Base, LoggingMixin):
                         num_mapped_tis,
                     )
                     ti.state = TaskInstanceState.REMOVED
-                elif ti.map_index < 0:
+                    continue
+                if ti.map_index < 0:
                     self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = TaskInstanceState.REMOVED
+                    continue
+
+            if ti.state == TaskInstanceState.REMOVED:
+                self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
+                stats.incr(
+                    "task_restored_to_dag",
+                    tags={**self.stats_tags, "dag_id": dag.dag_id},
+                )
+                if ti.try_number > 0:
+                    ti.prepare_db_for_next_try(session)
+                ti.state = None
 
         return task_ids
 
@@ -2192,7 +2254,6 @@ class DagRun(Base, LoggingMixin):
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         empty_ti_ids: list[UUID] = []
         schedulable_ti_ids: list[UUID] = []
-        reschedule_ti_ids: set[UUID] = set()
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
@@ -2205,13 +2266,9 @@ class DagRun(Base, LoggingMixin):
             # execute it to run in the worker.
             elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
-                if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                    reschedule_ti_ids.add(ti.id)
                 if debug_try_number_check:
                     expected_try_number_by_ti_id[ti.id] = (
-                        ti.try_number
-                        if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
-                        else ti.try_number + 1,
+                        max(1, ti.try_number),
                         ti.try_number,
                         ti.state,
                     )
@@ -2225,17 +2282,8 @@ class DagRun(Base, LoggingMixin):
             TI.state.is_(None),
             TI.state.in_(non_null_schedulable_states),
         )
-        # Use TI.id (not TI.state) in the CASE to decide try_number. MySQL evaluates
-        # SET left-to-right, so referencing TI.state here would see the already-updated
-        # value if state is assigned first. TI.id is never modified in the SET clause.
-        next_try_number = (
-            case(
-                (TI.id.in_(reschedule_ti_ids), TI.try_number),
-                else_=TI.try_number + 1,
-            )
-            if reschedule_ti_ids
-            else TI.try_number + 1
-        )
+        # Allocate the first attempt; retries and clears allocate theirs when rotating the TI id.
+        next_try_number = case((TI.try_number == 0, 1), else_=TI.try_number)
         if schedulable_ti_ids:
             schedulable_ti_ids_chunks = chunks(
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)

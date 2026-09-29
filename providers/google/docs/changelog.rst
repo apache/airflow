@@ -27,6 +27,85 @@
 Changelog
 ---------
 
+22.6.0
+......
+
+.. note::
+    ``PubSubPullOperator``, ``PubSubPullSensor`` and ``PubsubPullTrigger`` now emit a deprecation
+    warning when ``return_immediately`` is left unset -- including ``google+pubsub`` asset
+    watchers built with ``MessageQueueTrigger``, where the warning surfaces in Dag processor
+    logs rather than task logs. It currently defaults to ``True``, which relies on the deprecated
+    Pub/Sub ``returnImmediately`` Pull option and can return zero messages even when a backlog
+    exists. The default will change to ``False`` in the first Google provider major release after
+    March 31, 2027 -- pass ``return_immediately=True`` explicitly to keep the current behaviour.
+
+    Deferrable ``PubSubPullSensor`` now respects ``return_immediately`` as well. It previously
+    dropped the argument when handing off to ``PubsubPullTrigger``, so the trigger always behaved
+    as ``True``. A Dag already using ``PubSubPullSensor(deferrable=True, return_immediately=False)``
+    will see its triggerer start long-polling on each pull instead of returning immediately.
+
+Features
+~~~~~~~~
+
+* ``Rename Google Stackdriver task log handler to Cloud Logging (#73575)``
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Make Pub/Sub return_immediately configurable, deprecate its default (#73504)``
+* ``Rename Google Stackdriver operators and hook to Cloud Monitoring (#73354)``
+* ``Allow templating GCS and BigQuery URIs in Vertex AI batch prediction (#70679)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate GCP storage transfer job body after template rendering (#70529)``
+* ``Validate Cloud Function deploy body after template rendering (#70531)``
+* ``Move CloudComposerExternalTaskSensor task-id wrapping out of __init__ (#73103)``
+* ``Normalize BigQuery DTS sensor expected statuses after rendering (#70528)``
+* ``Fix Cloud Monitoring list operators with explicit output formats (#73434)``
+* ``Contain Gemini batch-job results file within results_folder (#71832)``
+* ``Log the HTTP response in HttpToGCSOperator when log_response is set (#72952)``
+* ``Resolve GCSFileTransformOperator destination fallbacks after rendering (#70488)``
+* ``Fix Google IdP credentials failing when project id cannot be resolved (#72799)``
+* ``Escape values interpolated into Google Drive q= queries (#72166)``
+* ``Fix duplicate Dataproc job submission after a triggerer restart (#72685)``
+* ``Make Google deprecation date parsing locale independent (#69405)``
+* ``Contain remote log upload paths within base_log_folder (#72162)``
+* ``Fix StackdriverHook.list_alert_policies raising AttributeError when format_ is json (#73148)``
+* ``Fix Dataflow sensors losing their XCom value when not deferred (#71086)``
+* ``Fix unformatted Google trigger error messages (#72697)``
+* ``Fix GCS operators emitting invalid OpenLineage events with no dataset name (#73246)``
+* ``Fix duplicated logs with memory usage issue in GCS log handler (#72322)``
+* ``Validate Google operator templated parameters after rendering (#70534)``
+* ``Report the missing secret id when Google get_secret raises NotFound (#73035)``
+* ``Keep polling DataFusion pipeline state when the run is not visible yet (#72406)``
+* ``Fix SalesforceToGcsOperator raising AttributeError when unwrap_single is not passed (#71530)``
+* ``Move AzureFileShareToGCSOperator directory_name alias out of __init__ (#70740)``
+* ``Emit GCSToBigQueryOperator deprecation warning after rendering (#70542)``
+* ``Handling 'NotFound' when file has already been deleted from GCS (#72275)``
+
+Misc
+~~~~
+
+* ``Drop duplicate build_raw copy from CloudBuildCreateBuildOperator (#73592)``
+* ``Make the BigQuery hook importable when google libraries are mocked during doc builds (#73615)``
+* ``Demote ADC credential log from info to debug (#73199)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+* ``Document proxy setup for Google provider using PySocks (#71941)``
+* ``Fix docstring mismatch in GenAIGenerativeModelHook (#72356)``
+* ``Fix the rollback transaction in the Datastore examples (#73194)``
+* ``Fix grammar in the Vertex AI hyperparameter tuning job docstrings (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Stabilize Dataproc deferrable batch system test (#72611)``
+   * ``Add unit tests for Google OperationHelper (#72791)``
+
 22.5.0
 ......
 
