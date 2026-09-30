@@ -19,6 +19,7 @@
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -34,6 +35,7 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { NotePreview } from "src/components/NotePreview";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
@@ -50,6 +52,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { formatElapsed } = useDurationFormat();
   const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
   const showTeam = useShowTeam(dagRun.team_name);
+  const navigate = useNavigate();
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -132,6 +135,20 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
               />
             ),
           },
+          ...(Object.keys(dagRun.conf ?? {}).length === 0
+            ? []
+            : [
+                {
+                  label: translate("dagRun.conf"),
+                  value: (
+                    <RenderedJsonField
+                      collapsed
+                      content={dagRun.conf ?? {}}
+                      onExpand={() => void navigate("details")}
+                    />
+                  ),
+                },
+              ]),
           ...(hasDeadlineAlerts
             ? [
                 {
