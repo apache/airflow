@@ -132,10 +132,9 @@ def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) 
 
     :meta private:
     """
-    if timetable.asset_triggered:
-        return DataInterval.exact(timezone.coerce_datetime(logical_date))
-    timetable_type = type(timetable)
-    if issubclass(timetable_type, (NullTimetable, OnceTimetable)):
+    if timetable.asset_triggered or issubclass(
+        timetable_type := type(timetable), (NullTimetable, OnceTimetable)
+    ):
         return DataInterval.exact(timezone.coerce_datetime(logical_date))
     start = timezone.coerce_datetime(logical_date)
     if issubclass(timetable_type, CronDataIntervalTimetable):
