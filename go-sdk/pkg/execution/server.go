@@ -20,8 +20,10 @@
 // the Airflow supervisor (Python ExecutableCoordinator), the Serve method of
 // airflow.BundleRef dispatches here.
 //
-// The first inbound frame on the comm socket is a StartupDetails message
-// that drives multi-round task execution.
+// The first inbound frame on the comm socket selects what the runtime does. A
+// StartupDetails message drives multi-round task execution. A
+// TaskHandlerParseRequest from the Dag processor gets one TaskHandlerParsingResult
+// that declares the task handlers registered for the requested Dags.
 //
 // See go-sdk/adr/0003-coordinator-protocol-msgpack-ipc.md.
 package execution
@@ -58,11 +60,12 @@ const terminalSendTimeout = 30 * time.Second
 // comm and logs sockets, installs an slog handler that writes JSON-line
 // records to the logs connection, and dispatches on the first frame.
 //
-// Serve returns nil on a clean shutdown: the task ran and its terminal
-// TaskState/SucceedTask frame was delivered, and the caller should exit 0. A
-// non-nil error indicates a protocol-level failure (connection loss,
-// malformed frames, unknown first message type) that happens before or
-// instead of delivering a terminal frame.
+// Serve returns nil on a clean shutdown, and the caller should exit 0: either
+// the task ran and its terminal TaskState/SucceedTask frame was delivered, or
+// the task handler parse result was delivered and acknowledged. A non-nil error
+// indicates a protocol-level failure (connection loss, malformed frames,
+// unknown first message type) that happens before or instead of delivering a
+// terminal frame.
 //
 // Failure-signaling contract: the caller (main) must turn a non-nil error
 // into a non-zero process exit. The supervisor derives the task's final state
@@ -73,7 +76,7 @@ const terminalSendTimeout = 30 * time.Second
 // fails closed without needing to send a frame; the post-connect paths below
 // log the reason at Error first so it still reaches the supervisor's log
 // stream over the already-connected logs socket.
-func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
+func Serve(b bundle.Registry, commAddr, logsAddr string) error {
 	if commAddr == "" {
 		return fmt.Errorf("missing --comm=host:port argument")
 	}
@@ -166,6 +169,18 @@ func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
 			return fmt.Errorf("sending task result: %w", err)
 		}
 		logger.Debug("Task execution complete")
+
+	case *genmodels.TaskHandlerParseRequest:
+		logger.Debug("Task handler parse mode", "dag_ids", msg.DagIds)
+		result := declareTaskHandlers(b, msg)
+		sendCtx, cancel := context.WithTimeout(ctx, terminalSendTimeout)
+		defer cancel()
+		// Waiting for the acknowledgement means the parent holds the result before this
+		// process exits and closes the socket under it.
+		if _, err := comm.Communicate(sendCtx, result); err != nil {
+			return fmt.Errorf("sending task handler parse result: %w", err)
+		}
+		logger.Debug("Task handler parse complete")
 
 	default:
 		logger.Error("Unexpected initial message type", "type", fmt.Sprintf("%T", body))
