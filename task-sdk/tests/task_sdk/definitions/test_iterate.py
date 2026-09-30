@@ -177,3 +177,44 @@ class TestIterateInTaskGroup:
         assert sorted(dag.task_dict) == sorted(f"{prefix}{name}" for name in ("c", "f", "g"))
         assert decorated.task_id == decorated._operator.task_id == f"{prefix}f"
         assert classic.task_id == classic._operator.task_id == f"{prefix}c"
+
+
+class TestIterateRejectsOperatorsThatSkipDownstream:
+    """
+    An iteration has no downstream tasks of its own, so a skip-capable operator would skip nothing
+    and let every downstream task run: .iterate() refuses it when the Dag is defined.
+    """
+
+    @staticmethod
+    def _classic(name):
+        from airflow.providers.standard.operators.python import BranchPythonOperator, ShortCircuitOperator
+
+        operator_class = {"short_circuit": ShortCircuitOperator, "branch": BranchPythonOperator}[name]
+        return operator_class.partial(task_id=name).iterate(python_callable=[lambda: True])
+
+    @staticmethod
+    def _decorated(name):
+        from airflow.sdk import task
+
+        def decide(x):
+            return x
+
+        return getattr(task, name)(decide).iterate(x=[1])
+
+    @pytest.mark.parametrize("name", ["short_circuit", "branch"])
+    @pytest.mark.parametrize("build", ["_classic", "_decorated"])
+    def test_skip_capable_operator_is_rejected(self, build, name):
+        with DAG(f"rejects_{build}_{name}"):
+            with pytest.raises(TypeError, match="can skip downstream tasks and cannot be iterated"):
+                getattr(self, build)(name)
+
+    def test_operators_that_cannot_skip_are_accepted(self):
+        from airflow.providers.standard.operators.python import PythonOperator
+        from airflow.sdk import task
+
+        def work(x):
+            return x
+
+        with DAG("accepts"):
+            task(work).iterate(x=[1])
+            PythonOperator.partial(task_id="classic").iterate(python_callable=[lambda: True])

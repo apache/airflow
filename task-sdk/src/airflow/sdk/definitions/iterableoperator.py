@@ -35,6 +35,7 @@ except NameError:
 
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
+from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
 from airflow.sdk.definitions.retry_policy import RetryAction
@@ -86,6 +87,24 @@ FAIL_WITHOUT_RETRY = (AirflowFailException, AirflowSensorTimeout, AirflowTaskTer
 # How strongly a retry policy decision speaks for the task when several items failed: one item the
 # policy says must not be retried fails the task, one it says to retry makes it retry on its terms.
 _DECISION_WEIGHT = {RetryAction.FAIL: 2, RetryAction.RETRY: 1, RetryAction.DEFAULT: 0}
+
+
+def refuse_operators_that_skip_downstream(operator: MappedOperator) -> None:
+    """
+    Refuse to iterate an operator that can skip downstream tasks.
+
+    An iteration has no downstream tasks of its own, so ``ShortCircuitOperator``, the branch
+    operators and any other ``SkipMixin`` would skip nothing and let every downstream task run.
+    Checked on the class: ``MappedOperator._can_skip_downstream`` is only derived from ``SkipMixin``
+    on the classic path, while the ``@task`` path copies a class default that is ``False`` even for
+    ``@task.short_circuit`` and ``@task.branch``.
+    """
+    if issubclass(operator.operator_class, SkipMixin):
+        raise TypeError(
+            f"{operator.operator_name} can skip downstream tasks and cannot be iterated: an iteration "
+            f"of {operator.task_id!r} has no downstream tasks of its own, so it would skip nothing and "
+            "every downstream task would run. Use .expand() for it instead."
+        )
 
 
 def _unprefixed_task_id(operator: MappedOperator) -> str:
@@ -311,12 +330,14 @@ class IterableOperator(BaseOperator):
         IterableOperator immediately with a clear error rather than being silently mishandled.
 
         Triggering DAG runs (:class:`~airflow.sdk.exceptions.DagRunTriggerException`, raised by
-        ``TriggerDagRunOperator``) and skipping downstream tasks
-        (:class:`~airflow.sdk.exceptions.DownstreamTasksSkipped`, raised e.g. by
-        ``ShortCircuitOperator``) are not supported either: a sub-task index has no DAG run or
-        downstream tasks of its own for the trigger/skip to apply to. Either exception raised by a
-        sub-task fails the whole IterableOperator immediately with a clear error rather than silently
-        doing nothing.
+        ``TriggerDagRunOperator``) and skipping downstream tasks are not supported either: a sub-task
+        index has no DAG run or downstream tasks of its own for the trigger/skip to apply to.
+        Operators that can skip downstream tasks (``ShortCircuitOperator``, the branch operators,
+        ``@task.short_circuit``, ``@task.branch`` and any other ``SkipMixin``) are rejected by
+        ``.iterate()`` itself, since inside an iteration they would find nothing to skip and let
+        every downstream task run. A trigger, or a
+        :class:`~airflow.sdk.exceptions.DownstreamTasksSkipped` raised anyway, fails the whole
+        IterableOperator immediately with a clear error rather than silently doing nothing.
 
         Sub-task outcomes are classified before being aggregated: if any sub-task raises
         :class:`~airflow.sdk.exceptions.AirflowFailException`, that exception is re-raised directly so
@@ -400,6 +421,7 @@ class IterableOperator(BaseOperator):
     ):
         if operator.get_closest_mapped_task_group() is not None:
             raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
+        refuse_operators_that_skip_downstream(operator)
 
         super().__init__(
             **{
