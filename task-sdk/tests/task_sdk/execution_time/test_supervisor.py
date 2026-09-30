@@ -173,6 +173,7 @@ from airflow.sdk.execution_time.supervisor import (
     WatchedSubprocess,
     _make_process_nondumpable,
     _remote_logging_conn,
+    _reopen_std_io_handles,
     forward_to_log,
     in_process_api_server,
     make_buffered_socket_reader,
@@ -5315,6 +5316,25 @@ def test_cleanup_sockets_after_kill_drains_logs_but_not_requests(mocker):
         request_write.close()
         stdout_write.close()
         log_write.close()
+
+
+def test_a_nested_child_keeps_its_standard_streams():
+    """A child of a supervised child reopens handles its parent already reopened, and keeps them open."""
+    pid = os.fork()
+    if pid == 0:
+        code = 1
+        try:
+            for _ in ("supervised child", "its child"):
+                pairs = [socket.socketpair() for _ in range(3)]
+                _reopen_std_io_handles(*(child_end for child_end, _ in pairs))
+            for fd in (0, 1, 2):
+                os.fstat(fd)
+            code = 0
+        finally:
+            os._exit(code)
+    _, status = os.waitpid(pid, 0)
+
+    assert os.waitstatus_to_exitcode(status) == 0
 
 
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
