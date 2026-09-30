@@ -23,6 +23,7 @@ from airflow.providers.common.ai.toolsets.managed_agent import (
     BaseManagedAgentToolset,
     FailoverManagedAgentToolset,
 )
+from airflow.providers.common.ai.toolsets.object_storage import ObjectStorageToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "FailoverManagedAgentToolset",
     "HookToolset",
     "MCPToolset",
+    "ObjectStorageToolset",
     "SQLToolset",
     "SandboxToolset",
     "airflow_toolset_to_langchain_tools",
