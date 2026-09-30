@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 import attrs
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
@@ -71,7 +71,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.models.lang_sdk_task_handler import LangSDKTaskHandlerArtifact
+from airflow.models.lang_sdk_task_handler import LangSDKTaskHandler, LangSDKTaskHandlerArtifact
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager  # noqa: SDK001
@@ -171,6 +171,14 @@ class _TaskHandlerBundles(NamedTuple):
     """Whether a coordinator without ``task_handler_bundle_name`` reads the task's own Dag bundle."""
 
 
+_TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE = 1000
+
+# A probed artifact that serves no stub task can have a row too, so that parses do not probe it again,
+# and such a row is unreferenced from the start. An unreferenced row is therefore kept for this many
+# sweep intervals after its last probe, long enough for the Dag files parsed next to reuse it.
+_TASK_HANDLER_ARTIFACT_SWEEP_GRACE_INTERVALS = 5
+
+
 def _config_int_factory(section: str, key: str):
     return functools.partial(conf.getint, section, key)
 
@@ -261,6 +269,7 @@ class DagFileProcessorManager(LoggingMixin):
     )
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
+    _last_task_handler_artifact_sweep_time: float = attrs.field(default=0, init=False)
     _last_stale_bundle_cleanup_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "print_stats_interval")
@@ -451,6 +460,61 @@ class DagFileProcessorManager(LoggingMixin):
             self.deactivate_stale_dags(last_parsed=last_parsed)
             self._last_deactivate_stale_dags_time = time.monotonic()
 
+    def _sweep_task_handler_artifacts(self) -> None:
+        now = time.monotonic()
+        if now - self._last_task_handler_artifact_sweep_time <= self.parsing_cleanup_interval:
+            return
+        try:
+            self.delete_unreferenced_task_handler_artifacts()
+        except Exception:
+            self.log.exception("Error deleting unreferenced task handler artifacts")
+        finally:
+            self._last_task_handler_artifact_sweep_time = now
+
+    def delete_unreferenced_task_handler_artifacts(self) -> int:
+        """
+        Delete the task handler artifact rows that no stub task references and no recent parse probed.
+
+        Deletes in batches, each committed on its own, and returns how many rows it deleted. Default
+        implementation writes to the metadata DB; override to do it through an API.
+        """
+        cutoff = timezone.utcnow() - timedelta(
+            seconds=self.parsing_cleanup_interval * _TASK_HANDLER_ARTIFACT_SWEEP_GRACE_INTERVALS
+        )
+        sweepable = (
+            LangSDKTaskHandlerArtifact.last_probed_at < cutoff,
+            ~exists().where(LangSDKTaskHandler.artifact_id == LangSDKTaskHandlerArtifact.id),
+        )
+        deleted = 0
+        while True:
+            with create_session() as session:
+                # SKIP LOCKED passes over the artifacts a concurrent parse holds while it binds them.
+                ids = session.scalars(
+                    with_row_locks(
+                        select(LangSDKTaskHandlerArtifact.id)
+                        .where(*sweepable)
+                        .order_by(LangSDKTaskHandlerArtifact.last_probed_at)
+                        .limit(_TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE),
+                        session,
+                        of=LangSDKTaskHandlerArtifact,
+                        skip_locked=True,
+                        key_share=False,
+                    )
+                ).all()
+                if ids:
+                    # Checked again for handler rows a parse committed since the select.
+                    result = session.execute(
+                        delete(LangSDKTaskHandlerArtifact)
+                        .where(LangSDKTaskHandlerArtifact.id.in_(ids), *sweepable)
+                        .execution_options(synchronize_session=False)
+                    )
+                    deleted += getattr(result, "rowcount", 0)
+            if len(ids) < _TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE:
+                break
+        if deleted:
+            self.log.info("Deleted %i unreferenced task handler artifacts.", deleted)
+        return deleted
+
     def _cleanup_stale_bundle_versions(self):
         if self.stale_bundle_cleanup_interval <= 0:
             return
@@ -604,6 +668,7 @@ class DagFileProcessorManager(LoggingMixin):
             for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
+            self._sweep_task_handler_artifacts()
             self._cleanup_stale_bundle_versions()
             self.purge_inactive_dag_warnings()
 

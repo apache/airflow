@@ -49,7 +49,11 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+from airflow.dag_processing.collection import (
+    _find_task_handler_artifacts,
+    record_probed_task_handler_artifacts,
+    update_dag_parsing_results_in_db,
+)
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
     BundleState,
@@ -72,7 +76,11 @@ from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
-from airflow.models.lang_sdk_task_handler import LangSDKTaskHandlerArtifact
+from airflow.models.lang_sdk_task_handler import (
+    LangSDKTaskHandler,
+    LangSDKTaskHandlerArtifact,
+    compute_fileloc_hash,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -4626,6 +4634,177 @@ class TestTaskHandlerBindings:
             reset_coordinator_manager()
             with create_session() as session:
                 session.execute(delete(LangSDKTaskHandlerArtifact))
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("testing_dag_bundle")
+class TestTaskHandlerArtifactSweep:
+    @pytest.fixture(autouse=True)
+    def _clear_task_handler_rows(self):
+        yield
+        with create_session() as session:
+            session.execute(delete(LangSDKTaskHandler))
+            session.execute(delete(LangSDKTaskHandlerArtifact))
+        clear_db_serialized_dags()
+        clear_db_dags()
+
+    @staticmethod
+    def _add_artifacts(*paths: str, probed_at: datetime, referenced: tuple[str, ...] = ()) -> None:
+        """Commit one artifact per path, and a handler row for each path in *referenced*."""
+        with create_session() as session:
+            artifacts = {
+                path: LangSDKTaskHandlerArtifact(
+                    bundle_name=JAVA_TASK_HANDLERS,
+                    relative_fileloc=path,
+                    size_bytes=1024,
+                    cache_digest="ab12",
+                    task_handlers={},
+                    last_probed_at=probed_at,
+                )
+                for path in paths
+            }
+            session.add_all(artifacts.values())
+            if referenced:
+                session.add(DagModel(dag_id="etl", bundle_name="testing"))
+                session.flush()
+                session.add_all(
+                    LangSDKTaskHandler(
+                        dag_id="etl",
+                        task_id=path,
+                        artifact_id=artifacts[path].id,
+                        dag_bundle_name="testing",
+                        dag_relative_fileloc="etl.py",
+                    )
+                    for path in referenced
+                )
+
+    @staticmethod
+    def _get_artifact_paths() -> set[str]:
+        with create_session() as session:
+            return set(session.scalars(select(LangSDKTaskHandlerArtifact.relative_fileloc)))
+
+    @staticmethod
+    def _sweep() -> int:
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.parsing_cleanup_interval = 60
+        return manager.delete_unreferenced_task_handler_artifacts()
+
+    @mock.patch.object(DagFileProcessorManager, "delete_unreferenced_task_handler_artifacts", autospec=True)
+    def test_task_handler_artifact_sweep_runs_once_per_cleanup_interval(self, delete_unreferenced):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.parsing_cleanup_interval = 10
+        manager._last_task_handler_artifact_sweep_time = time.monotonic() - 20
+
+        manager._sweep_task_handler_artifacts()
+        manager._sweep_task_handler_artifacts()
+
+        delete_unreferenced.assert_called_once_with(manager)
+
+    @mock.patch.object(DagFileProcessorManager, "delete_unreferenced_task_handler_artifacts", autospec=True)
+    def test_task_handler_artifact_sweep_logs_errors(self, delete_unreferenced, caplog):
+        delete_unreferenced.side_effect = OperationalError("DELETE", {}, Exception("locked"))
+        manager = DagFileProcessorManager(max_runs=1)
+
+        manager._sweep_task_handler_artifacts()
+
+        assert {"event": "Error deleting unreferenced task handler artifacts", "log_level": "error"} in caplog
+        assert manager._last_task_handler_artifact_sweep_time > 0
+
+    @mock.patch("airflow.dag_processing.manager._TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE", 2)
+    def test_delete_unreferenced_task_handler_artifacts_commits_each_batch(self, session):
+        self._add_artifacts(
+            "a.jar",
+            "b.jar",
+            "c.jar",
+            "d.jar",
+            "e.jar",
+            "used.jar",
+            probed_at=timezone.utcnow() - timedelta(days=1),
+            referenced=("used.jar",),
+        )
+        events: list[str] = []
+
+        def on_execute(conn, cursor, statement, parameters, context, executemany):
+            if statement.lstrip().upper().startswith("DELETE FROM LANG_SDK_TASK_HANDLER_ARTIFACT"):
+                events.append("DELETE")
+
+        def on_commit(conn):
+            events.append("COMMIT")
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", on_execute)
+        event.listen(bind, "commit", on_commit)
+        try:
+            deleted = self._sweep()
+        finally:
+            event.remove(bind, "before_cursor_execute", on_execute)
+            event.remove(bind, "commit", on_commit)
+
+        assert deleted == 5
+        assert events == ["DELETE", "COMMIT"] * 3
+        assert self._get_artifact_paths() == {"used.jar"}
+
+    @pytest.mark.parametrize(
+        ("age", "referenced", "expected"),
+        [
+            pytest.param(timedelta(seconds=301), (), set(), id="unreferenced-past-grace"),
+            pytest.param(timedelta(seconds=299), (), {"etl.jar"}, id="unreferenced-within-grace"),
+            pytest.param(timedelta(days=30), ("etl.jar",), {"etl.jar"}, id="referenced"),
+        ],
+    )
+    @time_machine.travel(datetime(2026, 9, 30, 12, tzinfo=timezone.utc), tick=False)
+    def test_task_handler_artifact_sweep_grace_period(self, age, referenced, expected):
+        self._add_artifacts("etl.jar", probed_at=timezone.utcnow() - age, referenced=referenced)
+
+        self._sweep()
+
+        assert self._get_artifact_paths() == expected
+
+    def test_task_handler_artifact_of_a_deleted_dag_is_swept(self, time_machine):
+        time_machine.move_to(datetime(2026, 9, 30, 12, tzinfo=timezone.utc), tick=False)
+        with create_session() as session:
+            record_probed_task_handler_artifacts(
+                [_known_artifact(JAVA_TASK_HANDLERS)], bundle_names={JAVA_TASK_HANDLERS}, session=session
+            )
+            update_dag_parsing_results_in_db(
+                "testing",
+                None,
+                [LazyDeserializedDAG.from_dag(SdkDAG(dag_id="etl"))],
+                {},
+                None,
+                set(),
+                session,
+                relative_fileloc="etl.py",
+                task_handler_bindings=[
+                    TaskHandlerBinding(
+                        dag_id="etl",
+                        task_id="extract",
+                        artifact_bundle_name=JAVA_TASK_HANDLERS,
+                        artifact_rel_path=f"{JAVA_TASK_HANDLERS}.jar",
+                    )
+                ],
+                task_handler_artifact_bundles={JAVA_TASK_HANDLERS},
+            )
+        with create_session() as session:
+            session.execute(delete(DagModel).where(DagModel.dag_id == "etl"))
+        time_machine.shift(timedelta(hours=1))
+
+        self._sweep()
+
+        assert self._get_artifact_paths() == set()
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_task_handler_artifact_sweep_skips_rows_a_parse_holds(self):
+        self._add_artifacts("held.jar", "free.jar", probed_at=timezone.utcnow() - timedelta(days=1))
+
+        with create_session() as parse:
+            _find_task_handler_artifacts(
+                [(JAVA_TASK_HANDLERS, compute_fileloc_hash("held.jar"))], session=parse
+            )
+            self._sweep()
+            parse.rollback()
+
+        assert self._get_artifact_paths() == {"held.jar"}
 
 
 class TestMultiTeamMetrics:
