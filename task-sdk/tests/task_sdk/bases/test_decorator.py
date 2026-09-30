@@ -498,3 +498,16 @@ def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation():
         xcom_arg = to_dict.iterate(x=[1, 2, 3])
 
         assert xcom_arg.operator.multiple_outputs is False
+
+
+def test_task_protocol_declares_every_method_of_a_decorated_callable():
+    """
+    ``@task`` is typed as returning ``Task``, so a public method ``_TaskDecorator`` has and ``Task``
+    does not declare, such as ``.iterate()``, is an attribute error under a type checker.
+    """
+    from airflow.sdk.bases.decorator import Task, _TaskDecorator
+
+    def public_methods(cls):
+        return {name for name, value in vars(cls).items() if not name.startswith("_") and callable(value)}
+
+    assert public_methods(_TaskDecorator) <= public_methods(Task)

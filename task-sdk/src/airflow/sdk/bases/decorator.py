@@ -864,8 +864,8 @@ class Task(Protocol, Generic[FParams, FReturn]):
 
     An instance of this type inherits the call signature of the decorated
     function wrapped in it (not *exactly* since it actually returns an XComArg,
-    but there's no way to express that right now), and provides two additional
-    methods for task-mapping.
+    but there's no way to express that right now), and provides the methods for
+    task-mapping and task iteration.
 
     This type is implemented by ``_TaskDecorator`` at runtime.
     """
@@ -882,6 +882,10 @@ class Task(Protocol, Generic[FParams, FReturn]):
     def expand(self, **kwargs: OperatorExpandArgument) -> XComArg: ...
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg: ...
+
+    def iterate(self, **kwargs: OperatorExpandArgument) -> XComArg: ...
+
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg: ...
 
     def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
