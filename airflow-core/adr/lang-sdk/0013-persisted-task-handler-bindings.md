@@ -175,6 +175,7 @@ CREATE TABLE lang_sdk_task_handler (
     dag_bundle_name            VARCHAR(250)  NOT NULL,   -- the *Python* file that owns this row
     dag_relative_fileloc       VARCHAR(2000) NOT NULL,   -- ditto
     dag_relative_fileloc_hash  VARCHAR(32)   NOT NULL,   -- md5 of dag_relative_fileloc
+    handler_binding            VARCHAR(20)   NOT NULL,   -- positional | named | named_or_whole
     handler_params             JSON          NOT NULL,   -- list[TaskHandlerParam], ordered
     CONSTRAINT lang_sdk_task_handler_pkey PRIMARY KEY (dag_id, task_id),
     CONSTRAINT lang_sdk_task_handler_dag_id_fkey FOREIGN KEY (dag_id)
