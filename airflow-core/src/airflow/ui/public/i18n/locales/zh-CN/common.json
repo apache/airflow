@@ -40,6 +40,8 @@
   "createdAssetEvent_other": "已创建资源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活跃执行数",
     "catchup": "自动回填",
@@ -166,6 +168,11 @@
   "generateToken": "生成令牌",
   "includedIn": "包含于",
   "key": "键",
+  "logLevel": {
+    "hide": "隐藏日志级别",
+    "hotkey": "l",
+    "show": "显示日志级别"
+  },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
@@ -264,6 +271,10 @@
   "selected": "已选择",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "清除任务实例时默认保留任务状态记录，而不是将其丢弃。",
+        "label": "清除时保留任务状态"
+      },
       "preventRunningTask": {
         "helper": "清除任务实例时跳过正在执行的任务。",
         "label": "防止清除正在执行的任务"
@@ -295,11 +306,11 @@
         "helper": "未单独设置布局方向的 Dag 和资源图表所使用的方向。",
         "label": "默认图表方向"
       },
-      "title": "图表",
       "taskGroupsExpanded": {
         "helper": "在您尚未保存分组选择的 Dag 中展开任务分组，已有选择保持不变。",
         "label": "默认展开任务分组"
-      }
+      },
+      "title": "图表"
     },
     "marking": {
       "taskSelection": {
@@ -350,11 +361,11 @@
       "toggleExpand": "展开或收起所有分组",
       "toggleFullscreen": "切换全屏",
       "toggleGraphGrid": "切换图形与网格视图",
+      "toggleLogLevel": "切换日志级别显示",
       "toggleSource": "切换来源显示",
       "toggleTaskGroup": "展开或收起$t(taskGroup_one)",
       "toggleTimestamp": "切换时间戳显示",
-      "toggleWrap": "切换$t(wrap.wrap)",
-      "toggleLogLevel": "切换日志级别显示"
+      "toggleWrap": "切换$t(wrap.wrap)"
     },
     "empty": "此页面没有可用的键盘快捷键。",
     "title": "键盘快捷键"
@@ -447,6 +458,11 @@
     "queuedWhen": "开始排队时间",
     "renderedMapIndex": "已渲染映射索引",
     "scheduledWhen": "开始调度时间",
+    "stateReason": "状态原因",
+    "stateReasonSummary": {
+      "failed": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后停止",
+      "upForRetry": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后重试"
+    },
     "trigger": "触发器",
     "triggerer": {
       "assigned": "指派的触发器",
@@ -457,12 +473,7 @@
       "latestHeartbeat": "最新触发器心跳时间",
       "title": "触发器信息"
     },
-    "unixname": "Unix 名称",
-    "stateReason": "状态原因",
-    "stateReasonSummary": {
-      "failed": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后停止",
-      "upForRetry": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后重试"
-    }
+    "unixname": "Unix 名称"
   },
   "taskInstance_one": "任务实例",
   "taskInstance_other": "任务实例",
@@ -568,12 +579,5 @@
     "tooltip": "按 {{hotkey}} 切换换行",
     "unwrap": "不换行",
     "wrap": "换行"
-  },
-  "dagBundle_one": "Dag 套件包",
-  "dagBundle_other": "Dag 套件包",
-  "logLevel": {
-    "hide": "隐藏日志级别",
-    "hotkey": "l",
-    "show": "显示日志级别"
   }
 }
