@@ -504,6 +504,30 @@ class TestBeamRunJavaPipelineOperator:
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner_pipeline_options_override_max_num_workers(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock, pipeline_options
+    ):
+        """Explicit pipeline_options maxNumWorkers overrides dataflow_config.max_num_workers."""
+        dataflow_config = DataflowConfiguration(max_num_workers=7)
+        op_kwargs = copy.deepcopy(self.default_op_kwargs)
+        op_kwargs["pipeline_options"] = {
+            **pipeline_options,
+            "maxNumWorkers": 3,
+        }
+        op = BeamRunJavaPipelineOperator(
+            **op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
+        )
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+
+        op.execute({})
+
+        variables = beam_hook_mock.return_value.start_java_pipeline.call_args.kwargs["variables"]
+        assert variables["maxNumWorkers"] == 3
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner__no_dataflow_job_name(
         self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock
     ):
