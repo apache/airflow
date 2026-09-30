@@ -23,6 +23,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.SourceSetContainer
@@ -98,6 +99,10 @@ abstract class AirflowBundleExtension {
  * directory instead. In this mode, `Airflow-Supervisor-Schema-Version` lives in
  * the `airflow-sdk` JAR instead. The bundle JAR still contains `Main-Class`.
  *
+ * In both modes the bundle JAR also carries `Airflow-Cache-Digest`, a SHA-256
+ * over the bundle's classes, resources, and runtime dependencies. It stays the
+ * same when a rebuild changes none of them, so Airflow can tell that a JAR it
+ * has already inspected is unchanged.
  */
 class AirflowSdkPlugin : Plugin<Project> {
   override fun apply(project: Project) {
@@ -115,15 +120,25 @@ class AirflowSdkPlugin : Plugin<Project> {
         }
       }
 
-      val classFiles =
-        project.objects.fileCollection().from(
-          project.extensions
-            .getByType(SourceSetContainer::class.java)
-            .getByName("main")
-            .output
-            .classesDirs,
-          project.configurations.getByName("runtimeClasspath"),
-        )
+      val mainOutput =
+        project.extensions
+          .getByType(SourceSetContainer::class.java)
+          .getByName("main")
+          .output
+      val runtimeClasspath = project.configurations.getByName("runtimeClasspath")
+      val classFiles = project.objects.fileCollection().from(mainOutput.classesDirs, runtimeClasspath)
+
+      fun stampCacheDigest(task: Jar) {
+        // Plain file collections and values only, which the configuration cache can store.
+        val outputFiles = project.objects.fileCollection().from(mainOutput)
+        val classpathFiles = project.objects.fileCollection().from(runtimeClasspath)
+        val mainClass = ext.mainClass
+        val fatJar = ext.fatJar.get()
+        task.doFirst {
+          val digest = BundleDigest.compute(mainClass.orNull, fatJar, outputFiles, classpathFiles)
+          task.manifest.attributes(mapOf(BundleDigest.ATTRIBUTE to digest))
+        }
+      }
 
       val verifyTask =
         project.tasks.register("verifyBundleMainClass") { task ->
@@ -195,6 +210,7 @@ class AirflowSdkPlugin : Plugin<Project> {
               mapOf("Airflow-Supervisor-Schema-Version" to schemaVersionProvider.get()),
             )
           }
+          stampCacheDigest(task)
         }
 
         project.tasks.register("bundle", Copy::class.java) { task ->
@@ -205,6 +221,15 @@ class AirflowSdkPlugin : Plugin<Project> {
           task.into(project.layout.buildDirectory.dir("bundle"))
         }
       } else {
+        project.tasks.named("jar", Jar::class.java).configure { task ->
+          // The digest covers the dependencies copied next to the thin JAR, so
+          // a dependency change has to rebuild it.
+          task.inputs
+            .files(runtimeClasspath)
+            .withPropertyName("airflowCacheDigestClasspath")
+            .withNormalizer(ClasspathNormalizer::class.java)
+          stampCacheDigest(task)
+        }
         // bundle copies the thin JAR and all runtime dependency JARs into
         // build/bundle/, mirroring what installDist puts in lib/.
         project.tasks.register("bundle", Copy::class.java) { task ->
