@@ -125,11 +125,13 @@ def test_upsert_hitl_detail(
         session.commit()
 
     request_kwargs = {
-        **default_hitl_detail_request_kwargs,
         "subject": "Regenerated subject",
         "body": "regenerated body",
-        "defaults": ["Reject"],
+        "options": ["Retry", "Skip"],
+        "defaults": ["Skip"],
+        "multiple": True,
         "params": {"input_1": 3},
+        "assigned_users": [{"id": "2", "name": "reviewer"}],
     }
     response = client.post(
         f"/execution/hitlDetails/{ti.id}",
@@ -143,7 +145,6 @@ def test_upsert_hitl_detail(
         "ti_id": str(ti.id),
         **request_kwargs,
     }
-    expected_json["assigned_users"] = expected_json.pop("assignees") or []
 
     assert response.status_code == 201
     assert response.json() == expected_json
@@ -152,8 +153,11 @@ def test_upsert_hitl_detail(
     hitl_detail = session.scalars(select(HITLDetail).where(HITLDetail.ti_id == ti.id)).one()
     assert hitl_detail.subject == "Regenerated subject"
     assert hitl_detail.body == "regenerated body"
-    assert hitl_detail.defaults == ["Reject"]
+    assert hitl_detail.options == ["Retry", "Skip"]
+    assert hitl_detail.defaults == ["Skip"]
+    assert hitl_detail.multiple is True
     assert hitl_detail.params == {"input_1": 3}
+    assert hitl_detail.assignees == [{"id": "2", "name": "reviewer"}]
     assert hitl_detail.created_at == convert_to_utc(datetime(2025, 7, 4, 0, 0, 0))
     assert hitl_detail.response_received is False
 

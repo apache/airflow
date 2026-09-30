@@ -171,15 +171,15 @@ def update_hitl_detail(
     # Execution API park transition, so a human response racing the worker's park cannot deadlock.
     # Locking the TI also serializes respond-vs-clear (the clear path locks the TI, not the HITL row).
     locked_ti = (
-        session.get(TI, task_instance.id, with_for_update={"of": TI})
+        session.get(TI, task_instance.id, with_for_update={"of": TI}, populate_existing=True)
         if isinstance(task_instance, TI)
         else None
     )
     # Lock the hitl_detail row (FOR UPDATE OF hitl_detail). of= scopes the lock to hitl_detail, which
     # eager-joins task_instance (lazy="joined"); a bare with_for_update() would emit FOR UPDATE against
     # the nullable side of that outer join, which Postgres rejects. populate_existing re-reads the
-    # joinedloaded row under the lock, so assignees and options are validated against the state committed
-    # by a concurrent clear that held the lock, not the snapshot taken before locking.
+    # joinedloaded row under the lock, so assignees and options are validated against the request committed
+    # by a concurrent upsert from the re-run, not the snapshot taken before locking.
     hitl_detail_model = session.scalars(
         select(HITLDetailModel)
         .where(HITLDetailModel.ti_id == task_instance.id)
