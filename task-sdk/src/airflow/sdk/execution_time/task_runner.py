@@ -60,6 +60,7 @@ from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
+from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
@@ -150,6 +151,7 @@ from airflow.sdk.execution_time.email_backend import (
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.tracing import detail_span
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.importers import get_importer_registry
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.serde import allow_class, iter_pydantic_models
@@ -1018,6 +1020,16 @@ def _register_deserialization_allowed_classes(dag, log: Logger) -> None:
                     )
 
 
+def _is_lang_sdk_dag_file(path: str, bundle_name: str) -> bool:
+    """Return whether a coordinator's Dag importer claims *path*, so that a Lang-SDK runtime parses it."""
+    try:
+        importer = get_importer_registry(bundle_name).get_importer(path)
+    except Exception:
+        # Building the Dag bag reports a broken importer configuration.
+        return False
+    return isinstance(importer, CoordinatorDagImporter)
+
+
 @detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
@@ -1030,6 +1042,17 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
+    if _is_lang_sdk_dag_file(dag_absolute_path, bundle_info.name):
+        log.error(
+            "A task of a native Lang-SDK Dag cannot run in Python. Route its queue to the coordinator "
+            "that parses the Dag, with [sdk] queue_to_coordinator",
+            dag_id=what.ti.dag_id,
+            task_id=what.ti.task_id,
+            queue=what.ti.queue,
+            path=what.dag_rel_path,
+        )
+        sys.exit(1)
+
     dag_file_parse_start = time.monotonic()
     bag = BundleDagBag(
         dag_folder=dag_absolute_path,
