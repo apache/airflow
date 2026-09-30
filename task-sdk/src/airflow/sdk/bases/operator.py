@@ -705,8 +705,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         retry_exponential_backoff=5, retries occur after 4min, 20min, 100min, etc.
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
-    :param start_date: The ``start_date`` for the task. It is also very important
-        to note that different tasks' dependencies
+    :param start_date: The ``start_date`` for the task. The best practice
+        is to have the ``start_date`` aligned with your Dag's ``schedule``.
+        It is also very important to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
         start_date are offset in a way that their logical_date don't line
         up, A's dependencies will never be met. If you are looking to delay
