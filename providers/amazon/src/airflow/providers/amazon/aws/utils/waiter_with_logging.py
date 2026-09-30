@@ -95,6 +95,8 @@ def wait(
     first_attempt = True
     attempt = 0
     all_attempts_no_credentials = True
+    last_no_credentials_error: NoCredentialsError | None = None
+
     while attempt < waiter_max_attempts:
         if not first_attempt:
             time.sleep(waiter_delay)
@@ -103,6 +105,7 @@ def wait(
             waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
 
         except NoCredentialsError as error:
+            last_no_credentials_error = error
             log.info(str(error))
 
         except WaiterError as error:
@@ -141,7 +144,9 @@ def wait(
         attempt += 1
     else:
         if all_attempts_no_credentials:
-            raise WaiterNoCredentialsError("Waiter error: max attempts reached due to missing credentials")
+            raise WaiterNoCredentialsError(
+                f"Waiter error: max attempts reached due to missing credentials: {last_no_credentials_error}"
+            )
         raise WaiterMaxAttemptsError("Waiter error: max attempts reached")
 
 
@@ -182,6 +187,7 @@ async def async_wait(
     first_attempt = True
     attempt = 0
     all_attempts_no_credentials = True
+    last_no_credentials_error: NoCredentialsError | None = None
 
     while attempt < waiter_max_attempts:
         if not first_attempt:
@@ -191,6 +197,7 @@ async def async_wait(
             await waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
 
         except NoCredentialsError as error:
+            last_no_credentials_error = error
             log.info(str(error))
 
         except WaiterError as error:
@@ -228,7 +235,9 @@ async def async_wait(
         attempt += 1
     else:
         if all_attempts_no_credentials:
-            raise WaiterNoCredentialsError("Waiter error: max attempts reached due to missing credentials")
+            raise WaiterNoCredentialsError(
+                f"Waiter error: max attempts reached due to missing credentials: {last_no_credentials_error}"
+            )
         raise WaiterMaxAttemptsError("Waiter error: max attempts reached")
 
 

@@ -194,7 +194,8 @@ class TestWaiter:
     @mock.patch("time.sleep")
     def test_wait_all_attempts_no_credentials(self, mock_sleep):
         mock_waiter = mock.MagicMock()
-        mock_waiter.wait.side_effect = NoCredentialsError()
+        error = NoCredentialsError()
+        mock_waiter.wait.side_effect = error
 
         with pytest.raises(WaiterNoCredentialsError) as exc:
             wait(
@@ -208,13 +209,15 @@ class TestWaiter:
             )
 
         assert "Waiter error: max attempts reached due to missing credentials" in str(exc.value)
+        assert str(error) in str(exc.value)
         assert mock_waiter.wait.call_count == 2
         mock_sleep.assert_called_once_with(123)
 
     @pytest.mark.asyncio
     async def test_async_wait_all_attempts_no_credentials(self):
         mock_waiter = mock.MagicMock()
-        mock_waiter.wait = AsyncMock(side_effect=NoCredentialsError())
+        error = NoCredentialsError()
+        mock_waiter.wait = AsyncMock(side_effect=error)
 
         with pytest.raises(WaiterNoCredentialsError) as exc:
             await async_wait(
@@ -228,6 +231,7 @@ class TestWaiter:
             )
 
         assert "Waiter error: max attempts reached due to missing credentials" in str(exc.value)
+        assert str(error) in str(exc.value)
         assert mock_waiter.wait.call_count == 2
 
     @mock.patch("time.sleep")
@@ -253,6 +257,7 @@ class TestWaiter:
 
         assert "Waiter error: max attempts reached" in str(exc.value)
         assert mock_waiter.wait.call_count == 2
+        assert type(exc.value) is WaiterMaxAttemptsError
         mock_sleep.assert_called_once_with(123)
 
     @pytest.mark.asyncio
@@ -277,6 +282,7 @@ class TestWaiter:
             )
 
         assert "Waiter error: max attempts reached" in str(exc.value)
+        assert type(exc.value) is WaiterMaxAttemptsError
         assert mock_waiter.wait.call_count == 2
 
     @mock.patch("time.sleep")
