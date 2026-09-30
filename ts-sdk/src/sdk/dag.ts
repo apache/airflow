@@ -30,6 +30,7 @@ import {
 } from "../generated/dag-schema-fields.js";
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
+import { getCurrentModuleSource } from "./module-source.js";
 import type { TaskFunction } from "./task.js";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -315,6 +316,7 @@ export type RecordedInputs = Readonly<Record<string, TaskRef | JsonValue>>;
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 let inputsOf: (dag: Dag) => ReadonlyMap<string, RecordedInputs>;
 let orderEdgesOf: (dag: Dag) => readonly OrderEdge[];
+let definedInOf: (dag: Dag) => string | undefined;
 let finalizeOf: (dag: Dag) => void;
 
 /** Internal: whether `value` is a Dag built by any copy of this package. */
@@ -351,12 +353,14 @@ export class Dag {
   // Keyed by the two task ids, so declaring an edge twice records it once, and
   // insertion-ordered so the serialized Dag reads as written.
   readonly #orderEdges = new Map<string, OrderEdge>();
+  readonly #definedIn: string | undefined;
   #finalized = false;
 
   static {
     taskRecordsOf = (dag) => dag.#tasks;
     inputsOf = (dag) => dag.#inputs;
     orderEdgesOf = (dag) => [...dag.#orderEdges.values()];
+    definedInOf = (dag) => dag.#definedIn;
     finalizeOf = (dag) => dag.#finalize();
   }
 
@@ -365,6 +369,11 @@ export class Dag {
     brand(this, "Dag");
     this.dagId = dagId;
     this.spec = freezeSpec(spec, () => `The spec for Dag "${dagId}"`);
+    // `airflow-ts-pack` tags each author-owned source file with its own path
+    // right before its non-import statements run, so this is the file the
+    // author wrote `new Dag(...)` in — even though esbuild has since inlined
+    // every module into one bundle.
+    this.#definedIn = getCurrentModuleSource();
   }
 
   /** Task IDs attached to this Dag, in attachment order. */
@@ -716,6 +725,14 @@ export function getDagOrderEdges(dag: Dag): readonly OrderEdge[] {
  *  A task that has not been called is absent. */
 export function getDagTaskInputs(dag: Dag): ReadonlyMap<string, RecordedInputs> {
   return inputsOf(dag);
+}
+
+/** Internal: the source file the Dag was constructed from, captured from
+ *  `airflow-ts-pack`'s module-source tag. `undefined` when the constructor
+ *  ran outside a packed bundle (e.g. a unit test that instantiates `Dag`
+ *  directly), which the manifest omits rather than records as an empty path. */
+export function getDagDefinedIn(dag: Dag): string | undefined {
+  return definedInOf(dag);
 }
 
 /**
