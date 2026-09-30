@@ -20,42 +20,48 @@ Framework-neutral tools backed by Airflow connections.
 An :class:`AirflowTool` is one operation an agent can call: a name, a
 description, a JSON Schema for its arguments, and an async function. Nothing in
 it belongs to a particular agent framework, so the same tool can be handed to
-Strands Agents or any other framework through a small adapter such as
-:func:`~airflow.providers.common.ai.tools.strands.as_strands_tools`, while the
-agent itself stays native to that framework.
+Strands Agents, Google ADK or LangChain through a small adapter, while the agent
+itself stays native to that framework.
 
-Toolsets that implement :class:`ToolProvider`, such as
+The toolsets this provider ships, such as
 :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` and
-:class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`, expose their
-tools through :meth:`ToolProvider.airflow_tools`.
+:class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`, implement
+:class:`ToolProvider` and expose their tools through
+:meth:`ToolProvider.airflow_tools`.
 
-.. warning::
+.. note::
 
-    This interface is experimental. It may change in a minor release of this
-    provider until it has been proven against more than one agent framework.
+    Experimental: this interface can change or be removed in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol
 
-from airflow.providers.common.compat.sdk import redact
+from airflow.providers.common.ai.utils.masking import mask_secrets
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
 
 log = logging.getLogger(__name__)
 
-__all__ = ["AirflowTool", "ToolProvider", "ToolResult"]
+__all__ = ["AirflowTool", "ToolCallError", "ToolProvider", "ToolResult", "collect_tools"]
 
-# The masker stops matching secret values below five levels of nesting by default. A tool can
-# return an ordinary API payload nested deeper than that, so look further; the extra depth only
-# costs time on results that are actually that deep.
-_REDACT_MAX_DEPTH = 32
+
+class ToolCallError(Exception):
+    """
+    A tool call failed in a way the model cannot fix by changing its arguments.
+
+    The message has already been through Airflow's secret masker. Adapters let it
+    propagate so the agent run, and with it the task, fails and Airflow's retry
+    handles it, the same way an unhandled tool error fails an ``AgentOperator`` run.
+    """
 
 
 @dataclass(frozen=True)
@@ -64,9 +70,10 @@ class ToolResult:
     The outcome of one tool call, as the agent framework receives it.
 
     :param content: What the model sees. A string or any JSON-compatible value.
-    :param is_error: Whether the call failed. Adapters map this to the
-        framework's own error status, so a failure is never inferred from the
-        text of ``content``.
+    :param is_error: Whether the call failed in a way the model can correct, such as
+        a query naming a column that does not exist. Adapters map this to the
+        framework's own error status, so a failure is never inferred from the text of
+        ``content``.
     """
 
     content: JsonValue
@@ -78,16 +85,16 @@ class AirflowTool:
     """
     One operation an agent can call, independent of any agent framework.
 
-    Call it through :meth:`call`, never ``function`` directly: :meth:`call` is
-    the one path every adapter shares, and it is where exceptions become error
-    results and where Airflow's secret masker runs on everything returned to the
-    model.
+    Call it through :meth:`call`, never ``function`` directly: :meth:`call` is the
+    one path every adapter shares, and it is where Airflow's secret masker runs on
+    everything returned to the model.
 
     :param name: Tool name shown to the model.
     :param description: What the tool does, shown to the model.
     :param parameters: JSON Schema (``"type": "object"``) for the tool's arguments.
     :param function: Async function that performs the operation. It receives the
-        arguments the model supplied and returns a :class:`ToolResult`.
+        arguments the model supplied and returns a :class:`ToolResult`. It returns an
+        error result for a failure the model can correct, and raises for anything else.
     """
 
     name: str
@@ -99,32 +106,36 @@ class AirflowTool:
         """
         Run the tool and return a result that is safe to hand back to the model.
 
-        An exception raised by ``function`` becomes a :class:`ToolResult` with
-        ``is_error=True`` rather than propagating, so every framework feeds the
-        failure back to the model the same way. The content of every result,
-        including error text, passes through Airflow's secret masker, so a
-        connection password that ends up in a result or an exception message is
-        replaced with ``***`` before it reaches the model, the model provider,
-        or anything the framework records.
+        The content of the result, including error text, passes through Airflow's
+        secret masker, so a connection password that ends up in a result is replaced
+        with ``***`` before it reaches the model, the model provider, or anything the
+        framework records. The masker only knows secrets Airflow has registered, such
+        as connection passwords and sensitive connection extras.
 
-        The masker only knows secrets Airflow has registered, such as
-        connection passwords and sensitive connection extras. It does not
-        recognize credentials that exist only in the data a tool returns.
+        :raises ToolCallError: when ``function`` raises. The original exception is
+            logged to the task log, which masks it; only the masked message travels
+            on, because frameworks record a failed call's exception, cause included,
+            in their traces.
         """
         log.info("::group::Tool call: %s", self.name)
         start = time.monotonic()
+        failure: str | None = None
         try:
             result = await self.function(arguments)
         except Exception as e:
             log.warning("Tool %s failed after %.2fs", self.name, time.monotonic() - start, exc_info=True)
-            result = ToolResult(content=f"{type(e).__name__}: {e}", is_error=True)
+            failure = (
+                str(e) if isinstance(e, ToolCallError) else f"{self.name} failed: {type(e).__name__}: {e}"
+            )
         else:
             outcome = "returned an error" if result.is_error else "returned"
             log.info("Tool %s %s in %.2fs", self.name, outcome, time.monotonic() - start)
-        log.info("::endgroup::")
-        # redact() is typed for arbitrary containers; it returns the same shape it is given.
-        content = cast("JsonValue", redact(result.content, max_depth=_REDACT_MAX_DEPTH))
-        return ToolResult(content=content, is_error=result.is_error)
+        finally:
+            log.info("::endgroup::")
+        if failure is not None:
+            # Raised outside the except block, so the original is not attached as its context.
+            raise ToolCallError(mask_secrets(failure))
+        return ToolResult(content=mask_secrets(result.content), is_error=result.is_error)
 
 
 class ToolProvider(Protocol):
@@ -133,3 +144,26 @@ class ToolProvider(Protocol):
     def airflow_tools(self) -> Sequence[AirflowTool]:
         """Return the tools this provider exposes."""
         ...
+
+
+def collect_tools(sources: Iterable[ToolProvider | AirflowTool]) -> list[AirflowTool]:
+    """
+    Flatten toolsets and individual tools, as a framework adapter receives them, into tools.
+
+    :raises ValueError: when two tools share a name. Frameworks route a call by name, so one
+        of them would silently never run; give one toolset a tool name prefix.
+    """
+    tools: list[AirflowTool] = []
+    for source in sources:
+        if isinstance(source, AirflowTool):
+            tools.append(source)
+        else:
+            tools.extend(source.airflow_tools())
+    names = [tool.name for tool in tools]
+    if duplicates := sorted({name for name in names if names.count(name) > 1}):
+        raise ValueError(
+            f"More than one tool is named {', '.join(duplicates)}. Give the toolsets different tool "
+            "name prefixes where they take one (HookToolset's tool_name_prefix, the tool_prefix of "
+            "SandboxToolset), so the model can call each of them."
+        )
+    return tools

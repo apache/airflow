@@ -166,3 +166,9 @@ Everything this provider ships that is not in the table above is experimental.
        :doc:`operators/llm_sql`)
      - Each adds its own input handling to ``@task.llm``: schema introspection, file
        sampling, or SQL validation. Their options are still settling.
+   * - The framework-neutral tools (:mod:`airflow.providers.common.ai.tools`), including
+       the ``airflow_tools()`` method of the toolsets, the Strands plugin and the ADK
+       toolset (:doc:`frameworks/index`)
+     - Written against Strands 1.56 and ADK 2.9.1. CI does not run the tests of the two
+       adapters, because both frameworks exclude dependency versions that Airflow's
+       development environment uses.
