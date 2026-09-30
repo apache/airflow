@@ -390,8 +390,9 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
         del sock
 
         # We open the socket/fd as binary, and then pass it to a TextIOWrapper so that it looks more like a
-        # normal sys.stdout etc.
-        binary = os.fdopen(fd, mode + "b")
+        # normal sys.stdout etc. The handle does not own the fd: a child this process supervises replaces
+        # it after dup2 onto the same fd, and closing it there would close the child's new stream.
+        binary = os.fdopen(fd, mode + "b", closefd=False)
         handle = io.TextIOWrapper(binary, line_buffering=True)
         setattr(sys, handle_name, handle)
 
