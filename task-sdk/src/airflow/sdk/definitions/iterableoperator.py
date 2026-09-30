@@ -596,18 +596,11 @@ class IterableOperator(BaseOperator):
         self._operator.returns_dag_result = value
 
     @property
-    def task_type(self) -> str:
-        # self._operator is the MappedOperator/DecoratedMappedOperator wrapper used to unmap
-        # each sub-task; its own task_type field already holds the wrapped operator's class
-        # name (set from operator_class.__name__ when the wrapper is built), which is what
-        # should be reported here (e.g. as TaskInstance.operator), not the wrapper's class name.
-        return self._operator.task_type
-
-    @property
     def operator_name(self) -> str:
-        # Same forwarding as task_type above: self._operator already resolves to the wrapped
-        # operator's display name (e.g. a @task-decorated callable's custom_operator_name),
-        # so report that instead of falling back to this wrapper's own task_type.
+        # Shown as the wrapped operator (its class name, or a @task callable's custom_operator_name).
+        # task_type is not forwarded: it names the class that runs, and what resolves a class from it
+        # (the task's class reference, OpenLineage's extractors) would otherwise get the wrapped
+        # operator's, whose attributes this one does not have.
         return self._operator.operator_name
 
     @property

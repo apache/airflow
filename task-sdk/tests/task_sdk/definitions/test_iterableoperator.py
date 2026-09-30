@@ -517,14 +517,18 @@ class TestIterableOperator:
             assert _items(iterable_op.expand_input) == expected
 
     def test_task_type(self):
-        """Test that IterableOperator correctly reports the wrapped operator's class name,
-        not the internal MappedOperator wrapper's class name."""
+        """
+        IterableOperator reports its own class as its type, so whatever resolves a class by it
+        (OpenLineage's extractors, the task's class reference) finds the class that runs, while
+        the name it is shown under is the wrapped operator's.
+        """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             iterable_op = create_iterable_operator(dag, expand_input)
 
             assert isinstance(iterable_op, IterableOperator)
-            assert iterable_op.task_type == "MockOperator"
+            assert iterable_op.task_type == "IterableOperator"
+            assert iterable_op.operator_name == "MockOperator"
 
     def test_operator_name(self):
         """Test that IterableOperator forwards the wrapped operator's operator_name (e.g. a
@@ -536,7 +540,7 @@ class TestIterableOperator:
             )
 
             assert isinstance(iterable_op, IterableOperator)
-            assert iterable_op.task_type == "MockOperatorWithCustomName"
+            assert iterable_op.task_type == "IterableOperator"
             assert iterable_op.operator_name == "@mock_task"
 
     def test_forwards_params_weight_rule_and_retry_policy(self):
