@@ -8246,6 +8246,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+common-ai = [
+    { name = "apache-airflow-providers-common-ai", extra = ["openai"] },
+]
 microsoft-azure = [
     { name = "apache-airflow-providers-microsoft-azure" },
 ]
@@ -8257,6 +8260,7 @@ openlineage = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "apache-airflow-providers-microsoft-azure" },
@@ -8271,6 +8275,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-ai", extras = ["openai"], marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
@@ -8290,12 +8295,13 @@ requires-dist = [
     { name = "snowflake-snowpark-python", marker = "python_full_version >= '3.12' and python_full_version < '3.14'", specifier = ">=1.27.0,<9999" },
     { name = "snowflake-sqlalchemy", specifier = ">=1.7.0" },
 ]
-provides-extras = ["microsoft-azure", "openlineage"]
+provides-extras = ["common-ai", "microsoft-azure", "openlineage"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-ai", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
