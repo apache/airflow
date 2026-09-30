@@ -913,7 +913,7 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
             trigger_kwargs={
                 "moment": {
                     "__classname__": "pendulum.datetime.DateTime",
-                    "__version__": 2,
+                    "__version__": 3,
                     "__data__": {
                         "timestamp": 1732233603.0,
                         "tz": {
