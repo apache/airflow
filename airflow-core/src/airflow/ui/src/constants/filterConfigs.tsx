@@ -43,8 +43,13 @@ import { useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 
 import type { FilterConfig } from "src/components/FilterBar";
+import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
 import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
+import {
+  runStateFromSearchParams,
+  runStateToSearchParams,
+} from "src/components/FilterBar/filters/runStateParams";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 
@@ -168,13 +173,6 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
-    [SearchParamsKeys.DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.anyRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.anyRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
-    },
     [SearchParamsKeys.DAG_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdHistory />,
@@ -287,13 +285,6 @@ export const useFilterConfigs = () => {
       label: translate("assets:filters.lastEventDateRange"),
       startKey: SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE,
       type: FilterTypes.DATERANGE,
-    },
-    [SearchParamsKeys.LAST_DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.lastRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.lastRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
       endKey: SearchParamsKeys.LOGICAL_DATE_LTE,
@@ -444,6 +435,16 @@ export const useFilterConfigs = () => {
       label: translate("common:runId"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.RUN_STATE]: {
+      EditorComponent: RunStateFilter,
+      fromSearchParams: runStateFromSearchParams,
+      icon: <MdCheckCircle />,
+      label: translate("dags:filters.runState"),
+      options: runStateOptions,
+      placeholder: translate("dags:filters.runStatePlaceholder"),
+      toSearchParams: runStateToSearchParams,
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.RUN_TYPE]: {
       icon: <MdPlayArrow />,
