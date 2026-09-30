@@ -71,10 +71,12 @@ from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
+from airflow.models.lang_sdk_task_handler import LangSDKTaskHandlerArtifact
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG as SdkDAG
+from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
@@ -2687,6 +2689,7 @@ class TestDagFileProcessorManager:
                     bundle_name="testing",
                     dag_file_rel_path=str(dag2_path.rel_path),
                     callbacks=[dag2_req1],
+                    known_artifacts=[],
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
@@ -2700,6 +2703,7 @@ class TestDagFileProcessorManager:
                     bundle_name="testing",
                     dag_file_rel_path=str(dag1_path.rel_path),
                     callbacks=[dag1_req1, dag1_req2],
+                    known_artifacts=[],
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
@@ -4164,6 +4168,319 @@ class TestDagFileProcessorManager:
             f"a {SWEEP_FILES}-file sweep costs {sweep} statements, expected {expected} "
             f"({SWEEP_CALLS} x {fixed} fixed + {SWEEP_FILES} x {per_dag} per Dag)."
         )
+
+
+JAVA_TASK_HANDLERS = "java-task-handlers"
+
+
+def _coordinator(task_handler_bundle_name: str | None = None) -> dict:
+    kwargs = (
+        {} if task_handler_bundle_name is None else {"task_handler_bundle_name": task_handler_bundle_name}
+    )
+    return {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": kwargs}
+
+
+def _routed_coordinators(coordinators: dict[str, dict]) -> dict[tuple[str, str], str]:
+    """Return the ``[sdk]`` options that configure *coordinators* and route a queue to each."""
+    return {
+        ("sdk", "coordinators"): json.dumps(coordinators),
+        ("sdk", "queue_to_coordinator"): json.dumps({f"queue-{key}": key for key in coordinators}),
+    }
+
+
+def _known_artifact(bundle_name: str) -> TaskHandlerArtifact:
+    return TaskHandlerArtifact(
+        bundle_name=bundle_name,
+        relative_fileloc=f"{bundle_name}.jar",
+        size_bytes=1024,
+        cache_digest="ab12",
+        task_handlers={
+            "etl": [
+                TaskHandlerDeclaration(
+                    task_id="extract",
+                    binding="positional",
+                    params=[TaskHandlerParam(name=None, required=True)],
+                )
+            ]
+        },
+    )
+
+
+GO_TASK_HANDLERS = "go-task-handlers"
+TS_TASK_HANDLERS = "ts-task-handlers"
+TEAM_COORDINATORS = {
+    "java": _coordinator(JAVA_TASK_HANDLERS),
+    "go": _coordinator(GO_TASK_HANDLERS),
+    "ts": _coordinator(TS_TASK_HANDLERS),
+}
+
+
+class TestKnownTaskHandlerArtifacts:
+    @pytest.fixture(autouse=True)
+    def _reset_coordinator_manager(self):
+        reset_coordinator_manager()
+        yield
+        reset_coordinator_manager()
+
+    @pytest.fixture
+    def manager(self, configure_dag_bundles, tmp_path):
+        with (
+            conf_vars({("core", "load_examples"): "False"}),
+            configure_dag_bundles({"dags-a": tmp_path, "dags-b": tmp_path, JAVA_TASK_HANDLERS: tmp_path}),
+        ):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            yield manager
+
+    @conf_vars(_routed_coordinators({"java": _coordinator(JAVA_TASK_HANDLERS), "go": _coordinator()}))
+    @mock.patch.object(DagFileProcessorProcess, "start")
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_start_new_processes_reads_known_artifacts_once_per_loop(self, get_known, start, manager):
+        known = {name: [_known_artifact(name)] for name in ("dags-a", "dags-b", JAVA_TASK_HANDLERS)}
+        get_known.return_value = known
+        files = [
+            DagFileInfo(bundle_name=bundle_name, rel_path=Path(rel_path), bundle_path=TEST_DAGS_FOLDER)
+            for bundle_name, rel_path in (("dags-a", "one.py"), ("dags-a", "two.py"), ("dags-b", "three.py"))
+        ]
+        manager._parallelism = 3
+        manager._file_queue = OrderedDict.fromkeys(files)
+
+        manager._start_new_processes()
+
+        get_known.assert_called_once()
+        assert {
+            call.kwargs["dag_file_rel_path"]: call.kwargs["known_artifacts"] for call in start.call_args_list
+        } == {
+            "one.py": [*known["dags-a"], *known[JAVA_TASK_HANDLERS]],
+            "two.py": [*known["dags-a"], *known[JAVA_TASK_HANDLERS]],
+            "three.py": [*known["dags-b"], *known[JAVA_TASK_HANDLERS]],
+        }
+
+        manager._processors.clear()
+        manager._file_queue = OrderedDict.fromkeys(files[:1])
+        manager._start_new_processes()
+
+        assert get_known.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("coordinators", "teams", "expected_bundle_names"),
+        [
+            pytest.param(
+                TEAM_COORDINATORS,
+                {},
+                {JAVA_TASK_HANDLERS, GO_TASK_HANDLERS, TS_TASK_HANDLERS},
+                id="multi-team-off",
+            ),
+            pytest.param(
+                TEAM_COORDINATORS,
+                {"dags-a": "team-a", JAVA_TASK_HANDLERS: "team-a", GO_TASK_HANDLERS: "team-b"},
+                {JAVA_TASK_HANDLERS},
+                id="same-team",
+            ),
+            pytest.param(
+                TEAM_COORDINATORS,
+                {JAVA_TASK_HANDLERS: "team-a", GO_TASK_HANDLERS: "team-b"},
+                {TS_TASK_HANDLERS},
+                id="no-team",
+            ),
+            pytest.param(
+                {**TEAM_COORDINATORS, "fallback": _coordinator()},
+                {"dags-a": "team-a", JAVA_TASK_HANDLERS: "team-a", GO_TASK_HANDLERS: "team-b"},
+                {JAVA_TASK_HANDLERS, "dags-a"},
+                id="own-bundle-fallback",
+            ),
+        ],
+    )
+    def test_known_artifacts_are_scoped_by_team(
+        self, configure_dag_bundles, tmp_path, coordinators, teams, expected_bundle_names
+    ):
+        bundle_names = ("dags-a", JAVA_TASK_HANDLERS, GO_TASK_HANDLERS, TS_TASK_HANDLERS)
+        with (
+            conf_vars({("core", "load_examples"): "False", **_routed_coordinators(coordinators)}),
+            configure_dag_bundles(dict.fromkeys(bundle_names, tmp_path)),
+            mock.patch.object(DagFileProcessorManager, "_get_team_names", autospec=True, return_value=teams),
+        ):
+            selected = DagFileProcessorManager(max_runs=1)._select_known_task_handler_artifacts(
+                {name: [_known_artifact(name)] for name in bundle_names}, "dags-a"
+            )
+
+        assert {artifact.bundle_name for artifact in selected} == expected_bundle_names
+
+    @conf_vars(_routed_coordinators({"java": _coordinator(JAVA_TASK_HANDLERS)}))
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_start_new_processes_reads_nothing_without_a_child_to_start(self, get_known, manager):
+        manager._start_new_processes()
+
+        get_known.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("coordinators", "expected_bundle_names"),
+        [
+            pytest.param({"java": _coordinator(JAVA_TASK_HANDLERS)}, {JAVA_TASK_HANDLERS}, id="named-only"),
+            pytest.param(
+                {"java": _coordinator(JAVA_TASK_HANDLERS), "go": _coordinator()},
+                {JAVA_TASK_HANDLERS, "dags-a", "dags-b"},
+                id="own-bundle-fallback",
+            ),
+        ],
+    )
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_query_asks_only_for_bundles_that_can_hold_artifacts(
+        self, get_known, manager, coordinators, expected_bundle_names
+    ):
+        with conf_vars(_routed_coordinators(coordinators)):
+            manager._query_known_task_handler_artifacts()
+
+        get_known.assert_called_once_with(manager, expected_bundle_names)
+
+    @pytest.mark.parametrize(
+        "unrouted",
+        [
+            _coordinator("ghost"),
+            {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {"task_handler_bundle_name": ["ghost"]},
+            },
+            _coordinator(),
+        ],
+        ids=["unconfigured", "not-a-string", "own-bundle"],
+    )
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_query_leaves_out_the_bundle_of_an_unrouted_coordinator(self, get_known, manager, unrouted):
+        with conf_vars(
+            {
+                ("sdk", "coordinators"): json.dumps(
+                    {"java": _coordinator(JAVA_TASK_HANDLERS), "unrouted": unrouted}
+                ),
+                ("sdk", "queue_to_coordinator"): json.dumps({"queue-java": "java"}),
+            }
+        ):
+            manager._query_known_task_handler_artifacts()
+
+        get_known.assert_called_once_with(manager, {JAVA_TASK_HANDLERS})
+
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_query_skips_the_read_without_coordinators(self, get_known, manager):
+        assert manager._query_known_task_handler_artifacts() == {}
+
+        get_known.assert_not_called()
+
+    @conf_vars(_routed_coordinators({"java": _coordinator("ghost")}))
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_invalid_coordinator_config_is_logged_once_and_sends_nothing(self, get_known, manager, caplog):
+        assert manager._query_known_task_handler_artifacts() == {}
+        assert manager._query_known_task_handler_artifacts() == {}
+
+        get_known.assert_not_called()
+        event = "Cannot read [sdk] coordinators; Dag files are parsed without known task-handler artifacts"
+        assert [entry["log_level"] for entry in caplog.entries if entry["event"] == event] == ["error"]
+
+    @conf_vars(_routed_coordinators({"java": _coordinator(JAVA_TASK_HANDLERS)}))
+    @mock.patch.object(DagFileProcessorProcess, "start")
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_start_new_processes_sends_no_known_artifacts_when_the_read_fails(
+        self, get_known, start, manager, caplog
+    ):
+        get_known.side_effect = OperationalError("SELECT", {}, Exception("connection lost"))
+        manager._parallelism = 2
+        manager._file_queue = OrderedDict.fromkeys(
+            DagFileInfo(bundle_name="dags-a", rel_path=Path(rel_path), bundle_path=TEST_DAGS_FOLDER)
+            for rel_path in ("one.py", "two.py")
+        )
+
+        manager._start_new_processes()
+
+        get_known.assert_called_once()
+        assert [call.kwargs["known_artifacts"] for call in start.call_args_list] == [[], []]
+        assert {
+            "event": "Cannot read the recorded task-handler artifacts; Dag files are parsed without them",
+            "log_level": "error",
+        } in caplog
+
+    def test_get_known_task_handler_artifacts_from_db_skips_a_row_that_fails_validation(
+        self, manager, session, caplog
+    ):
+        valid = _known_artifact(JAVA_TASK_HANDLERS)
+        session.add_all(
+            [
+                LangSDKTaskHandlerArtifact(**valid.model_dump(mode="json")),
+                LangSDKTaskHandlerArtifact(
+                    bundle_name=JAVA_TASK_HANDLERS,
+                    relative_fileloc="broken.jar",
+                    size_bytes=1024,
+                    cache_digest="ab12",
+                    task_handlers={"etl": [{"task_id": "extract", "binding": "unknown"}]},
+                ),
+            ]
+        )
+        session.flush()
+
+        known = manager._get_known_task_handler_artifacts_from_db({JAVA_TASK_HANDLERS}, session=session)
+
+        assert known == {JAVA_TASK_HANDLERS: [valid]}
+        assert {
+            "event": "Ignoring a recorded task-handler artifact that fails validation",
+            "bundle_name": JAVA_TASK_HANDLERS,
+            "relative_fileloc": "broken.jar",
+            "log_level": "warning",
+        } in caplog
+
+    def test_get_known_task_handler_artifacts_from_db_orders_by_bundle_and_path(self, manager, session):
+        session.add_all(
+            LangSDKTaskHandlerArtifact(
+                bundle_name=bundle_name,
+                relative_fileloc=rel_path,
+                size_bytes=1024,
+                cache_digest=None,
+                task_handlers={},
+            )
+            for bundle_name, rel_path in (
+                (JAVA_TASK_HANDLERS, "c.jar"),
+                ("dags-a", "b.jar"),
+                (JAVA_TASK_HANDLERS, "a.jar"),
+                (JAVA_TASK_HANDLERS, "b.jar"),
+            )
+        )
+        session.flush()
+
+        known = manager._get_known_task_handler_artifacts_from_db(
+            {JAVA_TASK_HANDLERS, "dags-a"}, session=session
+        )
+
+        assert [
+            (bundle_name, [artifact.relative_fileloc for artifact in artifacts])
+            for bundle_name, artifacts in known.items()
+        ] == [("dags-a", ["b.jar"]), (JAVA_TASK_HANDLERS, ["a.jar", "b.jar", "c.jar"])]
+
+    def test_get_known_task_handler_artifacts_from_db_reads_only_the_given_bundles(self, manager, session):
+        session.add_all(
+            LangSDKTaskHandlerArtifact(
+                bundle_name=name,
+                relative_fileloc=f"{name}.jar",
+                size_bytes=1024,
+                cache_digest="ab12",
+                task_handlers={
+                    "etl": [
+                        {
+                            "task_id": "extract",
+                            "binding": "positional",
+                            "params": [{"name": None, "required": True}],
+                        }
+                    ]
+                },
+            )
+            for name in (JAVA_TASK_HANDLERS, "dags-a", "unconfigured")
+        )
+        session.flush()
+
+        known = manager._get_known_task_handler_artifacts_from_db(
+            {JAVA_TASK_HANDLERS, "dags-a"}, session=session
+        )
+
+        assert known == {
+            JAVA_TASK_HANDLERS: [_known_artifact(JAVA_TASK_HANDLERS)],
+            "dags-a": [_known_artifact("dags-a")],
+        }
 
 
 class TestMultiTeamMetrics:
