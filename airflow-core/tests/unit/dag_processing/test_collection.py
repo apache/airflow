@@ -1962,6 +1962,27 @@ class TestRejectOtherTeamsPluginClasses:
             assert f"belonging to {plugin_team}" in errors[(bundle_name, "team_dag.py")]
 
     @conf_vars({("core", "multi_team"): "True"})
+    def test_task_handler_bindings_of_a_rejected_dag_are_dropped_quietly(self, bundle, session, caplog):
+        bundle_name = bundle(True)
+        _record(session, "etl.jar")
+        with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", AfterWorkdayTimetable)]):
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_name,
+                bundle_version=None,
+                dags=[self._serialized(schedule=AfterWorkdayTimetable()), self._serialized("plain_dag")],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+                relative_fileloc="team_dag.py",
+                task_handler_bindings=[_make_binding("team_dag"), _make_binding("plain_dag")],
+                task_handler_artifact_bundles={ARTIFACT_BUNDLE},
+            )
+
+        assert session.scalars(select(LangSDKTaskHandler.dag_id)).all() == ["plain_dag"]
+        assert not any("task handler bindings" in entry["event"] for entry in caplog.entries)
+
+    @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.parametrize(
         "weight_rule",
         [StaticTestPriorityWeightStrategy(), qualname(StaticTestPriorityWeightStrategy)],
@@ -2478,7 +2499,7 @@ class TestTaskHandlerBindingReconcile:
 
         assert _get_recorded_handlers(session) == {("etl", "extract", "etl.jar")}
         assert {
-            "event": "Ignoring task handler bindings of Dags this parse does not persist",
+            "event": "Ignoring task handler bindings of Dags not in the parse result",
             "dag_ids": ["ghost"],
         } in caplog
 

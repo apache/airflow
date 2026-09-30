@@ -730,6 +730,7 @@ def _reconcile_task_handler_bindings(
     bindings: Iterable[TaskHandlerBinding],
     *,
     dag_ids: Collection[str],
+    rejected_dag_ids: Collection[str],
     artifact_bundle_names: Collection[str],
     dag_bundle_name: str,
     dag_relative_fileloc: str,
@@ -742,18 +743,19 @@ def _reconcile_task_handler_bindings(
     that moved to another file, which that file's parse reconciles. A Dag bound to an artifact outside
     *artifact_bundle_names*, or to one with no recorded row, keeps its rows as they are. Artifact rows are
     only read: the probed-artifact write records them, and the Dag processor's orphan sweep deletes them.
+    Bindings of *rejected_dag_ids*, Dags the parse produced but that are not persisted, are dropped
+    quietly: their import error explains why.
     """
     by_task: dict[tuple[str, str], list[TaskHandlerBinding]] = defaultdict(list)
-    ignored_dag_ids: set[str] = set()
+    unknown_dag_ids: set[str] = set()
     for binding in bindings:
         if binding.dag_id in dag_ids:
             by_task[(binding.dag_id, binding.task_id)].append(binding)
-        else:
-            ignored_dag_ids.add(binding.dag_id)
-    if ignored_dag_ids:
+        elif binding.dag_id not in rejected_dag_ids:
+            unknown_dag_ids.add(binding.dag_id)
+    if unknown_dag_ids:
         log.warning(
-            "Ignoring task handler bindings of Dags this parse does not persist",
-            dag_ids=sorted(ignored_dag_ids),
+            "Ignoring task handler bindings of Dags not in the parse result", dag_ids=sorted(unknown_dag_ids)
         )
     # The parse reports a task bound twice as an import error; this only keeps the rows as they are.
     if conflicting := {dag_id for (dag_id, _), group in by_task.items() if len(group) > 1}:
@@ -848,6 +850,7 @@ def update_dag_parsing_results_in_db(
     if task_handler_bindings is not None and task_handler_artifact_bundles is None:
         raise ValueError("task_handler_artifact_bundles is required with task_handler_bindings")
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    rejected_ids: set[str] = set()
     if len(accepted) != len(dags):
         # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
         rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
@@ -891,6 +894,7 @@ def update_dag_parsing_results_in_db(
                         _reconcile_task_handler_bindings(
                             task_handler_bindings,
                             dag_ids={dag.dag_id for dag in dags},
+                            rejected_dag_ids=rejected_ids,
                             artifact_bundle_names=task_handler_artifact_bundles,
                             dag_bundle_name=bundle_name,
                             dag_relative_fileloc=relative_fileloc,
