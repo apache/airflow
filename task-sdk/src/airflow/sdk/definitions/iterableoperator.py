@@ -334,7 +334,7 @@ class IterableOperator(BaseOperator):
         call that is concurrently holding the communication lock, which is detected and raised
         eagerly as a non-retryable failure rather than silently deadlocking. Use the async-safe
         equivalents inside async operators: :meth:`~airflow.sdk.bases.hook.BaseHook.aget_connection`/
-        ``aget_hook``, ``ti.axcom_pull``. ``Variable`` has no async equivalent yet.
+        ``aget_hook``, ``ti.axcom_pull`` and ``Variable.aget``/``aset``.
 
     .. warning::
         **``execution_timeout`` caps the whole iteration; per-sub-task enforcement is async-only.**
