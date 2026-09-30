@@ -43,11 +43,11 @@ There are three main types of cluster policy:
   reconciled (not in the Dag file processor, and not on the worker). The policy is only applied to the
   currently executed run (i.e. instance) of that task. The policy can run more than once for the same task
   instance, for example when it is created or reconciled, so implementations should be idempotent. It also
-  runs before each retry, when ``task_instance.try_number`` is already the number of the attempt that is
-  about to run. The ``dag_run`` argument lets the policy route on
-  run configuration (``dag_run.conf``); it may be ``None`` in early task-instance construction, and a hook
-  that only declares ``task_instance`` keeps working unchanged. Note that ``dag_run.conf`` is only populated
-  for manually triggered or API-triggered runs; scheduled runs carry an empty ``conf``.
+  runs when a retry is scheduled, with ``task_instance.try_number`` set to the attempt about to run. The
+  ``dag_run`` argument lets the policy route on run configuration (``dag_run.conf``); it may be ``None`` in
+  early task-instance construction, and a hook that only declares ``task_instance`` keeps working
+  unchanged. Note that ``dag_run.conf`` is only populated for manually triggered or API-triggered runs;
+  scheduled runs carry an empty ``conf``.
 
 .. warning::
 

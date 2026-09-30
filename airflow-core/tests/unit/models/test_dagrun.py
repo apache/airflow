@@ -43,7 +43,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
-from airflow import plugins_manager, settings
+from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import (
     DAGRUN_PARENT_TRACE_CONTEXT_KEY,
@@ -2834,9 +2834,7 @@ def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker,
 
 
 @pytest.mark.mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
-def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session, request):
-    request.addfinalizer(plugins_manager.get_priority_weight_strategy_plugins.cache_clear)
-
+def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session):
     with dag_maker(session=session) as dag:
         for task_id in ("first_attempt", "retry", "reschedule"):
             BashOperator(task_id=task_id, bash_command="echo 1", weight_rule=DecreasingPriorityStrategy())
@@ -2845,7 +2843,7 @@ def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session, 
     tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
     for task_id, state, try_number in (
         ("first_attempt", None, 0),
-        ("retry", TaskInstanceState.UP_FOR_RETRY, 1),
+        ("retry", TaskInstanceState.UP_FOR_RETRY, 2),
         ("reschedule", TaskInstanceState.UP_FOR_RESCHEDULE, 3),
     ):
         tis[task_id].refresh_from_task(dag.get_task(task_id))
@@ -2872,26 +2870,49 @@ def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session, 
     assert retry_ti.priority_weight == 2
 
 
-def test_schedule_tis_restores_try_number_when_retry_refresh_fails(dag_maker, session):
-    with dag_maker(session=session) as dag:
-        BashOperator(task_id="task", bash_command="echo 1")
+@pytest.mark.need_serialized_dag
+def test_schedule_tis_refreshes_a_retry_that_defers_from_trigger(dag_maker, session):
+    class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs=None,
+            next_method="execute_complete",
+            timeout=None,
+        )
+        start_from_trigger = True
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.start_trigger_args.trigger_kwargs = {}
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        TestOperator(task_id="task")
 
     dr = dag_maker.create_dagrun(session=session)
     ti = dr.get_task_instance("task", session=session)
-    ti.refresh_from_task(dag.get_task("task"))
+    ti.task = dr.dag.get_task("task")
     ti.state = TaskInstanceState.UP_FOR_RETRY
-    ti.try_number = 1
+    ti.try_number = 2
     session.commit()
 
-    def failing_hook(task_instance, dag_run=None):
-        raise RuntimeError("hook failed")
+    hook_calls = []
 
-    with _registered_mutation_hook(failing_hook), pytest.raises(RuntimeError, match="hook failed"):
+    def route_to_retry_queue(task_instance, dag_run=None):
+        hook_calls.append((task_instance.task_id, task_instance.try_number))
+        task_instance.queue = "retry_queue"
+
+    with _registered_mutation_hook(route_to_retry_queue):
         dr.schedule_tis((ti,), session=session)
     session.commit()
 
+    assert hook_calls == [("task", 2)]
     session.expire_all()
-    assert dr.get_task_instance("task", session=session).try_number == 1
+    deferred_ti = dr.get_task_instance("task", session=session)
+    assert deferred_ti.state == TaskInstanceState.DEFERRED
+    assert deferred_ti.queue == "retry_queue"
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):

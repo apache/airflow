@@ -2260,14 +2260,7 @@ class DagRun(Base, LoggingMixin):
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 if TYPE_CHECKING:
                     assert ti.task
-                # Weight strategies and the mutation hook must see the upcoming try. The updates below
-                # still own the increment, so try_number is restored.
-                try_number = ti.try_number
-                ti.try_number = try_number + 1
-                try:
-                    ti.refresh_from_task(ti.task, dag_run=self)
-                finally:
-                    ti.try_number = try_number
+                ti.refresh_from_task(ti.task, dag_run=self)
             if not ti.is_schedulable:
                 empty_ti_ids.append(ti.id)
             # The defer_task method will check "start_trigger_args" to see whether the operator
