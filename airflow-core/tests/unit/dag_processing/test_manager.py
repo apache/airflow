@@ -61,6 +61,9 @@ from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    TaskHandlerArtifact,
+    TaskHandlerDeclaration,
+    TaskHandlerParam,
     _parse_file,
 )
 from airflow.models import DagModel, DbCallbackRequest
@@ -1859,9 +1862,10 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
-        ("callbacks", "path", "expected_body"),
+        ("callbacks", "known_artifacts", "path", "expected_body"),
         [
             pytest.param(
+                [],
                 [],
                 "/opt/airflow/dags/test_dag.py",
                 {
@@ -1869,8 +1873,62 @@ class TestDagFileProcessorManager:
                     "bundle_path": "/opt/airflow/dags",
                     "bundle_name": "testing",
                     "callback_requests": [],
+                    "known_artifacts": [],
                     "type": "DagFileParseRequest",
                 },
+            ),
+            pytest.param(
+                [],
+                [
+                    TaskHandlerArtifact(
+                        bundle_name="java-task-handlers",
+                        relative_fileloc="etl.jar",
+                        size_bytes=1024,
+                        cache_digest="ab12",
+                        task_handlers={
+                            "etl": [
+                                TaskHandlerDeclaration(
+                                    task_id="extract",
+                                    binding="positional",
+                                    params=[TaskHandlerParam(name=None, required=True)],
+                                )
+                            ]
+                        },
+                    )
+                ],
+                "/opt/airflow/dags/etl.py",
+                {
+                    "file": "/opt/airflow/dags/etl.py",
+                    "bundle_path": "/opt/airflow/dags",
+                    "bundle_name": "testing",
+                    "callback_requests": [],
+                    "known_artifacts": [
+                        {
+                            "bundle_name": "java-task-handlers",
+                            "relative_fileloc": "etl.jar",
+                            "size_bytes": 1024,
+                            "cache_digest": "ab12",
+                            "task_handlers": {
+                                "etl": [
+                                    {
+                                        "task_id": "extract",
+                                        "binding": "positional",
+                                        "params": [
+                                            {
+                                                "name": None,
+                                                "value_schema": None,
+                                                "required": True,
+                                                "exact_name": False,
+                                            }
+                                        ],
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                    "type": "DagFileParseRequest",
+                },
+                id="known-artifacts",
             ),
             pytest.param(
                 [
@@ -1884,6 +1942,7 @@ class TestDagFileProcessorManager:
                         is_failure_callback=False,
                     )
                 ],
+                [],
                 "/opt/airflow/dags/dag_callback_dag.py",
                 {
                     "file": "/opt/airflow/dags/dag_callback_dag.py",
@@ -1903,17 +1962,22 @@ class TestDagFileProcessorManager:
                             "type": "DagCallbackRequest",
                         }
                     ],
+                    "known_artifacts": [],
                     "type": "DagFileParseRequest",
                 },
             ),
         ],
     )
-    def test_serialize_callback_requests(self, callbacks, path, expected_body):
+    def test_serialize_parse_request(self, callbacks, known_artifacts, path, expected_body):
         from airflow.sdk.execution_time.comms import _ResponseFrame
 
         processor, read_socket = self.mock_processor()
         processor._on_child_started(
-            callbacks, path, bundle_path=Path("/opt/airflow/dags"), bundle_name="testing"
+            callbacks,
+            path,
+            bundle_path=Path("/opt/airflow/dags"),
+            bundle_name="testing",
+            known_artifacts=known_artifacts,
         )
 
         read_socket.settimeout(0.1)

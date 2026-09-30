@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 from typing import Literal
 
 import pytest
@@ -48,7 +49,13 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
-from airflow.dag_processing.processor import TaskHandlerParseRequest
+from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    TaskHandlerArtifact,
+    TaskHandlerDeclaration,
+    TaskHandlerParam,
+    TaskHandlerParseRequest,
+)
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.execution_time.comms import TaskState
 from airflow.sdk.execution_time.schema import (
@@ -507,3 +514,69 @@ class TestRealBundleRetryReason:
         body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
         out = real_migrator.upgrade(body, TaskState, "2026-06-16")
         assert out["retry_reason"] is None
+
+
+class TestRealBundleKnownArtifacts:
+    """
+    Drive the *real* supervisor bundle through the ``known_artifacts`` migration.
+
+    ``DagFileParseRequest`` flows supervisor -> runtime, so ``downgrade`` is the direction a
+    pinned runtime travels.
+    """
+
+    @pytest.fixture
+    def request_with_known_artifacts(self) -> DagFileParseRequest:
+        return DagFileParseRequest(
+            file="/files/dags/etl.py",
+            bundle_path=Path("/files/dags"),
+            bundle_name="dags-folder",
+            known_artifacts=[
+                TaskHandlerArtifact(
+                    bundle_name="java-task-handlers",
+                    relative_fileloc="etl.jar",
+                    size_bytes=1024,
+                    cache_digest="ab12",
+                    task_handlers={
+                        "etl": [
+                            TaskHandlerDeclaration(
+                                task_id="extract",
+                                binding="positional",
+                                params=[TaskHandlerParam(name=None, required=True)],
+                            )
+                        ]
+                    },
+                )
+            ],
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_known_artifacts_for_previous_version(
+        self, real_migrator, request_with_known_artifacts
+    ):
+        out = real_migrator.downgrade(request_with_known_artifacts, "2026-06-16").model_dump()
+        assert "known_artifacts" not in out
+
+    def test_downgrade_keeps_known_artifacts_at_head(self, real_migrator, request_with_known_artifacts):
+        out = real_migrator.downgrade(request_with_known_artifacts, "2026-10-30").model_dump()
+        assert out["known_artifacts"] == [
+            {
+                "bundle_name": "java-task-handlers",
+                "relative_fileloc": "etl.jar",
+                "size_bytes": 1024,
+                "cache_digest": "ab12",
+                "task_handlers": {
+                    "etl": [
+                        {
+                            "task_id": "extract",
+                            "binding": "positional",
+                            "params": [
+                                {"name": None, "value_schema": None, "required": True, "exact_name": False}
+                            ],
+                        }
+                    ]
+                },
+            }
+        ]
