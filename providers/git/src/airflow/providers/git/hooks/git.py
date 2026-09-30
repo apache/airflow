@@ -235,6 +235,11 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
+    @property
+    def uses_github_app_auth(self) -> bool:
+        """Whether the connection authenticates as a GitHub App and mints its own installation tokens."""
+        return self.github_app_id is not None and self.github_installation_id is not None
+
     def _get_github_app_token(self):
         try:
             from github import Auth, GithubIntegration
@@ -392,7 +397,7 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        if self.github_app_id is not None and self.github_installation_id is not None:
+        if self.uses_github_app_auth:
             self._ensure_github_app_token()
             with self._token_credential_env():
                 yield

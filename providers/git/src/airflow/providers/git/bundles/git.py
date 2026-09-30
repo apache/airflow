@@ -20,6 +20,7 @@ import os
 import shutil
 from contextlib import nullcontext
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import structlog
@@ -35,7 +36,29 @@ from airflow.providers.git.hooks.git import GitHook
 if AIRFLOW_V_3_3_PLUS:
     from airflow.dag_processing.bundles.base import BundleVersion
 
+if TYPE_CHECKING:
+    from tenacity import RetryCallState
+
 log = structlog.get_logger(__name__)
+
+# GitHub rejects a just-issued App installation token with "Repository not found" for a few seconds,
+# and a fresh GitHook mints one right before the bare clone. Only that auth path gets extra attempts
+# with a wait in between (2, 4, 8, 15 s); every other one keeps two immediate attempts, so a repository
+# that can never be cloned still fails fast.
+_CLONE_STOP = stop_after_attempt(2)
+_GITHUB_APP_CLONE_STOP = stop_after_attempt(5)
+_GITHUB_APP_CLONE_WAIT = wait_exponential(multiplier=2, max=15)
+
+
+def _bare_clone_stop(retry_state: RetryCallState) -> bool:
+    bundle: GitDagBundle = retry_state.args[0]
+    stop = _GITHUB_APP_CLONE_STOP if bundle._uses_github_app_auth() else _CLONE_STOP
+    return stop(retry_state)
+
+
+def _bare_clone_wait(retry_state: RetryCallState) -> float:
+    bundle: GitDagBundle = retry_state.args[0]
+    return _GITHUB_APP_CLONE_WAIT(retry_state) if bundle._uses_github_app_auth() else 0
 
 
 class GitDagBundle(BaseDagBundle):
@@ -287,13 +310,13 @@ class GitDagBundle(BaseDagBundle):
                 shutil.rmtree(self.repo_path)
             raise
 
+    def _uses_github_app_auth(self) -> bool:
+        return self.hook is not None and self.hook.uses_github_app_auth
+
     @retry(
         retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
-        # GitHub rejects a just-issued App installation token with "Repository not found" for a
-        # few seconds. Back off between attempts so one lands after the token has propagated,
-        # instead of failing the task on an immediate second attempt.
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=2, max=15),
+        stop=_bare_clone_stop,
+        wait=_bare_clone_wait,
         reraise=True,
     )
     def _clone_bare_repo_if_required(self) -> None:
