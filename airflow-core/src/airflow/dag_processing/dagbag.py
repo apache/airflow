@@ -120,27 +120,14 @@ def _executor_exists(executor_name: str, team_name: str | None) -> bool:
     return False
 
 
-def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
+def _validate_executor_fields(dag: DAG, bundle_name: str | None = None, team_name: str | None = None) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
     log = logging.getLogger(__name__)
-    dag_team_name = None
-
-    # Check if multi team is available by reading the multi_team configuration (which is boolean)
-    if conf.getboolean("core", "multi_team"):
-        # Get team name from bundle configuration if available
-        if bundle_name:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-            bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager._bundle_config[bundle_name]
-
-            dag_team_name = bundle_config.team_name
-            if dag_team_name:
-                log.debug(
-                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
-                )
+    dag_team_name = team_name if conf.getboolean("core", "multi_team") else None
+    if dag_team_name:
+        log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
 
     for task in dag.tasks:
         if not task.executor:
@@ -164,19 +151,10 @@ def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
 
 def _assign_default_team_pools(
     dag: DAG,
-    bundle_name: str | None = None,
+    team_name: str | None = None,
 ) -> None:
     """Assign the default team pool to tasks that do not explicitly specify a pool."""
-    dag_team_name = None
-
-    if conf.getboolean("core", "multi_team"):
-        if bundle_name:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-            bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager._bundle_config[bundle_name]
-
-            dag_team_name = bundle_config.team_name
+    dag_team_name = team_name if conf.getboolean("core", "multi_team") else None
 
     if not dag_team_name:
         return
@@ -216,10 +194,12 @@ class DagBag(LoggingMixin):
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
+        team_name: str | None = None,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
+        self.team_name = team_name
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -368,8 +348,8 @@ class DagBag(LoggingMixin):
 
                 # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
-                _assign_default_team_pools(dag, self.bundle_name)
+                _validate_executor_fields(dag, self.bundle_name, self.team_name)
+                _assign_default_team_pools(dag, self.team_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
             except AirflowClusterPolicySkipDag:
