@@ -461,7 +461,8 @@ still works but is no longer recommended.
   - Update the Task SDK version `>=` part in `pyproject.toml` to `==` TASK_SDK_VERSION without RC
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
-- Replace the versions in `README.md` about installation and verify that installation instructions work fine.
+  The `update-supported-versions` hook also rewrites the "Stable version" header and the installation
+  `pip install` / constraints pins in `README.md` - verify that installation instructions work fine.
 - Update the build status badge in `README.md` to point to the new `vX-Y-test` branch (the `3.x` row in the
   build status table). The `uv run dev/update_github_branch_config.py X Y` script does this automatically.
 - Add entry for default python version to `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py`
@@ -639,6 +640,29 @@ you need to run several workflows to publish the documentation. More details abo
 emergency cases.
 
 We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Sync staging with main (skip if another vote is in progress)
+
+Before publishing the staging docs, reset the `staging` branches of
+[`apache/airflow-site`](https://github.com/apache/airflow-site) and
+[`apache/airflow-site-archive`](https://github.com/apache/airflow-site-archive) to `main`, so the staging
+site starts from the current live site rather than from whatever an earlier release left there:
+
+```shell script
+breeze workflow-run sync-staging-to-main
+```
+
+It triggers the `Reset staging to main` workflow in
+[`airflow-site`](https://github.com/apache/airflow-site/actions/workflows/reset-staging.yml) and in
+[`airflow-site-archive`](https://github.com/apache/airflow-site-archive/actions/workflows/reset-staging.yml).
+Each force-updates its repository's `staging` branch to the current `main` commit (`main` itself is not
+changed); in `airflow-site` it also rebuilds the staging site.
+
+> [!WARNING]
+> **Skip this step if a vote for any other release (Airflow, Providers, Helm Chart, airflowctl, ...) is
+> in progress.** Its release candidate docs are on the `staging` branches, and resetting `staging` to `main`
+> would overwrite the staging docs prepared for that vote. The command asks for confirmation before it
+> does anything; answer `n` to skip it.
 
 ### Using breeze commands
 
@@ -1657,7 +1681,8 @@ If you don't have access to the account ask a PMC member to post.
 
 This includes:
 
-- Modify `./scripts/ci/prek/supported_versions.py` and let prek do the job.
+- Modify `./scripts/ci/prek/supported_versions.py` and let prek do the job (it also updates the stable
+  version pins in the `README.md` installation instructions).
 - For major/minor release, update version in `airflow/__init__.py` and `docker-stack-docs/` to the next likely major version release.
   - New version should be, current major release + 1.0
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.

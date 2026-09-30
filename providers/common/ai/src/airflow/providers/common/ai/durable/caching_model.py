@@ -112,7 +112,15 @@ class CachingModel(WrapperModel):
             )
 
         response = await self.wrapped.request(messages, model_settings, model_request_parameters)
-        self.storage.save_model_response(key, response, fingerprint=fingerprint)
-        self.counter.cached_model += 1
-        log.debug("Durable: cached model response", step=step)
+        if self.storage.save_model_response(key, response, fingerprint=fingerprint):
+            self.counter.cached_model += 1
+            log.debug("Durable: cached model response", step=step)
+        else:
+            self.counter.skipped_model += 1
+            # A re-run model step returns fresh tool call ids, so every later step's
+            # fingerprint changes and re-runs too.
+            log.warning(
+                "Durable: model response not cached; a retry re-runs this step and every step after it",
+                step=step,
+            )
         return response

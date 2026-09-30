@@ -104,6 +104,11 @@ class OpenAIBatchAdapter(BatchAdapter):
     """
     Batch adapter for OpenAI's Batch API (``/v1/chat/completions``).
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     :param api_key: Passed straight to the ``openai.OpenAI`` client. ``None``
         falls back to the SDK's own env-var resolution (``OPENAI_API_KEY``).
     :param base_url: Passed straight to the ``openai.OpenAI`` client. Pointing

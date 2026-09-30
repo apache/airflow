@@ -427,7 +427,7 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const bigDag = new Dag("big_dag");',
-        'for (let i = 0; i < 5000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
+        'for (let i = 0; i < 5000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined)();',
         "await new Bundle(bigDag).serve();",
       ].join("\n"),
     );
@@ -472,7 +472,7 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         `const suspiciousDag = new Dag(${JSON.stringify(dagId)});`,
-        `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
+        `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined)();`,
         "await new Bundle(suspiciousDag).serve();",
       ].join("\n"),
     );
@@ -542,7 +542,7 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
-        'salesDag.task("extract", async () => undefined);',
+        'salesDag.task("extract", async () => undefined)();',
         'await new Bundle(salesDag, new Dag("empty_dag")).serve();',
       ].join("\n"),
     );
@@ -557,6 +557,74 @@ describe("runPack", () => {
     );
   });
 
+  it("takes an omitted task id from the handler name, through minification", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "named-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        "salesDag.task(async function extractRows() {})();",
+        "async function loadRows() {}",
+        "salesDag.task(loadRows, { retries: 2 })();",
+        "await new Bundle(salesDag).serve();",
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await runPack([entry, "--outdir", outdir]);
+
+    // Read back off the packed artifact, so this asserts what minification
+    // left behind rather than what the source said.
+    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
+      "task_handlers.sales_dag.tasks",
+      ["extractRows", "loadRows"],
+    );
+    expect(stderr()).toBe("");
+  });
+
+  it("fails the pack when a handler is anonymous and names no task", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "anonymous-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        "salesDag.task(async () => undefined)();",
+        "await new Bundle(salesDag).serve();",
+      ].join("\n"),
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
+      /has no id: its handler has no name/,
+    );
+  });
+
+  it("takes a computed task id as the id it evaluates to", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "computed-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        'const region = "north";',
+        "salesDag.task(`extract_${region}`, async () => undefined)();",
+        'salesDag.task("load_".concat(region), async () => undefined)();',
+        "await new Bundle(salesDag).serve();",
+      ].join("\n"),
+    );
+
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
+      "task_handlers.sales_dag.tasks",
+      ["extract_north", "load_north"],
+    );
+  });
+
   it("packs only the Dags the served bundle holds", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "forgotten-entry.ts");
@@ -565,9 +633,9 @@ describe("runPack", () => {
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
-        'salesDag.task("extract", async () => undefined);',
+        'salesDag.task("extract", async () => undefined)();',
         'const billingDag = new Dag("billing_dag");',
-        'billingDag.task("charge", async () => undefined);',
+        'billingDag.task("charge", async () => undefined)();',
         "await new Bundle(salesDag).serve();",
       ].join("\n"),
     );

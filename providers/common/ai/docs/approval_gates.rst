@@ -85,6 +85,11 @@ list does not take effect.
 Reviewing uncertain output
 --------------------------
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 A classifier model such as TypeSafe's reports a confidence for every field
 of a structured output, in ``provider_details`` on the model response. It is a
 summary of how concentrated the model's probability distribution was, not the

@@ -20,6 +20,11 @@
 Load documents: ``DocumentLoaderOperator``
 ==========================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Use :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
 to parse files into ``list[dict(text, metadata)]`` for downstream embedding
 pipelines. The operator bridges Airflow's connectivity layer (hooks that
@@ -55,7 +60,7 @@ PDF parsing
 Install the ``pdf`` extra to parse PDF files via
 `pypdf <https://pypdf.readthedocs.io/>`__::
 
-    pip install apache-airflow-providers-common-ai[pdf]
+    pip install "apache-airflow-providers-common-ai[pdf]"
 
 Each page with extractable text becomes a separate document. Empty pages are
 skipped. ``page_number`` is included in the document metadata.
@@ -66,7 +71,7 @@ DOCX parsing
 Install the ``docx`` extra to parse Word documents via
 `python-docx <https://python-docx.readthedocs.io/>`__::
 
-    pip install apache-airflow-providers-common-ai[docx]
+    pip install "apache-airflow-providers-common-ai[docx]"
 
 All non-empty paragraphs are concatenated into a single document per file.
 
@@ -152,20 +157,15 @@ model and is intentionally left to a downstream text-splitter or embedding
 operator (LlamaIndex's ``LlamaIndexEmbeddingOperator``, LangChain's text splitters,
 ...).
 
-Format coverage roadmap
------------------------
+Formats without a built-in parser
+---------------------------------
 
-The current built-in dispatch covers ``.txt``, ``.md``, ``.csv``, ``.json``,
-``.jsonl``, ``.pdf``, ``.docx``. Additional formats are deferred to follow-ups,
-each gated behind its own extra so users only install what they need:
-
-- ``.pptx`` via ``python-pptx``
-- ``.epub`` via ``ebooklib``
-- ``.xlsx`` via ``openpyxl``
-- ``.html`` / ``.htm`` via ``beautifulsoup4``
-- Image OCR (``.png`` / ``.jpg``) via ``pytesseract``
-- Audio transcription via a model call (``LLMOperator`` or ``AgentOperator``
-  is a better fit for transcription than this parser)
+The built-in dispatch covers ``.txt``, ``.md``, ``.csv``, ``.json``, ``.jsonl``, ``.pdf``
+and ``.docx``. There is no built-in parser for ``.pptx`` (``python-pptx``), ``.epub``
+(``ebooklib``), ``.xlsx`` (``openpyxl``), ``.html`` (``beautifulsoup4``) or image OCR
+(``pytesseract``); the library in brackets is the usual choice for a ``@task`` that does
+it. For audio, a model call through ``LLMOperator`` or ``AgentOperator`` is a better fit
+than a parser.
 
 For anything not in the dispatch map, set ``parser`` explicitly (``"text"``
 to read as plain text) or write the parser inline in a ``@task`` that calls
@@ -187,7 +187,7 @@ directly into embedding operators. With LlamaIndex's ``LlamaIndexEmbeddingOperat
     embed = LlamaIndexEmbeddingOperator(
         task_id="embed",
         documents="{{ ti.xcom_pull(task_ids='load') }}",
-        llm_conn_id="openai_default",
+        llm_conn_id="llamaindex_default",
     )
 
     load >> embed

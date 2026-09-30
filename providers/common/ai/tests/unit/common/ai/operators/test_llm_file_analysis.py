@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -128,7 +128,9 @@ class TestLLMFileAnalysisOperator:
             max_text_chars=100_000,
             sample_rows=10,
         )
-        mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "prepared prompt", usage_limits=None, cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(

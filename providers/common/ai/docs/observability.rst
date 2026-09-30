@@ -18,6 +18,12 @@
 Observability (OpenTelemetry tracing)
 =====================================
 
+.. note::
+
+    Experimental: the spans and their attributes can change in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
+
 pydantic-ai ships native OpenTelemetry instrumentation that emits GenAI spans
 for each agent run, model call, and tool call, following the
 `OpenTelemetry GenAI semantic conventions <https://opentelemetry.io/docs/specs/semconv/gen-ai/>`__.
@@ -65,7 +71,9 @@ How it works
   (``ti.xcom_pull(task_ids="my_agent", key="run_id")``) and a trace backend can
   join a task's output to its agent trace without parsing logs. With
   ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial model
-  run, not the human-feedback regenerations.
+  run, not the human-feedback regenerations. A run that resumes after a tool
+  approval (see :doc:`tool_approval`) continues as ``<task-instance id>-resumed``,
+  which is the ``run_id`` the operator pushes; ``usage`` covers both parts.
 * **Scope.** The ``airflow.*`` identity attributes and the ``run_id`` / ``usage``
   XComs come only from ``AgentOperator`` and ``@task.agent``. The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but
@@ -79,7 +87,7 @@ How it works
 
 .. note::
 
-    On pydantic-ai 2.x the agent-run span reports token usage under
+    The agent-run span reports token usage under
     ``gen_ai.aggregated_usage.*`` while the per-model-call span keeps
     ``gen_ai.usage.*``. This avoids double-counting in backends that sum a
     parent span and its children. Dashboards or alerts that read run-level token

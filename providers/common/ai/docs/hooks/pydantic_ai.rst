@@ -46,7 +46,8 @@ The model can be specified at three levels (highest priority first):
 
 1. ``model_id`` parameter on the hook
 2. ``model`` key in the connection's extra JSON
-3. (No default — raises an error if neither is set)
+3. With ``create_agent(spec_file=...)``, the spec file's ``model``. Otherwise there is
+   no default and the hook raises.
 
 .. code-block:: python
 
@@ -54,7 +55,7 @@ The model can be specified at three levels (highest priority first):
     hook = PydanticAIHook(llm_conn_id="my_llm")
 
     # Override with a specific model
-    hook = PydanticAIHook(llm_conn_id="my_llm", model_id="anthropic:claude-opus-4-6")
+    hook = PydanticAIHook(llm_conn_id="my_llm", model_id="anthropic:claude-sonnet-5")
 
 Structured output
 -----------------
@@ -79,7 +80,7 @@ you version-control agent configs independently.
 .. code-block:: yaml
    :caption: agent_spec.yaml
 
-   model: openai:gpt-4o-mini
+   model: openai:gpt-5-mini
    instructions: >
      You are a concise summarizer. Given any text, respond with a single
      paragraph that captures the key points.
@@ -92,7 +93,7 @@ you version-control agent configs independently.
     :start-after: [START howto_hook_pydantic_ai_spec_file]
     :end-before: [END howto_hook_pydantic_ai_spec_file]
 
-The model declared in the spec file is used unless ``model_id`` or the
-connection's ``model`` extra is set, in which case the hook model takes
-precedence. Passing ``instructions`` to ``create_agent`` when a ``spec_file`` is
-also given appends additional instructions to the file value.
+The spec file's ``model`` is the last resort: ``model_id`` and the connection's
+``model`` extra both take precedence over it, in the
+:ref:`order the connection page lists <pydanticai-model-resolution>`. Passing
+``instructions`` to ``create_agent`` when a ``spec_file`` is also given appends additional instructions to the file value.

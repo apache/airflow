@@ -34,6 +34,11 @@ class LlamaIndexHook(BaseHook):
     """
     Bridge an Airflow connection to LlamaIndex chat and embedding models.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The hook resolves credentials (API key, optional API base URL) from the
     Airflow connection and returns native LlamaIndex objects ready to pass
     to ``VectorStoreIndex(..., embed_model=...)``,
@@ -79,7 +84,7 @@ class LlamaIndexHook(BaseHook):
       (e.g. an internal gateway) -- not Ollama or vLLM, whose model
       catalogs are rejected regardless of ``host`` (see note above).
     * **extra** JSON: ``{"embed_model": "text-embedding-3-small",
-      "llm_model": "gpt-4o"}`` -- default model identifiers stored on the
+      "llm_model": "gpt-5"}`` -- default model identifiers stored on the
       connection.
 
     :param llm_conn_id: Airflow connection ID for the LLM provider. Falls
@@ -90,7 +95,7 @@ class LlamaIndexHook(BaseHook):
     :param embed_model: Embedding model name (e.g.
         ``"text-embedding-3-small"``). Overrides ``extra["embed_model"]``
         on the connection.
-    :param llm_model: LLM model name (e.g. ``"gpt-4o"``). Overrides
+    :param llm_model: LLM model name (e.g. ``"gpt-5"``). Overrides
         ``extra["llm_model"]`` on the connection. Required when calling
         :meth:`get_llm`.
     """
@@ -124,7 +129,7 @@ class LlamaIndexHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)",
-                "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
+                "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}',
             },
         }
 

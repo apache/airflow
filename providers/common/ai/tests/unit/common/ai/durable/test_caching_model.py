@@ -22,16 +22,19 @@ import pytest
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import ModelRequestParameters
 
-from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX as P
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX as P, DurableStorageProtocol
 from airflow.providers.common.ai.durable.caching_model import CachingModel
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
 
 @pytest.fixture
 def mock_storage():
-    storage = MagicMock()
+    storage = MagicMock(spec=DurableStorageProtocol)
     storage.load_model_response.return_value = (None, None)
+    storage.save_model_response.return_value = True
     return storage
 
 
@@ -121,6 +124,40 @@ class TestCachingModelCacheMiss:
 
         keys = [call[0][0] for call in mock_storage.save_model_response.call_args_list]
         assert keys == [f"{P}model_step_0", f"{P}model_step_1"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("written", "expected"),
+        [pytest.param(True, (1, 0), id="written"), pytest.param(False, (0, 1), id="refused")],
+    )
+    async def test_counts_cached_only_when_storage_wrote_it(
+        self, mock_model, mock_storage, counter, sample_response, written, expected
+    ):
+        """A response the backend did not store re-runs on retry, so it counts as skipped."""
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_storage.save_model_response.return_value = written
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        result = await caching.request([], None, ModelRequestParameters())
+
+        assert result is sample_response
+        assert (counter.cached_model, counter.skipped_model) == expected
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="cap_structlog needs airflow._shared, which lands in Airflow 3.1"
+    )
+    @pytest.mark.parametrize("written", [True, False])
+    async def test_warns_only_when_storage_skipped_the_write(
+        self, mock_model, mock_storage, counter, sample_response, written, cap_structlog
+    ):
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_storage.save_model_response.return_value = written
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        await caching.request([], None, ModelRequestParameters())
+
+        assert ({"step": 0, "log_level": "warning"} in cap_structlog) is not written
 
 
 class TestCachingModelReplayVerification:

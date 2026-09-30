@@ -28,13 +28,13 @@ question that comes before that one: you have a system you want an agent to
 reach, so which route do you take, and what does each route give up?
 
 Read the table below by what you already have, not by what a toolset is called.
-When two routes both work, the deciding factor is rarely what each one can do —
-it is what each one cannot do, and every route has a short list.
+When two routes both work, the deciding factor is rarely what each one can do.
+It is what each one cannot do, and every route has a short list.
 
 More than one row can be true at once, and the rows are not exclusive: one agent
 can carry several toolsets. Two questions break the ties. *Whose credential is
-it?* — prefer the route whose credential is an Airflow connection somebody on
-your side already reviewed. *Whose tool list is it?* — prefer the route whose
+it?* Prefer the route whose credential is an Airflow connection somebody on
+your side already reviewed. *Whose tool list is it?* Prefer the route whose
 exposed surface you chose rather than inherited. The pair that most often
 overlaps is an Airflow hook and a vendor MCP server reaching the same target;
 both questions point at the hook, because its credential is the connection and
@@ -64,13 +64,13 @@ Start with what you have
      - ``HookToolset``
    * - A question that is a query, against a DBAPI database
      - ``SQLToolset``
-   * - Files on an object store — Parquet, CSV, Avro — or a catalog-managed
+   * - Files on an object store (Parquet, CSV, Avro) or a catalog-managed
        table format such as Iceberg, rather than rows in a database
      - ``DataFusionToolset``
    * - A vendor that already ships a server built for agents, whose tools you
        would otherwise re-wrap by hand
      - ``MCPToolset``
-   * - Procedural knowledge — how to carry out a task — rather than an endpoint
+   * - Procedural knowledge (how to carry out a task) rather than an endpoint
        to call
      - ``AgentSkillsToolset``
    * - Work that means running code the model wrote, not calling a tool you chose
@@ -109,22 +109,22 @@ LLM agents can call them during multi-turn reasoning.
 Six toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
 package root:
 
-- :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
+- :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`: generic
   adapter for any Airflow Hook. Guide: :doc:`hook`.
-- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
+- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`: curated
   4-tool database toolset. Guide: :doc:`sql`.
-- :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
+- :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset`: connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections. Guide: :doc:`mcp`.
-- :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` — give
+- :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`: give
   the agent a shell and a filesystem inside an isolated sandbox, off the
   Airflow worker. Guide: :doc:`../sandbox/index`.
-- :class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
-  — base class that provider packages subclass to expose a **vendor-managed
+- :class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`:
+  base class that provider packages subclass to expose a **vendor-managed
   agent**, one whose reasoning loop runs on a cloud provider's infrastructure.
   Guide: :doc:`managed_agent`.
-- :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
-  — composes several interchangeable managed agents behind a single tool.
+- :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`:
+  composes several interchangeable managed agents behind a single tool.
   See :ref:`managed-agent-toolsets`.
 
 Three more toolsets (:doc:`datafusion`, :doc:`logging`, :doc:`skills`) are not
@@ -141,8 +141,8 @@ passed to any pydantic-ai ``Agent``, including via
 
 .. note::
 
-    ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation — not
-    just the Airflow-native toolsets above. PydanticAI's own ``MCPToolset``
+    ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation, not
+    just the Airflow-native toolsets above. pydantic-ai's own ``MCPToolset``
     (built over a FastMCP transport) and third-party toolsets work too. The
     Airflow-native toolsets add connection management, secret backend
     integration, and the connection UI, but you are not locked in.
@@ -189,7 +189,7 @@ making on purpose rather than inheriting.
      - The vendor's infrastructure
 
 Two rows are worth pausing on. ``SandboxToolset`` deliberately takes no Airflow
-credential — that is the whole point of it, and it substitutes a backend-level
+credential; that is the whole point of it, and it substitutes a backend-level
 boundary, on the host or at the vendor, for the connection-level one. ``BaseManagedAgentToolset`` does not
 substitute anything; it simply leaves the question to whoever writes the
 subclass. Neither is a defect, but in both cases the access decision has moved
@@ -210,8 +210,8 @@ before it finish first, and tools emitted after it start only once it returns.
 A slow call on any of those four therefore holds up the rest of that step, not
 just its own toolset. ``BaseManagedAgentToolset`` sets ``sequential=False``
 deliberately, because the wait it introduces is remote. ``MCPToolset`` and
-``AgentSkillsToolset`` define no tools of their own — they pass through whatever
-the upstream toolset declares — so the setting is not theirs to make. Do not read
+``AgentSkillsToolset`` define no tools of their own: they pass through whatever
+the upstream toolset declares, so the setting is not theirs to make. Do not read
 this as a reason to choose one route over another; read it as something to expect
 from all four.
 
@@ -272,14 +272,14 @@ credential resolved through a connection that was reviewed once.
 This provider does not treat either as the default. The rule of thumb in
 :doc:`../index` is the dividing line: if Airflow should *run* the AI step, and the
 model should stay swappable, use ``common.ai``; if the Dag *submits work to* a
-vendor-managed service and waits for the result, use that vendor's provider —
+vendor-managed service and waits for the result, use that vendor's provider,
 and ``BaseManagedAgentToolset`` exists for the case where you want the second
 behaviour from inside an agent that is otherwise doing the first.
 
 See also
 --------
 
-- :doc:`../agent_security` — defense layers, ``allowed_tables`` enforcement, ``HookToolset``
+- :doc:`../agent_security`: defense layers, ``allowed_tables`` enforcement, ``HookToolset``
   guidelines and the production checklist.
-- :doc:`../security` — the provider's security policy.
-- :doc:`../examples` — the example Dags referenced above.
+- :doc:`../security`: the provider's security policy.
+- :doc:`../examples`: the example Dags referenced above.

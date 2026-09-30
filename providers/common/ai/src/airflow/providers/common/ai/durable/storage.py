@@ -108,8 +108,12 @@ class DurableStorage:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self._cache))
 
-    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> None:
-        """Serialize and store a ModelResponse with the request fingerprint that produced it."""
+    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> bool:
+        """
+        Serialize and store a ModelResponse with the request fingerprint that produced it.
+
+        :return: Always ``True``. Unlike the task state store, this backend never skips a model response.
+        """
         cache = self._load_cache()
         # Store the dumped messages as native JSON-compatible objects, not a
         # pre-encoded string: the whole cache is JSON-encoded once in
@@ -120,6 +124,7 @@ class DurableStorage:
             "data": ModelMessagesTypeAdapter.dump_python([response], mode="json"),
         }
         self._save_cache()
+        return True
 
     def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]:
         """
@@ -149,13 +154,15 @@ class DurableStorage:
             return None, None
         return messages[0], fingerprint  # type: ignore[return-value]
 
-    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> None:
+    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> bool:
         """
         Store a tool call result with the call fingerprint that produced it.
 
         Non-serializable results (e.g. BinaryContent from MCP tools) are
         skipped with a warning -- the tool call still succeeds, but won't
         be replayed on retry.
+
+        :return: ``True`` if the entry was written, ``False`` if it was skipped.
         """
         cache = self._load_cache()
         try:
@@ -170,9 +177,10 @@ class DurableStorage:
                 key=key,
                 type=type(result).__name__,
             )
-            return
+            return False
         cache[key] = {_SENTINEL: True, "value": result, "fingerprint": fingerprint}
         self._save_cache()
+        return True
 
     def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]:
         """

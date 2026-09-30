@@ -204,9 +204,6 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
-          # The docs build needs ~25 GB (image tar, loaded image, built docs); runners usually
-          # start with ~90 GB free, in which case the 3-minute cleanup is skipped.
-          min-free-space-gb: 40
       - name: "Restore docs inventory cache"
         # yamllint disable-line rule:line-length
         uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0

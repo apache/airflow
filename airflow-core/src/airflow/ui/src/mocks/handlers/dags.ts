@@ -18,7 +18,7 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
-const successDag = {
+export const successDag = {
   dag_display_name: "tutorial_taskflow_api_success",
   dag_id: "tutorial_taskflow_api_success",
   file_token:
@@ -53,7 +53,7 @@ const successDag = {
   timetable_type: "NullTimetable",
 };
 
-const failedDag = {
+export const failedDag = {
   dag_display_name: "tutorial_taskflow_api_failed",
   dag_id: "tutorial_taskflow_api_failed",
   file_token:
@@ -88,7 +88,7 @@ const failedDag = {
   timetable_type: "CronTriggerTimetable",
 };
 
-const pausedDag = {
+export const pausedDag = {
   dag_display_name: "paused_dag",
   dag_id: "paused_dag",
   file_token:

@@ -48,6 +48,12 @@ Guardrail capabilities use the same passthrough pattern. This example uses
 ``InputGuard`` from ``pydantic-ai-shields`` to reject a prompt before the agent
 run starts.
 
+.. note::
+
+    Experimental: the ``shields`` extra can change or be removed in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
     :language: python
     :start-after: [START howto_operator_agent_capabilities_input_guard]
@@ -58,5 +64,3 @@ run starts.
     ``agent_params`` is a templated field, which Airflow serializes by calling
     ``str()`` on values it doesn't natively understand. Capability instances
     are not yet round-trip-safe through Dag serialization, so the examples above construct them inside the ``@dag`` function -- not at module level.
-    First-class ``capabilities=`` support on ``AgentOperator`` (with proper
-    serializer hooks) is tracked as a follow-up.
