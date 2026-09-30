@@ -86,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
 )
 from airflow.sdk.execution_time.context import (
+    _VARIABLE_KEYS_PAGE_SIZE,
     NEVER_EXPIRE,
     AssetStateStoreAccessor,
     AssetStateStoreAccessors,
@@ -1438,8 +1439,6 @@ class TestAsyncVariableContext:
     @pytest.mark.asyncio
     async def test_async_get_variable_keys_paginates(self, mock_supervisor_comms):
         """_async_get_variable_keys accumulates results across multiple pages."""
-        from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
-
         page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
         page2 = ["last_key"]
         mock_supervisor_comms.asend.side_effect = [

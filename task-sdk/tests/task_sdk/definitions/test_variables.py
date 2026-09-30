@@ -34,6 +34,7 @@ from airflow.sdk.execution_time.comms import (
     VariableKeysResult,
     VariableResult,
 )
+from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -155,8 +156,6 @@ class TestVariableKeys:
 
     def test_keys_paginates_when_results_exceed_page_size(self, mock_supervisor_comms):
         # Simulate two full pages followed by a short page (signals end).
-        from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
-
         page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
         page2 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE, _VARIABLE_KEYS_PAGE_SIZE * 2)]
         page3 = ["last_key"]
@@ -282,8 +281,6 @@ class TestAsyncVariableKeys:
 
     @pytest.mark.asyncio
     async def test_akeys_paginates_when_results_exceed_page_size(self, mock_supervisor_comms):
-        from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
-
         page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
         page2 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE, _VARIABLE_KEYS_PAGE_SIZE * 2)]
         page3 = ["last_key"]

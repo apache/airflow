@@ -550,8 +550,6 @@ async def _async_set_variable(
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
-    import json
-
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.secrets.execution_api import (
         ExecutionAPISecretsBackend,
