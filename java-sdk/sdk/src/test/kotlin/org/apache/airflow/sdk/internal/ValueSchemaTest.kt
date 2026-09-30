@@ -147,7 +147,7 @@ class ValueSchemaTest {
       { assertEquals(nullable(mapOf("type" to "integer")), schemaOf("big")) },
       { assertEquals(nullable(mapOf("type" to "number")), schemaOf("exact")) },
       { assertEquals(nullable(mapOf("type" to "string", "format" to "uuid")), schemaOf("id")) },
-      { assertEquals(nullable(mapOf("type" to "string", "enum" to listOf("RED", "GREEN"))), schemaOf("color")) },
+      { assertEquals(nullable(mapOf("type" to "string", "enum" to listOf("GREEN", "RED"))), schemaOf("color")) },
     )
   }
 

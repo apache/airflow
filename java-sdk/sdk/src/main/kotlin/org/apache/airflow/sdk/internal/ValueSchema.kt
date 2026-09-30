@@ -125,6 +125,7 @@ private fun classSchema(type: Class<*>): Schema? {
     // Other platform types (Object, Optional, Date, URI, ...) decode from more
     // than one JSON shape, or from none, so they constrain nothing here.
     isPlatformType(type) -> null
+    // A POJO's fields are not described: the schema says only that it takes an object.
     else -> mapOf("type" to "object")
   }
 }
@@ -133,11 +134,16 @@ private fun isPlatformType(type: Class<*>): Boolean =
   type.name.startsWith("java.") || type.name.startsWith("javax.") || type.name.startsWith("kotlin.")
 
 // Read from the constant fields rather than enumConstants, which would run the
-// enum's static initializer while the bundle is only being described.
+// enum's static initializer while the bundle is only being described. getFields
+// has no defined order, so the names are sorted.
 private fun enumSchema(type: Class<*>): Schema =
   mapOf(
     "type" to "string",
-    "enum" to type.fields.filter { it.isEnumConstant }.map { it.name },
+    "enum" to
+      type.fields
+        .filter { it.isEnumConstant }
+        .map { it.name }
+        .sorted(),
   )
 
 private fun arraySchema(component: Type): Schema = mapOf("type" to "array", "items" to (buildValueSchema(component) ?: UNCONSTRAINED))
