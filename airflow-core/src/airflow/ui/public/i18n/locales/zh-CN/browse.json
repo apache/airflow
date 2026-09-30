@@ -12,8 +12,6 @@
   },
   "dagBundles": {
     "active": "已启用",
-    "bundle_one": "Dag 套件包",
-    "bundle_other": "Dag 套件包",
     "columns": {
       "active": "已启用",
       "importErrors": "导入错误",
@@ -21,10 +19,6 @@
       "name": "名称",
       "version": "版本"
     },
-    "inactive": "已停用",
-    "neverRefreshed": "从未",
-    "notRefreshedYet": "尚未刷新",
-    "notVersioned": "未启用版本管理",
     "detail": {
       "status": "状态"
     },
@@ -40,7 +34,11 @@
       "neverParsed": "从未",
       "showImportError_one": "查看错误",
       "showImportError_other": "查看 {{count}} 个错误"
-    }
+    },
+    "inactive": "已停用",
+    "neverRefreshed": "从未",
+    "notRefreshedYet": "尚未刷新",
+    "notVersioned": "未启用版本管理"
   },
   "deadlines": {
     "columns": {
