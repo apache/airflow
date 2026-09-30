@@ -263,6 +263,88 @@ Durable execution
 
 Moved to :doc:`../durable_execution`.
 
+.. _agent-prompt-caching:
+
+Prompt caching
+^^^^^^^^^^^^^^
+
+Every request an agent makes re-sends its tool definitions, its system prompt and the
+conversation so far. An agent that calls three tools makes four requests, and a mapped
+``@task.agent`` makes that many per map index, all starting with the same system prompt.
+``cache_prompt`` (on by default) asks the provider to keep that repeated prefix, so later
+requests read it back instead of paying the full input price for it again.
+
+What it turns on depends on the model the connection resolves to:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Provider
+     - What ``cache_prompt=True`` does
+   * - Anthropic (``anthropic:``)
+     - Marks the tool definitions, the system prompt and the latest message as cache
+       breakpoints.
+   * - Bedrock (``bedrock:``) and OpenRouter (``openrouter:``)
+     - The same three breakpoints, for models pydantic-ai knows support caching. Nothing
+       for the rest.
+   * - OpenAI, Azure OpenAI, Gemini
+     - Nothing. These cache long prompts on their own.
+
+Because each model reads only its own provider's settings, the same flag covers a
+:doc:`fallback chain <../provider_fallback>` that spans providers.
+
+On Anthropic, a 5-minute cache write costs 1.25x the normal input price and a read costs
+0.1x (less on some newer models), so a prefix read back even once costs less than sending it
+twice. A prompt shorter than the model's minimum cacheable length (512 to 4,096 tokens,
+depending on the model) is not cached and costs nothing extra. See Anthropic's
+`prompt caching guide <https://platform.claude.com/docs/en/build-with-claude/prompt-caching>`__
+for the per-model minimums and prices.
+
+The one case where caching costs more is an agent that sends a long prompt in a single
+request and never sends it again within five minutes: no tools, not mapped, run rarely.
+Turn it off there:
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="summarize_quarter",
+        prompt="Summarize the attached report.",
+        llm_conn_id="anthropic_default",
+        system_prompt=long_style_guide,
+        cache_prompt=False,
+    )
+
+To choose the breakpoints or the lifetime yourself, set the provider's own settings in
+``agent_params["model_settings"]``. Setting any ``anthropic_cache*`` key hands Anthropic
+caching back to you, and ``cache_prompt`` adds nothing for Anthropic; the same holds for
+``bedrock_cache*`` and ``openrouter_cache*``. For example, a mapped task whose instances run
+further apart than five minutes can keep the system prompt for an hour:
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="classify_ticket",
+        prompt="{{ params.ticket }}",
+        llm_conn_id="anthropic_default",
+        system_prompt=long_taxonomy,
+        agent_params={
+            "model_settings": {
+                "anthropic_cache_instructions": "1h",
+                "anthropic_cache_tool_definitions": "1h",
+            }
+        },
+    )
+
+When the provider reports cache activity, the task log shows it under the run summary:
+
+.. code-block:: text
+
+    LLM run complete: model=claude-sonnet-4-5, requests=2, tool_calls=1, input_tokens=..., ...
+    LLM prompt cache: cache_read_tokens=..., cache_write_tokens=...
+
+``input_tokens`` includes both counts. With :doc:`../observability` turned on, each
+request's GenAI span carries them too.
+
 Parameters
 ----------
 
@@ -344,6 +426,9 @@ Parameters
 - ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
   tool that the model drives by writing Python, executed in the Monty sandbox.
   Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
+- ``cache_prompt``: Ask the provider to cache the tool definitions, system prompt and
+  conversation so later requests read them back at a discount. Default ``True``; a no-op for
+  providers that cache on their own. See :ref:`agent-prompt-caching`.
 - ``message_history``: Prior conversation to seed a multi-turn session, as a list
   of pydantic-ai ``ModelMessage`` objects or their JSON form (``str`` / ``bytes``).
   When set, the post-run transcript is pushed to XCom under the key

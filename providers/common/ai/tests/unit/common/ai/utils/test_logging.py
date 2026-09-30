@@ -59,7 +59,9 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None, co
         "total_tokens": 3359,
     }
     result = MagicMock()
-    result.usage = MagicMock(cost=cost, **usage_kwargs)
+    result.usage = MagicMock(
+        spec=RunUsage, cost=cost, **{"cache_read_tokens": 0, "cache_write_tokens": 0, **usage_kwargs}
+    )
     result.response = MagicMock(model_name=model_name)
 
     messages: list = []
@@ -146,6 +148,36 @@ class TestLogRunSummary:
 
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert not any("LLM run cost" in r.message for r in records)
+
+    def test_no_cache_tokens_skips_cache_line(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result()
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert not any("prompt cache" in r.message for r in records)
+
+    def test_cache_tokens_logged_after_the_usage_line(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(
+            usage_kwargs={
+                "requests": 2,
+                "tool_calls": 1,
+                "input_tokens": 6000,
+                "output_tokens": 40,
+                "total_tokens": 6040,
+                "cache_read_tokens": 2900,
+                "cache_write_tokens": 3000,
+            }
+        )
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == "LLM prompt cache: cache_read_tokens=2900, cache_write_tokens=3000"
 
     def test_cost_set_logs_cost_line_with_value(self, caplog):
         logger = logging.getLogger("test.log_run_summary")

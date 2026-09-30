@@ -57,6 +57,13 @@ def log_run_summary(
         usage.output_tokens,
         usage.total_tokens,
     )
+    if usage.cache_read_tokens or usage.cache_write_tokens:
+        # Part of input_tokens above, broken out so the effect of ``cache_prompt`` shows up in the log.
+        logger.info(
+            "LLM prompt cache: cache_read_tokens=%s, cache_write_tokens=%s",
+            usage.cache_read_tokens,
+            usage.cache_write_tokens,
+        )
     if usage.cost is not None:
         # %s on a small Decimal renders scientific notation (e.g. "7.5E-7"); format as
         # plain decimal so cheap runs show a readable dollar amount.

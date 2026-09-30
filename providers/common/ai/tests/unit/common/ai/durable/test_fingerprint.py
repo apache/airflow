@@ -173,6 +173,20 @@ class TestModelRequestFingerprint:
 
         assert no_timeout == float_timeout == httpx_timeout
 
+    def test_prompt_cache_settings_excluded_from_fingerprint(self):
+        """Turning ``cache_prompt`` on or off between attempts must not re-run cached steps."""
+        uncached = fingerprint_model_request(
+            "m", make_messages(), {"temperature": 0.2}, ModelRequestParameters()
+        )
+        cached = fingerprint_model_request(
+            "m",
+            make_messages(),
+            {"temperature": 0.2, "anthropic_cache_messages": True, "bedrock_cache_instructions": "1h"},
+            ModelRequestParameters(),
+        )
+
+        assert uncached == cached
+
     def test_content_settings_still_count_when_timeout_present(self):
         """Stripping timeout must not drop content settings sharing the dict."""
         low = fingerprint_model_request(
