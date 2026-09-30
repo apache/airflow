@@ -2478,6 +2478,23 @@ class TestIndexedTaskInstance:
         assert ti.state == TaskInstanceState.SCHEDULED.value
         assert ti.is_mapped is True
 
+    def test_create_indexed_task_carries_the_parents_context_from_the_server(self, create_runtime_ti):
+        """
+        An iteration sees the dag run the task instance runs in: its logical date, and a template
+        context with ``dag_run`` and ``ds``, which ``get_previous_ti()`` and lineage macros read.
+        """
+        parent = create_runtime_ti(task=BaseOperator(task_id="iterated"))
+        context = parent.get_template_context()
+
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=0, operator=parent.task)
+
+        assert ti._ti_context_from_server is parent._ti_context_from_server
+        assert ti.logical_date is not None
+        assert ti.logical_date == parent.logical_date
+        template_context = ti.get_template_context()
+        assert template_context["dag_run"] == context["dag_run"]
+        assert template_context["ds"] == context["ds"]
+
     def test_create_indexed_task_takes_the_parents_task_id(self):
         """An iteration's XComs and state belong to the task instance running it, whatever the operator says."""
         context, operator = self._parent_context_and_operator()

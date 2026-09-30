@@ -1018,6 +1018,9 @@ class IndexedTaskInstance(RuntimeTaskInstance):
             is_mapped=True,
             task=operator,
             try_number=parent.try_number,
+            # The dag run, logical date and the rest the server sent for the task instance that
+            # runs this iteration: its template context, get_previous_ti() and the like read them.
+            _ti_context_from_server=getattr(parent, "_ti_context_from_server", None),
         )
 
     def xcom_push(
