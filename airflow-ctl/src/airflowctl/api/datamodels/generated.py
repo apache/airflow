@@ -2925,12 +2925,23 @@ class DAGDetailsResponse(BaseModel):
     rerun_with_latest_version: Annotated[bool | None, Field(title="Rerun With Latest Version")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
-    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
-    queued_runs_count: Annotated[int | None, Field(title="Queued Runs Count")] = 0
+    active_runs_count: Annotated[
+        int | None,
+        Field(
+            description="Number of currently running runs (backfill runs excluded).",
+            title="Active Runs Count",
+        ),
+    ] = 0
+    queued_runs_count: Annotated[
+        int | None,
+        Field(
+            description="Number of currently queued runs (backfill runs excluded).", title="Queued Runs Count"
+        ),
+    ] = 0
     is_at_max_active_runs: Annotated[
         bool,
         Field(
-            description="Whether this Dag currently has as many active runs as its max_active_runs allows. Counted differently from active_runs_count above: this counts RUNNING and QUEUED runs (excluding backfill runs), matching the scheduler's own promotion check, while active_runs_count counts RUNNING runs only and includes backfill runs. A Dag with one running backfill run and no others can show active_runs_count: 1 alongside is_at_max_active_runs: false, and a Dag with one queued (non-backfill) run and otherwise no active runs can show active_runs_count: 0 alongside is_at_max_active_runs: true.",
+            description="Whether this Dag is currently at its max_active_runs limit, counting running and queued runs (backfill runs excluded).",
             title="Is At Max Active Runs",
         ),
     ]

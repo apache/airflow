@@ -45,6 +45,7 @@
   "dagDetails": {
     "activeRuns": "Active Runs",
     "activeRunsExceedsMaxTooltip": "Runs beyond the limit will not start until an existing active run completes.",
+    "activeRunsOfMax": "{{activeRuns}} of {{maxActiveRuns}}",
     "activeRunsWithQueued": "{{activeRuns}} of {{maxActiveRuns}} ({{queuedRuns}} queued)",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run Timeout",

@@ -79,6 +79,7 @@ from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
+from airflow.utils.types import DagRunType
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -264,46 +265,27 @@ def get_dag_details(
         is not None
     )
 
-    # Count only running Dag runs: this stat shows runs that are actually executing right now.
-    # Excludes backfill runs -- those are gated by Backfill.max_active_runs, not the Dag's own
-    # max_active_runs, so a backfill with a higher limit would otherwise render as exceeding it.
-    active_runs_count = (
-        session.scalar(
-            select(func.count())
-            .select_from(DagRun)
-            .where(
-                DagRun.dag_id == dag_id,
-                DagRun.state == DagRunState.RUNNING,
-                DagRun.backfill_id.is_(None),
-            )
+    # One query for both counts so they can't disagree with each other if a run changes state
+    # in between. Backfill runs are excluded: they're gated by Backfill.max_active_runs, not
+    # the Dag's own max_active_runs.
+    active_runs_count = queued_runs_count = 0
+    for state, count in session.execute(
+        select(DagRun.state, func.count())
+        .where(
+            DagRun.dag_id == dag_id,
+            DagRun.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)),
+            DagRun.run_type != DagRunType.BACKFILL_JOB,
         )
-        or 0
-    )
+        .group_by(DagRun.state)
+    ):
+        if state == DagRunState.RUNNING:
+            active_runs_count = count
+        else:
+            queued_runs_count = count
 
-    # Count queued Dag runs: these are waiting for an active run to finish before they can start.
-    # Excludes backfill runs for the same reason as active_runs_count above.
-    queued_runs_count = (
-        session.scalar(
-            select(func.count())
-            .select_from(DagRun)
-            .where(
-                DagRun.dag_id == dag_id,
-                DagRun.state == DagRunState.QUEUED,
-                DagRun.backfill_id.is_(None),
-            )
-        )
-        or 0
-    )
-
-    # Computed fresh here rather than read from DagModel.exceeds_max_non_backfill: that column
-    # is a scheduler-side cache written on parse and on a handful of scheduler events, but never
-    # by a manual/API/operator trigger -- so for a schedule=None Dag it can stay stale (wrong in
-    # either direction) for as long as min_file_process_interval, or for a run's entire lifetime
-    # if it finishes before the next parse.
-    non_backfill_active_runs_count = DagRun.active_runs_of_dags(
-        dag_ids=[dag_id], exclude_backfill=True, session=session
-    ).get(dag_id, 0)
-    is_at_max_active_runs = non_backfill_active_runs_count >= (dag_model.max_active_runs or 0)
+    # Computed here rather than read from DagModel.exceeds_max_non_backfill: that scheduler-side
+    # cache isn't updated when a run is triggered manually or through the API.
+    is_at_max_active_runs = active_runs_count + queued_runs_count >= (dag_model.max_active_runs or 0)
 
     # Add is_favorite, active_runs_count, queued_runs_count, and is_at_max_active_runs fields
     setattr(dag_model, "is_favorite", is_favorite)

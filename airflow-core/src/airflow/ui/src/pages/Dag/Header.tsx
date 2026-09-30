@@ -142,7 +142,10 @@ export const Header = ({
                 maxActiveRuns: dag.max_active_runs,
                 queuedRuns: dag.queued_runs_count,
               })
-            : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
+            : translate("dagDetails.activeRunsOfMax", {
+                activeRuns: dag.active_runs_count ?? 0,
+                maxActiveRuns: dag.max_active_runs,
+              }),
     },
     {
       label: translate("dagDetails.owner"),

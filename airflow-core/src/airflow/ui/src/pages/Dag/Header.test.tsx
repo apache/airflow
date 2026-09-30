@@ -132,6 +132,17 @@ describe("Header", () => {
     expect(screen.getByText("1 of 1 (2 queued)")).toBeInTheDocument();
   });
 
+  it("shows the info icon when over capacity, e.g. after max_active_runs was lowered", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 3, max_active_runs: 1, queued_runs_count: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("active-runs-exceeds-max-info")).toBeInTheDocument();
+    expect(screen.getByText("3 of 1 (2 queued)")).toBeInTheDocument();
+  });
+
   it("shows the queued count without the icon when below capacity (scheduler hasn't caught up yet)", () => {
     render(
       <Wrapper>

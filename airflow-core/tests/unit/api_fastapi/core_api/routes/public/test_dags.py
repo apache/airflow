@@ -1528,17 +1528,6 @@ class TestDagDetails(TestDagEndpoint):
         self, session, test_client
     ):
         """Backfill runs don't count against the Dag's own max_active_runs, so they're excluded."""
-        from airflow.models.backfill import Backfill
-
-        backfill = Backfill(
-            dag_id=DAG2_ID,
-            from_date=datetime(2021, 6, 15, tzinfo=timezone.utc),
-            to_date=datetime(2021, 6, 16, tzinfo=timezone.utc),
-            dag_run_conf=None,
-        )
-        session.add(backfill)
-        session.flush()
-
         session.add(
             DagRun(
                 dag_id=DAG2_ID,
@@ -1558,7 +1547,6 @@ class TestDagDetails(TestDagEndpoint):
                 start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
                 run_type=DagRunType.BACKFILL_JOB,
                 state=DagRunState.RUNNING,
-                backfill_id=backfill.id,
                 triggered_by=DagRunTriggeredByType.TEST,
             )
         )
@@ -1570,7 +1558,6 @@ class TestDagDetails(TestDagEndpoint):
                 start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
                 run_type=DagRunType.BACKFILL_JOB,
                 state=DagRunState.QUEUED,
-                backfill_id=backfill.id,
                 triggered_by=DagRunTriggeredByType.TEST,
             )
         )
