@@ -72,7 +72,9 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
-DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
+# is_favorite is per API user; the CLI has no user to compute it for.
+_CLI_EXCLUDED_FIELDS = {"is_favorite"}
+DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields} - _CLI_EXCLUDED_FIELDS
 
 log = logging.getLogger(__name__)
 
@@ -601,7 +603,9 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
 
     def get_dag_detail(dag: DAG) -> dict:
         if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
-            dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
+            dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump(
+                exclude=_CLI_EXCLUDED_FIELDS
+            )
         else:
             dag_detail = _get_dagbag_dag_details(dag)
         if not cols:
@@ -639,7 +643,7 @@ def dag_details(args, *, session: Session = NEW_SESSION):
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dag_detail = DAGResponse.from_orm(dag).model_dump()
+    dag_detail = DAGResponse.from_orm(dag).model_dump(exclude=_CLI_EXCLUDED_FIELDS)
 
     if args.output in ["table", "plain"]:
         data = [{"property_name": key, "property_value": value} for key, value in dag_detail.items()]

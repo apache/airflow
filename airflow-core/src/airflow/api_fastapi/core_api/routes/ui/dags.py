@@ -284,6 +284,7 @@ def get_dags(
                 dag, DAG_ALIAS_MAPPING.get(field_name, field_name)
             )
             for field_name in DAGResponse.model_fields
+            if field_name != "is_favorite"  # per user, set below
         }
         dag_data.update(
             {
