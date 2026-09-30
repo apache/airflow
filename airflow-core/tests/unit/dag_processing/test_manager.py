@@ -4307,6 +4307,20 @@ class TestKnownTaskHandlerArtifacts:
         assert {artifact.bundle_name for artifact in selected} == expected_bundle_names
 
     @conf_vars(_routed_coordinators({"java": _coordinator(JAVA_TASK_HANDLERS)}))
+    @mock.patch.object(DagFileProcessorProcess, "start")
+    @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
+    def test_start_new_processes_keeps_own_bundle_out_without_a_fallback(self, get_known, start, manager):
+        # An override may return bundles it was not asked for.
+        get_known.return_value = {name: [_known_artifact(name)] for name in ("dags-a", JAVA_TASK_HANDLERS)}
+        manager._file_queue = OrderedDict.fromkeys(
+            [DagFileInfo(bundle_name="dags-a", rel_path=Path("one.py"), bundle_path=TEST_DAGS_FOLDER)]
+        )
+
+        manager._start_new_processes()
+
+        assert start.call_args.kwargs["known_artifacts"] == [_known_artifact(JAVA_TASK_HANDLERS)]
+
+    @conf_vars(_routed_coordinators({"java": _coordinator(JAVA_TASK_HANDLERS)}))
     @mock.patch.object(DagFileProcessorManager, "get_known_task_handler_artifacts", autospec=True)
     def test_start_new_processes_reads_nothing_without_a_child_to_start(self, get_known, manager):
         manager._start_new_processes()
