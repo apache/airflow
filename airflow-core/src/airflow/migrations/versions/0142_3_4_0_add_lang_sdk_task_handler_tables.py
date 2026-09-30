@@ -19,9 +19,9 @@
 """
 Add lang_sdk_task_handler_artifact and lang_sdk_task_handler tables.
 
-Revision ID: ffff41014d89
+Revision ID: f7ed13533d23
 Revises: 90e4d18ccadf
-Create Date: 2026-09-30 12:00:00.000000
+Create Date: 2026-09-30 14:19:35.109799
 
 """
 
@@ -34,7 +34,7 @@ from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
-revision = "ffff41014d89"
+revision = "f7ed13533d23"
 down_revision = "90e4d18ccadf"
 branch_labels = None
 depends_on = None
