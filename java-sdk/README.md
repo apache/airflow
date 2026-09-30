@@ -674,6 +674,15 @@ launches the JVM application as a subprocess. The flow is:
 5. On completion (or exception) the JVM sends a `TaskState` message and closes
    the socket. The JVM process then exits.
 
+The Dag processor also launches each JAR to ask which task handlers it
+registers. The first frame is then a `TaskHandlerParseRequest`, and
+`execution/TaskHandlerParse.kt` replies with one `TaskHandlerParsingResult`:
+the task-handler registrations of the requested Dags, each with its binding
+mode and parameters. Flat data parameters bind `positional` and a `TaskInput`
+binds `named`. The annotation processor records a handler's parameter names on
+its generated task class (`internal/TaskParams.kt`), because Java does not keep
+them at run time. The JVM waits for the reply's acknowledgement, then exits.
+
 Log messages produced by the SDK (not by user code) are forwarded over the
 `--logs` socket so the supervisor can append them to Airflow's log store.
 
