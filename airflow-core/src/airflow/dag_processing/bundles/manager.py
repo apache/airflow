@@ -353,20 +353,17 @@ class DagBundlesManager(LoggingMixin):
                 config.team_name for config in self._bundle_config.values() if config.team_name
             }
         ):
+            # ``team.name`` compares case-insensitively on MySQL, so ``IN`` can return a row whose
+            # name differs in case from the config value; casefolded keys still find it.
             teams_by_name = {
-                team.name: team
+                team.name.casefold(): team
                 for team in session.scalars(select(Team).where(Team.name.in_(configured_team_names)))
             }
 
         for name, config in self._bundle_config.items():
             team: Team | None = None
             if config.team_name:
-                # ``team.name`` compares case-insensitively on MySQL, so a config value that differs
-                # in case from the stored name matches the ``IN`` above but misses this dict.
-                team = (
-                    teams_by_name.get(config.team_name)
-                    or session.scalars(select(Team).where(Team.name == config.team_name)).one_or_none()
-                )
+                team = teams_by_name.get(config.team_name.casefold())
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
