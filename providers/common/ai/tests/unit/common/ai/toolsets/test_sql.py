@@ -452,6 +452,46 @@ class TestSQLToolsetQuery:
         assert "list_tables" in message
         assert "get_schema" in message
 
+    @pytest.mark.enable_redact
+    def test_a_database_error_carrying_the_connection_password_reaches_the_model_masked(
+        self, registered_secret
+    ):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = ConnectionError(
+            f'connection to "db:5432" failed: password "{registered_secret}" rejected'
+        )
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT 1"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
+
+        assert registered_secret not in exc_info.value.message
+        assert 'password "***" rejected' in exc_info.value.message
+
+    @pytest.mark.enable_redact
+    def test_a_row_carrying_the_connection_password_reaches_the_model_masked(self, registered_secret):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(records=[(1, f"dsn=postgres://app:{registered_secret}@db")])
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query",
+                {"sql": "SELECT * FROM users"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+
+        assert registered_secret not in result
+        assert "postgres://app:***@db" in result
+
 
 class TestSQLToolsetCheckQuery:
     def test_valid_select(self):
@@ -474,6 +514,20 @@ class TestSQLToolsetCheckQuery:
         data = json.loads(result)
         assert data["valid"] is False
         assert "error" in data
+
+    @pytest.mark.enable_redact
+    def test_an_error_carrying_a_secret_that_json_escapes_is_masked(self, register_secret):
+        secret = register_secret('db-pa"ss-91c3')
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool("check_query", {"sql": f"SELECT '{secret}' FROM"}, ctx=MagicMock(), tool=MagicMock())
+        )
+
+        data = json.loads(result)
+        assert data["valid"] is False
+        assert secret not in data["error"]
 
 
 class TestSQLToolsetHookResolution:

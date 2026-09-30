@@ -34,6 +34,11 @@ class LlamaIndexHook(BaseHook):
     """
     Bridge an Airflow connection to LlamaIndex chat and embedding models.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The hook resolves credentials (API key, optional API base URL) from the
     Airflow connection and returns native LlamaIndex objects ready to pass
     to ``VectorStoreIndex(..., embed_model=...)``,

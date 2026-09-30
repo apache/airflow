@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.sandbox.base import (
+    AttachableSandboxBackend,
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
@@ -27,15 +28,14 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxTerminalError,
     dag_run_owner,
 )
-
-# Both backends import their vendor dependency lazily, on first use, so the
-# package is importable without the optional ``boat-sdk``; a missing SDK
-# surfaces as an actionable error from the backend instead.
 from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
+from airflow.providers.common.ai.sandbox.opensandbox import OpenSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "AttachableSandboxBackend",
     "BoatSandboxBackend",
+    "OpenSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",

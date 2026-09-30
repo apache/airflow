@@ -52,6 +52,21 @@ modal token new
 pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_modal.py
 ```
 
+## OpenSandbox
+
+Install the OpenSandbox extra, point the SDK at a running server, and run:
+
+```console
+pip install "apache-airflow-providers-common-ai[opensandbox]"
+export OPEN_SANDBOX_DOMAIN="opensandbox.example.com"
+export OPEN_SANDBOX_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_opensandbox.py
+```
+
+The test requests the default deny-all egress policy, so the OpenSandbox server
+must have its egress sidecar configured. It also applies a 15-minute server-side
+sandbox lifetime.
+
 ## Boat
 
 Install the Boat extra and export a short-lived API key into the task process:

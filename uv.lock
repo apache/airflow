@@ -3162,6 +3162,9 @@ cncf-kubernetes = [
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
+duckdb = [
+    { name = "apache-airflow-providers-duckdb" },
+]
 exasol = [
     { name = "apache-airflow-providers-exasol" },
 ]
@@ -3224,6 +3227,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
+    { name = "apache-airflow-providers-duckdb" },
     { name = "apache-airflow-providers-exasol" },
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-google" },
@@ -3261,6 +3265,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-duckdb", marker = "extra == 'duckdb'", editable = "providers/duckdb" },
     { name = "apache-airflow-providers-exasol", marker = "extra == 'exasol'", editable = "providers/exasol" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
     { name = "apache-airflow-providers-ftp", marker = "extra == 'ftp'", editable = "providers/ftp" },
@@ -3296,7 +3301,7 @@ requires-dist = [
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
-provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "sqlalchemy"]
+provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "duckdb", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3310,6 +3315,7 @@ dev = [
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-duckdb", editable = "providers/duckdb" },
     { name = "apache-airflow-providers-exasol", editable = "providers/exasol" },
     { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
@@ -10872,7 +10878,7 @@ wheels = [
 
 [[package]]
 name = "boat-sdk"
-version = "1.0.0"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -10880,9 +10886,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/dc/18b92836272e8f74f0608ceda2a05a75af8f423f78badf223fc38e686ba8/boat_sdk-1.0.0.tar.gz", hash = "sha256:96c53ac65cd40f8476fea5b92b70584c86a8d8809eabfe46cb9214dfd3fb6ef8", size = 123043, upload-time = "2026-09-16T17:40:59.347Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/44/1a/857f47b40b53e02917fe1beb21065bfc4e497c3376067ccb49df4d63b3d6/boat_sdk-1.0.1.tar.gz", hash = "sha256:051158ec0afb21449ef719b881835834425a906b5560e95cb1e778d7529e8148", size = 133764, upload-time = "2026-09-25T07:45:05.073Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/8c/7dd27391470c1a11fba436f65259ef98ef2f190ebf2e2b0dceff345d20cc/boat_sdk-1.0.0-py3-none-any.whl", hash = "sha256:78109641834e956e01a1ef838730a8b8bf298601fa1b5a2f458637e5a48759e5", size = 265886, upload-time = "2026-09-16T17:40:57.7Z" },
+    { url = "https://files.pythonhosted.org/packages/36/c5/359c55be02fe622aa35fbebdbac2cef7976b113e97b2c2c2f68dbbfcd2ab/boat_sdk-1.0.1-py3-none-any.whl", hash = "sha256:2b2d57d237b98aad08edcbb5864dd14c7bb14f072cb7649ef8198c1340d1d3e6", size = 288088, upload-time = "2026-09-25T07:45:03.572Z" },
 ]
 
 [[package]]

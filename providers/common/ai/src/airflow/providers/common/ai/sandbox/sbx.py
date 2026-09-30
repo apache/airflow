@@ -65,6 +65,11 @@ class SbxSandboxBackend(SandboxBackend):
     """
     Sandbox backend that runs agent commands in a Docker Sandboxes (``sbx``) microVM.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Drives the ``sbx`` CLI: ``create`` provisions a per-session microVM, ``exec``
     runs commands in it, and ``rm`` tears it down. Each sandbox is a microVM with
     its own kernel, so agent code is isolated by a hardware boundary rather than a
@@ -77,10 +82,12 @@ class SbxSandboxBackend(SandboxBackend):
     need the ``sbx`` binary on the host, an authenticated Docker account
     (``sbx login``), a one-time ``sbx policy init``, and on Linux, KVM or nested
     virtualization -- which an unprivileged container cannot provide. If you need
-    Kubernetes, use a hosted backend --
+    Kubernetes, use a remote backend --
     :class:`~airflow.providers.common.ai.sandbox.ModalSandboxBackend` or
-    :class:`~airflow.providers.common.ai.sandbox.BoatSandboxBackend`, both of
-    which only talk to an API -- or add your own behind :class:`SandboxBackend`.
+    :class:`~airflow.providers.common.ai.sandbox.BoatSandboxBackend` for a
+    managed service or
+    :class:`~airflow.providers.common.ai.sandbox.OpenSandboxBackend` for a
+    self-hosted one -- or add your own behind :class:`SandboxBackend`.
 
     **Network policy is layered on a host-level setting, not independent of
     one.** ``sbx`` governs egress through a host-level ``sbx policy``.

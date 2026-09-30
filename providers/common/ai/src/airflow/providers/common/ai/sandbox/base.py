@@ -117,6 +117,11 @@ class SandboxSpec:
     """
     What a single sandbox should be provisioned with.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Passed to :meth:`SandboxBackend.create`. Every field is optional and a
     backend may not be able to honor all of them; a backend that cannot enforce
     a field it was given must raise rather than silently ignore it, so a DAG
@@ -260,6 +265,11 @@ class SandboxExecResult:
 class SandboxBackend(ABC):
     """
     Contract for running commands and file operations in an isolated sandbox.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The lifecycle is create -> (any number of operations) -> destroy, driven by
     :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`.
@@ -440,6 +450,11 @@ class SandboxBackend(ABC):
 class AttachableSandboxBackend(SandboxBackend):
     """
     A backend whose sandboxes outlive the process that created them and can be found again.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     This is what lets one task provision a sandbox and a later agent task use it:
     the provisioning task stamps the sandbox with :attr:`SandboxSpec.owner`, the

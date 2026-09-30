@@ -181,6 +181,16 @@ class TestConnection:
 
 
 class TestCreate:
+    def test_refuses_an_owner_because_nothing_could_attach(self):
+        # The ownership rules ride on per-sandbox metadata the attaching side reads back,
+        # which this backend does not keep; refuse before anything is provisioned.
+        backend, api = _backend_with_api()
+
+        with pytest.raises(SandboxTerminalError, match="owner"):
+            backend.create(spec=SandboxSpec(block_network=False, owner="dag/run"))
+
+        api.create.assert_not_called()
+
     def test_refuses_a_per_domain_egress_allowlist(self):
         backend, _ = _backend_with_api()
 
