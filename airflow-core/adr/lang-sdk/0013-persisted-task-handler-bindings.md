@@ -259,7 +259,7 @@ class SDKTaskHandlerParsingResult(BaseModel):  # runtime -> parent, on ToManager
 
 class TaskHandlerDeclaration(BaseModel):
     task_id: str
-    binding: Literal["positional", "named", "named_or_whole"]  # how stub-task arguments bind to params
+    binding: Literal["positional", "named", "named_or_whole", "named_open"]  # how arguments bind to params
     params: list[TaskHandlerParam]  # ordered; the order matters only for "positional"
 
 

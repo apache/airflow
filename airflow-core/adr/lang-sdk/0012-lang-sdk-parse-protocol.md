@@ -96,7 +96,7 @@ class TaskHandlerParsingResult:
 
 class TaskHandlerDeclaration:
     task_id: str
-    binding: Literal["positional", "named", "named_or_whole"]   # how stub-task arguments bind to params
+    binding: Literal["positional", "named", "named_or_whole", "named_open"]   # how stub-task arguments bind to params
     params: list[TaskHandlerParam]     # ordered; the order matters only for "positional"
 
 class TaskHandlerParam:
@@ -219,9 +219,11 @@ The stub side always has names and positions: `LiteralArgBinding` and `XComArgBi
 its runtime does, so each declaration names its `binding` and the check follows it:
 
 - `positional`: by position. Names are informative only, and absent where the runtime has none (Go flat params). Java's `TaskArgs` binds this way although it has names.
-- `named`: by name in any order, case-insensitively with underscores ignored unless `exact_name` is set (Go `arg:` tags, explicit Java names). A Go struct with `arg:` tags, Java's
-  `TaskInput` and TypeScript bind this way.
+- `named`: by name in any order, case-insensitively with underscores ignored unless `exact_name` is set (Go `arg:` tags, explicit Java names). A Go struct with `arg:` tags and
+  Java's `TaskInput` bind this way.
 - `named_or_whole`: as `named`, except that when there is exactly one argument and it matches no parameter, it is decoded as the whole value. An untagged Go struct binds this way.
+- `named_open`: as `named`, but `params` need not list every parameter the handler takes. Only the listed names are checked, and an argument that none of them names is not a
+  mismatch. TypeScript binds this way: its types are erased, so a handler knows only its explicit `withArgNames` renames.
 
 A declaration carries no class, method, or source location. [ADR-0006](0006-no-lang-sdk-source-display.md) rules out Lang-SDK source display, and putting it on the wire would
 invite a consumer to render it. It carries no `dag_id` either — the `task_handlers` key supplies it, so a declaration cannot disagree with the bucket it arrived in.

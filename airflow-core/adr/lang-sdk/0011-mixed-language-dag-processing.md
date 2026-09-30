@@ -238,8 +238,8 @@ with one `bundle.serve()`. One artifact can hold both, so neither the file nor t
 Handler declarations from every process spawned in Step 4 are unioned per `dag_id` before comparison, since one Dag's stubs can target several queues.
 
 - `task_id` sets must match exactly. A missing or extra handler is an error.
-- `arg_bindings` against `params` as each declaration's `binding` says: by position for `positional`, by name for `named` and `named_or_whole`, compared case-insensitively with
-  underscores ignored unless `exact_name` is set ([ADR-0012](0012-lang-sdk-parse-protocol.md) Appendix B).
+- `arg_bindings` against `params` as each declaration's `binding` says: by position for `positional`, by name for `named`, `named_or_whole` and `named_open`, compared
+  case-insensitively with underscores ignored unless `exact_name` is set. Under `named_open` only the listed names are checked ([ADR-0012](0012-lang-sdk-parse-protocol.md) Appendix B).
 - `arg_bindings[*].value_schema` against `params[*].value_schema`, compared only where neither side is null. An unannotated `@task.stub` parameter produces `null` today, so a
   strict comparison would make every untyped stub argument a parse error.
 
