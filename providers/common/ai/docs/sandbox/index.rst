@@ -55,9 +55,10 @@ model a disposable workspace for that code instead. It exposes four tools:
 
 The sandbox is provisioned by a
 :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` on the model's first
-tool call and torn down when the agent run ends. Three backends ship: a hosted one on
-`Modal <https://modal.com/docs/guide/sandbox>`__ and a self-hosted one on
-`OpenSandbox <https://open-sandbox.ai/>`__ for production and Kubernetes, and a local
+tool call and torn down when the agent run ends. Four backends ship: a hosted one on
+`Modal <https://modal.com/docs/guide/sandbox>`__ and self-hosted ones on
+`OpenSandbox <https://open-sandbox.ai/>`__ and
+`NVIDIA OpenShell <https://github.com/NVIDIA/OpenShell>`__ for production and Kubernetes, and a local
 microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ for
 development. The four tool names and shapes match pydantic-ai's own sandbox
 capabilities, so a model that has seen one already knows this one.
@@ -286,10 +287,17 @@ sandbox, and every other toolset stays on the worker.
        Kubernetes.
      - Your OpenSandbox server's Docker host or Kubernetes cluster, off the worker.
      - Ended by the OpenSandbox server at ``sandbox_timeout``.
+   * - ``OpenShellSandboxBackend``
+     - A container confined by Landlock and seccomp, with no network interface of
+       its own; egress goes through a per-sandbox supervisor.
+     - Your OpenShell gateway's Docker or Podman host or Kubernetes cluster, off the
+       worker.
+     - Left running. No server-side lifetime; sandboxes are labeled
+       ``created-by=airflow`` so an operator can reap them.
 
 When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
-removal command and waits up to two minutes for it; Modal and OpenSandbox each send a
-termination request and return without waiting for the sandbox to stop. Any of them
+removal command and waits up to two minutes for it; Modal, OpenSandbox and OpenShell each
+send a termination request and return without waiting for the sandbox to stop. Any of them
 can return with the sandbox still present, and none of those cases fails the task. A SIGKILL, an
 out-of-memory kill or a lost node skips that teardown entirely, and then only the
 last column applies.
@@ -368,7 +376,7 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
 
 **What it cannot do**
 
-- One of its three backends does not run on Kubernetes. ``SbxSandboxBackend`` drives
+- One of its four backends does not run on Kubernetes. ``SbxSandboxBackend`` drives
   Docker Sandboxes on the worker host, and its own documentation says to use it
   for local development: it wants the ``sbx`` binary on the host, an
   authenticated Docker account, a one-time ``sbx policy init``, and on Linux KVM
@@ -377,9 +385,11 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
   :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` behind
   the ``modal`` extra for a managed service, or
   :class:`~airflow.providers.common.ai.sandbox.opensandbox.OpenSandboxBackend`
-  behind ``opensandbox`` for a self-hosted one. Neither installs anything on the
-  worker, and each reclaims a sandbox at its own server-side lifetime if the
-  worker dies. All three implement
+  behind ``opensandbox`` or
+  :class:`~airflow.providers.common.ai.sandbox.openshell.OpenShellSandboxBackend`
+  behind ``openshell`` for a self-hosted one. None of them installs anything on the
+  worker; Modal and OpenSandbox reclaim a sandbox at their own server-side lifetime if
+  the worker dies, and OpenShell has none. All four implement
   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and another
   vendor can too.
 - It does not contain the agent. Only what these tools do runs in the sandbox;
@@ -401,14 +411,18 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
   opted into, for the reasons set out on :doc:`backends`. OpenSandbox enforces
   hostname allowlists with its egress sidecar, but refuses
   ``allow_egress_to_cidrs`` because the SDK cannot prove the sidecar is in the
-  ``dns+nft`` mode required for CIDR enforcement.
+  ``dns+nft`` mode required for CIDR enforcement. OpenShell enforces a hostname
+  allowlist on port 443 in its per-sandbox supervisor and checks the effective
+  policy around every command, but refuses ``allow_egress_to_cidrs`` and an open
+  network.
 - Reclamation depends on the backend. A failed teardown is logged as a warning
   rather than raised, deliberately, so that a teardown blip cannot fail a
   finished run. On ``sbx`` nothing else picks up the slack: there is no
   server-side TTL, so a worker killed outright leaves the microVM and its
   workspace directory behind, named ``airflow-sandbox-*`` so an operator can find
-  and remove them. On Modal the sandbox ends at its own ``sandbox_timeout``
-  whatever became of the worker.
+  and remove them. OpenShell has no server-side lifetime either; its sandboxes are
+  labeled ``created-by=airflow`` for the same sweep. On Modal the sandbox ends at its
+  own ``sandbox_timeout`` whatever became of the worker.
 - A sandbox the toolset provisions itself lives for one run, and a file the
   agent built in it can leave only through the model's context, which is text-only
   and capped. When a file has to come out, or a credential has to come from a

@@ -29,11 +29,13 @@ from airflow.providers.common.ai.sandbox.base import (
     dag_run_owner,
 )
 from airflow.providers.common.ai.sandbox.opensandbox import OpenSandboxBackend
+from airflow.providers.common.ai.sandbox.openshell import OpenShellSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
     "AttachableSandboxBackend",
     "OpenSandboxBackend",
+    "OpenShellSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",

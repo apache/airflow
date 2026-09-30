@@ -240,6 +240,154 @@ The runtime remains a deployment choice. The default Docker runtime shares the
 host kernel; choose a stronger runtime such as Kata when your threat model needs
 a VM boundary.
 
+.. _sandbox-backend-openshell:
+
+OpenShell (self-hosted remote)
+------------------------------
+
+:class:`~airflow.providers.common.ai.sandbox.openshell.OpenShellSandboxBackend`
+runs sandboxes through an `NVIDIA OpenShell <https://github.com/NVIDIA/OpenShell>`__
+gateway, which runs each one on Docker, Podman or Kubernetes. Inside the
+container the workload is confined by Landlock and seccomp and has no network
+interface of its own; a per-sandbox supervisor opens every outbound connection
+on its behalf, against a policy the backend writes and reads back. Airflow workers
+only need gRPC access to the gateway.
+
+Install the SDK extra, which needs Python 3.11 or later:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[openshell]"
+
+**Credentials are ambient; there is no Airflow connection for this backend.**
+The gateway's mTLS client key or OIDC token would otherwise sit in a
+connection's extras, which Airflow does not mask, as file paths or PEM text. The
+backend instead reads the gateway registration that the ``openshell`` CLI keeps
+under ``$XDG_CONFIG_HOME/openshell/gateways/<name>/`` (``~/.config`` by default):
+``metadata.json`` with the endpoint, and ``mtls/ca.crt``, ``mtls/tls.crt`` and
+``mtls/tls.key`` for mTLS, or the CLI's cached token for an OIDC gateway. A
+worker without the CLI needs the same files, provisioned by the Deployment
+Manager the way ``~/.modal.toml`` is for Modal:
+
+.. code-block:: json
+
+    {"name": "prod", "gateway_endpoint": "https://openshell.example.com:17670", "auth_mode": "mtls"}
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import OpenShellSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(OpenShellSandboxBackend(gateway="prod"))
+
+Whoever holds that credential is inside the trust boundary. On a gateway
+without OIDC, an mTLS client is a gateway-wide administrator: it can change the
+policy and settings of every sandbox. ``openshell-gateway generate-certs`` issues
+a single client identity whose certificate does not expire for practical
+purposes, so use your own PKI, with expiry and rotation, for a worker credential.
+
+**Network policy.** A default ``SandboxSpec()`` sends a policy with no egress
+rule, which OpenShell enforces as no egress: a connection fails with
+``EACCES``, and a name lookup is answered by the supervisor with a synthetic
+``198.18.0.0/15`` address rather than failing, so no query leaves the sandbox
+although the tool description's "including DNS" wording reads stricter than the
+lookup behaves. ``allow_egress_to`` becomes one rule admitting each listed host
+on port 443 for any program in the sandbox; ports are part of every rule, so
+plain HTTP and other ports stay closed. HTTPS to a listed host is terminated by
+the supervisor, which injects its CA through ``SSL_CERT_FILE``,
+``REQUESTS_CA_BUNDLE`` and similar variables; a client with its own trust store
+(a JVM, a statically linked binary) has to be pointed at it. A leading ``*.``
+label is accepted on a name of three labels or more.
+
+The backend verifies the policy rather than trusting the request. After create
+it reads the effective policy back and destroys the sandbox unless it admits
+exactly the requested hosts, comes from the sandbox rather than a gateway-wide
+policy, keeps Landlock at ``hard_requirement``, and has neither
+``proposal_approval_mode=auto`` nor agent policy proposals enabled at any scope.
+Auto-approval is refused because OpenShell turns a denied connection into a
+proposed allow rule and, in that mode, approves it without review. The same
+check runs before and after every command, because an administrator, an approved
+draft or a gateway-wide policy can widen a running sandbox; a change destroys the
+sandbox and fails the task. That detects a widening, it does not prevent one: a
+command already running when the policy changes can use it. The check sees
+OpenShell's policy, not the network under the gateway: on Kubernetes, a sandbox
+pod is kept behind its supervisor by a NetworkPolicy, which only a CNI that
+enforces NetworkPolicy upholds. Every denied connection also becomes a draft
+proposal in the gateway's approval inbox, even in manual mode, so operators see
+which destinations an agent tried.
+
+Refused at create: ``block_network=False`` (every OpenShell rule names a host and
+its ports, so an open network cannot be expressed), ``allow_egress_to_cidrs``
+(address rules admit TCP on listed ports only), ``SandboxSpec.owner``, and
+``SandboxSpec.env`` keys the supervisor owns: it removes ``HTTP_PROXY`` and the
+other proxy variables from every command and replaces ``SSL_CERT_FILE``,
+``REQUESTS_CA_BUNDLE``, ``CURL_CA_BUNDLE``, ``GIT_SSL_CAINFO``,
+``NODE_EXTRA_CA_CERTS`` and ``DENO_CERT`` with its own, without an error, and
+reserves ``OPENSHELL_*``. Everything else in ``SandboxSpec.env``, ``PATH``
+included, reaches commands as given, since they run without a login shell.
+
+**Commands.** OpenShell's own exec timeout reports exit 124 and leaves the
+command running, so the backend runs each command through a small shell wrapper
+in the sandbox. The command arrives on stdin and runs in a session of its own,
+with its output spooled to ``/tmp``; when the budget runs out the wrapper kills
+every process in that session, rescanning until none is left, and returns the
+tail of each stream. A process the command left in the background keeps running
+after a command that finishes in time, and one that started a session of its own
+(``setsid``, a daemonizing server) escapes the kill on timeout. If the gateway
+stops relaying the command for longer than its budget plus 30 seconds, the
+sandbox is destroyed and ``sandbox_terminated`` is reported. Nothing crosses the
+stream until the command ends, so a proxy or load balancer in front of the gateway
+needs an idle timeout longer than the longest command budget plus 30 seconds. A
+gateway restart stops every process in its sandboxes and keeps their files; a
+command in flight is reported to the model as having an unknown outcome rather
+than retried.
+
+**Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
+gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger
+write is not atomic, and it follows a symlink like a shell redirect. ``read_file``
+transfers raw bytes, capped inside the guest. The image needs ``setsid`` and GNU
+coreutils and findutils, which ``python:*-slim`` and other Debian or Ubuntu based
+images have; the gateway's own default image has no ``python3``, which is why the
+backend defaults to ``python:3.12-slim``.
+
+**Cleanup.** OpenShell has no server-side sandbox lifetime. ``destroy`` deletes
+the sandbox, but one whose worker died is kept until someone deletes it, even
+after its main process has ended. Sandboxes are named ``airflow-`` plus 11 hex
+characters, within OpenShell's 19-character limit, and labeled
+``created-by=airflow`` and ``airflow-created-at=<unix seconds>``, so a reaper can
+delete by age:
+
+.. code-block:: python
+
+    import time
+
+    from openshell import SandboxClient
+
+    client = SandboxClient.from_active_cluster(cluster="prod")
+    cutoff = time.time() - 6 * 3600
+    for sandbox in client.list_all(workspace="default", label_selector="created-by=airflow"):
+        if int(sandbox.labels.get("airflow-created-at", "0")) < cutoff:
+            client.delete(sandbox.name, workspace="default", allow_missing=True)
+
+Constructor parameters:
+
+- ``gateway``: the CLI gateway registration to use. ``None`` (default) uses
+  ``$OPENSHELL_GATEWAY``, then the CLI's active gateway.
+- ``workspace``: OpenShell workspace. Default ``"default"``.
+- ``image``: image used by the gateway. Default ``"python:3.12-slim"``.
+- ``cpu`` and ``memory``: resource limits as Kubernetes quantities. Defaults
+  ``"1"`` and ``"2Gi"``. ``nproc`` in the sandbox still reports the host's CPUs.
+- ``ready_timeout``: seconds to wait for a new sandbox. Default ``120``; a first
+  pull of a large image can take longer, so pre-pull it on the gateway host.
+- ``request_timeout``: seconds for each gateway call other than a command.
+  Default ``30``.
+
+The gateway host needs Linux with Landlock ABI 3 or later (kernel 6.2+) and
+seccomp user notification, and Docker 28 or later, Podman 5, or a Kubernetes
+cluster with the Agent Sandbox controller. OpenShell scopes its Docker driver to
+local development and single-machine gateways. The gateway sends anonymous
+telemetry unless it runs with ``OPENSHELL_TELEMETRY_ENABLED=false``.
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 
@@ -291,25 +439,32 @@ do not change. Four behaviours do, so read them before assuming the same Dag
 behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
-  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces.
+  0.125 of one, so set ``cpu``; OpenSandbox and OpenShell take ``cpu`` as a limit the
+  server enforces.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
-  enforced policy back rather than trusting the create request. ``allow_egress_to_cidrs``
-  is enforced at the address layer on Modal, refused on ``sbx``, and refused by
+  enforced policy back rather than trusting the create request; OpenShell enforces it
+  in a per-sandbox supervisor on port 443 only, and reads the effective policy back at
+  create and around every command. ``allow_egress_to_cidrs``
+  is enforced at the address layer on Modal, refused on ``sbx``, refused by
   OpenSandbox because its SDK cannot prove that the sidecar is running in the
-  ``dns+nft`` mode required for CIDR enforcement.
+  ``dns+nft`` mode required for CIDR enforcement, and refused by OpenShell, whose
+  address rules admit TCP on listed ports only. OpenShell also refuses
+  ``block_network=False``.
 - **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
   Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
   OpenSandbox destroys it only if the command event stream itself stalls past the
-  client-side grace period.
+  client-side grace period. OpenShell kills the command's session and keeps the
+  sandbox, and destroys it only if the gateway stops relaying the command.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal and OpenSandbox.
+  OpenShell and replaces it on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
-  that created it and cannot be reached from another task, and OpenSandbox has no
-  per-sandbox metadata the ownership rules could be kept in, so both refuse
-  ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for them.
+  that created it and cannot be reached from another task, OpenSandbox has no
+  per-sandbox metadata the ownership rules could be kept in, and OpenShell does not
+  implement attaching yet, so all three refuse ``SandboxSpec.owner`` and the toolset
+  refuses ``attach_to`` for them.
 
 .. _sandbox-byo:
 

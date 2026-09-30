@@ -170,6 +170,7 @@ apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+openshell = "2026-09-29T00:00:00Z"
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 typesafe-sdk = "2026-09-19T00:00:00Z"
 
@@ -4693,6 +4694,11 @@ openai = [
 opensandbox = [
     { name = "opensandbox" },
 ]
+openshell = [
+    { name = "grpcio", marker = "python_full_version >= '3.11'" },
+    { name = "openshell", marker = "python_full_version >= '3.11'" },
+    { name = "protobuf", marker = "python_full_version >= '3.11'" },
+]
 parquet = [
     { name = "pyarrow" },
 ]
@@ -4724,12 +4730,15 @@ dev = [
     { name = "apache-airflow-providers-git" },
     { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
+    { name = "grpcio", marker = "python_full_version >= '3.11'" },
     { name = "langchain" },
     { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
     { name = "llama-index-llms-openai" },
     { name = "openai" },
     { name = "opensandbox" },
+    { name = "openshell", marker = "python_full_version >= '3.11'" },
+    { name = "protobuf", marker = "python_full_version >= '3.11'" },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
     { name = "sqlglot" },
@@ -4751,6 +4760,7 @@ requires-dist = [
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
+    { name = "grpcio", marker = "python_full_version >= '3.11' and extra == 'openshell'", specifier = ">=1.78.0" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
@@ -4758,6 +4768,8 @@ requires-dist = [
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
     { name = "opensandbox", marker = "extra == 'opensandbox'", specifier = ">=1.1.0" },
+    { name = "openshell", marker = "python_full_version >= '3.11' and extra == 'openshell'", specifier = ">=0.1.2,<0.2" },
+    { name = "protobuf", marker = "python_full_version >= '3.11' and extra == 'openshell'", specifier = ">=6.31.1" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
@@ -4775,7 +4787,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.2.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "openshell", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4788,12 +4800,15 @@ dev = [
     { name = "apache-airflow-providers-git", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "grpcio", marker = "python_full_version >= '3.11'", specifier = ">=1.78.0" },
     { name = "langchain", specifier = ">=1.0.0" },
     { name = "llama-index-core", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", specifier = ">=0.6.8" },
     { name = "openai", specifier = ">=2.47.0" },
     { name = "opensandbox", specifier = ">=1.1.0" },
+    { name = "openshell", marker = "python_full_version >= '3.11'", specifier = ">=0.1.2,<0.2" },
+    { name = "protobuf", marker = "python_full_version >= '3.11'", specifier = ">=6.31.1" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.33.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
@@ -19205,6 +19220,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/82/9e/e77844cb2d625ca32331bfdd28930113b3778399c01dd5f1c350ceb55e65/opensearch_py-3.2.0.tar.gz", hash = "sha256:f40fb3a295275422df2ad6d9459f667af94472d5a9e567072e9ecf163eb22613", size = 259927, upload-time = "2026-04-27T18:17:50.467Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/63/7abb96bf2e3619acbd27de99e60619bfacfb7c55b68c4792a258e6d92871/opensearch_py-3.2.0-py3-none-any.whl", hash = "sha256:721a0d3b13fbed9e82278aed748285cf63a1855354ab7e73e3d4992d1b93418b", size = 387286, upload-time = "2026-04-27T18:17:48.658Z" },
+]
+
+[[package]]
+name = "openshell"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cloudpickle" },
+    { name = "googleapis-common-protos" },
+    { name = "grpcio" },
+    { name = "httpx" },
+    { name = "protobuf" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/0d/9f0c2e133bd4bfc96b9e261b870d58230d7d98fc6c51ae8f7f71f8520157/openshell-0.1.2-py3-none-any.whl", hash = "sha256:8c409da4f176d42418d92366fe201f47cceef2c0fa432bfbce2bf938649d59cf", size = 150901, upload-time = "2026-09-28T03:58:28.39Z" },
 ]
 
 [[package]]

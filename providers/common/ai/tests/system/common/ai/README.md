@@ -66,3 +66,20 @@ pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_tools
 The test requests the default deny-all egress policy, so the OpenSandbox server
 must have its egress sidecar configured. It also applies a 15-minute server-side
 sandbox lifetime.
+
+## OpenShell
+
+Install the OpenShell extra (Python 3.11 or later), register the gateway the way the
+`openshell` CLI does, under `$XDG_CONFIG_HOME/openshell/gateways/<name>/` (`metadata.json`
+plus `mtls/ca.crt`, `mtls/tls.crt` and `mtls/tls.key`), and run:
+
+```console
+pip install "apache-airflow-providers-common-ai[openshell]"
+export OPENSHELL_GATEWAY="<name>"
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_openshell.py
+```
+
+The test uses the default deny-all policy and a `python:3.12-slim` sandbox, and checks
+that a timed-out command leaves no process behind and that egress is refused. OpenShell
+has no server-side sandbox lifetime, so a test killed mid-run leaves its sandbox, labelled
+`created-by=airflow`, for you to delete.
