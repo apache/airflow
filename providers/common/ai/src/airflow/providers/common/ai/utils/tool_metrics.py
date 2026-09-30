@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 #: The agent framework a tool call came through, as the ``framework`` tag reports it.
-Framework = Literal["pydantic_ai", "strands", "adk", "langchain", "none"]
+Framework = Literal["pydantic_ai", "strands", "adk", "langchain", "anthropic", "none"]
 
 # Set by each framework adapter around the calls it makes.
 _framework: ContextVar[Framework | None] = ContextVar("common_ai_tool_framework", default=None)
