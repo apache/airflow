@@ -23,13 +23,13 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
 from airflow.providers.common.compat.sdk import (
+    SET_DURING_EXECUTION,
     DecoratedOperator,
     TaskDecorator,
     context_merge,
     determine_kwargs,
     task_decorator_factory,
 )
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 
 if TYPE_CHECKING:
     from airflow.sdk import Context

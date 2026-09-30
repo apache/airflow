@@ -20,7 +20,7 @@
 Installation
 ============
 
-The provider needs Airflow 3.0 or later. Install it with the extra that matches the
+The provider needs Airflow 2.11 or later. Install it with the extra that matches the
 model vendor your connection will point at:
 
 .. code-block:: bash
@@ -62,7 +62,7 @@ package each extra installs.
 Features gated on the Airflow version
 -------------------------------------
 
-The provider runs on Airflow 3.0, but some features need a newer core:
+The provider runs on Airflow 2.11, but some features need a newer core:
 
 .. list-table::
    :header-rows: 1
@@ -70,13 +70,42 @@ The provider runs on Airflow 3.0, but some features need a newer core:
 
    * - Feature
      - Needs
+   * - The ``skills`` and ``git`` extras (``apache-airflow-providers-git`` needs Airflow 3)
+     - Airflow 3.0
    * - :doc:`Approval gates <approval_gates>` and :doc:`HITL review <hitl_review>`
      - Airflow 3.1
+   * - The **Model** field in the connection form; on older cores put the model in
+       **Extra**, for example ``{"model": "openai:gpt-5"}``
+     - Airflow 3.2
    * - :doc:`Retry policies <retry_policies>`
      - Airflow 3.3
    * - :doc:`Durable execution <durable_execution>` without configuring
        ``[common.ai] durable_cache_path`` (the task state store)
      - Airflow 3.3
+   * - :doc:`Tool approval <tool_approval>` that pauses the task; on older cores a tool
+       marked for approval fails the task
+     - Airflow 3.3
+   * - A :doc:`structured output <structured_output>` reaching downstream tasks as the
+       Pydantic model; on older cores it arrives as a ``dict``
+     - Airflow 3.3
+
+Airflow 2
+---------
+
+On Airflow 2.11 the operators, decorators, hooks and toolsets run as they do on Airflow
+3.0, apart from the table above. Three things differ from an Airflow 3 install:
+
+* The examples in these docs import ``dag``, ``task`` and ``Param`` from ``airflow.sdk``.
+  On Airflow 2 import ``dag`` and ``task`` from ``airflow.decorators`` and ``Param`` from
+  ``airflow.models.param``; the provider's own imports stay the same.
+* Install Airflow with its constraints file as usual, then add the provider without it. The
+  Airflow 2.11 constraints pin ``apache-airflow-providers-common-compat`` and
+  ``apache-airflow-providers-common-sql`` to releases older than this provider needs.
+  Installing Airflow 2.11.0 without its constraints can also pull in a ``universal-pathlib``
+  0.3 release, which Airflow 2's ``ObjectStoragePath`` rejects; 2.11.1 and later cap it.
+  Leave out the ``skills`` and ``git`` extras: they need Airflow 3, and without
+  constraints ``pip`` upgrades Airflow to satisfy them.
+* Python 3.10 to 3.12: the provider needs 3.10 or later, and Airflow 2.11 supports up to 3.12.
 
 Next steps
 ----------

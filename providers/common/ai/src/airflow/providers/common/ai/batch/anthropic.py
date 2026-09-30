@@ -32,8 +32,6 @@ import json
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
-import structlog
-
 from airflow.providers.common.ai.batch.base import (
     BatchAdapter,
     BatchState,
@@ -43,9 +41,10 @@ from airflow.providers.common.ai.batch.base import (
     SubmitResult,
 )
 from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 if TYPE_CHECKING:
     from airflow.providers.common.ai.batch.base import BatchRequest
