@@ -1523,6 +1523,50 @@ class TestAsyncVariableContext:
         )
 
     @pytest.mark.asyncio
+    async def test_async_set_variable_warns_on_conflicting_backend(self, mock_supervisor_comms):
+        """A worker-side backend that already holds the key gets a warning; the write still goes through."""
+        mock_supervisor_comms.asend.return_value = None
+
+        class ConflictingBackend:
+            def get_variable(self, key: str):
+                return "backend_value"
+
+        class EmptyBackend:
+            def get_variable(self, key: str):
+                return None
+
+        class FailingBackend:
+            def get_variable(self, key: str):
+                raise RuntimeError("backend down")
+
+        execution_api_backend = mock.create_autospec(ExecutionAPISecretsBackend, instance=True)
+
+        with (
+            patch(
+                "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
+            ) as mock_load,
+            patch("airflow.sdk.execution_time.context.log") as mock_log,
+        ):
+            mock_load.return_value = [
+                ConflictingBackend(),
+                EmptyBackend(),
+                FailingBackend(),
+                execution_api_backend,
+            ]
+            await _async_set_variable("my_key", "new_value")
+
+        mock_log.warning.assert_called_once()
+        warning_args = mock_log.warning.call_args.args
+        assert warning_args[1:] == ("my_key", "ConflictingBackend", "ConflictingBackend")
+        mock_log.exception.assert_called_once()
+        assert mock_log.exception.call_args.args[1] == "FailingBackend"
+        # the Execution API is the write target, not a conflict
+        execution_api_backend.get_variable.assert_not_called()
+        mock_supervisor_comms.asend.assert_called_once_with(
+            PutVariable(key="my_key", value="new_value", description=None)
+        )
+
+    @pytest.mark.asyncio
     async def test_async_delete_variable(self, mock_supervisor_comms):
         """_async_delete_variable sends DeleteVariable via asend."""
         mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
