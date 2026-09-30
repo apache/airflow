@@ -31,7 +31,6 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Backfill in uitvoering",
     "cancel": "Annuleer backfill",
     "pause": "Pauzeer backfill",
     "unpause": "Backfill hervatten"

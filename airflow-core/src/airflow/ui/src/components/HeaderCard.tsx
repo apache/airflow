@@ -25,8 +25,6 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 import { StateBadge } from "src/components/StateBadge";
 
-import { DagDeactivatedBanner } from "./DagDeactivatedBanner";
-
 type Props = {
   readonly actions?: ReactNode;
   readonly icon: ReactNode;
@@ -42,7 +40,6 @@ export const HeaderCard = ({ actions, icon, state, stats, subTitle, title, type 
 
   return (
     <Box bg="bg.muted" borderRadius="md" data-testid="header-card" flexShrink={0} overflow="hidden" px={3}>
-      <DagDeactivatedBanner />
       <div>
         <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" my={2}>
           <Flex alignItems="center" flexWrap="wrap" gap={2}>

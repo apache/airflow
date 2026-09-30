@@ -31,7 +31,6 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Το Backfill είναι σε εξέλιξη",
     "cancel": "Ακύρωση backfill",
     "pause": "Παύση backfill",
     "unpause": "Αναίρεση παύσης backfill"

@@ -29,7 +29,6 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Backfill in corso",
     "cancel": "Annulla backfill",
     "pause": "Sospendi backfill",
     "unpause": "Sospendi backfill"

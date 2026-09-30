@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, HStack, Text, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { useParams } from "react-router-dom";
@@ -24,8 +24,9 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDag, useImportErrorServiceGetImportErrors } from "openapi/queries";
 
 import { DagImportErrorModal } from "./DagImportErrorModal";
+import { StatusChip } from "./StatusChip";
 
-export const DagDeactivatedBanner = () => {
+export const DagDeactivatedChip = () => {
   const { t: translate } = useTranslation(["dag", "dashboard"]);
   const { dagId = "" } = useParams();
   const { onClose, onOpen, open } = useDisclosure();
@@ -47,25 +48,21 @@ export const DagDeactivatedBanner = () => {
   const importError = data?.import_errors[0];
 
   return (
-    <HStack bg="bg.warning" color="fg.warning" justifyContent="space-between" px={3} py={1}>
-      <Text>{translate("header.status.deactivated")}</Text>
-      {importError ? (
-        <>
-          <Button
-            borderColor="fg.warning"
-            colorPalette="warning"
-            onClick={onOpen}
-            size="xs"
-            variant="outline"
-          >
-            <HStack gap={1}>
-              <LuFileWarning size={14} />
-              {translate("dashboard:importErrors.dagImportError", { count: 1 })}
-            </HStack>
-          </Button>
-          <DagImportErrorModal importError={importError} onClose={onClose} open={open} />
-        </>
-      ) : undefined}
-    </HStack>
+    <>
+      <StatusChip
+        icon={<LuFileWarning size={14} />}
+        label={
+          importError === undefined
+            ? translate("dag:header.status.deactivated")
+            : translate("dashboard:importErrors.dagImportError_one")
+        }
+        // Inert without a parse error, since there is nothing to open.
+        onClick={importError === undefined ? undefined : onOpen}
+        severity="error"
+      />
+      {importError === undefined ? undefined : (
+        <DagImportErrorModal importError={importError} onClose={onClose} open={open} />
+      )}
+    </>
   );
 };

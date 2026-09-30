@@ -31,7 +31,6 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Geriye dönük çalıştırma devam ediyor",
     "cancel": "Geriye dönük çalıştırmayı iptal et",
     "pause": "Geriye dönük çalıştırmayı duraklat",
     "unpause": "Geriye dönük çalıştırmayı devam ettir"

@@ -27,7 +27,6 @@
     }
   },
   "banner": {
-    "backfillInProgress": "過去分再実行中",
     "cancel": "過去分再実行をキャンセルします",
     "pause": "過去分再実行を一時停止します",
     "unpause": "過去分再実行の停止を解除します"

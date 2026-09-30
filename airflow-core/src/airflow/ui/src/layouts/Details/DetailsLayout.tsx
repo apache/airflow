@@ -38,9 +38,8 @@ import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
-import BackfillBanner from "src/components/Banner/BackfillBanner";
-import DrainingBanner from "src/components/Banner/DrainingBanner";
 import { countDagWarnings, DAGWarningsModal } from "src/components/DAGWarningsModal";
+import { DagDeactivatedChip } from "src/components/DagDeactivatedChip";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
@@ -240,7 +239,10 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     <GroupsProvider dagId={dagId}>
       <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
         <HStack justifyContent="space-between" mb={3} mx={-3} px={3}>
-          <DagBreadcrumb />
+          <HStack gap={2}>
+            <DagBreadcrumb />
+            <DagDeactivatedChip />
+          </HStack>
           <Flex gap={2}>
             {dag === undefined ? undefined : (
               <>
@@ -268,8 +270,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
           </Flex>
         </HStack>
         <Toaster />
-        <DrainingBanner dagId={dagId} />
-        <BackfillBanner dagId={dagId} />
         <Box flex={1} minH={0}>
           {isRightPanelCollapsed ? (
             <IconButton

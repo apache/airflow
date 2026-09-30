@@ -129,7 +129,7 @@ export const DagCard = ({
         <GridItem gridColumn={3} gridRow={1}>
           <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
             {dag.is_paused ? undefined : dag.scheduling_state === "draining" ? (
-              <DrainingBadge />
+              <DrainingBadge dagId={dag.dag_id} />
             ) : Boolean(dag.next_dagrun_run_after) ? (
               <DagRunInfo
                 logicalDate={dag.next_dagrun_logical_date}

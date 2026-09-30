@@ -42,7 +42,6 @@
     "viewSlots": "Ver slots del Backfill #{{id}}"
   },
   "banner": {
-    "backfillInProgress": "Backfill en progreso",
     "cancel": "Cancelar backfill",
     "pause": "Pausar backfill",
     "unpause": "Reanudar backfill"

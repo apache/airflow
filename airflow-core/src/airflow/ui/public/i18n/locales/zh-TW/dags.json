@@ -113,9 +113,6 @@
     "pauseNow": "立即暫停",
     "pauseSelected": "暫停 / 完成後暫停"
   },
-  "schedulingBanner": {
-    "message": "待目前的執行全部結束後，此 Dag 將自動暫停。"
-  },
   "schedulingState": {
     "active": "啟用中",
     "draining": "完成後將暫停",

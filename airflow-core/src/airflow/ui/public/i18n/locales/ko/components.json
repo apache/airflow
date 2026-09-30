@@ -42,7 +42,6 @@
     "viewSlots": "백필 #{{id}}의 슬롯 보기"
   },
   "banner": {
-    "backfillInProgress": "백필 진행 중",
     "cancel": "백필 취소",
     "pause": "백필 일시 중지",
     "unpause": "백필 일시 중지 해제"

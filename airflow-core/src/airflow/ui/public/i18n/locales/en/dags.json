@@ -113,9 +113,6 @@
     "pauseNow": "Pause now",
     "pauseSelected": "Pause / Drain"
   },
-  "schedulingBanner": {
-    "message": "This Dag is draining. It will pause once its running Dag runs finish."
-  },
   "schedulingState": {
     "active": "Active",
     "draining": "Draining",

@@ -31,7 +31,6 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Backfill folyamatban",
     "cancel": "Backfill megszakítása",
     "pause": "Backfill szüneteltetése",
     "unpause": "Backfill folytatása"

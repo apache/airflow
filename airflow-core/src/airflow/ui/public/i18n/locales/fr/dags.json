@@ -106,9 +106,6 @@
     "pauseNow": "Mettre en pause maintenant",
     "pauseSelected": "Mettre en pause / Drainer"
   },
-  "schedulingBanner": {
-    "message": "Ce Dag est en cours de drainage. Il se mettra en pause une fois ses exécutions de Dag en cours terminées."
-  },
   "schedulingState": {
     "active": "Actif",
     "draining": "Drainage en cours",

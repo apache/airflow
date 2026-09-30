@@ -17,24 +17,72 @@
  * under the License.
  */
 import type { BadgeProps } from "@chakra-ui/react";
+import { Button, HStack, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdHourglassTop } from "react-icons/md";
 
-import { Tooltip } from "src/system-components";
+import { Popover } from "src/system-components";
+
+import { useTogglePause } from "src/queries/useTogglePause";
 
 import { StateBadge } from "./StateBadge";
 
-export const DrainingBadge = (props: BadgeProps) => {
+type Props = {
+  /** Enables the drain actions. Omit in list contexts that only report the state. */
+  readonly dagId?: string;
+} & BadgeProps;
+
+export const DrainingBadge = ({ dagId, ...props }: Props) => {
   const { t: translate } = useTranslation("dags");
+  const { isPending, mutate } = useTogglePause({ dagId: dagId ?? "" });
 
   return (
-    <Tooltip content={translate("schedulingState.drainingBadgeTooltip")}>
-      <span>
-        <StateBadge colorPalette="warning" data-testid="draining-badge" variant="subtle" {...props}>
+    <Popover.Root lazyMount unmountOnExit>
+      <Popover.Trigger asChild>
+        <StateBadge
+          as="button"
+          colorPalette="warning"
+          cursor="pointer"
+          data-testid="draining-badge"
+          variant="subtle"
+          {...props}
+        >
           <MdHourglassTop />
           {translate("schedulingState.draining")}
         </StateBadge>
-      </span>
-    </Tooltip>
+      </Popover.Trigger>
+      <Popover.Content maxW="340px" width="fit-content">
+        <Popover.Arrow />
+        <Popover.Body>
+          <Stack gap={2}>
+            <Text data-testid="draining-explanation" fontSize="sm">
+              {translate("schedulingState.drainingBadgeTooltip")}
+            </Text>
+            {dagId === undefined ? undefined : (
+              <HStack gap={2}>
+                <Button
+                  data-testid="banner-cancel-drain"
+                  loading={isPending}
+                  onClick={() => mutate({ dagId, requestBody: { scheduling_state: "active" } })}
+                  size="xs"
+                  variant="outline"
+                >
+                  {translate("schedulingActions.cancelDrain")}
+                </Button>
+                <Button
+                  data-testid="banner-pause-now"
+                  loading={isPending}
+                  onClick={() => mutate({ dagId, requestBody: { scheduling_state: "paused" } })}
+                  size="xs"
+                  variant="outline"
+                >
+                  {translate("schedulingActions.pauseNow")}
+                </Button>
+              </HStack>
+            )}
+          </Stack>
+        </Popover.Body>
+      </Popover.Content>
+    </Popover.Root>
   );
 };

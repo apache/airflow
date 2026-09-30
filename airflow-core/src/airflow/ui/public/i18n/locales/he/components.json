@@ -32,7 +32,6 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Backfill בתהליך",
     "cancel": "בטל backfill",
     "pause": "השהה backfill",
     "unpause": "הפעל מחדש backfill"
