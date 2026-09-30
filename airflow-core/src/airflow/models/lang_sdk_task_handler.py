@@ -85,7 +85,7 @@ class LangSDKTaskHandlerArtifact(Base):
 
 
 class LangSDKTaskHandler(Base):
-    """The artifact that runs one stub task, and the task handler parameters it declares."""
+    """The binding of one stub task, by ``(dag_id, task_id)``, to its artifact and declared handler parameters."""
 
     __tablename__ = "lang_sdk_task_handler"
 
