@@ -83,6 +83,7 @@ class LangSDKTaskHandlerArtifact(Base):
             relative_fileloc_hash,
             name="lang_sdk_task_handler_artifact_bundle_fileloc_uq",
         ),
+        Index("idx_lang_sdk_task_handler_artifact_last_probed_at", last_probed_at),
     )
 
     @validates("relative_fileloc")
