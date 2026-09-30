@@ -89,7 +89,17 @@ class CachingToolset(WrapperToolset[Any]):
             )
 
         result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
-        self.storage.save_tool_result(key, result, fingerprint=fingerprint)
-        self.counter.cached_tool += 1
-        log.debug("Durable: cached tool result", step=step, tool=name)
+        if self.storage.save_tool_result(key, result, fingerprint=fingerprint):
+            self.counter.cached_tool += 1
+            log.debug("Durable: cached tool result", step=step, tool=name)
+        else:
+            self.counter.skipped_tools.append(name)
+            # Named here rather than only in the end-of-run summary: this warning is
+            # logged on every path, including the failed attempt that Airflow retries.
+            log.warning(
+                "Durable: tool result not cached; a retry runs this tool again, "
+                "and may re-run the steps after it",
+                step=step,
+                tool=name,
+            )
         return result

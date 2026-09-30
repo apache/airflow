@@ -118,20 +118,29 @@ def _build_priced_response(messages: list[ModelMessage], info: AgentInfo) -> Mod
 
 
 class _InMemoryDurableStorage:
-    """In-memory DurableStorageProtocol backend for exercising real replay in tests."""
+    """In-memory DurableStorageProtocol backend for exercising real replay in tests.
 
-    def __init__(self):
+    ``refuse_tool_writes`` stands in for a backend that skips a tool result
+    (a store write that fails), so the step is not cached.
+    """
+
+    def __init__(self, *, refuse_tool_writes: bool = False):
         self.models: dict = {}
         self.tools: dict = {}
+        self.refuse_tool_writes = refuse_tool_writes
 
     def save_model_response(self, key, response, *, fingerprint):
         self.models[key] = (response, fingerprint)
+        return True
 
     def load_model_response(self, key):
         return self.models.get(key, (None, None))
 
     def save_tool_result(self, key, result, *, fingerprint):
+        if self.refuse_tool_writes:
+            return False
         self.tools[key] = (result, fingerprint)
+        return True
 
     def load_tool_result(self, key):
         if key in self.tools:
@@ -971,6 +980,42 @@ class TestAgentOperatorExecute:
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
+    @pytest.mark.parametrize(
+        ("output_type", "approved", "expected"),
+        [
+            pytest.param(str, "42", "42", id="str-that-parses-as-a-number"),
+            pytest.param(str, '{"total": 1}', '{"total": 1}', id="str-that-parses-as-an-object"),
+            pytest.param(list[str], '["a", "b"]', ["a", "b"], id="list"),
+            pytest.param(int, "not a number", "not a number", id="edit-the-type-rejects"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_returns_the_approved_output_as_output_type(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result, output_type, approved, expected
+    ):
+        """The approved text comes back as ``output_type``, as it does from ``@task.llm``."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = approved
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=output_type,
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == expected
+        assert type(result) is type(expected)
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_propagates_hitl_max_iterations_error(
@@ -1253,6 +1298,111 @@ class TestAgentOperatorDurable:
             op._build_agent().run_sync("hi")
 
         assert calls["n"] == 1
+
+    def test_tool_result_refused_by_storage_is_counted_skipped_and_reruns(self):
+        """A tool result the backend refuses to store is not counted as cached, and a
+        retry runs the tool again instead of replaying it."""
+        calls = {"n": 0}
+
+        def my_tool() -> str:
+            calls["n"] += 1
+            return "tool-result"
+
+        def model_fn(messages, info):
+            saw_return = any(isinstance(p, ToolReturnPart) for m in messages for p in getattr(m, "parts", []))
+            if saw_return:
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(parts=[ToolCallPart(tool_name="my_tool", args={}, tool_call_id="c1")])
+
+        storage = _InMemoryDurableStorage(refuse_tool_writes=True)
+        counters = []
+        for _ in range(2):
+            op = AgentOperator(
+                task_id="t",
+                prompt="hi",
+                llm_conn_id="c",
+                durable=True,
+                enable_tool_logging=False,
+                toolsets=[FunctionToolset(tools=[my_tool])],
+            )
+            op._durable_storage = storage
+            op._durable_counter = DurableStepCounter()
+            hook = MagicMock(spec=["create_agent"])
+            hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+            op.llm_hook = hook
+            op._build_agent().run_sync("hi")
+            counters.append(op._durable_counter)
+
+        assert calls["n"] == 2
+        first, retry = counters
+        assert (first.cached_tool, first.skipped_tools) == (0, ["my_tool"])
+        assert (retry.replayed_tool, retry.skipped_tools) == (0, ["my_tool"])
+
+    def test_durable_summary_names_tools_that_were_not_cached(self, caplog):
+        counter = DurableStepCounter()
+        counter.cached_model = 2
+        counter.cached_tool = 1
+        counter.skipped_tools = ["run_query", "get_schema", "run_query"]
+        counter.skipped_model = 1
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
+
+        with caplog.at_level("INFO"):
+            op._log_durable_summary(counter)
+
+        assert (
+            "replayed 0 cached steps (0 model, 0 tool), cached 3 new steps (2 model, 1 tool)" in caplog.text
+        )
+        assert (
+            "3 tool results were not cached, and a retry runs them again: run_query (x2), get_schema"
+            in caplog.text
+        )
+        assert "1 model responses were not cached, and a retry re-runs them" in caplog.text
+
+    def test_durable_summary_has_no_warning_when_everything_was_cached(self, caplog):
+        counter = DurableStepCounter()
+        counter.cached_model = 1
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
+
+        with caplog.at_level("INFO"):
+            op._log_durable_summary(counter)
+
+        assert "cached 1 new steps (1 model, 0 tool)" in caplog.text
+        assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_storage")
+    def test_failed_run_logs_summary_naming_uncached_tools(self, mock_build_storage, caplog):
+        """The attempt that fails is the one Airflow retries, so its summary must name
+        the tools that were not cached and will run again."""
+        mock_build_storage.return_value = _InMemoryDurableStorage(refuse_tool_writes=True)
+
+        def send_email() -> str:
+            return "sent"
+
+        def explode() -> str:
+            raise RuntimeError("downstream failure")
+
+        def model_fn(messages, info):
+            returned = [p.tool_name for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            name = "explode" if "send_email" in returned else "send_email"
+            return ModelResponse(parts=[ToolCallPart(tool_name=name, args={}, tool_call_id=name)])
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            enable_tool_logging=False,
+            toolsets=[FunctionToolset(tools=[send_email, explode])],
+        )
+        hook = MagicMock(spec=["create_agent"])
+        hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+        op.llm_hook = hook
+
+        with caplog.at_level("INFO"), pytest.raises(RuntimeError, match="downstream failure"):
+            op.execute(context=_make_context())
+
+        assert "cached 2 new steps (2 model, 0 tool)" in caplog.text
+        assert "1 tool results were not cached, and a retry runs them again: send_email" in caplog.text
 
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)
