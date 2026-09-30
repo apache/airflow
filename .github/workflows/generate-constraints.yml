@@ -20,6 +20,10 @@ name: Generate constraints
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      artifact-prefix:
+        description: "Namespace constraint artifacts when publishing multiple architectures"
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -194,7 +198,9 @@ jobs:
       - name: "Upload constraint artifacts"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: constraints-${{ matrix.python-version }}
+          name: ${{ inputs.artifact-prefix }}constraints-${{ matrix.python-version }}
+          # Publisher intermediates stay within this run; replacement also permits partial reruns.
+          overwrite: ${{ inputs.artifact-prefix != '' }}
           path: ./files/constraints-${{ matrix.python-version }}/constraints-*.txt
           retention-days: 7
           if-no-files-found: error
