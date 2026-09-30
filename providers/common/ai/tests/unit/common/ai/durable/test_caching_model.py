@@ -441,6 +441,25 @@ class TestCachingModelReplayVerification:
         assert (counter.cached_model, counter.skipped_model) == (0, 1)
 
     @pytest.mark.asyncio
+    async def test_unverifiable_request_warning_names_its_step(
+        self, mock_model, mock_storage, counter, sample_response
+    ):
+        """The step in the warning shows where a run-wide loss of fingerprints began."""
+        counter.next_step()
+        counter.next_step()
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        # Patched rather than captured: on Airflow 2 the task logger wraps the stdlib logger,
+        # which structlog's test capture does not see.
+        with patch("airflow.providers.common.ai.durable.fingerprint.log") as fingerprint_log:
+            await caching.request([], None, ModelRequestParameters())
+
+        fingerprint_log.warning.assert_called_once()
+        assert fingerprint_log.warning.call_args.kwargs["step"] == 2
+
+    @pytest.mark.asyncio
     async def test_unverifiable_request_leaves_a_verifiable_entry_intact(
         self, mock_model, mock_storage, counter, sample_response
     ):

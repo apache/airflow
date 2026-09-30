@@ -211,6 +211,23 @@ class TestCachingToolsetReplayVerification:
         assert (counter.cached_tool, counter.skipped_tools) == (0, ["search"])
 
     @pytest.mark.asyncio
+    async def test_unverifiable_call_warning_names_its_step_and_tool(
+        self, mock_toolset, mock_storage, counter
+    ):
+        counter.next_step()
+        counter.next_step()
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        # Patched rather than captured: on Airflow 2 the task logger wraps the stdlib logger,
+        # which structlog's test capture does not see.
+        with patch("airflow.providers.common.ai.durable.fingerprint.log") as fingerprint_log:
+            await caching.call_tool("search", {"value": object()}, ctx_for("call_1"), MagicMock())
+
+        fingerprint_log.warning.assert_called_once()
+        assert fingerprint_log.warning.call_args.kwargs["step"] == 2
+        assert fingerprint_log.warning.call_args.kwargs["tool"] == "search"
+
+    @pytest.mark.asyncio
     async def test_unverifiable_call_leaves_a_verifiable_entry_intact(
         self, mock_toolset, mock_storage, counter
     ):
