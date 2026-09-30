@@ -32,6 +32,8 @@ import msgspec
 from pydantic import BaseModel, Field, TypeAdapter
 from uuid6 import uuid7
 
+from airflow import settings
+from airflow.configuration import conf
 from airflow.dag_processing.importer_routing import get_claiming_coordinator
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
@@ -83,10 +85,20 @@ class StartLangSDKRuntime(BaseModel):
 
 
 class LangSDKRuntimeSchemaVersion(BaseModel):
-    """The supervisor schema version of the runtime the parse child is about to exec."""
+    """The schema version and the import timeout of the runtime the parse child is about to exec."""
 
     schema_version: str | None
+    import_timeout: float | None = None
+    """Seconds from the start of the parse; ``None`` means no timeout."""
     type: Literal["LangSDKRuntimeSchemaVersion"] = "LangSDKRuntimeSchemaVersion"
+
+
+def _get_import_timeout(path: str) -> float | None:
+    """Return the ``get_dagbag_import_timeout`` policy's timeout for *path*; ``None`` means none."""
+    timeout = settings.get_dagbag_import_timeout(path)
+    if not isinstance(timeout, (int, float)):
+        raise TypeError(f"Value ({timeout}) from get_dagbag_import_timeout must be int or float")
+    return timeout if timeout > 0 else None
 
 
 def _start_runtime_entrypoint() -> None:
@@ -106,9 +118,11 @@ def _start_runtime_entrypoint() -> None:
         raise RuntimeError(f"Required first message to be a StartLangSDKRuntime, it was {msg}")
 
     def report_schema_version(schema_version: str | None) -> None:
-        comms.send(LangSDKRuntimeSchemaVersion(schema_version=schema_version))
+        comms.send(LangSDKRuntimeSchemaVersion(schema_version=schema_version, import_timeout=import_timeout))
 
     try:
+        # The policy is user code: it runs in this child, where a failure is only this file's import error.
+        import_timeout = _get_import_timeout(msg.file)
         coordinator = get_claiming_coordinator(msg.file, msg.bundle_name)
         if coordinator is None:
             raise RuntimeError(f"No coordinator's Dag importer claims {msg.file}")
@@ -154,6 +168,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
     _listeners: dict[_Channel, socket]
     _parse_request: DagFileParseRequest
     _runtime_schema_version: str | None = attrs.field(default=None, init=False)
+    _import_timeout: float | None = attrs.field(default=None, init=False)
     _schema_version_reported: bool = attrs.field(default=False, init=False)
     _parsing_result_monotonic: float | None = attrs.field(default=None, init=False)
     _unverified_connections: list[tuple[socket, _Channel]] = attrs.field(factory=list, init=False)
@@ -217,17 +232,16 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_path: Path,
         bundle_name: str,
         dag_file_rel_path: str,
-        timeout: float | None,
         logger: FilteringBoundLogger,
     ) -> DagFileParsingResult:
         """
         Parse *path* outside the Dag processor and wait for the result.
 
-        There is no API client, so each request of the runtime that needs one gets an error.
-
-        :raises TimeoutError: if the parse does not finish within *timeout* seconds. The runtime is
-            killed.
+        There is no API client, so each request of the runtime that needs one gets an error. The file's import
+        timeout bounds the parse, and ``[dag_processor] dag_file_processor_timeout`` until the parse child
+        reports it.
         """
+        processor_timeout = conf.getfloat("dag_processor", "dag_file_processor_timeout")
         with selectors.DefaultSelector() as selector:
             proc = cls.start(
                 id=uuid7(),
@@ -240,14 +254,13 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             )
             try:
                 while not proc.is_ready:
-                    wait = 0.1
-                    if timeout is not None:
-                        if (remaining := proc.start_time + timeout - time.monotonic()) <= 0:
-                            raise TimeoutError(
-                                f"The Lang-SDK runtime did not parse {os.fspath(path)} within {timeout}s"
-                            )
-                        wait = min(wait, remaining)
-                    proc._service_subprocess(max_wait_time=wait)
+                    timeout = proc._import_timeout if proc._schema_version_reported else processor_timeout
+                    if timeout is not None and time.monotonic() - proc.start_time > timeout:
+                        # Unlike is_ready, this does not wait for an exited runtime's leftover processes,
+                        # which can hold its sockets open. close() closes them.
+                        proc._time_out(timeout)
+                        break
+                    proc._service_subprocess(max_wait_time=0.1)
             except BaseException:
                 proc._kill_runtime()
                 raise
@@ -381,6 +394,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             self._reject_request(msg, log, req_id)
             return ResponseSent.ALREADY_SENT
         self._runtime_schema_version = msg.schema_version
+        self._import_timeout = msg.import_timeout
         self._schema_version_reported = True
         return None, {}
 
@@ -466,6 +480,13 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         ):
             self.process_log.warning("The Lang-SDK runtime did not exit after its parse result; killing it")
             self._kill_runtime()
+        if (
+            self._import_timeout is not None
+            and self.parsing_result is None
+            and self._exit_code is None
+            and time.monotonic() - self.start_time > self._import_timeout
+        ):
+            self._time_out(self._import_timeout)
         if self._check_subprocess_exit() is None:
             return False
         self._close_listeners()
@@ -476,6 +497,13 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
                 f"The Lang-SDK runtime exited with code {self._exit_code} without a parse result"
             )
         return True
+
+    def _time_out(self, timeout: float) -> None:
+        if self.parsing_result is None:
+            self._set_import_error(
+                f"The Lang-SDK runtime did not parse {self._parse_request.file} within {timeout}s"
+            )
+        self._kill_runtime()
 
     def _kill_runtime(self) -> None:
         """Kill the runtime and wait for it, without servicing its sockets, whose handler may have failed."""
