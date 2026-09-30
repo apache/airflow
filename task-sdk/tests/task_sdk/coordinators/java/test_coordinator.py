@@ -270,6 +270,12 @@ def test_parse_manifest_joins_continued_values_and_stops_at_the_main_section():
     }
 
 
+def test_parse_manifest_decodes_a_character_split_across_a_fold():
+    manifest = b"Manifest-Version: 1.0\r\nImplementation-Vendor: Z\xc3\r\n \xbcrich\r\n\r\n"
+
+    assert _parse_manifest(manifest)["implementation-vendor"] == "Z\u00fcrich"
+
+
 class TestJavaCoordinatorParseTaskHandlerCommand:
     @pytest.fixture
     def bundle(self, tmp_path):
@@ -317,17 +323,27 @@ class TestJavaCoordinatorParseTaskHandlerCommand:
 
         assert command[-1] == main_class
 
-    @pytest.mark.parametrize("content", ["no-main-class", "not-a-zip"])
-    def test_a_jar_that_is_not_executable_is_rejected(self, tmp_path, content):
+    @pytest.mark.parametrize(
+        ("content", "reason"),
+        [
+            ("no-main-class", "its manifest sets no Main-Class"),
+            ("no-manifest", "it has no readable manifest"),
+            ("not-a-zip", "it has no readable manifest"),
+        ],
+    )
+    def test_a_jar_that_is_not_executable_is_rejected(self, tmp_path, content, reason):
         path = tmp_path / "app.jar"
         if content == "no-main-class":
             _make_jar(path, main_class=None, schema_version="2026-06-16")
+        elif content == "no-manifest":
+            with zipfile.ZipFile(path, "w") as zf:
+                zf.writestr("com/example/App.class", b"")
         else:
             path.write_text("not a zip")
         coordinator = JavaCoordinator()
         with (
             coordinator._set_scan_roots([tmp_path]),
-            pytest.raises(ValueError, match="is not an executable JAR"),
+            pytest.raises(ValueError, match=f"is not an executable JAR: {reason}$"),
         ):
             coordinator._build_parse_task_handler_command(path=path)
 
