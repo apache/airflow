@@ -57,9 +57,15 @@ def _get_toolchain_problem() -> str | None:
     node = shutil.which("node")
     if node is None or shutil.which("pnpm") is None:
         return "needs node and pnpm"
-    version = subprocess.run([node, "--version"], capture_output=True, text=True, check=True).stdout
-    if int(version.strip().lstrip("v").split(".")[0]) < MIN_NODE_MAJOR:
-        return f"needs Node.js {MIN_NODE_MAJOR} or later, found {version.strip()}"
+    try:
+        version = subprocess.run(
+            [node, "--version"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        major = int(version.lstrip("v").split(".")[0])
+    except (OSError, subprocess.CalledProcessError, ValueError) as e:
+        return f"cannot read the Node.js version: {e}"
+    if major < MIN_NODE_MAJOR:
+        return f"needs Node.js {MIN_NODE_MAJOR} or later, found {version}"
     return None
 
 
