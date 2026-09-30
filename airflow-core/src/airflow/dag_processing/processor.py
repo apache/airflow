@@ -157,7 +157,7 @@ class TaskHandlerDeclaration(BaseModel):
 
     task_id: str
 
-    binding: Literal["positional", "named", "named_or_whole"]
+    binding: Literal["positional", "named", "named_or_whole", "named_open"]
     """
     How stub-task arguments bind to ``params``.
 
@@ -165,6 +165,8 @@ class TaskHandlerDeclaration(BaseModel):
     - ``named``: by name in any order, case-insensitively with underscores ignored unless ``exact_name`` is set.
     - ``named_or_whole``: as ``named``, except that when there is exactly one argument and it matches no
       parameter, it is decoded as the whole value.
+    - ``named_open``: as ``named``, but ``params`` need not list every parameter the handler takes. Only the
+      listed names are checked, and an argument that none of them names is not a mismatch.
     """
 
     params: list[TaskHandlerParam]

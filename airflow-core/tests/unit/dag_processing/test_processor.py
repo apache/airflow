@@ -2378,6 +2378,7 @@ class TestTaskHandlerDeclaration:
             pytest.param(
                 "named_or_whole", {"name": "Day", "required": False}, "Day", False, id="named_or_whole"
             ),
+            pytest.param("named_open", {"name": "day", "required": False}, "day", False, id="named_open"),
         ],
     )
     def test_decodes_binding(self, binding, param, expected_name, expected_exact_name):

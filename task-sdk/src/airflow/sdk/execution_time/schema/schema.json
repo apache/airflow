@@ -4167,7 +4167,8 @@
           "enum": [
             "positional",
             "named",
-            "named_or_whole"
+            "named_or_whole",
+            "named_open"
           ],
           "title": "Binding",
           "type": "string"
