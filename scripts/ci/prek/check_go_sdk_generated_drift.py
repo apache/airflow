@@ -23,8 +23,8 @@ committed, so nothing regenerates them when the schema on the Python side moves:
 
 * ``go-sdk/airflow/spec.gen.go`` — ``airflow.DagSpec`` and ``airflow.TaskSpec``, the
   structs a Dag author fills in, from ``airflow-core``'s Dag serialization schema.
-* ``go-sdk/pkg/execution/genmodels/`` — the coordinator-protocol messages, from the
-  supervisor wire-schema snapshot the Python Task SDK owns.
+* ``go-sdk/pkg/execution/genmodels/*.gen.go`` — the coordinator-protocol messages,
+  from the supervisor wire-schema snapshot the Python Task SDK owns.
 
 Without this check a property added, renamed or retyped on the Python side leaves the
 Go side silently behind: a Dag authored in Go keeps serializing the old shape, and
@@ -78,7 +78,11 @@ TARGETS = (
     ),
     Target(
         package="./pkg/execution/genmodels/...",
-        committed=(GO_SDK_MODULE / "pkg" / "execution" / "genmodels",),
+        committed=(
+            GO_SDK_MODULE / "pkg" / "execution" / "genmodels" / "models.gen.go",
+            GO_SDK_MODULE / "pkg" / "execution" / "genmodels" / "discriminators.gen.go",
+            GO_SDK_MODULE / "pkg" / "execution" / "genmodels" / "defaults.gen.go",
+        ),
         schema="task-sdk/src/airflow/sdk/execution_time/schema/schema.json",
         remedy="Commit it:",
     ),
@@ -116,6 +120,7 @@ def format_report(
 ) -> tuple[int, str]:
     """Turn one target's regeneration result and the diff that followed into ``(exit_code, report)``."""
     written = ", ".join(str(path) for path in target.committed)
+    stageable = " ".join(str(path) for path in target.committed)
     if generate_returncode != 0:
         return 1, "\n".join(
             [
@@ -134,17 +139,17 @@ def format_report(
     if diff_returncode != 0:
         return 1, f"ERROR: `git diff` failed, so whether {written} drifted is unknown."
     if not diff:
-        return 0, f"OK: {written} matches {target.schema}."
+        return 0, f"OK: {written} — up to date with {target.schema}."
     return 1, "\n".join(
         [
-            f"ERROR: {written} is out of date.",
+            f"ERROR: out of date: {written}.",
             "",
-            f"It is generated from {target.schema}, which has moved since the file was",
-            "committed. The regenerated file is in your working tree.",
+            f"The committed output no longer matches what {target.schema} and the",
+            "generators produce. The regenerated output is in your working tree.",
             "",
             target.remedy,
             "",
-            f"    git add {written}",
+            f"    git add {stageable}",
             "",
             "Regeneration changed:",
             "",

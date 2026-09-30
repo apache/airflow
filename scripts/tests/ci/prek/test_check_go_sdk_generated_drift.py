@@ -44,25 +44,30 @@ diff --git a/go-sdk/pkg/execution/genmodels/models.gen.go b/go-sdk/pkg/execution
 """
 
 
-def test_both_targets_are_checked():
+def test_both_targets_are_checked_and_name_generated_files_not_a_package_directory():
     assert [target.package for target in checker.TARGETS] == [
         "./airflow/...",
         "./pkg/execution/genmodels/...",
     ]
+    # A package directory would widen `git diff` onto the hand-written gen.go beside the
+    # generated files, and hide a deleted one from the missing-file guard in main().
+    for target in checker.TARGETS:
+        assert target.committed
+        assert all(path.name.endswith(".gen.go") for path in target.committed), target.committed
 
 
 def test_current_files_pass():
     exit_code, report = checker.format_report(SPECS, 0, "", 0, "")
 
     assert exit_code == 0
-    assert "matches airflow-core/src/airflow/serialization/schema.json" in report
+    assert "up to date with airflow-core/src/airflow/serialization/schema.json" in report
 
 
 def test_drifted_specs_fail_with_the_diff_and_where_to_decide_about_a_property():
     exit_code, report = checker.format_report(SPECS, 0, "", 0, SPEC_DRIFT_DIFF)
 
     assert exit_code == 1
-    assert "is out of date" in report
+    assert "out of date" in report
     assert "go-sdk/internal/genspec/authoring.go" in report
     assert "git add go-sdk/airflow/spec.gen.go" in report
     assert "Deadline string" in report
@@ -73,7 +78,11 @@ def test_drifted_models_name_the_supervisor_snapshot_and_have_nothing_to_decide(
 
     assert exit_code == 1
     assert "task-sdk/src/airflow/sdk/execution_time/schema/schema.json" in report
-    assert "git add go-sdk/pkg/execution/genmodels" in report
+    assert (
+        "git add go-sdk/pkg/execution/genmodels/models.gen.go "
+        "go-sdk/pkg/execution/genmodels/discriminators.gen.go "
+        "go-sdk/pkg/execution/genmodels/defaults.gen.go" in report
+    )
     # Nothing is excluded from the models, so there is no list to weigh a field against.
     assert "authoring.go" not in report
     assert "MultiTeam" in report
