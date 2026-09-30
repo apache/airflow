@@ -138,6 +138,31 @@ def _fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
     return hashlib.sha256(serialized.encode()).hexdigest()
 
 
+def _partial_inputs_from_upstream(
+    partial_kwargs: Mapping[str, Any], unmapped_task: BaseOperator
+) -> dict[str, Any]:
+    """
+    Collect the rendered values of the partial kwargs an upstream task provides.
+
+    They belong in the fingerprint next to the iterated kwargs: clearing the upstream together with
+    this task can change them while the items stay the same, and a checkpoint written with the old
+    value must not be replayed. Only XComArg values count, read back from the unmapped operator
+    once rendered, at the top level or inside a mapping such as a ``@task``'s ``op_kwargs``. Other
+    templated values are left out on purpose: one like ``{{ ti.try_number }}`` changes with every
+    attempt and would make every checkpoint look stale.
+    """
+    inputs: dict[str, Any] = {}
+    for key, value in partial_kwargs.items():
+        if isinstance(value, XComArg):
+            inputs[key] = getattr(unmapped_task, key, None)
+        elif isinstance(value, Mapping):
+            rendered = getattr(unmapped_task, key, None)
+            for name, nested in value.items():
+                if isinstance(nested, XComArg):
+                    inputs[f"{key}.{name}"] = rendered.get(name) if isinstance(rendered, Mapping) else None
+    return inputs
+
+
 def _serialize_outlet_events(accessors: OutletEventAccessors) -> list[dict[str, Any]]:
     """
     Snapshot the outlet asset events one sub-task recorded into a JSON-safe list.
@@ -909,7 +934,6 @@ class IterableOperator(BaseOperator):
             context=context,
             index=index,
             operator=unmapped_task,
-            input_fingerprint=_fingerprint(mapped_kwargs),
         )
 
         # Render against a copy of the context whose `ti`/`task_instance` are the new sub-task's
@@ -918,6 +942,10 @@ class IterableOperator(BaseOperator):
         # is only a shallow copy).
         self._render_unmapped_operator(
             {**context, "ti": indexed_ti, "task_instance": indexed_ti}, unmapped_task, jinja_env
+        )
+        # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
+        indexed_ti.input_fingerprint = _fingerprint(
+            {**mapped_kwargs, **_partial_inputs_from_upstream(self.partial_kwargs, unmapped_task)}
         )
         return indexed_ti
 

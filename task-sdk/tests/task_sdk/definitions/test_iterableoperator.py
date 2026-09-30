@@ -2315,6 +2315,80 @@ class TestFailureHandedToTheRunner:
         assert sorted(type(exc).__name__ for exc in raised.exceptions) == ["KeyError", "ValueError"]
 
 
+class TestFingerprintCoversPartialInputsFromUpstream:
+    """
+    A checkpoint is honoured only for the input it was written for, and that input includes the
+    ``.partial()`` kwargs an upstream task provides: clearing the upstream can change them.
+    """
+
+    @staticmethod
+    def _run_twice(partial_value_on_retry, arg2_first="from-upstream", arg2_is_upstream=True):
+        """Attempt 1: item 2 fails. Attempt 2 (retry or clear): item 2 succeeds. Returns runs and results."""
+        upstream_value = [arg2_first]
+        runs = []
+        original_execute = MockOperator.execute
+
+        def counting_execute(self, context):
+            runs.append((context["ti"].try_number, self.arg1))
+            return original_execute(self, context)
+
+        with DAG("test_dag") as dag:
+            if arg2_is_upstream:
+                arg2 = make_xcom_arg(None)
+                arg2.resolve = lambda *args, **kwargs: upstream_value[0]
+            else:
+                arg2 = arg2_first
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2, "fail_on_first_attempt": True}])
+            mapped_op = MockOperator.partial(
+                task_id="partial_input", dag=dag, arg2=arg2, task_concurrency=1
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(MockOperator, "execute", counting_execute),
+            ):
+                context["ti"].try_number = 1
+                with pytest.raises(RuntimeError):
+                    iterable_op.execute(context=context)
+                upstream_value[0] = partial_value_on_retry
+                iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+                context["ti"].try_number = 2
+                results = list(iterable_op.execute(context=context))
+        return runs, results
+
+    def test_a_changed_upstream_value_runs_the_item_again(self):
+        runs, results = self._run_twice("changed-upstream")
+
+        assert (2, 1) in runs
+        assert results == [(1, "changed-upstream", None), (2, "changed-upstream", None)]
+
+    def test_an_unchanged_upstream_value_keeps_the_checkpoint(self):
+        runs, results = self._run_twice("from-upstream")
+
+        assert (2, 1) not in runs
+        assert results == [(1, "from-upstream", None), (2, "from-upstream", None)]
+
+    def test_a_templated_partial_value_does_not_make_checkpoints_stale(self):
+        """Only upstream values count: a value rendered anew every attempt must not force a rerun."""
+        runs, results = self._run_twice(None, arg2_first="{{ ti.try_number }}", arg2_is_upstream=False)
+
+        assert (2, 1) not in runs
+        assert [value[0] for value in results] == [1, 2]
+
+    def test_partial_inputs_from_upstream_are_read_from_the_rendered_operator(self):
+        from airflow.sdk.definitions.iterableoperator import _partial_inputs_from_upstream
+
+        upstream = make_xcom_arg(None)
+        rendered = SimpleNamespace(arg2="rendered-arg2", op_kwargs={"y": "rendered-y", "z": 1}, retries=2)
+
+        inputs = _partial_inputs_from_upstream(
+            {"arg2": upstream, "op_kwargs": {"y": upstream, "z": 1}, "retries": 2}, rendered
+        )
+
+        assert inputs == {"arg2": "rendered-arg2", "op_kwargs.y": "rendered-y"}
+
+
 class TestIterableOperatorCopy:
     """An iterated task can be deep-copied, as dag.partial_subset() does for every task it keeps."""
 
