@@ -1517,6 +1517,37 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
+# The in-process supervisor of dag.test() serves a task's requests in the task's own process, on the
+# thread that sent them. The code serving a request (models.Variable, models.Connection, the secrets
+# backends, mask forwarding) has to act as the server side there, so it must not see the comms, while
+# the task's other threads (the items of an iterated task) keep using them. Hence a per-thread flag
+# rather than removing SUPERVISOR_COMMS from the module for the whole process.
+_serving_supervisor_request = threading.local()
+
+
+def supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the comms to the supervisor for this thread, or ``None``.
+
+    ``None`` outside a task execution context, and on a thread that is serving a request of the
+    in-process supervisor (see :func:`serving_supervisor_request`). Code that decides whether it
+    runs inside a task should ask this instead of checking for ``SUPERVISOR_COMMS``.
+    """
+    if getattr(_serving_supervisor_request, "active", False):
+        return None
+    return globals().get("SUPERVISOR_COMMS")
+
+
+@contextmanager
+def serving_supervisor_request() -> Iterator[None]:
+    """Hide the comms from this thread, and only this one, while it serves a supervisor request."""
+    previous = getattr(_serving_supervisor_request, "active", False)
+    _serving_supervisor_request.active = True
+    try:
+        yield
+    finally:
+        _serving_supervisor_request.active = previous
+
 
 # State machine!
 # 1. Start up (receive details from supervisor)

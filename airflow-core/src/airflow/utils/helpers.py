@@ -21,6 +21,7 @@ import copy
 import itertools
 import re
 import signal
+import sys
 from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -321,3 +322,22 @@ def __getattr__(name: str):
     )
     mod = importlib.import_module(modpath)
     return getattr(mod, name)
+
+
+def in_task_execution_context() -> bool:
+    """
+    Whether this thread runs in a Task SDK execution context (task, Dag parsing, triggerer).
+
+    There requests go through the supervisor (the Execution API), not the metadata database. Read
+    from the task runner without importing it, so server processes that never ran a task pay
+    nothing. A thread serving a request of the in-process supervisor (``dag.test()``) is the server
+    side and gets ``False``, while the task's other threads keep ``True``.
+    """
+    task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
+    if task_runner is None:
+        return False
+    supervisor_comms = getattr(task_runner, "supervisor_comms", None)
+    if supervisor_comms is None:
+        # A Task SDK from before the per-thread flag.
+        return hasattr(task_runner, "SUPERVISOR_COMMS")
+    return supervisor_comms() is not None

@@ -3693,9 +3693,8 @@ class TestMappedTaskInstanceReceiveValue:
         attempts = []
 
         with dag_maker(dag_id="iterate_extra_xcoms", session=session, serialized=True):
-            # One item at a time: several sync items pushing concurrently under dag_maker's in-process
-            # supervisor race on it, which is a separate problem.
-            @task(retries=1, retry_delay=datetime.timedelta(0), task_concurrency=1)
+
+            @task(retries=1, retry_delay=datetime.timedelta(0))
             def produce(x, ti=None):
                 ti.xcom_push(key="foo", value=f"foo-of-{x}")
                 if x == 2 and not attempts:
@@ -3726,6 +3725,43 @@ class TestMappedTaskInstanceReceiveValue:
             )
         )
         assert {"foo_0", "foo_1", "return_value_0", "return_value_1"} <= keys
+
+    def test_iterate_concurrent_sync_items_share_the_in_process_supervisor(self, dag_maker, session):
+        """
+        Under the in-process supervisor (dag.test(), dag_maker) sync items make SDK calls from worker
+        threads; they must not race on it: every item's XCom push and read goes through.
+        """
+        from airflow.models.xcom import XComModel
+
+        with dag_maker(dag_id="iterate_in_process_comms", session=session, serialized=True):
+
+            @task(task_concurrency=4)
+            def produce(x, ti=None):
+                for n in range(5):
+                    ti.xcom_push(key=f"k{n}", value=x)
+                    ti.xcom_pull(task_ids="produce", key=f"k{n}_0")
+                return x
+
+            produce.iterate(x=list(range(8)))
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == TaskInstanceState.SUCCESS
+        keys = set(
+            session.scalars(
+                select(XComModel.key).where(
+                    XComModel.dag_id == "iterate_in_process_comms",
+                    XComModel.run_id == dag_run.run_id,
+                    XComModel.task_id == "produce",
+                )
+            )
+        )
+        assert {f"return_value_{i}" for i in range(8)} <= keys
+        assert {f"k{n}_{i}" for n in range(5) for i in range(8)} <= keys
 
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
