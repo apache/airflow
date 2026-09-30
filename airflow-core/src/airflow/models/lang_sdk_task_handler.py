@@ -45,6 +45,9 @@ def compute_fileloc_hash(relative_fileloc: str) -> str:
     return md5(relative_fileloc.encode()).hexdigest()
 
 
+# The column default fills a hash on INSERT, ORM or Core. ORM updates resync it in each model's
+# @validates hook instead of an onupdate default, which would fire on every UPDATE, even one that
+# leaves the path alone. A Core UPDATE or upsert that changes a path must set its hash itself.
 def _build_fileloc_hash_default(path_key: str) -> Callable[[DefaultExecutionContext], str]:
     def compute(context: DefaultExecutionContext) -> str:
         return compute_fileloc_hash(context.get_current_parameters()[path_key])
@@ -74,6 +77,11 @@ class LangSDKTaskHandlerArtifact(Base):
             name="lang_sdk_task_handler_artifact_bundle_fileloc_uq",
         ),
     )
+
+    @validates("relative_fileloc")
+    def _sync_relative_fileloc_hash(self, key: str, relative_fileloc: str) -> str:
+        self.relative_fileloc_hash = compute_fileloc_hash(relative_fileloc)
+        return relative_fileloc
 
 
 class LangSDKTaskHandler(Base):
@@ -110,7 +118,5 @@ class LangSDKTaskHandler(Base):
 
     @validates("dag_relative_fileloc")
     def _sync_dag_relative_fileloc_hash(self, key: str, dag_relative_fileloc: str) -> str:
-        # Not an onupdate default: that fires on every UPDATE, even one that leaves the path alone.
-        # A Core UPDATE or upsert that changes the path must set the hash itself.
         self.dag_relative_fileloc_hash = compute_fileloc_hash(dag_relative_fileloc)
         return dag_relative_fileloc
