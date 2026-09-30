@@ -35,7 +35,22 @@
     "scheduler": "调度器",
     "status": "状态",
     "triggerer": "触发器",
-    "unhealthy": "健康状态异常"
+    "unhealthy": "健康状态异常",
+    "degraded": "降级",
+    "degradedHint": {
+      "dagProcessor": "部分已配置的 Dag 套件包没有 Dag 处理器在解析它们。",
+      "triggerer": "部分团队没有正在运行延后任务的触发器。"
+    },
+    "down": "宕机",
+    "instances": {
+      "bundles": "套件包",
+      "hostname": "主机",
+      "team": "团队",
+      "title_one": "{{title}} — {{status}}（{{count}} 个实例）",
+      "title_other": "{{title}} — {{status}}（{{count}} 个实例）",
+      "unknownHostname": "未知主机"
+    },
+    "unknownStatus": "未知"
   },
   "history": "历史记录",
   "importErrors": {
