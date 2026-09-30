@@ -74,6 +74,17 @@ def test_deleting_dag_deletes_its_handlers(testing_dag_bundle, session):
     assert session.scalars(select(LangSDKTaskHandlerArtifact.id)).all() == [artifact.id]
 
 
+def test_deleting_referenced_artifact_fails(testing_dag_bundle, session):
+    artifact = _add_dags_and_artifact(session, "dag_a")
+    session.add(_make_handler(dag_id="dag_a", artifact=artifact))
+    session.flush()
+
+    with pytest.raises(IntegrityError):
+        session.execute(
+            delete(LangSDKTaskHandlerArtifact).where(LangSDKTaskHandlerArtifact.id == artifact.id)
+        )
+
+
 @pytest.mark.parametrize(
     "relative_fileloc",
     [
