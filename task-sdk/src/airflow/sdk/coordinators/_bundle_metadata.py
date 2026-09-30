@@ -113,13 +113,18 @@ def convert_configured_roots(
     """Normalize configured roots while rejecting explicitly empty values."""
     if isinstance(value, _UnsetArtifactRoots):
         return []
-    values = [value] if isinstance(value, (str, os.PathLike)) else (value or [])
+    if isinstance(value, (str, os.PathLike)):
+        values = [value]
+    elif value:
+        values = value
+    else:
+        values = []
     if not values or any(not os.fspath(v).strip() for v in values):
         raise ValueError(
             "Artifact roots must contain at least one path when provided, and each path must be non-empty; "
             "omit the option to use the task's Dag bundle."
         )
-    return convert_roots(value)
+    return convert_roots(values)
 
 
 def validate_schema_version(instance, _, value) -> str:
