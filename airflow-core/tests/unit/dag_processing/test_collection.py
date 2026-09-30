@@ -1567,22 +1567,28 @@ class TestUpdateImportErrors:
 
 @pytest.mark.db_test
 class TestFindOrmDagsEagerLoading:
-    """find_orm_dags must not eager-join one-to-many collections in the main query.
+    """find_orm_dags must eagerly load one-to-many collections with selectinload.
 
-    Joining several one-to-many collections with joinedload in one statement
-    multiplies the returned rows (3 tags x 2 owner links => 6 copies of the
-    same wide dag row), which dominated DagModel sync time on large
+    Eager-joining several one-to-many collections with joinedload in one
+    statement multiplies the returned rows (3 tags x 2 owner links => 6 copies
+    of the same wide dag row), which dominated DagModel sync time on large
     deployments (#72393). The loader strategy is asserted via the SQL that
-    actually reaches the database: no statement may join the one-to-many
-    tables; they are loaded through selectinload's secondary selects instead.
+    actually reaches the database: the statements recorded while find_orm_dags
+    runs may not join the one-to-many tables, and every collection must already
+    be populated when find_orm_dags returns — accessing a collection must not
+    execute any additional SQL, which rules out lazy loading.
     """
 
     DAG_ID = "test_dag"
+    DAG_WITHOUT_COLLECTIONS_ID = "test_dag_without_collections"
 
     @pytest.fixture(autouse=True)
     def setup_teardown(self, session):
         yield
-        session.execute(delete(DagModel).where(DagModel.dag_id == self.DAG_ID))
+        clear_db_assets()
+        session.execute(
+            delete(DagModel).where(DagModel.dag_id.in_([self.DAG_ID, self.DAG_WITHOUT_COLLECTIONS_ID]))
+        )
         session.commit()
 
     @pytest.fixture
@@ -1596,9 +1602,15 @@ class TestFindOrmDagsEagerLoading:
         yield statements
         event.remove(session.bind, "before_cursor_execute", before_cursor_execute)
 
-    def test_find_orm_dags_does_not_eager_join_one_to_many_collections(
+    def test_find_orm_dags_loads_one_to_many_collections_without_further_sql(
         self, dag_maker, session, capture_statements
     ):
+        from airflow.models.asset import (
+            AssetAliasModel,
+            DagScheduleAssetAliasReference,
+            DagScheduleAssetReference,
+            TaskOutletAssetReference,
+        )
         from airflow.models.dag import DagOwnerAttributes
 
         with dag_maker(self.DAG_ID, schedule=None):
@@ -1611,22 +1623,79 @@ class TestFindOrmDagsEagerLoading:
             DagOwnerAttributes(dag_id=self.DAG_ID, owner=f"owner-{i}", link="https://example.com")
             for i in range(2)
         )
+        asset = AssetModel(name="test_asset", uri="test://asset-test_dag")
+        asset_alias = AssetAliasModel(name="test_asset_alias")
+        session.add_all([asset, asset_alias])
+        session.flush()
+        asset_id, asset_alias_id = asset.id, asset_alias.id
+        session.add_all(
+            [
+                DagScheduleAssetReference(asset_id=asset_id, dag_id=self.DAG_ID),
+                DagScheduleAssetAliasReference(alias_id=asset_alias_id, dag_id=self.DAG_ID),
+                TaskOutletAssetReference(asset_id=asset_id, dag_id=self.DAG_ID, task_id="empty"),
+            ]
+        )
         session.commit()
         session.expire_all()
 
+        capture_statements.clear()
         dags = {self.DAG_ID: LazyDeserializedDAG.from_dag(dag_maker.dag)}
         orm_dags = DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+        queries_run_by_find_orm_dags = len(capture_statements)
 
         assert set(orm_dags) == {self.DAG_ID}
-        assert {t.name for t in orm_dags[self.DAG_ID].tags} == {"tag-0", "tag-1", "tag-2"}
-        assert {o.owner for o in orm_dags[self.DAG_ID].dag_owner_links} == {"owner-0", "owner-1"}
+        orm_dag = orm_dags[self.DAG_ID]
+        assert {t.name for t in orm_dag.tags} == {"tag-0", "tag-1", "tag-2"}
+        assert {o.owner for o in orm_dag.dag_owner_links} == {"owner-0", "owner-1"}
+        assert [r.asset_id for r in orm_dag.schedule_asset_references] == [asset_id]
+        assert [r.alias_id for r in orm_dag.schedule_asset_alias_references] == [asset_alias_id]
+        assert [(r.task_id, r.asset_id) for r in orm_dag.task_outlet_asset_references] == [
+            ("empty", asset_id)
+        ]
+        assert len(capture_statements) == queries_run_by_find_orm_dags, (
+            "one-to-many collections must already be populated when find_orm_dags returns; "
+            "accessing them executed additional SQL (lazy loading)"
+        )
         joined_one_to_many = [
             s
             for s in capture_statements
-            if any(join in s for join in ("JOIN dag_tag", "JOIN dag_owner_attributes"))
+            if any(
+                join in s
+                for join in (
+                    "JOIN dag_tag",
+                    "JOIN dag_owner_attributes",
+                    "JOIN dag_schedule_asset_reference",
+                    "JOIN dag_schedule_asset_alias_reference",
+                    "JOIN task_outlet_asset_reference",
+                )
+            )
         ]
         assert joined_one_to_many == [], (
             "one-to-many collections must be loaded via selectinload, not joinedload"
+        )
+
+    def test_find_orm_dags_returns_empty_collections_for_dag_without_one_to_many_rows(
+        self, dag_maker, session, capture_statements
+    ):
+        with dag_maker(self.DAG_WITHOUT_COLLECTIONS_ID, schedule=None):
+            EmptyOperator(task_id="empty")
+        dag_maker.sync_dagbag_to_db()
+        session.expire_all()
+
+        capture_statements.clear()
+        dags = {self.DAG_WITHOUT_COLLECTIONS_ID: LazyDeserializedDAG.from_dag(dag_maker.dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+        queries_run_by_find_orm_dags = len(capture_statements)
+
+        assert set(orm_dags) == {self.DAG_WITHOUT_COLLECTIONS_ID}
+        orm_dag = orm_dags[self.DAG_WITHOUT_COLLECTIONS_ID]
+        assert orm_dag.tags == []
+        assert orm_dag.dag_owner_links == []
+        assert orm_dag.schedule_asset_references == []
+        assert orm_dag.schedule_asset_alias_references == []
+        assert orm_dag.task_outlet_asset_references == []
+        assert len(capture_statements) == queries_run_by_find_orm_dags, (
+            "accessing empty collections must not execute any additional SQL"
         )
 
 
