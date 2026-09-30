@@ -95,6 +95,8 @@ class NodeCoordinator(SubprocessCoordinator):
     """
     Coordinator that launches a Node.js subprocess for task execution.
 
+    It also launches a verified ``*.min.mjs`` bundle to report the task handlers it registers.
+
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
 
@@ -123,3 +125,7 @@ class NodeCoordinator(SubprocessCoordinator):
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        metadata = read_bundle(path)
+        return [self.node_executable, os.fspath(path)], metadata.supervisor_schema_version

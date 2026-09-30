@@ -106,6 +106,44 @@ class TestNodeCoordinatorExecuteTaskCommand:
         assert schema_version == SCHEMA_VERSION
 
 
+def _write_plain_file(root: pathlib.Path) -> pathlib.Path:
+    path = root / BUNDLE_NAME
+    path.write_bytes(b"export {};\n")
+    return path
+
+
+def _write_corrupted_bundle(root: pathlib.Path) -> pathlib.Path:
+    bundle = write_bundle(root, "test_dag")
+    # The last byte before the trailing newline is in the code region.
+    mutate_byte(bundle, len(bundle.read_bytes()) - 2)
+    return bundle
+
+
+class TestNodeCoordinatorParseTaskHandlerCommand:
+    def test_returns_node_and_the_bundle_schema_version(self, tmp_path):
+        # A bundle registering no Dag: the command does not depend on the Dags it declares.
+        bundle = write_bundle(tmp_path)
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
+
+        command, schema_version = coordinator._build_parse_task_handler_command(path=bundle)
+
+        assert command == ["/opt/node/bin/node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
+
+    @pytest.mark.parametrize(
+        ("write", "error"),
+        [
+            pytest.param(_write_plain_file, "has no airflow bundle layout", id="not-a-bundle"),
+            pytest.param(_write_corrupted_bundle, "code SHA-256 mismatch", id="corrupted-code"),
+        ],
+    )
+    def test_rejects_a_bundle_that_fails_verification(self, tmp_path, write, error):
+        path = write(tmp_path)
+
+        with pytest.raises(ValueError, match=error):
+            NodeCoordinator()._build_parse_task_handler_command(path=path)
+
+
 class TestBundleFind:
     @pytest.mark.parametrize(
         "name",
