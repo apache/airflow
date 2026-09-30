@@ -46,7 +46,7 @@ from structlog.contextvars import bind_contextvars
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag_async
 from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -1262,9 +1262,9 @@ async def get_previous_successful_dagrun(
 
 
 @router.get("/count", status_code=status.HTTP_200_OK)
-def get_task_instance_count(
+async def get_task_instance_count(
     dag_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
     dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -1289,7 +1289,7 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(
+        group_tasks = await _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
 
@@ -1314,7 +1314,7 @@ def get_task_instance_count(
         else:
             query = query.where(TI.state.in_(states))
 
-    count = session.scalar(query)
+    count = await session.scalar(query)
     return count or 0
 
 
@@ -1371,9 +1371,9 @@ async def get_previous_task_instance(
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
-def get_task_instance_states(
+async def get_task_instance_states(
     dag_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
     dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -1398,10 +1398,10 @@ def get_task_instance_states(
     if map_index is not None:
         query = query.where(TI.map_index == map_index)
 
-    results = session.scalars(query).all()
+    results = (await session.scalars(query)).all()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(
+        group_tasks = await _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
 
@@ -1450,17 +1450,17 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(
+async def _get_group_tasks(
     dag_id: str,
     task_group_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
     dag_bag: DagBagDep,
     logical_dates=None,
     run_ids=None,
     map_index: int | None = None,
 ):
     # Get all tasks in the task group
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
+    dag = await get_latest_version_of_dag_async(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(
@@ -1472,13 +1472,15 @@ def _get_group_tasks(
         )
 
     # First get all task instances to get the task_id, map_index pairs
-    group_tasks = session.scalars(
-        select(TI).where(
-            TI.dag_id == dag_id,
-            TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
-            *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
-            *([TI.run_id.in_(run_ids)] if run_ids else []),
-            *([TI.map_index == map_index] if map_index is not None else []),
+    group_tasks = (
+        await session.scalars(
+            select(TI).where(
+                TI.dag_id == dag_id,
+                TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
+                *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
+                *([TI.run_id.in_(run_ids)] if run_ids else []),
+                *([TI.map_index == map_index] if map_index is not None else []),
+            )
         )
     ).all()
 
