@@ -680,10 +680,11 @@ class SandboxToolset(AirflowToolset):
             )
         return tools
 
-    async def _execute_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:

@@ -70,7 +70,7 @@ def _call_locked(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:
         return fn(*args, **kwargs)
 
 
-async def _masked(name: str, call: Awaitable[Any], *, count_as: str | None = None) -> Any:
+async def _mask_call(name: str, call: Awaitable[Any], *, count_as: str | None = None) -> Any:
     """
     Await a tool call and mask everything it hands on: its result, or the exception it raised.
 
@@ -123,7 +123,7 @@ def _strip(error: Exception) -> Exception:
     error.__cause__ = None
     error.__context__ = None
     try:
-        stripped = _stripped(error)
+        stripped = _mask_attributes(error)
         message = str(stripped)
         if (masked := mask_secrets(message)) != message:
             stripped = RuntimeError(f"{type(error).__name__}: {masked}")
@@ -133,7 +133,7 @@ def _strip(error: Exception) -> Exception:
     return stripped
 
 
-def _stripped(error: Exception) -> Exception:
+def _mask_attributes(error: Exception) -> Exception:
     group = getattr(error, "exceptions", None)
     if isinstance(group, tuple) and hasattr(error, "derive"):
         # An exception group's own message and arguments are set when it is built.
@@ -155,7 +155,7 @@ class AirflowToolset(AbstractToolset[Any]):
     """
     A toolset whose tool results are safe to hand to a model.
 
-    Subclasses implement :meth:`_execute_tool`. :meth:`call_tool` runs it and passes what it
+    Subclasses implement :meth:`execute_tool`. :meth:`call_tool` runs it and passes what it
     returns, and any exception it raises, through Airflow's secret masker, so a connection
     password that ends up in a database error or a hook's return value is replaced with
     ``***`` before the model, the model provider or a trace sees it.
@@ -168,19 +168,27 @@ class AirflowToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        return await _masked(
-            name, self._execute_tool(name, tool_args, ctx, tool), count_as=type(self).__name__
+        # pydantic-ai calls this positionally, so its signature has to stay as it defines it.
+        return await _mask_call(
+            name, self.execute_tool(name, tool_args, ctx=ctx, tool=tool), count_as=type(self).__name__
         )
 
     @abstractmethod
-    async def _execute_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        """Run tool ``name`` with validated ``tool_args``; :meth:`call_tool` masks what it returns."""
+        """
+        Run tool ``name`` with validated ``tool_args``.
+
+        This is the method a subclass implements, rather than :meth:`call_tool`, which runs it
+        and masks what it returns. ``ctx`` and ``tool`` are keyword-only so that arguments can
+        be added here later without breaking subclasses.
+        """
 
     def airflow_tools(self) -> list[AirflowTool]:
         """
@@ -216,10 +224,10 @@ class MaskingToolset(WrapperToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        return await _masked(name, self.wrapped.call_tool(name, tool_args, ctx, tool))
+        return await _mask_call(name, self.wrapped.call_tool(name, tool_args, ctx, tool))
 
 
-def with_masking(toolset: AbstractToolset[Any] | ToolsetFunc[Any]) -> AbstractToolset[Any]:
+def ensure_masked(toolset: AbstractToolset[Any] | ToolsetFunc[Any]) -> AbstractToolset[Any]:
     """
     Return ``toolset`` wrapped in :class:`MaskingToolset`, unless it already masks its own output.
 
