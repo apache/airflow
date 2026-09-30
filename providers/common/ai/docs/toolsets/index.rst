@@ -222,6 +222,48 @@ the upstream toolset declares, so the setting is not theirs to make. Do not read
 this as a reason to choose one route over another; read it as something to expect
 from all four.
 
+.. _toolset-retry-budget:
+
+How often the model may correct a failed call
+---------------------------------------------
+
+When the model calls a tool with arguments that fail its schema, or the tool asks the
+model to try again (``ModelRetry``), the error goes back to the model so it can correct
+the call. What counts differs by toolset:
+
+- ``SQLToolset`` and ``DataFusionToolset`` turn every query error into ``ModelRetry``,
+  so a misspelled column and a dropped connection both count.
+- ``HookToolset`` counts invalid arguments and a call that tries to change a pinned
+  argument. An exception from the hook itself fails the run straight away.
+- ``ObjectStorageToolset`` counts invalid arguments only. A path that does not exist or
+  cannot be read goes back to the model as a failed result without using the budget;
+  bound repeated failed reads with ``usage_limits``.
+
+These toolsets allow as many corrections as the agent's tool retry budget, pydantic-ai's
+``retries`` (one by default), the same way pydantic-ai's own toolsets do. Pass
+``max_retries`` to a toolset to give its tools a budget of their own. Once the budget is
+used up the run fails, and Airflow's task retries take over.
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="revenue_agent",
+        prompt="What was last week's revenue?",
+        llm_conn_id="pydanticai_default",
+        toolsets=[SQLToolset(db_conn_id="warehouse")],
+        agent_params={"retries": {"tools": 3}},
+    )
+
+An integer ``retries`` sets both the tool budget and the output-validation budget; a
+dict such as ``{"tools": 3}`` or ``{"output": 3}`` raises only one of them. These toolsets
+used to allow exactly one correction whatever ``retries`` said, so an agent that sets
+``retries`` now applies it to them too: ``retries=0`` fails the run on the first bad
+query, and a large integer ``retries`` meant for output validation also lets a failing
+database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
+behaviour. Outside a pydantic-ai agent (the LangChain, Strands and Google ADK bridges)
+there is no agent budget, so each tool gets one correction unless its toolset sets
+``max_retries``.
+
 Layering
 --------
 

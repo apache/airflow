@@ -89,8 +89,9 @@ def airflow_toolset_to_langchain_tools(
         live :class:`~pydantic_ai.RunContext` carries the model, usage, and
         message history. Outside an agent run there is no such context, so this
         bridge builds a minimal one with an inert placeholder model. The curated
-        common.ai toolsets (``SQLToolset``, ``HookToolset``, ``MCPToolset``)
-        ignore the context, so this works for them. A custom toolset that reads
+        common.ai toolsets (``SQLToolset``, ``HookToolset``, ``MCPToolset``) read
+        only its retry budget, which the bridge sets, so this works for them. A
+        custom toolset that reads
         live run state (``ctx.model``, ``ctx.messages``, ``ctx.usage``) will not
         behave correctly when bridged standalone.
 

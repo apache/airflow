@@ -133,6 +133,9 @@ Parameters
   (e.g. ``"s3_"`` produces ``"s3_list_keys"``).
 - ``pinned_arguments``: Arguments fixed by the Dag author rather than chosen by the
   model. See above.
+- ``max_retries``: How many times the model may correct a call with invalid arguments,
+  or one that changes a pinned argument. Default ``None``, the agent's ``retries``. See
+  :ref:`toolset-retry-budget`.
 
 When to choose it
 -----------------

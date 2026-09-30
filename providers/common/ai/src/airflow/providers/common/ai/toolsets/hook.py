@@ -33,7 +33,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
@@ -80,6 +80,10 @@ class HookToolset(AirflowToolset):
         as a method taking ``bucket`` or only ``**kwargs``, raises ``ValueError``, because
         the model could still choose the value through it. Expose such a method from a
         second ``HookToolset``.
+    :param max_retries: How many times the model may correct a call with invalid arguments,
+        or one that changes a pinned argument, before the run fails. An exception from the
+        hook itself fails the run straight away. ``None`` (the default) uses the agent's
+        tool retry budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -93,7 +97,9 @@ class HookToolset(AirflowToolset):
         allowed_methods: list[str],
         tool_name_prefix: str = "",
         pinned_arguments: dict[str, Any] | None = None,
+        max_retries: int | None = None,
     ) -> None:
+        self._max_retries = validate_max_retries(max_retries)
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
 
@@ -160,6 +166,7 @@ class HookToolset(AirflowToolset):
         return f"hook-{name}-{self.conn_id}" if self.conn_id else f"hook-{name}"
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
+        max_retries = self._tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for method_name in self._allowed_methods:
             method = getattr(self._hook, method_name)
@@ -192,7 +199,7 @@ class HookToolset(AirflowToolset):
             tools[tool_name] = ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
-                max_retries=1,
+                max_retries=max_retries,
                 args_validator=build_args_validator(json_schema),
             )
         return tools

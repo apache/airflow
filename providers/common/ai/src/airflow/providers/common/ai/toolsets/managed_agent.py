@@ -30,7 +30,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import Stats
 
 if TYPE_CHECKING:
@@ -108,8 +108,7 @@ class BaseManagedAgentToolset(AirflowToolset):
     ) -> None:
         if not tool_name:
             raise ValueError("tool_name must be a non-empty string.")
-        if max_retries < 0:
-            raise ValueError(f"max_retries must not be negative, got {max_retries}.")
+        validate_max_retries(max_retries)
         cls = type(self)
         if (
             cls.invoke is BaseManagedAgentToolset.invoke
@@ -221,12 +220,12 @@ class BaseManagedAgentToolset(AirflowToolset):
                 toolset=self,
                 tool_def=tool_def,
                 # How many times the calling model may rephrase after ``invoke``
-                # raises ``ModelRetry``. One by default, matching HookToolset: a
-                # managed agent invocation is expensive, so the budget is small.
+                # raises ``ModelRetry``. One by default rather than the agent's own
+                # budget: a managed agent invocation is expensive, so it stays small.
                 # Zero disables the ``ModelRetry`` path entirely -- the first one
                 # becomes a hard error -- so raise it only when the remote agent's
                 # rejections are genuinely worth re-prompting.
-                max_retries=self._max_retries,
+                max_retries=self._tool_max_retries(ctx),
                 args_validator=build_args_validator(_PROMPT_SCHEMA),
             )
         }
