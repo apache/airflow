@@ -185,6 +185,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	}
 	fnType := reflect.TypeOf(fn)
 	upstreams := d.checkInputs(taskID, fnType, cfg.inputs)
+	// newTaskFunction has checked that fn returns either error or (result, error).
 	var resultType reflect.Type
 	if fnType.NumOut() == 2 {
 		resultType = fnType.Out(0)

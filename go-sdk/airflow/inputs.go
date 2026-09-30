@@ -45,10 +45,9 @@ func (in inputs) applyTask(c *taskConfig) { c.inputs = append(c.inputs, in) }
 //	func transform(actx airflow.Context, rows []string) (int, error)
 //	func load(actx airflow.Context, count int) error
 //
-// A struct parameter takes the whole result, even when it is the only parameter after the
-// Context. A function passed to [TaskHandler] binds the fields of such a struct by name instead.
-// Each parameter gets its result as JSON decodes it, so a parameter of type any gets a
-// map[string]any when the result is a struct.
+// The SDK decodes the result of a task from JSON into the type of the parameter that the result
+// fills. So each field of a struct parameter comes from the matching JSON key. A parameter of
+// type any gets a map[string]any when the result is a struct.
 //
 // When [DagRef.Task] adds the task, it panics unless each parameter after the Context gets
 // exactly one task of the same Dag, and the result type of that task is assignable to the
