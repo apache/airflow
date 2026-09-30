@@ -837,7 +837,7 @@ class TestAgentOperatorExecute:
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_code_mode_default_off_no_capabilities(self, mock_hook_cls, make_mock_run_result):
-        """code_mode defaults to False, so no capabilities are injected."""
+        """code_mode defaults to False, so with cache_prompt off no capabilities are injected."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "ok", make_mock_run_result
         )
@@ -946,18 +946,6 @@ class TestAgentOperatorExecute:
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["capabilities"] == ["existing", PromptCaching()]
         assert op.agent_params["capabilities"] == ["existing"]
-
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_cache_prompt_off_adds_no_capability(self, mock_hook_cls, make_mock_run_result):
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
-            "ok", make_mock_run_result
-        )
-
-        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", cache_prompt=False)
-        op.execute(context=_make_context())
-
-        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert "capabilities" not in create_call[1]
 
     @pytest.mark.parametrize(
         ("cache_prompt", "expected_anthropic_messages"),

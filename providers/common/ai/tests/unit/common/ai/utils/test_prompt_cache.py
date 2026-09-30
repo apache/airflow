@@ -23,7 +23,14 @@ import httpx2
 import pytest
 from anthropic import AsyncAnthropic
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
+from pydantic_ai.messages import (
+    CachePoint,
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    UserPromptPart,
+)
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
@@ -49,6 +56,8 @@ def _run_and_capture_settings(
     run_model_settings: Any = None,
     model_own_settings: Any = None,
     capabilities: list[Any] | None = None,
+    prompt: Any = "hi",
+    message_history: list[ModelMessage] | None = None,
 ) -> dict[str, Any]:
     """Run a real agent against a FunctionModel and return the settings its request carried."""
     seen: dict[str, Any] = {}
@@ -63,7 +72,7 @@ def _run_and_capture_settings(
         model_settings=model_settings,
         capabilities=[PromptCaching()] if capabilities is None else capabilities,
     )
-    agent.run_sync("hi", model_settings=run_model_settings)
+    agent.run_sync(prompt, model_settings=run_model_settings, message_history=message_history)
     return seen
 
 
@@ -113,15 +122,30 @@ class TestPromptCaching:
     def test_no_capability_means_no_cache_settings(self):
         assert _run_and_capture_settings(capabilities=[]) == {}
 
-    def test_setting_names_cover_every_default(self):
-        assert set(ALL_DEFAULTS) < PROMPT_CACHE_SETTING_NAMES
+    def test_a_cache_point_in_the_prompt_leaves_caching_to_the_caller(self):
+        settings = _run_and_capture_settings(prompt=["long document", CachePoint(ttl="1h"), "question"])
+
+        assert settings == {}
+
+    def test_a_cache_point_in_the_history_leaves_caching_to_the_caller(self):
+        history: list[ModelMessage] = [
+            ModelRequest(parts=[UserPromptPart(["long document", CachePoint(ttl="1h")])]),
+            ModelResponse(parts=[TextPart("noted")]),
+        ]
+
+        settings = _run_and_capture_settings(prompt="question", message_history=history)
+
+        assert settings == {}
+
+    def test_setting_names_are_the_defaults_plus_automatic_anthropic_caching(self):
+        assert {*ALL_DEFAULTS, "anthropic_cache"} == PROMPT_CACHE_SETTING_NAMES
 
 
 class TestPromptCachingOnTheAnthropicWire:
     """What an Anthropic model actually sends, captured at the HTTP transport."""
 
     @staticmethod
-    def _send(*, model_settings: Any = None) -> dict[str, Any]:
+    def _send(*, model_settings: Any = None, prompt: Any = "hi") -> dict[str, Any]:
         bodies: list[dict[str, Any]] = []
 
         def handler(request: httpx2.Request) -> httpx2.Response:
@@ -153,7 +177,7 @@ class TestPromptCachingOnTheAnthropicWire:
             """Look a key up."""
             return key
 
-        agent.run_sync("hi")
+        agent.run_sync(prompt)
         (body,) = bodies
         return body
 
@@ -171,3 +195,15 @@ class TestPromptCachingOnTheAnthropicWire:
 
         assert body["cache_control"] == {"type": "ephemeral", "ttl": "5m"}
         assert "cache_control" not in body["system"][-1]
+
+    def test_caller_long_lived_cache_point_is_not_preceded_by_shorter_ones(self):
+        """Anthropic needs a longer-lived entry ahead of a shorter one, so ours stay out."""
+        body = self._send(prompt=["long document", CachePoint(ttl="1h"), "question"])
+
+        marked = [
+            block["cache_control"]
+            for section in (body["tools"], body["system"], *(m["content"] for m in body["messages"]))
+            for block in section
+            if "cache_control" in block
+        ]
+        assert marked == [{"type": "ephemeral", "ttl": "1h"}]

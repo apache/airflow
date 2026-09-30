@@ -282,11 +282,11 @@ What it turns on depends on the model the connection resolves to:
    * - Provider
      - What ``cache_prompt=True`` does
    * - Anthropic (``anthropic:``)
-     - Marks the tool definitions, the system prompt and the latest message as cache
-       breakpoints.
+     - Marks the end of the tool definitions, the end of the system prompt and the latest
+       message as points to cache up to.
    * - Bedrock (``bedrock:``) and OpenRouter (``openrouter:``)
-     - The same three breakpoints, for models pydantic-ai knows support caching. Nothing
-       for the rest.
+     - The same three marks, for models pydantic-ai knows support caching. Nothing for the
+       rest.
    * - OpenAI, Azure OpenAI, Gemini
      - Nothing. These cache long prompts on their own.
 
@@ -295,14 +295,24 @@ Because each model reads only its own provider's settings, the same flag covers 
 
 On Anthropic, a 5-minute cache write costs 1.25x the normal input price and a read costs
 0.1x (less on some newer models), so a prefix read back even once costs less than sending it
-twice. A prompt shorter than the model's minimum cacheable length (512 to 4,096 tokens,
+twice. A prompt shorter than the model's minimum length for caching (512 to 4,096 tokens,
 depending on the model) is not cached and costs nothing extra. See Anthropic's
 `prompt caching guide <https://platform.claude.com/docs/en/build-with-claude/prompt-caching>`__
 for the per-model minimums and prices.
 
-The one case where caching costs more is an agent that sends a long prompt in a single
-request and never sends it again within five minutes: no tools, not mapped, run rarely.
-Turn it off there:
+Caching costs more than it saves in three cases:
+
+- **A single long request.** An agent with no tools that sends a long prompt once and is not
+  run again within five minutes pays the write and never reads it back.
+- **A large final tool result.** The latest message is written to the cache on every request,
+  including the last one, which nothing reads. When the last tool returns much more than the
+  system prompt and tool definitions add up to, as a query returning thousands of rows can,
+  that final write costs more than the earlier reads saved.
+- **Map indexes that start together.** A cache entry exists only once the response that wrote
+  it has started, so map indexes that all start at the same moment each write their own copy.
+  Indexes that start later read it back.
+
+Turn it off for such a task:
 
 .. code-block:: python
 
@@ -314,17 +324,18 @@ Turn it off there:
         cache_prompt=False,
     )
 
-To choose the breakpoints or the lifetime yourself, set the provider's own settings in
+To choose what is cached or for how long, set the provider's own settings in
 ``agent_params["model_settings"]``. Setting any ``anthropic_cache*`` key hands Anthropic
 caching back to you, and ``cache_prompt`` adds nothing for Anthropic; the same holds for
-``bedrock_cache*`` and ``openrouter_cache*``. For example, a mapped task whose instances run
-further apart than five minutes can keep the system prompt for an hour:
+``bedrock_cache*`` and ``openrouter_cache*``. A ``CachePoint`` in the prompt or the message
+history hands caching back to you for every provider. For example, a mapped task whose
+instances run further apart than five minutes can keep the system prompt for an hour, at 2x
+the input price for each write instead of 1.25x:
 
 .. code-block:: python
 
-    AgentOperator(
+    AgentOperator.partial(
         task_id="classify_ticket",
-        prompt="{{ params.ticket }}",
         llm_conn_id="anthropic_default",
         system_prompt=long_taxonomy,
         agent_params={
@@ -333,7 +344,7 @@ further apart than five minutes can keep the system prompt for an hour:
                 "anthropic_cache_tool_definitions": "1h",
             }
         },
-    )
+    ).expand(prompt=tickets)
 
 When the provider reports cache activity, the task log shows it under the run summary:
 

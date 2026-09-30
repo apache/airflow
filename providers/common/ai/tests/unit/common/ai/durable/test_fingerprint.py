@@ -181,7 +181,13 @@ class TestModelRequestFingerprint:
         cached = fingerprint_model_request(
             "m",
             make_messages(),
-            {"temperature": 0.2, "anthropic_cache_messages": True, "bedrock_cache_instructions": "1h"},
+            {
+                "temperature": 0.2,
+                "anthropic_cache": True,
+                "anthropic_cache_messages": True,
+                "bedrock_cache_instructions": "1h",
+                "openrouter_cache_tool_definitions": True,
+            },
             ModelRequestParameters(),
         )
 

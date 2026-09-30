@@ -57,17 +57,7 @@ def log_run_summary(
         usage.output_tokens,
         usage.total_tokens,
     )
-    if usage.cache_read_tokens or usage.cache_write_tokens:
-        # Part of input_tokens above, broken out so the effect of ``cache_prompt`` shows up in the log.
-        logger.info(
-            "LLM prompt cache: cache_read_tokens=%s, cache_write_tokens=%s",
-            usage.cache_read_tokens,
-            usage.cache_write_tokens,
-        )
-    if usage.cost is not None:
-        # %s on a small Decimal renders scientific notation (e.g. "7.5E-7"); format as
-        # plain decimal so cheap runs show a readable dollar amount.
-        logger.info("LLM run cost: $%s (USD, best-effort)", format(usage.cost, "f"))
+    _log_cache_and_cost(logger, usage)
 
     if tool_names := _extract_tool_sequence(result):
         logger.info("Tool call sequence: %s", " -> ".join(tool_names))
@@ -87,7 +77,20 @@ def log_run_usage(logger: Logger | logging.Logger, usage: RunUsage, *, outcome: 
         usage.output_tokens,
         usage.total_tokens,
     )
+    _log_cache_and_cost(logger, usage)
+
+
+def _log_cache_and_cost(logger: Logger | logging.Logger, usage: RunUsage) -> None:
+    if usage.cache_read_tokens or usage.cache_write_tokens:
+        # Part of input_tokens, broken out so the effect of ``cache_prompt`` shows up in the log.
+        logger.info(
+            "LLM prompt cache: cache_read_tokens=%s, cache_write_tokens=%s",
+            usage.cache_read_tokens,
+            usage.cache_write_tokens,
+        )
     if usage.cost is not None:
+        # %s on a small Decimal renders scientific notation (e.g. "7.5E-7"); format as
+        # plain decimal so cheap runs show a readable dollar amount.
         logger.info("LLM run cost: $%s (USD, best-effort)", format(usage.cost, "f"))
 
 

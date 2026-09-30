@@ -22,6 +22,7 @@ from dataclasses import KW_ONLY, dataclass
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.capabilities import AbstractCapability
+from pydantic_ai.messages import CachePoint, ModelRequest, UserPromptPart
 from pydantic_ai.settings import ModelSettings, merge_model_settings
 
 if TYPE_CHECKING:
@@ -66,22 +67,29 @@ _CACHE_SETTINGS_BY_PREFIX: tuple[tuple[str, ModelSettings], ...] = (
     ("openrouter_cache", _OPENROUTER_CACHE_SETTINGS),
 )
 
-# Every cache setting of those three families, including the ``anthropic_cache`` a caller may
-# set in place of ours. They change what the provider keeps, never what the model answers.
-PROMPT_CACHE_SETTING_NAMES = frozenset(
-    {
-        "anthropic_cache",
-        "anthropic_cache_instructions",
-        "anthropic_cache_messages",
-        "anthropic_cache_tool_definitions",
-        "bedrock_cache_instructions",
-        "bedrock_cache_messages",
-        "bedrock_cache_tool_definitions",
-        "openrouter_cache_instructions",
-        "openrouter_cache_messages",
-        "openrouter_cache_tool_definitions",
-    }
+# Every cache setting of those three families, plus the ``anthropic_cache`` a caller may set in
+# place of ours. They change what the provider keeps, never what the model answers.
+PROMPT_CACHE_SETTING_NAMES = frozenset({"anthropic_cache"}).union(
+    *(settings.keys() for _, settings in _CACHE_SETTINGS_BY_PREFIX)
 )
+
+
+def _has_cache_point(ctx: RunContext[Any]) -> bool:
+    """Whether the prompt or the conversation so far carries a ``CachePoint`` marker."""
+    contents = [ctx.prompt] if ctx.prompt is not None else []
+    contents.extend(
+        part.content
+        for message in ctx.messages
+        if isinstance(message, ModelRequest)
+        for part in message.parts
+        if isinstance(part, UserPromptPart)
+    )
+    return any(
+        isinstance(item, CachePoint)
+        for content in contents
+        if not isinstance(content, str)
+        for item in content
+    )
 
 
 def _fill_cache_settings(ctx: RunContext[Any]) -> ModelSettings:
@@ -94,7 +102,14 @@ def _fill_cache_settings(ctx: RunContext[Any]) -> ModelSettings:
     individual keys matters for Anthropic: ``anthropic_cache`` and
     ``anthropic_cache_messages`` cannot be combined, and a caller who set one of them
     would otherwise get a request pydantic-ai refuses to send.
+
+    A ``CachePoint`` in the prompt or the message history leaves caching to the caller for
+    every provider. Its lifetime may be longer than ours, and Anthropic requires a
+    longer-lived cache entry to come before a shorter-lived one, which the tool definitions
+    and system prompt, marked ahead of any message, would break.
     """
+    if _has_cache_point(ctx):
+        return ModelSettings()
     configured = ctx.model_settings or {}
     settings: ModelSettings | None = None
     for prefix, defaults in _CACHE_SETTINGS_BY_PREFIX:
@@ -112,7 +127,8 @@ class PromptCaching(AbstractCapability[Any]):
     pydantic-ai, so this turns on each provider's own: Anthropic models (direct, Bedrock,
     Vertex), and Bedrock Converse and OpenRouter models that support caching, are marked;
     OpenAI and Gemini already cache automatically. Settings the agent or its model already
-    carry for a provider win over these.
+    carry for a provider win over these, and a ``CachePoint`` in the prompt or history turns
+    them all off.
     """
 
     _: KW_ONLY
