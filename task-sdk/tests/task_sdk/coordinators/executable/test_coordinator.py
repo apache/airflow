@@ -39,6 +39,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     _BinaryDigestCache,
     _Bundle,
     _digest_cache,
+    read_cache_digest,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -407,6 +408,44 @@ class TestBuildExecuteTaskCommand:
             pytest.raises(FileNotFoundError, match="cannot find executable bundle"),
         ):
             coordinator._build_execute_task_command(what=ti)
+
+
+_CACHE_DIGEST = "c" * 64
+
+
+def _metadata_with_digests(**digests: str) -> dict:
+    return {**_make_metadata(["etl"]), "digests": digests}
+
+
+class TestReadCacheDigest:
+    def test_returns_the_stored_digest(self, tmp_path):
+        metadata = _metadata_with_digests(integrity="a" * 64, cache=_CACHE_DIGEST)
+        bundle = _build_bundle(tmp_path / "etl", metadata=metadata)
+
+        assert read_cache_digest(bundle) == _CACHE_DIGEST
+
+    def test_does_not_hash_the_binary_region(self, tmp_path):
+        # A digest mismatch is caught when the bundle is launched, not here.
+        metadata = _metadata_with_digests(cache=_CACHE_DIGEST)
+        bundle = _build_bundle(tmp_path / "etl", metadata=metadata, binary_sha256=b"\x00" * 32)
+
+        assert read_cache_digest(bundle) == _CACHE_DIGEST
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            pytest.param(lambda path: _build_bundle(path), id="no-digests"),
+            pytest.param(
+                lambda path: _build_bundle(path, metadata=_metadata_with_digests(integrity="a" * 64)),
+                id="no-cache-digest",
+            ),
+            pytest.param(lambda path: _build_bundle(path, metadata=b"\xff\xfe"), id="undecodable-metadata"),
+            pytest.param(_make_executable, id="not-a-bundle"),
+            pytest.param(lambda path: path, id="missing-file"),
+        ],
+    )
+    def test_returns_none_without_a_readable_digest(self, tmp_path, build):
+        assert read_cache_digest(build(tmp_path / "etl")) is None
 
 
 class TestBuildParseTaskHandlerCommand:

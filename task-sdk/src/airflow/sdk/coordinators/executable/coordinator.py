@@ -245,6 +245,35 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
         return None
 
 
+def read_cache_digest(path: pathlib.Path) -> str | None:
+    """
+    Return the cache digest stored in the metadata of the executable bundle at *path*.
+
+    The digest changes whenever any region of the bundle changes, so the Dag processor can
+    compare it with the one it saw when it last probed the bundle. It is read, not computed:
+    the binary region is not hashed, so a match does not prove the bundle is intact.
+
+    Returns ``None`` when the file is not a readable bundle or its metadata has no cache digest,
+    and the caller should treat the bundle as changed.
+    """
+    try:
+        with open(path, "rb") as f:
+            footer = _Footer.read(f, path, os.fstat(f.fileno()).st_size)
+            if footer is None:
+                return None
+            f.seek(footer.metadata_start)
+            metadata_bytes = f.read(footer.metadata_len)
+        metadata = parse_metadata_mapping(metadata_bytes, source="bundle metadata")
+    except (OSError, ValueError) as exc:
+        log.debug("Cannot read the bundle's cache digest", path=str(path), error=str(exc))
+        return None
+    digests = metadata.get("digests")
+    if not isinstance(digests, dict):
+        return None
+    cache = digests.get("cache")
+    return cache if isinstance(cache, str) and cache else None
+
+
 def _dag_ids(metadata: dict[str, Any]) -> set[str]:
     dags = metadata.get("dags")
     if not isinstance(dags, dict):

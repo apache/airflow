@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Probe a packed Go SDK example bundle for its task handlers, end to end."""
+"""Pack the Go SDK example bundle, probe it for its task handlers, and read its cache digest."""
 
 from __future__ import annotations
 
@@ -30,6 +30,7 @@ import structlog
 
 from airflow.dag_processing.processor import TaskHandlerDeclaration, TaskHandlerParam
 from airflow.dag_processing.task_handler_processor import LangSDKTaskHandlerProcessorProcess
+from airflow.sdk.coordinators.executable.coordinator import read_cache_digest
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
 
@@ -53,14 +54,13 @@ def _nullable(schema: dict) -> dict:
     return {"anyOf": [schema, {"type": "null"}]}
 
 
-@pytest.fixture(scope="module")
-def go_bundle(tmp_path_factory) -> Path:
-    if shutil.which("go") is None:
-        pytest.skip("needs a Go toolchain on PATH")
-    bundle = tmp_path_factory.mktemp("go-task-handlers") / "example_dags"
+GO_SDK_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
+
+
+def _pack(bundle: Path, *flags: str) -> Path:
     completed = subprocess.run(
-        ["go", "tool", "airflow-go-pack", "--output", os.fspath(bundle), "./example/bundle"],
-        cwd=AIRFLOW_ROOT_PATH / "go-sdk",
+        ["go", "tool", "airflow-go-pack", "--output", os.fspath(bundle), *flags, "./example/bundle"],
+        cwd=GO_SDK_PATH,
         env={**os.environ, "CGO_ENABLED": "0"},
         capture_output=True,
         text=True,
@@ -68,6 +68,13 @@ def go_bundle(tmp_path_factory) -> Path:
     )
     assert completed.returncode == 0, completed.stderr
     return bundle
+
+
+@pytest.fixture(scope="module")
+def go_bundle(tmp_path_factory) -> Path:
+    if shutil.which("go") is None:
+        pytest.skip("needs a Go toolchain on PATH")
+    return _pack(tmp_path_factory.mktemp("go-task-handlers") / "example_dags")
 
 
 @pytest.fixture(autouse=True)
@@ -138,3 +145,14 @@ def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
             TaskHandlerParam(name="Count", required=False, value_schema=INT64),
         ],
     )
+
+
+def test_a_repack_keeps_the_cache_digest_until_a_source_byte_changes(go_bundle, tmp_path):
+    digest = read_cache_digest(go_bundle)
+    assert digest is not None
+
+    assert read_cache_digest(_pack(tmp_path / "unchanged")) == digest
+
+    source = tmp_path / "main.go"
+    source.write_bytes((GO_SDK_PATH / "example" / "bundle" / "main.go").read_bytes() + b"\n")
+    assert read_cache_digest(_pack(tmp_path / "changed", "--source", os.fspath(source))) != digest
