@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from unittest import mock
 
 import pytest
@@ -27,12 +28,38 @@ from airflow_breeze.commands.ci_image_commands import (
     confirm_build_if_sources_changed,
     get_ci_image_sources_hash_label,
     is_ci_image_built_from_current_sources,
+    run_build_ci_image,
 )
 from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
 
 CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.10"
+
+
+@pytest.mark.parametrize("require_frozen_dependencies", [False, True])
+@mock.patch("airflow_breeze.commands.ci_image_commands.prepare_docker_build_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.subprocess.run", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.get_docker_build_env", autospec=True)
+def test_frozen_build_does_not_retry_with_upgraded_dependencies(
+    mock_build_env,
+    mock_update_dependencies,
+    mock_run_command,
+    mock_prepare_command,
+    require_frozen_dependencies: bool,
+) -> None:
+    mock_build_env.return_value = {}
+    mock_update_dependencies.return_value = subprocess.CompletedProcess([], 0)
+    mock_prepare_command.return_value = ["docker", "build"]
+    mock_run_command.return_value = subprocess.CompletedProcess([], 1)
+    params = BuildCiParams(require_frozen_dependencies=require_frozen_dependencies, upgrade_on_failure=True)
+
+    returncode, _ = run_build_ci_image(params, "frozen dependencies", None)
+
+    assert returncode == 1
+    assert mock_run_command.call_count == (1 if require_frozen_dependencies else 2)
+    assert params.upgrade_to_newer_dependencies is not require_frozen_dependencies
 
 
 def test_calculate_ci_sources_hash_is_stable_across_checkouts(tmp_path, monkeypatch):

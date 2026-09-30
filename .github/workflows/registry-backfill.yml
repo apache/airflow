@@ -38,6 +38,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
 
 permissions:
+  actions: read
   contents: read
   packages: read
 
@@ -46,6 +47,7 @@ jobs:
     name: "Build CI image"
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
+      actions: read
       contents: read
       packages: write
     if: >
@@ -123,6 +125,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     name: "Backfill ${{ matrix.provider }} (${{ matrix.versions }})"
     permissions:
+      actions: read
       contents: read
       packages: read
     steps:
