@@ -55,7 +55,10 @@ from airflow.dag_processing.bundles.base import (
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+from airflow.dag_processing.collection import (
+    record_probed_task_handler_artifacts,
+    update_dag_parsing_results_in_db,
+)
 from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
@@ -81,7 +84,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
     kill_child_processes_by_pids,
 )
-from airflow.utils.retries import retry_db_transaction
+from airflow.utils.retries import retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     is_lock_not_available_error,
@@ -1318,6 +1321,19 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         if proc.parsing_result is not None:
+            if proc.parsing_result.probed_artifacts:
+                try:
+                    self.persist_probed_task_handler_artifacts(
+                        bundle_name=file.bundle_name, artifacts=proc.parsing_result.probed_artifacts
+                    )
+                except Exception:
+                    # The parse result is still persisted; a binding whose artifact has no row leaves its
+                    # Dag unchanged, and the next parse probes the artifact again.
+                    self.log.exception(
+                        "Failed to record probed task handler artifacts",
+                        bundle_name=file.bundle_name,
+                        relative_fileloc=str(file.rel_path),
+                    )
             try:
                 self.persist_parsing_result(
                     bundle_name=file.bundle_name,
@@ -1390,7 +1406,30 @@ class DagFileProcessorManager(LoggingMixin):
             session=session,
             files_parsed=files_parsed,
             dag_source_codes=parsing_result.dag_source_codes,
+            relative_fileloc=relative_fileloc,
+            task_handler_bindings=parsing_result.task_handler_bindings,
+            task_handler_artifact_bundles=(
+                None
+                if parsing_result.task_handler_bindings is None
+                else self._get_task_handler_artifact_bundle_names(bundle_name)
+            ),
         )
+
+    def persist_probed_task_handler_artifacts(
+        self, *, bundle_name: str, artifacts: Sequence[TaskHandlerArtifact]
+    ) -> None:
+        """
+        Record the artifacts a Dag file's parse probed, with their answers, in a transaction of their own.
+
+        *bundle_name* is the Dag file's bundle. Default implementation writes to the metadata DB; override
+        to do it through an API.
+        """
+        artifact_bundle_names = self._get_task_handler_artifact_bundle_names(bundle_name)
+        for attempt in run_with_db_retries(logger=self.log):
+            with attempt, create_session() as session:
+                record_probed_task_handler_artifacts(
+                    artifacts, bundle_names=artifact_bundle_names, session=session
+                )
 
     def _collect_results(self):
         finished = []

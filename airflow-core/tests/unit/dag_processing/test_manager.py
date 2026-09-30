@@ -41,7 +41,7 @@ import msgspec
 import pytest
 import structlog
 import time_machine
-from sqlalchemy import event, func, select
+from sqlalchemy import delete, event, func, select
 from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
@@ -62,6 +62,7 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
     TaskHandlerArtifact,
+    TaskHandlerBinding,
     TaskHandlerDeclaration,
     TaskHandlerParam,
     _parse_file,
@@ -4494,6 +4495,137 @@ class TestKnownTaskHandlerArtifacts:
             JAVA_TASK_HANDLERS: [_known_artifact(JAVA_TASK_HANDLERS)],
             "dags-a": [_known_artifact("dags-a")],
         }
+
+
+class TestTaskHandlerBindings:
+    @staticmethod
+    def _finished_parse(**result) -> tuple[DagFileInfo, MagicMock]:
+        file = DagFileInfo(bundle_name="dags-a", rel_path=Path("etl.py"), bundle_path=TEST_DAGS_FOLDER)
+        proc = MagicMock(
+            had_callbacks=False,
+            start_time=time.monotonic(),
+            parsing_result=DagFileParsingResult(fileloc="etl.py", serialized_dags=[], **result),
+        )
+        return file, proc
+
+    @staticmethod
+    def _manager() -> DagFileProcessorManager:
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["dags-a"] = None
+        return manager
+
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "persist_probed_task_handler_artifacts", autospec=True)
+    def test_handle_parsing_result_records_probed_artifacts_first(self, persist_probed, persist_result):
+        calls: list[str] = []
+        persist_probed.side_effect = lambda *args, **kwargs: calls.append("probed")
+        persist_result.side_effect = lambda *args, **kwargs: calls.append("result")
+        file, proc = self._finished_parse(probed_artifacts=[_known_artifact(JAVA_TASK_HANDLERS)])
+        manager = self._manager()
+
+        manager.handle_parsing_result(file, proc, session=mock.MagicMock())
+
+        persist_probed.assert_called_once_with(
+            manager, bundle_name="dags-a", artifacts=[_known_artifact(JAVA_TASK_HANDLERS)]
+        )
+        assert calls == ["probed", "result"]
+
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "persist_probed_task_handler_artifacts", autospec=True)
+    def test_handle_parsing_result_skips_the_artifact_write_without_probes(
+        self, persist_probed, persist_result
+    ):
+        file, proc = self._finished_parse()
+
+        self._manager().handle_parsing_result(file, proc, session=mock.MagicMock())
+
+        persist_probed.assert_not_called()
+        persist_result.assert_called_once()
+
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "persist_probed_task_handler_artifacts", autospec=True)
+    def test_handle_parsing_result_persists_when_the_artifact_write_fails(
+        self, persist_probed, persist_result, caplog
+    ):
+        persist_probed.side_effect = OperationalError("INSERT", {}, Exception("locked"))
+        file, proc = self._finished_parse(probed_artifacts=[_known_artifact(JAVA_TASK_HANDLERS)])
+
+        self._manager().handle_parsing_result(file, proc, session=mock.MagicMock())
+
+        persist_result.assert_called_once()
+        assert {
+            "event": "Failed to record probed task handler artifacts",
+            "bundle_name": "dags-a",
+            "relative_fileloc": "etl.py",
+            "log_level": "error",
+        } in caplog
+
+    @pytest.mark.parametrize(
+        ("bindings", "expected_scope"),
+        [
+            pytest.param(None, None, id="not-evaluated"),
+            pytest.param(
+                [
+                    TaskHandlerBinding(
+                        dag_id="etl",
+                        task_id="extract",
+                        artifact_bundle_name=JAVA_TASK_HANDLERS,
+                        artifact_rel_path="etl.jar",
+                    )
+                ],
+                frozenset({JAVA_TASK_HANDLERS}),
+                id="bindings",
+            ),
+        ],
+    )
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "_get_task_handler_artifact_bundle_names",
+        autospec=True,
+        return_value=frozenset({JAVA_TASK_HANDLERS}),
+    )
+    @mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True)
+    def test_persist_parsing_result_forwards_task_handler_bindings(
+        self, update_in_db, get_scope, bindings, expected_scope
+    ):
+        DagFileProcessorManager(max_runs=1).persist_parsing_result(
+            bundle_name="dags-a",
+            bundle_version=None,
+            version_data=None,
+            parsing_result=DagFileParsingResult(
+                fileloc="/files/dags/etl.py", serialized_dags=[], task_handler_bindings=bindings
+            ),
+            run_duration=0.1,
+            relative_fileloc="etl.py",
+            session=mock.MagicMock(),
+        )
+
+        assert update_in_db.call_args.kwargs["relative_fileloc"] == "etl.py"
+        assert update_in_db.call_args.kwargs["task_handler_bindings"] == bindings
+        assert update_in_db.call_args.kwargs["task_handler_artifact_bundles"] == expected_scope
+        assert get_scope.call_count == (bindings is not None)
+
+    @pytest.mark.db_test
+    @conf_vars(_routed_coordinators({"java": _coordinator(JAVA_TASK_HANDLERS)}))
+    def test_persist_probed_task_handler_artifacts_commits_the_scoped_artifacts(
+        self, configure_dag_bundles, tmp_path
+    ):
+        reset_coordinator_manager()
+        try:
+            with configure_dag_bundles({"dags-a": tmp_path, JAVA_TASK_HANDLERS: tmp_path}):
+                DagFileProcessorManager(max_runs=1).persist_probed_task_handler_artifacts(
+                    bundle_name="dags-a",
+                    artifacts=[_known_artifact(JAVA_TASK_HANDLERS), _known_artifact("dags-b")],
+                )
+
+            with create_session(scoped=False) as other:
+                assert other.scalars(select(LangSDKTaskHandlerArtifact.bundle_name)).all() == [
+                    JAVA_TASK_HANDLERS
+                ]
+        finally:
+            reset_coordinator_manager()
+            with create_session() as session:
+                session.execute(delete(LangSDKTaskHandlerArtifact))
 
 
 class TestMultiTeamMetrics:

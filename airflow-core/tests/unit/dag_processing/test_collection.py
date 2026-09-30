@@ -18,11 +18,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import logging
 import os
 import sys
 import textwrap
+import uuid
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
@@ -32,7 +34,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import delete, event, func, inspect as sa_inspect, select
-from sqlalchemy.exc import OperationalError, SAWarning
+from sqlalchemy.exc import DataError, OperationalError, SAWarning
 
 import airflow.dag_processing.collection
 from airflow import plugins_manager
@@ -46,7 +48,14 @@ from airflow.dag_processing.collection import (
     _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
     _update_import_errors,
+    record_probed_task_handler_artifacts,
     update_dag_parsing_results_in_db,
+)
+from airflow.dag_processing.processor import (
+    TaskHandlerArtifact,
+    TaskHandlerBinding,
+    TaskHandlerDeclaration,
+    TaskHandlerParam,
 )
 from airflow.example_dags.plugins.business_day_window import BusinessDayWindow
 from airflow.example_dags.plugins.custom_partition_mapper import PrefixStripMapper
@@ -64,6 +73,11 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
+from airflow.models.lang_sdk_task_handler import (
+    LangSDKTaskHandler,
+    LangSDKTaskHandlerArtifact,
+    compute_fileloc_hash,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import RollupMapper
@@ -91,6 +105,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.triggers.base import BaseEventTrigger
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -2107,3 +2122,459 @@ class TestRejectOtherTeamsPluginClasses:
 
         assert stored == set()
         assert "belonging to other_team" in errors[(bundle_name, "team_dag.py")]
+
+
+ARTIFACT_BUNDLE = "java-task-handlers"
+OTHER_TEAM_BUNDLE = "go-task-handlers"
+TASK_HANDLERS = {
+    "etl": [
+        TaskHandlerDeclaration(
+            task_id="extract", binding="positional", params=[TaskHandlerParam(name=None, required=True)]
+        )
+    ]
+}
+
+
+def _make_artifact(
+    rel_path: str = "etl.jar",
+    *,
+    bundle_name: str = ARTIFACT_BUNDLE,
+    size_bytes: int = 1024,
+    cache_digest: str | None = "a" * 64,
+    task_handlers: dict[str, list[TaskHandlerDeclaration]] | None = None,
+) -> TaskHandlerArtifact:
+    return TaskHandlerArtifact(
+        bundle_name=bundle_name,
+        relative_fileloc=rel_path,
+        size_bytes=size_bytes,
+        cache_digest=cache_digest,
+        task_handlers=TASK_HANDLERS if task_handlers is None else task_handlers,
+    )
+
+
+def _record(session, *rel_paths: str, bundle_name: str = ARTIFACT_BUNDLE) -> None:
+    record_probed_task_handler_artifacts(
+        [_make_artifact(rel_path, bundle_name=bundle_name) for rel_path in rel_paths],
+        bundle_names={bundle_name},
+        session=session,
+    )
+
+
+def _make_binding(
+    dag_id: str = "etl",
+    task_id: str = "extract",
+    *,
+    rel_path: str = "etl.jar",
+    bundle_name: str = ARTIFACT_BUNDLE,
+) -> TaskHandlerBinding:
+    return TaskHandlerBinding(
+        dag_id=dag_id, task_id=task_id, artifact_bundle_name=bundle_name, artifact_rel_path=rel_path
+    )
+
+
+def _persist(session, *dag_ids: str, relative_fileloc: str = "etl.py", bindings) -> None:
+    update_dag_parsing_results_in_db(
+        bundle_name="testing",
+        bundle_version=None,
+        dags=[LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id)) for dag_id in dag_ids],
+        import_errors={},
+        parse_duration=None,
+        warnings=set(),
+        session=session,
+        relative_fileloc=relative_fileloc,
+        task_handler_bindings=bindings,
+        task_handler_artifact_bundles={ARTIFACT_BUNDLE},
+    )
+
+
+def _get_recorded_handlers(session) -> set[tuple[str, str, str]]:
+    """Return ``(dag_id, task_id, artifact path)`` for every recorded handler."""
+    rows = session.execute(
+        select(
+            LangSDKTaskHandler.dag_id,
+            LangSDKTaskHandler.task_id,
+            LangSDKTaskHandlerArtifact.relative_fileloc,
+        ).join(LangSDKTaskHandlerArtifact, LangSDKTaskHandlerArtifact.id == LangSDKTaskHandler.artifact_id)
+    )
+    return {tuple(row) for row in rows}
+
+
+def _get_recorded_artifacts(session) -> list[tuple]:
+    return session.execute(
+        select(
+            LangSDKTaskHandlerArtifact.relative_fileloc,
+            LangSDKTaskHandlerArtifact.size_bytes,
+            LangSDKTaskHandlerArtifact.cache_digest,
+            LangSDKTaskHandlerArtifact.task_handlers,
+            LangSDKTaskHandlerArtifact.last_probed_at,
+        ).order_by(LangSDKTaskHandlerArtifact.relative_fileloc)
+    ).all()
+
+
+@contextlib.contextmanager
+def _capture_task_handler_writes(session) -> Generator[list[str], None, None]:
+    writes: list[str] = []
+
+    def _capture(conn, cursor, statement, parameters, context, executemany):
+        if "lang_sdk_task_handler" in statement and not statement.lstrip().upper().startswith("SELECT"):
+            writes.append(statement)
+
+    bind = session.get_bind()
+    event.listen(bind, "before_cursor_execute", _capture)
+    try:
+        yield writes
+    finally:
+        event.remove(bind, "before_cursor_execute", _capture)
+
+
+def _sweep_after_the_lookup(find):
+    """Wrap ``_find_task_handler_artifacts`` so ``etl-v2.jar`` gets an id no row has, as if swept since."""
+
+    def _find(keys, *, session):
+        artifact_ids = find(keys, session=session)
+        artifact_ids[(ARTIFACT_BUNDLE, compute_fileloc_hash("etl-v2.jar"))] = uuid.uuid4()
+        return artifact_ids
+
+    return _find
+
+
+def _fail_after_writing(sync):
+    """Wrap ``_sync_task_handlers`` so it raises a ``DataError`` after its writes."""
+
+    def _sync(*args, **kwargs):
+        sync(*args, **kwargs)
+        raise DataError("INSERT INTO lang_sdk_task_handler", {}, Exception("value too long"))
+
+    return _sync
+
+
+@pytest.mark.db_test
+class TestRecordProbedTaskHandlerArtifacts:
+    @pytest.fixture(autouse=True)
+    def _clear_committed_rows(self):
+        # Autouse, so it tears down after the ``session`` fixture has rolled back; the race test
+        # commits rows from a second session.
+        yield
+        with create_session() as session:
+            session.execute(delete(LangSDKTaskHandlerArtifact))
+
+    def test_records_fingerprint_answer_and_probe_time(self, session, time_machine):
+        probed_at = tz.datetime(2026, 9, 30, 1)
+        time_machine.move_to(probed_at, tick=False)
+
+        _record(session, "etl.jar")
+
+        assert _get_recorded_artifacts(session) == [
+            ("etl.jar", 1024, "a" * 64, {"etl": [TASK_HANDLERS["etl"][0].model_dump(mode="json")]}, probed_at)
+        ]
+        assert session.scalar(
+            select(LangSDKTaskHandlerArtifact.relative_fileloc_hash)
+        ) == compute_fileloc_hash("etl.jar")
+
+    def test_reprobe_updates_fingerprint_answer_and_probe_time(self, session, time_machine):
+        time_machine.move_to(tz.datetime(2026, 9, 30, 1), tick=False)
+        _record(session, "etl.jar")
+        artifact_id = session.scalar(select(LangSDKTaskHandlerArtifact.id))
+
+        reprobed_at = tz.datetime(2026, 9, 30, 2)
+        time_machine.move_to(reprobed_at, tick=False)
+        record_probed_task_handler_artifacts(
+            [_make_artifact(size_bytes=2048, cache_digest="b" * 64, task_handlers={})],
+            bundle_names={ARTIFACT_BUNDLE},
+            session=session,
+        )
+
+        assert _get_recorded_artifacts(session) == [("etl.jar", 2048, "b" * 64, {}, reprobed_at)]
+        assert session.scalar(select(LangSDKTaskHandlerArtifact.id)) == artifact_id
+
+    def test_records_an_artifact_without_cache_digest(self, session):
+        record_probed_task_handler_artifacts(
+            [_make_artifact(cache_digest=None)], bundle_names={ARTIFACT_BUNDLE}, session=session
+        )
+
+        assert session.scalar(select(LangSDKTaskHandlerArtifact.cache_digest)) is None
+
+    def test_artifact_outside_the_scope_is_dropped(self, session, caplog):
+        record_probed_task_handler_artifacts(
+            [_make_artifact("etl.jar"), _make_artifact("etl", bundle_name=OTHER_TEAM_BUNDLE)],
+            bundle_names={ARTIFACT_BUNDLE},
+            session=session,
+        )
+
+        assert [row[0] for row in _get_recorded_artifacts(session)] == ["etl.jar"]
+        assert {
+            "event": "Ignoring probed task handler artifacts outside the Dag file's scope",
+            "artifacts": [f"{OTHER_TEAM_BUNDLE}/etl"],
+        } in caplog
+
+    def test_duplicate_artifact_is_written_once(self, session):
+        with _capture_task_handler_writes(session) as writes:
+            record_probed_task_handler_artifacts(
+                [_make_artifact(), _make_artifact()], bundle_names={ARTIFACT_BUNDLE}, session=session
+            )
+
+        assert len(writes) == 1
+        assert [row[0] for row in _get_recorded_artifacts(session)] == ["etl.jar"]
+
+    def test_artifact_recorded_by_a_concurrent_parse(self, session):
+        """Two Dag processors probe one new artifact; the second upsert must update, not fail."""
+        with create_session() as other:
+            _record(other, "etl.jar")
+            other_id = other.scalar(select(LangSDKTaskHandlerArtifact.id))
+
+        record_probed_task_handler_artifacts(
+            [_make_artifact(size_bytes=2048)], bundle_names={ARTIFACT_BUNDLE}, session=session
+        )
+
+        assert session.execute(
+            select(LangSDKTaskHandlerArtifact.id, LangSDKTaskHandlerArtifact.size_bytes)
+        ).all() == [(other_id, 2048)]
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("testing_dag_bundle")
+class TestTaskHandlerBindingReconcile:
+    @pytest.fixture
+    def recorded(self, testing_dag_bundle, session):
+        _record(session, "etl.jar", "etl-v2.jar", "other.jar")
+        _persist(
+            session,
+            "etl",
+            bindings=[_make_binding(task_id="extract"), _make_binding(task_id="transform")],
+        )
+        _persist(
+            session,
+            "other",
+            relative_fileloc="other.py",
+            bindings=[_make_binding("other", "load", rel_path="other.jar")],
+        )
+
+    @pytest.mark.parametrize(
+        ("bindings", "expected_handlers"),
+        [
+            pytest.param(
+                None,
+                {
+                    ("etl", "extract", "etl.jar"),
+                    ("etl", "transform", "etl.jar"),
+                    ("other", "load", "other.jar"),
+                },
+                id="none-leaves-rows",
+            ),
+            pytest.param(
+                [],
+                {("other", "load", "other.jar")},
+                id="empty-deletes-this-results-dag-rows",
+            ),
+            pytest.param(
+                [_make_binding(task_id="extract", rel_path="etl-v2.jar"), _make_binding(task_id="publish")],
+                {
+                    ("etl", "extract", "etl-v2.jar"),
+                    ("etl", "publish", "etl.jar"),
+                    ("other", "load", "other.jar"),
+                },
+                id="list-deletes-updates-and-inserts",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("recorded")
+    def test_task_handler_bindings_reconcile_by_value(self, session, bindings, expected_handlers):
+        _persist(session, "etl", bindings=bindings)
+
+        assert _get_recorded_handlers(session) == expected_handlers
+
+    @pytest.mark.usefixtures("recorded")
+    def test_task_handler_bindings_of_a_result_without_dags_change_nothing(self, session):
+        before = _get_recorded_handlers(session)
+
+        _persist(session, bindings=[])
+
+        assert _get_recorded_handlers(session) == before
+
+    def test_task_handler_rows_follow_a_dag_to_its_new_file(self, session):
+        _record(session, "etl.jar")
+        _persist(session, "etl", relative_fileloc="a.py", bindings=[_make_binding()])
+
+        _persist(session, "etl", relative_fileloc="dags/b.py", bindings=[_make_binding()])
+
+        assert session.execute(
+            select(LangSDKTaskHandler.dag_relative_fileloc, LangSDKTaskHandler.dag_relative_fileloc_hash)
+        ).all() == [("dags/b.py", compute_fileloc_hash("dags/b.py"))]
+
+    def test_task_handler_artifact_is_shared_across_files(self, session):
+        _record(session, "etl.jar")
+        _persist(session, "etl", relative_fileloc="etl.py", bindings=[_make_binding("etl")])
+        _persist(session, "other", relative_fileloc="other.py", bindings=[_make_binding("other")])
+
+        artifact_ids = session.scalars(select(LangSDKTaskHandlerArtifact.id)).all()
+        assert len(artifact_ids) == 1
+        assert set(session.scalars(select(LangSDKTaskHandler.artifact_id))) == set(artifact_ids)
+
+        _persist(session, "etl", relative_fileloc="etl.py", bindings=[])
+
+        assert session.scalars(select(LangSDKTaskHandlerArtifact.id)).all() == artifact_ids
+        assert _get_recorded_handlers(session) == {("other", "extract", "etl.jar")}
+
+    def test_bindings_never_write_the_artifact_table(self, session):
+        _record(session, "etl.jar")
+
+        with _capture_task_handler_writes(session) as writes:
+            _persist(session, "etl", bindings=[_make_binding()])
+        assert writes
+        assert not [statement for statement in writes if "lang_sdk_task_handler_artifact" in statement]
+
+        with _capture_task_handler_writes(session) as writes:
+            _persist(session, "etl", bindings=[_make_binding()])
+        assert writes == []
+
+    @pytest.mark.usefixtures("recorded")
+    def test_binding_to_a_missing_artifact_leaves_its_dag_unchanged(self, session, caplog):
+        before = _get_recorded_handlers(session)
+
+        _persist(
+            session,
+            "etl",
+            "other",
+            bindings=[
+                _make_binding(task_id="extract", rel_path="swept.jar"),
+                _make_binding("other", "export"),
+            ],
+        )
+
+        assert _get_recorded_handlers(session) == {row for row in before if row[0] == "etl"} | {
+            ("other", "export", "etl.jar")
+        }
+        assert {
+            "event": "Ignoring task handler bindings of Dags bound to an unrecorded artifact",
+            "dag_ids": ["etl"],
+        } in caplog
+
+    @pytest.mark.usefixtures("recorded")
+    def test_binding_outside_the_scope_leaves_its_dag_unchanged(self, session, caplog):
+        _record(session, "etl.jar", bundle_name=OTHER_TEAM_BUNDLE)
+        before = _get_recorded_handlers(session)
+
+        _persist(
+            session,
+            "etl",
+            "other",
+            bindings=[
+                _make_binding(task_id="extract", bundle_name=OTHER_TEAM_BUNDLE),
+                _make_binding("other", "export"),
+            ],
+        )
+
+        assert _get_recorded_handlers(session) == {row for row in before if row[0] == "etl"} | {
+            ("other", "export", "etl.jar")
+        }
+        assert {
+            "event": "Ignoring task handler bindings of Dags bound to an artifact outside their scope",
+            "dag_ids": ["etl"],
+        } in caplog
+
+    def test_task_handler_bindings_for_dags_outside_the_result_are_dropped(self, session, caplog):
+        _record(session, "etl.jar")
+        _persist(session, "etl", bindings=[_make_binding("etl"), _make_binding("ghost")])
+
+        assert _get_recorded_handlers(session) == {("etl", "extract", "etl.jar")}
+        assert {
+            "event": "Ignoring task handler bindings of Dags this parse does not persist",
+            "dag_ids": ["ghost"],
+        } in caplog
+
+    @pytest.mark.usefixtures("recorded")
+    def test_task_handler_bindings_with_a_duplicate_task_leave_the_dag_untouched(self, session, caplog):
+        before = _get_recorded_handlers(session)
+
+        _persist(
+            session,
+            "etl",
+            "other",
+            bindings=[
+                _make_binding(task_id="extract", rel_path="etl.jar"),
+                _make_binding(task_id="extract", rel_path="etl-v2.jar"),
+                _make_binding("other", "load", rel_path="etl-v2.jar"),
+            ],
+        )
+
+        assert _get_recorded_handlers(session) == {row for row in before if row[0] == "etl"} | {
+            ("other", "load", "etl-v2.jar")
+        }
+        assert {
+            "event": "Ignoring task handler bindings of Dags that bind a task twice",
+            "dag_ids": ["etl"],
+        } in caplog
+
+    @pytest.mark.parametrize(
+        ("target", "wrap"),
+        [
+            pytest.param("_find_task_handler_artifacts", _sweep_after_the_lookup, id="integrity-error"),
+            pytest.param("_sync_task_handlers", _fail_after_writing, id="data-error"),
+        ],
+    )
+    @pytest.mark.usefixtures("recorded")
+    def test_bindings_the_database_rejects_leave_the_rest_of_the_result(self, session, caplog, target, wrap):
+        before = _get_recorded_handlers(session)
+
+        with mock.patch.object(
+            airflow.dag_processing.collection,
+            target,
+            side_effect=wrap(getattr(airflow.dag_processing.collection, target)),
+        ):
+            update_dag_parsing_results_in_db(
+                bundle_name="testing",
+                bundle_version=None,
+                dags=[LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id)) for dag_id in ("etl", "fresh")],
+                import_errors={("testing", "broken.py"): "SyntaxError"},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+                files_parsed={("testing", "etl.py"), ("testing", "broken.py")},
+                relative_fileloc="etl.py",
+                # Deletes the transform row before inserting the publish row.
+                task_handler_bindings=[
+                    _make_binding(task_id="extract"),
+                    _make_binding(task_id="publish", rel_path="etl-v2.jar"),
+                ],
+                task_handler_artifact_bundles={ARTIFACT_BUNDLE},
+            )
+
+        assert _get_recorded_handlers(session) == before
+        assert session.scalars(
+            select(SerializedDagModel.dag_id).where(SerializedDagModel.dag_id == "fresh")
+        ).all() == ["fresh"]
+        assert session.scalars(select(ParseImportError.filename)).all() == ["broken.py"]
+        assert {
+            "event": "Failed to record task handler bindings; the rest of the parse result is kept",
+            "bundle_name": "testing",
+            "relative_fileloc": "etl.py",
+            "log_level": "warning",
+        } in caplog
+
+    def test_task_handler_bindings_require_relative_fileloc(self, session):
+        with pytest.raises(ValueError, match="relative_fileloc"):
+            update_dag_parsing_results_in_db(
+                bundle_name="testing",
+                bundle_version=None,
+                dags=[LazyDeserializedDAG.from_dag(DAG(dag_id="etl"))],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+                task_handler_bindings=[],
+                task_handler_artifact_bundles={ARTIFACT_BUNDLE},
+            )
+
+    def test_task_handler_bindings_require_a_scope(self, session):
+        with pytest.raises(ValueError, match="task_handler_artifact_bundles"):
+            update_dag_parsing_results_in_db(
+                bundle_name="testing",
+                bundle_version=None,
+                dags=[LazyDeserializedDAG.from_dag(DAG(dag_id="etl"))],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+                relative_fileloc="etl.py",
+                task_handler_bindings=[],
+            )
