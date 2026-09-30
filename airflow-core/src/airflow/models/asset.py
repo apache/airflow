@@ -986,10 +986,10 @@ class AssetPartitionDagRun(Base):
             name="apdr_created_dag_run_id_fkey",
             ondelete="CASCADE",
         ),
-        # AssetManager._get_or_create_apdr looks up the latest row for a (target_dag_id, partition_key) pair
+        # latest row per (target_dag_id, partition_key), read once per emitted partition key
         Index("idx_apdr_target_dag_id_partition_key_id", target_dag_id, partition_key, id),
-        # SchedulerJobRunner._create_dagruns_for_partitioned_asset_dags scans pending rows
-        # (created_dag_run_id IS NULL) ordered by created_at, id on every loop
+        # pending rows (created_dag_run_id IS NULL) in (created_at, id) order for the scheduler loop;
+        # created_dag_run_id leads so the same index serves the ON DELETE CASCADE lookup from dag_run
         Index("idx_apdr_created_dag_run_id_created_at_id", created_dag_run_id, created_at, id),
     )
 
