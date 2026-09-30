@@ -937,7 +937,7 @@ class TestExecuteTaskBundleWiring:
 
     @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
-    @patch.object(_PopenActivitySubprocess, "start")
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
     def test_task_bundle_mode_binds_forwards_roots_and_locks(
         self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
     ):
@@ -963,7 +963,7 @@ class TestExecuteTaskBundleWiring:
 
     @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
-    @patch.object(_PopenActivitySubprocess, "start")
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
     def test_named_bundle_mode_locks_the_tree_it_scans(
         self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
     ):

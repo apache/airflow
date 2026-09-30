@@ -293,7 +293,7 @@ _SPARK_JAVA_MODULE_OPTIONS = [
 ]
 
 
-def _dag_bundle_config_with_artifacts(artifact_bundles: dict[str, str]) -> str:
+def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
     """Return a ``dag_bundle_config_list`` of the Dags folder plus a ``LocalDagBundle`` per artifact path.
 
     Registration is what makes a coordinator's ``task_handler_bundle_name`` resolvable on the
@@ -476,7 +476,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # main_class (Spark's large classpath makes Main-Class discovery ambiguous)
     # and carries Spark's Java 17 module openings, a small driver heap, and a
     # longer startup timeout for its large dependency classpath.
-    dag_bundle_config = _dag_bundle_config_with_artifacts(
+    dag_bundle_config = _build_dag_bundle_config(
         {
             "java-task-handlers": "/opt/airflow/java-jars",
             "scala-task-handlers": "/opt/airflow/scala-jars",
@@ -650,7 +650,7 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
     # which scans the go-task-handlers Dag bundle for the packed bundle by dag_id.
     # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
-    dag_bundle_config = _dag_bundle_config_with_artifacts({"go-task-handlers": "/opt/airflow/go-bundles"})
+    dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
     coordinator_config = json.dumps(
         {
             "go-sdk": {
@@ -756,7 +756,7 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     for dag_file in ("typescript_example.py", "typescript_taskflow_example.py"):
         copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
 
-    dag_bundle_config = _dag_bundle_config_with_artifacts({"ts-task-handlers": "/opt/airflow/ts-bundles"})
+    dag_bundle_config = _build_dag_bundle_config({"ts-task-handlers": "/opt/airflow/ts-bundles"})
     coordinator_config = json.dumps(
         {
             "ts": {

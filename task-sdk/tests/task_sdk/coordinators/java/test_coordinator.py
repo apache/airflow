@@ -252,18 +252,18 @@ class TestJavaCoordinatorAttributes:
 
 
 @pytest.fixture
-def jars_root(tmp_path):
+def jars_dir(tmp_path):
     _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner", schema_version="2026-06-16")
     return tmp_path
 
 
 @pytest.fixture
-def java_task_handlers(jars_root):
-    """Register *jars_root* as the ``java-task-handlers`` Dag bundle and return that name."""
+def java_task_handlers(jars_dir):
+    """Register *jars_dir* as the ``java-task-handlers`` Dag bundle and return that name."""
     bundle = {
         "name": "java-task-handlers",
         "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-        "kwargs": {"path": str(jars_root)},
+        "kwargs": {"path": str(jars_dir)},
     }
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps([bundle])}):
         yield bundle["name"]
@@ -337,12 +337,12 @@ class TestJavaCoordinatorExecuteTask:
         )
         assert cmd[0] == "/usr/lib/jvm/java-17/bin/java"
 
-    def test_classpath_flag_and_value_present(self, jars_root, java_task_handlers, mock_client):
+    def test_classpath_flag_and_value_present(self, jars_dir, java_task_handlers, mock_client):
         cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
         assert "-classpath" in cmd
         cp_idx = cmd.index("-classpath")
         classpath = cmd[cp_idx + 1]
-        assert jars_root.joinpath("app.jar").as_posix() in classpath
+        assert jars_dir.joinpath("app.jar").as_posix() in classpath
 
     def test_main_class_present(self, java_task_handlers, mock_client):
         cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
