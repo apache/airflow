@@ -43,8 +43,9 @@ Real-World Motivation
 ---------------------
 
 Consider a workflow that downloads ~17,000 XML files from an SFTP server and loads
-them into a data warehouse. Community benchmarks demonstrate the dramatic performance
-difference between the two approaches:
+them into a data warehouse. Community benchmarks compare a mapped operator with a loop
+written by hand inside a single ``@task``, the pattern IT runs for you (none of these rows
+uses ``iterate()`` itself):
 
 .. list-table::
    :header-rows: 1
@@ -60,9 +61,9 @@ difference between the two approaches:
    * - Async ``@task`` with ``SFTPHookAsync`` and connection pooling
      - 3 m 32 s
 
-The ~60× improvement stems from eliminating per-item scheduling overhead and
+The ~60× improvement comes from eliminating per-item scheduling overhead and
 sharing a single event loop for concurrent I/O. This is the kind of workload
-where IT excels: many small, I/O-bound operations processed within one task.
+IT is built for: many small, I/O-bound operations processed within one task.
 
 Dynamic Task Mapping (DTM)
 --------------------------
@@ -165,14 +166,14 @@ Instance processes all Pokémon concurrently using the sync
         list_pokemon_task >> get_pokemon_task
 
 
-The scheduler only manages a single task. With sync tasks, iterations are
-executed in a multi-threaded fashion, which eliminates scheduling overhead
-and can speed up compute-bound workloads. However, for I/O-bound operations
-like HTTP requests, multi-threading alone does not provide the same
-performance benefits as async multiplexing — threads still block on each
-request individually rather than sharing a single event loop.
+The scheduler only manages a single task. With a sync operator, iterations run in
+a pool of up to ``task_concurrency`` threads, so blocking I/O such as these HTTP
+requests overlaps up to that many at a time. Async operators scale further: a
+coroutine waiting on I/O costs far less than a thread, so ``task_concurrency`` can
+be set much higher. CPU-bound Python code speeds up with neither, since the
+iterations share one process and its GIL.
 
-To truly **multiplex** I/O-bound operations, use an async task with
+To **multiplex** many I/O-bound operations on one event loop, use an async task with
 :class:`~airflow.providers.http.hooks.http.HttpAsyncHook`:
 
 .. code-block:: python
@@ -222,7 +223,7 @@ To truly **multiplex** I/O-bound operations, use an async task with
 
 When ``iterate()`` is used with an async task, all iterations share the same
 event loop, enabling true multiplexing of I/O-bound operations without any
-manual concurrency management by the DAG author. For 5 Pokémon the
+manual concurrency management by the DAG author. For a handful of items the
 difference is negligible, but for hundreds or thousands of items the
 concurrent approach is dramatically faster — see the
 :ref:`benchmarks above <sdk-dynamic-task-mapping-vs-iteration>`.
@@ -261,7 +262,7 @@ IT is designed to address limitations of Dynamic Task Mapping in specific scenar
 
 - **Async multiplexing**:
   With Python-native async support in Airflow 3.2, IT allows multiple
-  operations to share the same event loop (and connection) within a single Task Instance.
+  operations to share the same event loop within a single Task Instance.
   This enables efficient multiplexing of I/O-bound workloads.
 
 - **Lower overhead**:
@@ -422,7 +423,8 @@ When **not** to use IT
 
 Avoid Iterable Tasks when:
 
-- Each item represents a long-running or heavy computation.
+- Each item represents a long-running or CPU-bound computation: the iterations share one
+  process, so the GIL keeps CPU-bound Python code from running in parallel.
 - You require detailed visibility per item in the Airflow UI.
 - Work must be distributed across multiple worker nodes.
 - Sub-tasks need to defer (deferrable operators) or reschedule (reschedule-mode sensors) — a
