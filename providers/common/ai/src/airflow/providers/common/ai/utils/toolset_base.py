@@ -155,10 +155,18 @@ class AirflowToolset(AbstractToolset[Any]):
     """
     A toolset whose tool results are safe to hand to a model.
 
-    Subclasses implement :meth:`execute_tool`. :meth:`call_tool` runs it and passes what it
-    returns, and any exception it raises, through Airflow's secret masker, so a connection
-    password that ends up in a database error or a hook's return value is replaced with
-    ``***`` before the model, the model provider or a trace sees it.
+    Two methods look alike and have different jobs. :meth:`execute_tool` is the one a subclass
+    writes: it runs the tool and returns the result as the tool produced it. :meth:`call_tool`
+    is pydantic-ai's entry point, implemented here once: it runs ``execute_tool`` and passes what
+    it returns, and any exception it raises, through Airflow's secret masker, so a connection
+    password that ends up in a database error or a hook's return value is replaced with ``***``
+    before the model, the model provider or a trace sees it. A subclass that overrides
+    ``call_tool`` instead skips that masking, which is why :func:`ensure_masked` wraps such a
+    toolset again.
+
+    The two signatures differ on purpose. ``call_tool`` keeps the positional shape pydantic-ai
+    invokes it with. ``execute_tool`` takes ``ctx`` and ``tool`` keyword-only, so arguments can
+    be added to it later without breaking subclasses.
     """
 
     async def call_tool(
@@ -183,11 +191,11 @@ class AirflowToolset(AbstractToolset[Any]):
         tool: ToolsetTool[Any],
     ) -> Any:
         """
-        Run tool ``name`` with validated ``tool_args``.
+        Run tool ``name`` with validated ``tool_args`` and return its result unmasked.
 
-        This is the method a subclass implements, rather than :meth:`call_tool`, which runs it
-        and masks what it returns. ``ctx`` and ``tool`` are keyword-only so that arguments can
-        be added here later without breaking subclasses.
+        This is the method a subclass implements; :meth:`call_tool` runs it and masks what it
+        returns. ``ctx`` and ``tool`` are keyword-only so that arguments can be added here later
+        without breaking subclasses.
         """
 
     def airflow_tools(self) -> list[AirflowTool]:
