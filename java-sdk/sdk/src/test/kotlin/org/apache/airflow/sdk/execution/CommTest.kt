@@ -37,8 +37,10 @@ import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
 import java.io.ByteArrayOutputStream
+import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import org.apache.airflow.sdk.Client as PublicClient
@@ -179,6 +181,40 @@ class CommsTest {
     return out.toByteArray()
   }
 
+  private fun notFoundResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("TASK_STORE_NOT_FOUND")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("key")
+      packer.packString("job_id")
+    }
+    return out.toByteArray()
+  }
+
+  private fun taskStateStoreResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("TaskStateStoreResult")
+      packer.packString("value")
+      packer.packString("job-42")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
   private fun readRequest(fromClient: ByteChannel): RawFrame =
     runBlocking {
       val prefix = fromClient.readByteArray(4)
@@ -193,12 +229,13 @@ class CommsTest {
    */
   private fun roundTrip(
     response: (Int) -> ByteArray,
+    details: StartupDetails = StartupDetails(),
     call: (PublicClient) -> Unit,
   ): Pair<Map<*, *>, Throwable?> {
     val toClient = ByteChannel(autoFlush = true)
     val fromClient = ByteChannel(autoFlush = true)
     val comm = CoordinatorComm(toClient, fromClient)
-    val client = PublicClient(StartupDetails(), CoordinatorClient(comm))
+    val client = PublicClient(details, CoordinatorClient(comm))
 
     val requests = ConcurrentLinkedQueue<RawFrame>()
     val server =
@@ -384,6 +421,89 @@ class CommsTest {
     val (_, failure) = roundTrip(::errorResponseFrame) { it.deleteVariable("k") }
 
     Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
+  private val tiId: UUID = UUID.fromString("0199a5d6-1c2e-7c6a-9c1e-7a2f7f0d1e42")
+
+  private fun currentTaskInstance() = StartupDetails().also { it.ti = TaskInstance().also { ti -> ti.id = tiId } }
+
+  @Test
+  @DisplayName("taskStateStore.get sends the task instance ID and key and unwraps the stored value")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreGetUnwrapsResult() {
+    var value: Any? = null
+    val (body, failure) = roundTrip(::taskStateStoreResultFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+
+    Assertions.assertNull(failure, "get should return normally on TaskStateStoreResult, got $failure")
+    Assertions.assertEquals("GetTaskStateStore", body["type"])
+    Assertions.assertEquals(tiId.toString(), body["ti_id"])
+    Assertions.assertEquals("job_id", body["key"])
+    Assertions.assertEquals("job-42", value)
+  }
+
+  @Test
+  @DisplayName("taskStateStore.get returns null on TASK_STORE_NOT_FOUND instead of raising")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreGetReturnsNullWhenNotFound() {
+    var value: Any? = "unset"
+    val (_, failure) = roundTrip(::notFoundResponseFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+
+    Assertions.assertNull(failure, "get should return normally on TASK_STORE_NOT_FOUND, got $failure")
+    Assertions.assertNull(value)
+  }
+
+  @Test
+  @DisplayName("taskStateStore.get raises ApiError for any other error response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreGetRaisesApiErrorOnOtherErrors() {
+    val (_, failure) = roundTrip(::errorResponseFrame, currentTaskInstance()) { it.taskStateStore.get("job_id") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
+  @Test
+  @DisplayName("taskStateStore.set keeps a null expires_at on the wire so the supervisor accepts the request")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreSetKeepsNullExpiresAtOnTheWire() {
+    val (body, failure) = roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.set("job_id", 42) }
+
+    Assertions.assertNull(failure, "set should return normally on OKResponse, got $failure")
+    Assertions.assertEquals("SetTaskStateStore", body["type"])
+    Assertions.assertEquals(tiId.toString(), body["ti_id"])
+    Assertions.assertEquals("job_id", body["key"])
+    Assertions.assertEquals(42L, body["value"])
+    Assertions.assertTrue(body.containsKey("expires_at"), "expires_at must be sent even when null: $body")
+    Assertions.assertNull(body["expires_at"])
+  }
+
+  @Test
+  @DisplayName("taskStateStore.set sends expires_at as an ISO-8601 timestamp when a retention is given")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreSetSendsIsoExpiresAt() {
+    val (body, failure) =
+      roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.set("job_id", 42, Duration.ofHours(6)) }
+
+    Assertions.assertNull(failure, "set should return normally on OKResponse, got $failure")
+    val expiresAt = OffsetDateTime.parse(body["expires_at"] as String)
+    Assertions.assertEquals(ZoneOffset.UTC, expiresAt.offset)
+    Assertions.assertTrue(expiresAt.isAfter(OffsetDateTime.now(ZoneOffset.UTC).plusHours(5)), "expires_at $expiresAt")
+  }
+
+  @Test
+  @DisplayName("taskStateStore.delete and clear send the task instance ID and accept the supervisor's OK response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreDeleteAndClearAcceptOkResponse() {
+    val (deleteBody, deleteFailure) = roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.delete("job_id") }
+    val (clearBody, clearFailure) = roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.clear() }
+
+    Assertions.assertNull(deleteFailure, "delete should return normally on OKResponse, got $deleteFailure")
+    Assertions.assertEquals("DeleteTaskStateStore", deleteBody["type"])
+    Assertions.assertEquals(tiId.toString(), deleteBody["ti_id"])
+    Assertions.assertEquals("job_id", deleteBody["key"])
+
+    Assertions.assertNull(clearFailure, "clear should return normally on OKResponse, got $clearFailure")
+    Assertions.assertEquals("ClearTaskStateStore", clearBody["type"])
+    Assertions.assertEquals(tiId.toString(), clearBody["ti_id"])
   }
 
   @Test
