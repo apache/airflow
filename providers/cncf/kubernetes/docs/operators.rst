@@ -107,6 +107,47 @@ and type safety. While we have removed almost all Kubernetes convenience classes
     :start-after: [START howto_operator_k8s_cluster_resources]
     :end-before: [END howto_operator_k8s_cluster_resources]
 
+How to use custom CA certificates with Pods?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pods created by the ``KubernetesPodOperator`` run in their own container and do not
+inherit SSL-related environment variables (such as ``REQUESTS_CA_BUNDLE`` or ``SSL_CERT_FILE``)
+from the environment of the worker that launches them. If your cluster uses an internal or
+intermediate Certificate Authority (CA), pass the CA bundle to the Pod explicitly:
+
+#. Store the CA certificate chain in a ConfigMap or Secret in the namespace where the Pods are launched.
+#. Mount it into the Pod with ``volumes`` and ``volume_mounts`` (see the section above).
+#. Point the standard environment variables at the mounted bundle via ``env_vars``.
+
+.. code-block:: python
+
+    from kubernetes.client import models as k8s
+
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+
+    ca_volume = k8s.V1Volume(
+        name="custom-ca",
+        config_map=k8s.V1ConfigMapVolumeSource(name="my-ca-bundle"),
+    )
+    ca_volume_mount = k8s.V1VolumeMount(
+        name="custom-ca", mount_path="/etc/ssl/custom-ca", read_only=True
+    )
+
+    custom_ca_task = KubernetesPodOperator(
+        task_id="task_with_custom_ca",
+        image="my-image",
+        volumes=[ca_volume],
+        volume_mounts=[ca_volume_mount],
+        env_vars={
+            "REQUESTS_CA_BUNDLE": "/etc/ssl/custom-ca/ca.crt",
+            "SSL_CERT_FILE": "/etc/ssl/custom-ca/ca.crt",
+        },
+    )
+
+To apply this to every Pod without repeating it in each Dag, use the ``pod_mutation_hook``
+in ``airflow_local_settings.py`` to inject the volume, volume mount and environment variables
+into all Pods created by Airflow.
+
 Difference between ``KubernetesPodOperator`` and Kubernetes object spec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` can be considered
