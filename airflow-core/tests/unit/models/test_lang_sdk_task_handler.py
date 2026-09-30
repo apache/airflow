@@ -128,20 +128,51 @@ def test_core_insert_fills_fileloc_hashes(testing_dag_bundle, session):
     )
 
 
-def test_dag_relative_fileloc_hash_follows_orm_updates(testing_dag_bundle, session):
-    artifact = _add_dags_and_artifact(session, "dag_a")
-    handler = _make_handler(dag_id="dag_a", artifact=artifact)
+def _add_artifact(session) -> LangSDKTaskHandlerArtifact:
+    artifact = _make_artifact()
+    session.add(artifact)
+    session.flush()
+    return artifact
+
+
+def _add_handler(session) -> LangSDKTaskHandler:
+    handler = _make_handler(dag_id="dag_a", artifact=_add_dags_and_artifact(session, "dag_a"))
     session.add(handler)
     session.flush()
+    return handler
 
-    handler.handler_params = []
-    session.flush()
-    assert session.scalar(select(LangSDKTaskHandler.dag_relative_fileloc_hash)) == compute_fileloc_hash(
-        "dag_a.py"
-    )
 
-    handler.dag_relative_fileloc = "moved/dag_a.py"
+@pytest.mark.parametrize(
+    ("add_row", "path_attr", "hash_column", "other_attr", "other_value"),
+    [
+        pytest.param(
+            _add_artifact,
+            "relative_fileloc",
+            LangSDKTaskHandlerArtifact.relative_fileloc_hash,
+            "size_bytes",
+            2048,
+            id="artifact",
+        ),
+        pytest.param(
+            _add_handler,
+            "dag_relative_fileloc",
+            LangSDKTaskHandler.dag_relative_fileloc_hash,
+            "handler_params",
+            [],
+            id="handler",
+        ),
+    ],
+)
+def test_fileloc_hash_follows_orm_updates(
+    testing_dag_bundle, session, add_row, path_attr, hash_column, other_attr, other_value
+):
+    row = add_row(session)
+    original_path = getattr(row, path_attr)
+
+    setattr(row, other_attr, other_value)
     session.flush()
-    assert session.scalar(select(LangSDKTaskHandler.dag_relative_fileloc_hash)) == compute_fileloc_hash(
-        "moved/dag_a.py"
-    )
+    assert session.scalar(select(hash_column)) == compute_fileloc_hash(original_path)
+
+    setattr(row, path_attr, "moved/file")
+    session.flush()
+    assert session.scalar(select(hash_column)) == compute_fileloc_hash("moved/file")
