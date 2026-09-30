@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import gzip
+import io
 import json
 import uuid
 from typing import Any
@@ -235,11 +236,12 @@ class TestReadFile:
 
         assert result == "CREATE TABLE t (id INT);"
 
-    def test_a_corrupt_file_is_refused_instead_of_failing_the_run(self, storage):
-        (storage / "broken.txt.gz").write_bytes(b"not gzip at all")
+    @pytest.mark.parametrize("path", ["broken.txt.gz", "broken.txt.bz2", "broken.txt.xz"])
+    def test_a_corrupt_file_is_refused_instead_of_failing_the_run(self, storage, path):
+        (storage / path).write_bytes(b"not compressed at all")
 
         with pytest.raises(ToolFailed, match="cannot be read"):
-            _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": "broken.txt.gz"})
+            _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": path})
 
     @pytest.mark.parametrize(
         ("path", "module", "error"),
@@ -268,9 +270,64 @@ class TestReadFile:
 
         result = _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": "orders.parquet"})
 
-        assert result.startswith("Schema: id: int64, total: int64")
+        assert result.startswith(
+            "Rows: 100. The schema and the first 20 rows follow; "
+            "offset and limit do not apply to Parquet files.\n"
+            "Schema: id: int64, total: int64"
+        )
         assert '"id": 19' in result
         assert '"id": 20' not in result
+
+    @pytest.mark.parametrize(
+        ("rows", "shown", "blocks"),
+        [
+            pytest.param(50, 20, 4, id="longer-than-the-sample"),
+            pytest.param(5, 5, 1, id="shorter-than-the-sample"),
+        ],
+    )
+    def test_reads_the_row_count_schema_and_first_rows_of_an_avro_file(self, storage, rows, shown, blocks):
+        fastavro = pytest.importorskip("fastavro")
+        schema = {"type": "record", "name": "order", "fields": [{"name": "id", "type": "int"}]}
+        with (storage / "orders.avro").open("wb") as out:
+            fastavro.writer(out, schema, [{"id": i} for i in range(rows)], sync_interval=16)
+        # Several blocks for the longer file, so the count has to add up more than one.
+        with (storage / "orders.avro").open("rb") as written:
+            assert len(list(fastavro.block_reader(written))) == blocks
+
+        result = _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": "orders.avro"})
+
+        assert result.startswith(
+            f"Rows: {rows}. The schema and the first {shown} rows follow; "
+            "offset and limit do not apply to Avro files."
+        )
+        assert f'"id": {shown - 1}' in result
+        assert f'"id": {shown}' not in result
+
+    def test_samples_an_avro_file_whose_schema_is_not_a_record(self, storage):
+        fastavro = pytest.importorskip("fastavro")
+        with (storage / "totals.avro").open("wb") as out:
+            fastavro.writer(out, "long", [10, 20, 30])
+
+        result = _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": "totals.avro"})
+
+        assert result.startswith("Rows: 3. The schema and the first 3 rows follow")
+        assert result.endswith("Sample rows:\n[\n  10,\n  20,\n  30\n]")
+
+    def test_a_corrupt_avro_block_past_the_sample_is_refused(self, storage):
+        """Counting reaches every block, and a deflate block that does not inflate raises zlib.error."""
+        fastavro = pytest.importorskip("fastavro")
+        schema = {"type": "record", "name": "order", "fields": [{"name": "note", "type": "string"}]}
+        buffer = io.BytesIO()
+        fastavro.writer(
+            buffer, schema, [{"note": f"row {i} " * 8} for i in range(50)], codec="deflate", sync_interval=256
+        )
+        data = bytearray(buffer.getvalue())
+        # The last 16 bytes are the sync marker; the deflate data of the last block sits before it.
+        data[-40:-20] = b"\xff" * 20
+        (storage / "broken.avro").write_bytes(bytes(data))
+
+        with pytest.raises(ToolFailed, match="cannot be read"):
+            _call(ObjectStorageToolset(f"file://{storage}"), "read_file", {"path": "broken.avro"})
 
     def test_reads_a_window_and_says_where_to_continue(self, storage):
         result = _call(

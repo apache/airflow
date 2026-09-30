@@ -21,6 +21,7 @@ from __future__ import annotations
 import csv
 import gzip
 import io
+import itertools
 import json
 import logging
 from bisect import insort
@@ -137,6 +138,16 @@ class _RenderResult:
     text: str
     estimated_rows: int | None
     content_size_bytes: int
+
+
+@dataclass
+class ColumnarSample:
+    """A Parquet or Avro file described for a model."""
+
+    text: str
+    """Its schema and first rows."""
+    total_rows: int
+    """How many rows the whole file holds."""
 
 
 def build_file_analysis_request(
@@ -484,14 +495,18 @@ def _render_csv(
 
 def sample_columnar_file(
     path: ObjectStoragePath, *, file_format: Literal["parquet", "avro"], sample_rows: int, max_bytes: int
-) -> str:
+) -> ColumnarSample:
     """
-    Describe a Parquet or Avro file for a model: its schema and its first ``sample_rows`` rows.
+    Describe a Parquet or Avro file for a model: its schema, its first ``sample_rows`` rows and its row count.
 
     :raises LLMFileAnalysisLimitExceededError: if the file is larger than ``max_bytes``.
     """
-    render = _render_parquet if file_format == "parquet" else _render_avro
-    return render(path, sample_rows=sample_rows, max_content_bytes=max_bytes).text
+    if file_format == "parquet":
+        result = _render_parquet(path, sample_rows=sample_rows, max_content_bytes=max_bytes)
+    else:
+        result = _render_avro(path, sample_rows=sample_rows, max_content_bytes=max_bytes, count_rows=True)
+    # Both count every row here: Parquet from its footer, Avro by reading every block header.
+    return ColumnarSample(text=result.text, total_rows=result.estimated_rows or 0)
 
 
 def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int) -> _RenderResult:
@@ -533,7 +548,9 @@ def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_by
     )
 
 
-def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int) -> _RenderResult:
+def _render_avro(
+    path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int, count_rows: bool = False
+) -> _RenderResult:
     try:
         import fastavro
     except ImportError as exc:
@@ -541,7 +558,7 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
             "Avro analysis requires the `avro` extra for apache-airflow-providers-common-ai."
         ) from exc
 
-    sampled_rows: list[dict[str, Any]] = []
+    sampled_rows: list[Any] = []
     total_rows = 0
     with path.open("rb") as handle:
         handle.seek(0, io.SEEK_END)
@@ -551,18 +568,31 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
             raise LLMFileAnalysisLimitExceededError(
                 f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
             )
-        reader = fastavro.reader(handle)
-        writer_schema = getattr(reader, "writer_schema", None)
         fully_read = False
-        if sample_rows > 0:
-            for record in reader:
-                total_rows += 1
-                if isinstance(record, dict):
-                    sampled_rows.append({str(key): value for key, value in record.items()})
-                if total_rows >= sample_rows:
-                    break
-            else:
-                fully_read = True
+        if count_rows:
+            # Each block header carries its record count, so only the blocks the sample reaches
+            # are decoded; the rest are counted.
+            blocks = fastavro.block_reader(handle)
+            writer_schema = blocks.writer_schema
+            for block in blocks:
+                total_rows += block.num_records
+                if len(sampled_rows) < sample_rows:
+                    sampled_rows.extend(
+                        _avro_sample_row(record)
+                        for record in itertools.islice(block, sample_rows - len(sampled_rows))
+                    )
+            fully_read = True
+        else:
+            reader = fastavro.reader(handle)
+            writer_schema = reader.writer_schema
+            if sample_rows > 0:
+                for record in reader:
+                    total_rows += 1
+                    sampled_rows.append(_avro_sample_row(record))
+                    if total_rows >= sample_rows:
+                        break
+                else:
+                    fully_read = True
     payload = [
         f"Schema: {dumps_masked(writer_schema, indent=2)}",
         "Sample rows:",
@@ -573,6 +603,11 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
         estimated_rows=total_rows if fully_read else None,
         content_size_bytes=content_size_bytes,
     )
+
+
+def _avro_sample_row(record: Any) -> Any:
+    # A file whose schema is not a record holds bare values, which are sampled as they are.
+    return {str(key): value for key, value in record.items()} if isinstance(record, dict) else record
 
 
 def read_bytes(path: ObjectStoragePath, *, compression: str | None, max_bytes: int) -> bytes:

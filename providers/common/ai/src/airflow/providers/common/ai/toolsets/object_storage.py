@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
+import lzma
 import os
+import zlib
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal
@@ -96,7 +98,8 @@ _DESCRIPTIONS = {
     GET_FILE_INFO: "Get the size and last-modified time of one file or directory.",
     READ_FILE: (
         "Read a text file. Long files are returned a window at a time and the result tells you the "
-        "offset to continue from. For a Parquet or Avro file, returns its schema and first rows."
+        "offset to continue from. For a Parquet or Avro file, returns its row count, schema and first "
+        "rows; offset and limit do not apply to it."
     ),
 }
 
@@ -123,7 +126,7 @@ class ObjectStorageToolset(AirflowToolset):
     is absolute, carries a scheme, or climbs out of the root with ``..`` is refused.
 
     ``read_file`` returns a text file a window of lines at a time, like the sandbox's own
-    ``read_file``, and a Parquet or Avro file as its schema and first rows. Compressed text
+    ``read_file``, and a Parquet or Avro file as its row count, schema and first rows. Compressed text
     (``.gz``, ``.bz2``, ``.xz``) is decompressed. Images, PDFs and other binary files are
     refused, as is any file larger than ``max_read_bytes``. So is a file that cannot be read,
     such as a corrupt one, or one the connection may not open: the model is told why, and the
@@ -223,7 +226,14 @@ class ObjectStorageToolset(AirflowToolset):
                 )
         except ToolFailed:
             raise
-        except (OSError, EOFError, ValueError, AirflowOptionalProviderFeatureException) as e:
+        except (
+            OSError,
+            EOFError,
+            ValueError,
+            zlib.error,
+            lzma.LZMAError,
+            AirflowOptionalProviderFeatureException,
+        ) as e:
             # Storage the connection may not read, a corrupt or mislabelled file, a codec this
             # Python build lacks: final for this path, so the model is told, not the task failed.
             raise ToolFailed(f"{relative or '/'!r} cannot be read: {type(e).__name__}: {e}") from None
@@ -312,7 +322,13 @@ class ObjectStorageToolset(AirflowToolset):
                     sample = sample_columnar_file(
                         target, file_format=columnar, sample_rows=_SAMPLE_ROWS, max_bytes=self._max_read_bytes
                     )
-                    return _cut(sample, self._max_output_bytes)
+                    # First, so that cutting a long sample never drops it.
+                    shown = min(_SAMPLE_ROWS, sample.total_rows)
+                    header = (
+                        f"Rows: {sample.total_rows}. The schema and the first {shown} rows follow; "
+                        f"offset and limit do not apply to {columnar.capitalize()} files.\n"
+                    )
+                    return _cut(header + sample.text, self._max_output_bytes)
             data = read_bytes(target, compression=compression, max_bytes=self._max_read_bytes)
         except LLMFileAnalysisLimitExceededError:
             raise ToolFailed(
