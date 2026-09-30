@@ -802,6 +802,8 @@ class IterableOperator(BaseOperator):
             )
             if indexed_task_state.result is not None:
                 await self.axcom_push(task, indexed_task_state.result)
+            for key, value in (indexed_task_state.xcoms or {}).items():
+                await task.axcom_push(key=key, value=value)
             if indexed_task_state.outlet_events:
                 _replay_outlet_events(context["outlet_events"], indexed_task_state.outlet_events)
             return task, None, None
@@ -845,6 +847,10 @@ class IterableOperator(BaseOperator):
             serialized_outlet_events = _serialize_outlet_events(indexed_task_runner.outlet_events)
             if serialized_outlet_events:
                 indexed_task_state.outlet_events = serialized_outlet_events
+            # Written with the one checkpoint, not per push: a retry that skips this sub-task pushes
+            # them again, as the runner has deleted them by then.
+            if task.pushed_xcoms:
+                indexed_task_state.xcoms = dict(task.pushed_xcoms)
             await task.aset_state(indexed_task_state)
         except (asyncio.CancelledError, AirflowTaskTimeout):
             # Not this sub-task's outcome: it is being stopped from outside, by the executor

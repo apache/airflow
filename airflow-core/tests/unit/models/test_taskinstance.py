@@ -3683,6 +3683,50 @@ class TestMappedTaskInstanceReceiveValue:
 
         assert ti.state == TaskInstanceState.FAILED
 
+    def test_iterate_retry_keeps_the_extra_xcoms_of_items_that_already_succeeded(self, dag_maker, session):
+        """
+        The runner deletes every XCom of the task before a retry. An item skipped on the retry
+        because it already succeeded gets its other pushed keys back from its checkpoint.
+        """
+        from airflow.models.xcom import XComModel
+
+        attempts = []
+
+        with dag_maker(dag_id="iterate_extra_xcoms", session=session, serialized=True):
+            # One item at a time: several sync items pushing concurrently under dag_maker's in-process
+            # supervisor race on it, which is a separate problem.
+            @task(retries=1, retry_delay=datetime.timedelta(0), task_concurrency=1)
+            def produce(x, ti=None):
+                ti.xcom_push(key="foo", value=f"foo-of-{x}")
+                if x == 2 and not attempts:
+                    attempts.append(ti.try_number)
+                    raise ValueError("flaky on the first attempt")
+                return x
+
+            produce.iterate(x=[1, 2])
+
+        dag_run = dag_maker.create_dagrun()
+        for _ in range(2):
+            dag_run.refresh_from_db(session=session)
+            for ti in dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                with contextlib.suppress(BaseException):
+                    dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+            session.flush()
+
+        ti = dag_run.get_task_instance("produce", session=session)
+        assert ti.state == TaskInstanceState.SUCCESS
+        assert ti.try_number == 2
+        keys = set(
+            session.scalars(
+                select(XComModel.key).where(
+                    XComModel.dag_id == "iterate_extra_xcoms",
+                    XComModel.run_id == dag_run.run_id,
+                    XComModel.task_id == "produce",
+                )
+            )
+        )
+        assert {"foo_0", "foo_1", "return_value_0", "return_value_1"} <= keys
+
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
         out.touch()

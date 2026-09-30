@@ -2416,6 +2416,25 @@ class TestIndexedTaskState:
 
         assert IndexedTaskState.deserialize(msg.value).result == result
 
+    def test_extra_xcoms_survive_the_state_store_message_and_round_trip(self):
+        """Values an item pushed are serialized like its result, since the checkpoint travels as JSON."""
+        xcoms = {
+            "when": datetime(2026, 9, 30, 11, 0, tzinfo=dt_timezone.utc),
+            "pair": ("a", 1),
+            "plain": {"rows": [1, 2]},
+        }
+        serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS, xcoms=xcoms).serialize()
+
+        msg = SetTaskStateStore(ti_id=uuid7(), key="_iterable_0", value=serialized, expires_at=None)
+
+        assert IndexedTaskState.deserialize(msg.value).xcoms == xcoms
+
+    def test_a_checkpoint_without_extra_xcoms_leaves_them_out(self):
+        serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS).serialize()
+
+        assert "xcoms" not in serialized
+        assert IndexedTaskState.deserialize(serialized).xcoms is None
+
 
 class TestIndexedTaskInstance:
     @pytest.mark.parametrize(
@@ -2514,6 +2533,40 @@ class TestIndexedTaskInstance:
         assert ti.parent_task_state_store is parent_store
         assert ti.task_state_store == IndexedTaskStateStoreAccessor(parent_store, index=4)
         assert ti.task_state_store is ti.task_state_store  # cached, so the context and ti agree
+
+    @pytest.mark.asyncio
+    async def test_pushes_other_than_the_return_value_are_recorded_by_their_bare_key(self):
+        """Sync and async pushes are recorded in memory, unsuffixed; the return value has its own slot."""
+        context, operator = self._parent_context_and_operator()
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
+
+        with (
+            mock.patch("airflow.sdk.execution_time.task_runner._xcom_push", autospec=True) as push,
+            mock.patch("airflow.sdk.execution_time.task_runner._axcom_push", autospec=True) as apush,
+        ):
+            ti.xcom_push(key="sync_key", value=1)
+            await ti.axcom_push(key="async_key", value=2)
+            ti.xcom_push(key=BaseXCom.XCOM_RETURN_KEY, value="result")
+            ti.xcom_push(key="sync_key", value=3)
+
+        assert ti.pushed_xcoms == {"sync_key": 3, "async_key": 2}
+        assert [call.args[1] for call in push.call_args_list] == [
+            "sync_key_4",
+            f"{BaseXCom.XCOM_RETURN_KEY}_4",
+            "sync_key_4",
+        ]
+        assert [call.args[1] for call in apush.call_args_list] == ["async_key_4"]
+
+    def test_each_indexed_task_instance_records_its_own_pushes(self):
+        context, operator = self._parent_context_and_operator()
+        first = IndexedTaskInstance.create_indexed_task(context=context, index=0, operator=operator)
+        second = IndexedTaskInstance.create_indexed_task(context=context, index=1, operator=operator)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner._xcom_push", autospec=True):
+            first.xcom_push(key="foo", value="first")
+
+        assert first.pushed_xcoms == {"foo": "first"}
+        assert second.pushed_xcoms == {}
 
     @pytest.mark.asyncio
     async def test_checkpoints_go_to_the_parents_store_unsuffixed(self):

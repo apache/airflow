@@ -934,6 +934,10 @@ class IndexedTaskState:
     # The attempt that wrote the checkpoint. After a manual clear only the checkpoints written since
     # are resumed from (see Checkpoints), which this tells apart from those left by the run before.
     try_number: int = 0
+    # The other XComs the sub-task pushed, by their key before the index suffix. The runner deletes
+    # every XCom before an attempt, so a sub-task skipped on retry has them pushed again from here,
+    # next to its result, as a mapped task instance that succeeded keeps its own.
+    xcoms: dict[str, Any] | None = None
 
     @staticmethod
     def build_key(index: int) -> str:
@@ -955,6 +959,8 @@ class IndexedTaskState:
             data["fingerprint"] = self.fingerprint
         if self.try_number:
             data["try_number"] = self.try_number
+        if self.xcoms:
+            data["xcoms"] = {key: serde_serialize(value) for key, value in self.xcoms.items()}
         return data
 
     @classmethod
@@ -967,6 +973,9 @@ class IndexedTaskState:
             outlet_events=raw.get("outlet_events"),
             fingerprint=raw.get("fingerprint"),
             try_number=raw.get("try_number", 0),
+            xcoms={key: serde_deserialize(value) for key, value in raw["xcoms"].items()}
+            if raw.get("xcoms")
+            else None,
         )
 
 
@@ -983,6 +992,9 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     index: int
     parent_task_state_store: TaskStateStoreAccessor
     input_fingerprint: str | None = None
+    # The XComs the sub-task pushed other than its return value, by their key before the index
+    # suffix: kept in memory while it runs and written once, with its SUCCESS checkpoint.
+    pushed_xcoms: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def create_indexed_task(
@@ -1029,6 +1041,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         value: Any,
     ):
         super().xcom_push(key=f"{key}_{self.index}", value=value)
+        self._record_push(key, value)
 
     async def axcom_push(
         self,
@@ -1036,6 +1049,12 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         value: Any,
     ):
         await super().axcom_push(key=f"{key}_{self.index}", value=value)
+        self._record_push(key, value)
+
+    def _record_push(self, key: str, value: Any) -> None:
+        # The return value has its own slot on the checkpoint and is published by the operator.
+        if key != BaseXCom.XCOM_RETURN_KEY:
+            self.pushed_xcoms[key] = value
 
     @cached_property
     def task_state_store(self) -> TaskStateStoreAccessor:  # type: ignore[override]

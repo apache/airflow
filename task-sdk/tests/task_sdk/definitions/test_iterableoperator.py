@@ -375,6 +375,25 @@ class MockCallbackAsyncOperator(BaseAsyncOperator):
         await asyncio.sleep(60)
 
 
+class MockPushingOperator(BaseOperator):
+    """Operator that pushes an extra XCom next to its return value, and fails for ``fail=True``."""
+
+    template_fields = ("arg1",)
+    executed: list = []
+
+    def __init__(self, arg1=None, fail=False, **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+        self.fail = fail
+
+    def execute(self, context):
+        type(self).executed.append(self.arg1)
+        context["ti"].xcom_push(key="foo", value=f"foo-of-{self.arg1}")
+        if self.fail:
+            raise RuntimeError("sibling failed")
+        return self.arg1
+
+
 class MockClearingStateStoreOperator(BaseOperator):
     template_fields = ()
 
@@ -1465,6 +1484,123 @@ class TestIterableOperator:
         assert checkpoint_after_failure == "success"
         assert runs == [1]
         assert pushed == [(1, None, None)]
+
+    def test_extra_xcoms_are_checkpointed_once_and_pushed_again_when_a_retry_skips_the_item(self):
+        """
+        The runner deletes every XCom before a retry. An item skipped because it already succeeded
+        gets its other pushed keys back from its checkpoint, written once with its SUCCESS state.
+        """
+        MockPushingOperator.executed = []
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b", "fail": True}]),
+                task_id="extra_xcoms",
+                task_concurrency=1,
+                operator_class=MockPushingOperator,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                context["ti"].try_number = 1
+                with pytest.raises(RuntimeError, match="sibling failed"):
+                    iterable_op.execute(context=context)
+                checkpoint = store["_iterable_0"]
+
+                # The retry: the failing item succeeds now; the finished one must not run again.
+                pushed = []
+
+                async def recording_aset(cls, key, value, **kwargs):
+                    pushed.append((key, value))
+
+                iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}])
+                context["ti"].try_number = 2
+                with patch.object(XCom, "aset", classmethod(recording_aset)):
+                    iterable_op.execute(context=context)
+
+        assert checkpoint["status"] == "success"
+        assert checkpoint["xcoms"] == {"foo": "foo-of-a"}
+        assert "return_value" not in checkpoint["xcoms"]
+        assert MockPushingOperator.executed == ["a", "b", "b"]
+        assert ("foo_0", "foo-of-a") in pushed
+        assert ("return_value_0", "a") in pushed
+
+    def test_an_item_pushing_many_keys_writes_one_checkpoint(self):
+        """The extra pushes are kept in memory and written with the one SUCCESS checkpoint, not per push."""
+
+        class ManyKeysOperator(BaseOperator):
+            template_fields = ()
+
+            def execute(self, context):
+                for key in range(5):
+                    context["ti"].xcom_push(key=f"key{key}", value=key)
+                return "done"
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{}]), task_id="many_keys", operator_class=ManyKeysOperator
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                writes = []
+                original_aset = store.aset
+
+                async def counting_aset(key, value, **kwargs):
+                    writes.append(key)
+                    await original_aset(key, value, **kwargs)
+
+                store.aset = counting_aset
+                iterable_op.execute(context=context)
+
+        assert writes == ["_iterable_0"]
+        assert store["_iterable_0"]["xcoms"] == {f"key{key}": key for key in range(5)}
+
+    def test_an_async_items_extra_xcoms_are_pushed_again_on_retry(self):
+        """The async path pushes through axcom_push; its keys are recorded and replayed the same way."""
+
+        class AsyncPushingOperator(BaseAsyncOperator):
+            template_fields = ("arg1",)
+            executed: list = []
+
+            def __init__(self, arg1=None, fail=False, **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.fail = fail
+
+            async def aexecute(self, context):
+                type(self).executed.append(self.arg1)
+                await context["ti"].axcom_push(key="bar", value=f"bar-of-{self.arg1}")
+                if self.fail:
+                    raise RuntimeError("sibling failed")
+                return self.arg1
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b", "fail": True}]),
+                task_id="async_extra_xcoms",
+                task_concurrency=1,
+                operator_class=AsyncPushingOperator,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 1
+                with pytest.raises(RuntimeError, match="sibling failed"):
+                    iterable_op.execute(context=context)
+
+                pushed = []
+
+                async def recording_aset(cls, key, value, **kwargs):
+                    pushed.append((key, value))
+
+                iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}])
+                context["ti"].try_number = 2
+                with patch.object(XCom, "aset", classmethod(recording_aset)):
+                    iterable_op.execute(context=context)
+
+        assert AsyncPushingOperator.executed == ["a", "b", "b"]
+        assert ("bar_0", "bar-of-a") in pushed
 
     def test_execute_failed_attempt_leaves_no_completion_marker_so_retry_resumes(self):
         """
