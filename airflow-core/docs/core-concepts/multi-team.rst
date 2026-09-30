@@ -84,6 +84,9 @@ When Multi-Team mode is enabled, the following resources can be scoped to specif
 - **Pools**: Pools can be assigned to teams
 - **XComs**: Tasks can only access XComs of Dags in their own team (plus, for reads, global Dags)
 
+Dags themselves are team-scoped through bundle ownership (see `Dag Bundles and Team Ownership`_ above);
+their visibility in the UI and REST API follows the same team boundary, subject to the auth manager.
+
 Resources without a team assignment are considered **global** and accessible to all teams.
 
 Team-scoped XComs
@@ -152,6 +155,26 @@ Or via environment variable:
 
     Changing this setting on an existing deployment requires careful planning.
 
+.. _multi-team-team-name-cache:
+
+Tuning Team Resolution Caching
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.3.0
+
+Every Dag authorization check resolves the Dag's owning team from its bundle. Because some endpoints
+(such as the grid view) re-poll continuously, Airflow caches this ``Dag -> team`` mapping in memory to
+avoid repeated joins against the Team table. Control the cache lifetime with:
+
+.. code-block:: ini
+
+    [core]
+    team_name_cache_ttl = 30
+
+The value is the number of seconds a resolved team is cached before it is looked up again (default
+``30``). A team reassignment takes up to this many seconds to take effect, and different API server
+workers may briefly disagree during that window. Set it to ``0`` to disable caching.
+
 Creating and Managing Teams
 ---------------------------
 
@@ -164,8 +187,7 @@ Creating a Team
 
     airflow teams create <team_name>
 
-Team names must be 3-50 characters long and contain only lower case letters, digits, hyphens and underscores.
-Two consecutive underscores are not allowed.
+The team name must satisfy the constraints described in `Teams`_ above.
 
 Listing Teams
 ^^^^^^^^^^^^^
@@ -662,6 +684,49 @@ Team filtering and queue filtering are orthogonal — they combine as AND condit
     Ensure that at least one triggerer is running for every team, otherwise that team's triggers will
     remain unassigned until one starts — the same applies to every queue when ``--queues`` is used. If you
     combine ``--team-name`` and ``--queues``, this requirement extends to each team-and-queue combination.
+
+.. _multi-team-dag-processor:
+
+Team-scoped Dag Processing
+--------------------------
+
+The Dag processor parses Dag files from your configured Dag bundles. Unlike the triggerer, it is not
+scoped with ``--team-name`` directly; it is scoped by **bundle** using the ``--bundle-name`` CLI argument
+(which may be passed more than once). Because each bundle is owned by at most one team, scoping a
+processor to a team's bundle(s) scopes it to that team. The teams a processor serves are derived from the
+:ref:`Dag bundle config <multi-team-dag-bundles>`.
+
+.. code-block:: bash
+
+    # Process only team_a's bundle(s)
+    airflow dag-processor --bundle-name team_a_dags
+
+    # Process several bundles (for example, all of team_b's bundles)
+    airflow dag-processor --bundle-name team_b_dags --bundle-name team_b_extra_dags
+
+    # Process every configured bundle (all teams and global bundles)
+    airflow dag-processor
+
+Running **one Dag processor per team** (scoped to that team's bundles) is recommended, so that each
+team's Dag code is parsed in a separate process and teams stay isolated. Unlike the triggerer, however,
+this is not required for coverage: a global triggerer only picks up teamless triggers, whereas a Dag
+processor started without ``--bundle-name`` parses *every* configured bundle. A single global Dag
+processor therefore covers every team's Dags as well as global (teamless) bundles, which is possible but
+gives up the per-team parsing isolation.
+
+.. note::
+
+    When you do split parsing across multiple ``--bundle-name`` processors, make sure every configured
+    bundle is covered by at least one running processor; a bundle that no processor parses will not have
+    its Dags parsed or updated.
+
+.. note::
+
+    Scoping a processor to a team's bundles keeps teams in separate parsing processes, but all those
+    processes still share the same host. For the tightest boundary, run each team's Dag processor on
+    separate team-owned compute (for example, separate VMs, containers, or servers) so that one team's
+    Dag parsing cannot consume resources or otherwise interfere with another team's. This is not required,
+    but it provides stronger isolation than per-process separation alone.
 
 .. _multi-team-asset-event-filtering:
 
