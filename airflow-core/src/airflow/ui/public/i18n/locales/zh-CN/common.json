@@ -295,7 +295,11 @@
         "helper": "未单独设置布局方向的 Dag 和资源图表所使用的方向。",
         "label": "默认图表方向"
       },
-      "title": "图表"
+      "title": "图表",
+      "taskGroupsExpanded": {
+        "helper": "在您尚未保存分组选择的 Dag 中展开任务分组，已有选择保持不变。",
+        "label": "默认展开任务分组"
+      }
     },
     "marking": {
       "taskSelection": {
@@ -349,7 +353,8 @@
       "toggleSource": "切换来源显示",
       "toggleTaskGroup": "展开或收起$t(taskGroup_one)",
       "toggleTimestamp": "切换时间戳显示",
-      "toggleWrap": "切换$t(wrap.wrap)"
+      "toggleWrap": "切换$t(wrap.wrap)",
+      "toggleLogLevel": "切换日志级别显示"
     },
     "empty": "此页面没有可用的键盘快捷键。",
     "title": "键盘快捷键"
@@ -452,7 +457,12 @@
       "latestHeartbeat": "最新触发器心跳时间",
       "title": "触发器信息"
     },
-    "unixname": "Unix 名称"
+    "unixname": "Unix 名称",
+    "stateReason": "状态原因",
+    "stateReasonSummary": {
+      "failed": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后停止",
+      "upForRetry": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后重试"
+    }
   },
   "taskInstance_one": "任务实例",
   "taskInstance_other": "任务实例",
@@ -558,5 +568,12 @@
     "tooltip": "按 {{hotkey}} 切换换行",
     "unwrap": "不换行",
     "wrap": "换行"
+  },
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
+  "logLevel": {
+    "hide": "隐藏日志级别",
+    "hotkey": "l",
+    "show": "显示日志级别"
   }
 }
