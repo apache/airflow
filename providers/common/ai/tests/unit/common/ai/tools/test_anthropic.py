@@ -29,6 +29,7 @@ pytest.importorskip("anthropic")
 
 import httpx2
 from anthropic import Anthropic, AsyncAnthropic, DefaultAsyncHttpxClient, DefaultHttpxClient
+from anthropic.types.beta import BetaTextBlock
 from pydantic_ai.exceptions import ModelRetry
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
@@ -144,7 +145,9 @@ def _drive_async(model: _ScriptedModel, tools: AsyncAirflowTools) -> ParsedBetaM
 
 def _answer(message: ParsedBetaMessage) -> Any:
     """The tool result the scripted model echoed back as its answer."""
-    return json.loads(message.content[0].text)
+    block = message.content[0]
+    assert isinstance(block, BetaTextBlock)
+    return json.loads(block.text)
 
 
 @pytest.fixture(
