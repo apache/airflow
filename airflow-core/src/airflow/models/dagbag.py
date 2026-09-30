@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import math
 import time
@@ -38,6 +39,7 @@ from airflow.models.dag_version import DagVersion
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
     from airflow.models import DagRun
@@ -112,53 +114,100 @@ class DBDagBag:
             select(SerializedDagModel.dag_hash).where(SerializedDagModel.dag_version_id == version_id)
         )
 
-    def _get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
+    def _get_valid_cached_dag(
+        self, version_id: UUID | str
+    ) -> tuple[SerializedDAG | None, _CacheEntry | None]:
+        """Return a cached Dag within its revalidation window, else the cached entry to revalidate."""
         with self._lock:
             cached = self._dags.get(version_id)
+        if cached is None:
+            return None, None
+        # A serialized DAG cannot be rewritten more often than
+        # [core] min_serialized_dag_update_interval, so an entry validated within that window
+        # cannot have gone stale yet -- serve it without touching the DB.
+        if time.monotonic() - cached.last_validated < self._revalidation_interval:
+            self._on_cache_hit()
+            return cached.dag, None
+        return None, cached
 
-        if cached is not None:
-            now = time.monotonic()
-            # A serialized DAG cannot be rewritten more often than
-            # [core] min_serialized_dag_update_interval, so an entry validated within that window
-            # cannot have gone stale yet -- serve it without touching the DB.
-            if now - cached.last_validated < self._revalidation_interval:
-                self._on_cache_hit()
-                return cached.dag
-            # Past the window: a version may have been updated in place (same dag_version_id, new
-            # content + new dag_hash) by SerializedDagModel.write_dag, so confirm the cached copy
-            # against the current dag_hash. That validation is a single-row lookup on the
-            # uniquely-indexed serialized_dag.dag_version_id column.
-            if self._current_dag_hash(version_id, session) == cached.dag_hash:
-                # Still current: restart the revalidation window so the next hits skip the query.
-                # (For a TTLCache this write-back also refreshes the entry's TTL/LRU recency, which
-                # is fine -- the entry was just re-confirmed against the DB.)
-                with self._lock:
-                    current = self._dags.get(version_id)
-                    if current is not None and current.dag_hash == cached.dag_hash:
-                        self._dags[version_id] = current._replace(last_validated=now)
-                self._on_cache_hit()
-                return cached.dag
-            # Stale (updated in place) or the version no longer exists: drop and reload below.
+    def _revalidate_cached_dag(
+        self, version_id: UUID | str, cached: _CacheEntry, current_hash: str | None
+    ) -> SerializedDAG | None:
+        """Serve ``cached`` when ``current_hash`` still matches it, else drop it so the caller reloads."""
+        # Past the window: a version may have been updated in place (same dag_version_id, new
+        # content + new dag_hash) by SerializedDagModel.write_dag, so the caller confirms the cached
+        # copy against the current dag_hash. That validation is a single-row lookup on the
+        # uniquely-indexed serialized_dag.dag_version_id column.
+        if current_hash == cached.dag_hash:
+            # Still current: restart the revalidation window so the next hits skip the query.
+            # (For a TTLCache this write-back also refreshes the entry's TTL/LRU recency, which
+            # is fine -- the entry was just re-confirmed against the DB.)
             with self._lock:
-                self._dags.pop(version_id, None)
+                current = self._dags.get(version_id)
+                if current is not None and current.dag_hash == cached.dag_hash:
+                    self._dags[version_id] = current._replace(last_validated=time.monotonic())
+            self._on_cache_hit()
+            return cached.dag
+        # Stale (updated in place) or the version no longer exists: drop and reload.
+        with self._lock:
+            self._dags.pop(version_id, None)
+        return None
+
+    def _get_dag_cached_since_load(self, version_id: UUID | str) -> SerializedDAG | None:
+        """Return a Dag another thread cached while this one queried the DB, else record a cache miss."""
+        # Double-checked locking: such an entry was just loaded from the DB, so it is well within its
+        # revalidation window and is served without an extra hash check. Only emit the miss metric
+        # after confirming no other thread cached it, to avoid counting a single lookup as both a
+        # miss and a hit.
+        with self._lock:
+            if (cached := self._dags.get(version_id)) is not None:
+                self._on_cache_hit()
+                return cached.dag
+        self._on_cache_miss()
+        return None
+
+    def _get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
+        dag, cached = self._get_valid_cached_dag(version_id)
+        if dag is not None:
+            return dag
+        if cached is not None:
+            current_hash = self._current_dag_hash(version_id, session)
+            if (dag := self._revalidate_cached_dag(version_id, cached, current_hash)) is not None:
+                return dag
 
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
         if not dag_version:
             return None
         if not (serdag := dag_version.serialized_dag):
             return None
-
-        # Double-checked locking: another thread may have cached it while we queried DB. Such an
-        # entry was just loaded from the DB, so it is well within its revalidation window and is
-        # served without an extra hash check, consistent with the policy above. Only emit the miss
-        # metric after confirming no other thread cached it, to avoid counting a single lookup as
-        # both a miss and a hit.
-        with self._lock:
-            if (cached := self._dags.get(version_id)) is not None:
-                self._on_cache_hit()
-                return cached.dag
-        self._on_cache_miss()
+        if (dag := self._get_dag_cached_since_load(version_id)) is not None:
+            return dag
         return self._read_dag(serdag)
+
+    async def get_dag_async(self, version_id: UUID | str, *, session: AsyncSession) -> SerializedDAG | None:
+        """Get a Dag by its version id asynchronously, deserializing a cache miss in a worker thread."""
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag, cached = self._get_valid_cached_dag(version_id)
+        if dag is not None:
+            return dag
+        if cached is not None:
+            current_hash = await session.scalar(
+                select(SerializedDagModel.dag_hash).where(SerializedDagModel.dag_version_id == version_id)
+            )
+            if (dag := self._revalidate_cached_dag(version_id, cached, current_hash)) is not None:
+                return dag
+
+        serdag = await session.scalar(
+            select(SerializedDagModel).where(SerializedDagModel.dag_version_id == version_id)
+        )
+        if serdag is None:
+            return None
+        if (dag := self._get_dag_cached_since_load(version_id)) is not None:
+            return dag
+        # The worker must use loaded columns only, without access to the request's session.
+        session.expunge(serdag)
+        return await asyncio.to_thread(self._read_dag, serdag)
 
     def get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
         """Get a dag by its version id, using cache if enabled."""
@@ -237,6 +286,20 @@ class DBDagBag:
         if not (serdag := SerializedDagModel.get(dag_id, session=session)):
             return None
         return self._read_dag(serdag)
+
+    async def get_latest_version_of_dag_async(
+        self, dag_id: str, *, session: AsyncSession
+    ) -> SerializedDAG | None:
+        """Fetch the latest Dag asynchronously and deserialize it in a worker thread."""
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        serdag = await session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
+        if serdag is None:
+            return None
+
+        # The worker must use loaded columns only, without access to the request's session.
+        session.expunge(serdag)
+        return await asyncio.to_thread(self._read_dag, serdag)
 
 
 class CachedDBDagBag(DBDagBag):
