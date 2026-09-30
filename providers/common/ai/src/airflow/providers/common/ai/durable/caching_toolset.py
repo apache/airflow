@@ -24,13 +24,14 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 
-from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX
+from airflow.providers.common.ai.durable.base import build_tool_step_key
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
 
 if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
+    from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 
 log = structlog.get_logger(logger_name="task")
@@ -52,10 +53,15 @@ class CachingToolset(WrapperToolset[Any]):
     The step index is grabbed before the first ``await``, so parallel tool
     calls via ``asyncio.gather`` get deterministic indices (tasks start
     executing their synchronous preamble in creation order).
+
+    With a ``replay_usage`` ledger, a replayed call does not count toward the
+    run's ``tool_calls`` (see
+    :class:`~airflow.providers.common.ai.durable.replay_usage.ReplayUsageLedger`).
     """
 
     storage: DurableStorageProtocol = field(repr=False)
     counter: DurableStepCounter = field(repr=False)
+    replay_usage: ReplayUsageLedger | None = field(default=None, repr=False)
 
     async def call_tool(
         self,
@@ -67,7 +73,7 @@ class CachingToolset(WrapperToolset[Any]):
         # Grab step index BEFORE any await -- ensures deterministic ordering
         # even when multiple tool calls run concurrently via asyncio.gather.
         step = self.counter.next_step()
-        key = f"{DURABLE_KEY_PREFIX}tool_step_{step}"
+        key = build_tool_step_key(step)
         fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id)
 
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)
@@ -75,6 +81,8 @@ class CachingToolset(WrapperToolset[Any]):
             if cached_fingerprint == fingerprint:
                 self.counter.replayed_tool += 1
                 log.debug("Durable: replayed cached tool result", step=step, tool=name)
+                if self.replay_usage is not None:
+                    self.replay_usage.record_tool_replay(step)
                 return cached
             log.warning(
                 "Durable: cached tool result does not match the current tool call; "
@@ -88,6 +96,8 @@ class CachingToolset(WrapperToolset[Any]):
                 ),
             )
 
+        if self.replay_usage is not None:
+            self.replay_usage.record_live_tool_call(step)
         result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
         if self.storage.save_tool_result(key, result, fingerprint=fingerprint):
             self.counter.cached_tool += 1
