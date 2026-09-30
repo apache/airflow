@@ -39,24 +39,44 @@ airflow_version = "3.4.0"
 
 def upgrade():
     """Apply Add indexes on asset_partition_dag_run."""
+    dialect_name = op.get_context().dialect.name
+    if dialect_name == "mysql":
+        # created_dag_run_id is a foreign-key column; InnoDB keeps an implicit index for the constraint and
+        # silently drops it once another usable index exists. Recreate the constraint around the new index so
+        # the resulting state is deterministic (same approach as migration 0086).
+        with op.batch_alter_table("asset_partition_dag_run", schema=None) as batch_op:
+            batch_op.drop_constraint("apdr_created_dag_run_id_fkey", type_="foreignkey")
     with op.batch_alter_table("asset_partition_dag_run", schema=None) as batch_op:
-        # AssetManager._get_or_create_apdr looks up the latest provisional run for a
-        # (target_dag_id, partition_key) pair on every emitted partition key.
         batch_op.create_index(
             "idx_apdr_target_dag_id_partition_key_id",
             ["target_dag_id", "partition_key", "id"],
             unique=False,
         )
-        # The scheduler selects pending rows (created_dag_run_id IS NULL) ordered by created_at, id.
         batch_op.create_index(
             "idx_apdr_created_dag_run_id_created_at_id",
             ["created_dag_run_id", "created_at", "id"],
             unique=False,
         )
+    if dialect_name == "mysql":
+        with op.batch_alter_table("asset_partition_dag_run", schema=None) as batch_op:
+            batch_op.create_foreign_key(
+                "apdr_created_dag_run_id_fkey", "dag_run", ["created_dag_run_id"], ["id"], ondelete="CASCADE"
+            )
 
 
 def downgrade():
     """Unapply Add indexes on asset_partition_dag_run."""
-    with op.batch_alter_table("asset_partition_dag_run", schema=None) as batch_op:
-        batch_op.drop_index("idx_apdr_created_dag_run_id_created_at_id")
-        batch_op.drop_index("idx_apdr_target_dag_id_partition_key_id")
+    dialect_name = op.get_context().dialect.name
+    if dialect_name == "mysql":
+        # The index now backs the foreign key; dropping it directly fails with ER_DROP_INDEX_FK (1553).
+        with op.batch_alter_table("asset_partition_dag_run", schema=None) as batch_op:
+            batch_op.drop_constraint("apdr_created_dag_run_id_fkey", type_="foreignkey")
+            batch_op.drop_index("idx_apdr_created_dag_run_id_created_at_id")
+            batch_op.drop_index("idx_apdr_target_dag_id_partition_key_id")
+            batch_op.create_foreign_key(
+                "apdr_created_dag_run_id_fkey", "dag_run", ["created_dag_run_id"], ["id"], ondelete="CASCADE"
+            )
+    else:
+        with op.batch_alter_table("asset_partition_dag_run", schema=None) as batch_op:
+            batch_op.drop_index("idx_apdr_created_dag_run_id_created_at_id")
+            batch_op.drop_index("idx_apdr_target_dag_id_partition_key_id")
