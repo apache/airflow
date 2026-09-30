@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-===============================
+======================================
 Amazon Elastic Container Service (ECS)
-===============================
+======================================
 
 `Amazon Elastic Container Service (Amazon ECS) <https://aws.amazon.com/ecs/>`__  is a fully
 managed container orchestration service that makes it easy for you to deploy, manage, and
@@ -40,7 +40,7 @@ Operators
 .. _howto/operator:EcsCreateClusterOperator:
 
 Create an AWS ECS Cluster
-==================
+=========================
 
 To create an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsCreateClusterOperator`.
@@ -57,7 +57,7 @@ passed in the 'create_cluster_kwargs' dict.
 .. _howto/operator:EcsDeleteClusterOperator:
 
 Delete an AWS ECS Cluster
-==================
+=========================
 
 To delete an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeleteClusterOperator`.
@@ -72,7 +72,7 @@ To delete an Amazon ECS cluster you can use
 .. _howto/operator:EcsRegisterTaskDefinitionOperator:
 
 Register a Task Definition
-===================
+==========================
 
 To register a task definition you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsRegisterTaskDefinitionOperator`.
@@ -90,7 +90,7 @@ passed in the 'register_task_kwargs' dict.
 .. _howto/operator:EcsDeregisterTaskDefinitionOperator:
 
 Deregister a Task Definition
-======================
+=============================
 
 To deregister a task definition you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeregisterTaskDefinitionOperator`.
@@ -105,7 +105,7 @@ To deregister a task definition you can use
 .. _howto/operator:EcsRunTaskOperator:
 
 Run a Task Definition
-==============
+=====================
 
 To run a Task Definition defined in an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.
@@ -288,7 +288,7 @@ Sensors
 .. _howto/sensor:EcsClusterStateSensor:
 
 AWS ECS Cluster State Sensor
-=====================
+============================
 
 To poll the cluster state until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsClusterStateSensor`.
@@ -308,7 +308,7 @@ before the target state.
 .. _howto/sensor:EcsTaskDefinitionStateSensor:
 
 AWS ECS Task Definition State Sensor
-==============================
+=====================================
 
 To poll the task definition state until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsTaskDefinitionStateSensor`.
@@ -328,7 +328,7 @@ is reached before the target state.
 .. _howto/sensor:EcsTaskStateSensor:
 
 AWS ECS Task State Sensor
-==================
+=========================
 
 To poll the task state until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsTaskStateSensor`.
