@@ -357,6 +357,21 @@ class CoordinatorManager:
             return None
         return spec.extra
 
+    def get_task_handler_bundle_names(self) -> dict[str, str | None]:
+        """
+        Return the ``task_handler_bundle_name`` of each coordinator a queue routes to, keyed by coordinator.
+
+        ``None`` means the coordinator reads task handlers from the task's own Dag bundle.
+        A coordinator no queue routes to runs no stub task, so it is left out and its bundle is not read.
+        Only the declarative specs are read; no coordinator is instantiated.
+        """
+        routed_keys = set(self._queue_to_coordinator.values())
+        return {
+            key: spec.kwargs.get("task_handler_bundle_name")
+            for key, spec in self._coordinator_specs.items()
+            if key in routed_keys
+        }
+
 
 @functools.cache
 def get_coordinator_manager() -> CoordinatorManager:
