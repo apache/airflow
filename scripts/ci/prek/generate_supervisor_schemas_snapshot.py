@@ -27,7 +27,8 @@ Regenerate the supervisor schema snapshot at
 
 The snapshot is the head-version JSON Schema for every Pydantic class
 on the supervisor schema wire (the union members of ``ToTask``,
-``ToSupervisor``, ``ToManager``, ``ToDagProcessor``).
+``ToSupervisor``, ``ToManager``, ``ToDagProcessor``,
+``ToSDKTaskHandlerProcessor``).
 
 The actual dump is delegated to ``dump_supervisor_schemas.py`` (the
 sibling stdout-only script). If the committed snapshot differs from

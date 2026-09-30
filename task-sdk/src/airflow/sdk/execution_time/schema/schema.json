@@ -4156,6 +4156,156 @@
       "title": "TaskCallbackRequest",
       "type": "object"
     },
+    "TaskHandlerDeclaration": {
+      "description": "A task handler that a Lang-SDK artifact registers for one task.",
+      "properties": {
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/TaskHandlerParam"
+          },
+          "title": "Params",
+          "type": "array"
+        }
+      },
+      "required": [
+        "task_id",
+        "params"
+      ],
+      "title": "TaskHandlerDeclaration",
+      "type": "object"
+    },
+    "TaskHandlerParam": {
+      "description": "One parameter of a task handler.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "required"
+      ],
+      "title": "TaskHandlerParam",
+      "type": "object"
+    },
+    "TaskHandlerParseRequest": {
+      "description": "Request for Task Handler Parsing.\n\nAsks a Lang-SDK runtime which task handlers an artifact registers for the given Dags.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "dag_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dag Ids",
+          "type": "array"
+        },
+        "bundle_path": {
+          "format": "path",
+          "title": "Bundle Path",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "TaskHandlerParseRequest",
+          "default": "TaskHandlerParseRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "dag_ids",
+        "bundle_path",
+        "bundle_name"
+      ],
+      "title": "TaskHandlerParseRequest",
+      "type": "object"
+    },
+    "TaskHandlerParsingResult": {
+      "description": "Result of Task Handler Parsing.\n\nThe task handlers a Lang-SDK artifact registers, keyed by Dag id.",
+      "properties": {
+        "fileloc": {
+          "title": "Fileloc",
+          "type": "string"
+        },
+        "task_handlers": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/TaskHandlerDeclaration"
+            },
+            "type": "array"
+          },
+          "title": "Task Handlers",
+          "type": "object"
+        },
+        "import_errors": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Import Errors"
+        },
+        "warnings": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Warnings"
+        },
+        "type": {
+          "const": "TaskHandlerParsingResult",
+          "default": "TaskHandlerParsingResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fileloc",
+        "task_handlers"
+      ],
+      "title": "TaskHandlerParsingResult",
+      "type": "object"
+    },
     "TaskInstanceState": {
       "description": "All possible states that a Task Instance can be in.\n\nNote that None is also allowed, so always use this in a type hint with Optional.",
       "enum": [

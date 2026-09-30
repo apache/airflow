@@ -29,6 +29,7 @@ import attrs
 from pydantic import BaseModel, Field, TypeAdapter
 
 from airflow._shared.observability.metrics import stats
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import ArgValueSchema  # noqa: TC001
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -135,8 +136,66 @@ class DagFileParsingResult(BaseModel):
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
+class TaskHandlerParam(BaseModel):
+    """One parameter of a task handler."""
+
+    name: str
+
+    value_schema: ArgValueSchema | None = None
+    """JSON Schema of the values the parameter accepts; ``None`` when the handler does not constrain it."""
+
+    required: bool
+    """Whether the handler declares no default for the parameter."""
+
+
+class TaskHandlerDeclaration(BaseModel):
+    """A task handler that a Lang-SDK artifact registers for one task."""
+
+    task_id: str
+
+    params: list[TaskHandlerParam]
+    """In declaration order, because stub-task arguments bind to them by position."""
+
+
+class TaskHandlerParseRequest(BaseModel):
+    """
+    Request for Task Handler Parsing.
+
+    Asks a Lang-SDK runtime which task handlers an artifact registers for the given Dags.
+    """
+
+    file: str
+    """The artifact to ask."""
+
+    dag_ids: list[str]
+
+    bundle_path: Path
+
+    bundle_name: str
+
+    type: Literal["TaskHandlerParseRequest"] = "TaskHandlerParseRequest"
+
+
+class TaskHandlerParsingResult(BaseModel):
+    """
+    Result of Task Handler Parsing.
+
+    The task handlers a Lang-SDK artifact registers, keyed by Dag id.
+    """
+
+    fileloc: str
+
+    task_handlers: dict[str, list[TaskHandlerDeclaration]]
+    """A requested Dag id the artifact registers no task handler for is omitted, not mapped to ``[]``."""
+
+    import_errors: dict[str, str] | None = None
+    warnings: list | None = None
+    type: Literal["TaskHandlerParsingResult"] = "TaskHandlerParsingResult"
+
+
 ToManager = Annotated[
     DagFileParsingResult
+    | TaskHandlerParsingResult
     | GetConnection
     | GetVariable
     | GetVariableKeys
@@ -155,9 +214,9 @@ ToManager = Annotated[
     Field(discriminator="type"),
 ]
 
-ToDagProcessor = Annotated[
-    DagFileParseRequest
-    | ConnectionResult
+# Answers to the child's requests, whichever parse it was started for.
+_ParseSideResponses = (
+    ConnectionResult
     | VariableResult
     | VariableKeysResult
     | TaskStatesResult
@@ -169,8 +228,13 @@ ToDagProcessor = Annotated[
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
-    | XComSequenceSliceResult,
-    Field(discriminator="type"),
+    | XComSequenceSliceResult
+)
+
+ToDagProcessor = Annotated[DagFileParseRequest | _ParseSideResponses, Field(discriminator="type")]
+
+ToSDKTaskHandlerProcessor = Annotated[
+    TaskHandlerParseRequest | _ParseSideResponses, Field(discriminator="type")
 ]
 
 

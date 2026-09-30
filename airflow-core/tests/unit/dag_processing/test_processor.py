@@ -58,8 +58,11 @@ from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    TaskHandlerParseRequest,
+    TaskHandlerParsingResult,
     ToDagProcessor,
     ToManager,
+    ToSDKTaskHandlerProcessor,
     _execute_callbacks,
     _execute_dag_callbacks,
     _execute_email_callbacks,
@@ -2355,15 +2358,26 @@ class TestDagProcessingMessageTypes:
             + "\n\nEither handle these types in ToDagProcessor or update in_task_runner_but_not_in_dag_processing_process list."
         )
 
+    def test_parse_request_unions_differ_only_in_request(self):
+        dag_processor_types = set(typing.get_args(typing.get_args(ToDagProcessor)[0]))
+        task_handler_types = set(typing.get_args(typing.get_args(ToSDKTaskHandlerProcessor)[0]))
+
+        assert dag_processor_types - task_handler_types == {DagFileParseRequest}
+        assert task_handler_types - dag_processor_types == {TaskHandlerParseRequest}
+
 
 class TestDagFileProcessorProcess:
     def test_registered_message_types(self):
-        expected = set(typing.get_args(typing.get_args(ToManager)[0]))
+        expected = set(typing.get_args(typing.get_args(ToManager)[0])) - {TaskHandlerParsingResult}
         assert set(DagFileProcessorProcess._request_handlers) == expected
 
     @pytest.mark.parametrize(
         "message_type",
-        sorted(set(typing.get_args(typing.get_args(ToManager)[0])) - {DagFileParsingResult}, key=str),
+        sorted(
+            set(typing.get_args(typing.get_args(ToManager)[0]))
+            - {DagFileParsingResult, TaskHandlerParsingResult},
+            key=str,
+        ),
         ids=lambda message_type: message_type.__name__,
     )
     def test_reuses_shared_request_handlers(self, message_type):
@@ -2399,6 +2413,37 @@ class TestDagFileProcessorProcess:
 
         assert proc.parsing_result is result
         send_msg.assert_called_once_with(proc, None, request_id=42, error=None)
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_rejects_task_handler_parsing_result(self, send_msg, proc):
+        msg = proc.decoder.validate_python(
+            {
+                "type": "TaskHandlerParsingResult",
+                "fileloc": "handlers.jar",
+                "task_handlers": {
+                    "etl": [
+                        {
+                            "task_id": "extract",
+                            "params": [
+                                {"name": "day", "value_schema": {"type": "string"}, "required": True},
+                                {"name": "limit", "required": False},
+                            ],
+                        }
+                    ]
+                },
+            }
+        )
+        assert isinstance(msg, TaskHandlerParsingResult)
+
+        proc._handle_request(msg, structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(
+            proc,
+            None,
+            request_id=42,
+            error=comms.ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
+        )
+        assert proc.parsing_result is None
 
     @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
     def test_previous_successful_run_uses_process_id(self, send_msg, proc):
