@@ -43,7 +43,6 @@ case "${framework}" in
         exit 1
         ;;
 esac
-FRAMEWORKS=("${framework}")
 
 framework_pins="false"
 if [[ ${2:-} == "--framework-pins" ]]; then
@@ -56,8 +55,8 @@ fi
 cd "${AIRFLOW_SOURCES:-/opt/airflow}"
 
 if [[ ${framework_pins} == "true" ]]; then
-    echo "Installing ${FRAMEWORKS[*]} with their own dependency pins"
-    uv pip install "${FRAMEWORKS[@]}"
+    echo "Installing ${framework} with its own dependency pins"
+    uv pip install "${framework}"
 else
     overrides=$(mktemp)
     before=$(mktemp)
@@ -68,18 +67,20 @@ else
     # and the frameworks do not depend on any of them. Overriding the rest means nothing the
     # image ships should change; the check below is there in case something still does.
     grep -E '^[A-Za-z0-9_.-]+==' "${before}" > "${overrides}"
-    echo "Installing ${FRAMEWORKS[*]}, holding the image's $(wc -l < "${overrides}") installed packages"
-    uv pip install --override "${overrides}" "${FRAMEWORKS[@]}"
+    echo "Installing ${framework}, holding the image's $(wc -l < "${overrides}") installed packages"
+    uv pip install --override "${overrides}" "${framework}"
     uv pip freeze | sort > "${after}"
     changed=$(comm -23 "${before}" "${after}")
     if [[ -n ${changed} ]]; then
-        echo "Installing the frameworks changed packages the image already had:" >&2
+        echo "Installing ${framework} changed packages the image already had:" >&2
         echo "${changed}" >&2
         exit 1
     fi
 fi
 
-uv pip freeze | grep -iE '^(strands-agents|google-adk|mcp|opentelemetry-(api|sdk)|websockets|google-genai)=='
+# Log the versions that decide whether the adapter works; the framework itself must be among them.
+uv pip freeze | grep -iE '^(strands-agents|google-adk|mcp|opentelemetry-(api|sdk)|websockets|google-genai)==' \
+    || { echo "${framework} is not installed after uv pip install" >&2; exit 1; }
 
 # The adapter tests skip themselves when their framework is missing, so a broken install would
 # otherwise pass as green.
