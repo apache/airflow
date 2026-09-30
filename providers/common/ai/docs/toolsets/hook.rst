@@ -108,15 +108,16 @@ reflection-based adapter, so the work is choosing the method list.
   states this outright. Choose methods whose worst case you accept, not methods
   you intend to constrain later.
 - Its calls act as barriers. The tools are registered with ``sequential=True``
-  because hook methods perform synchronous I/O, so a slow call holds up every
-  other tool the model emitted in that step, not only this toolset's. This is
-  not specific to ``HookToolset``; see :ref:`toolset-call-barriers`.
+  and each hook method runs in a worker thread, one blocking hook call at a time
+  in the task process, so a slow call holds up every other tool the model emitted
+  in that step, not only this toolset's. This is not specific to ``HookToolset``;
+  see :ref:`toolset-call-barriers`.
 - It returns exactly one shape. Every result goes through ``serialize_for_llm``
   and comes back as a JSON-encoded string; there is no structured error type and
   no ``ModelRetry`` wrapper, so a hook exception fails the agent run, and the
   task with it, instead of giving the model something it can correct.
   ``SQLToolset``, by contrast, hands the database's own error back as a retry.
-- Its ``call_tool`` calls the method and serializes what comes back. The code
+- It calls the method and serializes what comes back. The code
   contains no path that awaits a coroutine result, and none that checks for one,
   so an ``async def`` hook method is not a case this adapter is written to
   handle. Treat synchronous methods as the supported set.

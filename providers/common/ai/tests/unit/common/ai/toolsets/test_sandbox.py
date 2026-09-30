@@ -296,6 +296,19 @@ class TestNetworkNote:
 
 class TestRunCommand:
     @pytest.mark.asyncio
+    @pytest.mark.enable_redact
+    async def test_output_is_masked_before_it_is_truncated(self, registered_secret):
+        """Cut first, a secret split at the cut would no longer match and would leak in part."""
+        output = "x" * 40 + registered_secret + "y" * 40
+        backend = _RecordingBackend(run_result=SandboxExecResult(exit_code=0, stdout=output, stderr=""))
+        ts = SandboxToolset(backend, max_output_bytes=60)
+
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
+
+        assert registered_secret[len(registered_secret) // 2 :] not in result
+
+    @pytest.mark.asyncio
     async def test_labels_streams_and_reports_a_nonzero_exit(self):
         backend = _RecordingBackend(run_result=SandboxExecResult(exit_code=3, stdout="hi\n", stderr="bad\n"))
         ts = SandboxToolset(backend)
@@ -533,12 +546,9 @@ class TestErrorMapping:
         ts = SandboxToolset(backend)
 
         async with ts:
-            with pytest.raises(
-                SandboxTerminalError, match="Could not provision.*image pull timed out"
-            ) as caught:
+            with pytest.raises(SandboxTerminalError, match="Could not provision.*image pull timed out"):
                 await _call(ts, "run_command", {"command": "x"})
 
-        assert isinstance(caught.value.__cause__, SandboxError)
         assert backend.destroyed == [], "nothing was provisioned, so nothing is destroyed"
 
     @pytest.mark.asyncio

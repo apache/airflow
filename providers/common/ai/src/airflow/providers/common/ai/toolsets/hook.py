@@ -25,7 +25,7 @@ import types
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
 from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_ai.toolsets.abstract import ToolsetTool
 
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.tool_definition import (
@@ -33,6 +33,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -54,7 +55,7 @@ _TYPE_MAP: dict[type, dict[str, Any]] = {
 }
 
 
-class HookToolset(AbstractToolset[Any]):
+class HookToolset(AirflowToolset):
     """
     Expose selected methods of an Airflow Hook as pydantic-ai tools.
 
@@ -159,9 +160,10 @@ class HookToolset(AbstractToolset[Any]):
                 if param_name in json_schema.get("properties", {}):
                     json_schema["properties"][param_name]["description"] = param_desc
 
-            # sequential=True because hook methods perform synchronous I/O
-            # (network calls, DB queries) and should not run concurrently.
-            # return_schema is "string": call_tool serializes every result with
+            # sequential=True keeps pydantic-ai from running these calls concurrently
+            # within a turn; run_blocking's process-wide lock serializes them with the
+            # blocking calls of the other toolsets that use it.
+            # return_schema is "string": _execute_tool serializes every result with
             # serialize_for_llm, so the tool always returns a (JSON-encoded)
             # string regardless of the method's own return annotation. This lets
             # code mode render `-> str` instead of `-> Any`.
@@ -180,7 +182,7 @@ class HookToolset(AbstractToolset[Any]):
             )
         return tools
 
-    async def call_tool(
+    async def _execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
@@ -189,7 +191,7 @@ class HookToolset(AbstractToolset[Any]):
     ) -> Any:
         method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
         method: Callable[..., Any] = getattr(self._hook, method_name)
-        result = method(**tool_args)
+        result = await self.run_blocking(method, **tool_args)
         return serialize_for_llm(result)
 
 

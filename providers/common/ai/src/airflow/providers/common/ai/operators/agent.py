@@ -56,6 +56,7 @@ from airflow.providers.common.ai.utils.logging import (
     wrap_toolsets_for_logging,
 )
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.toolset_base import with_masking
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.ai.utils.usage_budget import (
@@ -654,13 +655,21 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         storage = self._durable_storage
         counter = self._durable_counter
         if self.toolsets:
-            toolsets = self.toolsets
+            # Innermost, so the durable cache only ever stores masked results.
+            toolsets: list[AbstractToolset] = [with_masking(ts) for ts in self.toolsets]
             if self.durable and storage is not None and counter is not None:
                 toolsets = self._build_durable_toolsets(toolsets, storage, counter)
             if self.enable_tool_logging:
                 toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
-        capabilities = list(extra_kwargs.get("capabilities") or [])
+        elif extra_kwargs.get("toolsets"):
+            extra_kwargs["toolsets"] = [with_masking(ts) for ts in extra_kwargs["toolsets"]]
+        capabilities = [
+            replace(capability, toolset=with_masking(capability.toolset))
+            if _is_concrete_toolset_capability(capability)
+            else capability
+            for capability in extra_kwargs.get("capabilities") or []
+        ]
         if self.durable and storage is not None and counter is not None:
             # Tools supplied through a ``Toolset`` capability bypass the
             # ``toolsets=`` wrapping above, so their results would re-execute on
