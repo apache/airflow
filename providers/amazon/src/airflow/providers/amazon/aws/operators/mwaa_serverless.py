@@ -24,7 +24,10 @@ from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.triggers.mwaa_serverless import MwaaServerlessWorkflowRunCompletedTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -46,12 +49,22 @@ class MwaaServerlessStartWorkflowRunOperator(AwsBaseOperator[AwsBaseHook]):
     :param workflow_arn: The ARN of the workflow to run. (templated)
     :param override_parameters: Optional parameters to override defaults for this run. (templated)
     :param workflow_version: Optional version of the workflow to execute. (templated)
+    :param client_token: Optional idempotency token. Starting a run again with the same token
+        returns the existing run instead of starting a new one. (templated)
+    :param wait_for_completion: Whether to wait for the workflow run to reach a terminal state.
+        (default: False)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for run completion. (default: 720)
+    :param deferrable: If True, the operator will wait asynchronously for the workflow run to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
     template_fields: tuple[str, ...] = aws_template_fields(
         "workflow_arn",
         "override_parameters",
         "workflow_version",
+        "client_token",
     )
     template_fields_renderers = {"override_parameters": "json"}
     aws_hook_class = AwsBaseHook
@@ -62,12 +75,22 @@ class MwaaServerlessStartWorkflowRunOperator(AwsBaseOperator[AwsBaseHook]):
         workflow_arn: str,
         override_parameters: dict[str, Any] | None = None,
         workflow_version: str | None = None,
+        client_token: str | None = None,
+        wait_for_completion: bool = False,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 720,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.workflow_arn = workflow_arn
         self.override_parameters = override_parameters
         self.workflow_version = workflow_version
+        self.client_token = client_token
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
@@ -80,11 +103,46 @@ class MwaaServerlessStartWorkflowRunOperator(AwsBaseOperator[AwsBaseHook]):
                 "WorkflowArn": self.workflow_arn,
                 "OverrideParameters": self.override_parameters,
                 "WorkflowVersion": self.workflow_version,
+                "ClientToken": self.client_token,
             }
         )
         response = self.hook.conn.start_workflow_run(**kwargs)
         run_id = response["RunId"]
         self.log.info("Started workflow run %s (status: %s)", run_id, response.get("Status"))
+
+        if self.deferrable:
+            self.log.info("Deferring until workflow run %s completes", run_id)
+            self.defer(
+                trigger=MwaaServerlessWorkflowRunCompletedTrigger(
+                    workflow_arn=self.workflow_arn,
+                    run_id=run_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
+            self.log.info("Waiting for workflow run %s to complete", run_id)
+            self.hook.get_waiter("workflow_run_complete").wait(
+                WorkflowArn=self.workflow_arn,
+                RunId=run_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+            self.log.info("Workflow run %s completed", run_id)
+
+        return run_id
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while waiting for MWAA Serverless workflow run: {validated_event}")
+
+        run_id = validated_event["run_id"]
+        self.log.info("Workflow run %s completed", run_id)
         return run_id
 
 
