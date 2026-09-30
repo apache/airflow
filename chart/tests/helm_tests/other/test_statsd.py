@@ -59,7 +59,7 @@ class TestStatsd:
     def test_should_configure_statsd_deployment_strategy(self):
         strategy = {
             "type": "RollingUpdate",
-            "rollingUpdate": {"maxUnavailable": 0, "maxSurge": 1},
+            "rollingUpdate": {"maxUnavailable": 1, "maxSurge": 2},
         }
         docs = render_chart(
             values={"statsd": {"enabled": True, "strategy": strategy}},
