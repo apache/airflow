@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import builtins
+import io
 import threading
 import time
 from types import SimpleNamespace
@@ -668,6 +669,129 @@ class TestFileOperations:
 
         with pytest.raises(ValueError, match="max_bytes"):
             backend.read_file("box-1", "/w/a", max_bytes=0)
+
+
+def _stream(*chunks: bytes) -> mock.MagicMock:
+    stream = mock.MagicMock(spec=["__iter__", "close"])
+    stream.__iter__.return_value = iter(chunks)
+    return stream
+
+
+def _entry(entry_type: str | None, size: int) -> SimpleNamespace:
+    return SimpleNamespace(entry_type=entry_type, size=size)
+
+
+class TestExportFile:
+    def test_streams_the_ranged_download_into_the_destination(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        stream = _stream(b"he", b"llo")
+        sandbox.files.read_bytes_stream.return_value = stream
+        dest = io.BytesIO()
+
+        written = backend.export_file("box-1", "/w/out.bin", dest, max_bytes=100)
+
+        assert written == 5
+        assert dest.getvalue() == b"hello"
+        sandbox.files.read_bytes_stream.assert_called_once_with(
+            "/w/out.bin", chunk_size=101, range_header="bytes=0-100"
+        )
+        stream.close.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("entry_type", "match"),
+        [("directory", "is a directory"), ("other", "not a regular file")],
+    )
+    def test_refuses_what_is_not_a_regular_file_without_downloading(self, entry_type, match):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/x": _entry(entry_type, 0)}
+
+        with pytest.raises(SandboxError, match=match):
+            backend.export_file("box-1", "/w/x", io.BytesIO(), max_bytes=100)
+
+        sandbox.files.read_bytes_stream.assert_not_called()
+
+    def test_a_file_over_the_budget_is_refused_without_downloading(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/big": _entry("file", 1_000)}
+
+        with pytest.raises(SandboxFileTooLargeError) as error:
+            backend.export_file("box-1", "/w/big", io.BytesIO(), max_bytes=100)
+
+        assert error.value.size_bytes == 1_000
+        sandbox.files.read_bytes_stream.assert_not_called()
+
+    def test_a_missing_file_is_an_error_when_the_sandbox_exists(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.side_effect = _api_error(404)
+
+        with pytest.raises(SandboxError, match="does not exist"):
+            backend.export_file("box-1", "/w/missing", io.BytesIO(), max_bytes=100)
+
+        sandbox.get_info.assert_called_once()
+
+    def test_an_empty_lookup_means_the_file_does_not_exist(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {}
+
+        with pytest.raises(SandboxError, match="does not exist"):
+            backend.export_file("box-1", "/w/missing", io.BytesIO(), max_bytes=100)
+
+    def test_a_lookup_that_fails_on_the_server_is_terminal(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.side_effect = _api_error(500)
+
+        with pytest.raises(SandboxTerminalError, match="inspect a sandbox file"):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=100)
+
+    def test_a_relative_path_uses_the_entry_the_server_keyed_by_absolute_path(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/workspace/out.bin": _entry("file", 5)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"hello")
+        dest = io.BytesIO()
+
+        backend.export_file("box-1", "out.bin", dest, max_bytes=100)
+
+        assert dest.getvalue() == b"hello"
+
+    def test_a_file_that_grows_past_the_budget_mid_copy_is_refused(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"x" * 8, b"x" * 8)
+
+        with pytest.raises(SandboxFileTooLargeError):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=10)
+
+    def test_a_file_that_changed_size_is_an_error(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"hello", b"!")
+
+        with pytest.raises(SandboxError, match="changed while it was exported"):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=100)
+
+    def test_a_symlink_is_exported_without_comparing_the_links_own_size(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/link": _entry("symlink", 9)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"target contents")
+        dest = io.BytesIO()
+
+        backend.export_file("box-1", "/w/link", dest, max_bytes=100)
+
+        assert dest.getvalue() == b"target contents"
+
+    def test_a_destination_failure_is_not_reported_as_a_sandbox_error(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        stream = _stream(b"hello")
+        sandbox.files.read_bytes_stream.return_value = stream
+        dest = mock.MagicMock(spec=["write"])
+        dest.write.side_effect = OSError("No space left on device")
+
+        with pytest.raises(OSError, match="No space left"):
+            backend.export_file("box-1", "/w/out.bin", dest, max_bytes=100)
+
+        stream.close.assert_called_once()
 
 
 class TestGetSandbox:
