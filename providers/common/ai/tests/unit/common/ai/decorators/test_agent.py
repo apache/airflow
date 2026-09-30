@@ -71,7 +71,7 @@ class TestAgentDecoratedOperator:
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
         mock_agent.run_sync.assert_called_once_with(
-            "Who is our top customer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY
+            "Who is our top customer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @pytest.mark.parametrize(
@@ -107,7 +107,7 @@ class TestAgentDecoratedOperator:
 
         assert op.prompt == prompt
         mock_agent.run_sync.assert_called_once_with(
-            prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY
+            prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -152,7 +152,7 @@ class TestAgentDecoratedOperator:
 
         assert op.prompt == "Analyze revenue trends"
         mock_agent.run_sync.assert_called_once_with(
-            "Analyze revenue trends", usage_limits=None, run_id="ti-1", cancellation_token=ANY
+            "Analyze revenue trends", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
