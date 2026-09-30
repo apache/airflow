@@ -20,7 +20,7 @@ import asyncio
 import gc
 import threading
 from unittest import mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -29,8 +29,10 @@ from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
@@ -40,6 +42,15 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.connection import Connection
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
+from airflow.models.variable import Variable
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.api.client import Client
+from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.config import conf_vars
 
@@ -392,3 +403,198 @@ class TestTraceContextPropagation:
                 await gen.asend(None)  # resume past the yield -> else branch -> detach
 
         detach_spy.assert_called_once()
+
+
+class TestInProcessExecutionAPIBundleName:
+    """The in-process caller's bundle header becomes the token's ``bundle_name`` claim, which resolves the team."""
+
+    @staticmethod
+    def _make_client(bundle_name: str | None = None) -> Client:
+        client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
+        client.base_url = "http://in-process.invalid/"
+        if bundle_name is not None:
+            client.headers[InProcessExecutionAPI.bundle_name_header] = bundle_name
+        return client
+
+    @pytest.fixture
+    def team_bundle(self, session):
+        """Create a bundle owned by a team; yield ``(bundle_name, team_name)``."""
+        bundle = DagBundleModel(name=f"bundle_{uuid4().hex}")
+        team = Team(name=f"team_{uuid4().hex}")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield bundle.name, team.name
+
+        bundle.teams = []
+        session.delete(bundle)
+        session.delete(team)
+        session.commit()
+
+    def test_bundle_header_scopes_variable_lookup(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        key = f"var_{uuid4().hex}"
+        Variable.set(key=key, value="team_value", team_name=team_name, session=session)
+        session.commit()
+
+        with_bundle = self._make_client(bundle_name).variables.get(key)
+        without_bundle = self._make_client().variables.get(key)
+        unknown_bundle = self._make_client("does-not-exist").variables.get(key)
+
+        Variable.delete(key=key, team_name=team_name, session=session)
+        session.commit()
+
+        assert with_bundle == VariableResponse(key=key, value="team_value")
+        not_found = ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+        assert without_bundle == not_found
+        assert unknown_bundle == not_found
+
+    def test_bundle_header_scopes_variable_keys(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        prefix = f"keys_{uuid4().hex}_"
+        Variable.set(key=f"{prefix}team", value="team_value", team_name=team_name, session=session)
+        Variable.set(key=f"{prefix}global", value="global_value", session=session)
+        session.commit()
+
+        with_bundle = self._make_client(bundle_name).variables.keys(prefix=prefix)
+        without_bundle = self._make_client().variables.keys(prefix=prefix)
+
+        Variable.delete(key=f"{prefix}team", team_name=team_name, session=session)
+        Variable.delete(key=f"{prefix}global", session=session)
+        session.commit()
+
+        assert with_bundle.keys == [f"{prefix}team"]
+        assert without_bundle.keys == [f"{prefix}global", f"{prefix}team"]
+
+    def test_bundle_header_scopes_variable_write(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        key = f"var_{uuid4().hex}"
+
+        self._make_client(bundle_name).variables.set(key, "team_value")
+        written_team = session.scalar(select(Variable.team_name).where(Variable.key == key))
+
+        Variable.delete(key=key, team_name=team_name, session=session)
+        session.commit()
+
+        assert written_team == team_name
+
+    def test_bundle_header_scopes_variable_delete(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        key = f"var_{uuid4().hex}"
+        Variable.set(key=key, value="team_value", team_name=team_name, session=session)
+        session.commit()
+
+        self._make_client().variables.delete(key)
+        after_without_bundle = session.scalar(select(Variable.key).where(Variable.key == key))
+        self._make_client(bundle_name).variables.delete(key)
+        after_with_bundle = session.scalar(select(Variable.key).where(Variable.key == key))
+
+        assert after_without_bundle == key
+        assert after_with_bundle is None
+
+    def test_bundle_header_scopes_connection_lookup(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        conn_id = f"conn_{uuid4().hex}"
+        connection = Connection(conn_id=conn_id, conn_type="http", host="team-host", team_name=team_name)
+        session.add(connection)
+        session.commit()
+
+        with_bundle = self._make_client(bundle_name).connections.get(conn_id)
+        without_bundle = self._make_client().connections.get(conn_id)
+
+        session.delete(connection)
+        session.commit()
+
+        assert isinstance(with_bundle, ConnectionResponse)
+        assert with_bundle.host == "team-host"
+        assert without_bundle == ErrorResponse(
+            error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id}
+        )
+
+
+class TestBundleHeaderIgnoredByExecutionAPI:
+    """
+    The API server resolves the caller's team from the signed token, never from the bundle header.
+
+    Only the in-process app reads ``airflow-dag-bundle-name`` (see
+    ``TestInProcessExecutionAPIBundleName``), so a task token keeps its own team even when the
+    request carries another team's bundle name.
+    """
+
+    @pytest.fixture
+    def team_a_task(self, session, dag_maker, exec_app):
+        """
+        Authenticate the app as a task of team A; yield ``(team_a, team_b, team_b_bundle)``.
+
+        Only the JWT validator is stubbed, so the claims still come from ``JWTBearer`` alone and a
+        header the app folded into them would surface here.
+        """
+        bundle_a_name = f"bundle_{uuid4().hex}"
+        with dag_maker(dag_id=f"dag_{uuid4().hex}", bundle_name=bundle_a_name, session=session):
+            EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance("task")
+
+        bundle_a = session.get(DagBundleModel, bundle_a_name)
+        team_a = Team(name=f"team_{uuid4().hex}")
+        bundle_a.teams.append(team_a)
+        bundle_b = DagBundleModel(name=f"bundle_{uuid4().hex}")
+        team_b = Team(name=f"team_{uuid4().hex}")
+        bundle_b.teams.append(team_b)
+        session.add(bundle_b)
+        session.commit()
+
+        validator = mock.MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = {"sub": str(ti.id), "scope": "execution"}
+        exec_app.state.svcs_registry.register_value(JWTValidator, validator)
+        exec_app.dependency_overrides.pop(require_auth)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield team_a.name, team_b.name, bundle_b.name
+
+        bundle_a.teams = []
+        bundle_b.teams = []
+        session.delete(bundle_b)
+        session.delete(team_a)
+        session.delete(team_b)
+        session.commit()
+
+    def test_variable_lookup_ignores_bundle_header(self, client, session, team_a_task):
+        team_a, team_b, bundle_b = team_a_task
+        key_a = f"var_{uuid4().hex}"
+        key_b = f"var_{uuid4().hex}"
+        Variable.set(key=key_a, value="a_value", team_name=team_a, session=session)
+        Variable.set(key=key_b, value="b_value", team_name=team_b, session=session)
+        session.commit()
+
+        headers = {InProcessExecutionAPI.bundle_name_header: bundle_b}
+        own_team = client.get(f"/execution/variables/{key_a}", headers=headers)
+        other_team = client.get(f"/execution/variables/{key_b}", headers=headers)
+
+        Variable.delete(key=key_a, team_name=team_a, session=session)
+        Variable.delete(key=key_b, team_name=team_b, session=session)
+        session.commit()
+
+        assert own_team.status_code == 200, own_team.json()
+        assert own_team.json() == {"key": key_a, "value": "a_value"}
+        assert other_team.status_code == 404, other_team.json()
+
+    def test_connection_lookup_ignores_bundle_header(self, client, session, team_a_task):
+        team_a, team_b, bundle_b = team_a_task
+        conn_a = Connection(conn_id=f"conn_{uuid4().hex}", conn_type="http", host="a-host", team_name=team_a)
+        conn_b = Connection(conn_id=f"conn_{uuid4().hex}", conn_type="http", host="b-host", team_name=team_b)
+        session.add_all([conn_a, conn_b])
+        session.commit()
+
+        headers = {InProcessExecutionAPI.bundle_name_header: bundle_b}
+        own_team = client.get(f"/execution/connections/{conn_a.conn_id}", headers=headers)
+        other_team = client.get(f"/execution/connections/{conn_b.conn_id}", headers=headers)
+
+        session.delete(conn_a)
+        session.delete(conn_b)
+        session.commit()
+
+        assert own_team.status_code == 200, own_team.json()
+        assert own_team.json()["host"] == "a-host"
+        assert other_team.status_code == 404, other_team.json()

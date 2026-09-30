@@ -1,0 +1,1 @@
+In multi-team mode, secrets backends now receive the Dag bundle's ``team_name`` while the bundle's Dag files are parsed, as they do during task execution, so team-scoped connections and variables resolve in top-level Dag code; variable writes and key listing at parse time are team-scoped in the same way.
