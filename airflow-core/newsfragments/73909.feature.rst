@@ -1,9 +1,1 @@
-Dag authors can declare named param presets that pre-load the trigger form
-
-``DAG(param_presets=...)`` maps a preset name to the param values it applies, e.g.
-``{"Smoke test": {"batch_size": 1}}``. The trigger form then shows a ``Preset`` drop-down above the
-run parameters; picking one loads the Dag's param defaults with that preset's values applied on top,
-and every field stays editable before the run is submitted. A preset only lists the params it
-changes, and presets are validated at parse time, so a key that names no declared param, or a value
-that fails that param's schema, fails Dag parsing instead of surfacing at trigger time. Presets seed
-the form only: param defaults, scheduled runs, and API triggers without ``conf`` are unaffected.
+Dag authors can declare ``param_presets``, named sets of param values that the trigger form offers in a ``Preset`` drop-down; picking one loads the Dag's param defaults with that preset's values applied on top and leaves every field editable, a preset lists only the params it changes, and presets are validated at parse time so a key naming no declared param or a value failing that param's schema fails Dag parsing rather than surfacing at trigger time.

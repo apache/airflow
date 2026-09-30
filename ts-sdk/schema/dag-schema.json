@@ -179,8 +179,7 @@
         "params": { "$ref": "#/definitions/params" },
         "param_presets": {
           "type": "object",
-          "additionalProperties": { "type": "object" },
-          "default": {}
+          "additionalProperties": { "type": "object" }
         },
         "dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
