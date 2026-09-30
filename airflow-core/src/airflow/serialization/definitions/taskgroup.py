@@ -236,10 +236,11 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
-        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. Cycles are
-        treated as corrupt input: ``DAG.check_cycle`` rejects cyclic Dags before
-        serialization, so a cycle reaching this code indicates malformed serialized data,
-        and we raise ``ValueError`` rather than silently looping forever.
+        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. A group is ordered
+        after the upstreams of its root tasks, so ``g.a >> other >> g.b`` makes ``g`` and
+        ``other`` wait on each other although the tasks have no cycle (``partial_subset`` can
+        create the same shape). Grid and Graph must still render such Dags, so instead of
+        raising like task-sdk, pass numbering lets one child on the cycle go first.
         """
         children = self.children
         if not children:
@@ -329,7 +330,7 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                return self._sort_via_pass_numbering(nodes, projected)
             pending = next_pending
         return order
 
@@ -346,25 +347,49 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
         pass_of = [0] * n
         queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
         processed = 0
-        while queue:
-            i = queue.popleft()
-            my_pass = 1
-            for d in projected[i]:
-                d_pass = pass_of[d]
-                if d < i:
-                    if d_pass > my_pass:
-                        my_pass = d_pass
-                elif d_pass + 1 > my_pass:
-                    my_pass = d_pass + 1
-            pass_of[i] = my_pass
-            processed += 1
-            for s in successors[i]:
-                in_degree[s] -= 1
-                if in_degree[s] == 0:
-                    queue.append(s)
-
-        if processed != n:
-            raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+        first_unsorted = 0
+        # Unsorted children, each waiting on the next; kept across releases so a long chain isn't re-walked.
+        path: list[int] = []
+        path_pos: dict[int, int] = {}
+        while True:
+            while queue:
+                i = queue.popleft()
+                my_pass = 1
+                for d in projected[i]:
+                    d_pass = pass_of[d]
+                    if d < i:
+                        if d_pass > my_pass:
+                            my_pass = d_pass
+                    elif d_pass + 1 > my_pass:
+                        my_pass = d_pass + 1
+                pass_of[i] = my_pass
+                processed += 1
+                for s in successors[i]:
+                    in_degree[s] -= 1
+                    if in_degree[s] == 0:
+                        queue.append(s)
+            if processed == n:
+                break
+            # Everything left waits on a cycle: follow unsorted dependencies until one repeats and release
+            # it. Its in-degree then goes negative as its dependencies sort, so it is never queued twice.
+            while path and pass_of[path[-1]]:
+                del path_pos[path.pop()]
+            if not path:
+                while pass_of[first_unsorted]:
+                    first_unsorted += 1
+                path.append(first_unsorted)
+                path_pos[first_unsorted] = 0
+            while True:
+                i = next(d for d in projected[path[-1]] if not pass_of[d])
+                if i in path_pos:
+                    break
+                path_pos[i] = len(path)
+                path.append(i)
+            for j in path[path_pos[i] :]:
+                del path_pos[j]
+            del path[len(path_pos) :]
+            in_degree[i] = 0
+            queue.append(i)
 
         sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
         return [nodes[i] for i in sorted_indices]

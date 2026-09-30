@@ -1063,6 +1063,38 @@ class TestGetGridDataEndpoint:
             {"id": "task_b", "label": "task_b"},
         ]
 
+    def test_structure_group_level_cycle(self, session, dag_maker, test_client):
+        """A path that leaves a TaskGroup and comes back into it renders instead of failing the request."""
+        with dag_maker(
+            dag_id="grid_group_left_and_reentered",
+            start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+            schedule=None,
+            serialized=True,
+        ):
+            extract = EmptyOperator(task_id="extract")
+            with TaskGroup(group_id="models"):
+                staging = EmptyOperator(task_id="staging")
+                mart = EmptyOperator(task_id="mart")
+            spark_job = EmptyOperator(task_id="spark_job")
+            extract >> staging >> spark_job >> mart
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get("/grid/structure/grid_group_left_and_reentered")
+
+        assert response.status_code == 200
+        assert response.json() == [
+            {"id": "extract", "label": "extract"},
+            {
+                "id": "models",
+                "label": "models",
+                "children": [
+                    {"id": "models.mart", "label": "mart"},
+                    {"id": "models.staging", "label": "staging"},
+                ],
+            },
+            {"id": "spark_job", "label": "spark_job"},
+        ]
+
     # Tests for root, include_upstream, and include_downstream parameters
     @pytest.mark.parametrize(
         ("params", "expected_task_ids", "description"),

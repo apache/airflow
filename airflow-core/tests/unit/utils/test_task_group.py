@@ -1351,6 +1351,117 @@ def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(mo
         assert position[f"r{i}"] < position[f"r{i + 1}"]
 
 
+def _make_group_left_and_reentered():
+    """A path leaves ``models`` and comes back into it, like dbt models on either side of a Spark job."""
+    with DAG("group_left_and_reentered", schedule=None, start_date=DEFAULT_DATE) as dag:
+        extract = EmptyOperator(task_id="extract")
+        with TaskGroup("models"):
+            staging = EmptyOperator(task_id="staging")
+            mart = EmptyOperator(task_id="mart")
+        spark_job = EmptyOperator(task_id="spark_job")
+        publish = EmptyOperator(task_id="publish")
+        extract >> staging >> spark_job >> mart >> publish
+    return dag
+
+
+def _make_groups_depending_on_each_other():
+    with DAG("groups_depending_on_each_other", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("orders"):
+            orders_raw = EmptyOperator(task_id="raw")
+            orders_joined = EmptyOperator(task_id="joined")
+        with TaskGroup("users"):
+            users_raw = EmptyOperator(task_id="raw")
+            users_joined = EmptyOperator(task_id="joined")
+        orders_raw >> users_joined
+        users_raw >> orders_joined
+    return dag
+
+
+def _make_group_ring(size: int, dag_id: str | None = None) -> tuple[DAG, list[EmptyOperator]]:
+    """Each ``ring{i}`` group feeds the next one, and the last feeds the first."""
+    with DAG(dag_id or f"group_ring_{size}", schedule=None, start_date=DEFAULT_DATE) as dag:
+        entries, exits = [], []
+        for i in range(size):
+            with TaskGroup(f"ring{i}"):
+                entries.append(EmptyOperator(task_id="entry"))
+                exits.append(EmptyOperator(task_id="exit"))
+        for i in range(size):
+            exits[i] >> entries[(i + 1) % size]
+    return dag, exits
+
+
+def _ring_dependencies_out_of_order(order: list[str], size: int) -> int:
+    position = {node_id: i for i, node_id in enumerate(order)}
+    return sum(position[f"ring{i}"] < position[f"ring{(i - 1) % size}"] for i in range(size))
+
+
+@pytest.mark.parametrize(
+    ("make_dag", "expected"),
+    [
+        pytest.param(
+            _make_group_left_and_reentered,
+            ["extract", "models", "publish", "spark_job"],
+            id="group-left-and-reentered",
+        ),
+        pytest.param(
+            _make_groups_depending_on_each_other, ["orders", "users"], id="groups-depending-on-each-other"
+        ),
+        pytest.param(lambda: _make_group_ring(3)[0], ["ring0", "ring1", "ring2"], id="group-ring"),
+    ],
+)
+def test_topological_sort_serialized_group_level_cycle(make_dag, expected):
+    """A cycle that only exists between groups (the task graph is acyclic) is sorted instead of raising."""
+    dag = make_dag()
+    dag.check_cycle()
+    serialized = create_scheduler_dag(dag)
+
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    assert order == expected
+
+
+@pytest.mark.parametrize("size", [2, 3, 6])
+def test_topological_sort_serialized_group_ring_puts_one_dependency_out_of_order(size):
+    """Only one dependency on a group-level cycle is placed out of order; the rest keep their order."""
+    dag, _ = _make_group_ring(size)
+    serialized = create_scheduler_dag(dag)
+
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+
+    assert sorted(order) == [f"ring{i}" for i in range(size)]
+    assert _ring_dependencies_out_of_order(order, size) == 1
+
+
+def test_topological_sort_serialized_group_level_cycle_uses_pass_numbering(monkeypatch):
+    """A group-level cycle ahead of a reverse-declared chain keeps the chain in order on the pass numbering path."""
+    dag, exits = _make_group_ring(3, dag_id="group_ring_before_reverse_chain")
+    with dag:
+        # Names sort in reverse of execution order, so most children depend on a later sibling.
+        steps = [EmptyOperator(task_id=f"step{39 - i:02d}") for i in range(40)]
+        for upstream, downstream in zip(steps, steps[1:]):
+            upstream >> downstream
+        exits[0] >> steps[0]
+    serialized = create_scheduler_dag(dag)
+
+    called = {"value": False}
+    serialized_task_group_cls = type(serialized.task_group)
+    original = serialized_task_group_cls._sort_via_pass_numbering
+
+    def spy(self, nodes, projected):
+        called["value"] = True
+        return original(self, nodes, projected)
+
+    monkeypatch.setattr(serialized_task_group_cls, "_sort_via_pass_numbering", spy)
+
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    position = {node_id: i for i, node_id in enumerate(order)}
+
+    assert called["value"]
+    assert _ring_dependencies_out_of_order(order, 3) == 1
+    assert position["ring0"] < position[steps[0].task_id]
+    for upstream, downstream in zip(steps, steps[1:]):
+        assert position[upstream.task_id] < position[downstream.task_id]
+
+
 def test_task_group_arrow_with_setup_group():
     with DAG(dag_id="setup_group_teardown_group") as dag:
         with TaskGroup("group_1") as g1:

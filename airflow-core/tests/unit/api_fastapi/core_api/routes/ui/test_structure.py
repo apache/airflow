@@ -393,6 +393,50 @@ class TestStructureDataEndpoint:
         assert mapped_in_group["is_mapped"] is True
         assert mapped_in_group["operator"] == "PythonOperator"
 
+    def test_group_level_cycle(self, dag_maker, test_client, session):
+        """A path that leaves a TaskGroup and comes back into it renders instead of failing the request."""
+        with dag_maker(dag_id="group_left_and_reentered", serialized=True, session=session):
+            extract = EmptyOperator(task_id="extract")
+            with TaskGroup(group_id="models"):
+                staging = EmptyOperator(task_id="staging")
+                mart = EmptyOperator(task_id="mart")
+            spark_job = EmptyOperator(task_id="spark_job")
+            extract >> staging >> spark_job >> mart
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get("/structure/structure_data", params={"dag_id": "group_left_and_reentered"})
+
+        assert response.status_code == 200
+        nodes = response.json()["nodes"]
+        assert [node["id"] for node in nodes] == ["extract", "models", "spark_job"]
+        assert [child["id"] for child in nodes[1]["children"]] == ["models.mart", "models.staging"]
+
+    def test_filter_creating_group_level_cycle(self, dag_maker, test_client, session):
+        """Filtering out ``load.check`` makes ``load.clean`` a root of ``load``, so ``load`` and ``audit`` depend on each other."""
+        with dag_maker(dag_id="filter_creates_group_level_cycle", serialized=True, session=session):
+            with TaskGroup(group_id="load"):
+                raw = EmptyOperator(task_id="raw")
+                check = EmptyOperator(task_id="check")
+                clean = EmptyOperator(task_id="clean")
+                check >> clean
+            audit = EmptyOperator(task_id="audit")
+            raw >> audit >> clean
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get(
+            "/structure/structure_data",
+            params={
+                "dag_id": "filter_creates_group_level_cycle",
+                "root": "load.raw",
+                "include_downstream": True,
+            },
+        )
+
+        assert response.status_code == 200
+        nodes = response.json()["nodes"]
+        assert [node["id"] for node in nodes] == ["audit", "load"]
+        assert [child["id"] for child in nodes[1]["children"]] == ["load.clean", "load.raw"]
+
     def test_ui_colors_passed_through_to_graph(self, dag_maker, test_client, session):
         """Both raw hex colors and Chakra palette tokens reach the graph unchanged, for operators and groups."""
 
