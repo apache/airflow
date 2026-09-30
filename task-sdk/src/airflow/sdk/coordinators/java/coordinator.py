@@ -29,7 +29,11 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import convert_roots, validate_schema_version
+from airflow.sdk.coordinators._bundle_metadata import (
+    ARTIFACT_ROOTS_NOT_CONFIGURED,
+    convert_configured_roots,
+    validate_schema_version,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 
 if TYPE_CHECKING:
@@ -172,7 +176,8 @@ class JavaCoordinator(SubprocessCoordinator):
     :param java_executable: Path to the ``java`` command (defaults to
         ``"java"``, which relies on ``$PATH``).
     :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
-    :param jars_root: A list of directories scanned for JAR bundles.
+    :param jars_root: A list of directories scanned for JAR bundles. See
+        :class:`SubprocessCoordinator` for its interaction with ``dag_bundle_name``.
     :param main_class: Explicit entry point to execute with *java_executable*.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
@@ -199,17 +204,24 @@ class JavaCoordinator(SubprocessCoordinator):
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
     jars_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
+        converter=convert_configured_roots,
     )
     main_class: str = ""
 
+    @property
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "jars_root", self.jars_root
+
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        jar = _JarInfo.find(self.jars_root, self.main_class)
+        # Without main_class, the first executable JAR in walk order wins; tracked at
+        # https://github.com/apache/airflow/issues/71134
+        roots = self._get_scan_roots()
+        jar = _JarInfo.find(roots, self.main_class)
         command = [
             self.java_executable,
             "-classpath",
-            _calculate_classpath(self.jars_root),
+            _calculate_classpath(roots),
             *self.jvm_args,
             jar.main_class,
         ]
