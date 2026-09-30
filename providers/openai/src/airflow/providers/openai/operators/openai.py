@@ -182,7 +182,10 @@ class OpenAIResponseOperator(BaseOperator):
         field types reach XCom as their JSON representations. The task fails with ``ValueError``
         rather than returning partial data when the response did not complete (for example because
         ``max_output_tokens`` was reached), when it carries no parsed output (for example a
-        refusal), or when the SDK cannot validate the output against the model.
+        refusal), or when the SDK cannot validate the output against the model. With
+        ``multiple_outputs=True`` each top-level field is pushed as its own XCom after ``execute``
+        returns, so ``response_id`` and ``usage`` are reserved field names: a field with either
+        name would overwrite the XCom this operator pushes under that key.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

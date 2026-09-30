@@ -192,7 +192,9 @@ as a list or scalar.
 ``response_kwargs``, ``max_output_tokens`` and ``max_tool_calls`` are validated and passed through
 for structured requests exactly as for plain-text ones, and the ``response_id`` and ``usage`` XCom
 keys are pushed the same way -- before the checks below, so a rejected response still records its
-id and token usage.
+id and token usage. With ``multiple_outputs=True``, each top-level field of the result is pushed as
+its own XCom after ``execute`` returns, so ``response_id`` and ``usage`` are reserved field names: a
+field with either name would overwrite the XCom the operator pushes under that key.
 
 The operator rejects any response that did not complete -- incomplete, failed, or still in
 progress -- even if the partial output happens to match the Pydantic model, so unlike the
