@@ -987,6 +987,18 @@ class TestServesBundle:
         assert _StubSubprocessCoordinator.get_parsed_bundles(kwargs) == expected
 
 
+class TestGetDagImporter:
+    def test_returns_none_without_an_importer_class(self):
+        assert _StubSubprocessCoordinator(command=["x"]).get_dag_importer() is None
+
+    def test_builds_the_importer_class_for_the_coordinator(self):
+        importer_cls = MagicMock()
+        with patch.object(_StubSubprocessCoordinator, "get_dag_importer_class", return_value=importer_cls):
+            coordinator = _StubSubprocessCoordinator(command=["x"])
+            assert coordinator.get_dag_importer() is importer_cls.return_value
+        importer_cls.assert_called_once_with(coordinator=coordinator)
+
+
 class TestInitRootSource:
     """Execute-time root resolution, dispatched on the classified mode."""
 

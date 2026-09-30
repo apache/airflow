@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
@@ -373,7 +374,7 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
-def _get_dagbag_dag_details(dag: DAG) -> dict:
+def _get_dagbag_dag_details(dag: BaggedDAG) -> dict:
     """Return a dagbag dag details dict."""
     from airflow.serialization.encoders import coerce_to_core_timetable
 
@@ -599,7 +600,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag: DAG) -> dict:
+    def get_dag_detail(dag: BaggedDAG) -> dict:
         if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
             dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
         else:
@@ -608,7 +609,9 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
-    def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
+    def filter_dags_by_bundle(
+        dags: Iterable[BaggedDAG], bundle_names: list[str] | None
+    ) -> Iterable[BaggedDAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags

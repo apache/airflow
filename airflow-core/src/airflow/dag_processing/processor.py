@@ -74,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, register_request_method
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 from airflow.sdk.importers import DagSourceCode  # noqa: TC001
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -313,6 +314,8 @@ def _get_dag_with_task(
         )
 
     dag = dagbag.dags[dag_id]
+    if isinstance(dag, SerializedDAG):
+        raise ValueError(f"DAG '{dag_id}' is a native Lang-SDK Dag, whose callbacks do not run in Python.")
 
     if task_id is not None:
         try:
