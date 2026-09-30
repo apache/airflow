@@ -2191,6 +2191,12 @@ sdk:
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
 
+        The language SDK coordinators read their compiled task handlers from the
+        Dag bundle named by the ``task_handler_bundle_name`` kwarg. It must name a
+        bundle in ``[dag_processor] dag_bundle_config_list`` and is checked when
+        this option is loaded. When it is unset, a task reads its handlers from its
+        own Dag bundle.
+
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself
         does not receive; other components read it as needed. For example,
@@ -2205,7 +2211,7 @@ sdk:
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-              "jars_root": ["/opt/airflow/java-bundles"],
+              "task_handler_bundle_name": "java-task-handlers",
               "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
               "jvm_args": ["-Xmx1024m"]
             },
@@ -2218,7 +2224,7 @@ sdk:
           "go-sdk": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
             "kwargs": {
-              "executables_root": ["/opt/airflow/executable-bundles"]
+              "task_handler_bundle_name": "go-task-handlers"
             }
           }
         }

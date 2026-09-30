@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import pathlib
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
 from task_sdk.coordinators.node._bundle_test_utils import (
@@ -60,49 +59,21 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "ts") -> TaskInstance:
 
 class TestNodeCoordinatorAttributes:
     def test_default_kwargs(self):
-        coordinator = NodeCoordinator(bundles_root="/airflow/ts-bundles")
+        coordinator = NodeCoordinator()
 
         assert coordinator.node_executable == "node"
-        assert coordinator.bundles_root == [pathlib.Path("/airflow/ts-bundles")]
         assert coordinator.task_startup_timeout == 10.0
 
     def test_custom_kwargs(self):
         coordinator = NodeCoordinator(
             node_executable="/opt/node/bin/node",
-            bundles_root=["/airflow/ts-bundles", "~/extra-bundles"],
+            task_handler_bundle_name="ts-task-handlers",
             task_startup_timeout=30.0,
         )
 
         assert coordinator.node_executable == "/opt/node/bin/node"
-        assert coordinator.bundles_root == [
-            pathlib.Path("/airflow/ts-bundles"),
-            pathlib.Path("~/extra-bundles").expanduser(),
-        ]
+        assert coordinator.task_handler_bundle_name == "ts-task-handlers"
         assert coordinator.task_startup_timeout == 30.0
-
-    def test_bundles_root_optional_defaults_to_empty(self):
-        coordinator = NodeCoordinator()
-        assert coordinator.bundles_root == []
-        assert coordinator.dag_bundle_name is None
-
-    @pytest.mark.parametrize(
-        "bundles_root",
-        [None, [], "", "  ", [""]],
-        ids=["none", "empty-list", "empty-str", "blank-str", "list-of-empty-str"],
-    )
-    def test_explicit_empty_bundles_root_raises(self, bundles_root):
-        with pytest.raises(ValueError, match="and each path must be non-empty"):
-            NodeCoordinator(bundles_root=bundles_root)
-
-    def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
-        with pytest.raises(ValueError, match="at most one of 'bundles_root' or 'dag_bundle_name'"):
-            NodeCoordinator(bundles_root="/airflow/ts-bundles", dag_bundle_name="artifacts")
-
-    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
-    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
-        mock_manager.is_bundle_configured.return_value = False
-        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
-            NodeCoordinator(dag_bundle_name="ghost")
 
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
         bundle = write_bundle(tmp_path, "test_dag")
@@ -116,10 +87,7 @@ class TestNodeCoordinatorAttributes:
 class TestNodeCoordinatorExecuteTaskCommand:
     def test_selects_bundle_by_dag_id(self, tmp_path):
         selected = write_bundle(tmp_path, "sales")
-        coordinator = NodeCoordinator(
-            node_executable="/opt/node/bin/node",
-            bundles_root=tmp_path,
-        )
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
 
         with coordinator._set_scan_roots([tmp_path]):
             command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
@@ -129,10 +97,7 @@ class TestNodeCoordinatorExecuteTaskCommand:
 
     def test_build_execute_task_command_returns_node_bundle_and_schema_version(self, tmp_path):
         bundle = write_bundle(tmp_path, "test_dag")
-        coordinator = NodeCoordinator(
-            node_executable="/opt/node/bin/node",
-            bundles_root=tmp_path,
-        )
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
 
         with coordinator._set_scan_roots([tmp_path]):
             command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
