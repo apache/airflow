@@ -596,7 +596,7 @@ export type Breadcrumbs = {
 }[];
 export type Type76 = "TaskBreadcrumbsResult";
 export type TaskId10 = string;
-export type Binding = "positional" | "named" | "named_or_whole";
+export type Binding = "positional" | "named" | "named_or_whole" | "named_open";
 export type Name16 = string | null;
 export type Required = boolean;
 export type ExactName = boolean;
