@@ -324,8 +324,9 @@ agent SDK from AWS, and [Google ADK](https://google.github.io/adk-docs/), and ne
 in the workspace: Strands caps `mcp`, and ADK caps `opentelemetry` and `websockets`, below the versions
 `uv.lock` resolves. The regular test jobs therefore skip their adapter tests.
 
-This job installs both frameworks into the CI image and runs the Common AI tool tests
-(`providers/common/ai/tests/unit/common/ai/tools`). It runs on `main` only, when Common AI or
+This job runs once per framework, each installing its framework into the CI image and running the
+Common AI tool tests (`providers/common/ai/tests/unit/common/ai/tools`), so a breaking release of one
+framework does not hide the other's result. It runs on `main` only, on amd64, when Common AI or
 common.sql code, the Common AI dependencies or `uv.lock` change, or when the run tests everything.
 
 - Outside a canary run, every package in the image keeps its version and the frameworks' caps on them

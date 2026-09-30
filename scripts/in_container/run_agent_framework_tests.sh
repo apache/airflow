@@ -19,25 +19,37 @@
 # Runs the common.ai adapter tests for agent frameworks that cannot join the workspace lock.
 #
 # Strands Agents caps mcp, and Google ADK caps opentelemetry and websockets, below the versions
-# uv.lock resolves, so their adapter tests are skipped everywhere else in CI. This installs the
-# frameworks into the CI image and runs the tests of the framework-neutral tools and their adapters.
+# uv.lock resolves, so their adapter tests are skipped everywhere else in CI. This installs one
+# framework into the CI image and runs the tests of the framework-neutral tools and their adapters;
+# the other framework's tests skip themselves. One framework per invocation, so a bad release of
+# one cannot mask the other.
 #
 # By default every package already in the image is held at its installed version with uv's
 # --override, so the framework is tested against the same dependencies as the rest of Airflow and
 # its caps on them are overridden. With --framework-pins the framework's own requirements win
 # instead, which is the environment a user who installs it gets.
 #
-# The newest framework releases older than the repository's uv exclude-newer window is installed.
+# The newest framework release older than the repository's uv exclude-newer window is installed.
 set -euo pipefail
 
-FRAMEWORKS=("strands-agents" "google-adk")
 TEST_PATH="providers/common/ai/tests/unit/common/ai/tools"
 
+framework="${1:-}"
+case "${framework}" in
+    strands-agents) import_check="import strands" ;;
+    google-adk) import_check="import google.adk" ;;
+    *)
+        echo "Usage: $0 <strands-agents|google-adk> [--framework-pins]" >&2
+        exit 1
+        ;;
+esac
+FRAMEWORKS=("${framework}")
+
 framework_pins="false"
-if [[ ${1:-} == "--framework-pins" ]]; then
+if [[ ${2:-} == "--framework-pins" ]]; then
     framework_pins="true"
-elif [[ -n ${1:-} ]]; then
-    echo "Unknown argument: ${1}. The only option is --framework-pins." >&2
+elif [[ -n ${2:-} ]]; then
+    echo "Unknown argument: ${2}. The only option after the framework is --framework-pins." >&2
     exit 1
 fi
 
@@ -71,7 +83,7 @@ uv pip freeze | grep -iE '^(strands-agents|google-adk|mcp|opentelemetry-(api|sdk
 
 # The adapter tests skip themselves when their framework is missing, so a broken install would
 # otherwise pass as green.
-python -c "import strands, google.adk"
+python -c "${import_check}"
 
 # --skip-db-tests: the job runs with backend "none", which has no database to set up.
 pytest "${TEST_PATH}" --skip-db-tests -p no:cacheprovider --color=yes -ra

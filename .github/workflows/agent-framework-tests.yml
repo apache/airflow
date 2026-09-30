@@ -48,8 +48,17 @@ permissions:
 jobs:
   tests:
     timeout-minutes: 30
-    name: "Agent framework tests: ${{ inputs.canary-run == 'true' && 'framework pins' || 'image versions' }}"
+    name: >-
+      Agent framework tests: ${{ matrix.framework }}
+      (${{ inputs.canary-run == 'true' && 'framework pins' || 'image versions' }})
     runs-on: ${{ fromJSON(inputs.runners) }}
+    # amd64 only for now: ci-amd.yml and ci-arm.yml must stay in sync, so the platform gate lives here.
+    if: inputs.platform == 'linux/amd64'
+    strategy:
+      # One job per framework, so a breaking release of one does not hide the other's result.
+      fail-fast: false
+      matrix:
+        framework: [strands-agents, google-adk]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -76,4 +85,5 @@ jobs:
       - name: "Run the common.ai agent framework adapter tests"
         run: >
           breeze shell --backend none --skip-db-tests
-          "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh ${FRAMEWORK_PINS_FLAG}"
+          "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh
+          ${{ matrix.framework }} ${FRAMEWORK_PINS_FLAG}"
