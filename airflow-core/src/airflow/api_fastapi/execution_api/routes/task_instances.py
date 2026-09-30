@@ -911,8 +911,11 @@ def ti_skip_downstream(
     dag_id, run_id = row_result
     log.debug("Retrieved DAG and run info", dag_id=dag_id, run_id=run_id)
 
-    task_ids = [task if isinstance(task, tuple) else (task, -1) for task in tasks]
-    log.debug("Prepared task IDs for skipping", task_ids=task_ids)
+    # A bare task_id skips every TI of that task, so an already expanded mapped task
+    # (e.g. one mapped over a literal list) is skipped too, not only map_index -1.
+    task_ids = [task for task in tasks if isinstance(task, str)]
+    ti_keys = [task for task in tasks if isinstance(task, tuple)]
+    log.debug("Prepared task IDs for skipping", task_ids=task_ids, ti_keys=ti_keys)
 
     # Don't overwrite tasks that are already executing or finished.
     # See: https://github.com/apache/airflow/issues/59378
@@ -932,7 +935,7 @@ def ti_skip_downstream(
         .where(
             TI.dag_id == dag_id,
             TI.run_id == run_id,
-            tuple_(TI.task_id, TI.map_index).in_(task_ids),
+            or_(TI.task_id.in_(task_ids), tuple_(TI.task_id, TI.map_index).in_(ti_keys)),
             skippable_state_clause,
         )
         .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)

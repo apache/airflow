@@ -3157,6 +3157,43 @@ class TestTISkipDownstream:
         assert response.status_code == 204
         assert ti1.state == State.SKIPPED
 
+    @pytest.mark.parametrize(
+        ("tasks", "expected_skipped"),
+        [
+            pytest.param(["mapped"], {0, 1, 2}, id="task-id-skips-all-map-indexes"),
+            pytest.param([("mapped", 1)], {1}, id="ti-key-skips-one-map-index"),
+        ],
+    )
+    def test_ti_skip_downstream_expanded_mapped_task(
+        self, client, session, dag_maker, tasks, expected_skipped
+    ):
+        """A bare task_id skips an already expanded mapped task, not only map_index -1 (#55225)."""
+        with dag_maker("skip_downstream_mapped_dag", session=session):
+
+            @task
+            def mapped(x):
+                return x
+
+            EmptyOperator(task_id="t0") >> mapped.expand(x=[1, 2, 3])
+        dr = dag_maker.create_dagrun(run_id="run")
+        ti0 = dr.get_task_instance("t0")
+        ti0.set_state(State.SUCCESS)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti0.id}/skip-downstream",
+            json={"tasks": tasks},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        states = {
+            ti.map_index: ti.state
+            for ti in session.scalars(select(TaskInstance).where(TaskInstance.task_id == "mapped"))
+        }
+        assert {i for i, state in states.items() if state == State.SKIPPED} == expected_skipped
+        assert set(states) == {0, 1, 2}
+
 
 class TestTISkipDownstreamRaceCondition:
     """Regression tests for #59378: state guard in ti_skip_downstream()."""
