@@ -802,6 +802,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
+        # create_agent adds a MaskingCapability that masks every tool call. The toolset-level
+        # masking above stays because the durable cache sits below the capability hooks and must
+        # only ever store masked results.
         return self.llm_hook.create_agent(
             output_type=self._agent_output_type(),
             instructions=self.system_prompt,

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 
 import pytest
 from pydantic import BaseModel
@@ -68,6 +68,34 @@ class TestMaskSecrets:
 
         assert mask_secrets(Credentials("svc", registered_secret)) == Credentials("svc", "***")
         assert mask_secrets(TextContent(content=f"key={registered_secret}")) == TextContent(content="key=***")
+
+    def test_masks_a_dataclass_it_could_not_construct_again(self, registered_secret):
+        """An InitVar has no value to pass back in, and an init=False field is not an argument."""
+
+        @dataclass
+        class Report:
+            rows: list
+            source: InitVar[str]
+            label: str = field(init=False, default="")
+
+            def __post_init__(self, source: str) -> None:
+                self.label = f"from {source}"
+
+        report = Report([registered_secret], source=registered_secret)
+
+        masked = mask_secrets(report)
+
+        assert type(masked) is Report
+        assert masked.rows == ["***"]
+        assert masked.label == "from ***"
+        assert report.rows == [registered_secret]
+
+    def test_masks_a_slotted_dataclass(self, registered_secret):
+        @dataclass(slots=True)
+        class Row:
+            value: str
+
+        assert mask_secrets(Row(registered_secret)) == Row("***")
 
     def test_masks_bytes_as_text(self, registered_secret):
         assert mask_secrets(f"key={registered_secret}".encode()) == b"key=***"
