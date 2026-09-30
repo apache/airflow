@@ -18,19 +18,19 @@
 
 # Runs the common.ai adapter tests for agent frameworks that cannot join the workspace lock.
 #
-# Strands Agents caps mcp below the version uv.lock resolves, so its adapter tests are skipped
-# everywhere else in CI. This installs the framework into the CI image and runs the tests of the
-# framework-neutral tools and their adapters.
+# Strands Agents caps mcp, and Google ADK caps opentelemetry and websockets, below the versions
+# uv.lock resolves, so their adapter tests are skipped everywhere else in CI. This installs the
+# frameworks into the CI image and runs the tests of the framework-neutral tools and their adapters.
 #
 # By default every package already in the image is held at its installed version with uv's
 # --override, so the framework is tested against the same dependencies as the rest of Airflow and
 # its caps on them are overridden. With --framework-pins the framework's own requirements win
 # instead, which is the environment a user who installs it gets.
 #
-# The newest framework release older than the repository's uv exclude-newer window is installed.
+# The newest framework releases older than the repository's uv exclude-newer window is installed.
 set -euo pipefail
 
-FRAMEWORKS=("strands-agents")
+FRAMEWORKS=("strands-agents" "google-adk")
 TEST_PATH="providers/common/ai/tests/unit/common/ai/tools"
 
 framework_pins="false"
@@ -67,11 +67,11 @@ else
     fi
 fi
 
-uv pip freeze | grep -iE '^(strands-agents|mcp|opentelemetry-(api|sdk))=='
+uv pip freeze | grep -iE '^(strands-agents|google-adk|mcp|opentelemetry-(api|sdk)|websockets|google-genai)=='
 
 # The adapter tests skip themselves when their framework is missing, so a broken install would
 # otherwise pass as green.
-python -c "import strands"
+python -c "import strands, google.adk"
 
 # --skip-db-tests: the job runs with backend "none", which has no database to set up.
 pytest "${TEST_PATH}" --skip-db-tests -p no:cacheprovider --color=yes -ra

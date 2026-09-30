@@ -319,21 +319,22 @@ The [Common AI provider](../../../../providers/common/ai/docs/index.rst) lets an
 another framework use Airflow's toolsets, through small adapters in
 [`airflow.providers.common.ai.tools`](../../../../providers/common/ai/src/airflow/providers/common/ai/tools).
 The adapter tests import the framework they adapt, so they only run where that framework is
-installed. Today that is one framework, [Strands Agents](https://strandsagents.com/), an open-source
-agent SDK from AWS, and it cannot be installed in the workspace: it caps `mcp` below the version
-`uv.lock` resolves. The regular test jobs therefore skip its adapter tests.
+installed. Today that is two frameworks, [Strands Agents](https://strandsagents.com/), an open-source
+agent SDK from AWS, and [Google ADK](https://google.github.io/adk-docs/), and neither can be installed
+in the workspace: Strands caps `mcp`, and ADK caps `opentelemetry` and `websockets`, below the versions
+`uv.lock` resolves. The regular test jobs therefore skip their adapter tests.
 
-This job installs Strands into the CI image and runs the Common AI tool tests
+This job installs both frameworks into the CI image and runs the Common AI tool tests
 (`providers/common/ai/tests/unit/common/ai/tools`). It runs on `main` only, when Common AI or
 common.sql code, the Common AI dependencies or `uv.lock` change, or when the run tests everything.
 
-- Outside a canary run, every package in the image keeps its version and Strands' caps on them are
-  overridden, so the adapter is tested against the same dependencies as the rest of Airflow.
-- On a canary run, Strands' own dependency pins win, which is the environment a user who installs
-  it gets.
+- Outside a canary run, every package in the image keeps its version and the frameworks' caps on them
+  are overridden, so the adapters are tested against the same dependencies as the rest of Airflow.
+- On a canary run, the frameworks' own dependency pins win, which is the environment a user who
+  installs them gets.
 
-Both install the newest Strands release older than the repository's uv `exclude-newer` window, so a
-release that breaks the adapter fails this job about that long after it ships. The job is not a
+Both install the newest framework releases older than the repository's uv `exclude-newer` window, so a
+release that breaks an adapter fails this job about that long after it ships. The job is not a
 dependency of **Finalize Tests**, so such a release does not stop the image cache from being pushed.
 
 ## Runners
