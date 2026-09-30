@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import call, patch
 
+import attrs
 import pandas as pd
 import pytest
 import structlog
@@ -78,6 +79,8 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
+from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
@@ -176,6 +179,7 @@ from airflow.sdk.execution_time.task_runner import (
     TaskRunnerMarker,
     _defer_task,
     _execute_task,
+    _is_lang_sdk_dag_file,
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
@@ -189,6 +193,7 @@ from airflow.sdk.execution_time.task_runner import (
     startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.importers import DagSourceCode, reset_importer_registry
 from airflow.sdk.serde import deserialize
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.callback import CallbackTrigger
@@ -900,6 +905,93 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         ti = parse(what, mock.Mock())
 
     assert ti.task.dag.dag_id == "dag_name"
+
+
+class NativeDagImporter(CoordinatorDagImporter):
+    artifact_suffix = ".native"
+    supported_extensions = [".native"]
+
+    def get_source_code(self, definition):
+        return DagSourceCode(source_code=definition.read_text(), language="native")
+
+
+@attrs.define(kw_only=True)
+class NativeCoordinator(SubprocessCoordinator):
+    """A coordinator whose Dag importer claims ``.native`` files in every bundle."""
+
+    def get_dag_importer(self):
+        return NativeDagImporter(coordinator=self)
+
+
+@patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
+def test_parse_rejects_a_task_of_a_native_dag(mock_bag, tmp_path: Path, make_ti_context):
+    tmp_path.joinpath("dag.native").write_text("{}")
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="native_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="dag.native",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    bundle_config = [
+        {
+            "name": "my-bundle",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(tmp_path), "refresh_interval": 1},
+        }
+    ]
+    coordinators = {"native": {"classpath": f"{__name__}.NativeCoordinator", "kwargs": {}}}
+    log = mock.Mock()
+
+    reset_importer_registry()
+    try:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(bundle_config),
+                    "AIRFLOW__SDK__COORDINATORS": json.dumps(coordinators),
+                },
+            ),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            parse(what, log)
+    finally:
+        reset_importer_registry()
+
+    mock_bag.assert_not_called()
+    log.error.assert_called_once_with(
+        "A task of a native Lang-SDK Dag cannot run in Python. Route its queue to the coordinator "
+        "that parses the Dag, with [sdk] queue_to_coordinator",
+        dag_id="native_dag",
+        task_id="a",
+        queue="default",
+        path="dag.native",
+    )
+
+
+@pytest.mark.parametrize(
+    ("file_name", "expected"),
+    [("dag.native", True), ("dag.py", False), ("dag.pyc", False), ("dags.zip", False)],
+)
+def test_is_lang_sdk_dag_file(file_name, expected):
+    coordinators = {"native": {"classpath": f"{__name__}.NativeCoordinator", "kwargs": {}}}
+
+    reset_importer_registry()
+    try:
+        with patch.dict(os.environ, {"AIRFLOW__SDK__COORDINATORS": json.dumps(coordinators)}):
+            assert _is_lang_sdk_dag_file(f"/bundle/{file_name}", "my-bundle") is expected
+    finally:
+        reset_importer_registry()
 
 
 @pytest.mark.parametrize("use_queues", [False, True])
