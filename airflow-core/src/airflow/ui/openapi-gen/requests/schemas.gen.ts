@@ -3266,6 +3266,11 @@ export const $DAGDetailsResponse = {
             type: 'array',
             title: 'Owners'
         },
+        is_favorite: {
+            type: 'boolean',
+            title: 'Is Favorite',
+            default: false
+        },
         catchup: {
             type: 'boolean',
             title: 'Catchup'
@@ -3444,11 +3449,6 @@ export const $DAGDetailsResponse = {
                 }
             ],
             title: 'Owner Links'
-        },
-        is_favorite: {
-            type: 'boolean',
-            title: 'Is Favorite',
-            default: false
         },
         active_runs_count: {
             type: 'integer',
@@ -3780,6 +3780,11 @@ export const $DAGResponse = {
             },
             type: 'array',
             title: 'Owners'
+        },
+        is_favorite: {
+            type: 'boolean',
+            title: 'Is Favorite',
+            default: false
         },
         is_backfillable: {
             type: 'boolean',
@@ -10454,6 +10459,10 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Owners'
         },
+        is_favorite: {
+            type: 'boolean',
+            title: 'Is Favorite'
+        },
         asset_expression: {
             anyOf: [
                 {
@@ -10499,10 +10508,6 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Pending Actions'
         },
-        is_favorite: {
-            type: 'boolean',
-            title: 'Is Favorite'
-        },
         team_name: {
             anyOf: [
                 {
@@ -10528,7 +10533,7 @@ export const $DAGWithLatestDagRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'has_unfinished_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'is_favorite', 'asset_expression', 'latest_dag_runs', 'has_unfinished_runs', 'pending_actions', 'is_backfillable', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
 } as const;

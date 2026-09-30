@@ -666,7 +666,7 @@ class TestGetDags(TestDagEndpoint):
         if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
             self._create_asset_test_data(session)
 
-        with assert_queries_count(4):
+        with assert_queries_count(5 if expected_ids else 4):
             response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
@@ -716,7 +716,7 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_with_nullable_fields(
         self, test_client, query_params, expected_total_entries, expected_ids, session
     ):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
@@ -865,6 +865,19 @@ class TestGetDags(TestDagEndpoint):
             f"Added 3 DAGs but query count increased by {second_query_count - first_query_count} "
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
+
+    def test_get_dags_marks_favorites_for_current_user(self, test_client, session):
+        session.execute(insert(DagFavorite).values(dag_id=DAG1_ID, user_id="test"))
+        session.execute(insert(DagFavorite).values(dag_id=DAG2_ID, user_id="someone_else"))
+        session.commit()
+
+        response = test_client.get("/dags")
+
+        assert response.status_code == 200
+        assert {dag["dag_id"]: dag["is_favorite"] for dag in response.json()["dags"]} == {
+            DAG1_ID: True,
+            DAG2_ID: False,
+        }
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -1015,6 +1028,15 @@ class TestPatchDag(TestDagEndpoint):
         check_last_log(
             session, dag_id=DAG1_ID, event="patch_dag", logical_date=None, expected_extra=expected_extra
         )
+
+    def test_patch_dag_returns_is_favorite(self, test_client, session):
+        session.execute(insert(DagFavorite).values(dag_id=DAG1_ID, user_id="test"))
+        session.commit()
+
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
+
+        assert response.status_code == 200
+        assert response.json()["is_favorite"] is True
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -1186,6 +1208,18 @@ class TestPatchDags(TestDagEndpoint):
     def test_patch_dags_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 403
+
+    def test_patch_dags_returns_is_favorite(self, test_client, session):
+        session.execute(insert(DagFavorite).values(dag_id=DAG1_ID, user_id="test"))
+        session.commit()
+
+        response = test_client.patch("/dags", json={"is_paused": True}, params={"dag_id_pattern": "~"})
+
+        assert response.status_code == 200
+        assert {dag["dag_id"]: dag["is_favorite"] for dag in response.json()["dags"]} == {
+            DAG1_ID: True,
+            DAG2_ID: False,
+        }
 
 
 class TestBulkDags(TestDagEndpoint):
@@ -1796,6 +1830,7 @@ class TestGetDag(TestDagEndpoint):
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
             "is_backfillable": False,
+            "is_favorite": False,
             "is_paused": False,
             "is_stale": False,
             "last_expired": None,
@@ -1853,6 +1888,15 @@ class TestGetDag(TestDagEndpoint):
     def test_get_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 403
+
+    def test_get_dag_returns_is_favorite(self, test_client, session):
+        session.execute(insert(DagFavorite).values(dag_id=DAG1_ID, user_id="test"))
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG1_ID}")
+
+        assert response.status_code == 200
+        assert response.json()["is_favorite"] is True
 
 
 class TestDagWithoutFileloc(TestDagEndpoint):

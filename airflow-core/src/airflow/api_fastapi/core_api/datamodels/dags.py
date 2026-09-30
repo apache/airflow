@@ -112,6 +112,7 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: datetime | None
     allowed_run_types: list[DagRunType] | None
     owners: list[str]
+    is_favorite: bool = False
 
     @field_serializer("tags")
     def serialize_tags(self, tags: list[DagTagResponse]) -> list[DagTagResponse]:
@@ -225,7 +226,6 @@ class DAGDetailsResponse(DAGResponse):
     default_args: Mapping | None
     rerun_with_latest_version: bool | None = None
     owner_links: dict[str, str] | None = None
-    is_favorite: bool = False
     active_runs_count: int = 0
     team_name: str | None = None
 

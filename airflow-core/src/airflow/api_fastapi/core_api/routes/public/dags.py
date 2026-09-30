@@ -17,7 +17,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -84,7 +85,30 @@ from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
+
+
+def _mark_favorites(dags: Iterable[DagModel], user: BaseUser, *, session: Session) -> list[DagModel]:
+    """Set ``is_favorite`` on each Dag for the requesting user, with one query."""
+    dags = list(dags)
+    if not dags:
+        return dags
+    favorite_dag_ids = set(
+        session.scalars(
+            select(DagFavorite.dag_id).where(
+                DagFavorite.user_id == str(user.get_id()),
+                DagFavorite.dag_id.in_([dag.dag_id for dag in dags]),
+            )
+        )
+    )
+    for dag in dags:
+        setattr(dag, "is_favorite", dag.dag_id in favorite_dag_ids)
+    return dags
 
 
 @dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
@@ -136,6 +160,7 @@ def get_dags(
     ],
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
+    user: GetUserDep,
     is_favorite: QueryFavoriteFilter,
     timetable_type: Annotated[
         FilterParam[list[str] | None],
@@ -190,7 +215,7 @@ def get_dags(
         session=session,
     )
 
-    dags = session.scalars(dags_select)
+    dags = _mark_favorites(session.scalars(dags_select), user, session=session)
 
     return DAGCollectionResponse(
         dags=dags,
@@ -213,6 +238,7 @@ def get_dag(
     dag_id: str,
     session: SessionDep,
     dag_bag: DagBagDep,
+    user: GetUserDep,
 ) -> DAGResponse:
     """Get basic information about a Dag."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -224,6 +250,7 @@ def get_dag(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
+    _mark_favorites([dag_model], user, session=session)
     return dag_model
 
 
@@ -301,6 +328,7 @@ def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
     session: SessionDep,
+    user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGResponse:
     """Patch the specific Dag."""
@@ -335,6 +363,7 @@ def patch_dag(
 
     dag.set_scheduling_state(get_scheduling_state(patch_body))
 
+    _mark_favorites([dag], user, session=session)
     return dag
 
 
@@ -360,6 +389,7 @@ def patch_dags(
     paused: QueryPausedFilter,
     editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
+    user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
     """
@@ -401,7 +431,7 @@ def patch_dags(
         limit=limit,
         session=session,
     )
-    dags = session.scalars(dags_select).all()
+    dags = _mark_favorites(session.scalars(dags_select), user, session=session)
 
     filtered_dag_ids = apply_filters_to_select(
         statement=select(DagModel.dag_id),

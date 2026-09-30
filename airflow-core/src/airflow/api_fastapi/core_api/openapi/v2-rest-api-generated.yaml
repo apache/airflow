@@ -13561,6 +13561,10 @@ components:
             type: string
           type: array
           title: Owners
+        is_favorite:
+          type: boolean
+          title: Is Favorite
+          default: false
         catchup:
           type: boolean
           title: Catchup
@@ -13647,10 +13651,6 @@ components:
             type: object
           - type: 'null'
           title: Owner Links
-        is_favorite:
-          type: boolean
-          title: Is Favorite
-          default: false
         active_runs_count:
           type: integer
           title: Active Runs Count
@@ -13882,6 +13882,10 @@ components:
             type: string
           type: array
           title: Owners
+        is_favorite:
+          type: boolean
+          title: Is Favorite
+          default: false
         is_backfillable:
           type: boolean
           title: Is Backfillable

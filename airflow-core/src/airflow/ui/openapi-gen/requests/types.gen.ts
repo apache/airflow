@@ -945,6 +945,7 @@ export type DAGDetailsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
+    is_favorite?: boolean;
     catchup: boolean;
     dag_run_timeout: string | null;
     asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
@@ -966,7 +967,6 @@ export type DAGDetailsResponse = {
     owner_links?: {
     [key: string]: (string);
 } | null;
-    is_favorite?: boolean;
     active_runs_count?: number;
     team_name?: string | null;
     /**
@@ -1031,6 +1031,7 @@ export type DAGResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
+    is_favorite?: boolean;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -2653,11 +2654,11 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
+    is_favorite: boolean;
     asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
     has_unfinished_runs: boolean;
     pending_actions: Array<HITLDetail>;
-    is_favorite: boolean;
     team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.

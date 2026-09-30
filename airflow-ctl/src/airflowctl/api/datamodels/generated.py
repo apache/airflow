@@ -2073,6 +2073,7 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")]
     allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")]
     owners: Annotated[list[str], Field(title="Owners")]
+    is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
@@ -3000,6 +3001,7 @@ class DAGDetailsResponse(BaseModel):
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")]
     allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")]
     owners: Annotated[list[str], Field(title="Owners")]
+    is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     catchup: Annotated[bool, Field(title="Catchup")]
     dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")]
     asset_expression: Annotated[
@@ -3023,7 +3025,6 @@ class DAGDetailsResponse(BaseModel):
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")]
     rerun_with_latest_version: Annotated[bool | None, Field(title="Rerun With Latest Version")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
-    is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     team_name: Annotated[str | None, Field(title="Team Name")] = None
     is_backfillable: Annotated[

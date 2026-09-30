@@ -3283,6 +3283,9 @@ components:
             type: string
           type: array
           title: Owners
+        is_favorite:
+          type: boolean
+          title: Is Favorite
         asset_expression:
           anyOf:
           - oneOf:
@@ -3306,9 +3309,6 @@ components:
             $ref: '#/components/schemas/HITLDetail'
           type: array
           title: Pending Actions
-        is_favorite:
-          type: boolean
-          title: Is Favorite
         team_name:
           anyOf:
           - type: string
@@ -3354,11 +3354,11 @@ components:
       - next_dagrun_run_after
       - allowed_run_types
       - owners
+      - is_favorite
       - asset_expression
       - latest_dag_runs
       - has_unfinished_runs
       - pending_actions
-      - is_favorite
       - is_backfillable
       - file_token
       title: DAGWithLatestDagRunsResponse
