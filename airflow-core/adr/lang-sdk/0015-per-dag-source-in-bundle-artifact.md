@@ -50,20 +50,20 @@ Dag.
 
 ## Decision
 
-### 1. Store each Dag-defining file, attributed per Dag, best effort
+### 1. Store each Dag's source file, best effort
 
 The packer records, per native Dag, the source file the Dag was declared in, and embeds that file
 verbatim. The mapping is metadata (`dag_source_paths: {dag_id: path}` in the TypeScript bundle); the
 files are embedded regions alongside the compiled artifact.
 
-Attribution is **best effort**, and it covers the shapes authors actually use. A `new Dag(...)` at a
-module's top level — directly, in a `for` loop, or in a factory the module calls while it evaluates
-(before or after an `await`) — is recorded against the file whose module body was running when it was
-constructed. Dynamically generated Dags are therefore attributed like any other and are fully
-supported. The one shape it cannot attribute is a Dag constructed *after* its module has finished
-evaluating — from a detached callback such as `setTimeout` or a floating `.then` — which has no entry
-and is handled by the fallback below rather than by guessing. That pattern is non-idiomatic for a Dag
-file.
+Resolving a Dag's source file is **best effort**, and it covers the shapes authors actually use. A
+`new Dag(...)` at a module's top level — directly, in a `for` loop, or in a factory the module calls
+while it evaluates (before or after an `await`) — is recorded against the file whose module body was
+running when it was constructed. Dynamically generated Dags are therefore resolved like any other and
+are fully supported. The one shape it cannot resolve is a Dag constructed *after* its module has
+finished evaluating — from a detached callback such as `setTimeout` or a floating `.then` — which has
+no entry and is handled by the fallback below rather than by guessing. That pattern is non-idiomatic
+for a Dag file.
 
 ### 2. De-duplicate by path
 
@@ -76,49 +76,47 @@ preserve: a bundle with twenty Dags in two files embeds two files, not twenty.
 
 The entry file passed to the packer is **always** embedded and named (`entrypoint_path` in the
 TypeScript metadata), whether or not it declares a Dag. It is the fallback source: a reader asked for
-a native Dag that has no attributed file of its own returns the entrypoint rather than nothing, so a
+a native Dag with no resolved source file of its own returns the entrypoint rather than nothing, so a
 Dag the packer could not tie to a file still shows the file that assembles the bundle. This restores
 the guarantee the single-source format ([ADR-0003](0003-pure-java-dags.md)) gave — there is always *a*
-source — without giving up per-Dag attribution for the Dags that have it (which is the common case,
+source — without giving up the per-Dag source file for the Dags that have one (the common case,
 generated Dags included).
 
-### 4. Mixed-language Dags carry no Lang-SDK source
+### 4. Mixed-language Tasks carry no Lang-SDK source
 
-A Dag the bundle only supplies task handlers for is owned by Python, which owns its Code tab
-([ADR-0006](0006-no-lang-sdk-source-display.md)). The bundle stores no source for it, and a reader
-returns nothing — never the entrypoint — so the caller shows the Python file. The reader distinguishes
-the two by whether the caller asks for a specific Dag's source at all: a native Dag is looked up (and
-falls back to the entrypoint), a Python-owned Dag is not looked up and yields nothing.
+A task the bundle only supplies a handler for belongs to a Dag owned by Python, which owns its Code
+tab ([ADR-0006](0006-no-lang-sdk-source-display.md)). The bundle stores no source for it, and a reader
+returns nothing — never the entrypoint — so the caller shows the Python file.
 
 ### 5. Every Lang SDK follows this
 
 TypeScript is the reference ([#73723](https://github.com/apache/airflow/pull/73723)). The Go and Java
-packers adopt the same shape — per-Dag source attribution, de-duplication by path, and an
+packers adopt the same shape — per-Dag source resolution, de-duplication by path, and an
 always-embedded entrypoint fallback — so a bundle reader treats every language the same way and the
 Code tab behaves identically regardless of which SDK produced the artifact.
 
-## What a reader returns, per Dag
+## What a reader returns
 
-| the Dag is… | reader returns |
+| the Task is… | reader returns |
 |---|---|
-| native, with an attributed file (the common case — includes loop/factory-generated Dags) | that file's source |
-| native, but the packer could not attribute a file (a detached-callback construction) | the entrypoint source (fallback) |
-| mixed-language (Python-owned) | nothing — Python owns the Code tab |
+| in a native Dag (the common case — includes loop/factory-generated Dags) | that Dag's source file |
+| in a native Dag the packer could not resolve a source file for (a detached-callback construction) | the entrypoint source (fallback) |
+| mixed-language — its Dag is Python-owned | nothing — Python owns the Code tab |
 
 ## Consequences
 
 - A native bundle's Code tab shows the file each Dag was actually declared in, not the entry file for
   all of them, and a bundle with many Dags in few files stays small (dedup).
-- Every Lang-SDK packer grows a source-attribution and de-duplication step, and the coordinator /
+- Every Lang-SDK packer grows a source-resolution and de-duplication step, and the coordinator /
   `DagImporter` reader grows a per-Dag lookup with an entrypoint fallback. The behaviour is uniform
   across languages, so the core side that eventually surfaces it (`get_source_code` →
   `DagCode` → the Code tab, deferred to [ADR-0010](0010-native-dag-processing.md)'s open question and
   future work) sees one contract.
-- Generated Dags (built in a loop or a factory during module evaluation) are attributed to their
-  generator file like any other Dag — they are fully supported, not a fallback case. Attribution
-  being best effort only bites a Dag built in a detached callback after its module finished, which
-  then shows the entrypoint — a real file in the bundle rather than a wrong one. This mirrors the
-  source view already being best effort for Python factory-function Dags
+- Generated Dags (built in a loop or a factory during module evaluation) are resolved to their
+  generator file like any other Dag — they are fully supported, not a fallback case. Best-effort
+  resolution only bites a Dag built in a detached callback after its module finished, which then
+  shows the entrypoint — a real file in the bundle rather than a wrong one. This mirrors the source
+  view already being best effort for Python factory-function Dags
   ([ADR-0006](0006-no-lang-sdk-source-display.md), "Why Not" #3).
 
 ## References
