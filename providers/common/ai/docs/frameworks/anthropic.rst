@@ -24,7 +24,7 @@ If your agent is a loop on the Anthropic Python SDK's
 ``client.beta.messages.tool_runner``, you can run it in an Airflow task as it is and
 give it the toolsets this provider ships.
 :class:`~airflow.providers.common.ai.tools.anthropic.AirflowTools` turns
-``SQLToolset``, ``HookToolset`` and the other toolsets into tools the runner accepts.
+``SQLToolset``, ``HookToolset`` and most other toolsets into tools the runner accepts.
 If you have no loop yet, ``AgentOperator`` runs one for you, with durable replay and
 human review; see :doc:`index`.
 
@@ -45,8 +45,8 @@ if you route through one, come from an Airflow connection:
     :start-after: [START example_anthropic_tool_runner]
     :end-before: [END example_anthropic_tool_runner]
 
-Against a SQLite database with one table, ``orders``, the model called two tools. The
-task log records each call, and the task returns the model's answer:
+Against a SQLite database with one table, ``orders``, the model called two tools. Here
+are the task log's tool-call lines, timestamps trimmed, and the value the task returned:
 
 .. code-block:: text
 
@@ -63,9 +63,11 @@ task log records each call, and the task returns the model's answer:
 Only ``AirflowTools`` and ``tools.run(runner)`` come from Airflow. The system prompt,
 model parameters and ``max_iterations`` are the runner's own, and so are tools you
 write with the SDK's ``@beta_tool`` decorator; pass those alongside Airflow's, as
-``tools=[*tools.tools, my_tool]``.
+``tools=[*tools.tools, my_tool]``. ``tools.run`` fails the task only for Airflow's tools:
+the runner still hands an exception from one of your own tools to the model.
 
-To reach Claude on Amazon Bedrock, Google Vertex AI or Microsoft Foundry, build the
+To reach Claude on Amazon Bedrock, Claude Platform on AWS, Google Vertex AI or Microsoft
+Foundry, build the
 client with ``AnthropicHook(conn_id=...).get_conn()`` from the Anthropic provider
 instead. It reads the platform, region and credentials from an Anthropic connection,
 and every client it returns has the same ``tool_runner``.
@@ -84,8 +86,8 @@ exception; give the runner the MCP server through the SDK instead. Each tool:
   :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
 - Passes its result through Airflow's secret masker before the model sees it. A
   connection password that turns up in a query result reaches the model as ``***``.
-- Writes a ``Tool call: <name>`` group to the task log, and counts the call in the
-  ``common_ai.tool_calls`` metric with ``framework=anthropic`` (see
+- Writes a ``Tool call: <name>`` group to the task log. Calls to a toolset are also
+  counted in the ``common_ai.tool_calls`` metric with ``framework=anthropic`` (see
   :doc:`../observability`).
 
 When a tool fails
@@ -105,16 +107,19 @@ the toolset did not allow:
       "is_error": true
     }
 
-It then listed the tables, found ``orders``, and answered from it. The toolset's retry
-limit caps how many turns in a row a tool may fail this way. Each model turn counts
-once, however many of its calls failed. ``SQLToolset`` treats every database error as
-correctable, so a query rejected because the connection's credentials are wrong ends
-the run only once that limit is spent.
+It then listed the tables, found ``orders``, and answered from it. ``SQLToolset``,
+``HookToolset`` and ``ObjectStorageToolset`` allow one correction: a tool that fails in
+two model turns in a row ends the run with
+``ToolCallError: query kept failing after 1 correction(s): ...``. Each turn counts once,
+however many of its calls failed. ``SQLToolset`` treats every database error as
+correctable, so a query rejected because the connection's credentials are wrong ends the
+run on its second failure.
 
 Any other failure, such as a hook raising, ends the run. ``tools.run`` raises
 :class:`~airflow.providers.common.ai.tools.ToolCallError` before the next model
-request, the task fails, and Airflow's own retry takes over. The message has already
-been through the secret masker:
+request, the task fails, and Airflow's own retry takes over. Here is the error from a
+run where a tool's call to a billing API raised; the masker has already replaced the
+token in the message:
 
 .. code-block:: text
 
@@ -133,21 +138,30 @@ task can succeed with an answer written around the failure:
     message = runner.until_done()  # a failing hook becomes text the model reads
     message = tools.run(runner)  # a failing hook fails the task
 
-The tools log a warning when a failure goes to the model this way. ``tools.run`` runs
-each turn's tool calls itself, which is also how the retry limit knows where one model
-turn ends. If one call in a turn fails, the turn's remaining calls do not run, so a
-tool that writes is not left half-applied by a run that is already failing. It takes the runner that
-``client.beta.messages.tool_runner`` returns; the streaming runner, returned when you
-pass ``stream=True``, is not supported.
+Airflow's tools log a warning when a failure goes to the model this way.
+
+``tools.run`` runs each turn's tool calls itself, which is also how the retry limit
+knows where one model turn ends. When a call fails in a way that ends the run, the
+turn's later calls are not run; the calls before it already have.
+
+``tools.run`` takes the runner that ``client.beta.messages.tool_runner`` returns. It
+does not support the streaming runner you get with ``stream=True``: a type checker
+rejects the call, and at run time it fails with an ``AttributeError`` after the first
+model request, before any tool runs.
 
 Async clients
 -------------
 
 For an ``AsyncAnthropic`` client, use
 :class:`~airflow.providers.common.ai.tools.anthropic.AsyncAirflowTools` and await
-``run``:
+``run``, inside an ``async def`` task or any other coroutine:
 
 .. code-block:: python
+
+    from anthropic import AsyncAnthropic
+
+    from airflow.providers.common.ai.tools.anthropic import AsyncAirflowTools
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
     client = AsyncAnthropic()
     tools = AsyncAirflowTools(SQLToolset(db_conn_id="warehouse"))
@@ -155,7 +169,7 @@ For an ``AsyncAnthropic`` client, use
         model="claude-opus-5-5",
         max_tokens=16000,
         tools=tools.tools,
-        messages=[{"role": "user", "content": question}],
+        messages=[{"role": "user", "content": "Which tables exist?"}],
     )
     message = await tools.run(runner)
 
@@ -174,6 +188,8 @@ apply:
 
 Installation
 ------------
+
+Install this provider with its ``anthropic`` extra:
 
 .. code-block:: bash
 
