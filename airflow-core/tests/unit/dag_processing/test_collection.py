@@ -2318,7 +2318,7 @@ class TestRecordProbedTaskHandlerArtifacts:
 
     def test_artifact_recorded_by_a_concurrent_parse(self, session):
         """Two Dag processors probe one new artifact; the second upsert must update, not fail."""
-        with create_session() as other:
+        with create_session(scoped=False) as other:
             _record(other, "etl.jar")
             other_id = other.scalar(select(LangSDKTaskHandlerArtifact.id))
 

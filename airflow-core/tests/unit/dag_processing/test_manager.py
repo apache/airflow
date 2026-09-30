@@ -45,6 +45,7 @@ from sqlalchemy import delete, event, func, select
 from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
@@ -4711,7 +4712,7 @@ class TestTaskHandlerArtifactSweep:
         assert manager._last_task_handler_artifact_sweep_time > 0
 
     @mock.patch("airflow.dag_processing.manager._TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE", 2)
-    def test_delete_unreferenced_task_handler_artifacts_commits_each_batch(self, session):
+    def test_delete_unreferenced_task_handler_artifacts_commits_each_batch(self):
         self._add_artifacts(
             "a.jar",
             "b.jar",
@@ -4731,7 +4732,7 @@ class TestTaskHandlerArtifactSweep:
         def on_commit(conn):
             events.append("COMMIT")
 
-        bind = session.get_bind()
+        bind = settings.engine
         event.listen(bind, "before_cursor_execute", on_execute)
         event.listen(bind, "commit", on_commit)
         try:
@@ -4797,7 +4798,7 @@ class TestTaskHandlerArtifactSweep:
     def test_task_handler_artifact_sweep_skips_rows_a_parse_holds(self):
         self._add_artifacts("held.jar", "free.jar", probed_at=timezone.utcnow() - timedelta(days=1))
 
-        with create_session() as parse:
+        with create_session(scoped=False) as parse:
             _find_task_handler_artifacts(
                 [(JAVA_TASK_HANDLERS, compute_fileloc_hash("held.jar"))], session=parse
             )
