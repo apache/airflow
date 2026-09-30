@@ -25,6 +25,7 @@ from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -71,7 +72,7 @@ class TestAgentDecoratedOperator:
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
         mock_agent.run_sync.assert_called_once_with(
-            "Who is our top customer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY
+            "Who is our top customer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @pytest.mark.parametrize(
@@ -107,7 +108,7 @@ class TestAgentDecoratedOperator:
 
         assert op.prompt == prompt
         mock_agent.run_sync.assert_called_once_with(
-            prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY
+            prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -152,7 +153,7 @@ class TestAgentDecoratedOperator:
 
         assert op.prompt == "Analyze revenue trends"
         mock_agent.run_sync.assert_called_once_with(
-            "Analyze revenue trends", usage_limits=None, run_id="ti-1", cancellation_token=ANY
+            "Analyze revenue trends", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -176,7 +177,7 @@ class TestAgentDecoratedOperator:
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert passed_toolsets[0].wrapped is toolset
+        assert passed_toolsets[0].wrapped == MaskingToolset(wrapped=toolset)
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
