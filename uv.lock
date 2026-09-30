@@ -6240,12 +6240,16 @@ dependencies = [
 srv = [
     { name = "dnspython" },
 ]
+standard = [
+    { name = "apache-airflow-providers-standard" },
+]
 
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -6257,6 +6261,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-standard", marker = "extra == 'standard'", editable = "providers/standard" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "dnspython", marker = "extra == 'srv'", specifier = ">=2.0.0" },
@@ -6264,13 +6269,14 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "requests-toolbelt", specifier = ">=1.0.0" },
 ]
-provides-extras = ["srv"]
+provides-extras = ["srv", "standard"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]

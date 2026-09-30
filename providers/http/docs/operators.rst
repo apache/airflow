@@ -44,6 +44,42 @@ This sensor can also be used in deferrable mode
     :start-after: [START howto_operator_http_http_sensor_check_deferrable]
     :end-before: [END howto_operator_http_http_sensor_check_deferrable]
 
+.. _howto/operator:HttpExternalTaskSensor:
+
+HttpExternalTaskSensor
+----------------------
+
+Use the :class:`~airflow.providers.http.sensors.external_task.HttpExternalTaskSensor` to wait for a Dag,
+task group, or task of a *remote* Airflow deployment. It accepts the same parameters and behaves the same
+as :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor`, but queries the REST API
+(v2) of the remote deployment instead of the local Airflow deployment. Both deployments need to run
+Airflow 3, and waiting for a task group requires Airflow 3.2 or later on the remote deployment.
+The sensor requires the ``standard`` extra (``apache-airflow-providers-http[standard]``).
+
+The ``http_conn_id`` connection points to the base URL of the remote Airflow API server, e.g.
+``https://airflow.example.com``. The connection is used to authenticate as follows:
+
+* With login and password, the credentials are exchanged for a JWT access token via the ``/auth/token``
+  endpoint of the remote deployment's auth manager.
+* With a password but no login, the password is sent as a bearer token as-is, e.g. an API token issued by a
+  managed Airflow service.
+* Without credentials, no authentication is added, but headers such as ``Authorization`` can be set via
+  the connection extra.
+
+The user on the remote deployment needs read access to the awaited Dag, its Dag runs and task instances.
+
+.. code-block:: python
+
+    from airflow.providers.http.sensors.external_task import HttpExternalTaskSensor
+
+    wait_for_remote_task = HttpExternalTaskSensor(
+        task_id="wait_for_remote_task",
+        http_conn_id="remote_airflow",
+        external_dag_id="remote_dag",
+        external_task_id="remote_task",
+        deferrable=True,
+    )
+
 .. _howto/operator:HttpOperator:
 
 HttpOperator

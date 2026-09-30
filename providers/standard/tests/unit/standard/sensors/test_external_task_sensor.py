@@ -1560,6 +1560,39 @@ class TestExternalTaskSensorV3:
         assert isinstance(exc.value.trigger, WorkflowTrigger)
         assert exc.value.trigger.poke_interval == 30
 
+    @pytest.mark.parametrize(
+        ("kwargs", "method", "return_value", "extra_args"),
+        [
+            ({}, "_get_dr_count", 1, [["success"]]),
+            ({"external_task_ids": ["t1", "t2"]}, "_get_ti_count", 2, [["success"]]),
+            ({"external_task_group_id": "g"}, "_get_task_group_states", {"run_id": {"g.t1": "success"}}, []),
+        ],
+        ids=["dag", "tasks", "task_group"],
+    )
+    def test_poke_uses_overridable_state_access(self, kwargs, method, return_value, extra_args):
+        op = ExternalTaskSensor(task_id="sensor", external_dag_id="test_dag_parent", **kwargs)
+
+        with mock.patch.object(ExternalTaskSensor, method, autospec=True, return_value=return_value) as m:
+            assert op.poke(context=self.context)
+
+        m.assert_called_once_with(op, self.context, [DEFAULT_DATE], *extra_args)
+        self.context["ti"].get_dr_count.assert_not_called()
+        self.context["ti"].get_ti_count.assert_not_called()
+        self.context["ti"].get_task_states.assert_not_called()
+
+    def test_execute_defers_to_overridable_trigger(self):
+        op = ExternalTaskSensor(task_id="sensor", external_dag_id="test_dag_parent", deferrable=True)
+        trigger = mock.MagicMock(spec=WorkflowTrigger)
+
+        with (
+            mock.patch.object(ExternalTaskSensor, "_get_trigger", autospec=True, return_value=trigger) as m,
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            op.execute(context=self.context)
+
+        m.assert_called_once_with(op, self.context, [DEFAULT_DATE])
+        assert exc.value.trigger is trigger
+
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_only_dag_id(self, dag_maker):
         """Test that the sensor works correctly when only external_dag_id is provided."""

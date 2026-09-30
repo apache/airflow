@@ -77,6 +77,9 @@ dependencies = [
 "srv" = [
     "dnspython>=2.0.0",
 ]
+"standard" = [
+    "apache-airflow-providers-standard>=1.19.0",  # use next version
+]
 
 [dependency-groups]
 dev = [
@@ -84,6 +87,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
