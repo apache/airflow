@@ -34,13 +34,13 @@ from airflow.providers.common.ai.utils.file_analysis import (
     _DECOMPRESSORS,
     FileAnalysisRequest,
     _infer_partitions,
-    _read_raw_bytes,
     _render_avro,
     _render_parquet,
     _resolve_paths,
     _truncate_text,
     build_file_analysis_request,
     detect_file_format,
+    read_bytes,
 )
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
@@ -477,7 +477,7 @@ class TestFileAnalysisHelpers:
         path = tmp_path / f"events.log.{suffix}"
         path.write_bytes(codec.compress(b"line one\nline two\n"))
 
-        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
+        content = read_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
 
         assert content == b"line one\nline two\n"
 
@@ -498,7 +498,7 @@ class TestFileAnalysisHelpers:
         path = tmp_path / f"events.log.{suffix}"
         path.write_bytes(codec.compress(b"first\n") + separator + codec.compress(b"second\n"))
 
-        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
+        content = read_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
 
         assert content == expected
 

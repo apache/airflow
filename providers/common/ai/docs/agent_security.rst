@@ -82,8 +82,8 @@ No single layer is sufficient on its own. They work together.
        up in a database error or a hook's return value reaches the model, the model
        provider and any trace as ``***``. ``AgentOperator`` applies this to the toolsets
        you pass in ``toolsets``, in ``agent_params["toolsets"]`` and in a ``Toolset``
-       capability, including your own. The SQL, hook, DataFusion, MCP, sandbox and
-       managed-agent toolsets apply it wherever they run, including in a Pydantic AI agent
+       capability, including your own. The SQL, hook, object storage, DataFusion, MCP,
+       sandbox and managed-agent toolsets apply it wherever they run, including in a Pydantic AI agent
        you build yourself.
      - Masks only secrets Airflow has registered, such as connection passwords and
        sensitive connection extras. A credential that exists only in the data itself is
@@ -92,6 +92,14 @@ No single layer is sufficient on its own. They work together.
        framework's own tools, and MCP servers a framework connects to itself. In a
        sandbox, the model writes the commands, so it can print a secret in a form the
        masker does not recognize; masking there guards against accidents only.
+   * - **ObjectStorageToolset: one read-only root**
+     - The agent can list and read files under ``path`` and nothing else: it cannot write,
+       and a path that is absolute, carries a scheme or climbs out with ``..`` is refused.
+       On a local root, so is a symbolic link that leads out of it.
+     - The check is on the path the model supplies. What the connection may read is the
+       real limit, so scope its role or key to the prefix you pass as ``path``. On a
+       filesystem that follows symlinks on the server side, such as SFTP, the path check
+       cannot see where a link leads.
    * - **HookToolset: explicit allow-list**
      - Only methods listed in ``allowed_methods`` are exposed as tools.
        Auto-discovery is not supported. Methods are validated at Dag parse
