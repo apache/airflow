@@ -1508,6 +1508,7 @@ class TestTIUpdateState:
                 side_effect=lookup_error,
             )
         executor = MockExecutor(do_update=False)
+        executor_key = executor.get_task_key(ti)
         reports = ["api", "executor"] if first_report == "api" else ["executor", "api"]
         replacement_id = None
 
@@ -1525,7 +1526,7 @@ class TestTIUpdateState:
                     )
                     assert response.status_code == 204
                 else:
-                    executor.event_buffer[old_id] = executor_state, None
+                    executor.event_buffer[executor_key] = executor_state, None
                     SchedulerJobRunner.process_executor_events(executor, None, DBDagBag(), session)
                     session.commit()
             session.expunge_all()
