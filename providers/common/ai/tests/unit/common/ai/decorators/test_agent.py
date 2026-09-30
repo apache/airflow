@@ -20,6 +20,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai.capabilities import Thinking
 from pydantic_ai.messages import ImageUrl
 from pydantic_ai.toolsets.function import FunctionToolset
 
@@ -178,6 +179,24 @@ class TestAgentDecoratedOperator:
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
         assert passed_toolsets[0].wrapped == MaskingToolset(wrapped=toolset)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_passes_capabilities_through(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("result")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        thinking = Thinking(effort="high")
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "Do something",
+            llm_conn_id="my_llm",
+            capabilities=[thinking],
+        )
+        op.execute(context=_make_context())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call.kwargs["capabilities"] == [thinking]
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
