@@ -165,3 +165,21 @@ wrote. How ``fn`` reaches ``Context`` and ``Client`` is each SDK's own choice â€
 getters that read the scope opened at step 6 â€” and all this spec asks is that ``fn`` receives the
 same pair the SDK built at step 3. The terminal state at step 7 is one of ``SucceedTask``,
 ``RetryTask``, or ``TaskState``, and it is reported exactly once.
+
+Task handler parse lifecycle
+----------------------------
+
+The Dag processor starts the same process to check a Python Dag's ``@task.stub`` tasks against the
+``TaskHandler`` registrations that implement them:
+
+.. code-block:: text
+
+   1  process start
+   2  receive TaskHandlerParseRequest, which names dag_ids
+   3  declare each registered TaskHandler whose dagId is one of them, in registration order
+   4  send one TaskHandlerParsingResult, and wait for the supervisor's reply to it
+   5  exit
+
+No ``fn`` runs: the answer comes from the registrations alone. A declaration states how the stub
+task's arguments bind to the handler's parameters and which values each parameter accepts. A
+requested ``dag_id`` with no ``TaskHandler`` is left out of the result rather than listed empty.
