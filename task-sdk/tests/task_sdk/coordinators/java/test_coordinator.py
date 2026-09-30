@@ -35,6 +35,7 @@ from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
     _JarInfo,
+    _parse_manifest,
     _walk_jars,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
@@ -249,6 +250,86 @@ class TestJavaCoordinatorAttributes:
         assert command[0] == "java"
         assert command[-1] == "com.example.TaskRunner"
         assert schema_version == "2026-06-16"
+
+
+def test_parse_manifest_joins_continued_values_and_stops_at_the_main_section():
+    manifest = (
+        b"Manifest-Version: 1.0\r\n"
+        b"Airflow-Cache-Digest: 6a7cf9d4ddd454e97952b07038a8ebc6ff37c3a52ae176e921\r\n"
+        b" bc03065d6404cd\r\n"
+        b"Main-Class: com.example.Main\r\n"
+        b"\r\n"
+        b"Name: com/example/\r\n"
+        b"Sealed: true\r\n"
+    )
+
+    assert _parse_manifest(manifest) == {
+        "manifest-version": "1.0",
+        "airflow-cache-digest": "6a7cf9d4ddd454e97952b07038a8ebc6ff37c3a52ae176e921bc03065d6404cd",
+        "main-class": "com.example.Main",
+    }
+
+
+class TestJavaCoordinatorParseTaskHandlerCommand:
+    @pytest.fixture
+    def bundle(self, tmp_path):
+        _make_jar(tmp_path / "app.jar", main_class="com.example.App", schema_version="2026-06-16")
+        _make_jar(tmp_path / "other.jar", main_class="com.example.Other", schema_version="2026-06-16")
+        (tmp_path / "lib").mkdir()
+        _make_jar(tmp_path / "lib" / "dep.jar", main_class=None)
+        return tmp_path
+
+    @pytest.mark.parametrize(
+        ("jar", "main_class"), [("app.jar", "com.example.App"), ("other.jar", "com.example.Other")]
+    )
+    def test_runs_the_probed_jars_own_main_class_with_the_bundle_on_the_classpath(
+        self, bundle, jar, main_class
+    ):
+        coordinator = JavaCoordinator(jvm_args=["-Xmx1g"], main_class="com.example.Configured")
+        with coordinator._set_scan_roots([bundle]):
+            command, schema_version = coordinator._build_parse_task_handler_command(path=bundle / jar)
+
+        classpath = os.pathsep.join(
+            (bundle / name).as_posix() for name in ("app.jar", "lib/dep.jar", "other.jar")
+        )
+        assert command == ["java", "-classpath", classpath, "-Xmx1g", main_class]
+        assert schema_version == "2026-06-16"
+
+    def test_a_thin_jar_takes_the_schema_version_from_the_sdk_jar(self, tmp_path):
+        _make_jar(tmp_path / "app.jar", main_class="com.example.App")
+        _make_jar(tmp_path / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+        coordinator = JavaCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_parse_task_handler_command(path=tmp_path / "app.jar")
+
+        assert command[-1] == "com.example.App"
+        assert schema_version == "2026-10-30"
+
+    def test_reads_a_main_class_continued_on_the_next_manifest_line(self, tmp_path):
+        main_class = "org.example.a.very.long.package.name.that.needs.folding.BundleMain"
+        manifest = f"Manifest-Version: 1.0\r\nMain-Class: {main_class[:50]}\r\n {main_class[50:]}\r\n"
+        manifest += "Airflow-Supervisor-Schema-Version: 2026-06-16\r\n\r\n"
+        with zipfile.ZipFile(tmp_path / "app.jar", "w") as zf:
+            zf.writestr("META-INF/MANIFEST.MF", manifest)
+        coordinator = JavaCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, _ = coordinator._build_parse_task_handler_command(path=tmp_path / "app.jar")
+
+        assert command[-1] == main_class
+
+    @pytest.mark.parametrize("content", ["no-main-class", "not-a-zip"])
+    def test_a_jar_that_is_not_executable_is_rejected(self, tmp_path, content):
+        path = tmp_path / "app.jar"
+        if content == "no-main-class":
+            _make_jar(path, main_class=None, schema_version="2026-06-16")
+        else:
+            path.write_text("not a zip")
+        coordinator = JavaCoordinator()
+        with (
+            coordinator._set_scan_roots([tmp_path]),
+            pytest.raises(ValueError, match="is not an executable JAR"),
+        ):
+            coordinator._build_parse_task_handler_command(path=path)
 
 
 @pytest.fixture

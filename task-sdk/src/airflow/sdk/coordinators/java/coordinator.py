@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-import email
 import os
 import pathlib
+import re
 import stat
 import zipfile
 from typing import TYPE_CHECKING
@@ -87,10 +87,33 @@ def _calculate_classpath(roots: Sequence[pathlib.Path]) -> str:
     return os.pathsep.join(sorted(jars))  # Keep output deterministic.
 
 
+def _parse_manifest(data: bytes) -> dict[str, str]:
+    """
+    Return the main-section attributes of a JAR manifest, keyed by lowercased name.
+
+    A line holds at most 72 bytes, so a longer value continues on lines starting with one space,
+    which are joined without it.
+    """
+    attributes: dict[str, str] = {}
+    name: str | None = None
+    for line in re.split(r"\r\n|\r|\n", data.decode("utf-8", errors="replace")):
+        if not line:
+            break  # The main section ends at the first blank line.
+        if line.startswith(" "):
+            if name is not None:
+                attributes[name] += line[1:]
+            continue
+        key, sep, value = line.partition(":")
+        name = key.lower() if sep else None
+        if name is not None:
+            attributes[name] = value.removeprefix(" ")
+    return attributes
+
+
 @attrs.define
 class _JarMetadata:
-    main_class: str
-    schema_version: str
+    main_class: str | None
+    schema_version: str | None
 
     @classmethod
     def from_jar(cls, path: pathlib.Path) -> Self | None:
@@ -101,9 +124,8 @@ class _JarMetadata:
                 except KeyError:
                     log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
                     return None
-                with zf.open(manifest_info) as f:
-                    manifest = email.message_from_binary_file(f)
-            return cls(manifest["Main-Class"], manifest["Airflow-Supervisor-Schema-Version"])
+                manifest = _parse_manifest(zf.read(manifest_info))
+            return cls(manifest.get("main-class"), manifest.get("airflow-supervisor-schema-version"))
         except zipfile.BadZipFile:
             log.exception("Cannot read JAR; ignored", path=path)
             return None
@@ -189,6 +211,10 @@ class JavaCoordinator(SubprocessCoordinator):
     up being executed, so set *main_class* when more than one JAR in the bundle
     declares Main-Class.
 
+    To report the task handlers a JAR registers, the coordinator runs that JAR's
+    own Main-Class with the whole bundle on the classpath. *main_class* applies
+    to task execution only.
+
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java
     SDK automatically sets this, so you don't generally need to do anything if
@@ -220,3 +246,19 @@ class JavaCoordinator(SubprocessCoordinator):
             jar.main_class,
         ]
         return command, jar.schema_version
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        metadata = _JarMetadata.from_jar(path)
+        if metadata is None or not metadata.main_class:
+            raise ValueError(f"{path} is not an executable JAR: its manifest sets no Main-Class")
+        roots = self._get_scan_roots()
+        # A thin JAR leaves the version to the airflow-sdk JAR beside it, where execution finds it too.
+        schema_version = metadata.schema_version or _JarInfo.find(roots, metadata.main_class).schema_version
+        command = [
+            self.java_executable,
+            "-classpath",
+            _calculate_classpath(roots),
+            *self.jvm_args,
+            metadata.main_class,
+        ]
+        return command, schema_version
