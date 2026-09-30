@@ -5701,6 +5701,7 @@ class TestSchedulerJob:
         dag_id = "test_queued_ti_retry_history"
         task_id = "dummy"
         hostname = "worker-node-42"
+        external_executor_id = "previous-worker"
 
         with dag_maker(dag_id=dag_id, fileloc="/test_path/"):
             task = EmptyOperator(task_id=task_id, retries=2)
@@ -5709,6 +5710,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance(task.task_id, session=session)
         ti.state = ti_state
         ti.hostname = hostname
+        ti.external_executor_id = external_executor_id
         ti.start_date = DEFAULT_DATE
         ti.try_number = 1
         ti.max_tries = 2
@@ -5730,6 +5732,7 @@ class TestSchedulerJob:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
         assert ti.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
+        assert ti.external_executor_id is None
 
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
@@ -5739,6 +5742,7 @@ class TestSchedulerJob:
         assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
         assert tih.try_number == 1
         assert tih.hostname == hostname
+        assert tih.external_executor_id == external_executor_id
         assert tih.start_date == DEFAULT_DATE
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
