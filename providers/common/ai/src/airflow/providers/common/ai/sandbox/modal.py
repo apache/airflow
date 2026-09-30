@@ -171,6 +171,11 @@ class ModalSandboxBackend(AttachableSandboxBackend):
     """
     Sandbox backend that runs agent commands in a `Modal <https://modal.com>`__ sandbox.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Each sandbox is a gVisor-isolated container in Modal's infrastructure, provisioned
     over the API. Nothing has to be installed on the Airflow worker and model-written
     code never executes on the worker host, which makes this the backend to reach for

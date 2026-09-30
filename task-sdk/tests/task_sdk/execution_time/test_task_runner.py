@@ -64,6 +64,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow.sdk._shared.secrets_masker import _secrets_masker
 from airflow.sdk._shared.state import AssetScope, TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -1272,6 +1273,29 @@ def test_retry_policy_retry_exhausted_reason_is_truncated(create_runtime_ti, moc
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
     assert msg.retry_reason == "z" * 500
+
+
+@pytest.mark.enable_redact
+def test_retry_policy_reason_is_redacted_in_the_worker(create_runtime_ti, mock_supervisor_comms):
+    """The reason is masked where mask_secret() registered the value, not in the API server."""
+    _secrets_masker().add_mask("hunter2", None)
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("403 Forbidden: token hunter2 expired")
+
+    class _EchoPolicy(RetryPolicy):
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            return RetryDecision(action=RetryAction.FAIL, reason=f"auth: {exception}")
+
+    task = _AlwaysFails(task_id="redacted_reason", retries=2, retry_policy=_EchoPolicy())
+    ti = create_runtime_ti(task=task)
+
+    state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.retry_reason == "auth: 403 Forbidden: token *** expired"
 
 
 def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_supervisor_comms):

@@ -20,6 +20,11 @@
 Approve an agent's tool calls
 =============================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 .. seealso::
     To approve, edit or reject an LLM operator's output instead, see :doc:`approval_gates`;
     to review an agent's final answer over several rounds, see :doc:`hitl_review`.

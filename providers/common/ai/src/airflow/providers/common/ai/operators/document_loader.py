@@ -45,6 +45,11 @@ class DocumentLoaderOperator(BaseOperator):
     """
     Parse files into ``list[dict(text, metadata)]`` for downstream embedding.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Bridges Airflow's connectivity layer (hooks that produce bytes or local
     files) and the AI embedding layer (operators that need structured text
     with metadata). Framework-agnostic: no LlamaIndex, LangChain, or other

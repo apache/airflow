@@ -38,15 +38,15 @@ const (
 	errCodeXComNotFound       = "XCOM_NOT_FOUND"
 )
 
-// translateApiError converts a supervisor *ApiError whose Err field matches
+// translateAPIError converts a supervisor *APIError whose Err field matches
 // code into a sentinel-wrapped error. Any other error - including a
-// *ApiError with a different code - is returned unchanged so callers can keep
+// *APIError with a different code - is returned unchanged so callers can keep
 // distinguishing transport / server errors from "thing not found".
-func translateApiError(err error, code string, sentinel error, key string) error {
+func translateAPIError(err error, code string, sentinel error, key string) error {
 	if err == nil {
 		return nil
 	}
-	var apiErr *ApiError
+	var apiErr *APIError
 	if errors.As(err, &apiErr) && apiErr.Err == code {
 		return fmt.Errorf("%w: %q", sentinel, key)
 	}
@@ -79,7 +79,7 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 		genmodels.GetVariable{Key: key},
 	)
 	if err != nil {
-		return "", translateApiError(err, errCodeVariableNotFound, sdk.VariableNotFound, key)
+		return "", translateAPIError(err, errCodeVariableNotFound, sdk.VariableNotFound, key)
 	}
 
 	var result genmodels.VariableResult
@@ -154,7 +154,7 @@ func (c *CoordinatorClient) GetConnection(
 		genmodels.GetConnection{ConnID: connID},
 	)
 	if err != nil {
-		return sdk.Connection{}, translateApiError(
+		return sdk.Connection{}, translateAPIError(
 			err, errCodeConnectionNotFound, sdk.ConnectionNotFound, connID,
 		)
 	}
@@ -197,16 +197,16 @@ func (c *CoordinatorClient) GetConnection(
 // GetXCom requests an XCom value from the supervisor.
 func (c *CoordinatorClient) GetXCom(
 	ctx context.Context,
-	dagId, runId, taskId string,
+	dagID, runID, taskID string,
 	mapIndex *int,
 	key string,
 	_ any,
 ) (any, error) {
 	msg := genmodels.GetXCom{
 		Key:    key,
-		DagID:  dagId,
-		TaskID: taskId,
-		RunID:  runId,
+		DagID:  dagID,
+		TaskID: taskID,
+		RunID:  runID,
 	}
 	// Assign the pointer, not the dereferenced int: map_index is a nullable
 	// interface{} field and msgpack's omitempty treats an interface{} holding
@@ -217,7 +217,7 @@ func (c *CoordinatorClient) GetXCom(
 
 	resp, err := c.comm.Communicate(ctx, msg)
 	if err != nil {
-		return nil, translateApiError(err, errCodeXComNotFound, sdk.XComNotFound, key)
+		return nil, translateAPIError(err, errCodeXComNotFound, sdk.XComNotFound, key)
 	}
 
 	var result genmodels.XComResult

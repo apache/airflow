@@ -20,6 +20,11 @@
 Using LlamaIndex directly: ``LlamaIndexHook``
 =============================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Use :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` to
 bridge an Airflow connection to `LlamaIndex <https://docs.llamaindex.ai/>`__
 chat and embedding models. The hook reads credentials (API key, optional
