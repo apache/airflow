@@ -2757,84 +2757,6 @@ class TestIndexedTaskRunner:
             with IndexedTaskRunner(task_instance=ti):
                 raise deferred
 
-    def test_exit_with_reschedule_exception_is_retried_like_any_other_exception(self, make_indexed_ti):
-        """AirflowRescheduleException (base, from a reschedule-mode sensor) is no longer special-cased:
-        it is retried the same way as any other exception, since retries are now handled by Airflow's
-        standard mechanism at the IterableOperator level rather than by the indexed sub-task."""
-        ti = make_indexed_ti(try_number=1, max_tries=3)
-        from datetime import timedelta
-
-        from airflow.sdk import timezone
-
-        exc = AirflowRescheduleException(timezone.utcnow() + timedelta(seconds=60))
-
-        with pytest.raises(AirflowRescheduleException):
-            with IndexedTaskRunner(task_instance=ti):
-                raise exc
-
-        assert ti.try_number == 1  # the parent's attempt, left as it is
-        assert ti.state == TaskInstanceState.UP_FOR_RETRY
-
-    def test_exit_retries_when_retries_remain(self, make_indexed_ti):
-        """
-        When a retryable exception occurs and retries are not exhausted,
-        the task state is set to UP_FOR_RETRY and the original exception is
-        re-raised unchanged — retries are handled by Airflow's standard mechanism
-        retrying the whole IterableOperator, not by the indexed sub-task itself.
-        """
-        # first attempt of four: 1 <= 3, the parent is retried
-        ti = make_indexed_ti(try_number=1, max_tries=3)
-
-        with pytest.raises(RuntimeError, match="transient failure"):
-            with IndexedTaskRunner(task_instance=ti):
-                raise RuntimeError("transient failure")
-
-        assert ti.state == TaskInstanceState.UP_FOR_RETRY
-        assert ti.try_number == 1  # the parent's attempt, left as it is
-
-    def test_exit_fails_when_retries_exhausted(self, make_indexed_ti):
-        """
-        When a retryable exception occurs and all retries are exhausted,
-        the task state is set to FAILED and the original exception is re-raised.
-        """
-        # fourth attempt of four: 4 > 3, the parent fails
-        ti = make_indexed_ti(try_number=4, max_tries=3)
-        original_error = RuntimeError("permanent failure")
-
-        with pytest.raises(RuntimeError, match="permanent failure"):
-            with IndexedTaskRunner(task_instance=ti):
-                raise original_error
-
-        assert ti.state == TaskInstanceState.FAILED
-
-    @pytest.mark.parametrize(
-        ("try_number", "max_tries", "should_fail"),
-        [
-            (1, 0, True),  # no retries: the only attempt fails
-            (1, 1, False),  # one retry: the first attempt is retried
-            (2, 1, True),  # one retry: the second attempt fails
-            (3, 3, False),  # three retries: the third attempt is still retried
-            (4, 3, True),  # three retries: the fourth attempt fails
-            (2, 3, False),  # cleared after one attempt with two retries: budget raised to 3
-        ],
-    )
-    def test_exit_retry_boundary(self, make_indexed_ti, try_number, max_tries, should_fail):
-        """
-        Boundary checks for the retry/fail decision in __exit__, with the attempt numbers the parent
-        really has (the first attempt is 1) and the server's rule, ``try_number <= max_tries``.
-        """
-        ti = make_indexed_ti(try_number=try_number, max_tries=max_tries)
-        if should_fail:
-            with pytest.raises(RuntimeError):
-                with IndexedTaskRunner(task_instance=ti):
-                    raise RuntimeError("err")
-            assert ti.state == TaskInstanceState.FAILED
-        else:
-            with pytest.raises(RuntimeError):
-                with IndexedTaskRunner(task_instance=ti):
-                    raise RuntimeError("err")
-            assert ti.state == TaskInstanceState.UP_FOR_RETRY
-
     @staticmethod
     def _parent_context(task):
         """A parent context with what clone_context needs and a parent-side state store."""
@@ -2892,31 +2814,6 @@ class TestIndexedTaskRunner:
         assert indexed_context["task_state_store"] is ti.task_state_store
         assert result == "async_result"
 
-    @pytest.mark.parametrize(
-        "base_exception",
-        [
-            SystemExit(1),
-            KeyboardInterrupt(),
-            GeneratorExit(),
-        ],
-        ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
-    )
-    def test_exit_base_exception_not_retried(self, make_indexed_ti, base_exception):
-        """
-        BaseException subclasses (e.g., SystemExit, KeyboardInterrupt) must never
-        be retried—they signal conditions where continuing is meaningless.
-        They should be re-raised immediately and mark the task as FAILED.
-        """
-        ti = make_indexed_ti(try_number=0, max_tries=3)
-
-        with pytest.raises(type(base_exception)):
-            with IndexedTaskRunner(task_instance=ti):
-                raise base_exception
-
-        assert ti.state == TaskInstanceState.FAILED
-        # try_number should NOT be incremented for BaseException
-        assert ti.try_number == 0
-
     def test_exit_success_fires_on_success_callback(self, make_indexed_ti):
         """on_success_callback must fire for each indexed sub-task that succeeds."""
         fired: list[str] = []
@@ -2936,48 +2833,18 @@ class TestIndexedTaskRunner:
 
         assert fired == ["success"]
 
-    def test_exit_failure_fires_on_failure_callback(self, make_indexed_ti):
-        """on_failure_callback must fire for each indexed sub-task that exhausts retries."""
-        fired: list[str] = []
-        ti = make_indexed_ti(try_number=4, max_tries=3)
-        task = BaseOperator(
-            task_id="cb_task",
-            on_failure_callback=lambda ctx: fired.append("failure"),
-        )
-        get_inline_dag("cb_dag", task)
-        ti.task = task
-        context = mock_context(task)
-        executor = IndexedTaskRunner(task_instance=ti)
-        executor._context = context
-
-        with pytest.raises(RuntimeError):
-            with executor:
-                raise RuntimeError("permanent")
-
-        assert fired == ["failure"]
-
-    def test_exit_retry_fires_on_retry_callback(self, make_indexed_ti):
-        """on_retry_callback must fire for each indexed sub-task the parent is retried for."""
-        fired: list[str] = []
-        ti = make_indexed_ti(try_number=1, max_tries=3)
-        task = BaseOperator(
-            task_id="cb_task",
-            on_retry_callback=lambda ctx: fired.append("retry"),
-        )
-        get_inline_dag("cb_dag", task)
-        ti.task = task
-        context = mock_context(task)
-        executor = IndexedTaskRunner(task_instance=ti)
-        executor._context = context
-
-        with pytest.raises(RuntimeError, match="transient"):
-            with executor:
-                raise RuntimeError("transient")
-
-        assert fired == ["retry"]
-
-    def test_exit_fail_exception_fires_on_failure_callback_with_retries_left(self, make_indexed_ti):
-        """AirflowFailException fails the parent without a retry, so the iteration reports a failure."""
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            RuntimeError("transient"),
+            AirflowFailException("do not retry"),
+            AirflowTaskTimeout("the task ran out of time"),
+            SystemExit(1),
+        ],
+        ids=["error", "fail", "timeout", "system-exit"],
+    )
+    def test_exit_notes_a_failure_without_deciding_it(self, make_indexed_ti, exception):
+        """Whether a failure is retried is the task's fate: __exit__ only notes it, no state, no callback."""
         fired: list[str] = []
         ti = make_indexed_ti(try_number=1, max_tries=3)
         task = BaseOperator(
@@ -2987,23 +2854,28 @@ class TestIndexedTaskRunner:
         )
         get_inline_dag("cb_dag", task)
         ti.task = task
-        executor = IndexedTaskRunner(task_instance=ti)
-        executor._context = mock_context(task)
+        state_before = ti.state
+        runner = IndexedTaskRunner(task_instance=ti)
+        runner._context = mock_context(task)
 
-        with pytest.raises(AirflowFailException):
-            with executor:
-                raise AirflowFailException("do not retry")
+        with pytest.raises(type(exception)):
+            with runner:
+                raise exception
 
-        assert fired == ["failure"]
-        assert ti.state == TaskInstanceState.FAILED
+        assert runner.failure is exception
+        assert fired == []
+        assert ti.state == state_before
 
-    @pytest.mark.parametrize("exception_class", ["AirflowSensorTimeout", "AirflowTaskTerminated"])
-    def test_exit_fail_fast_exceptions_fire_on_failure_callback_with_retries_left(
-        self, make_indexed_ti, exception_class
+    @pytest.mark.parametrize(
+        ("task_will_retry", "fired_callback", "state"),
+        [
+            pytest.param(True, "retry", TaskInstanceState.UP_FOR_RETRY, id="retried"),
+            pytest.param(False, "failure", TaskInstanceState.FAILED, id="failed"),
+        ],
+    )
+    def test_report_failure_follows_the_tasks_fate(
+        self, make_indexed_ti, task_will_retry, fired_callback, state
     ):
-        """As in the runner, these fail the task without a retry, so the iteration reports a failure."""
-        import airflow.sdk.exceptions as sdk_exceptions
-
         fired: list[str] = []
         ti = make_indexed_ti(try_number=1, max_tries=3)
         task = BaseOperator(
@@ -3015,14 +2887,31 @@ class TestIndexedTaskRunner:
         ti.task = task
         runner = IndexedTaskRunner(task_instance=ti)
         runner._context = mock_context(task)
-        exception = getattr(sdk_exceptions, exception_class)
-
-        with pytest.raises(exception):
+        with pytest.raises(RuntimeError):
             with runner:
-                raise exception("stop")
+                raise RuntimeError("boom")
 
-        assert fired == ["failure"]
-        assert ti.state == TaskInstanceState.FAILED
+        runner.report_failure(task_will_retry=task_will_retry)
+
+        assert fired == [fired_callback]
+        assert ti.state == state
+
+    @pytest.mark.parametrize(
+        ("try_number", "max_tries", "eligible"),
+        [
+            (1, 0, False),  # no retries: the only attempt fails
+            (1, 1, True),  # one retry: the first attempt is retried
+            (2, 1, False),  # one retry: the second attempt fails
+            (3, 3, True),  # three retries: the third attempt is still retried
+            (4, 3, False),  # three retries: the fourth attempt fails
+            (2, 3, True),  # cleared after one attempt with two retries: budget raised to 3
+        ],
+    )
+    def test_is_eligible_to_retry_follows_the_server_rule(
+        self, make_indexed_ti, try_number, max_tries, eligible
+    ):
+        """The attempt numbers the parent really has (the first is 1) and ``try_number <= max_tries``."""
+        assert make_indexed_ti(try_number=try_number, max_tries=max_tries).is_eligible_to_retry is eligible
 
     def test_exit_skip_fires_on_skipped_callback_only(self, make_indexed_ti):
         """A skipped iteration is neither a failure nor a retry, whatever budget is left."""
@@ -3067,56 +2956,6 @@ class TestIndexedTaskRunner:
 
         assert fired == []
         assert ti.state == state_before
-
-    @pytest.mark.parametrize(
-        ("try_number", "fired_callback", "state"),
-        [
-            pytest.param(1, "retry", TaskInstanceState.UP_FOR_RETRY, id="retries-left"),
-            pytest.param(4, "failure", TaskInstanceState.FAILED, id="last-attempt"),
-        ],
-    )
-    def test_exit_parent_timeout_follows_the_retry_rule(
-        self, make_indexed_ti, try_number, fired_callback, state
-    ):
-        """The parent's timeout strikes in this iteration; the task is retried for it like for any error."""
-        fired: list[str] = []
-        ti = make_indexed_ti(try_number=try_number, max_tries=3)
-        task = BaseOperator(
-            task_id="cb_task",
-            on_failure_callback=lambda ctx: fired.append("failure"),
-            on_retry_callback=lambda ctx: fired.append("retry"),
-        )
-        get_inline_dag("cb_dag", task)
-        ti.task = task
-        executor = IndexedTaskRunner(task_instance=ti)
-        executor._context = mock_context(task)
-
-        with pytest.raises(AirflowTaskTimeout):
-            with executor:
-                raise AirflowTaskTimeout("the task ran out of time")
-
-        assert fired == [fired_callback]
-        assert ti.state == state
-
-    def test_exit_base_exception_fires_on_failure_callback(self, make_indexed_ti):
-        """on_failure_callback must also fire when a non-Exception BaseException marks the task FAILED."""
-        fired: list[str] = []
-        ti = make_indexed_ti(try_number=0, max_tries=3)
-        task = BaseOperator(
-            task_id="cb_task",
-            on_failure_callback=lambda ctx: fired.append("failure"),
-        )
-        get_inline_dag("cb_dag", task)
-        ti.task = task
-        context = mock_context(task)
-        executor = IndexedTaskRunner(task_instance=ti)
-        executor._context = context
-
-        with pytest.raises(SystemExit):
-            with executor:
-                raise SystemExit(1)
-
-        assert fired == ["failure"]
 
     def test_exit_no_context_skips_callbacks(self, make_indexed_ti):
         """When _context is not set (e.g. __exit__ called directly), callbacks must not fire."""

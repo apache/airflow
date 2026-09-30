@@ -2389,6 +2389,123 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         assert inputs == {"arg2": "rendered-arg2", "op_kwargs.y": "rendered-y"}
 
 
+CALLBACKS: list = []
+
+
+class MockCallbackOperator(BaseOperator):
+    """Operator that records which callback each of its items gets."""
+
+    template_fields = ("arg1",)
+    arg1: Any
+
+    def __init__(self, arg1=None, raise_exception: BaseException | None = None, **kwargs):
+        kwargs["on_success_callback"] = lambda context: CALLBACKS.append(("success", self.arg1))
+        kwargs["on_failure_callback"] = lambda context: CALLBACKS.append(("failure", self.arg1))
+        kwargs["on_retry_callback"] = lambda context: CALLBACKS.append(("retry", self.arg1))
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+        self.raise_exception = raise_exception
+
+    def execute(self, context):
+        if self.raise_exception is not None:
+            raise self.raise_exception
+        return self.arg1
+
+
+class TestCallbacksFollowTheTasksFate:
+    """
+    A failed item's failure or retry callback waits until every item has run, and then says what
+    happens to the task: retried, or failed for good. Success callbacks fire right away.
+    """
+
+    @staticmethod
+    def _run(items, try_number=1, max_tries=2, retry_policy=None):
+        CALLBACKS.clear()
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(items)
+            mapped_op = MockCallbackOperator.partial(
+                task_id="callbacks", dag=dag, retries=2, retry_policy=retry_policy, task_concurrency=1
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = try_number
+                context["ti"].max_tries = max_tries
+                try:
+                    iterable_op.execute(context=context)
+                except BaseException as exc:
+                    return exc, list(CALLBACKS)
+        return None, list(CALLBACKS)
+
+    def test_a_siblings_fail_exception_turns_every_failure_into_a_final_one(self):
+        """Kaxil's case: without the wait the ValueError item announced a retry that never came."""
+        raised, fired = self._run(
+            [
+                {"arg1": "ok"},
+                {"arg1": "value_error", "raise_exception": ValueError("x")},
+                {"arg1": "fail", "raise_exception": AirflowFailException("stop")},
+            ]
+        )
+
+        assert isinstance(raised, AirflowFailException)
+        assert fired == [("success", "ok"), ("failure", "value_error"), ("failure", "fail")]
+
+    def test_failures_the_task_is_retried_for_all_get_the_retry_callback(self):
+        raised, fired = self._run(
+            [
+                {"arg1": "a", "raise_exception": ValueError("a")},
+                {"arg1": "b", "raise_exception": KeyError("b")},
+            ]
+        )
+
+        assert isinstance(raised, BaseExceptionGroup)
+        assert fired == [("retry", "a"), ("retry", "b")]
+
+    def test_on_the_last_attempt_every_failure_is_final(self):
+        _, fired = self._run(
+            [
+                {"arg1": "a", "raise_exception": ValueError("a")},
+                {"arg1": "b", "raise_exception": KeyError("b")},
+            ],
+            try_number=3,
+            max_tries=2,
+        )
+
+        assert fired == [("failure", "a"), ("failure", "b")]
+
+    def test_a_retry_policy_that_fails_the_task_makes_every_failure_final(self):
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+
+        policy = ExceptionRetryPolicy(rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL)])
+
+        _, fired = self._run(
+            [
+                {"arg1": "value_error", "raise_exception": ValueError("x")},
+                {"arg1": "denied", "raise_exception": PermissionError("no")},
+            ],
+            retry_policy=policy,
+        )
+
+        assert fired == [("failure", "value_error"), ("failure", "denied")]
+
+    def test_an_item_the_operator_rejects_fails_the_task_for_every_item(self):
+        """A downstream skip from an item is rejected with AirflowFailException, so nothing is retried."""
+        raised, fired = self._run(
+            [
+                {"arg1": "value_error", "raise_exception": ValueError("x")},
+                {"arg1": "skipper", "raise_exception": DownstreamTasksSkipped(tasks=["downstream"])},
+            ]
+        )
+
+        assert isinstance(raised, AirflowFailException)
+        assert fired == [("failure", "value_error"), ("failure", "skipper")]
+
+    def test_a_failed_items_callback_waits_for_the_items_after_it(self):
+        _, fired = self._run([{"arg1": "first", "raise_exception": ValueError("x")}, {"arg1": "second"}])
+
+        assert fired == [("success", "second"), ("retry", "first")]
+
+
 class TestIterableOperatorCopy:
     """An iterated task can be deep-copied, as dag.partial_subset() does for every task it keeps."""
 

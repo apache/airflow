@@ -1126,6 +1126,9 @@ class IndexedTaskRunner(LoggingMixin):
         self._context: Context | None = None
         self._active_operators = active_operators
         self._active_operators_lock = active_operators_lock
+        #: The exception this indexed task failed with, noted by __exit__ and reported by
+        #: :meth:`report_failure` once the whole task's fate is known.
+        self.failure: BaseException | None = None
 
     @property
     def dag_id(self) -> str:
@@ -1231,19 +1234,6 @@ class IndexedTaskRunner(LoggingMixin):
             # and no callback. The iteration that stopped the task reports its own outcome.
             if isinstance(exc_value, CancelledError):
                 raise exc_value
-            # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
-            # KeyboardInterrupt, SystemExit) must never be retried: they
-            # signal conditions where continuing is meaningless.
-            # Re-raise immediately without retry. The parent's execution_timeout is the exception:
-            # it strikes this iteration because it runs on the main thread, and the task is retried
-            # for it like for any other error, so it takes the retry decision below.
-            if not isinstance(exc_value, (Exception, AirflowTaskTimeout)):
-                self.task_instance.state = TaskInstanceState.FAILED
-                if self._context is not None:
-                    _run_task_state_change_callbacks(
-                        self.task_instance.task, "on_failure_callback", self._context, self.log
-                    )
-                raise exc_value
             if isinstance(exc_value, AirflowSkipException):
                 self.task_instance.state = TaskInstanceState.SKIPPED
                 if self._context is not None:
@@ -1251,32 +1241,18 @@ class IndexedTaskRunner(LoggingMixin):
                         self.task_instance.task, "on_skipped_callback", self._context, self.log
                     )
                 raise exc_value
-            # AirflowFailException fails the parent without a retry, whatever budget is left.
-            # AirflowSensorTimeout and AirflowTaskTerminated fail without a retry too, as in the runner.
-            if (
-                isinstance(exc_value, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated))
-                or not self.task_instance.is_eligible_to_retry
-            ):
-                self.log.error(
-                    "Task instance %s for %s failed on attempt %s in %.2f seconds due to: %s",
-                    self.task_index,
-                    self.task_instance.task_id,
-                    self.task_instance.try_number,
-                    elapsed,
-                    exc_value,
-                )
-                self.task_instance.state = TaskInstanceState.FAILED
-                if self._context is not None:
-                    _run_task_state_change_callbacks(
-                        self.task_instance.task, "on_failure_callback", self._context, self.log
-                    )
-                raise exc_value
-            self.task_instance.end_date = datetime.now(tz=timezone.utc)
-            self.task_instance.state = TaskInstanceState.UP_FOR_RETRY
-            if self._context is not None:
-                _run_task_state_change_callbacks(
-                    self.task_instance.task, "on_retry_callback", self._context, self.log
-                )
+            # A failure is only noted here. Whether it is retried is the whole task's fate, which
+            # the other iterations decide too (a sibling's AirflowFailException fails it without a
+            # retry), so IterableOperator reports it through report_failure() once all have run.
+            self.log.error(
+                "Task instance %s for %s failed on attempt %s in %.2f seconds due to: %s",
+                self.task_index,
+                self.task_instance.task_id,
+                self.task_instance.try_number,
+                elapsed,
+                exc_value,
+            )
+            self.failure = exc_value
             raise exc_value
 
         self.task_instance.state = TaskInstanceState.SUCCESS
@@ -1291,6 +1267,27 @@ class IndexedTaskRunner(LoggingMixin):
                 self.task_instance.task_id,
                 self.task_instance.try_number,
                 elapsed,
+            )
+
+    def report_failure(self, task_will_retry: bool) -> None:
+        """
+        Report this indexed task's failure as what happens to the whole task.
+
+        Called once every iteration has run, so the state and the callback agree with the task:
+        ``UP_FOR_RETRY`` and ``on_retry_callback`` when it is retried, ``FAILED`` and
+        ``on_failure_callback`` otherwise.
+        """
+        if task_will_retry:
+            self.task_instance.end_date = datetime.now(tz=timezone.utc)
+            self.task_instance.state = TaskInstanceState.UP_FOR_RETRY
+        else:
+            self.task_instance.state = TaskInstanceState.FAILED
+        if self._context is not None:
+            _run_task_state_change_callbacks(
+                self.task_instance.task,
+                "on_retry_callback" if task_will_retry else "on_failure_callback",
+                self._context,
+                self.log,
             )
 
 

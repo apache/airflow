@@ -304,6 +304,23 @@ manual ``asyncio.gather`` or ``asyncio.Semaphore`` management.
 For more examples of calling async hooks directly from tasks, see
 :doc:`deferred-vs-async-operators`.
 
+Callbacks
+---------
+
+With IT the callbacks of the wrapped operator run per item, against the item's own context, but
+not all at the same moment:
+
+* ``on_success_callback`` and ``on_skipped_callback`` run as soon as the item succeeds or skips.
+* ``on_failure_callback`` and ``on_retry_callback`` of a failed item wait until every item has run,
+  because whether the task is retried depends on all of them: an ``AirflowFailException`` in one
+  item fails the whole task without a retry. Once the task's fate is known, every failed item gets
+  the callback that matches it, one after another: ``on_retry_callback`` when the task is retried,
+  ``on_failure_callback`` when it is not.
+* A failure that belongs to no item fires no callback: an error while resolving the input, before
+  any item exists, or items cancelled because the task's ``execution_timeout`` ran out (the item
+  the timeout struck is reported like the other failures). The iterated task carries no
+  task-level callbacks of its own.
+
 Comparison
 ----------
 
