@@ -211,29 +211,12 @@ def test_asset_scheduling_behavior_flags(timetable, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    ("outer_type", "inner_type"),
-    [
-        pytest.param(
-            CoreAssetOrTimeSchedule,
-            CustomAssetTriggeredTimetable,
-            id="or-wraps-custom-asset-triggered",
-        ),
-        pytest.param(
-            CoreAssetOrTimeSchedule,
-            CustomAssetGatedTimetable,
-            id="or-wraps-custom-asset-gated",
-        ),
-        pytest.param(
-            CoreAssetAndTimeSchedule,
-            CustomAssetTriggeredTimetable,
-            id="and-wraps-custom-asset-triggered",
-        ),
-        pytest.param(
-            CoreAssetAndTimeSchedule,
-            CustomAssetGatedTimetable,
-            id="and-wraps-custom-asset-gated",
-        ),
-    ],
+    "outer_type",
+    [CoreAssetOrTimeSchedule, CoreAssetAndTimeSchedule],
+)
+@pytest.mark.parametrize(
+    "inner_type",
+    [CustomAssetTriggeredTimetable, CustomAssetGatedTimetable],
 )
 def test_core_asset_time_schedules_reject_nested_asset_aware_timetable(outer_type, inner_type) -> None:
     asset = SerializedAsset("test_asset", "test://asset/", "asset", {}, [])
