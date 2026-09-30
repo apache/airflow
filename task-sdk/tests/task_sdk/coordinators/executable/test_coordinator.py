@@ -409,6 +409,40 @@ class TestBuildExecuteTaskCommand:
             coordinator._build_execute_task_command(what=ti)
 
 
+class TestBuildParseTaskHandlerCommand:
+    def test_returns_the_bundle_and_its_schema_version(self, tmp_path):
+        # The Dag ids in the metadata play no part: the Dag processor names the artifact.
+        bundle = _build_bundle(tmp_path / "etl", dag_ids=["other_dag"])
+
+        command, schema_version = ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+        assert command == [str(bundle)]
+        assert schema_version == "2026-06-16"
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            pytest.param(_make_executable, id="no-trailer"),
+            pytest.param(
+                lambda path: _build_bundle(path, binary_sha256=b"\x00" * 32), id="binary-digest-mismatch"
+            ),
+        ],
+    )
+    def test_rejects_a_file_that_is_not_a_valid_bundle(self, tmp_path, build):
+        bundle = build(tmp_path / "etl")
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+    def test_rejects_a_bundle_without_a_schema_version(self, tmp_path):
+        metadata = _make_metadata(["etl"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        bundle = _build_bundle(tmp_path / "etl", metadata=metadata)
+
+        with pytest.raises(ValueError, match="supervisor_schema_version"):
+            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+
 @pytest.fixture
 def bundles_dir(tmp_path):
     _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])

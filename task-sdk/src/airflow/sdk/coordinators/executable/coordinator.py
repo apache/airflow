@@ -326,6 +326,9 @@ class ExecutableCoordinator(SubprocessCoordinator):
     """
     Coordinator that launches a native executable subprocess for task execution.
 
+    The Dag processor also launches an executable bundle to ask which task handlers
+    it registers for the Dags of a Python file.
+
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
 
@@ -349,3 +352,12 @@ class ExecutableCoordinator(SubprocessCoordinator):
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        # The same trailer and digest check a task gets before its bundle runs.
+        if (metadata := _read_bundle_metadata(path)) is None:
+            raise ValueError(
+                f"{path} is not a valid executable bundle: the AFBNDL01 trailer is missing, "
+                "or its binary digest or metadata is invalid"
+            )
+        return [os.fspath(path)], extract_supervisor_schema_version(metadata)
