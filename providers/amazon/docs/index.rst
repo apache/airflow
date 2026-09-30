@@ -194,7 +194,7 @@ Extra                 Dependencies
 ``ssh``               ``apache-airflow-providers-ssh``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``sqlalchemy``        ``sqlalchemy>=1.4.54``
+``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
 ====================  ============================================================================================================================================================
 
 Downloading official packages

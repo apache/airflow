@@ -1706,6 +1706,8 @@ def ui_e2e_tests(
             "TEST_PASSWORD": test_admin_password,
             "TEST_DAG_ID": "example_bash_operator",
         }
+        if browser != "all":
+            env_vars["TEST_BROWSER"] = browser
 
         if force_reinstall_deps:
             clean_cmd = ["pnpm", "install", "--force"]
