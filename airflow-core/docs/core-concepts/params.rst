@@ -483,7 +483,8 @@ a name to the param values it applies:
             },
             "Smoke test": {"batch_size": 1},
         },
-    ) as dag: ...
+    ) as dag:
+        ...
 
 A ``Preset`` drop-down then appears above the trigger form. Picking one loads the Dag's param
 defaults and applies that preset's values on top, so a preset always produces the same starting
