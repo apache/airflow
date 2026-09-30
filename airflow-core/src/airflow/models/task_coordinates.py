@@ -34,6 +34,7 @@ from airflow.models.dynamic_region import (
     ProducerContext,
     get_trajectory,
     load_region_ancestry,
+    load_region_ancestry_async,
     loop_position,
     resolve_current_producers,
     select_current_producer_ids,
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from sqlalchemy import Select
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ColumnElement
 
@@ -401,35 +403,16 @@ class TaskCoordinateResolver:
         region_id: UUID | None = None,
         region_index: int | None = None,
     ) -> SerializedOperator:
-        query = select(TaskInstance.dag_version_id).where(
-            TaskInstance.working_set.is_(True),
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.task_id == task_id,
+        query = _build_producer_versions_query(
+            dag_id, run_id, task_id, region_id=region_id, region_index=region_index
         )
-        if region_id is not None:
-            query = query.where(TaskInstance.region_id == region_id)
-        if region_index is not None:
-            query = query.where(TaskInstance.region_index == region_index)
-        versions = set(self.session.scalars(query.distinct()))
+        versions = set(self.session.scalars(query))
         if not versions or None in versions:
             versions.discard(None)
-            version = self.session.scalar(
-                select(DagRun.created_dag_version_id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
-            )
-            if version is None:
-                raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
-            versions.add(version)
+            version = self.session.scalar(_build_run_version_query(dag_id, run_id))
+            versions.add(_require_run_version(version, dag_id=dag_id, run_id=run_id))
         tasks = [self.get_task(dag_id, run_id, task_id, dag_version_id=version) for version in versions]
-        classifications = {
-            (task.get_needs_expansion(), loop.group_id if (loop := enclosing_loop(task)) else None)
-            for task in tasks
-        }
-        if len(classifications) != 1:
-            raise AmbiguousProducerError(
-                "Producer definitions differ between the live task instances of the requested task"
-            )
-        return tasks[0]
+        return _pick_producer_task(tasks, dag_id=dag_id, run_id=run_id)
 
     def public_map_index(self, ti: TaskCoordinate, *, dag_version_id: UUID | None = None) -> int:
         if ti.region_id == SENTINEL_REGION_ID:
@@ -503,35 +486,19 @@ class TaskCoordinateResolver:
 
         The region ancestry of every Dag run is loaded once for all of its task instances.
         """
-        passes: list[int | None] = [None] * len(tis)
         loop_ids: dict[tuple[str, str, str, UUID | None], str | None] = {}
-        looped: dict[int, str] = {}
-        regions_by_run: dict[tuple[str, str], set[UUID]] = defaultdict(set)
-        for position, ti in enumerate(tis):
-            if ti.region_id == SENTINEL_REGION_ID:
-                continue
-            version = getattr(ti, "dag_version_id", None)
-            key = (ti.dag_id, ti.run_id, ti.task_id, version)
-            if key not in loop_ids:
-                try:
-                    loop = enclosing_loop(
-                        self.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=version)
-                    )
-                except (TaskNotFound, ValueError):
-                    loop = None
-                loop_ids[key] = None if loop is None else loop.group_id
-            if (loop_id := loop_ids[key]) is not None:
-                looped[position] = loop_id
-                regions_by_run[ti.dag_id, ti.run_id].add(ti.region_id)
+        for key in _get_loop_task_keys(tis):
+            try:
+                loop = enclosing_loop(self.get_task(key[0], key[1], key[2], dag_version_id=key[3]))
+            except (TaskNotFound, ValueError):
+                loop = None
+            loop_ids[key] = None if loop is None else loop.group_id
+        looped, regions_by_run = _group_looped_tis(tis, loop_ids)
         ancestry = {
             run: load_region_ancestry(region_ids, dag_id=run[0], run_id=run[1], session=self.session)
             for run, region_ids in regions_by_run.items()
         }
-        for position, loop_id in looped.items():
-            ti = tis[position]
-            found = loop_position(ancestry[ti.dag_id, ti.run_id], ti.region_id, ti.region_index, loop_id)
-            passes[position] = None if found is None else found[1]
-        return passes
+        return _compute_loop_passes(tis, looped, ancestry)
 
     def producer_contexts(
         self,
@@ -957,3 +924,135 @@ class TaskCoordinateResolver:
             region_index=request.region_index,
             session=self.session,
         )
+
+
+def _build_producer_versions_query(
+    dag_id: str, run_id: str, task_id: str, *, region_id: UUID | None, region_index: int | None
+) -> Select:
+    query = select(TaskInstance.dag_version_id).where(
+        TaskInstance.working_set.is_(True),
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id == task_id,
+    )
+    if region_id is not None:
+        query = query.where(TaskInstance.region_id == region_id)
+    if region_index is not None:
+        query = query.where(TaskInstance.region_index == region_index)
+    return query.distinct()
+
+
+def _build_run_version_query(dag_id: str, run_id: str) -> Select:
+    return select(DagRun.created_dag_version_id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+
+
+def _require_run_version(version: UUID | None, *, dag_id: str, run_id: str) -> UUID:
+    if version is None:
+        raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
+    return version
+
+
+def _pick_producer_task(
+    tasks: Sequence[SerializedOperator], *, dag_id: str, run_id: str
+) -> SerializedOperator:
+    classifications = {
+        (task.get_needs_expansion(), loop.group_id if (loop := enclosing_loop(task)) else None)
+        for task in tasks
+    }
+    if len(classifications) != 1:
+        raise AmbiguousProducerError(
+            "Producer definitions differ between the live task instances of the requested task"
+        )
+    return tasks[0]
+
+
+def _get_loop_task_keys(tis: Sequence[TaskCoordinate]) -> list[tuple[str, str, str, UUID | None]]:
+    """Return the distinct task keys of ``tis`` whose enclosing loop must be looked up."""
+    keys: dict[tuple[str, str, str, UUID | None], None] = {}
+    for ti in tis:
+        if ti.region_id != SENTINEL_REGION_ID:
+            keys[ti.dag_id, ti.run_id, ti.task_id, getattr(ti, "dag_version_id", None)] = None
+    return list(keys)
+
+
+def _group_looped_tis(
+    tis: Sequence[TaskCoordinate], loop_ids: dict[tuple[str, str, str, UUID | None], str | None]
+) -> tuple[dict[int, str], dict[tuple[str, str], set[UUID]]]:
+    """Return the enclosing loop of each looped position in ``tis`` and the region ids of each run."""
+    looped: dict[int, str] = {}
+    regions_by_run: dict[tuple[str, str], set[UUID]] = defaultdict(set)
+    for position, ti in enumerate(tis):
+        if ti.region_id == SENTINEL_REGION_ID:
+            continue
+        loop_id = loop_ids[ti.dag_id, ti.run_id, ti.task_id, getattr(ti, "dag_version_id", None)]
+        if loop_id is not None:
+            looped[position] = loop_id
+            regions_by_run[ti.dag_id, ti.run_id].add(ti.region_id)
+    return looped, regions_by_run
+
+
+def _compute_loop_passes(
+    tis: Sequence[TaskCoordinate],
+    looped: dict[int, str],
+    ancestry: dict[tuple[str, str], dict[UUID, DynamicRegion]],
+) -> list[int | None]:
+    passes: list[int | None] = [None] * len(tis)
+    for position, loop_id in looped.items():
+        ti = tis[position]
+        found = loop_position(ancestry[ti.dag_id, ti.run_id], ti.region_id, ti.region_index, loop_id)
+        passes[position] = None if found is None else found[1]
+    return passes
+
+
+@attrs.define
+class AsyncTaskCoordinateResolver:
+    """Resolve the loop passes of task coordinates through an async session."""
+
+    dag_bag: DBDagBag
+    session: AsyncSession
+    _dags: dict[UUID, SerializedDAG] = attrs.field(factory=dict, init=False)
+
+    async def get_dag(self, dag_version_id: UUID) -> SerializedDAG | None:
+        if dag_version_id not in self._dags:
+            if (dag := await self.dag_bag.get_dag_async(dag_version_id, session=self.session)) is None:
+                return None
+            self._dags[dag_version_id] = dag
+        return self._dags[dag_version_id]
+
+    async def get_task(
+        self, dag_id: str, run_id: str, task_id: str, *, dag_version_id: UUID | None = None
+    ) -> SerializedOperator:
+        if dag_version_id is None:
+            return await self._producer_task(dag_id, run_id, task_id)
+        dag = await self.get_dag(dag_version_id)
+        if dag is None or dag.dag_id != dag_id:
+            raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
+        return dag.get_task(task_id)
+
+    async def _producer_task(self, dag_id: str, run_id: str, task_id: str) -> SerializedOperator:
+        query = _build_producer_versions_query(dag_id, run_id, task_id, region_id=None, region_index=None)
+        versions = set(await self.session.scalars(query))
+        if not versions or None in versions:
+            versions.discard(None)
+            version = await self.session.scalar(_build_run_version_query(dag_id, run_id))
+            versions.add(_require_run_version(version, dag_id=dag_id, run_id=run_id))
+        tasks = [await self.get_task(dag_id, run_id, task_id, dag_version_id=version) for version in versions]
+        return _pick_producer_task(tasks, dag_id=dag_id, run_id=run_id)
+
+    async def get_loop_passes(self, tis: Sequence[TaskCoordinate]) -> list[int | None]:
+        """Return the iteration of the loop enclosing each of ``tis``, ``None`` outside any loop."""
+        loop_ids: dict[tuple[str, str, str, UUID | None], str | None] = {}
+        for key in _get_loop_task_keys(tis):
+            try:
+                loop = enclosing_loop(await self.get_task(key[0], key[1], key[2], dag_version_id=key[3]))
+            except (TaskNotFound, ValueError):
+                loop = None
+            loop_ids[key] = None if loop is None else loop.group_id
+        looped, regions_by_run = _group_looped_tis(tis, loop_ids)
+        ancestry = {
+            run: await load_region_ancestry_async(
+                region_ids, dag_id=run[0], run_id=run[1], session=self.session
+            )
+            for run, region_ids in regions_by_run.items()
+        }
+        return _compute_loop_passes(tis, looped, ancestry)

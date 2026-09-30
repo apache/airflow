@@ -17,9 +17,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest import mock
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes.xcoms import _build_xcom_read
@@ -30,6 +34,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import AmbiguousProducerError, DynamicRegion
 from airflow.models.task_coordinates import (
+    AsyncTaskCoordinateResolver,
     TaskCoordinateResolver,
     build_coordinate_filters,
     get_public_map_index,
@@ -40,7 +45,9 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.log.task_log_address import prepare_task_log_contexts
+from airflow.utils.session import create_session_async
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import (
@@ -465,6 +472,98 @@ def test_loop_passes_load_the_region_ancestry_once_for_all_task_instances(loop_c
 
     assert passes == [2, 2, 1, None]
     assert len(statements) == 1
+
+
+def _snapshot_coordinates(*tis):
+    return [
+        SimpleNamespace(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            region_id=ti.region_id,
+            region_index=ti.region_index,
+            dag_version_id=ti.dag_version_id,
+        )
+        for ti in tis
+    ]
+
+
+@pytest.mark.asyncio
+async def test_async_loop_passes_match_the_sync_resolver(loop_coordinates, session):
+    _, producer, consumer, previous, outside = loop_coordinates
+    session.commit()
+    coordinates = _snapshot_coordinates(producer, consumer, previous, outside)
+    unversioned = SimpleNamespace(**{**vars(coordinates[0]), "dag_version_id": None})
+
+    async with create_session_async() as async_session:
+        resolver = AsyncTaskCoordinateResolver(DBDagBag(), async_session)
+        passes = await resolver.get_loop_passes([*coordinates, unversioned])
+
+    assert passes == [2, 2, 1, None, 2]
+
+
+@pytest.mark.asyncio
+async def test_async_loop_passes_reject_a_region_outside_the_run(loop_coordinates, session):
+    _, producer, _, _, _ = loop_coordinates
+    session.commit()
+    (coordinate,) = _snapshot_coordinates(producer)
+    coordinate.region_id = uuid4()
+
+    async with create_session_async() as async_session:
+        resolver = AsyncTaskCoordinateResolver(DBDagBag(), async_session)
+        with pytest.raises(ValueError, match="Region context does not belong"):
+            await resolver.get_loop_passes([coordinate])
+
+
+def _mock_async_resolver(dags, versions, run_version=None):
+    dag_bag = mock.create_autospec(DBDagBag, instance=True)
+    dag_bag.get_dag_async.side_effect = lambda version_id, session: dags.get(version_id)
+    session = mock.create_autospec(AsyncSession, instance=True)
+    session.scalars.return_value = versions
+    session.scalar.return_value = run_version
+    return AsyncTaskCoordinateResolver(dag_bag, session)
+
+
+def _mock_dag(*, needs_expansion=False, dag_id="dag"):
+    dag = mock.create_autospec(SerializedDAG, instance=True, dag_id=dag_id)
+    dag.get_task.return_value.get_needs_expansion.return_value = needs_expansion
+    dag.get_task.return_value.task_group = None
+    return dag
+
+
+@pytest.mark.asyncio
+async def test_async_producer_task_falls_back_to_the_run_version():
+    dag = _mock_dag()
+    resolver = _mock_async_resolver({"run_version": dag}, versions=[None], run_version="run_version")
+
+    assert await resolver.get_task("dag", "run", "task") is dag.get_task.return_value
+
+    dag.get_task.assert_called_once_with("task")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("dags", "versions", "error", "match"),
+    [
+        pytest.param({}, [None], ValueError, "Pinned Dag for dag/run not found", id="no-run-version"),
+        pytest.param({}, ["v1"], ValueError, "Pinned Dag for dag/run not found", id="missing-dag"),
+        pytest.param(
+            {"v1": _mock_dag(dag_id="other")}, ["v1"], ValueError, "Pinned Dag", id="dag-id-mismatch"
+        ),
+        pytest.param(
+            {"v1": _mock_dag(), "v2": _mock_dag(needs_expansion=True)},
+            ["v1", "v2"],
+            AmbiguousProducerError,
+            "definitions differ",
+            id="ambiguous",
+        ),
+    ],
+)
+async def test_async_producer_task_errors(dags, versions, error, match):
+    resolver = _mock_async_resolver(dags, versions=versions)
+
+    with pytest.raises(error, match=match):
+        await resolver.get_task("dag", "run", "task")
 
 
 def test_dependency_rejects_duplicate_latest_gate_coordinates(loop_coordinates, session):
