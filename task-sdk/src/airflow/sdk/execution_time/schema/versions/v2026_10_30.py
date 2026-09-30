@@ -15,6 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+Supervisor schema version 2026-10-30.
+
+A brand-new message body needs no field-level migration instructions here: a lang-SDK
+pinned to an older version simply never sends it, so there is nothing to strip on the
+way down. Only *changes* to bodies that already existed at an earlier dated version
+require a ``VersionChange`` entry below.
+"""
+
 from __future__ import annotations
 
 from cadwyn import VersionChange, schema
