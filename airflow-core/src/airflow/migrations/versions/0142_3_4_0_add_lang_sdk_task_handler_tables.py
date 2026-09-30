@@ -67,6 +67,7 @@ def upgrade():
         sa.Column("dag_bundle_name", StringID(), nullable=False),
         sa.Column("dag_relative_fileloc", sa.String(length=2000), nullable=False),
         sa.Column("dag_relative_fileloc_hash", sa.String(length=32), nullable=False),
+        sa.Column("handler_binding", sa.String(length=20), nullable=False),
         sa.Column("handler_params", sa.JSON(), nullable=False),
         sa.PrimaryKeyConstraint("dag_id", "task_id", name=op.f("lang_sdk_task_handler_pkey")),
         sa.ForeignKeyConstraint(

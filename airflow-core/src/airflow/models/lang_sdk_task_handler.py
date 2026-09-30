@@ -97,6 +97,7 @@ class LangSDKTaskHandler(Base):
     dag_relative_fileloc_hash: Mapped[str] = mapped_column(
         String(32), nullable=False, default=_build_fileloc_hash_default("dag_relative_fileloc")
     )
+    handler_binding: Mapped[str] = mapped_column(String(20), nullable=False)
     handler_params: Mapped[list[dict[str, Any]]] = mapped_column(sa.JSON(), nullable=False)
 
     __table_args__ = (
