@@ -224,6 +224,29 @@ class TestAsyncVariables:
         assert var == expected_value
 
     @pytest.mark.asyncio
+    @patch("airflow.sdk.definitions.variable.amask_secret")
+    async def test_avar_get_returns_default_when_not_found(self, mock_amask_secret, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": "Variable my_key not found"}
+        )
+
+        var = await Variable.aget(key="my_key", default="default_value")
+
+        assert var == "default_value"
+        mock_amask_secret.assert_awaited_once_with("default_value", name="my_key")
+
+    @pytest.mark.asyncio
+    async def test_avar_get_raises_when_not_found_without_default(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": "Variable my_key not found"}
+        )
+
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            await Variable.aget(key="my_key")
+
+        assert exc_info.value.error.error == ErrorType.VARIABLE_NOT_FOUND
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("key", "value", "description", "serialize_json"),
         [
