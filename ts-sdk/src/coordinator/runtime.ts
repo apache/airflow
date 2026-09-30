@@ -33,6 +33,7 @@
 //   1. Parse --comm / --logs from argv
 //   2. Connect both TCP sockets
 //   3. Read the first frame from comm:
+//        - TaskHandlerParseRequest → send TaskHandlerParsingResult, await its ack, exit
 //        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
@@ -40,6 +41,7 @@ import { resolveArgs, type BoundArgs } from "./arg-binding.js";
 import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
+import { declareTaskHandlers } from "./task-handler-parse.js";
 import {
   AIRFLOW_METADATA_FLAG,
   AIRFLOW_METADATA_SENTINEL,
@@ -165,7 +167,17 @@ export async function startCoordinator(
 
     const body = asMsgFromSupervisor(firstFrame.body);
 
-    if (body.type === "DagFileParseRequest") {
+    if (body.type === "TaskHandlerParseRequest") {
+      runtimeLogs.info("Received task handler parse request", {
+        file: body.file,
+        dag_ids: body.dag_ids,
+      });
+      const result = declareTaskHandlers(bundle, body);
+      await sendParseResult(result, comm, runtimeLogs);
+      runtimeLogs.info("Declared task handlers", {
+        dag_ids: Object.keys(result.task_handlers),
+      });
+    } else if (body.type === "DagFileParseRequest") {
       runtimeLogs.info("Received Dag parse request", {
         file: body.file,
         bundle_path: body.bundle_path,
@@ -194,7 +206,7 @@ export async function startCoordinator(
         runtimeLogs.info("Task succeeded", { task_id: body.ti.task_id });
       }
     } else {
-      const errMsg = `First frame must be DagFileParseRequest or StartupDetails, got ${body.type}`;
+      const errMsg = `First frame must be TaskHandlerParseRequest, DagFileParseRequest or StartupDetails, got ${body.type}`;
       runtimeLogs.error("Unexpected first frame", { type: body.type });
       await sendSupervisorResponse(firstFrame.id, null, comm, runtimeLogs, {
         error: "protocol_error",
@@ -380,6 +392,23 @@ async function sendSupervisorResponse(
     });
     throw err;
   }
+}
+
+/**
+ * Send a parse result as a request and wait for Airflow's acknowledgement, so
+ * the process never exits before the result is recorded. An acknowledgement
+ * carrying an error, including the socket closing first, throws.
+ */
+async function sendParseResult(body: unknown, comm: CommChannel, logs: LogChannel): Promise<void> {
+  const ack = await comm.request(body, { timeoutMs: COORDINATOR_RESPONSE_TIMEOUT_MS });
+  if (ack.error == null) return;
+  logs.error("Parse result was not acknowledged", {
+    response_type: responseType(body),
+    error: ack.error,
+  });
+  throw new Error(
+    `Airflow did not acknowledge the ${responseType(body)}: ${JSON.stringify(ack.error)}`,
+  );
 }
 
 function buildFailureResponse(

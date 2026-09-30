@@ -287,7 +287,9 @@ Its values are Python names, which `tsc` cannot see and does not check.
 Airflow launches the bundled entrypoint with `--comm=host:port` and
 `--logs=host:port`. `bundle.serve()` connects to those sockets, receives the
 task startup message, finds the registered handler for the Dag/task pair, and
-reports the terminal task state back to Airflow.
+reports the terminal task state back to Airflow. Airflow can also start the bundle
+to ask which task handlers it registers; `bundle.serve()` then answers with each
+handler's task ID and `withArgNames` renames, without running any handler.
 
 See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
 a coordinator-runtime example that packs a bundle with `airflow-ts-pack` and

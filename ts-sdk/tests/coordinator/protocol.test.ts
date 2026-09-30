@@ -54,6 +54,17 @@ describe("protocol decode", () => {
     expect(asMsgFromSupervisor(raw).type).toBe("DagFileParseRequest");
   });
 
+  it("accepts TaskHandlerParseRequest", () => {
+    const raw = {
+      type: "TaskHandlerParseRequest",
+      file: "/x.min.mjs",
+      dag_ids: ["d"],
+      bundle_path: "/",
+      bundle_name: "ts-task-handlers",
+    };
+    expect(asMsgFromSupervisor(raw).type).toBe("TaskHandlerParseRequest");
+  });
+
   it("rejects missing type", () => {
     expect(() => asMsgFromSupervisor({ ti: {} })).toThrow(/missing string 'type'/);
   });

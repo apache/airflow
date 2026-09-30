@@ -32,6 +32,7 @@ import type {
   SucceedTask,
   TaskState,
 } from "../generated/supervisor.js";
+import type { TaskHandlerParseRequest, TaskHandlerParsingResult } from "../generated/supervisor.js";
 
 export { SUPERVISOR_API_VERSION } from "../generated/supervisor.js";
 
@@ -75,6 +76,7 @@ type WithRequiredType<T extends { type?: unknown }> = Omit<T, "type"> & {
 export type MsgFromSupervisor =
   | WithRequiredType<StartupDetails>
   | WithRequiredType<DagFileParseRequest>
+  | WithRequiredType<TaskHandlerParseRequest>
   | WithRequiredType<ErrorResponse>;
 
 // -------- Frames to supervisor --------
@@ -86,6 +88,7 @@ export type RuntimeSucceedTask = WithRequiredType<SucceedTask> & {
   outlet_events: NonNullable<SucceedTask["outlet_events"]>;
 };
 export type RuntimeDagFileParsingResult = WithRequiredType<DagFileParsingResult>;
+export type RuntimeTaskHandlerParsingResult = WithRequiredType<TaskHandlerParsingResult>;
 
 // -------- Decoder: raw map → typed message --------
 
@@ -94,6 +97,7 @@ export function asMsgFromSupervisor(raw: unknown): MsgFromSupervisor {
   switch (body.type) {
     case "StartupDetails":
     case "DagFileParseRequest":
+    case "TaskHandlerParseRequest":
     case "ErrorResponse":
       return body as unknown as MsgFromSupervisor;
     default:
