@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk.execution
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.airflow.sdk.ArgName
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
@@ -31,8 +33,10 @@ import org.apache.airflow.sdk.execution.comm.TaskHandlerParseRequest
 import org.apache.airflow.sdk.internal.TaskParams
 import org.apache.airflow.sdk.internal.TypeRef
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.io.File
 
 private val NULLABLE_STRING = mapOf("anyOf" to listOf(mapOf("type" to "string"), mapOf("type" to "null")))
 
@@ -126,6 +130,25 @@ private val SCORE_INPUT_PARAMS =
     param("threshold", mapOf("type" to "number", "format" to "double")),
   )
 
+// Generated from the Python models, so it is what the Dag processor decodes the reply with.
+private val SUPERVISOR_SCHEMA: JsonNode = ObjectMapper().readTree(File("schema/schema.json")).path("${'$'}defs")
+
+private fun assertConforms(
+  definition: String,
+  body: Map<*, *>,
+) {
+  val schema = SUPERVISOR_SCHEMA.path(definition)
+  val properties =
+    schema
+      .path("properties")
+      .fieldNames()
+      .asSequence()
+      .toSet()
+  val required = schema.path("required").map { it.asText() }.toSet()
+  assertTrue(properties.containsAll(body.keys), "$definition has no ${body.keys - properties}")
+  assertTrue(body.keys.containsAll(required), "$definition misses ${required - body.keys}")
+}
+
 class TaskHandlerParseTest {
   @Test
   @DisplayName("Should declare each requested Dag's task handlers in registration order")
@@ -169,6 +192,32 @@ class TaskHandlerParseTest {
           ),
       )
     assertEquals(expected, result)
+  }
+
+  @Test
+  @DisplayName("Should send only the fields the supervisor schema declares, and every required one")
+  fun conformsToSupervisorSchema() {
+    val bundle =
+      Bundle()
+        .register("etl", "extract", GeneratedFlat::class.java)
+        .register("etl", "score", GeneratedInput::class.java)
+        .register("etl", "audit", Audit::class.java)
+
+    val result = parseTaskHandlers(bundle, request("etl"))
+
+    assertConforms("TaskHandlerParsingResult", result)
+    val bindings =
+      SUPERVISOR_SCHEMA
+        .path("TaskHandlerDeclaration")
+        .path("properties")
+        .path("binding")
+        .path("enum")
+    for (declaration in (result["task_handlers"] as Map<*, *>).values.flatMap { it as List<*> }) {
+      declaration as Map<*, *>
+      assertConforms("TaskHandlerDeclaration", declaration)
+      assertTrue(bindings.any { it.asText() == declaration["binding"] }, "unknown binding ${declaration["binding"]}")
+      (declaration["params"] as List<*>).forEach { assertConforms("TaskHandlerParam", it as Map<*, *>) }
+    }
   }
 
   @Test
