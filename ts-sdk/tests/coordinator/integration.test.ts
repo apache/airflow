@@ -758,6 +758,29 @@ describe("coordinator runtime integration", () => {
     });
   });
 
+  it("binds GetTaskStateStore's ti_id to the startup TaskInstance id, not the dag version id", async () => {
+    let observed: unknown = "<unset>";
+    testDag.task("state_store_client", async () => {
+      observed = await getClient().getTaskStateStore("k");
+    });
+
+    const responder: Responder = (msgType) => {
+      if (msgType === "GetTaskStateStore") {
+        return { body: { type: "TaskStateStoreResult", value: 1 } };
+      }
+      return null;
+    };
+
+    const result = await driveSupervisor(makeStartupDetails("state_store_client"), responder);
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observed).toBe(1);
+
+    const getReq = result.runtimeRequests.find((r) => r.type === "GetTaskStateStore")!.body;
+    expect(getReq).toMatchObject({ ti_id: "ti-1", key: "k" });
+    expect(getReq["ti_id"]).not.toBe("dag-version-1");
+  });
+
   it("returns null from getVariable when the supervisor signals NOT_FOUND", async () => {
     let observed: string | null = "<unset>";
     testDag.task("missing_variable", async () => {

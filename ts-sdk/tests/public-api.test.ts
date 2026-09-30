@@ -24,6 +24,8 @@ import type {
   ConnectionResult,
   DagSpec,
   GetXComOpts,
+  JsonValue,
+  SetTaskStateStoreOpts,
   SetXComOpts,
   TaskClient,
   Registerable,
@@ -43,6 +45,7 @@ import {
   Dag,
   getClient,
   getContext,
+  NEVER_EXPIRE,
   SUPERVISOR_API_VERSION,
   TaskHandler,
   VariableNotFoundError,
@@ -283,6 +286,8 @@ describe("public API", () => {
     expectTypeOf<typeof sdk>().not.toHaveProperty("serveDags");
     expectTypeOf<typeof sdk>().not.toHaveProperty("DagRegistry");
     expectTypeOf(SUPERVISOR_API_VERSION).toMatchTypeOf<string>();
+    expectTypeOf(NEVER_EXPIRE).toMatchTypeOf<number>();
+    expect(Number.isFinite(NEVER_EXPIRE)).toBe(false);
   });
 
   it("keeps the Dag authoring signatures extensible via trailing specs", () => {
@@ -402,11 +407,27 @@ describe("public API", () => {
       (key: string, value: string, description?: string | null) => Promise<void>
     >();
     expectTypeOf<TaskClient["deleteVariable"]>().toEqualTypeOf<(key: string) => Promise<void>>();
+    expectTypeOf<SetTaskStateStoreOpts>().toEqualTypeOf<{
+      key: string;
+      value: NonNullable<JsonValue>;
+      retentionMs?: number;
+    }>();
+    expectTypeOf<TaskClient["getTaskStateStore"]>().toEqualTypeOf<
+      <T = unknown>(key: string) => Promise<T | null>
+    >();
+    expectTypeOf<TaskClient["setTaskStateStore"]>().toEqualTypeOf<
+      (opts: SetTaskStateStoreOpts) => Promise<void>
+    >();
+    expectTypeOf<TaskClient["deleteTaskStateStore"]>().toEqualTypeOf<
+      (key: string) => Promise<void>
+    >();
+    expectTypeOf<TaskClient["clearTaskStateStore"]>().toEqualTypeOf<() => Promise<void>>();
   });
 
   it("rejects wire-format names and non-JSON XCom values", () => {
     function acceptsGetXComOpts(_opts: GetXComOpts): void {}
     function acceptsSetXComOpts(_opts: SetXComOpts): void {}
+    function acceptsSetTaskStateStoreOpts(_opts: SetTaskStateStoreOpts): void {}
 
     acceptsGetXComOpts({
       key: "result",
@@ -496,5 +517,9 @@ describe("public API", () => {
     expectTypeOf<TaskRef>().toHaveProperty("handler");
     // @ts-expect-error XCom values must be JSON-compatible.
     acceptsSetXComOpts({ key: "result", value: new Date() });
+    // @ts-expect-error task-state-store values must be JSON-compatible.
+    acceptsSetTaskStateStoreOpts({ key: "result", value: new Date() });
+    // @ts-expect-error task-state-store values must not be null.
+    acceptsSetTaskStateStoreOpts({ key: "result", value: null });
   });
 });

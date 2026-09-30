@@ -308,7 +308,7 @@ async function handleTask(
   }
 
   const ctx = buildContext(details, signal);
-  const client = createCoordinatorClient(comm, ctx, clientLogs);
+  const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
 
   let bound: BoundArgs;
   try {

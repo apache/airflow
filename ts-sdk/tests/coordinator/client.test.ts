@@ -17,12 +17,15 @@
  * under the License.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { ConnectionNotFoundError } from "../../src/sdk/client.js";
+import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
 import type { TaskContext } from "../../src/sdk/task.js";
+
+const RETENTION_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
 
 function fakeComm(frames: { body: unknown; error?: unknown }[]): CommChannel {
   let i = 0;
@@ -40,8 +43,10 @@ const FAKE_CTX: TaskContext = {
   signal: new AbortController().signal,
 };
 
+const FAKE_TI_ID = "01890f3e-0000-7000-8000-000000000001";
+
 function client(frames: { body: unknown; error?: unknown }[]) {
-  return createCoordinatorClient(fakeComm(frames), FAKE_CTX);
+  return createCoordinatorClient(fakeComm(frames), FAKE_CTX, FAKE_TI_ID);
 }
 
 /** Captures the request bodies sent, answering each one with `reply`. */
@@ -53,7 +58,7 @@ function recordingClient(reply: unknown = null) {
       return { body: reply };
     },
   } as unknown as CommChannel;
-  return { client: createCoordinatorClient(comm, FAKE_CTX), sent };
+  return { client: createCoordinatorClient(comm, FAKE_CTX, FAKE_TI_ID), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -139,6 +144,17 @@ describe("writes do not read a supervisor 404 as absence", () => {
     ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],
     ["deleteVariable", "DeleteVariable", (c: TaskClient) => c.deleteVariable("k")],
     ["setXCom", "SetXCom", (c: TaskClient) => c.setXCom({ key: "k", value: 1 })],
+    [
+      "setTaskStateStore",
+      "SetTaskStateStore",
+      (c: TaskClient) => c.setTaskStateStore({ key: "k", value: 1 }),
+    ],
+    [
+      "deleteTaskStateStore",
+      "DeleteTaskStateStore",
+      (c: TaskClient) => c.deleteTaskStateStore("k"),
+    ],
+    ["clearTaskStateStore", "ClearTaskStateStore", (c: TaskClient) => c.clearTaskStateStore()],
   ])("%s rejects", async (_name, op, call) => {
     const c = client([
       { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },
@@ -190,7 +206,7 @@ describe("client is bound to TaskContext", () => {
         return { body: null };
       },
     } as unknown as CommChannel;
-    const c = createCoordinatorClient(recordingComm, FAKE_CTX);
+    const c = createCoordinatorClient(recordingComm, FAKE_CTX, FAKE_TI_ID);
 
     await c.setXCom({ key: "echo", value: 1 });
     await c.setXCom({
@@ -225,7 +241,7 @@ describe("client is bound to TaskContext", () => {
         return { body: { type: "XComResult", key: b.key, value: null } };
       },
     } as unknown as CommChannel;
-    const c = createCoordinatorClient(recordingComm, FAKE_CTX);
+    const c = createCoordinatorClient(recordingComm, FAKE_CTX, FAKE_TI_ID);
 
     await c.getXCom({ key: "k" });
 
@@ -254,7 +270,7 @@ describe("client is bound to TaskContext", () => {
     // ctx with a real map index, to prove -1 from opts wins over a
     // mapped ctx value (caller is explicitly asking "the non-mapped row").
     const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
-    const c = createCoordinatorClient(recordingComm, mappedCtx);
+    const c = createCoordinatorClient(recordingComm, mappedCtx, FAKE_TI_ID);
 
     await c.setXCom({ key: "k", value: 1, mapIndex: -1 });
     await c.setXCom({ key: "k", value: 2, mapIndex: null });
@@ -357,5 +373,210 @@ describe("getConnectionOrThrow", () => {
   it("propagates non-not-found errors instead of ConnectionNotFoundError", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "API_SERVER_ERROR" } }]);
     await expect(c.getConnectionOrThrow("warehouse")).rejects.toThrow(/API_SERVER_ERROR/);
+  });
+});
+
+describe("getTaskStateStore", () => {
+  it("sends GetTaskStateStore with the bound ti_id and returns the stored value", async () => {
+    const { client: c, sent } = recordingClient({ type: "TaskStateStoreResult", value: { n: 1 } });
+
+    await expect(c.getTaskStateStore("k")).resolves.toEqual({ n: 1 });
+
+    expect(sent[0]).toEqual({ type: "GetTaskStateStore", ti_id: FAKE_TI_ID, key: "k" });
+  });
+
+  it("returns null for the exact TASK_STORE_NOT_FOUND code", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "TASK_STORE_NOT_FOUND" } }]);
+    expect(await c.getTaskStateStore("k")).toBeNull();
+  });
+
+  it("rejects for an API_SERVER_ERROR with status 404, which is not in its absence policy", async () => {
+    const c = client([
+      { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },
+    ]);
+    await expect(c.getTaskStateStore("k")).rejects.toThrow(/API_SERVER_ERROR/);
+  });
+
+  it("rejects for VARIABLE_NOT_FOUND, which is not in its absence policy", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "VARIABLE_NOT_FOUND" } }]);
+    await expect(c.getTaskStateStore("k")).rejects.toThrow(/VARIABLE_NOT_FOUND/);
+  });
+
+  it("rejects on an empty key without sending a request", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.getTaskStateStore("")).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("getVariable does not read TASK_STORE_NOT_FOUND as absence", () => {
+  it("rejects for TASK_STORE_NOT_FOUND, which is not in its absence policy", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "TASK_STORE_NOT_FOUND" } }]);
+    await expect(c.getVariable("k")).rejects.toThrow(/TASK_STORE_NOT_FOUND/);
+  });
+});
+
+describe("setTaskStateStore retention", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("sends expires_at null for NEVER_EXPIRE", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.setTaskStateStore({ key: "k", value: 1, retentionMs: NEVER_EXPIRE });
+
+    expect(sent[0]).toEqual({
+      type: "SetTaskStateStore",
+      ti_id: FAKE_TI_ID,
+      key: "k",
+      value: 1,
+      expires_at: null,
+    });
+  });
+
+  it("sends now + retentionMs for a finite retentionMs", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.setTaskStateStore({ key: "k", value: 1, retentionMs: 60_000 });
+
+    expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:01:00.000Z" });
+  });
+
+  it("sends now (expire immediately) for retentionMs 0", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.setTaskStateStore({ key: "k", value: 1, retentionMs: 0 });
+
+    expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:00:00.000Z" });
+  });
+
+  it.each([
+    ["absent", undefined, "2026-01-31T00:00:00.000Z"],
+    ["", "", "2026-01-31T00:00:00.000Z"],
+    ["0", "0", null],
+    ["7", "7", "2026-01-08T00:00:00.000Z"],
+    ["7.0", "7.0", "2026-01-08T00:00:00.000Z"],
+  ])("resolves the default_retention_days env var: %s", async (_label, raw, expected) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    vi.stubEnv(RETENTION_ENV_VAR, raw);
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.setTaskStateStore({ key: "k", value: 1 });
+
+    expect(sent[0]).toMatchObject({ expires_at: expected });
+  });
+
+  it.each([
+    ["-1", "-1"],
+    ["abc", "abc"],
+    ["fractional", "7.5"],
+  ])("rejects an invalid default_retention_days env var: %s", async (_label, raw) => {
+    vi.stubEnv(RETENTION_ENV_VAR, raw);
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.setTaskStateStore({ key: "k", value: 1 })).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("setTaskStateStore guards", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["-Infinity", Number.NEGATIVE_INFINITY],
+  ])("rejects a %s value without sending a request", async (_label, value) => {
+    const { client: c, sent } = recordingClient();
+    // @ts-expect-error exercising the runtime guard against an untyped caller.
+    await expect(c.setTaskStateStore({ key: "k", value })).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it.each([
+    ["negative", -1],
+    ["NaN", Number.NaN],
+  ])("rejects retentionMs=%s without sending a request", async (_label, retentionMs) => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.setTaskStateStore({ key: "k", value: 1, retentionMs })).rejects.toThrow(
+      RangeError,
+    );
+    expect(sent).toHaveLength(0);
+  });
+
+  it("rejects an empty key without sending a request", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.setTaskStateStore({ key: "", value: 1 })).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("deleteTaskStateStore", () => {
+  it("sends DeleteTaskStateStore and resolves on the supervisor's OKResponse", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.deleteTaskStateStore("k")).resolves.toBeUndefined();
+
+    expect(sent[0]).toEqual({ type: "DeleteTaskStateStore", ti_id: FAKE_TI_ID, key: "k" });
+  });
+
+  it("rejects on an empty key without sending a request", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.deleteTaskStateStore("")).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("task state store key type guard", () => {
+  it.each([
+    [
+      "getTaskStateStore",
+      (c: TaskClient) => {
+        // @ts-expect-error exercising the runtime guard against an untyped caller.
+        return c.getTaskStateStore(undefined);
+      },
+    ],
+    [
+      "setTaskStateStore",
+      (c: TaskClient) => {
+        // @ts-expect-error exercising the runtime guard against an untyped caller.
+        return c.setTaskStateStore({ key: undefined, value: 1 });
+      },
+    ],
+    [
+      "deleteTaskStateStore",
+      (c: TaskClient) => {
+        // @ts-expect-error exercising the runtime guard against an untyped caller.
+        return c.deleteTaskStateStore(undefined);
+      },
+    ],
+  ])("%s rejects a non-string key without sending a request", async (_label, call) => {
+    const { client: c, sent } = recordingClient();
+    await expect(call(c)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("clearTaskStateStore", () => {
+  it("sends ClearTaskStateStore with no key and resolves on the supervisor's OKResponse", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.clearTaskStateStore()).resolves.toBeUndefined();
+
+    expect(sent[0]).toEqual({ type: "ClearTaskStateStore", ti_id: FAKE_TI_ID });
   });
 });

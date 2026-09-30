@@ -64,6 +64,11 @@ export type {
   GetXCom,
   SetXCom,
   GetConnection,
+  ClearTaskStateStore,
+  DeleteTaskStateStore,
+  GetTaskStateStore,
+  SetTaskStateStore,
+  TaskStateStoreResult,
 } from "../generated/supervisor.js";
 
 // -------- Frames from supervisor --------

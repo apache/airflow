@@ -25,7 +25,8 @@ Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks, both served by t
 ``airflow-ts-pack`` bundle, and each is triggered once via a module-scoped fixture.
 
 ``typescript_example`` covers the runtime: Variable reads and writes, Connection reads,
-Python <-> TypeScript XCom round-trips, and task logs reaching the log store.
+Python <-> TypeScript XCom round-trips, task state store round-trips and clearing, and task
+logs reaching the log store.
 
 ``typescript_taskflow_example`` covers TaskFlow arguments, including an upstream output pulled before
 the handler runs and a ``withArgNames`` rename on its ``report`` task, and shares a ``build_message``
@@ -121,6 +122,8 @@ def test_task_states(completed_run: _CompletedRun):
         "build_message": "success",
         "read_connection": "success",
         "write_and_delete_variable": "success",
+        "write_and_read_task_state": "success",
+        "clear_task_state": "success",
     }
     for task_id, want in expected.items():
         assert completed_run.ti_states.get(task_id) == want, (
@@ -169,6 +172,66 @@ def test_scratch_variable_deleted_by_typescript_task_is_gone(completed_run: _Com
         completed_run.client.get_variable(_SCRATCH_VARIABLE)
     assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
         f"{_SCRATCH_VARIABLE} should have been deleted by the TypeScript task, "
+        f"got HTTP {excinfo.value.response.status_code}"
+    )
+
+
+def test_task_state_store_round_trip(completed_run: _CompletedRun):
+    """``write_and_read_task_state`` writes two keys, reads them back, and deletes one."""
+    value = completed_run.xcom("write_and_read_task_state")
+    assert value["jobId"] == completed_run.run_id, (
+        f"jobId should be this run's id {completed_run.run_id!r}, got {value!r}"
+    )
+    assert value["scratchBeforeDelete"] == {"attempt": 1}, (
+        f"scratchBeforeDelete should be {{'attempt': 1}}, got {value!r}"
+    )
+    assert value["scratchAfterDelete"] is None, (
+        f"scratchAfterDelete should be None after deleteTaskStateStore, got {value!r}"
+    )
+
+    body = completed_run.client.get_task_state_store(
+        dag_id=completed_run.dag_id, run_id=completed_run.run_id, task_id="write_and_read_task_state"
+    )
+    assert body["total_entries"] == 1, f"expected a single remaining task state store entry, got {body!r}"
+    assert {entry["key"] for entry in body["task_state_store"]} == {"typescript_example_job_id"}, (
+        f"expected only the job id key to remain, got {body!r}"
+    )
+
+    entry = completed_run.client.get_task_state_store(
+        dag_id=completed_run.dag_id,
+        run_id=completed_run.run_id,
+        task_id="write_and_read_task_state",
+        key="typescript_example_job_id",
+    )
+    assert entry["value"] == completed_run.run_id, (
+        f"job id entry should hold this run's id {completed_run.run_id!r}, got {entry!r}"
+    )
+    assert entry["expires_at"] is None, f"NEVER_EXPIRE should reach the database as no expiry, got {entry!r}"
+
+
+def test_task_state_store_clear(completed_run: _CompletedRun):
+    """``clear_task_state`` removes every task state store key it wrote."""
+    value = completed_run.xcom("clear_task_state")
+    assert value["afterClear"] is None, f"afterClear should be None after clearTaskStateStore, got {value!r}"
+
+    body = completed_run.client.get_task_state_store(
+        dag_id=completed_run.dag_id, run_id=completed_run.run_id, task_id="clear_task_state"
+    )
+    assert body["total_entries"] == 0, f"clearTaskStateStore should remove all entries, got {body!r}"
+    assert body["task_state_store"] == [], f"clearTaskStateStore should remove all entries, got {body!r}"
+
+
+def test_task_state_store_deleted_key_is_gone(completed_run: _CompletedRun):
+    """A key written and then deleted from TypeScript no longer exists via the REST API."""
+    with pytest.raises(requests.HTTPError) as excinfo:
+        completed_run.client.get_task_state_store(
+            dag_id=completed_run.dag_id,
+            run_id=completed_run.run_id,
+            task_id="write_and_read_task_state",
+            key="typescript_example_scratch",
+        )
+    assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+        f"typescript_example_scratch should have been deleted by the TypeScript task, "
         f"got HTTP {excinfo.value.response.status_code}"
     )
 
