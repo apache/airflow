@@ -100,12 +100,12 @@
       "placeholder": "搜索日志..."
     },
     "settings": "日志设置",
-    "viewInExternal": "在 {{name}} 中查看日志（重试 {{attempt}}）",
-    "warning": "WARNING",
     "tryNotStarted": "此次尝试尚未开始。",
     "viewFailedTry": "查看第 {{tryNumber}} 次失败尝试的日志",
+    "viewInExternal": "在 {{name}} 中查看日志（重试 {{attempt}}）",
     "viewPreviousTry": "查看上一次尝试（第 {{tryNumber}} 次）的日志",
-    "waitingToRetry": "第 {{tryNumber}} 次尝试正在等待重试。"
+    "waitingToRetry": "第 {{tryNumber}} 次尝试正在等待重试。",
+    "warning": "WARNING"
   },
   "notFound": {
     "back": "返回",
