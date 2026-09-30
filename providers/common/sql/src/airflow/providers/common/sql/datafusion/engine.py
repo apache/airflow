@@ -386,14 +386,15 @@ class DataFusionEngine(LoggingMixin):
                 )
             # Only an Active Directory ID was given, not a full URL or DNS name.
             netloc = f"{login}.blob.core.windows.net"
-        if not netloc.endswith(cls._AZURE_PUBLIC_SUFFIX):
-            if not (os.environ.get("AZURE_STORAGE_ENDPOINT") or os.environ.get("AZURE_ENDPOINT")):
-                raise ValueError(
-                    f"Connection host {host!r} does not resolve to the public {cls._AZURE_PUBLIC_SUFFIX} "
-                    "cloud, which is the only one DataFusion's Azure Blob Storage binding can target (it "
-                    "has no endpoint override). A sovereign cloud is supported once the "
-                    "AZURE_STORAGE_ENDPOINT environment variable is set."
-                )
+        if not netloc.endswith(cls._AZURE_PUBLIC_SUFFIX) and not (
+            os.environ.get("AZURE_STORAGE_ENDPOINT") or os.environ.get("AZURE_ENDPOINT")
+        ):
+            raise ValueError(
+                f"Connection host {host!r} does not resolve to the public {cls._AZURE_PUBLIC_SUFFIX} "
+                "cloud, which is the only one DataFusion's Azure Blob Storage binding can target (it "
+                "has no endpoint override). A sovereign cloud is supported once the "
+                "AZURE_STORAGE_ENDPOINT environment variable is set."
+            )
         # Azure storage account names are capped at 24 characters.
         return netloc.split(".", 1)[0][:24]
 
