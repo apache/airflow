@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import contextvars
 import functools
 import json
 import os
 import textwrap
+import threading
 import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -55,6 +57,7 @@ from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOpe
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import (
     DAG,
+    BaseAsyncOperator,
     BaseOperator,
     BaseOperatorLink,
     Connection,
@@ -163,6 +166,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    IndexedTaskStateStoreAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
@@ -172,9 +176,13 @@ from airflow.sdk.execution_time.context import (
     _wrap_external_ref,
 )
 from airflow.sdk.execution_time.task_runner import (
+    IndexedTaskInstance,
+    IndexedTaskRunner,
+    IndexedTaskState,
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _defer_task,
+    _execute_async_task,
     _execute_task,
     _make_task_span,
     _push_xcom_if_needed,
@@ -195,6 +203,7 @@ from airflow.triggers.callback import CallbackTrigger
 from airflow.triggers.testing import SuccessTrigger
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
@@ -1644,6 +1653,37 @@ def test_execution_timeout(create_runtime_ti):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
+def test_execution_timeout_caps_iterated_task_with_sync_sub_tasks(create_runtime_ti, mock_supervisor_comms):
+    """The wrapped operator's execution_timeout is kept on the IterableOperator as the wall-clock cap on
+    the whole iteration. The runner enforces it on the main thread, so it fires even though the sync
+    sub-tasks run in worker threads where SIGALRM cannot reach them."""
+    from airflow.sdk.definitions._internal.expandinput import ListOfDictsExpandInput
+    from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+    class SleepyOperator(BaseOperator):
+        def execute(self, context):
+            time.sleep(1)
+
+    # Two items on a single worker: without the cap the iteration takes two sleeps. With it the
+    # timeout fires during the first item, and the second is never started. Python threads cannot
+    # be interrupted, so the error surfaces once the first item's sleep ends, after one sleep.
+    expand_input = ListOfDictsExpandInput([{}, {}])
+    with DAG("dag_iterate_execution_timeout") as dag:
+        mapped = SleepyOperator.partial(
+            task_id="sleepy", dag=dag, task_concurrency=1, execution_timeout=timedelta(milliseconds=200)
+        )._expand(expand_input, strict=True, register_with_dag=False)
+        with pytest.warns(UserWarning, match="caps the whole iteration"):
+            op = IterableOperator(operator=mapped, expand_input=expand_input, dag=dag)
+    assert op.execution_timeout == timedelta(milliseconds=200)
+
+    ti = create_runtime_ti(task=op, dag_id="dag_iterate_execution_timeout")
+
+    started = time.monotonic()
+    with pytest.raises(AirflowTaskTimeout):
+        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+    assert time.monotonic() - started < 1.8
+
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
@@ -2263,29 +2303,46 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
         inlet_events[Asset(name="no such asset in inlets")]
 
 
-@mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
 @mock.patch.dict(os.environ, {}, clear=True)
-def test_execute_task_exports_env_vars(
-    mock_context_to_airflow_vars, create_runtime_ti, mock_supervisor_comms
-):
-    """Test that _execute_task exports airflow context to environment variables."""
+def test_execute_task_exports_context_vars_to_environ(create_runtime_ti, mock_supervisor_comms):
+    """A regular task instance exports AIRFLOW_CTX_* to os.environ before the operator runs."""
+    captured_vars = {}
 
     def test_function():
+        captured_vars["dag_id"] = os.environ.get("AIRFLOW_CTX_DAG_ID")
+        captured_vars["task_id"] = os.environ.get("AIRFLOW_CTX_TASK_ID")
         return "test function"
 
-    task = PythonOperator(
-        task_id="test_task",
-        python_callable=test_function,
-    )
+    task = PythonOperator(task_id="test_task", python_callable=test_function)
+    ti = create_runtime_ti(task=task, dag_id="dag_with_ctx_vars")
 
-    ti = create_runtime_ti(task=task, dag_id="dag_with_env_vars")
-
-    mock_env_vars = {"AIRFLOW_CTX_DAG_ID": "test_dag_env_vars", "AIRFLOW_CTX_TASK_ID": "test_env_task"}
-    mock_context_to_airflow_vars.return_value = mock_env_vars
     run(ti, ti.get_template_context(), log=mock.MagicMock())
 
-    assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_dag_env_vars"
-    assert os.environ["AIRFLOW_CTX_TASK_ID"] == "test_env_task"
+    assert captured_vars == {"dag_id": "dag_with_ctx_vars", "task_id": "test_task"}
+
+
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_execute_task_leaves_environ_alone_for_indexed_task_instance(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """Indexed sub-tasks run concurrently in one process, so _execute_task must not touch the shared
+    os.environ for them; the parent IterableOperator exported the same values before they started."""
+    captured_vars = {}
+
+    def test_function():
+        captured_vars["dag_id"] = os.environ.get("AIRFLOW_CTX_DAG_ID")
+        return "test function"
+
+    task = PythonOperator(task_id="test_task", python_callable=test_function)
+    ti = create_runtime_ti(task=task, dag_id="dag_with_indexed_ctx_vars")
+    indexed_ti = IndexedTaskInstance.create_indexed_task(
+        context={"ti": ti, "task": task, "task_state_store": ti.task_state_store}, index=0, operator=task
+    )
+
+    _execute_task(context=indexed_ti.get_template_context(), ti=indexed_ti, log=mock.MagicMock())
+
+    assert captured_vars == {"dag_id": None}
+    assert "AIRFLOW_CTX_DAG_ID" not in os.environ
 
 
 def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
@@ -2339,6 +2396,660 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
 
     # Verify that rendered_map_index is set (existing behavior)
     assert ti.rendered_map_index == "Label: test_task"
+
+
+class TestIndexedTaskState:
+    @pytest.mark.parametrize(
+        "result",
+        [
+            pytest.param(('[{"@odata.context": "..."}]', "6C5EF9E6CBBE"), id="tuple"),
+            pytest.param(datetime(2026, 9, 17, 21, 16, 7, tzinfo=dt_timezone.utc), id="datetime"),
+            pytest.param([{"a": 1}, {"b": [1, 2]}], id="plain_json"),
+        ],
+    )
+    def test_result_survives_the_state_store_message_and_round_trips(self, result):
+        """The checkpoint is sent as a JsonValue, so a result that is not plain JSON has to be
+        serialized on the way in and restored on the way out."""
+        serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS, result=result).serialize()
+
+        msg = SetTaskStateStore(ti_id=uuid7(), key="_iterable_0", value=serialized, expires_at=None)
+
+        assert IndexedTaskState.deserialize(msg.value).result == result
+
+
+class TestIndexedTaskInstance:
+    @pytest.mark.parametrize(
+        ("index", "key", "value", "expected_key"),
+        [
+            (3, "result", "ok", "result_3"),
+            (2, BaseXCom.XCOM_RETURN_KEY, "value1", f"{BaseXCom.XCOM_RETURN_KEY}_2"),
+            (1, "custom_key", "value2", "custom_key_1"),
+        ],
+        ids=["delegates_with_index_suffix", "default_key", "custom_key"],
+    )
+    def test_xcom_push_suffix(self, make_indexed_ti, index, key, value, expected_key):
+        """xcom_push appends the sub-task's index suffix to the XCom key."""
+        ti = make_indexed_ti(index=index)
+
+        with mock.patch("airflow.sdk.execution_time.task_runner._xcom_push", autospec=True) as mock_push:
+            ti.xcom_push(key=key, value=value)
+
+        mock_push.assert_called_once_with(ti, expected_key, value)
+
+    def test_properties(self, make_indexed_ti):
+        ti = make_indexed_ti(index=7, try_number=4, is_async=True, do_xcom_push=False)
+
+        assert ti.is_async is True
+        assert ti.do_xcom_push is False
+
+    @staticmethod
+    def _parent_context_and_operator():
+        parent_operator = mock.create_autospec(BaseOperator, instance=True)
+        # The date the task is scheduled from, which is not when this task instance started.
+        parent_operator.start_date = timezone.datetime(2020, 1, 1)
+        parent = RuntimeTaskInstance.model_construct(
+            id=uuid7(),
+            task_id="iterated",
+            dag_id="dag",
+            run_id="run_1",
+            map_index=3,
+            try_number=2,
+            # What a manual clear leaves behind: the budget raised past the operator's retries.
+            max_tries=7,
+            start_date=timezone.datetime(2024, 12, 3, 9, 55, 0),
+        )
+        context = {"ti": parent, "task": parent_operator, "task_state_store": parent.task_state_store}
+        operator = mock.create_autospec(BaseOperator, instance=True)
+        operator.task_id = "iterated"
+        operator.dag_id = "dag"
+        operator.retries = 5
+        return context, operator
+
+    def test_create_indexed_task_shares_the_parent_identity(self):
+        context, operator = self._parent_context_and_operator()
+
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
+
+        parent = context["ti"]
+        assert (ti.id, ti.run_id, ti.map_index, ti.try_number) == (parent.id, "run_1", 3, 2)
+        # The retry budget is the parent's, not the operator's retries (5).
+        assert (ti.index, ti.max_tries, ti.task) == (4, 7, operator)
+        assert ti.start_date == parent.start_date
+        assert ti.state == TaskInstanceState.SCHEDULED.value
+        assert ti.is_mapped is True
+
+    def test_create_indexed_task_sees_the_parents_state_store_through_its_index(self):
+        """User code in an iteration gets the parent's store with suffixed keys; the checkpoints do not."""
+        context, operator = self._parent_context_and_operator()
+        parent_store = context["ti"].task_state_store
+
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
+
+        assert ti.parent_task_state_store is parent_store
+        assert ti.task_state_store == IndexedTaskStateStoreAccessor(parent_store, index=4)
+        assert ti.task_state_store is ti.task_state_store  # cached, so the context and ti agree
+
+    @pytest.mark.asyncio
+    async def test_checkpoints_go_to_the_parents_store_unsuffixed(self):
+        context, operator = self._parent_context_and_operator()
+        parent_store = context["ti"].task_state_store
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
+
+        with (
+            mock.patch.object(parent_store, "aset", new_callable=mock.AsyncMock) as aset,
+            mock.patch.object(parent_store, "aget", new_callable=mock.AsyncMock, return_value=None) as aget,
+        ):
+            await ti.aset_state(IndexedTaskState(status=TaskInstanceState.SUCCESS))
+            assert await ti.aget_state() is None
+
+        aset.assert_awaited_once_with("_iterable_4", {"status": "success"})
+        aget.assert_awaited_once_with("_iterable_4")
+
+    def test_create_indexed_task_rejects_negative_index(self):
+        context, operator = self._parent_context_and_operator()
+
+        with pytest.raises(ValueError, match="requires index >= 0, got -1"):
+            IndexedTaskInstance.create_indexed_task(context=context, index=-1, operator=operator)
+
+
+class TestIndexedTaskRunner:
+    def test_dag_id_property(self, make_indexed_ti):
+        ti = make_indexed_ti(dag_id="my_dag")
+        executor = IndexedTaskRunner(task_instance=ti)
+        assert executor.dag_id == "my_dag"
+
+    def test_task_id_property(self, make_indexed_ti):
+        ti = make_indexed_ti(task_id="my_task")
+        executor = IndexedTaskRunner(task_instance=ti)
+        assert executor.task_id == "my_task"
+
+    def test_task_index(self, make_indexed_ti):
+        ti = make_indexed_ti(index=3)
+        executor = IndexedTaskRunner(task_instance=ti)
+        assert executor.task_index == ti.index
+        assert executor.task_index == 3
+
+    def test_operator_property(self, make_indexed_ti):
+        ti = make_indexed_ti()
+        executor = IndexedTaskRunner(task_instance=ti)
+        assert executor.operator is ti.task
+
+    def test_is_async_property_sync(self, make_indexed_ti):
+        ti = make_indexed_ti(is_async=False)
+        executor = IndexedTaskRunner(task_instance=ti)
+        assert executor.is_async is False
+
+    def test_is_async_property_async(self, make_indexed_ti):
+        ti = make_indexed_ti(is_async=True)
+        executor = IndexedTaskRunner(task_instance=ti)
+        assert executor.is_async is True
+
+    def test_indexed_context_is_the_parents_seen_from_the_indexed_task(self):
+        """
+        Inside the block the indexed task has its own ti, state store view and outlet events on a
+        copy of the parent's context, and that copy is the current context.
+        """
+        ti = mock.MagicMock(name="indexed_ti")
+        parent_ti = mock.MagicMock(name="parent_ti")
+        parent = {
+            "ti": parent_ti,
+            "task_instance": parent_ti,
+            "task_state_store": parent_ti.task_state_store,
+            "outlet_events": mock.MagicMock(name="parent_events"),
+            "inlet_events": mock.MagicMock(name="inlet_events"),
+            "dag_run": mock.MagicMock(name="dag_run"),
+            "params": {"p": 1},
+        }
+        runner = IndexedTaskRunner(task_instance=ti)
+
+        with runner.indexed_context(parent) as indexed_context:
+            assert get_current_context() is indexed_context
+            assert indexed_context["ti"] is ti
+            assert indexed_context["task_instance"] is ti
+            assert indexed_context["task_state_store"] is ti.task_state_store
+            assert indexed_context["outlet_events"] is runner.outlet_events
+            assert indexed_context["params"] == {"p": 1}
+            # a copy, so concurrent indexed tasks cannot leak into each other
+            assert indexed_context["params"] is not parent["params"]
+
+        assert runner._context is indexed_context  # remembered for the state-change callbacks
+        assert parent["ti"] is parent_ti
+        assert parent["outlet_events"] is not runner.outlet_events
+
+    def test_outlet_events_can_be_handed_in(self, make_indexed_ti):
+        events = mock.MagicMock(name="events")
+        executor = IndexedTaskRunner(task_instance=make_indexed_ti(), outlet_events=events)
+        assert executor.outlet_events is events
+
+    def test_enter_sets_start_time(self, make_indexed_ti):
+        ti = make_indexed_ti()
+        executor = IndexedTaskRunner(task_instance=ti)
+        assert executor._start_time is None
+        executor.__enter__()
+        assert executor._start_time is not None
+
+    def test_enter_returns_self(self, make_indexed_ti):
+        ti = make_indexed_ti()
+        executor = IndexedTaskRunner(task_instance=ti)
+        with executor as ctx:
+            assert ctx is executor
+
+    def test_enter_registers_operator_in_active_operators(self, make_indexed_ti):
+        """__enter__ registers the operator into the caller-supplied active_operators set, so
+        callers (e.g. IterableOperator) can track in-flight sub-tasks without their own
+        try/finally bookkeeping."""
+        ti = make_indexed_ti()
+        active_operators: set = set()
+        lock = threading.Lock()
+        executor = IndexedTaskRunner(
+            task_instance=ti, active_operators=active_operators, active_operators_lock=lock
+        )
+
+        assert ti.task not in active_operators
+        executor.__enter__()
+        assert ti.task in active_operators
+
+    def test_exit_discards_operator_from_active_operators_on_success(self, make_indexed_ti):
+        ti = make_indexed_ti()
+        active_operators: set = set()
+        lock = threading.Lock()
+
+        with IndexedTaskRunner(
+            task_instance=ti, active_operators=active_operators, active_operators_lock=lock
+        ):
+            assert ti.task in active_operators
+
+        assert ti.task not in active_operators
+
+    def test_exit_discards_operator_from_active_operators_on_failure(self, make_indexed_ti):
+        """The operator must be discarded from active_operators even when the sub-task raises,
+        so on_kill() never propagates to a sub-task that has already stopped running."""
+        ti = make_indexed_ti(try_number=3, max_tries=3)
+        active_operators: set = set()
+        lock = threading.Lock()
+
+        with pytest.raises(ValueError, match="boom"):
+            with IndexedTaskRunner(
+                task_instance=ti, active_operators=active_operators, active_operators_lock=lock
+            ):
+                raise ValueError("boom")
+
+        assert ti.task not in active_operators
+
+    def test_active_operators_tracking_is_optional(self, make_indexed_ti):
+        """When active_operators is not supplied (the default), __enter__/__exit__ must not
+        raise even though no tracking set is available."""
+        ti = make_indexed_ti()
+        with IndexedTaskRunner(task_instance=ti):
+            pass  # should not raise
+
+    def test_exit_success_sets_state(self, make_indexed_ti):
+        """__exit__ without an exception marks the task instance as SUCCESS."""
+        ti = make_indexed_ti()
+        with IndexedTaskRunner(task_instance=ti):
+            pass  # no exception
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    def test_exit_with_task_deferred_reraises(self, make_indexed_ti):
+        """TaskDeferred must propagate unchanged through __exit__."""
+        ti = make_indexed_ti()
+        trigger = mock.Mock()
+        deferred = TaskDeferred(trigger=trigger, method_name="resume")
+
+        with pytest.raises(TaskDeferred):
+            with IndexedTaskRunner(task_instance=ti):
+                raise deferred
+
+    def test_exit_with_reschedule_exception_is_retried_like_any_other_exception(self, make_indexed_ti):
+        """AirflowRescheduleException (base, from a reschedule-mode sensor) is no longer special-cased:
+        it is retried the same way as any other exception, since retries are now handled by Airflow's
+        standard mechanism at the IterableOperator level rather than by the indexed sub-task."""
+        ti = make_indexed_ti(try_number=1, max_tries=3)
+        from datetime import timedelta
+
+        from airflow.sdk import timezone
+
+        exc = AirflowRescheduleException(timezone.utcnow() + timedelta(seconds=60))
+
+        with pytest.raises(AirflowRescheduleException):
+            with IndexedTaskRunner(task_instance=ti):
+                raise exc
+
+        assert ti.try_number == 1  # the parent's attempt, left as it is
+        assert ti.state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_exit_retries_when_retries_remain(self, make_indexed_ti):
+        """
+        When a retryable exception occurs and retries are not exhausted,
+        the task state is set to UP_FOR_RETRY and the original exception is
+        re-raised unchanged — retries are handled by Airflow's standard mechanism
+        retrying the whole IterableOperator, not by the indexed sub-task itself.
+        """
+        # first attempt of four: 1 <= 3, the parent is retried
+        ti = make_indexed_ti(try_number=1, max_tries=3)
+
+        with pytest.raises(RuntimeError, match="transient failure"):
+            with IndexedTaskRunner(task_instance=ti):
+                raise RuntimeError("transient failure")
+
+        assert ti.state == TaskInstanceState.UP_FOR_RETRY
+        assert ti.try_number == 1  # the parent's attempt, left as it is
+
+    def test_exit_fails_when_retries_exhausted(self, make_indexed_ti):
+        """
+        When a retryable exception occurs and all retries are exhausted,
+        the task state is set to FAILED and the original exception is re-raised.
+        """
+        # fourth attempt of four: 4 > 3, the parent fails
+        ti = make_indexed_ti(try_number=4, max_tries=3)
+        original_error = RuntimeError("permanent failure")
+
+        with pytest.raises(RuntimeError, match="permanent failure"):
+            with IndexedTaskRunner(task_instance=ti):
+                raise original_error
+
+        assert ti.state == TaskInstanceState.FAILED
+
+    @pytest.mark.parametrize(
+        ("try_number", "max_tries", "should_fail"),
+        [
+            (1, 0, True),  # no retries: the only attempt fails
+            (1, 1, False),  # one retry: the first attempt is retried
+            (2, 1, True),  # one retry: the second attempt fails
+            (3, 3, False),  # three retries: the third attempt is still retried
+            (4, 3, True),  # three retries: the fourth attempt fails
+            (2, 3, False),  # cleared after one attempt with two retries: budget raised to 3
+        ],
+    )
+    def test_exit_retry_boundary(self, make_indexed_ti, try_number, max_tries, should_fail):
+        """
+        Boundary checks for the retry/fail decision in __exit__, with the attempt numbers the parent
+        really has (the first attempt is 1) and the server's rule, ``try_number <= max_tries``.
+        """
+        ti = make_indexed_ti(try_number=try_number, max_tries=max_tries)
+        if should_fail:
+            with pytest.raises(RuntimeError):
+                with IndexedTaskRunner(task_instance=ti):
+                    raise RuntimeError("err")
+            assert ti.state == TaskInstanceState.FAILED
+        else:
+            with pytest.raises(RuntimeError):
+                with IndexedTaskRunner(task_instance=ti):
+                    raise RuntimeError("err")
+            assert ti.state == TaskInstanceState.UP_FOR_RETRY
+
+    @staticmethod
+    def _parent_context(task):
+        """A parent context with what clone_context needs and a parent-side state store."""
+        context = mock_context(task)
+        context["inlet_events"] = mock.MagicMock(name="inlet_events")
+        context["dag_run"] = mock.MagicMock(name="dag_run")
+        context["task_state_store"] = mock.MagicMock(name="parent_store")
+        return context
+
+    def test_run_delegates_to_execute_task(self, make_indexed_ti):
+        """run() must call _execute_task with the sub-task's view of the given context."""
+        ti = make_indexed_ti()
+        ti.parent_task_state_store = mock.MagicMock(name="parent_store")
+        task = BaseOperator(task_id="test_task")
+        get_inline_dag("test_dag", task)
+        context = self._parent_context(task)
+        executor = IndexedTaskRunner(task_instance=ti)
+
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner._execute_task",
+            autospec=True,
+            return_value="result",
+        ) as mock_execute:
+            result = executor.run(context)
+
+        mock_execute.assert_called_once()
+        indexed_context, passed_ti, log = mock_execute.call_args.args
+        assert (passed_ti, log) == (ti, executor.log)
+        assert indexed_context["ti"] is ti
+        assert indexed_context["task_state_store"] is ti.task_state_store
+        assert indexed_context["outlet_events"] is executor.outlet_events
+        assert context["ti"] is not ti  # the parent's context is untouched
+        assert result == "result"
+
+    @pytest.mark.asyncio
+    async def test_arun_delegates_to_execute_async_task(self, make_indexed_ti):
+        """arun() must call _execute_async_task with the sub-task's view of the given context."""
+        ti = make_indexed_ti(is_async=True)
+        ti.parent_task_state_store = mock.MagicMock(name="parent_store")
+        task = BaseOperator(task_id="test_task")
+        get_inline_dag("test_dag", task)
+        context = self._parent_context(task)
+        executor = IndexedTaskRunner(task_instance=ti)
+
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner._execute_async_task",
+            new=mock.AsyncMock(return_value="async_result"),
+        ) as mock_async_execute:
+            result = await executor.arun(context)
+
+        mock_async_execute.assert_called_once()
+        indexed_context, passed_ti, log = mock_async_execute.call_args.args
+        assert (passed_ti, log) == (ti, executor.log)
+        assert indexed_context["ti"] is ti
+        assert indexed_context["task_state_store"] is ti.task_state_store
+        assert result == "async_result"
+
+    @pytest.mark.parametrize(
+        "base_exception",
+        [
+            SystemExit(1),
+            KeyboardInterrupt(),
+            GeneratorExit(),
+        ],
+        ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
+    )
+    def test_exit_base_exception_not_retried(self, make_indexed_ti, base_exception):
+        """
+        BaseException subclasses (e.g., SystemExit, KeyboardInterrupt) must never
+        be retried—they signal conditions where continuing is meaningless.
+        They should be re-raised immediately and mark the task as FAILED.
+        """
+        ti = make_indexed_ti(try_number=0, max_tries=3)
+
+        with pytest.raises(type(base_exception)):
+            with IndexedTaskRunner(task_instance=ti):
+                raise base_exception
+
+        assert ti.state == TaskInstanceState.FAILED
+        # try_number should NOT be incremented for BaseException
+        assert ti.try_number == 0
+
+    def test_exit_success_fires_on_success_callback(self, make_indexed_ti):
+        """on_success_callback must fire for each indexed sub-task that succeeds."""
+        fired: list[str] = []
+        ti = make_indexed_ti()
+        task = BaseOperator(
+            task_id="cb_task",
+            on_success_callback=lambda ctx: fired.append("success"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = context
+
+        with executor:
+            pass
+
+        assert fired == ["success"]
+
+    def test_exit_failure_fires_on_failure_callback(self, make_indexed_ti):
+        """on_failure_callback must fire for each indexed sub-task that exhausts retries."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=4, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = context
+
+        with pytest.raises(RuntimeError):
+            with executor:
+                raise RuntimeError("permanent")
+
+        assert fired == ["failure"]
+
+    def test_exit_retry_fires_on_retry_callback(self, make_indexed_ti):
+        """on_retry_callback must fire for each indexed sub-task the parent is retried for."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=1, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_retry_callback=lambda ctx: fired.append("retry"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = context
+
+        with pytest.raises(RuntimeError, match="transient"):
+            with executor:
+                raise RuntimeError("transient")
+
+        assert fired == ["retry"]
+
+    def test_exit_fail_exception_fires_on_failure_callback_with_retries_left(self, make_indexed_ti):
+        """AirflowFailException fails the parent without a retry, so the iteration reports a failure."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=1, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+            on_retry_callback=lambda ctx: fired.append("retry"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = mock_context(task)
+
+        with pytest.raises(AirflowFailException):
+            with executor:
+                raise AirflowFailException("do not retry")
+
+        assert fired == ["failure"]
+        assert ti.state == TaskInstanceState.FAILED
+
+    def test_exit_skip_fires_on_skipped_callback_only(self, make_indexed_ti):
+        """A skipped iteration is neither a failure nor a retry, whatever budget is left."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=1, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_skipped_callback=lambda ctx: fired.append("skipped"),
+            on_failure_callback=lambda ctx: fired.append("failure"),
+            on_retry_callback=lambda ctx: fired.append("retry"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = mock_context(task)
+
+        with pytest.raises(AirflowSkipException):
+            with executor:
+                raise AirflowSkipException("nothing to do")
+
+        assert fired == ["skipped"]
+        assert ti.state == TaskInstanceState.SKIPPED
+
+    def test_exit_cancelled_iteration_gets_no_state_and_no_callback(self, make_indexed_ti):
+        """Cancelled because the task is stopping: the iteration neither failed nor will be retried."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=1, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+            on_retry_callback=lambda ctx: fired.append("retry"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        state_before = ti.state
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = mock_context(task)
+
+        with pytest.raises(asyncio.CancelledError):
+            with executor:
+                raise asyncio.CancelledError()
+
+        assert fired == []
+        assert ti.state == state_before
+
+    @pytest.mark.parametrize(
+        ("try_number", "fired_callback", "state"),
+        [
+            pytest.param(1, "retry", TaskInstanceState.UP_FOR_RETRY, id="retries-left"),
+            pytest.param(4, "failure", TaskInstanceState.FAILED, id="last-attempt"),
+        ],
+    )
+    def test_exit_parent_timeout_follows_the_retry_rule(
+        self, make_indexed_ti, try_number, fired_callback, state
+    ):
+        """The parent's timeout strikes in this iteration; the task is retried for it like for any error."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=try_number, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+            on_retry_callback=lambda ctx: fired.append("retry"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = mock_context(task)
+
+        with pytest.raises(AirflowTaskTimeout):
+            with executor:
+                raise AirflowTaskTimeout("the task ran out of time")
+
+        assert fired == [fired_callback]
+        assert ti.state == state
+
+    def test_exit_base_exception_fires_on_failure_callback(self, make_indexed_ti):
+        """on_failure_callback must also fire when a non-Exception BaseException marks the task FAILED."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=0, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = IndexedTaskRunner(task_instance=ti)
+        executor._context = context
+
+        with pytest.raises(SystemExit):
+            with executor:
+                raise SystemExit(1)
+
+        assert fired == ["failure"]
+
+    def test_exit_no_context_skips_callbacks(self, make_indexed_ti):
+        """When _context is not set (e.g. __exit__ called directly), callbacks must not fire."""
+        fired: list[str] = []
+        ti = make_indexed_ti()
+        task = BaseOperator(
+            task_id="cb_task",
+            on_success_callback=lambda ctx: fired.append("success"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        executor = IndexedTaskRunner(task_instance=ti)
+        # _context intentionally left as None
+
+        with executor:
+            pass
+
+        assert fired == []
+
+
+class TestExecuteAsyncTask:
+    """``on_kill()`` runs when the execution timeout runs out, not for a TimeoutError the operator raises."""
+
+    class _Operator(BaseAsyncOperator):
+        def __init__(self, behaviour: str, **kwargs):
+            super().__init__(**kwargs)
+            self.behaviour = behaviour
+            self.killed = False
+
+        async def aexecute(self, context):
+            if self.behaviour == "raise":
+                raise TimeoutError("the remote host did not answer")
+            await asyncio.sleep(60)
+
+        def on_kill(self):
+            self.killed = True
+
+    async def _run(self, make_indexed_ti, behaviour, execution_timeout):
+        operator = self._Operator(
+            behaviour=behaviour, task_id="async_task", execution_timeout=execution_timeout
+        )
+        ti = make_indexed_ti(is_async=True)
+        ti.task = operator
+        with pytest.raises(TimeoutError):
+            await _execute_async_task({}, ti, mock.MagicMock())
+        return operator
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("execution_timeout", [None, timedelta(minutes=5)], ids=["no-limit", "limit"])
+    async def test_operators_own_timeout_error_does_not_kill_it(self, make_indexed_ti, execution_timeout):
+        operator = await self._run(make_indexed_ti, "raise", execution_timeout)
+        assert operator.killed is False
+
+    @pytest.mark.asyncio
+    async def test_running_out_of_the_limit_kills_it(self, make_indexed_ti):
+        operator = await self._run(make_indexed_ti, "sleep", timedelta(milliseconds=50))
+        assert operator.killed is True
 
 
 class TestSerializeOutletEvents:
@@ -2605,6 +3316,86 @@ class TestRuntimeTaskInstance:
 
         # Now the lazy attribute should trigger the call
         mock_supervisor_comms.send.assert_called_once()
+
+    def test_logical_date_returns_none_without_ti_context_from_server(self, mocked_parse):
+        """Test that logical_date returns None when _ti_context_from_server is not set."""
+        task = BaseOperator(task_id="hello")
+        dag_id = "basic_task"
+
+        get_inline_dag(dag_id=dag_id, task=task)
+
+        ti_id = uuid7()
+        ti = TaskInstance(
+            id=ti_id,
+            task_id=task.task_id,
+            dag_id=dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        start_date = timezone.datetime(2025, 1, 1)
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=None,
+            start_date=start_date,
+        )
+
+        assert runtime_ti.logical_date is None
+
+    def test_logical_date_returns_dag_run_logical_date(self, create_runtime_ti):
+        """Test that logical_date returns the dag run's logical_date when _ti_context_from_server is set."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dag_run = runtime_ti._ti_context_from_server.dag_run
+
+        assert runtime_ti.logical_date == dag_run.logical_date
+        assert runtime_ti.logical_date == timezone.datetime(2024, 12, 1, 1, 0, 0)
+
+    def test_task_state_store_is_cached(self, create_runtime_ti):
+        """Repeated access must return the same instance, not rebuild a new accessor each time."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        first = runtime_ti.task_state_store
+        second = runtime_ti.task_state_store
+
+        assert first is second
+
+    def test_task_state_store_used_by_template_context_is_the_cached_instance(self, create_runtime_ti):
+        """``get_template_context()`` must wire in the same cached accessor, not a fresh one."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        context = runtime_ti.get_template_context()
+
+        assert context["task_state_store"] is runtime_ti.task_state_store
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected_scope_map_index"),
+        [
+            pytest.param(None, -1, id="explicit-none-map-index-falls-back-to-minus-one"),
+            pytest.param(0, 0, id="mapped-task-index-zero"),
+            pytest.param(3, 3, id="mapped-task-index-three"),
+        ],
+    )
+    def test_task_state_store_scope_reflects_map_index(
+        self, create_runtime_ti, map_index, expected_scope_map_index
+    ):
+        """The scope used to namespace task-state-store keys must match the TI's own map_index,
+        falling back to -1 when map_index is None (e.g. an unmapped task)."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task", map_index=map_index)
+        assert runtime_ti.map_index == map_index
+
+        scope = runtime_ti.task_state_store._scope
+
+        assert scope.map_index == expected_scope_map_index
+        assert scope.dag_id == runtime_ti.dag_id
+        assert scope.run_id == runtime_ti.run_id
+        assert scope.task_id == runtime_ti.task_id
 
     def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""

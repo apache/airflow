@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import structlog
 
+from airflow.sdk import BaseOperator, XComArg
 from airflow.sdk.execution_time.comms import SucceedTask, TaskState
 
 if TYPE_CHECKING:
@@ -37,6 +38,12 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
         log = structlog.get_logger(__name__)
 
         mock_supervisor_comms.send.reset_mock()
+        # Tests can their supervisor replies on the sync ``send``. Answer the async ``asend`` from the
+        # same replies, so a task pulling through the async SDK path (iterated inputs resolve XComArgs
+        # with ``aresolve``) sees them as well.
+        mock_supervisor_comms.asend.side_effect = lambda msg, **kwargs: mock_supervisor_comms.send(
+            msg=msg, **kwargs
+        )
         ti = create_runtime_ti(dag.task_dict[task_id], map_index=map_index)
         run(ti, ti.get_template_context(), log)
 
@@ -47,3 +54,15 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
         raise RuntimeError("Unable to find call to TaskState")
 
     return run
+
+
+def make_xcom_arg(values: Any) -> XComArg:
+    op = BaseOperator(task_id="upstream")
+    xcom_arg = XComArg(op)
+    xcom_arg.resolve = lambda *a, **kw: values
+
+    async def aresolve(*a, **kw):
+        return values
+
+    xcom_arg.aresolve = aresolve
+    return xcom_arg

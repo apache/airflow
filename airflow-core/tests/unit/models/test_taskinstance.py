@@ -47,6 +47,7 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
+    NotMapped,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -3498,6 +3499,101 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
         assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
+
+    def test_iterate_literal_cross_product(self, dag_maker, session):
+        """Test an iterated task with literal cross product args properly."""
+        outputs = []
+
+        with dag_maker(dag_id="product_same_types", session=session, serialized=True) as dag:
+
+            @dag.task
+            def show(a, b):
+                outputs.append((a, b))
+
+            show.iterate(a=[2, 4, 8], b=[5, 10])
+
+        dag_run = dag_maker.create_dagrun()
+
+        show_task = dag.get_task("show")
+        with pytest.raises(NotMapped):
+            show_task.get_parse_time_mapped_ti_count()
+        with pytest.raises(NotMapped):
+            expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
+
+        tis = session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == "show",
+                TaskInstance.run_id == dag_run.run_id,
+            )
+            .order_by(TaskInstance.map_index)
+        ).all()
+        for ti in tis:
+            ti.refresh_from_task(show_task)
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
+
+    @pytest.mark.parametrize(
+        ("upstream_is_iterated", "trigger_rule"),
+        [
+            pytest.param(False, "all_success", id="expand-all_success"),
+            pytest.param(True, "all_success", id="iterate-all_success"),
+            pytest.param(False, "none_failed", id="expand-none_failed"),
+            pytest.param(True, "none_failed", id="iterate-none_failed"),
+        ],
+    )
+    def test_skipped_item_downstream_matches_expand(
+        self, dag_maker, session, upstream_is_iterated, trigger_rule
+    ):
+        """
+        One skipped item of an upstream has the same effect downstream whether it is mapped or iterated.
+
+        With ``all_success`` the downstream task is skipped and receives nothing; with ``none_failed``
+        it runs over the items that produced a value, the skipped one left out.
+        """
+        received = []
+
+        with dag_maker(dag_id=f"skipped_item_{trigger_rule}", session=session, serialized=True):
+
+            @task
+            def produce(x):
+                if x == 2:
+                    raise AirflowSkipException("nothing to do for this item")
+                return x * 10
+
+            @task(trigger_rule=trigger_rule)
+            def consume(value):
+                received.append(value)
+
+            produced = produce.iterate(x=[1, 2, 3]) if upstream_is_iterated else produce.expand(x=[1, 2, 3])
+            consume.expand(value=produced)
+
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ("produce", "consume"):
+            dag_run.refresh_from_db(session=session)
+            for ti in dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                if ti.task_id == task_id:
+                    dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+            session.flush()
+        dag_run.refresh_from_db(session=session)
+        dag_run.task_instance_scheduling_decisions(session=session)
+        session.flush()
+
+        consume_states = {
+            ti.state
+            for ti in session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.run_id == dag_run.run_id, TaskInstance.task_id == "consume"
+                )
+            )
+        }
+        if trigger_rule == "all_success":
+            assert received == []
+            assert consume_states == {TaskInstanceState.SKIPPED}
+        else:
+            assert sorted(received) == [10, 30]
+            assert consume_states == {TaskInstanceState.SUCCESS}
 
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
