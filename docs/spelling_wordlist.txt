@@ -288,6 +288,7 @@ Colour
 colour
 colours
 ColumnLineageDatasetFacet
+CombinedCapability
 CommandType
 comparator
 compat

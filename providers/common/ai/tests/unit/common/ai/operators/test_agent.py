@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json
 import logging
@@ -874,6 +875,49 @@ class TestAgentOperatorExecute:
         assert any(record.message == "::group::Tool call: my_tool" for record in caplog.records)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_tool_logging_closes_groups_when_parallel_tool_fails(self, mock_hook_cls, caplog):
+        slow_cancelled = False
+
+        async def boom() -> str:
+            await asyncio.sleep(0)
+            raise RuntimeError("boom")
+
+        async def slow() -> None:
+            nonlocal slow_cancelled
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                slow_cancelled = True
+                raise
+
+        def model_fn(messages, info):
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="boom", args={}, tool_call_id="c-boom"),
+                    ToolCallPart(tool_name="slow", args={}, tool_call_id="c-slow"),
+                ]
+            )
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(model_fn), **kw
+        )
+        op = AgentOperator(
+            task_id="test",
+            prompt="Do something",
+            llm_conn_id="my_llm",
+            agent_params={"tools": [boom, slow]},
+        )
+
+        with caplog.at_level(logging.INFO):
+            with pytest.raises(RuntimeError, match="boom"):
+                op.execute(context=_make_context())
+
+        assert slow_cancelled
+        messages = [record.message for record in caplog.records]
+        assert sum(message.startswith("::group::Tool call:") for message in messages) == 2
+        assert messages.count("::endgroup::") == 2
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_tool_logging_handles_non_json_mapping_keys(self, mock_hook_cls, caplog):
         def my_tool(values: dict[UUID, int]) -> int:
             return sum(values.values())
@@ -902,7 +946,7 @@ class TestAgentOperatorExecute:
             agent_params={"tools": [my_tool]},
         )
 
-        with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.DEBUG, logger="airflow.task"):
             result = op.execute(context=_make_context())
 
         assert result == "done"
