@@ -846,12 +846,6 @@ class IterableOperator(BaseOperator):
             if serialized_outlet_events:
                 indexed_task_state.outlet_events = serialized_outlet_events
             await task.aset_state(indexed_task_state)
-            # The result is only checkpointed when the sub-task pushes XComs and returned something,
-            # so the same condition decides whether there is a return_value_<index> to push at all.
-            if indexed_task_state.result is not None:
-                await self.axcom_push(task, indexed_task_state.result)
-            _merge_outlet_events(context["outlet_events"], indexed_task_runner.outlet_events)
-            return task, result, None
         except (asyncio.CancelledError, AirflowTaskTimeout):
             # Not this sub-task's outcome: it is being stopped from outside, by the executor
             # cancelling it or by the parent's execution_timeout, whose signal handler raises on the
@@ -878,6 +872,21 @@ class IterableOperator(BaseOperator):
                 )
             )
             return task, None, e
+
+        # The work is done and checkpointed: from here on only its publication can fail. A failure
+        # leaves the SUCCESS checkpoint as it is, so the retry replays the result from it (the
+        # branch at the top) instead of running the operator again for work that already finished.
+        try:
+            # The result is only checkpointed when the sub-task pushes XComs and returned something,
+            # so the same condition decides whether there is a return_value_<index> to push at all.
+            if indexed_task_state.result is not None:
+                await self.axcom_push(task, indexed_task_state.result)
+            _merge_outlet_events(context["outlet_events"], indexed_task_runner.outlet_events)
+        except (asyncio.CancelledError, AirflowTaskTimeout):
+            raise
+        except BaseException as e:
+            return task, None, e
+        return task, result, None
 
     def _create_task(
         self,

@@ -1428,6 +1428,44 @@ class TestIterableOperator:
         assert ("failure", "sleeper") not in FIRED_CALLBACKS
         assert ("retry", "sleeper") not in FIRED_CALLBACKS
 
+    def test_failed_publish_keeps_the_success_checkpoint_and_the_retry_only_republishes(self):
+        """
+        When pushing an item's result fails after its SUCCESS checkpoint was written, the checkpoint
+        stays, and the retry replays the result instead of running the operator again, which would
+        repeat whatever it did outside Airflow.
+        """
+        runs = []
+        original_execute = MockOperator.execute
+
+        def counting_execute(self, context):
+            runs.append(self.arg1)
+            return original_execute(self, context)
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}]), task_id="failed_publish"
+            )
+
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(MockOperator, "execute", counting_execute),
+            ):
+                context["ti"].try_number = 1
+                with patch.object(
+                    IterableOperator, "axcom_push", side_effect=RuntimeError("xcom backend down")
+                ):
+                    with pytest.raises(RuntimeError, match="xcom backend down"):
+                        iterable_op.execute(context=context)
+                checkpoint_after_failure = context["task_state_store"]["_iterable_0"]["status"]
+
+                context["ti"].try_number = 2
+                result = iterable_op.execute(context=context)
+                pushed = list(result)
+
+        assert checkpoint_after_failure == "success"
+        assert runs == [1]
+        assert pushed == [(1, None, None)]
+
     def test_execute_failed_attempt_leaves_no_completion_marker_so_retry_resumes(self):
         """
         Regression test: an attempt that fails must not write the completion marker.
