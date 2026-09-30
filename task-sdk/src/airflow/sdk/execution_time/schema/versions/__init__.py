@@ -41,7 +41,9 @@ def get_bundle() -> VersionBundle:
         AddArgBindingsToSupervisorTIRunContext,
         AddDagDefinitionsToDagFileParsingResult,
         AddKnownArtifactsToDagFileParseRequest,
+        AddProbedArtifactsToDagFileParsingResult,
         AddRetryReasonToTaskState,
+        AddTaskHandlerBindingsToDagFileParsingResult,
     )
 
     return VersionBundle(
@@ -52,6 +54,8 @@ def get_bundle() -> VersionBundle:
             AddRetryReasonToTaskState,
             AddDagDefinitionsToDagFileParsingResult,
             AddKnownArtifactsToDagFileParseRequest,
+            AddTaskHandlerBindingsToDagFileParsingResult,
+            AddProbedArtifactsToDagFileParsingResult,
         ),
         Version("2026-06-16"),
     )

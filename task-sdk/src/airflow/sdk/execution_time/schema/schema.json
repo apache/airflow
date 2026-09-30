@@ -1036,6 +1036,28 @@
           "title": "Dag Source Codes",
           "type": "object"
         },
+        "task_handler_bindings": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TaskHandlerBinding"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Handler Bindings"
+        },
+        "probed_artifacts": {
+          "items": {
+            "$ref": "#/$defs/TaskHandlerArtifact"
+          },
+          "title": "Probed Artifacts",
+          "type": "array"
+        },
         "type": {
           "const": "DagFileParsingResult",
           "default": "DagFileParsingResult",
@@ -4210,6 +4232,36 @@
         "task_handlers"
       ],
       "title": "TaskHandlerArtifact",
+      "type": "object"
+    },
+    "TaskHandlerBinding": {
+      "description": "A stub task resolved to the Lang-SDK artifact that runs it.",
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "artifact_bundle_name": {
+          "title": "Artifact Bundle Name",
+          "type": "string"
+        },
+        "artifact_rel_path": {
+          "maxLength": 2000,
+          "title": "Artifact Rel Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "task_id",
+        "artifact_bundle_name",
+        "artifact_rel_path"
+      ],
+      "title": "TaskHandlerBinding",
       "type": "object"
     },
     "TaskHandlerDeclaration": {

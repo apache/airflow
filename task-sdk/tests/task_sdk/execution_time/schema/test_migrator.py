@@ -51,7 +51,9 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
 
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
+    DagFileParsingResult,
     TaskHandlerArtifact,
+    TaskHandlerBinding,
     TaskHandlerDeclaration,
     TaskHandlerParam,
     TaskHandlerParseRequest,
@@ -578,3 +580,124 @@ class TestRealBundleKnownArtifacts:
                 },
             }
         ]
+
+
+class TestRealBundleTaskHandlerBindings:
+    """
+    Drive the *real* supervisor bundle through the ``task_handler_bindings`` migration.
+
+    ``DagFileParsingResult`` flows runtime -> supervisor, so ``upgrade`` is the direction a pinned
+    runtime travels. Only ``downgrade`` re-validates against the versioned class, so that is the
+    direction that fails if ``AddTaskHandlerBindingsToDagFileParsingResult`` is dropped.
+    """
+
+    @pytest.fixture
+    def result_with_bindings(self) -> DagFileParsingResult:
+        return DagFileParsingResult(
+            fileloc="/files/dags/etl.py",
+            serialized_dags=[],
+            task_handler_bindings=[
+                TaskHandlerBinding(
+                    dag_id="etl",
+                    task_id="extract",
+                    artifact_bundle_name="java-task-handlers",
+                    artifact_rel_path="etl.jar",
+                )
+            ],
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_task_handler_bindings_for_previous_version(
+        self, real_migrator, result_with_bindings
+    ):
+        out = real_migrator.downgrade(result_with_bindings, "2026-06-16").model_dump()
+        assert "task_handler_bindings" not in out
+
+    def test_downgrade_keeps_task_handler_bindings_at_head(self, real_migrator, result_with_bindings):
+        out = real_migrator.downgrade(result_with_bindings, "2026-10-30").model_dump()
+        assert out["task_handler_bindings"] == [
+            {
+                "dag_id": "etl",
+                "task_id": "extract",
+                "artifact_bundle_name": "java-task-handlers",
+                "artifact_rel_path": "etl.jar",
+            }
+        ]
+
+    def test_upgrade_leaves_missing_task_handler_bindings_unset(self, real_migrator):
+        body = {"type": "DagFileParsingResult", "fileloc": "/files/dags/etl.py", "serialized_dags": []}
+        out = real_migrator.upgrade(body, DagFileParsingResult, "2026-06-16")
+        assert out["task_handler_bindings"] is None
+
+
+class TestRealBundleProbedArtifacts:
+    """
+    Drive the *real* supervisor bundle through the ``probed_artifacts`` migration.
+
+    ``DagFileParsingResult`` flows runtime -> supervisor, so ``upgrade`` is the direction a pinned
+    runtime travels, and a result without the field records nothing.
+    """
+
+    @pytest.fixture
+    def result_with_probed_artifacts(self) -> DagFileParsingResult:
+        return DagFileParsingResult(
+            fileloc="/files/dags/etl.py",
+            serialized_dags=[],
+            probed_artifacts=[
+                TaskHandlerArtifact(
+                    bundle_name="java-task-handlers",
+                    relative_fileloc="etl.jar",
+                    size_bytes=1024,
+                    cache_digest=None,
+                    task_handlers={
+                        "etl": [
+                            TaskHandlerDeclaration(
+                                task_id="extract",
+                                binding="positional",
+                                params=[TaskHandlerParam(name=None, required=True)],
+                            )
+                        ]
+                    },
+                )
+            ],
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_probed_artifacts_for_previous_version(
+        self, real_migrator, result_with_probed_artifacts
+    ):
+        out = real_migrator.downgrade(result_with_probed_artifacts, "2026-06-16").model_dump()
+        assert "probed_artifacts" not in out
+
+    def test_downgrade_keeps_probed_artifacts_at_head(self, real_migrator, result_with_probed_artifacts):
+        out = real_migrator.downgrade(result_with_probed_artifacts, "2026-10-30").model_dump()
+        assert out["probed_artifacts"] == [
+            {
+                "bundle_name": "java-task-handlers",
+                "relative_fileloc": "etl.jar",
+                "size_bytes": 1024,
+                "cache_digest": None,
+                "task_handlers": {
+                    "etl": [
+                        {
+                            "task_id": "extract",
+                            "binding": "positional",
+                            "params": [
+                                {"name": None, "value_schema": None, "required": True, "exact_name": False}
+                            ],
+                        }
+                    ]
+                },
+            }
+        ]
+
+    def test_upgrade_leaves_missing_probed_artifacts_empty(self, real_migrator):
+        body = {"type": "DagFileParsingResult", "fileloc": "/files/dags/etl.py", "serialized_dags": []}
+        out = real_migrator.upgrade(body, DagFileParsingResult, "2026-06-16")
+        assert out["probed_artifacts"] == []

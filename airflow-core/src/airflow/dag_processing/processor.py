@@ -97,25 +97,6 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 
-class DagFileParsingResult(BaseModel):
-    """
-    Result of DAG File Parsing.
-
-    This is the result of a successful DAG parse, in this class, we gather all serialized DAGs,
-    import errors and warnings to send back to the scheduler to store in the DB.
-    """
-
-    fileloc: str
-    serialized_dags: list[LazyDeserializedDAG]
-    warnings: list | None = None
-    import_errors: dict[str, str] | None = None
-    parsed_definitions: list[str] = Field(default_factory=list)
-    """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
-    dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
-    """Source code of the parsed Dags, keyed by Dag fileloc."""
-    type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
-
-
 TaskHandlerBindingMode = Literal["positional", "named"]
 
 
@@ -199,6 +180,55 @@ class DagFileParseRequest(BaseModel):
     """The recorded task-handler artifacts, with their answers, that this file's stub tasks may resolve against."""
 
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
+
+
+class TaskHandlerBinding(BaseModel):
+    """A stub task resolved to the Lang-SDK artifact that runs it."""
+
+    dag_id: str
+    task_id: str
+
+    artifact_bundle_name: str
+    """The bundle the artifact was found in."""
+
+    artifact_rel_path: str = Field(max_length=2000)
+    """Path of the artifact within its bundle."""
+
+
+class DagFileParsingResult(BaseModel):
+    """
+    Result of DAG File Parsing.
+
+    This is the result of a successful DAG parse, in this class, we gather all serialized DAGs,
+    import errors and warnings to send back to the scheduler to store in the DB.
+    """
+
+    fileloc: str
+    serialized_dags: list[LazyDeserializedDAG]
+    warnings: list | None = None
+    import_errors: dict[str, str] | None = None
+    parsed_definitions: list[str] = Field(default_factory=list)
+    """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
+    dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
+    """Source code of the parsed Dags, keyed by Dag fileloc."""
+
+    task_handler_bindings: list[TaskHandlerBinding] | None = None
+    """
+    The stub-task bindings of every Dag in ``serialized_dags``.
+
+    ``None`` when task handlers were not evaluated, and the recorded bindings are left as they are. A list
+    replaces the recorded bindings of each Dag in ``serialized_dags``, so a Dag with no entry has none.
+    """
+
+    probed_artifacts: list[TaskHandlerArtifact] = Field(default_factory=list)
+    """
+    Every artifact this parse probed successfully, with its answer.
+
+    Recorded even when ``task_handler_bindings`` is ``None``, so a Dag that fails validation is not probed
+    again on every parse.
+    """
+
+    type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
 class TaskHandlerParseRequest(BaseModel):
