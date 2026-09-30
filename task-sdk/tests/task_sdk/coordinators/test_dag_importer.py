@@ -29,7 +29,6 @@ from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorPro
 from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import DagSourceCode, FilesystemDagDefinition
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -100,9 +99,8 @@ class TestImportDefinition:
         definition = FilesystemDagDefinition(tmp_path / "main.min.mjs")
         return importer.import_definition(definition, SimpleNamespace(name="testing", path=tmp_path))
 
-    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=12)
     @patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True)
-    def test_returns_the_dags_the_runtime_serialized(self, mock_run, mock_timeout, importer, tmp_path):
+    def test_returns_the_dags_the_runtime_serialized(self, mock_run, importer, tmp_path):
         mock_run.return_value = DagFileParsingResult(
             fileloc=str(tmp_path / "main.min.mjs"),
             serialized_dags=[LazyDeserializedDAG(data=_get_payload("conformance_minimal"))],
@@ -123,15 +121,8 @@ class TestImportDefinition:
             bundle_path=tmp_path,
             bundle_name="testing",
             dag_file_rel_path="main.min.mjs",
-            timeout=12,
             logger=ANY,
         )
-
-    @patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True, side_effect=TimeoutError("too slow"))
-    def test_reports_a_timeout(self, mock_run, importer, tmp_path):
-        [error] = self._import(importer, tmp_path).errors
-
-        assert (error.message, error.error_type) == ("too slow", "timeout")
 
     @pytest.mark.parametrize("data", _load_payloads())
     @patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True)
@@ -146,21 +137,3 @@ class TestImportDefinition:
             t["__var"]["task_id"]: set(t["__var"].get("downstream_task_ids", []))
             for t in data["dag"]["tasks"]
         }
-
-    @pytest.mark.parametrize(("configured", "expected"), [(30, 30), (0, None), (-1, None)])
-    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True)
-    @patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True)
-    def test_timeout_follows_the_dagbag_import_timeout(
-        self, mock_run, mock_timeout, importer, tmp_path, configured, expected
-    ):
-        mock_timeout.return_value = configured
-        mock_run.return_value = DagFileParsingResult(fileloc="main.min.mjs", serialized_dags=[])
-
-        self._import(importer, tmp_path)
-
-        assert mock_run.call_args.kwargs["timeout"] == expected
-
-    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value="30")
-    def test_timeout_must_be_a_number(self, mock_timeout, importer, tmp_path):
-        with pytest.raises(AirflowConfigException, match="must be int or float"):
-            self._import(importer, tmp_path)

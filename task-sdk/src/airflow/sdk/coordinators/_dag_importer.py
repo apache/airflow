@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 import structlog
 
-from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
     DagImportError,
@@ -43,19 +42,6 @@ if TYPE_CHECKING:
     from airflow.sdk.importers.base import DagDefinition
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.dag_importer")
-
-
-def _get_import_timeout(definition: FilesystemDagDefinition) -> float | None:
-    """Return the parse timeout for *definition*, as ``PythonDagImporter`` does; ``None`` means none."""
-    try:
-        from airflow import settings  # noqa: SDK002
-
-        timeout = settings.get_dagbag_import_timeout(repr(definition))
-    except (ImportError, AttributeError):
-        timeout = 30.0
-    if not isinstance(timeout, (int, float)):
-        raise AirflowConfigException(f"Value ({timeout}) from get_dagbag_import_timeout must be int or float")
-    return timeout if timeout > 0 else None
 
 
 class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
@@ -104,23 +90,15 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
 
         source_reference = repr(definition)
         bundle_path = bundle.path or definition.path.parent
-        result = DagImportResult(definition=definition)
-        try:
-            parsing_result = LangSDKDagFileProcessorProcess.run(
-                path=definition.path,
-                bundle_path=bundle_path,
-                bundle_name=bundle.name,
-                dag_file_rel_path=definition.get_relative_loc(bundle_path),
-                timeout=_get_import_timeout(definition),
-                logger=log,
-            )
-        except TimeoutError as e:
-            result.errors.append(
-                DagImportError(source_reference=source_reference, message=str(e), error_type="timeout")
-            )
-            return result
-
         relative_loc = definition.get_relative_loc(bundle_path)
+        result = DagImportResult(definition=definition)
+        parsing_result = LangSDKDagFileProcessorProcess.run(
+            path=definition.path,
+            bundle_path=bundle_path,
+            bundle_name=bundle.name,
+            dag_file_rel_path=relative_loc,
+            logger=log,
+        )
         for key, message in (parsing_result.import_errors or {}).items():
             result.errors.append(
                 DagImportError(
