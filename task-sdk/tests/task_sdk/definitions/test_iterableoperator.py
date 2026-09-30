@@ -1066,17 +1066,6 @@ class TestIterableOperator:
                 materialized = list(result)
                 assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
 
-    def test_execute_empty_list_of_dicts(self):
-        """Test executing IterableOperator with empty ListOfDictsExpandInput."""
-        with DAG("test_dag") as dag:
-            expand_input = ListOfDictsExpandInput([])
-            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_empty")
-
-            with mock_context(task=iterable_op) as context:
-                result = iterable_op.execute(context=context)
-                materialized = list(result)
-                assert materialized == []
-
     def test_execute_multiple_key_dict_of_lists(self):
         """Test executing IterableOperator with multiple keys in DictOfListsExpandInput."""
         with DAG("test_dag") as dag:
@@ -1220,6 +1209,15 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 with pytest.raises(AirflowSkipException):
+                    iterable_op.execute(context=context)
+
+    def test_execute_over_an_empty_input_skips(self):
+        """An empty input skips the task, as ``.expand()`` over nothing does, rather than returning nothing."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([]), task_id="empty_input")
+
+            with mock_context(task=iterable_op) as context:
+                with pytest.raises(AirflowSkipException, match="empty"):
                     iterable_op.execute(context=context)
 
     def test_execute_skip_next_to_a_failure_raises_only_the_failure(self):

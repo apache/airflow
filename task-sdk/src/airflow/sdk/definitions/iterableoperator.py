@@ -374,7 +374,8 @@ class IterableOperator(BaseOperator):
         upstream task instance is skipped (``all_success``, ``none_skipped``,
         ``all_done_min_one_success``) is skipped, as after a mapped upstream; one with a rule such
         as ``none_failed`` runs over the remaining values. If *every* sub-task is skipped, a single
-        ``AirflowSkipException`` is re-raised so the IterableOperator itself is marked ``SKIPPED``. All other sub-task exceptions are aggregated
+        ``AirflowSkipException`` is re-raised so the IterableOperator itself is marked ``SKIPPED``, and
+        so is it over an empty input, as a mapped task over nothing is. All other sub-task exceptions are aggregated
         into a :class:`BaseExceptionGroup` and treated as a regular retryable failure.
 
     .. warning::
@@ -745,6 +746,9 @@ class IterableOperator(BaseOperator):
 
                 if exceptions:
                     raise self._failure_for_the_runner(context, exceptions)
+                # Nothing to iterate over is skipped, as a mapped task over an empty input is.
+                if total == 0:
+                    raise AirflowSkipException("The input to iterate over is empty.")
                 # If every sub-task was skipped, propagate a single AirflowSkipException so the runner
                 # marks the whole IterableOperator SKIPPED.
                 if skipped and len(skipped) == total:

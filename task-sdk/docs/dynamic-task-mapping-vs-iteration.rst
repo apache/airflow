@@ -353,6 +353,9 @@ Comparison
        with ``none_failed`` they run over the other items
      - The same: a skipped iteration is left out of the result, downstream tasks with
        ``all_success`` are skipped, and with ``none_failed`` they run over the other items
+   * - Empty input
+     - The mapped task is skipped, and so are downstream tasks with ``all_success``
+     - The same: the task is skipped and pushes no result
    * - Observability
      - Per item in UI
      - Aggregated in a single task
