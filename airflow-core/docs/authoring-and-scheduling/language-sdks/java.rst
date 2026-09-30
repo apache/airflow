@@ -278,10 +278,11 @@ located.
 
 Restart the affected Airflow components after changing this configuration. The coordinator config and JARs
 must be available wherever tasks execute. With ``CeleryExecutor``, that means the Celery workers; with
-``LocalExecutor``, tasks run in subprocesses on the scheduler's host. The worker resolves
-``task_handler_bundle_name`` through ``[dag_processor] dag_bundle_config_list``, so the workers need that
-setting too. The API server and Dag processor do not need the JARs, while the Dag processor must receive
-``sales_pipeline.py`` through the separate Dag delivery process.
+``LocalExecutor``, tasks run in subprocesses on the scheduler's host. Register the Dag bundle in
+``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker
+resolves ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read it is rejected if
+the name is missing there. The API server and Dag processor do not need the JARs, while the Dag processor must
+receive ``sales_pipeline.py`` through the separate Dag delivery process.
 
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 

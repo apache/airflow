@@ -304,9 +304,10 @@ the full range of task states, and alternate XCom backends without implementing 
   > The coordinator is part of the Airflow worker, so the `[sdk]` config and the packed bundle files only
   > need to be present wherever tasks actually execute. With `CeleryExecutor`, setting it on the Celery
   > workers is sufficient. With `LocalExecutor`, tasks run inside the scheduler process, so it must be set
-  > where the scheduler can read it. The API server and Dag processor do not need it. The worker resolves
-  > `task_handler_bundle_name` through `[dag_processor] dag_bundle_config_list`, so the workers need that
-  > setting too.
+  > where the scheduler can read it. The API server and Dag processor do not need it. Register the Dag
+  > bundle in `[dag_processor] dag_bundle_config_list` on every component, like your other Dag bundles:
+  > the worker resolves `task_handler_bundle_name` through it, and wherever the `[sdk]` config is read it
+  > is rejected if the name is missing there.
 
 - Deploy the matching Python stub Dag (above) into Airflow. There is no separate Go worker to run: the
   Airflow worker forks the bundle binary once per task instance.

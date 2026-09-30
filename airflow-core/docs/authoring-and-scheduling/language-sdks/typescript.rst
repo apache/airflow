@@ -246,9 +246,10 @@ task instance.
   The coordinator runs inside the Airflow worker, so the ``[sdk]`` config and the packed ``*.min.mjs``
   bundles only need to be present wherever tasks actually execute. With ``CeleryExecutor``, setting them on
   the Celery workers is sufficient. With ``LocalExecutor``, tasks run inside the scheduler process, so they
-  must be present where the scheduler can read them. The API server and Dag processor do not need them. The
-  worker resolves ``task_handler_bundle_name`` through ``[dag_processor] dag_bundle_config_list``, so the
-  workers need that setting too.
+  must be present where the scheduler can read them. The API server and Dag processor do not need them.
+  Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every component, like your other
+  Dag bundles: the worker resolves ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
+  is read it is rejected if the name is missing there.
 
 .. _typescript-sdk/native-dag:
 
