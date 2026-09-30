@@ -179,24 +179,30 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	if err != nil {
 		return fmt.Errorf("reading source file: %w", err)
 	}
-	baseManifest, err := renderManifest(meta, filepath.Base(sourcePath), nil)
-	if err != nil {
-		return fmt.Errorf("rendering manifest: %w", err)
-	}
-	digests, err := computeDigests(execPath, sourceBytes, baseManifest)
-	if err != nil {
-		return err
-	}
-	manifest, err := renderManifest(meta, filepath.Base(sourcePath), &digests)
-	if err != nil {
-		return fmt.Errorf("rendering manifest: %w", err)
+	// The digests are taken over the staged copy, the file the trailer's
+	// binary_sha256 is computed from, so the two agree even if the executable
+	// changes while packing.
+	renderWithDigests := func(stagedExec string) ([]byte, error) {
+		baseManifest, err := renderManifest(meta, filepath.Base(sourcePath), nil)
+		if err != nil {
+			return nil, fmt.Errorf("rendering manifest: %w", err)
+		}
+		digests, err := computeDigests(stagedExec, sourceBytes, baseManifest)
+		if err != nil {
+			return nil, err
+		}
+		manifest, err := renderManifest(meta, filepath.Base(sourcePath), &digests)
+		if err != nil {
+			return nil, fmt.Errorf("rendering manifest: %w", err)
+		}
+		return manifest, nil
 	}
 
 	// Assemble the bundle through a temp file and atomically move it into
 	// place: we never mutate the build artefact or the user-supplied
 	// --executable, and a failed pack never leaves a truncated or half-written
 	// file at output.
-	if err := writeBundle(execPath, output, sourceBytes, manifest); err != nil {
+	if err := writeBundle(execPath, output, sourceBytes, renderWithDigests); err != nil {
 		return err
 	}
 
@@ -676,11 +682,16 @@ func sameFile(a, b string) (bool, error) {
 
 // writeBundle assembles the bundle at output by copying the executable to a
 // temporary file in output's directory, appending the source+manifest footer
-// to that copy, then atomically renaming it into place. Writing through a
+// to that copy, then atomically renaming it into place. renderMetadata builds
+// the manifest from the copy before the footer is appended. Writing through a
 // temp file keeps a failed pack from leaving a truncated or half-written
 // artefact at output, and guarantees the file being copied is never the same
 // open file as the destination.
-func writeBundle(execPath, output string, source, metadata []byte) error {
+func writeBundle(
+	execPath, output string,
+	source []byte,
+	renderMetadata func(stagedExec string) ([]byte, error),
+) error {
 	outDir := filepath.Dir(output)
 	// The temp file and the atomic rename both live in output's directory, so it
 	// must exist. Create it for the user (e.g. --output ./bin/bundle with no
@@ -703,6 +714,10 @@ func writeBundle(execPath, output string, source, metadata []byte) error {
 
 	if err := copyFile(execPath, tmpPath, 0o755); err != nil {
 		return fmt.Errorf("writing %s: %w", output, err)
+	}
+	metadata, err := renderMetadata(tmpPath)
+	if err != nil {
+		return err
 	}
 	if err := bundlefooter.Append(tmpPath, source, metadata); err != nil {
 		return err

@@ -451,6 +451,11 @@ func TestRunPack_AcceptsYAMLMetadataFile(t *testing.T) {
 	)
 }
 
+// fixedManifest is a writeBundle renderMetadata that ignores the staged executable.
+func fixedManifest(manifest []byte) func(string) ([]byte, error) {
+	return func(string) ([]byte, error) { return manifest, nil }
+}
+
 // packDigests packs the given executable, source and JSON manifest in dir, and
 // returns the digests the packed bundle's manifest records.
 func packDigests(t *testing.T, dir string, exe, source, meta []byte) (integrity, cache string) {
@@ -611,13 +616,38 @@ func TestTargetPlatform(t *testing.T) {
 
 // When the --output parent directory does not exist, the packer must create it
 // instead of failing with an opaque temp-file error.
+// The manifest's digests must describe the copy the trailer is computed from,
+// not the input executable, which can change while packing.
+func TestWriteBundle_RendersMetadataFromTheStagedCopy(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "input-bin")
+	require.NoError(t, os.WriteFile(exe, []byte("binary-bytes"), 0o755))
+
+	var staged string
+	var stagedBytes []byte
+	require.NoError(t, writeBundle(exe, filepath.Join(dir, "bundle"), []byte("source"),
+		func(path string) ([]byte, error) {
+			staged = path
+			var err error
+			stagedBytes, err = os.ReadFile(path)
+			return []byte("manifest"), err
+		},
+	))
+
+	assert.NotEqual(t, exe, staged)
+	assert.Equal(t, []byte("binary-bytes"), stagedBytes)
+}
+
 func TestWriteBundle_CreatesMissingOutputDir(t *testing.T) {
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "input-bin")
 	require.NoError(t, os.WriteFile(exe, []byte("binary-bytes"), 0o755))
 
 	output := filepath.Join(dir, "bin", "nested", "bundle")
-	require.NoError(t, writeBundle(exe, output, []byte("source"), []byte("manifest")))
+	require.NoError(
+		t,
+		writeBundle(exe, output, []byte("source"), fixedManifest([]byte("manifest"))),
+	)
 
 	info, err := os.Stat(output)
 	require.NoError(t, err, "bundle should be written into the created directory")
