@@ -67,8 +67,10 @@ func (p *Plan) Declare(taskID string) genmodels.TaskHandlerDeclaration {
 // no schema can state them.
 //
 // It states only what decoding into t enforces, so a value the schema rejects is one the task
-// would fail on. The vocabulary is the one build_arg_bindings emits for a stub parameter's
-// Python annotation, so the common pairs, such as int and int, come out equal.
+// would fail on. The exception is a null element or map value, which decoding turns into the
+// zero value; like the runtime's own argument check, the schema states null only at the top level.
+// The vocabulary is the one build_arg_bindings emits for a stub parameter's Python annotation,
+// so the common pairs, such as int and int, come out equal.
 func valueSchema(t reflect.Type) *genmodels.ArgValueSchema {
 	fragment := schemaFragment(t, map[reflect.Type]bool{})
 	if fragment == nil {

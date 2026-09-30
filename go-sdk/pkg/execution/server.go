@@ -50,10 +50,11 @@ import (
 const dialTimeout = 30 * time.Second
 
 // terminalSendTimeout bounds the write of the final TaskState/SucceedTask
-// frame. The supervisor normally drains the comm socket promptly, but a
-// half-open connection (the supervisor gone without a clean close) could
-// otherwise wedge the runtime on a blocked write; the deadline turns that
-// into a fast failure -- and thus a non-zero exit -- instead of a hang.
+// frame, and the send and acknowledgement of a task handler parse result. The
+// supervisor normally drains the comm socket promptly, but a half-open
+// connection (the supervisor gone without a clean close) could otherwise wedge
+// the runtime on a blocked write or wait; the deadline turns that into a fast
+// failure -- and thus a non-zero exit -- instead of a hang.
 const terminalSendTimeout = 30 * time.Second
 
 // Serve runs the bundle binary in coordinator mode. It dials the supervisor's

@@ -928,7 +928,7 @@ func startTaskHandlerParse(t *testing.T) (net.Conn, IncomingFrame, chan error) {
 	t.Cleanup(cleanup)
 
 	registry := newHandlerRegistry()
-	registry.add("etl", "extract", func(actx contexttest.Context, region string) error {
+	registry.add("etl", "extract", func(actx contexttest.Context, region string, day *int) error {
 		return nil
 	})
 	registry.add("etl", "load", func(actx contexttest.Context, in loadInput) error { return nil })
@@ -971,11 +971,21 @@ func TestServeTaskHandlerParseRequestEndToEnd(t *testing.T) {
 				map[string]any{
 					"task_id": "extract",
 					"binding": "positional",
-					"params": []any{map[string]any{
-						"name":         nil,
-						"required":     true,
-						"value_schema": map[string]any{"type": "string"},
-					}},
+					"params": []any{
+						map[string]any{
+							"name":         nil,
+							"required":     true,
+							"value_schema": map[string]any{"type": "string"},
+						},
+						map[string]any{
+							"name":     nil,
+							"required": true,
+							"value_schema": map[string]any{"anyOf": []any{
+								map[string]any{"type": "integer", "format": "int64"},
+								map[string]any{"type": "null"},
+							}},
+						},
+					},
 				},
 				map[string]any{
 					"task_id": "load",
