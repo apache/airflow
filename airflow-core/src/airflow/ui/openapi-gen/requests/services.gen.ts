@@ -3626,7 +3626,6 @@ export class JobService {
      * Get Jobs
      * Get all jobs.
      * @param data The data for the request.
-     * @param data.isAlive
      * @param data.startDateGte
      * @param data.startDateGt
      * @param data.startDateLte
@@ -3644,6 +3643,7 @@ export class JobService {
      * @param data.hostname
      * @param data.executorClass
      * @param data.teams
+     * @param data.isAlive
      * @returns JobCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3652,7 +3652,6 @@ export class JobService {
             method: 'GET',
             url: '/api/v2/jobs',
             query: {
-                is_alive: data.isAlive,
                 start_date_gte: data.startDateGte,
                 start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
@@ -3669,7 +3668,8 @@ export class JobService {
                 job_type: data.jobType,
                 hostname: data.hostname,
                 executor_class: data.executorClass,
-                teams: data.teams
+                teams: data.teams,
+                is_alive: data.isAlive
             },
             errors: {
                 400: 'Bad Request',
