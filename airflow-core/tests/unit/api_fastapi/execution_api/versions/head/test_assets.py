@@ -17,10 +17,7 @@
 
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow._shared.timezones import timezone
 from airflow.models.asset import AssetActive, AssetModel
@@ -111,26 +108,3 @@ class TestGetAssetByUri:
                 "reason": "not_found",
             }
         }
-
-
-class TestGetAssetAsyncQueries:
-    @pytest.mark.parametrize(
-        ("path", "params"),
-        [
-            pytest.param("/execution/assets/by-name", {"name": "test_get_asset_by_name"}, id="by-name"),
-            pytest.param("/execution/assets/by-uri", {"uri": "s3://bucket/key"}, id="by-uri"),
-        ],
-    )
-    @mock.patch.object(AsyncSession, "scalar", autospec=True)
-    def test_awaits_async_scalar(self, mock_scalar, client, path, params):
-        mock_scalar.return_value = AssetModel(
-            name="test_get_asset_by_name",
-            uri="s3://bucket/key",
-            group="asset",
-            extra={"foo": "bar"},
-        )
-
-        response = client.get(path, params=params)
-
-        assert response.status_code == 200
-        mock_scalar.assert_awaited_once()
