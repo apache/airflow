@@ -122,10 +122,12 @@ being cached.
 On the model path this is rarely confined to a single step: the causes are such a
 value in ``model_settings``, which is attached to every request, in the tool
 definitions the request carries, or in the message history, which every later
-request carries forward. Any one of them degrades all subsequent model steps the
-same way, leaving durable execution with nothing to
-replay, so the retry re-runs the agent at full cost. The
-``could not fingerprint model request`` warning names the step where this began.
+request carries forward. Any one of them degrades every model step from that point
+on, so the retry re-runs the agent from there at full cost -- from the start when
+the cause is in the settings or the tool definitions, which are there from the
+first request, and from the step where it entered when it arrives mid-run in the
+history, for example in a tool return. The ``could not fingerprint model request``
+warning names the step where this began.
 
 A tool call is fingerprinted from its name, arguments and call id alone, so
 neither of those causes reaches it. One that cannot be fingerprinted is reported
