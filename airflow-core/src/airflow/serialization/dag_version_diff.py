@@ -338,6 +338,7 @@ _DIFF_V1_DAG_FIELD_CATEGORIES: dict[str, DiffCategory] = {
     "max_active_tasks": "schedule",
     "max_consecutive_failed_dag_runs": "schedule",
     "owner_links": "metadata",
+    "param_presets": "param",
     "params": "param",
     "relative_fileloc": "provenance",
     "render_template_as_native_obj": "task",
