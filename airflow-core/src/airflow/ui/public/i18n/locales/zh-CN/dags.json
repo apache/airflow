@@ -79,7 +79,7 @@
       "downstream": "下游",
       "existingTasks": "清除现有任务",
       "future": "未来",
-      "keepTaskState": "保留任务状态并继续执行",
+      "keepTaskState": "保留任务存储并继续执行",
       "onlyFailed": "只清除失败任务",
       "past": "过去",
       "preventRunningTasks": "防止重复执行执行中的任务",
