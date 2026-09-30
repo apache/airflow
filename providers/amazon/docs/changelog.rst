@@ -26,12 +26,6 @@
 Changelog
 ---------
 
-.. note::
-  ``StepFunctionGetExecutionOutputOperator`` now returns non-JSON execution errors as strings
-  instead of raising ``JSONDecodeError``. Fetching such an error can complete successfully;
-  use ``StepFunctionExecutionSensor`` to check whether the remote execution succeeded.
-  Existing JSON-formatted error return values are unchanged.
-
 9.37.0
 ......
 

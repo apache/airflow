@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import closing
 from datetime import datetime, timezone
 from unittest import mock
 
@@ -140,7 +141,7 @@ class TestStepFunctionGetExecutionOutputOperator:
         op = StepFunctionGetExecutionOutputOperator(
             task_id=self.TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None, region_name="us-east-1"
         )
-        with Stubber(client) as stubber, mock.patch.object(op.hook, "conn", client):
+        with closing(client), Stubber(client) as stubber, mock.patch.object(op.hook, "conn", client):
             stubber.add_response(
                 "describe_execution",
                 {
