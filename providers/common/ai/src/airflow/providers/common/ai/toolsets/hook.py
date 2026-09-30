@@ -24,6 +24,7 @@ import re
 import types
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
@@ -35,7 +36,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
     from pydantic_ai._run_context import RunContext
 
@@ -71,6 +72,14 @@ class HookToolset(AirflowToolset):
         auto-discovery is intentionally not supported for safety.
     :param tool_name_prefix: Optional prefix prepended to each tool name
         (e.g. ``"s3_"`` → ``"s3_list_keys"``).
+    :param pinned_arguments: Experimental. Arguments the Dag author fixes, such as the bucket a
+        storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
+        arguments the model sees, refused if the model supplies it anyway, and passed to
+        every allowed method as it is written here, not rendered as a template. Every allowed
+        method must take each pinned argument as a named parameter: one that does not, such
+        as a method taking ``bucket`` or only ``**kwargs``, raises ``ValueError``, because
+        the model could still choose the value through it. Expose such a method from a
+        second ``HookToolset``.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -83,6 +92,7 @@ class HookToolset(AirflowToolset):
         *,
         allowed_methods: list[str],
         tool_name_prefix: str = "",
+        pinned_arguments: dict[str, Any] | None = None,
     ) -> None:
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
@@ -95,6 +105,27 @@ class HookToolset(AirflowToolset):
                 )
             if not callable(getattr(hook, method_name)):
                 raise ValueError(f"{hook_cls_name}.{method_name} is not callable.")
+
+        # Every allowed method has to name each pin as a parameter it can be passed by name. A
+        # method that takes the value under another name, inside a dict, or through **kwargs
+        # would let the model choose it after all, so it is refused rather than left unpinned.
+        pinned_arguments = pinned_arguments or {}
+        unpinned: dict[str, list[str]] = {}
+        for method_name in allowed_methods if pinned_arguments else ():
+            parameters = inspect.signature(getattr(hook, method_name)).parameters.values()
+            named = {p.name for p in parameters if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)}
+            if missing := sorted(set(pinned_arguments) - named):
+                unpinned[method_name] = missing
+        if unpinned:
+            details = "; ".join(
+                f"{method}() does not take {', '.join(args)}" for method, args in unpinned.items()
+            )
+            raise ValueError(
+                f"Every allowed method of {hook_cls_name!r} has to take each pinned argument by name, or "
+                f"the model could still choose it through that method: {details}. Expose such a method "
+                "from a second HookToolset."
+            )
+        self._pinned: dict[str, Any] = dict(pinned_arguments)
 
         self._hook = hook
         self._allowed_methods = allowed_methods
@@ -142,6 +173,7 @@ class HookToolset(AirflowToolset):
             for param_name, param_desc in param_docs.items():
                 if param_name in json_schema.get("properties", {}):
                     json_schema["properties"][param_name]["description"] = param_desc
+            _drop_properties(json_schema, self._pinned)
 
             # sequential=True keeps pydantic-ai from running these calls concurrently
             # within a turn; run_blocking's process-wide lock serializes them with the
@@ -174,7 +206,14 @@ class HookToolset(AirflowToolset):
     ) -> Any:
         method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
         method: Callable[..., Any] = getattr(self._hook, method_name)
-        result = await self.run_blocking(method, **tool_args)
+        if supplied := sorted(self._pinned.keys() & tool_args.keys()):
+            one = len(supplied) == 1
+            raise ModelRetry(
+                f"{', '.join(supplied)} {'is' if one else 'are'} fixed for this tool: call it again "
+                f"without {'it' if one else 'them'}."
+            )
+        # A copy per call, so a method that modifies an argument it is given cannot change the pin.
+        result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)
 
 
@@ -298,3 +337,12 @@ def _parse_param_docs(docstring: str) -> dict[str, str]:
                 params[m.group(1)] = " ".join(m.group(2).split())
 
     return params
+
+
+def _drop_properties(schema: dict[str, Any], names: Iterable[str]) -> None:
+    for name in names:
+        schema["properties"].pop(name, None)
+        if name in schema.get("required", ()):
+            schema["required"].remove(name)
+    if "required" in schema and not schema["required"]:
+        del schema["required"]

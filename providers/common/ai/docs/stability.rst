@@ -79,7 +79,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`
      - Exposes exactly the hook methods in ``allowed_methods``, each named after its method
        with ``tool_name_prefix`` in front, and raises an error when the toolset is created
-       if a listed method does not exist on the hook.
+       if a listed method does not exist on the hook. ``pinned_arguments`` is
+       experimental; see below.
    * - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` and
        :class:`~airflow.providers.common.ai.hooks.mcp.MCPHook`
      - Exposes the tools of the MCP server configured by ``mcp_conn_id``, each named
@@ -175,3 +176,8 @@ Everything this provider ships that is not in the table above is experimental.
    * - :class:`~airflow.providers.common.ai.toolsets.object_storage.ObjectStorageToolset`
        (:doc:`toolsets/object_storage`)
      - New; its tools and read limits may change after first use.
+   * - ``pinned_arguments`` on
+       :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`
+       (:doc:`toolsets/hook`)
+     - New; how a pinned argument is matched to each method's parameters may change after
+       first use.
