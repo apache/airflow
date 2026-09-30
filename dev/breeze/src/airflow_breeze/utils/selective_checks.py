@@ -122,6 +122,7 @@ class FileGroupForCi(Enum):
     KUBERNETES_FILES = auto()
     TASK_SDK_FILES = auto()
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
+    AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
     TS_SDK_FILES = auto()
@@ -481,6 +482,16 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES: [
             r"^task-sdk-integration-tests/.*\.py$",
+        ],
+        FileGroupForCi.AGENT_FRAMEWORK_FILES: [
+            # The framework adapters sit on the framework-neutral tools, which sit on the toolsets,
+            # so any code change in the provider can break them, and so can a change to common.sql,
+            # which the SQL toolset uses, or to the locked versions the job holds the framework to.
+            # The job's own script and workflow are ENVIRONMENT_FILES, which run everything.
+            r"^providers/common/ai/(src|tests)/.*\.py$",
+            r"^providers/common/ai/pyproject\.toml$",
+            r"^providers/common/sql/src/.*\.py$",
+            r"^uv\.lock$",
         ],
         FileGroupForCi.GO_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or tests, but
@@ -1144,6 +1155,13 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES) or self._should_be_run(
             FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES
         )
+
+    @cached_property
+    def run_agent_framework_tests(self) -> bool:
+        # Providers are released from main only, as for skip_providers_tests.
+        if self._default_branch != "main":
+            return False
+        return self._should_be_run(FileGroupForCi.AGENT_FRAMEWORK_FILES)
 
     @cached_property
     def run_go_sdk_tests(self) -> bool:

@@ -304,6 +304,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NextRunAssetsResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -445,6 +451,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -679,6 +691,20 @@ paths:
           description: Filter Dags that have any DagRun in the given state.
           title: Dag Run State
         description: Filter Dags that have any DagRun in the given state.
+      - name: dag_run_state_within_hours
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            maximum: 878400
+            exclusiveMinimum: 0
+          - type: 'null'
+          description: Only match DagRuns whose run_after falls within the last given
+            hours. Ignored unless dag_run_state is set.
+          title: Dag Run State Within Hours
+        description: Only match DagRuns whose run_after falls within the last given
+          hours. Ignored unless dag_run_state is set.
       - name: bundle_name
         in: query
         required: false
@@ -2336,6 +2362,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TeamCollectionResponse'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:

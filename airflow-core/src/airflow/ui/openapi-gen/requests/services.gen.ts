@@ -473,6 +473,7 @@ export class AssetService {
                 dag_id: data.dagId
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -983,6 +984,7 @@ export class ConnectionService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 422: 'Validation Error'
@@ -2172,6 +2174,7 @@ export class DagService {
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.dagRunState Filter Dags that have any DagRun in the given state.
+     * @param data.dagRunStateWithinHours Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
      * @param data.bundleName
      * @param data.bundleVersion
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
@@ -2206,6 +2209,7 @@ export class DagService {
                 has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 dag_run_state: data.dagRunState,
+                dag_run_state_within_hours: data.dagRunStateWithinHours,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
@@ -3350,6 +3354,7 @@ export class TaskInstanceService {
                 token: data.token
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -4679,6 +4684,7 @@ export class VariableService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
+                404: 'Not Found',
                 409: 'Conflict',
                 422: 'Validation Error'
             }
@@ -4975,6 +4981,7 @@ export class PartitionedDagRunService {
                 partition_key: data.partitionKey
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -5448,6 +5455,7 @@ export class TeamsService {
                 order_by: data.orderBy
             },
             errors: {
+                403: 'Forbidden',
                 422: 'Validation Error'
             }
         });
