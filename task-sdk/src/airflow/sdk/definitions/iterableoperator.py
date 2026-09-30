@@ -37,11 +37,14 @@ from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
+from airflow.sdk.definitions.retry_policy import RetryAction
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
+    AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTerminated,
     AirflowTaskTimeout,
     DagRunTriggerException,
     DownstreamTasksSkipped,
@@ -74,6 +77,15 @@ if TYPE_CHECKING:
 SKIPPED_WITH_A_SKIPPED_UPSTREAM = frozenset(
     {TriggerRule.ALL_SUCCESS, TriggerRule.NONE_SKIPPED, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS}
 )
+
+
+# Raised by an item, these fail the task without a retry, as the runner does for a task that raises
+# them itself (see _run_task_and_map_outcome and _handle_handler_failure).
+FAIL_WITHOUT_RETRY = (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)
+
+# How strongly a retry policy decision speaks for the task when several items failed: one item the
+# policy says must not be retried fails the task, one it says to retry makes it retry on its terms.
+_DECISION_WEIGHT = {RetryAction.FAIL: 2, RetryAction.RETRY: 1, RetryAction.DEFAULT: 0}
 
 
 def _unprefixed_task_id(operator: MappedOperator) -> str:
@@ -670,18 +682,52 @@ class IterableOperator(BaseOperator):
                         raise
 
             if exceptions:
-                # An AirflowFailException means the task must not be retried — propagate the first one
-                # directly rather than burying it in a BaseExceptionGroup, which _run_task_and_map_outcome
-                # would otherwise dispatch to the generic BaseException branch (i.e. eligible for retry).
-                for exc in exceptions:
-                    if isinstance(exc, AirflowFailException):
-                        raise exc
-                raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
+                raise self._failure_for_the_runner(context, exceptions)
             # If every sub-task was skipped, propagate a single AirflowSkipException so the runner
             # marks the whole IterableOperator SKIPPED.
             if skipped and len(skipped) == total:
                 raise next(iter(skipped.values()))
         return do_xcom_push, sorted(skipped)
+
+    def _failure_for_the_runner(self, context: Context, exceptions: list[Exception]) -> BaseException:
+        """
+        Pick the exception the runner decides the task's outcome on.
+
+        The runner classifies by exception type: a fail-fast exception fails without a retry, and a
+        ``retry_policy`` matches rules against the type. A ``BaseExceptionGroup`` defeats both, so
+        an item's own exception is handed over whenever one decides: the first fail-fast one, the
+        only one, or the one whose policy decision weighs most. With several failures the others
+        stay attached as its cause, so every traceback reaches the log. Several failures no policy
+        decides between are raised as a group, which the task's own retries then apply to.
+        """
+        group = BaseExceptionGroup("Multiple sub-task failures", exceptions)
+        chosen: BaseException | None = next(
+            (exc for exc in exceptions if isinstance(exc, FAIL_WITHOUT_RETRY)), None
+        )
+        if chosen is None and len(exceptions) == 1:
+            return exceptions[0]
+        if chosen is None and (policy := self.retry_policy) is not None:
+            ti = context["ti"]
+            from_server = getattr(ti, "_ti_context_from_server", None)
+            max_tries = from_server.max_tries if from_server else ti.max_tries
+            weights = []
+            for exc in exceptions:
+                try:
+                    decision = policy.evaluate(
+                        exception=exc, try_number=ti.try_number, max_tries=max_tries, context=context
+                    )
+                    weights.append(_DECISION_WEIGHT.get(decision.action, 0))
+                except Exception:
+                    # As the runner does: a policy that fails to evaluate leaves the default.
+                    self.log.exception("Retry policy evaluation failed for a sub-task failure")
+                    weights.append(0)
+            if max(weights) > 0:
+                chosen = exceptions[weights.index(max(weights))]
+        if chosen is None:
+            return group
+        if len(exceptions) > 1:
+            chosen.__cause__ = group
+        return chosen
 
     def _skip_downstream_of_a_partial_skip(self, context: Context, result: XComIterable | None) -> None:
         """

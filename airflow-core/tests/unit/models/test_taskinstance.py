@@ -3623,6 +3623,66 @@ class TestMappedTaskInstanceReceiveValue:
 
         assert sorted(received) == [10, 20, 30]
 
+    @pytest.mark.parametrize(
+        ("with_policy", "expected_state"),
+        [
+            pytest.param(True, TaskInstanceState.FAILED, id="policy-fails-it"),
+            pytest.param(False, TaskInstanceState.UP_FOR_RETRY, id="no-policy-retries"),
+        ],
+    )
+    def test_iterate_retry_policy_decides_on_the_items_exception(
+        self, dag_maker, session, with_policy, expected_state
+    ):
+        """A retry policy rule on an item's exception decides the iterated task's outcome, as for any task."""
+        from airflow.sdk import ExceptionRetryPolicy, RetryRule
+        from airflow.sdk.definitions.retry_policy import RetryAction
+
+        policy = ExceptionRetryPolicy(rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL)])
+
+        with dag_maker(dag_id=f"iterate_retry_policy_{with_policy}", session=session, serialized=True):
+
+            @task(retries=2, retry_policy=policy if with_policy else None)
+            def produce(x):
+                if x == 2:
+                    raise PermissionError("not allowed")
+                if x == 3:
+                    raise ValueError("flaky")
+                return x
+
+            produce.iterate(x=[1, 2, 3])
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        # run_ti re-raises the task's error once the outcome is recorded; the state is what counts.
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == expected_state
+
+    def test_iterate_sensor_timeout_fails_without_retry(self, dag_maker, session):
+        """A poke-mode sensor timing out inside .iterate() fails the task, as it does outside."""
+        from airflow.sdk.exceptions import AirflowSensorTimeout
+
+        with dag_maker(dag_id="iterate_sensor_timeout", session=session, serialized=True):
+
+            @task(retries=2)
+            def produce(x):
+                if x == 2:
+                    raise AirflowSensorTimeout("poked for too long")
+                raise ValueError("flaky")
+
+            produce.iterate(x=[1, 2])
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        # run_ti re-raises the task's error once the outcome is recorded; the state is what counts.
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == TaskInstanceState.FAILED
+
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
         out.touch()

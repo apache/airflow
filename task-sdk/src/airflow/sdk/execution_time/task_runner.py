@@ -1233,7 +1233,11 @@ class IndexedTaskRunner(LoggingMixin):
                     )
                 raise exc_value
             # AirflowFailException fails the parent without a retry, whatever budget is left.
-            if isinstance(exc_value, AirflowFailException) or not self.task_instance.is_eligible_to_retry:
+            # AirflowSensorTimeout and AirflowTaskTerminated fail without a retry too, as in the runner.
+            if (
+                isinstance(exc_value, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated))
+                or not self.task_instance.is_eligible_to_retry
+            ):
                 self.log.error(
                     "Task instance %s for %s failed on attempt %s in %.2f seconds due to: %s",
                     self.task_index,

@@ -2944,6 +2944,33 @@ class TestIndexedTaskRunner:
         assert fired == ["failure"]
         assert ti.state == TaskInstanceState.FAILED
 
+    @pytest.mark.parametrize("exception_class", ["AirflowSensorTimeout", "AirflowTaskTerminated"])
+    def test_exit_fail_fast_exceptions_fire_on_failure_callback_with_retries_left(
+        self, make_indexed_ti, exception_class
+    ):
+        """As in the runner, these fail the task without a retry, so the iteration reports a failure."""
+        import airflow.sdk.exceptions as sdk_exceptions
+
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=1, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+            on_retry_callback=lambda ctx: fired.append("retry"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        runner = IndexedTaskRunner(task_instance=ti)
+        runner._context = mock_context(task)
+        exception = getattr(sdk_exceptions, exception_class)
+
+        with pytest.raises(exception):
+            with runner:
+                raise exception("stop")
+
+        assert fired == ["failure"]
+        assert ti.state == TaskInstanceState.FAILED
+
     def test_exit_skip_fires_on_skipped_callback_only(self, make_indexed_ti):
         """A skipped iteration is neither a failure nor a retry, whatever budget is left."""
         fired: list[str] = []

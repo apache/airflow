@@ -779,10 +779,8 @@ class TestIterableOperator:
             )
 
             with mock_context(task=iterable_op) as context:
-                with pytest.raises(BaseExceptionGroup) as excinfo:
+                with pytest.raises(RuntimeError, match="not available inside an iterated task"):
                     iterable_op.execute(context=context)
-
-        assert excinfo.group_contains(RuntimeError, match="not available inside an iterated task")
 
     def test_execute_marks_iteration_completed_once_every_index_succeeds(self):
         """
@@ -1167,8 +1165,8 @@ class TestIterableOperator:
         1. Tasks with fail_on_first_attempt=True raise an exception on first attempt
         2. IterableOperator no longer retries failed sub-tasks in-process — retries (if any) are
            handled by Airflow retrying the whole IterableOperator task instance
-        3. The BaseExceptionGroup is raised containing the task failure, regardless of whether the
-           wrapped operator has retries configured
+        3. The failing sub-task's own exception is raised, regardless of whether the wrapped operator
+           has retries configured (one failure is not wrapped in a group, see _failure_for_the_runner)
         """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
@@ -1186,7 +1184,7 @@ class TestIterableOperator:
             )
 
             with mock_context(task=iterable_op) as context:
-                with pytest.raises(BaseExceptionGroup):
+                with pytest.raises(RuntimeError):
                     iterable_op.execute(context=context)
 
     def test_execute_all_sub_tasks_skipped_raises_single_skip_exception(self):
@@ -1217,10 +1215,11 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(dag, expand_input, task_id="partial_skip")
 
             with mock_context(task=iterable_op) as context:
-                with pytest.raises(BaseExceptionGroup) as raised:
+                with pytest.raises(RuntimeError, match="boom") as raised:
                     iterable_op.execute(context=context)
 
-        assert [type(exc) for exc in raised.value.exceptions] == [RuntimeError]
+        # A skipped sub-task is not a failure: the only failure is raised on its own.
+        assert raised.value.__cause__ is None
 
     def test_execute_skip_next_to_successes_succeeds(self):
         """
@@ -1377,7 +1376,7 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 3
-                with pytest.raises(BaseExceptionGroup):
+                with pytest.raises(RuntimeError):
                     iterable_op.execute(context=context)
 
                 checkpoint = context["task_state_store"]["_iterable_0"]
@@ -1445,7 +1444,7 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
 
-                with pytest.raises(BaseExceptionGroup):
+                with pytest.raises(ValueError, match="boom"):
                     iterable_op.execute(context=context)
 
                 assert "_iterable_completed" not in store
@@ -1984,7 +1983,7 @@ class TestIterableOperatorContextIsolation:
             iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
 
         with mock_context(task=iterable_op) as context:
-            with pytest.raises(BaseExceptionGroup, match="Multiple sub-task failures"):
+            with pytest.raises(TimeoutError):
                 iterable_op.execute(context=context)
 
     def test_sync_subtask_with_execution_timeout_emits_warning(self):
@@ -2072,6 +2071,74 @@ class TestExecutionTimeoutKillsInFlightSubTasks:
                     _run_execute_callable(context, iterable_op.execute, iterable_op)
 
         assert sorted(KILLED_ON_TIMEOUT) == [(kind, 1), (kind, 2)]
+
+
+class TestFailureHandedToTheRunner:
+    """
+    The runner classifies the outcome by exception type, so an item's own exception reaches it
+    whenever one decides: a fail-fast one, the only one, or the one the retry policy decides on.
+    """
+
+    @staticmethod
+    def _execute(items, retry_policy=None):
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(items)
+            mapped_op = MockOperator.partial(
+                task_id="failing", dag=dag, retries=2, retry_policy=retry_policy, task_concurrency=1
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 1
+                context["ti"].max_tries = 2
+                try:
+                    iterable_op.execute(context=context)
+                except BaseException as exc:
+                    return exc
+        raise AssertionError("execute() did not raise")
+
+    def test_sensor_timeout_is_raised_on_its_own_next_to_other_failures(self):
+        from airflow.sdk.exceptions import AirflowSensorTimeout
+
+        raised = self._execute(
+            [{"raise_exception": ValueError("boom")}, {"raise_exception": AirflowSensorTimeout("poked out")}]
+        )
+
+        assert isinstance(raised, AirflowSensorTimeout)
+        assert isinstance(raised.__cause__, BaseExceptionGroup)
+        assert sorted(type(exc).__name__ for exc in raised.__cause__.exceptions) == [
+            "AirflowSensorTimeout",
+            "ValueError",
+        ]
+
+    def test_retry_policy_decides_on_the_items_own_exception(self):
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+
+        policy = ExceptionRetryPolicy(rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL)])
+
+        raised = self._execute(
+            [
+                {"arg1": 1},
+                {"raise_exception": ValueError("boom")},
+                {"raise_exception": PermissionError("no")},
+            ],
+            retry_policy=policy,
+        )
+
+        assert isinstance(raised, PermissionError)
+        assert isinstance(raised.__cause__, BaseExceptionGroup)
+        # What the runner evaluates next: the rule matches the item's exception, never the group.
+        assert policy.evaluate(exception=raised, try_number=1, max_tries=2).action == RetryAction.FAIL
+        assert (
+            policy.evaluate(exception=raised.__cause__, try_number=1, max_tries=2).action
+            == RetryAction.DEFAULT
+        )
+
+    def test_several_failures_no_policy_decides_on_stay_a_group(self):
+        raised = self._execute([{"raise_exception": ValueError("one")}, {"raise_exception": KeyError("two")}])
+
+        assert isinstance(raised, BaseExceptionGroup)
+        assert sorted(type(exc).__name__ for exc in raised.exceptions) == ["KeyError", "ValueError"]
 
 
 class TestIterableOperatorCopy:
