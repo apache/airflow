@@ -193,5 +193,6 @@
     "allVersions": "所有版本",
     "dagVersion": "Dag 版本",
     "versionCode": "v{{versionCode}}"
-  }
+  },
+  "sortMultiColumnHint": "按住 Shift 点击可按多列排序"
 }
