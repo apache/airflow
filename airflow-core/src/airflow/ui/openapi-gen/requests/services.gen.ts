@@ -473,6 +473,7 @@ export class AssetService {
                 dag_id: data.dagId
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -983,6 +984,7 @@ export class ConnectionService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 422: 'Validation Error'
@@ -3350,6 +3352,7 @@ export class TaskInstanceService {
                 token: data.token
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -3626,7 +3629,6 @@ export class JobService {
      * Get Jobs
      * Get all jobs.
      * @param data The data for the request.
-     * @param data.isAlive
      * @param data.startDateGte
      * @param data.startDateGt
      * @param data.startDateLte
@@ -3644,6 +3646,7 @@ export class JobService {
      * @param data.hostname
      * @param data.executorClass
      * @param data.teams
+     * @param data.isAlive
      * @returns JobCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3652,7 +3655,6 @@ export class JobService {
             method: 'GET',
             url: '/api/v2/jobs',
             query: {
-                is_alive: data.isAlive,
                 start_date_gte: data.startDateGte,
                 start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
@@ -3669,7 +3671,8 @@ export class JobService {
                 job_type: data.jobType,
                 hostname: data.hostname,
                 executor_class: data.executorClass,
-                teams: data.teams
+                teams: data.teams,
+                is_alive: data.isAlive
             },
             errors: {
                 400: 'Bad Request',
@@ -4679,6 +4682,7 @@ export class VariableService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
+                404: 'Not Found',
                 409: 'Conflict',
                 422: 'Validation Error'
             }
@@ -4975,6 +4979,7 @@ export class PartitionedDagRunService {
                 partition_key: data.partitionKey
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -5448,6 +5453,7 @@ export class TeamsService {
                 order_by: data.orderBy
             },
             errors: {
+                403: 'Forbidden',
                 422: 'Validation Error'
             }
         });

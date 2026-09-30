@@ -770,6 +770,10 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -2518,6 +2522,7 @@ export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
+    is_backfill?: boolean;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
@@ -5527,6 +5532,10 @@ export type $OpenApiTs = {
                  */
                 200: NextRunAssetsResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6012,6 +6021,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: ConnectionTestResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7674,6 +7687,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstancesLogResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8741,6 +8758,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
@@ -8972,6 +8993,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: PartitionedDagRunDetailResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -9218,6 +9243,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TeamCollectionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

@@ -178,7 +178,7 @@ class HookToolset(AirflowToolset):
             # sequential=True keeps pydantic-ai from running these calls concurrently
             # within a turn; run_blocking's process-wide lock serializes them with the
             # blocking calls of the other toolsets that use it.
-            # return_schema is "string": _execute_tool serializes every result with
+            # return_schema is "string": execute_tool serializes every result with
             # serialize_for_llm, so the tool always returns a (JSON-encoded)
             # string regardless of the method's own return annotation. This lets
             # code mode render `-> str` instead of `-> Any`.
@@ -197,10 +197,11 @@ class HookToolset(AirflowToolset):
             )
         return tools
 
-    async def _execute_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:

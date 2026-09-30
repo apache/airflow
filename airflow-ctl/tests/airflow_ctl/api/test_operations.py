@@ -2001,7 +2001,7 @@ class TestTasksOperations:
     )
 
     def test_clear(self):
-        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_none=True)
+        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_defaults=True)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
@@ -2014,6 +2014,23 @@ class TestTasksOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.tasks.clear(self.dag_id, self.clear_task_instances)
         assert response == self.task_instance_collection_response
+
+    def test_clear_omits_default_valued_fields(self):
+        """A payload built entirely from field defaults must not send keep_task_state.
+
+        This covers cases like a server with 3.3.2 and earlier doesn't have this field and rejects unknown keys,
+        so sending it unconditionally would break every clear against those servers.
+        """
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content.decode())
+            assert "keep_task_state" not in body
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.tasks.clear(self.dag_id, ClearTaskInstancesBody())
 
 
 class TestVariablesOperations:
