@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -39,18 +38,23 @@ except ImportError as e:
 
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_ai.toolsets.abstract import ToolsetTool
 
+from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_RESULT_BYTES,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
     build_query_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pydantic_ai._run_context import RunContext
+
 
 # Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
 # table) from an explicit value. Every explicit falsy value -- ``None`` as much as
@@ -159,7 +163,7 @@ class _CappedFetch:
         return rows
 
 
-class SQLToolset(AbstractToolset[Any]):
+class SQLToolset(AirflowToolset):
     """
     Curated toolset that gives an LLM agent safe access to a SQL database.
 
@@ -176,7 +180,9 @@ class SQLToolset(AbstractToolset[Any]):
     failure -- exhausts the retries and fails the task for Airflow to retry. The
     toolset does not inspect the error type or message.
 
-    :param db_conn_id: Airflow connection ID for the database.
+    :param db_conn_id: Airflow connection ID for the database. Templated when the
+        toolset is passed to ``AgentOperator`` / ``@task.agent``, so each task
+        instance can reach its own database, e.g. one connection per customer.
     :param allowed_tables: Restrict the agent to a fixed set of tables. Omit the
         argument (the default) to expose every table in ``schema``. No *value* means
         allow-all: ``None`` and an empty list both raise ``ValueError``, so an allow-list
@@ -245,6 +251,10 @@ class SQLToolset(AbstractToolset[Any]):
         result ends it. The result reports which limit it hit so the agent can narrow
         its projection rather than page through the table.
     """
+
+    # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
+    # Airflow's templater would render in place wherever the toolset is nested.
+    agent_template_fields: Sequence[str] = ("_db_conn_id",)
 
     def __init__(
         self,
@@ -367,8 +377,9 @@ class SQLToolset(AbstractToolset[Any]):
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
         ):
-            # sequential=True because all tools use a shared DbApiHook with
-            # synchronous I/O — they must not run concurrently.
+            # sequential=True keeps pydantic-ai from running these calls concurrently
+            # within a turn; run_blocking's process-wide lock serializes them with the
+            # blocking calls of the other toolsets that use it.
             # return_schema is "string": every tool returns a JSON-encoded string
             # (json.dumps), so code mode renders `-> str` instead of `-> Any`.
             tool_def = ToolDefinition(
@@ -386,7 +397,7 @@ class SQLToolset(AbstractToolset[Any]):
             )
         return tools
 
-    async def call_tool(
+    async def _execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
@@ -396,13 +407,7 @@ class SQLToolset(AbstractToolset[Any]):
         if name not in ("list_tables", "get_schema", "query", "check_query"):
             raise ValueError(f"Unknown tool: {name!r}")
         try:
-            if name == "list_tables":
-                return self._list_tables()
-            if name == "get_schema":
-                return self._get_schema(tool_args["table_name"])
-            if name == "query":
-                return self._query(tool_args["sql"])
-            return self._check_query(tool_args["sql"])
+            return await self.run_blocking(self._run_tool, name, tool_args)
         except Exception as e:
             # Hand the database's own error back to the agent as a retry so it can
             # read the message and fix its SQL within the run. pydantic-ai bounds
@@ -414,6 +419,15 @@ class SQLToolset(AbstractToolset[Any]):
                 "Use the list_tables and get_schema tools to inspect the database, "
                 "then fix the query and try again."
             ) from e
+
+    def _run_tool(self, name: str, tool_args: dict[str, Any]) -> str:
+        if name == "list_tables":
+            return self._list_tables()
+        if name == "get_schema":
+            return self._get_schema(tool_args["table_name"])
+        if name == "query":
+            return self._query(tool_args["sql"])
+        return self._check_query(tool_args["sql"])
 
     # ------------------------------------------------------------------
     # Tool implementations
@@ -452,15 +466,15 @@ class SQLToolset(AbstractToolset[Any]):
             for name in hook.inspector.get_table_names(schema=self._schema):
                 add(self._schema, name, name)
 
-        return json.dumps(tables)
+        return dumps_masked(tables)
 
     def _get_schema(self, table_name: str) -> str:
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
-            return json.dumps({"error": f"Table {table_name!r} is not in the allowed tables list."})
+            return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
         hook = self._get_db_hook()
         columns = hook.get_table_schema(table, schema=schema)
-        return json.dumps(columns)
+        return dumps_masked(columns)
 
     def _dialect_for_validation(self) -> str | None:
         """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
@@ -511,9 +525,9 @@ class SQLToolset(AbstractToolset[Any]):
         try:
             statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
             self._enforce_allowed_tables(statements)
-            return json.dumps({"valid": True})
+            return dumps_masked({"valid": True})
         except Exception as e:
-            return json.dumps({"valid": False, "error": str(e)})
+            return dumps_masked({"valid": False, "error": str(e)})
 
     def _enforce_allowed_tables(self, statements: list[Any]) -> None:
         """

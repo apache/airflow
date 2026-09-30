@@ -221,12 +221,13 @@ def bundles() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def admin_client(test_client):
+def readable_dag_ids(test_client):
     """
-    An admin restricted to the same readable Dags.
+    Restrict every caller in this module to ``READABLE_DAG_IDS``.
 
-    ``test_client`` authenticates as an admin, which satisfies ``IMPORT_ERRORS_ALL`` under
-    SimpleAuthManager, so this is the caller that may also see a bundle holding no Dag at all.
+    The client fixtures below share one auth manager instance, so the patch lives here: a test
+    asking for two of them would otherwise autospec-patch an attribute the first fixture already
+    replaced with a mock, which ``create_autospec`` rejects.
     """
     auth_manager = test_client.app.state.auth_manager
     with mock.patch.object(
@@ -235,11 +236,22 @@ def admin_client(test_client):
         autospec=True,
         return_value=READABLE_DAG_IDS,
     ):
-        yield test_client
+        yield
 
 
 @pytest.fixture
-def dag_scoped_client(test_client):
+def admin_client(test_client, readable_dag_ids):
+    """
+    An admin restricted to the same readable Dags.
+
+    ``test_client`` authenticates as an admin, which satisfies ``IMPORT_ERRORS_ALL`` under
+    SimpleAuthManager, so this is the caller that may also see a bundle holding no Dag at all.
+    """
+    return test_client
+
+
+@pytest.fixture
+def dag_scoped_client(test_client, readable_dag_ids):
     """
     A caller who may read every Dag except the one in ``OTHER_TEAM_BUNDLE``.
 
@@ -258,20 +270,12 @@ def dag_scoped_client(test_client):
             return False
         return real_authorize_view(access_view=access_view, user=user, team_name=team_name)
 
-    with (
-        mock.patch.object(
-            auth_manager,
-            "get_authorized_dag_ids",
-            autospec=True,
-            return_value=READABLE_DAG_IDS,
-        ),
-        mock.patch.object(auth_manager, "authorize_view", autospec=True, side_effect=deny_dagless_view),
-    ):
+    with mock.patch.object(auth_manager, "authorize_view", autospec=True, side_effect=deny_dagless_view):
         yield test_client
 
 
 @pytest.fixture
-def viewer_client(test_client):
+def viewer_client(test_client, readable_dag_ids):
     """
     A viewer with the same readable Dags: may read import errors, but not the admin-gated view.
 
@@ -282,12 +286,7 @@ def viewer_client(test_client):
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="viewer", role="viewer"))
     )
-    with (
-        mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-        mock.patch.object(
-            auth_manager, "get_authorized_dag_ids", autospec=True, return_value=READABLE_DAG_IDS
-        ),
-    ):
+    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
         yield TestClient(
             test_client.app,
             headers={"Authorization": f"Bearer {token}"},

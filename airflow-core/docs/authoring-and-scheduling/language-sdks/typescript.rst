@@ -121,15 +121,11 @@ That top-level ``await`` makes the module a runnable bundle entry point.
 The ``dagId`` a handler binds must match the ``dag_id`` of the Python Dag, and the ``taskId`` a
 ``@task.stub`` function in that Dag, including any TaskGroup prefix.
 
-``register`` takes any number of task handlers and ``bundle.serve()`` serves exactly what is registered,
-so a task left out is not part of the packed bundle and is marked removed at runtime.
+``register`` takes any number of task handlers and Dags, and ``bundle.serve()`` serves exactly what is
+registered, so a task left out is not part of the packed bundle and is marked removed at runtime.
 A second ``bundle.serve()`` call is rejected.
 Registering holds no sockets and starts nothing, so a unit test can build a bundle and dispatch a handler
 through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
-
-``Dag`` is another interface, for a Dag declared in TypeScript rather than in Python, and is still a work
-in progress. ``new Dag`` and ``dag.task`` take a trailing options object (``spec`` on both, plus
-``inputs`` on a task) that is not used yet; do not set them.
 
 TaskFlow arguments
 ~~~~~~~~~~~~~~~~~~
@@ -241,6 +237,82 @@ task instance.
   ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
   inside the scheduler process, so they must be present where the scheduler can read them. The API server
   and Dag processor do not need them.
+
+.. _typescript-sdk/native-dag:
+
+Declaring a Dag in TypeScript
+-----------------------------
+
+A ``Dag`` is declared on this side rather than in Python: its schedule, its tasks, their options and
+the edges between them are all written in TypeScript. The surface is still growing, so a Dag declared
+this way is not served to Airflow yet.
+
+``dag.task(taskId, handler)`` returns a *factory*. A handler takes one object of named arguments, and
+calling the factory names each input, so the call graph is the task graph:
+
+.. code-block:: typescript
+
+    import { Dag } from "apache-airflow-ts-sdk";
+
+    const dag = new Dag("ts_etl");
+
+    const extract = dag.task("extract", async (): Promise<number> => 42);
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => rows * 2,
+    );
+    const load = dag.task("load", async ({ total }: { total: number }) => {});
+
+    const extracted = extract();
+    const total = transform({ rows: extracted, region: "us" });
+    load({ total });
+
+Naming the inputs is how a task is called. A handler that takes no arguments is called with none, and
+a single argument is named like any other, ``load({ total })``. The compiler checks the call: it reports
+an argument left out, a misspelled one, and a literal of the wrong type.
+
+Each argument takes either an upstream reference or a literal JSON value. A reference has to be the
+argument itself: one buried inside an array or an object is a literal, and draws no edge.
+
+Every task has to be called exactly once. An uncalled task fails when the Dag is read, so none can be
+left out of the graph by accident.
+
+The task id may be omitted, in which case it is the handler's function name:
+
+.. code-block:: typescript
+
+    const extract = dag.task(async function extract(): Promise<number> {
+      return 42;
+    });
+
+``airflow-ts-pack`` keeps function names intact, so bundling cannot rename a task. A handler with no
+name of its own, such as an arrow function passed inline, has nothing to take an id from and needs
+one: either positionally or as ``taskId`` in its spec. Give it in one place only, not both.
+
+Order-only edges
+~~~~~~~~~~~~~~~~
+
+An edge that carries no value has no argument name to travel under, so it is drawn between the
+references themselves with ``before`` and ``after``, the TypeScript pair for Python's ``>>`` and
+``<<``:
+
+.. code-block:: typescript
+
+    const loaded = load({ transformed });
+    const cleaned = cleanup();
+
+    loaded.before(cleaned);                  // loaded >> cleaned
+    cleaned.after(loaded, transformed);      // [loaded, transformed] >> cleaned
+
+Both take any number of references, so one call draws several edges, and drawing an edge that
+already exists changes nothing. Each returns the reference it was called on, so
+``loaded.before(cleaned).before(notified)`` draws both edges from ``loaded``.
+
+Pass a value as an argument when the downstream task needs it, and use ``before`` or ``after`` when
+it only needs to run in order.
+
+``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
+``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
 Writing tasks
 -------------
@@ -360,13 +432,15 @@ layout header. The layout records the byte ranges and SHA-256 digests of the man
 so there is one file to deploy, with no separate manifest or ``node_modules``.
 
 The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
-read or edit in place. The ``/*! */`` license banners of bundled dependencies are kept. Nothing is identified by
-a function name, so minified names are safe: a Dag and a task are named by the string ids their registration
-states, and a handler is dispatched by reference.
+read or edit in place. Function names are kept through minification, since a task id defaults to its
+handler's name. The ``/*! */`` license banners of bundled dependencies are kept.
 
-Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim in a
-``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something readable to
-display for the Dag. Only the entry module is embedded, not the modules it imports.
+Because the shipped code is not the code anyone wrote, the packer also embeds each Dag-defining source
+file verbatim in its own ``/*# airflowSource:<path> ... #*/`` block comment, verified by its own digest,
+so Airflow has something readable to display for each Dag. Each native Dag's file is embedded — the file
+its ``new Dag(...)`` constructor ran in — so a bundle that declares its Dags across several files gets one
+source region per file, mapped to their ``dag_id`` by the ``dag_source_paths`` field in the manifest. Files
+that only supply utilities or types are not embedded.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.

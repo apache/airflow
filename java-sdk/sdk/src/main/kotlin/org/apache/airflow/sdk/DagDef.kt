@@ -19,6 +19,9 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.SchemaFields
+import org.apache.airflow.sdk.internal.checkConfigValue
+import org.apache.airflow.sdk.internal.validateTaskInput
 import kotlin.Throws
 
 /**
@@ -31,9 +34,9 @@ import kotlin.Throws
  * class directly if you need to do low-level plumbing:
  *
  * ```java
- * var dag = new DagDef("java_etl")
- *     .addTask("extract", Extract.class)
- *     .addTask("load", Load.class);
+ * var dag = new DagDef("java_etl").config("schedule", "@daily");
+ * var extract = dag.task("extract", Extract.class).config("retries", 2);
+ * extract.before(dag.task("load", Load.class));
  * ```
  *
  * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
@@ -45,6 +48,31 @@ class DagDef(
   val id: String, // TODO: charset check?
 ) {
   internal val tasks = linkedMapOf<String, TaskDef>()
+  internal val dagConfig = linkedMapOf<String, Any>()
+
+  /**
+   * Sets one Dag-level configuration value.
+   *
+   * Keys are Airflow's own Dag setting names (for example `"schedule"`,
+   * `"description"`, `"tags"`, `"catchup"`); unknown keys and
+   * mismatched value types are rejected on the call, so mistakes surface where
+   * the Dag is defined.
+   *
+   * @param key Airflow Dag setting name.
+   * @param value Value matching the key's schema type. Durations take
+   *    [java.time.Duration], date-times [java.time.OffsetDateTime] or
+   *    [java.time.Instant], string arrays any `Iterable` of `String`.
+   * @return This Dag, for chaining.
+   * @throws IllegalArgumentException if the key is unknown or the value type
+   *    does not match.
+   */
+  fun config(
+    key: String,
+    value: Any?,
+  ): DagDef {
+    dagConfig[key] = checkConfigValue("Dag", SchemaFields.DAG, key, value)
+    return this
+  }
 
   /**
    * Registers a task from its ID and implementation class.
@@ -62,11 +90,39 @@ class DagDef(
   ): DagDef = addTask(TaskDef(id, definition))
 
   /**
+   * Creates a task, registers it, and hands back its handle, ready to carry
+   * configuration and to wire edges with [Deps.Flow.before].
+   *
+   * ```java
+   * var extract = dag.task("extract", Extract.class).config("retries", 2);
+   * var load = dag.task("load", Load.class);
+   * extract.before(load);
+   * ```
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [Task]. Must have a public no-arg
+   *    constructor.
+   * @return The handle representing this task.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  fun <T> task(
+    id: String,
+    definition: Class<out Task>,
+  ): TaskRef<T> {
+    val def = TaskDef(id, definition)
+    addTask(def)
+    return TaskRef(def)
+  }
+
+  /**
    * Registers a task with this Dag.
    *
    * A [TaskDef] belongs to at most one [DagDef]; registering the same instance
    * with a second Dag, or twice with the same one, fails. Task IDs must be
-   * unique within a Dag.
+   * unique within a Dag. Tasks named as upstreams by [Deps.Flow.before] or
+   * [Deps.Flow.after] must be registered with the same Dag by the time it is
+   * added to a [Bundle].
    *
    * @param task Task definition to register.
    * @return This Dag, for chaining.
@@ -86,15 +142,22 @@ class DagDef(
 }
 
 /**
- * One task definition: its ID and the class that implements it.
+ * One task definition: its ID, the class that implements it, its upstream
+ * dependencies, and its task-level configuration.
+ *
+ * Edges are drawn on the handles that [DagDef.task] returns, not here:
  *
  * ```java
- * var extract = new TaskDef("extract", Extract.class);
+ * var dag = new DagDef("java_etl");
+ * dag.addTask(new TaskDef("extract", Extract.class).config("retries", 2));
  * ```
  *
  * @param id Task identifier, unique within a [DagDef].
  * @param definition Class that implements [Task]. Must have a public no-arg
  *    constructor.
+ * @throws IllegalArgumentException if [definition] is an [InputTask] whose
+ *    declared input cannot be bound, so that a mis-declared input fails while
+ *    the [Bundle] is built rather than mid-run.
  *
  * @see Builder.Task
  */
@@ -102,7 +165,43 @@ class TaskDef(
   val id: String,
   val definition: Class<out Task>,
 ) {
+  init {
+    validateTaskInput(definition)
+  }
+
+  internal val configValues = linkedMapOf<String, Any>()
+  internal val upstreams = linkedSetOf<TaskDef>()
   internal var owner: DagDef? = null
+
+  /**
+   * Sets one task-level configuration value.
+   *
+   * Keys are Airflow's own task setting names (for example `"retries"`,
+   * `"queue"`, `"retry_delay"`); unknown keys and mismatched
+   * value types are rejected on the call, so mistakes surface where the task is
+   * defined.
+   *
+   * @param key Airflow task setting name, e.g. `"retries"`.
+   * @param value Value matching the key's schema type. Durations take
+   *    [java.time.Duration], date-times [java.time.OffsetDateTime] or
+   *    [java.time.Instant].
+   * @return This task definition, for chaining.
+   * @throws IllegalArgumentException if the key is unknown or the value type
+   *    does not match.
+   */
+  fun config(
+    key: String,
+    value: Any?,
+  ): TaskDef {
+    configValues[key] = checkConfigValue("task", SchemaFields.TASK, key, value)
+    return this
+  }
+
+  /** Records that this task runs after [upstreams], backing [Deps.Flow.before] and [Deps.Flow.after]. */
+  internal fun dependsOn(vararg upstreams: TaskDef): TaskDef {
+    this.upstreams += upstreams
+    return this
+  }
 }
 
 /**
@@ -116,8 +215,12 @@ class TaskDef(
  * via its no-argument constructor, then calls [execute] once per task-instance
  * run.
  *
+ * Implement [InputTask] instead for a task the Python Dag file calls with
+ * TaskFlow arguments; the SDK then resolves those arguments and injects them.
+ *
  * @see Builder.Dag
  * @see Builder.Task
+ * @see InputTask
  */
 interface Task {
   /**

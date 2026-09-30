@@ -27,10 +27,11 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import quote
 
 import attrs
@@ -303,8 +304,12 @@ class RuntimeTaskInstance(TaskInstance):
         integrate_macros_plugins()
 
         dag_run_conf: dict[str, Any] | None = None
+        macros_accessor = MacrosAccessor()
         if from_server := self._ti_context_from_server:
             dag_run_conf = from_server.dag_run.conf or dag_run_conf
+            macros_accessor = MacrosAccessor(
+                team_name=from_server.dag_run.team_name, multi_team=bool(from_server.multi_team)
+            )
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
@@ -323,7 +328,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "ti": self,
                 "outlet_events": OutletEventAccessors(),
                 "inlet_events": InletEventsAccessors(self.task.inlets),
-                "macros": MacrosAccessor(),
+                "macros": macros_accessor,
                 "params": validated_params,
                 # TODO: Make this go through Public API longer term.
                 # "test_mode": task_instance.test_mode,
@@ -1812,6 +1817,8 @@ def _evaluate_retry_policy(
     Returns ``None`` when no policy is configured so the caller falls through
     to the standard retry logic.
     """
+    from airflow.sdk._shared.secrets_masker import redact
+
     policy = getattr(ti.task, "retry_policy", None)
     if policy is None:
         return None
@@ -1824,6 +1831,9 @@ def _evaluate_retry_policy(
             context=context,
         )
         if decision.reason:
+            # Mask here, where mask_secret() registered the value: the API server rendering this
+            # later has its own masker and does not know the worker's secrets.
+            decision = replace(decision, reason=cast("str", redact(decision.reason)))
             # Close the group so the retry policy decision is not hidden inside "Post Execute".
             log.info("::endgroup::")
             log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
@@ -1898,18 +1908,20 @@ def _handle_current_task_failed(
                 state=TaskInstanceState.FAILED,
                 end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
+                retry_reason=decision.reason[:500] if decision.reason is not None else None,
             ),
             TaskInstanceState.FAILED,
         )
     if decision is not None and decision.action == RetryAction.RETRY:
         return _finalize_task_failure(
-            ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
+            ti, log, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
-    return _finalize_task_failure(ti)
+    return _finalize_task_failure(ti, log)
 
 
 def _finalize_task_failure(
     ti: RuntimeTaskInstance,
+    log: Logger,
     retry_delay_override: timedelta | None = None,
     retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
@@ -1942,9 +1954,22 @@ def _finalize_task_failure(
         if retry_reason is not None:
             retry_kwargs["retry_reason"] = retry_reason[:500]
         return RetryTask(**retry_kwargs), TaskInstanceState.UP_FOR_RETRY
+    if retry_reason is not None:
+        # Policy's own words only: attempt counts belong to whoever renders this, which has
+        # try_number and max_tries alongside and need not guess when retries was never set.
+        retry_reason = retry_reason[:500]
+        log.info(
+            "Retry policy requested a retry but no attempts remain",
+            reason=retry_reason,
+            try_number=ti.try_number,
+            max_tries=ti._ti_context_from_server.max_tries if ti._ti_context_from_server else None,
+        )
     return (
         TaskState(
-            state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
+            state=TaskInstanceState.FAILED,
+            end_date=end_date,
+            rendered_map_index=ti.rendered_map_index,
+            retry_reason=retry_reason,
         ),
         TaskInstanceState.FAILED,
     )

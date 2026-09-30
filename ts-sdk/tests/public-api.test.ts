@@ -28,7 +28,9 @@ import type {
   TaskClient,
   Registerable,
   TaskContext,
+  TaskFactory,
   TaskFunction,
+  TaskInput,
   TaskInputs,
   TaskOptions,
   TaskRef,
@@ -50,12 +52,18 @@ import {
 describe("public API", () => {
   it("exports the Dag authoring surface", async () => {
     const dag = new Dag("public_api_dag");
-    const upstream = dag.task("public_api_task", async () => undefined);
-    const downstream = dag.task("public_api_downstream", async () => undefined, {
-      inputs: { upstream },
+    const upstreamTask = dag.task("public_api_task", async () => undefined);
+    const downstreamTask = dag.task(
+      "public_api_downstream",
+      async (_: { upstream: undefined }) => undefined,
+    );
+    const upstream = upstreamTask();
+    const downstream = downstreamTask({ upstream });
+    expect(upstream).toMatchObject({ dagId: "public_api_dag", taskId: "public_api_task" });
+    expect(downstream).toMatchObject({
+      dagId: "public_api_dag",
+      taskId: "public_api_downstream",
     });
-    expect(upstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_task" });
-    expect(downstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_downstream" });
     expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
     // serve() hands the bundle to the runtime, which needs the supervisor's
     // socket addresses that Airflow puts on argv.
@@ -278,29 +286,72 @@ describe("public API", () => {
   });
 
   it("keeps the Dag authoring signatures extensible via trailing specs", () => {
-    expectTypeOf<TaskRef>().toEqualTypeOf<{
-      readonly dagId: string;
-      readonly taskId: string;
-    }>();
-    expectTypeOf<TaskInputs>().toEqualTypeOf<Readonly<Record<string, TaskRef>>>();
-    expectTypeOf<TaskOptions>().toEqualTypeOf<{
-      readonly inputs?: TaskInputs;
-      readonly spec?: TaskSpec;
-    }>();
+    // Identity, plus the two order-only edge verbs; the handler and the value
+    // stay hidden.
+    expectTypeOf<Extract<keyof TaskRef, string>>().toEqualTypeOf<
+      "dagId" | "taskId" | "before" | "after"
+    >();
+    expectTypeOf<TaskRef["dagId"]>().toEqualTypeOf<string>();
+    expectTypeOf<TaskRef["taskId"]>().toEqualTypeOf<string>();
+    // A reference carries its handler's return type, so a construct that needs
+    // a particular one can ask for it: a narrower reference is usable wherever
+    // a wider one is, and not the other way round.
+    expectTypeOf<TaskRef<boolean>>().toMatchTypeOf<TaskRef>();
+    expectTypeOf<TaskRef>().not.toMatchTypeOf<TaskRef<boolean>>();
+    // Variadic, and each returns its own receiver rather than its arguments,
+    // return type included.
+    expectTypeOf<TaskRef<boolean>["before"]>().toEqualTypeOf<
+      (...downstream: readonly TaskRef[]) => TaskRef<boolean>
+    >();
+    expectTypeOf<TaskRef<boolean>["after"]>().toEqualTypeOf<
+      (...upstream: readonly TaskRef[]) => TaskRef<boolean>
+    >();
+    // Wiring moved to the factory call, and the spec is the trailing argument
+    // itself.
+    expectTypeOf<TaskOptions>().toEqualTypeOf<TaskSpec>();
+    // Each input takes any upstream reference or a literal of its own type.
+    expectTypeOf<TaskInputs<{ rows: number }>>().toEqualTypeOf<{ rows: TaskRef | number }>();
+    expectTypeOf<TaskInput<number>>().toEqualTypeOf<TaskRef<number> | number>();
+    // A handler with no arguments is called with none; one that takes an object
+    // is called with its inputs named.
+    expectTypeOf<TaskFactory>().toEqualTypeOf<() => TaskRef>();
+    expectTypeOf<TaskFactory<void, boolean>>().toEqualTypeOf<() => TaskRef<boolean>>();
+    expectTypeOf<TaskFactory<{ rows: number }>>().toEqualTypeOf<
+      (inputs: { rows: TaskRef | number }) => TaskRef
+    >();
     expectTypeOf<ConstructorParameters<typeof Dag>>().toEqualTypeOf<[string, DagSpec?]>();
-    expectTypeOf<Dag["task"]>().toEqualTypeOf<
-      <TArgs = void, TReturn = unknown>(
-        taskId: string,
-        handler: TaskFunction<TArgs, TReturn>,
-        options?: TaskOptions,
-      ) => TaskRef
+    // Overloaded, so the two forms are checked by calling them rather than by
+    // matching one signature.
+    const overloadedDag = new Dag("overload_dag");
+    const withId = overloadedDag.task("extract", async (_: { rows: number }) => undefined);
+    const withoutId = overloadedDag.task(async function transform(_: { rows: number }) {});
+    expectTypeOf(withId).toEqualTypeOf<TaskFactory<{ rows: number }, undefined>>();
+    expectTypeOf(withoutId).toEqualTypeOf<TaskFactory<{ rows: number }, void>>();
+    // A handler's return type reaches the reference its factory hands back.
+    expectTypeOf(overloadedDag.task("decide", async () => true)).toEqualTypeOf<
+      TaskFactory<void, boolean>
+    >();
+    expectTypeOf(overloadedDag.task("plain", async () => undefined)).toEqualTypeOf<
+      TaskFactory<void, undefined>
     >();
     expectTypeOf<Dag["taskIds"]>().toEqualTypeOf<readonly string[]>();
-    // Reserved with no fields yet, so only `{}` is expressible. Generated specs
-    // will be all-optional (weak) types, and `{}` stays assignable to those, so
-    // filling these in later cannot break a call site.
-    expectTypeOf<DagSpec>().toEqualTypeOf<Record<string, never>>();
-    expectTypeOf<TaskSpec>().toEqualTypeOf<Record<string, never>>();
+    // Both specs are all-optional, so `{}` stays assignable and a field the
+    // schema gains later cannot break a call site.
+    const emptyDagSpec: DagSpec = {};
+    const emptyTaskSpec: TaskSpec = {};
+    expect([emptyDagSpec, emptyTaskSpec]).toEqual([{}, {}]);
+    expectTypeOf<DagSpec["schedule"]>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<DagSpec["tags"]>().toEqualTypeOf<readonly string[] | undefined>();
+    expectTypeOf<DagSpec["startDate"]>().toEqualTypeOf<Date | undefined>();
+    expectTypeOf<TaskSpec["retries"]>().toEqualTypeOf<number | undefined>();
+    // A timedelta is seconds, not a Date, and a bool defaulting to true is
+    // still a plain optional: `undefined` already means "unset".
+    expectTypeOf<TaskSpec["retryDelay"]>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<TaskSpec["doXcomPush"]>().toEqualTypeOf<boolean | undefined>();
+    // Dag identity is positional, so the spec does not restate it. A task's is
+    // not: it is also what an anonymous handler sets instead of being named.
+    expectTypeOf<DagSpec>().not.toHaveProperty("dagId");
+    expectTypeOf<TaskSpec["taskId"]>().toEqualTypeOf<string | undefined>();
   });
 
   it("uses idiomatic TypeScript names for public client types", () => {
@@ -388,24 +439,55 @@ describe("public API", () => {
     const rejectsPositionalMisuse = () => {
       // @ts-expect-error dagId is positional, not an options object.
       new Dag({ dagId: "example" });
-      // @ts-expect-error a task handler is required.
+      // @ts-expect-error a task handler is required alongside an explicit id.
       new Dag("example").task("extract");
       const dag = new Dag("example");
-      const upstream = dag.task("extract", async () => undefined);
-      // @ts-expect-error inputs must be task handles, not arbitrary values.
+      const extract = dag.task("extract", async () => undefined);
+      // @ts-expect-error wiring belongs to the factory call, not the spec.
       dag.task("transform", async () => undefined, { inputs: { count: 1 } });
-      // @ts-expect-error inputs and spec are keyword-only, not positional.
-      dag.task("transform2", async () => undefined, { upstream });
+      // @ts-expect-error the spec holds task options, not task references.
+      dag.task("transform2", async () => undefined, { extract });
       // @ts-expect-error a Dag spec is an options object, not a primitive.
       new Dag("spec_dag", 42);
-      // @ts-expect-error DagSpec has no fields yet, so a schedule cannot be declared here.
-      new Dag("spec_dag", { schedule: "@daily" });
-      // @ts-expect-error TaskSpec has no fields yet, so retries cannot be declared here.
-      dag.task("transform3", async () => undefined, { spec: { retries: 2 } });
-      // @ts-expect-error the TaskRef handle is data, not callable.
-      upstream();
-      // @ts-expect-error a bundle is built from Dags, not from task handles.
-      new Bundle(upstream);
+      new Dag("scheduled_dag", { schedule: "@daily", tags: ["team-a"] });
+      dag.task("transform3", async () => undefined, { retries: 2 });
+      // @ts-expect-error specs use the camelCased field name, not the schema key.
+      new Dag("snake_case_dag", { dag_display_name: "Example" });
+      // @ts-expect-error a field the schema does not define is a typo.
+      new Dag("typo_dag", { scheduled: "@daily" });
+      // @ts-expect-error a timedelta field is seconds, not a Date.
+      dag.task("retry_dag", async () => undefined, { retryDelay: new Date() });
+      // @ts-expect-error a handler with no arguments is called with none.
+      extract({ rows: 1 });
+      const transform = dag.task("transform4", async (_: { rows: number }) => undefined);
+      // @ts-expect-error every argument the handler declares has to be supplied.
+      transform({});
+      // @ts-expect-error a literal has to match its argument's type.
+      transform({ rows: "many" });
+      const totals = dag.task("totals", async (): Promise<{ rows: number }> => ({ rows: 1 }));
+      // Inputs are named.
+      transform({ rows: 1 });
+      transform({ rows: totals() });
+      // @ts-expect-error a bare reference is not an object of named inputs.
+      transform(totals());
+      const pair = dag.task(
+        "pair",
+        async ({ rows, region }: { rows: number; region: string }) => `${region}${rows}`,
+      );
+      pair({ rows: 1, region: "us" });
+      // @ts-expect-error inputs are named, not given in order.
+      pair(1, "us");
+      // @ts-expect-error an argument cannot be skipped.
+      pair({ rows: 1 });
+      // @ts-expect-error each literal has to match its own argument.
+      pair({ rows: "many", region: "us" });
+      const stamp = dag.task("stamp", async (_: { at: Date }) => undefined);
+      // @ts-expect-error a Date cannot survive the serialized Dag, so only a reference will do.
+      stamp({ at: new Date() });
+      // The reference an upstream call returns is always accepted.
+      stamp({ at: extract() });
+      // @ts-expect-error a bundle is built from Dags, not from task factories.
+      new Bundle(extract);
       // @ts-expect-error serve() takes nothing; the bundle already holds it all.
       new Bundle(dag).serve(dag);
     };

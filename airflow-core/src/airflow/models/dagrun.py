@@ -91,7 +91,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
-from airflow.models.taskmap import TaskMap
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -1729,7 +1728,7 @@ class DagRun(Base, LoggingMixin):
                 # the db references.
                 ti.clear_db_references(session=session)
             try:
-                expanded_tis, _ = TaskMap.expand_mapped_task(ti.task, self.run_id, session=session)
+                expanded_tis, _ = ti.expand_mapped_task(session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
             if expanded_tis:
@@ -1949,15 +1948,6 @@ class DagRun(Base, LoggingMixin):
             task_ids.add(ti.task_id)
             try:
                 task = dag.get_task(ti.task_id)
-
-                should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
-                if should_restore_task:
-                    self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    stats.incr(
-                        "task_restored_to_dag",
-                        tags={**self.stats_tags, "dag_id": dag.dag_id},
-                    )
-                    ti.state = None
             except AirflowException:
                 if ti.state == TaskInstanceState.REMOVED:
                     pass  # ti has already been removed, just ignore it
@@ -1973,7 +1963,7 @@ class DagRun(Base, LoggingMixin):
             try:
                 num_mapped_tis = task.get_parse_time_mapped_ti_count()
             except NotMapped:
-                continue
+                pass
             except NotFullyPopulated:
                 # What if it is _now_ dynamically mapped, but wasn't before?
                 try:
@@ -1985,15 +1975,17 @@ class DagRun(Base, LoggingMixin):
                             "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
                         )
                         ti.state = TaskInstanceState.REMOVED
-                    continue
-                # Upstreams finished, check there aren't any extras
-                if ti.map_index >= total_length:
-                    self.log.debug(
-                        "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
-                        ti,
-                        total_length,
-                    )
-                    ti.state = TaskInstanceState.REMOVED
+                        continue
+                else:
+                    # Upstreams finished, check there aren't any extras
+                    if ti.map_index >= total_length:
+                        self.log.debug(
+                            "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
+                            ti,
+                            total_length,
+                        )
+                        ti.state = TaskInstanceState.REMOVED
+                        continue
             else:
                 # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
@@ -2003,9 +1995,21 @@ class DagRun(Base, LoggingMixin):
                         num_mapped_tis,
                     )
                     ti.state = TaskInstanceState.REMOVED
-                elif ti.map_index < 0:
+                    continue
+                if ti.map_index < 0:
                     self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = TaskInstanceState.REMOVED
+                    continue
+
+            if ti.state == TaskInstanceState.REMOVED:
+                self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
+                stats.incr(
+                    "task_restored_to_dag",
+                    tags={**self.stats_tags, "dag_id": dag.dag_id},
+                )
+                if ti.try_number > 0:
+                    ti.prepare_db_for_next_try(session)
+                ti.state = None
 
         return task_ids
 
@@ -2250,7 +2254,6 @@ class DagRun(Base, LoggingMixin):
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         empty_ti_ids: list[UUID] = []
         schedulable_ti_ids: list[UUID] = []
-        reschedule_ti_ids: set[UUID] = set()
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
@@ -2263,13 +2266,9 @@ class DagRun(Base, LoggingMixin):
             # execute it to run in the worker.
             elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
-                if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                    reschedule_ti_ids.add(ti.id)
                 if debug_try_number_check:
                     expected_try_number_by_ti_id[ti.id] = (
-                        ti.try_number
-                        if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
-                        else ti.try_number + 1,
+                        max(1, ti.try_number),
                         ti.try_number,
                         ti.state,
                     )
@@ -2283,17 +2282,8 @@ class DagRun(Base, LoggingMixin):
             TI.state.is_(None),
             TI.state.in_(non_null_schedulable_states),
         )
-        # Use TI.id (not TI.state) in the CASE to decide try_number. MySQL evaluates
-        # SET left-to-right, so referencing TI.state here would see the already-updated
-        # value if state is assigned first. TI.id is never modified in the SET clause.
-        next_try_number = (
-            case(
-                (TI.id.in_(reschedule_ti_ids), TI.try_number),
-                else_=TI.try_number + 1,
-            )
-            if reschedule_ti_ids
-            else TI.try_number + 1
-        )
+        # Allocate the first attempt; retries and clears allocate theirs when rotating the TI id.
+        next_try_number = case((TI.try_number == 0, 1), else_=TI.try_number)
         if schedulable_ti_ids:
             schedulable_ti_ids_chunks = chunks(
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)

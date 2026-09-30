@@ -17,9 +17,10 @@
 """
 Example DAG demonstrating LLM-powered retry policies.
 
-The model names the kind of failure from the categories the policy offers it, each with a
-description. Whether that category is retried, after how long, and how sure the model has
-to be all come from the policy's category table in the worker.
+``llm_policy`` is the plain form: a text model classifies the failure and decides whether to
+retry and how long to wait, guided by its instructions. ``patient_policy`` and the
+classifier-model policies are ``ClassifierRetryPolicy``: the model only names the kind of failure
+and the policy's table decides the action, the delay and how sure the model has to be.
 
 Prerequisites:
   - Connection ``pydanticai_default`` with ``conn_type='pydanticai'``,
@@ -38,7 +39,12 @@ from datetime import timedelta
 from airflow.providers.common.compat.sdk import dag, task
 
 try:
-    from airflow.providers.common.ai.policies.retry import DEFAULT_CATEGORIES, ErrorCategory, LLMRetryPolicy
+    from airflow.providers.common.ai.policies.retry import (
+        DEFAULT_CATEGORIES,
+        ClassifierRetryPolicy,
+        ErrorCategory,
+        LLMRetryPolicy,
+    )
     from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
 
     llm_policy = LLMRetryPolicy(
@@ -52,7 +58,7 @@ try:
 
     # The default table fails ``resource``, on the grounds that a missing table needs a
     # human. Here the table is created upstream, so it is worth one more look.
-    patient_policy = LLMRetryPolicy(
+    patient_policy = ClassifierRetryPolicy(
         llm_conn_id="pydanticai_default",
         categories={
             **DEFAULT_CATEGORIES,
@@ -64,17 +70,17 @@ try:
     def example_llm_retry_policy():
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=llm_policy)
         def task_auth_error():
-            """Should classify as ``auth``, which the table fails -> FAIL immediately."""
+            """The LLM should classify this as auth and decide not to retry -> FAIL immediately."""
             raise PermissionError("403 Forbidden: API key expired for service account analytics@proj.iam")
 
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=llm_policy)
         def task_rate_limit():
-            """Should classify as ``rate_limit``, which the table retries after 60s."""
+            """The LLM should classify this as rate_limit and suggest about a 60s delay -> RETRY."""
             raise RuntimeError("429 Too Many Requests: Rate limit exceeded. Retry after 60 seconds.")
 
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=llm_policy)
         def task_data_error():
-            """Should classify as ``data``, which the table fails -> FAIL immediately."""
+            """The LLM should classify this as data and decide not to retry -> FAIL immediately."""
             raise ValueError("Column 'user_id' expected type INT but got STRING in row 42.")
 
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=patient_policy)
@@ -97,7 +103,7 @@ try:
     # fallback rules, then the task's own retry settings, decide instead. The bars come from
     # a calibration run on jev-1.13.0: correct picks landed at 0.89 and above, wrong ones
     # at 0.47 to 0.69, with one wrong ``permanent`` at 0.90 that no sensible bar catches.
-    snowflake_policy = LLMRetryPolicy(
+    snowflake_policy = ClassifierRetryPolicy(
         llm_conn_id="jev_default",
         min_confidence=0.8,
         categories={
@@ -127,6 +133,21 @@ try:
     )
     # [END howto_retry_policy_classifier]
 
+    # [START howto_retry_policy_escalation]
+    # The three layers chained. The classifier answers the clear cases in a few hundred
+    # milliseconds. When it is unsure or unreachable, a text model reasons about the failure
+    # and decides retry and delay itself. When that model is unreachable too, the rules decide.
+    escalating_policy = ClassifierRetryPolicy(
+        llm_conn_id="jev_default",
+        min_confidence=0.8,
+        categories=snowflake_policy.categories,
+        fallback_policy=LLMRetryPolicy(llm_conn_id="pydanticai_default", timeout=30.0),
+        fallback_rules=[
+            RetryRule(exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=30)),
+        ],
+    )
+    # [END howto_retry_policy_escalation]
+
     @dag(catchup=False, tags=["example", "retry_policy", "llm", "classifier"])
     def example_llm_retry_policy_classifier():
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=snowflake_policy)
@@ -139,9 +160,9 @@ try:
             """Should classify as ``schema_drift`` -> FAIL immediately."""
             raise RuntimeError("002003 (42S02): SQL compilation error: Object 'ORDERS_V2' does not exist.")
 
-        @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=snowflake_policy)
+        @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=escalating_policy)
         def task_ambiguous():
-            """Reads as more than one category; under the bar the task's own retry settings apply."""
+            """Reads as more than one category; under the bar the text model decides, then the rules."""
             raise RuntimeError("Query failed: an unexpected error occurred while processing the request.")
 
         task_warehouse_suspended()

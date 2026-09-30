@@ -24,7 +24,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
@@ -44,12 +44,12 @@ import (
 // cooperative task that honors ctx returns promptly on a supervisor shutdown.
 func RunTask(
 	ctx context.Context,
-	bundle bundlev1.Bundle,
+	b bundle.Bundle,
 	details *genmodels.StartupDetails,
 	comm *CoordinatorComm,
 	logger *slog.Logger,
 ) any {
-	task, exists := bundle.LookupTask(details.TI.DagID, details.TI.TaskID)
+	task, exists := b.LookupTask(details.TI.DagID, details.TI.TaskID)
 	if !exists {
 		logger.Error("Task not registered",
 			"dag_id", details.TI.DagID,
@@ -213,7 +213,7 @@ func mapIndexPtr(mapIndex *int) *int {
 // the terminal body: genmodels.SucceedTask, TaskState, or RetryTask.
 func executeTask(
 	ctx context.Context,
-	task bundlev1.Task,
+	task bundle.Task,
 	args []binding.Arg,
 	shouldRetry bool,
 	logger *slog.Logger,
