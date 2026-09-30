@@ -184,8 +184,10 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     >
       <RadioCardRoot
         mb={6}
-        onChange={(event) => {
-          setEventType((event.target as HTMLInputElement).value);
+        onValueChange={(details) => {
+          if (details.value !== null) {
+            setEventType(details.value);
+          }
         }}
         value={eventType}
       >
