@@ -34,6 +34,10 @@ pytestmark = pytest.mark.db_test
 ARTIFACT_BUNDLE = "java-task-handlers"
 # 6000 bytes in UTF-8, over both the MySQL key limit and the Postgres btree entry limit.
 LONG_NON_ASCII_PATH = "任" * 2000
+HANDLER_PARAMS = [
+    {"name": "path", "value_schema": {"type": "string"}, "required": True, "exact_name": True},
+    {"name": None, "value_schema": None, "required": False, "exact_name": False},
+]
 
 
 def _make_artifact(
@@ -51,7 +55,8 @@ def _make_handler(*, dag_id: str, artifact: LangSDKTaskHandlerArtifact) -> LangS
         artifact_id=artifact.id,
         dag_bundle_name="testing",
         dag_relative_fileloc=f"{dag_id}.py",
-        handler_params=[{"name": "path", "value_schema": None, "required": True}],
+        handler_binding="positional",
+        handler_params=HANDLER_PARAMS,
     )
 
 
@@ -72,6 +77,19 @@ def test_deleting_dag_deletes_its_handlers(testing_dag_bundle, session):
 
     assert session.scalars(select(LangSDKTaskHandler.dag_id)).all() == ["dag_b"]
     assert session.scalars(select(LangSDKTaskHandlerArtifact.id)).all() == [artifact.id]
+
+
+def test_handler_stores_its_declaration(testing_dag_bundle, session):
+    artifact = _add_dags_and_artifact(session, "dag_a")
+    session.add(_make_handler(dag_id="dag_a", artifact=artifact))
+    session.flush()
+    session.expire_all()
+
+    stored = session.execute(
+        select(LangSDKTaskHandler.handler_binding, LangSDKTaskHandler.handler_params)
+    ).one()
+
+    assert tuple(stored) == ("positional", HANDLER_PARAMS)
 
 
 def test_deleting_referenced_artifact_fails(testing_dag_bundle, session):
@@ -127,6 +145,7 @@ def test_core_insert_fills_fileloc_hashes(testing_dag_bundle, session):
             artifact_id=artifact_id,
             dag_bundle_name="testing",
             dag_relative_fileloc="dags/etl.py",
+            handler_binding="named_or_whole",
             handler_params=[],
         )
     )
