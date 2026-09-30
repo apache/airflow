@@ -223,7 +223,8 @@ Top-level keys:
 
 ``digests`` (mapping, optional)
     Digests the packer records, so a consumer can compare a stored value
-    instead of computing one. Each value is a lower-case hex SHA-256.
+    instead of computing one. Both are lower-case hex SHA-256 digests, and
+    consumers ignore keys they do not know.
 
     - ``integrity`` (string): SHA-256 of the binary region, the same value as
       the trailer's ``binary_sha256``. Task execution still recomputes the

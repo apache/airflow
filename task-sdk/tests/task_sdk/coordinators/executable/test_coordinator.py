@@ -439,6 +439,10 @@ class TestReadCacheDigest:
                 lambda path: _build_bundle(path, metadata=_metadata_with_digests(integrity="a" * 64)),
                 id="no-cache-digest",
             ),
+            pytest.param(
+                lambda path: _build_bundle(path, metadata=_metadata_with_digests(cache="")),
+                id="empty-cache-digest",
+            ),
             pytest.param(lambda path: _build_bundle(path, metadata=b"\xff\xfe"), id="undecodable-metadata"),
             pytest.param(_make_executable, id="not-a-bundle"),
             pytest.param(lambda path: path, id="missing-file"),
@@ -455,8 +459,16 @@ class TestBuildParseTaskHandlerCommand:
 
         command, schema_version = ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
 
-        assert command == [str(bundle)]
+        assert command == [str(bundle.resolve())]
         assert schema_version == "2026-06-16"
+
+    def test_returns_an_absolute_path(self, tmp_path, monkeypatch):
+        _build_bundle(tmp_path / "etl")
+        monkeypatch.chdir(tmp_path)
+
+        command, _ = ExecutableCoordinator()._build_parse_task_handler_command(path=Path("etl"))
+
+        assert command == [str((tmp_path / "etl").resolve())]
 
     @pytest.mark.parametrize(
         "build",

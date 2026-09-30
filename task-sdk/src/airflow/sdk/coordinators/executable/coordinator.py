@@ -386,7 +386,8 @@ class ExecutableCoordinator(SubprocessCoordinator):
         # The same trailer and digest check a task gets before its bundle runs.
         if (metadata := _read_bundle_metadata(path)) is None:
             raise ValueError(
-                f"{path} is not a valid executable bundle: the AFBNDL01 trailer is missing, "
-                "or its binary digest or metadata is invalid"
+                f"{path} is not a valid executable bundle: it cannot be read, has no AFBNDL01 "
+                "trailer, or its binary digest or metadata is invalid"
             )
-        return [os.fspath(path)], extract_supervisor_schema_version(metadata)
+        # Absolute, as for a task, so exec never searches PATH for it.
+        return [os.fspath(path.resolve())], extract_supervisor_schema_version(metadata)

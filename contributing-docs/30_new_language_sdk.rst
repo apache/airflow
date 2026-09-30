@@ -310,9 +310,9 @@ answer comes from the SDK's own task handler registrations.
 * Each ``TaskHandlerDeclaration`` states in ``binding`` how stub-task arguments
   bind to its ``params``: ``positional``, ``named`` (by name in any order,
   ignoring case and underscores unless a param sets ``exact_name``),
-  ``named_or_whole`` (as ``named``, and one argument that matches no param is
-  decoded as the whole value), or ``named_open`` (as ``named``, but only the
-  listed names are checked).
+  ``named_or_whole`` (as ``named``, except that when there is exactly one
+  argument and it matches no param, it is decoded as the whole value), or
+  ``named_open`` (as ``named``, but only the listed names are checked).
 * Each ``TaskHandlerParam`` has a ``name`` (``null`` when the SDK has no name
   for a positional parameter), ``required`` (the handler has no default for it),
   and a ``value_schema``: the JSON Schema of the values it accepts, in the

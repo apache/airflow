@@ -42,7 +42,7 @@
     },
     "digests": {
       "type": "object",
-      "description": "Digests the packer records, so a consumer can compare a stored value instead of computing one. Each value is a lower-case hex SHA-256.",
+      "description": "Digests the packer records, so a consumer can compare a stored value instead of computing one. Consumers ignore keys they do not know.",
       "additionalProperties": true,
       "properties": {
         "integrity": {
