@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import math
 import time
@@ -38,6 +39,7 @@ from airflow.models.dag_version import DagVersion
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
     from airflow.models import DagRun
@@ -237,6 +239,20 @@ class DBDagBag:
         if not (serdag := SerializedDagModel.get(dag_id, session=session)):
             return None
         return self._read_dag(serdag)
+
+    async def get_latest_version_of_dag_async(
+        self, dag_id: str, *, session: AsyncSession
+    ) -> SerializedDAG | None:
+        """Fetch the latest Dag asynchronously and deserialize it in a worker thread."""
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        serdag = await session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
+        if serdag is None:
+            return None
+
+        # The worker must use loaded columns only, without access to the request's session.
+        session.expunge(serdag)
+        return await asyncio.to_thread(self._read_dag, serdag)
 
 
 class CachedDBDagBag(DBDagBag):

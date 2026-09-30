@@ -17,13 +17,18 @@
 from __future__ import annotations
 
 import math
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
+from uuid import uuid4
 
 import pytest
 import time_machine
 from cachetools import LRUCache, TTLCache
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import make_transient_to_detached
 
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -36,6 +41,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.utils.session import create_session
 
 from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -71,6 +77,65 @@ class TestDBDagBag:
     def setup_method(self):
         self.db_dag_bag = DBDagBag()
         self.session = MagicMock()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("compressed", [False, True])
+    @patch.object(AsyncSession, "scalar", autospec=True)
+    async def test_get_latest_version_of_dag_async(self, mock_scalar, compressed, monkeypatch):
+        with DAG("async_dag", schedule=None) as dag:
+            EmptyOperator(task_id="task")
+        monkeypatch.setattr("airflow.models.serialized_dag._COMPRESS_SERIALIZED_DAGS", compressed)
+        with conf_vars({("core", "compress_serialized_dags"): str(compressed)}):
+            row = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+        row.id = uuid4()
+        row.dag_version_id = uuid4()
+        # A database-loaded row has no deserialization cache.
+        row._SerializedDagModel__data_cache = None
+        make_transient_to_detached(row)
+        mock_scalar.return_value = row
+        event_loop_thread = threading.get_ident()
+        read_dag = self.db_dag_bag._read_dag
+
+        def read_detached_dag(serdag):
+            assert threading.get_ident() != event_loop_thread
+            assert inspect(serdag).detached
+            assert bool(serdag._data_compressed) is compressed
+            return read_dag(serdag)
+
+        monkeypatch.setattr(self.db_dag_bag, "_read_dag", read_detached_dag)
+        async with AsyncSession() as session:
+            session.add(row)
+            result = await self.db_dag_bag.get_latest_version_of_dag_async(dag.dag_id, session=session)
+
+        mock_scalar.assert_awaited_once()
+        assert result.dag_id == dag.dag_id
+        assert result.task_ids == ["task"]
+        assert self.db_dag_bag._dags[row.dag_version_id].dag is result
+
+    @pytest.mark.asyncio
+    @patch.object(DBDagBag, "_read_dag", autospec=True)
+    async def test_get_latest_version_of_dag_async_not_found(self, mock_read_dag):
+        session = create_autospec(AsyncSession, instance=True)
+        session.scalar.return_value = None
+
+        assert await self.db_dag_bag.get_latest_version_of_dag_async("missing", session=session) is None
+
+        session.scalar.assert_awaited_once()
+        session.expunge.assert_not_called()
+        mock_read_dag.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch.object(DBDagBag, "_read_dag", autospec=True, side_effect=ValueError("invalid Dag data"))
+    async def test_get_latest_version_of_dag_async_deserialization_error(self, mock_read_dag):
+        session = create_autospec(AsyncSession, instance=True)
+        row = MagicMock(spec=SerializedDagModel)
+        session.scalar.return_value = row
+
+        with pytest.raises(ValueError, match="invalid Dag data"):
+            await self.db_dag_bag.get_latest_version_of_dag_async("invalid", session=session)
+
+        session.expunge.assert_called_once_with(row)
+        mock_read_dag.assert_called_once_with(self.db_dag_bag, row)
 
     def test__read_dag_stores_and_returns_dag(self):
         """It should store the SerializedDAG with its hash, and return it."""

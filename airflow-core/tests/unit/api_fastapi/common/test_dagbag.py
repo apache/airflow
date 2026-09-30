@@ -22,16 +22,45 @@ from unittest import mock
 
 import pytest
 from cachetools import LRUCache, TTLCache
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.api_fastapi.app import purge_cached_app
-from airflow.api_fastapi.common.dagbag import create_dag_bag
-from airflow.models.dagbag import CachedDBDagBag
+from airflow.api_fastapi.common.dagbag import create_dag_bag, get_latest_version_of_dag_async
+from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.sdk import BaseOperator
+from airflow.serialization.definitions.dag import SerializedDAG
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.asyncio
+async def test_get_latest_version_of_dag_async():
+    dag_bag = mock.create_autospec(DBDagBag, instance=True)
+    session = mock.create_autospec(AsyncSession, instance=True)
+    dag = mock.MagicMock(spec=SerializedDAG)
+    dag_bag.get_latest_version_of_dag_async.return_value = dag
+
+    assert await get_latest_version_of_dag_async(dag_bag, "test_dag", session) is dag
+    dag_bag.get_latest_version_of_dag_async.assert_awaited_once_with("test_dag", session=session)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("include_reason", [False, True])
+async def test_get_latest_version_of_dag_async_not_found(include_reason):
+    dag_bag = mock.create_autospec(DBDagBag, instance=True)
+    session = mock.create_autospec(AsyncSession, instance=True)
+    dag_bag.get_latest_version_of_dag_async.return_value = None
+
+    with pytest.raises(HTTPException) as exc:
+        await get_latest_version_of_dag_async(dag_bag, "missing", session, include_reason=include_reason)
+
+    assert exc.value.status_code == 404
+    message = "The Dag with ID: `missing` was not found"
+    assert exc.value.detail == ({"reason": "not_found", "message": message} if include_reason else message)
 
 
 class TestDagBagSingleton:
