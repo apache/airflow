@@ -677,7 +677,7 @@ def test_down_stops_after_container_removal_failure(docker_resources):
     assert not any(c.args[0][1:3] == ["volume", "rm"] for c in run.call_args_list)
 
 
-def test_down_force_removes_containers_that_outlive_stop(docker_resources):
+def test_down_force_removes_containers_that_outlive_stop(docker_resources, capsys):
     resources, run = docker_resources
     labels = {"com.docker.compose.project": "breeze"}
     resources["container"] = [{"Id": "container", "Config": {"Labels": labels}}]
@@ -693,6 +693,7 @@ def test_down_force_removes_containers_that_outlive_stop(docker_resources):
     run.side_effect = fail
     assert docker_command_utils.bring_compose_projects_down() == ["breeze"]
 
+    assert "Stopping Breeze containers" in capsys.readouterr().out
     assert [c.args[0] for c in run.call_args_list if c.args[0][2] in ("stop", "wait", "rm")] == [
         ["docker", "container", "stop", "container"],
         ["docker", "container", "wait", "container"],

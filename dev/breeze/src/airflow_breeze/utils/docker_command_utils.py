@@ -1067,6 +1067,7 @@ def bring_compose_projects_down(
         # A `breeze shell` or `breeze start-airflow` container can exit later than `docker container stop`
         # waits for, and it removes itself once it exits. So the exit is awaited separately, and only the
         # containers that are still there afterwards are removed.
+        console_print("[info]Stopping Breeze containers, this can take a while.[/]")
         for action in ("stop", "wait"):
             run_command(
                 ["docker", "container", action, *targets["container"]], check=False, capture_output=True
