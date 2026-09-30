@@ -157,31 +157,34 @@ backs many handlers and its fingerprint must have exactly one value.
 
 ```sql
 CREATE TABLE lang_sdk_task_handler_artifact (
-    id                UUID          NOT NULL,
-    bundle_name       VARCHAR(250)  NOT NULL,   -- the task_handler_bundle_name it was found in
-    relative_fileloc  VARCHAR(2000) NOT NULL,   -- path within that bundle
-    size_bytes        BIGINT        NOT NULL,   -- cheap fingerprint tier
-    cache_digest      VARCHAR(64)   NOT NULL,   -- content fingerprint tier; see "The fast path"
-    last_probed_at    TIMESTAMP     NOT NULL,
-    PRIMARY KEY (id),
-    CONSTRAINT lstha_bundle_fileloc_uq UNIQUE (bundle_name, relative_fileloc)
+    id                     UUID          NOT NULL,
+    bundle_name            VARCHAR(250)  NOT NULL,   -- the task_handler_bundle_name it was found in
+    relative_fileloc       VARCHAR(2000) NOT NULL,   -- path within that bundle
+    relative_fileloc_hash  VARCHAR(32)   NOT NULL,   -- md5 of relative_fileloc; the path is too long to index
+    size_bytes             BIGINT        NOT NULL,   -- cheap fingerprint tier
+    cache_digest           VARCHAR(128)  NOT NULL,   -- content fingerprint tier; see "The fast path"
+    last_probed_at         TIMESTAMP     NOT NULL,
+    CONSTRAINT lang_sdk_task_handler_artifact_pkey PRIMARY KEY (id),
+    CONSTRAINT lang_sdk_task_handler_artifact_bundle_fileloc_uq UNIQUE (bundle_name, relative_fileloc_hash)
 );
 
 CREATE TABLE lang_sdk_task_handler (
-    dag_id                VARCHAR(250)  NOT NULL,
-    task_id               VARCHAR(250)  NOT NULL,
-    artifact_id           UUID          NOT NULL,
-    dag_bundle_name       VARCHAR(250)  NOT NULL,   -- the *Python* file that owns this row
-    dag_relative_fileloc  VARCHAR(2000) NOT NULL,   -- ditto
-    handler_params        JSON          NOT NULL,   -- list[TaskHandlerParam], ordered
-    PRIMARY KEY (dag_id, task_id),
-    CONSTRAINT lsth_dag_fkey FOREIGN KEY (dag_id)
+    dag_id                     VARCHAR(250)  NOT NULL,
+    task_id                    VARCHAR(250)  NOT NULL,
+    artifact_id                UUID          NOT NULL,
+    dag_bundle_name            VARCHAR(250)  NOT NULL,   -- the *Python* file that owns this row
+    dag_relative_fileloc       VARCHAR(2000) NOT NULL,   -- ditto
+    dag_relative_fileloc_hash  VARCHAR(32)   NOT NULL,   -- md5 of dag_relative_fileloc
+    handler_params             JSON          NOT NULL,   -- list[TaskHandlerParam], ordered
+    CONSTRAINT lang_sdk_task_handler_pkey PRIMARY KEY (dag_id, task_id),
+    CONSTRAINT lang_sdk_task_handler_dag_id_fkey FOREIGN KEY (dag_id)
         REFERENCES dag (dag_id) ON DELETE CASCADE,
-    CONSTRAINT lsth_artifact_fkey FOREIGN KEY (artifact_id)
+    CONSTRAINT lang_sdk_task_handler_artifact_id_fkey FOREIGN KEY (artifact_id)
         REFERENCES lang_sdk_task_handler_artifact (id)
 );
-CREATE INDEX idx_lsth_dag_file ON lang_sdk_task_handler (dag_bundle_name, dag_relative_fileloc);
-CREATE INDEX idx_lsth_artifact_id ON lang_sdk_task_handler (artifact_id);
+CREATE INDEX idx_lang_sdk_task_handler_dag_file
+    ON lang_sdk_task_handler (dag_bundle_name, dag_relative_fileloc_hash);
+CREATE INDEX idx_lang_sdk_task_handler_artifact_id ON lang_sdk_task_handler (artifact_id);
 ```
 
 `PRIMARY KEY (dag_id, task_id)` is the conflict guard: two artifacts claiming the same task cannot
