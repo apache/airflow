@@ -28,6 +28,7 @@ from airflow.api_fastapi.common.db.common import (
 )
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
+    QueryJobTeamsFilter,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -101,6 +102,7 @@ def get_jobs(
         FilterParam[str | None],
         Depends(filter_param_factory(Job.executor_class, str | None, filter_name="executor_class")),
     ],
+    teams: QueryJobTeamsFilter,
     is_alive: bool | None = None,
 ) -> JobCollectionResponse:
     """Get all jobs."""
@@ -116,6 +118,7 @@ def get_jobs(
             job_type,
             hostname,
             executor_class,
+            teams,
         ],
         order_by=order_by,
         limit=limit,

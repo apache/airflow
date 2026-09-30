@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagDetails
 from airflow.api_fastapi.core_api.routes.public.import_error import REDACTED_STACKTRACE
@@ -171,6 +171,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE1,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -181,6 +182,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP2),
                     "filename": FILENAME2,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE2,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -191,6 +193,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP3),
                     "filename": FILENAME3,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE3,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -208,6 +211,7 @@ class TestGetImportError:
         test_client,
         permitted_dag_model_all,
         import_errors,
+        url_safe_serializer,
     ):
         import_error: ParseImportError | None = (
             import_errors[prepared_import_error_idx] if prepared_import_error_idx is not None else None
@@ -219,8 +223,44 @@ class TestGetImportError:
         if expected_status_code != 200:
             return
 
-        expected_body.update({"import_error_id": import_error_id})
+        expected_body.update(
+            {
+                "import_error_id": import_error_id,
+                "file_token": url_safe_serializer.dumps(
+                    {"bundle_name": import_error.bundle_name, "relative_fileloc": import_error.filename}
+                ),
+            }
+        )
         assert response.json() == expected_body
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_error_with_source_reference(
+        self, mock_get_auth_manager, test_client, session, permitted_dag_model_all, url_safe_serializer
+    ):
+        error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=FILENAME1,
+            source_reference="archive.zip/dags/my_dag.py",
+            stacktrace=STACKTRACE1,
+            timestamp=TIMESTAMP1,
+        )
+        session.add(error)
+        session.commit()
+
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        response = test_client.get(f"/importErrors/{error.id}")
+        assert response.status_code == 200
+        assert response.json() == {
+            "import_error_id": error.id,
+            "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
+            "filename": FILENAME1,
+            "source_reference": "archive.zip/dags/my_dag.py",
+            "stack_trace": STACKTRACE1,
+            "bundle_name": BUNDLE_NAME,
+            "file_token": url_safe_serializer.dumps(
+                {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+            ),
+        }
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, import_errors):
         import_error_id = import_errors[0].id
@@ -255,6 +295,7 @@ class TestGetImportError:
         permitted_dag_model_all,
         not_permitted_dag_model,
         import_errors,
+        url_safe_serializer,
     ):
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
@@ -266,8 +307,12 @@ class TestGetImportError:
             "import_error_id": import_error_id,
             "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
             "filename": FILENAME1,
+            "source_reference": None,
             "stack_trace": "REDACTED - you do not have read permission on all Dags in the file",
             "bundle_name": BUNDLE_NAME,
+            "file_token": url_safe_serializer.dumps(
+                {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+            ),
         }
 
     @pytest.mark.parametrize(
@@ -285,6 +330,7 @@ class TestGetImportError:
         import_errors,
         can_view_all_import_errors,
         expected_status_code,
+        url_safe_serializer,
     ):
         """A file with no registered Dag has no per-Dag key to authorize on, so
         visibility is gated on the dedicated ``IMPORT_ERRORS_ALL`` view: callers
@@ -303,8 +349,12 @@ class TestGetImportError:
                 "import_error_id": import_error_id,
                 "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                 "filename": FILENAME1,
+                "source_reference": None,
                 "stack_trace": STACKTRACE1,
                 "bundle_name": BUNDLE_NAME,
+                "file_token": url_safe_serializer.dumps(
+                    {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+                ),
             }
         # The unregistered-file view is what gates access, scoped to the file's
         # team (None for the un-teamed "testing" bundle).
@@ -627,6 +677,45 @@ class TestGetImportErrors:
             access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
         )
 
+    @pytest.mark.parametrize(
+        ("order_by", "expected_filenames"),
+        [
+            ("source_reference", [FILENAME2, FILENAME3, FILENAME1]),
+            ("-source_reference", [FILENAME1, FILENAME3, FILENAME2]),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_source_reference(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        session,
+        order_by,
+        expected_filenames,
+        permitted_dag_model_all,
+    ):
+        source_references = {
+            FILENAME1: f"c.zip/{FILENAME1}",
+            FILENAME2: f"a.zip/{FILENAME2}",
+            FILENAME3: f"b.zip/{FILENAME3}",
+        }
+        for filename, source_reference in source_references.items():
+            session.execute(
+                update(ParseImportError)
+                .where(ParseImportError.filename == filename)
+                .values(source_reference=source_reference)
+            )
+        session.commit()
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors", params={"order_by": order_by})
+
+        assert response.status_code == 200
+        assert [(e["filename"], e["source_reference"]) for e in response.json()["import_errors"]] == [
+            (filename, source_references[filename]) for filename in expected_filenames
+        ]
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/importErrors")
         assert response.status_code == 401
@@ -746,6 +835,7 @@ class TestGetImportErrors:
         expected_stack_trace,
         permitted_dag_model_all,
         import_errors,
+        url_safe_serializer,
     ):
         dag_id1 = "dag_id1"
         mock_get_dag_id_to_team_name_mapping.return_value = {dag_id1: team}
@@ -768,8 +858,12 @@ class TestGetImportErrors:
                     "import_error_id": import_errors[0].id,
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
+                    "source_reference": None,
                     "stack_trace": expected_stack_trace,
                     "bundle_name": BUNDLE_NAME,
+                    "file_token": url_safe_serializer.dumps(
+                        {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+                    ),
                 }
             ],
         }

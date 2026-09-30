@@ -58,6 +58,15 @@ repos:
         entry: ../scripts/ci/prek/validate_operators_init.py
         pass_filenames: true
         files: ^.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
+      - id: check-conn-id-templated
+        name: Check connection ids accepted by operators are in template_fields
+        description: Every *conn_id argument an operator, sensor or notifier accepts must be templated
+        language: python
+        entry: ../scripts/ci/prek/check_conn_id_templated.py
+        pass_filenames: true
+        files: ^.*/src/airflow/providers/.*\.py$
+        additional_dependencies: [rich>=13.6.0]
+        require_serial: true
       - id: update-providers-build-files
         name: Update providers build files
         entry: ../scripts/ci/prek/update_providers_build_files.py

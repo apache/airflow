@@ -17,8 +17,13 @@
 
 .. _howto/operator:llamaindex_retrieval:
 
-LlamaIndex ``LlamaIndexRetrievalOperator``
-==========================================
+Retrieve context: ``LlamaIndexRetrievalOperator``
+=================================================
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 Load a persisted LlamaIndex index and run similarity search. Designed to
 sit between

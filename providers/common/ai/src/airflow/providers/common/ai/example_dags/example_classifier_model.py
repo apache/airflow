@@ -96,8 +96,9 @@ example_classifier_model_branch()
 def example_classifier_model_confidence():
     """Classify a failure and escalate when the model says it does not know.
 
-    The branch Dag above cannot do this: ``LLMBranchOperator`` takes the branch inside the
-    operator, before any task can read the confidence.
+    ``LLMBranchOperator`` can gate its pick on one confidence bar through ``decision_policy``.
+    Reading the confidence in a task of your own, as here, lets you act differently in more
+    than one band.
     """
 
     @task
@@ -110,7 +111,8 @@ def example_classifier_model_confidence():
         # Confidence is reported per output field; a bare output type lands under
         # "response". A bounded ``float`` output would report none at all -- there the
         # probability is the answer -- so this ``or 0.0`` would read as no confidence
-        # rather than as a missing one. No operator surfaces this on XCom by default.
+        # rather than as a missing one. ``LLMOperator`` and ``LLMBranchOperator`` push the
+        # same confidence in their ``decision`` XCom.
         details = result.response.provider_details or {}
         return {
             "category": result.output,

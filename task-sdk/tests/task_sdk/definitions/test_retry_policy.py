@@ -24,6 +24,7 @@ import structlog
 
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.definitions.retry_policy import (
+    ChainRetryPolicy,
     ExceptionRetryPolicy,
     RetryAction,
     RetryDecision,
@@ -226,6 +227,229 @@ class TestExceptionRetryPolicy:
 # ---------------------------------------------------------------------------
 # Custom RetryPolicy subclass
 # ---------------------------------------------------------------------------
+
+
+class TestChainRetryPolicy:
+    """Policies in order; the first RETRY or FAIL wins; any DEFAULT means ask the next one."""
+
+    FAIL_403 = ExceptionRetryPolicy(
+        rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL, reason="never retry 403")]
+    )
+    FLOOR = ExceptionRetryPolicy(
+        rules=[
+            RetryRule(
+                exception=ConnectionError,
+                action=RetryAction.RETRY,
+                retry_delay=timedelta(seconds=30),
+                reason="floor",
+            )
+        ]
+    )
+
+    @staticmethod
+    def _policy(decision):
+        class Fixed(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                return decision
+
+        return Fixed()
+
+    def test_needs_at_least_one_policy(self):
+        with pytest.raises(ValueError, match="at least one policy"):
+            ChainRetryPolicy([])
+
+    def test_a_single_policy_must_be_wrapped_in_a_sequence(self):
+        with pytest.raises(TypeError, match="wrap the single policy in a list"):
+            ChainRetryPolicy(self.FLOOR)  # type: ignore[arg-type]
+
+    def test_members_must_be_retry_policies(self):
+        with pytest.raises(TypeError, match=r"policies\[1\] must be a RetryPolicy, got str"):
+            ChainRetryPolicy([self.FLOOR, "rules"])  # type: ignore[list-item]
+
+    def test_accepts_any_sequence(self):
+        policy = ChainRetryPolicy((self.FAIL_403, self.FLOOR))
+
+        assert policy.policies == [self.FAIL_403, self.FLOOR]
+
+    @pytest.mark.parametrize(
+        ("first", "exc", "action", "reason"),
+        [
+            pytest.param(
+                FAIL_403,
+                PermissionError("403"),
+                RetryAction.FAIL,
+                "ExceptionRetryPolicy: never retry 403",
+                id="fail",
+            ),
+            pytest.param(
+                FLOOR,
+                ConnectionError("refused"),
+                RetryAction.RETRY,
+                "ExceptionRetryPolicy: floor",
+                id="retry",
+            ),
+        ],
+    )
+    def test_first_policy_to_decide_wins_and_later_ones_are_not_consulted(self, first, exc, action, reason):
+        consulted = []
+
+        class Recording(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                consulted.append(True)
+                return RetryDecision.fail(reason="should not run")
+
+        policy = ChainRetryPolicy([first, Recording()])
+
+        decision = policy.evaluate(exc, try_number=1, max_tries=3)
+
+        assert decision.action == action
+        assert decision.reason == reason
+        assert consulted == []
+
+    def test_default_from_a_policy_moves_to_the_next(self):
+        policy = ChainRetryPolicy([self.FAIL_403, self.FLOOR])
+
+        decision = policy.evaluate(ConnectionError("refused"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.retry_delay == timedelta(seconds=30)
+        assert decision.reason == "ExceptionRetryPolicy: floor (after ExceptionRetryPolicy: no decision)"
+
+    def test_matched_default_rule_passes_control_on(self):
+        """A rule with action=DEFAULT is not a decision inside a chain, whatever its reason or delay."""
+        soft = ExceptionRetryPolicy(
+            rules=[
+                RetryRule(
+                    exception=ConnectionError,
+                    action=RetryAction.DEFAULT,
+                    retry_delay=timedelta(seconds=99),
+                    reason="task settings, please",
+                )
+            ]
+        )
+        policy = ChainRetryPolicy([soft, self.FLOOR])
+
+        decision = policy.evaluate(ConnectionError("refused"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.retry_delay == timedelta(seconds=30)
+        assert (
+            decision.reason
+            == "ExceptionRetryPolicy: floor (after ExceptionRetryPolicy: task settings, please)"
+        )
+
+    def test_fail_default_ends_the_chain(self):
+        strict = ExceptionRetryPolicy(rules=[], default=RetryAction.FAIL)
+        policy = ChainRetryPolicy([strict, self.FLOOR])
+
+        decision = policy.evaluate(ConnectionError("refused"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.FAIL
+        assert decision.reason == "ExceptionRetryPolicy: fail"
+
+    def test_every_policy_abstaining_returns_default_with_the_trail_and_no_delay(self):
+        soft = ExceptionRetryPolicy(
+            rules=[
+                RetryRule(exception=ValueError, action=RetryAction.DEFAULT, retry_delay=timedelta(seconds=99))
+            ]
+        )
+        policy = ChainRetryPolicy([self.FAIL_403, soft])
+
+        decision = policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.DEFAULT
+        assert decision.retry_delay is None
+        assert decision.reason == (
+            "no policy decided (ExceptionRetryPolicy: no decision; ExceptionRetryPolicy: Matched rule for ValueError)"
+        )
+
+    def test_a_policy_that_raises_is_logged_and_skipped(self, caplog):
+        class Broken(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                raise RuntimeError("policy bug")
+
+        policy = ChainRetryPolicy([Broken(), self.FLOOR])
+
+        with caplog.at_level("ERROR", logger="airflow.sdk.definitions.retry_policy"):
+            decision = policy.evaluate(ConnectionError("refused"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.reason == "ExceptionRetryPolicy: floor (after Broken: raised RuntimeError)"
+        assert "Broken raised while evaluating the retry policy" in caplog.text
+        assert "policy bug" in caplog.text
+
+    @pytest.mark.parametrize("returned", [None, "retry", {"action": "retry"}])
+    def test_a_policy_returning_something_else_is_logged_and_skipped(self, returned, caplog):
+        policy = ChainRetryPolicy([self._policy(returned), self.FLOOR])
+
+        with caplog.at_level("ERROR", logger="airflow.sdk.definitions.retry_policy"):
+            decision = policy.evaluate(ConnectionError("refused"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.reason == "ExceptionRetryPolicy: floor (after Fixed: invalid decision)"
+        assert "instead of a RetryDecision" in caplog.text
+
+    def test_members_are_called_by_keyword_like_the_worker_does(self):
+        class KeywordOnly(RetryPolicy):
+            def evaluate(self, *, exception, try_number, max_tries, context=None):
+                return RetryDecision.fail(reason="kw-only")
+
+        decision = ChainRetryPolicy([KeywordOnly()]).evaluate(ValueError("x"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.FAIL
+        assert decision.reason == "KeywordOnly: kw-only"
+
+    @pytest.mark.parametrize("exc", [KeyboardInterrupt, SystemExit])
+    def test_base_exceptions_propagate(self, exc):
+        class Cancelled(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                raise exc()
+
+        policy = ChainRetryPolicy([Cancelled(), self.FLOOR])
+
+        with pytest.raises(exc):
+            policy.evaluate(ConnectionError("refused"), try_number=1, max_tries=3)
+
+    def test_every_policy_sees_the_original_exception_and_arguments(self):
+        seen = []
+
+        class Recording(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                seen.append((exception, try_number, max_tries, context))
+                return RetryDecision.default()
+
+        exc = ConnectionError("refused")
+        ctx = {"params": {}}
+        ChainRetryPolicy([Recording(), Recording()]).evaluate(exc, try_number=2, max_tries=5, context=ctx)
+
+        assert seen == [(exc, 2, 5, ctx), (exc, 2, 5, ctx)]
+
+    def test_decision_without_a_reason_names_the_action(self):
+        policy = ChainRetryPolicy([self._policy(RetryDecision.retry(delay=timedelta(seconds=7)))])
+
+        decision = policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
+
+        assert decision.retry_delay == timedelta(seconds=7)
+        assert decision.reason == "Fixed: retry"
+
+    def test_nested_chains_compose(self):
+        inner = ChainRetryPolicy([self.FAIL_403])
+        policy = ChainRetryPolicy([inner, self.FLOOR])
+
+        decision = policy.evaluate(ConnectionError("refused"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.reason == (
+            "ExceptionRetryPolicy: floor (after ChainRetryPolicy: no policy decided (ExceptionRetryPolicy: no decision))"
+        )
+
+    def test_runs_through_the_task_runner(self):
+        ti = _make_mock_ti(policy=ChainRetryPolicy([self.FAIL_403, self.FLOOR]))
+
+        result = _evaluate_retry_policy(ti, ConnectionError("refused"), log)
+
+        assert result.action == RetryAction.RETRY
+        assert result.retry_delay == timedelta(seconds=30)
 
 
 class TestCustomRetryPolicy:

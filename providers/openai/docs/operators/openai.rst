@@ -224,3 +224,76 @@ An example of using the operator:
     :language: python
     :start-after: [START howto_operator_openai_trigger_operator]
     :end-before: [END howto_operator_openai_trigger_operator]
+
+.. _howto/operator:OpenAIAgentSessionOperator:
+
+Managed Agents sessions
+=======================
+
+Use :class:`~airflow.providers.openai.operators.agent.OpenAIAgentSessionOperator`
+to submit a message to OpenAI's Managed Agents service. The service runs the agent
+loop. Airflow waits for the first turn to complete, optionally releasing the worker
+with ``deferrable=True``. This requires OpenAI Python SDK 3.13.0 or newer and access
+to the beta Agents API on your configured endpoint.
+
+The provider's base dependency still permits older SDKs for other OpenAI APIs.
+Install ``openai>=3.13.0`` on both workers and triggerers to use Managed Agents.
+Libraries that require ``openai<3`` (including current LlamaIndex OpenAI LLM
+integrations) cannot share that environment.
+
+.. exampleinclude:: /../../openai/tests/system/openai/example_openai_agent.py
+    :language: python
+    :start-after: [START howto_operator_openai_agent]
+    :end-before: [END howto_operator_openai_agent]
+
+Parameters
+^^^^^^^^^^
+
+* ``input``: Initial user message.
+* ``environment``: SDK environment configuration, such as ``{"type": "none"}``,
+  or an environment template reference for a hosted sandbox.
+* ``agent_id``: An existing saved agent. Alternatively, supply an inline agent
+  with a model in ``session_kwargs["agent"]``.
+* ``session_kwargs``: SDK session creation options, including agent overrides,
+  ``vault_ids`` and ``metadata``. The keys ``input``, ``environment``, ``agent_id``
+  and ``stream`` are reserved.
+* ``conn_id``: OpenAI connection, defaulting to ``openai_default``.
+* ``deferrable``: Whether to release the worker while waiting. Defaults to the
+  Airflow ``operators.default_deferrable`` setting.
+* ``poll_interval``: Seconds between checks, defaulting to 10.
+* ``timeout``: Seconds to wait for completion, defaulting to 3600. A shorter
+  ``execution_timeout`` still applies to a deferred task and preempts the
+  cancel-on-timeout path below.
+
+Transient polling failures are retried; three consecutive failures fail the task.
+
+The operator returns the session ID. When XCom pushing is enabled, it also writes
+``session_id``, ``turn_id`` and the turn's available token ``usage``. Usage includes
+the Airflow ``try_number``; it represents the current attempt, not cumulative spend
+across retries. Full message histories and artifacts are not stored in XCom.
+Retrieve them with ``OpenAIHook().get_conn().beta.agents.sessions.items`` and
+``.artifacts`` using the returned session ID.
+
+Each attempt creates a fresh session. Do not submit additional turns to it while
+this task is running. An idle session without a visible turn is not treated as
+success. Failed or cancelled turns fail the task. Client-side function tools are
+not executed by the operator and fail the task when requested; use service-side
+tools instead. A self-hosted environment must have an independently managed worker.
+
+On timeout or polling failure, the operator requests cancellation of its session's
+active turn. It retains the session and artifacts for inspection. Cancellation does
+not delete the environment or guarantee that its resources have been released.
+Killing a synchronous task also requests cancellation. Cancellation of a killed
+deferred task requires Airflow 3.3 or newer; on older versions, cancel it manually.
+A hard worker termination or Airflow execution timeout can bypass cleanup. Retrying
+the task creates another session and can repeat external side effects.
+
+Hook methods
+^^^^^^^^^^^^
+
+:class:`~airflow.providers.openai.hooks.openai.OpenAIHook` provides
+``create_agent``, ``create_agent_session``, ``get_agent_session`` and
+``cancel_agent_session``. ``poll_agent_session`` checks the first turn of a fresh,
+exclusively owned session; it is not a general waiter for reused sessions.
+For other resources, use the SDK client returned by ``get_conn()``. See the
+`OpenAI Agents API reference <https://developers.openai.com/api/reference/python/resources/beta/subresources/agents>`__.

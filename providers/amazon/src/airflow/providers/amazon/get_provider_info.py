@@ -34,7 +34,14 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst",
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst",
                 ],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "DuckDB on AWS",
+                "external-doc-url": "https://duckdb.org/docs/stable/extensions/httpfs/s3api",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/duckdb.rst"],
                 "tags": ["aws"],
             },
             {
@@ -396,7 +403,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.athena",
+                    "airflow.providers.amazon.aws.operators.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
@@ -721,6 +731,10 @@ def get_provider_info():
                     "airflow.providers.amazon.aws.hooks.athena",
                     "airflow.providers.amazon.aws.hooks.athena_sql",
                 ],
+            },
+            {
+                "integration-name": "DuckDB on AWS",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.duckdb"],
             },
             {
                 "integration-name": "Amazon Bedrock",
@@ -1226,6 +1240,19 @@ def get_provider_info():
                 },
             },
             {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook",
+                "hook-name": "DuckDB on AWS",
+                "connection-type": "duckdb_aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "port", "schema"],
+                    "relabeling": {"host": "Database path"},
+                    "placeholders": {
+                        "host": "/tmp/analytics.duckdb (leave empty for an in-memory database)",
+                        "extra": '{\n  "credential_strategy": "credential_chain",\n  "region_name": "us-east-1",\n  "memory_limit": "2GB",\n  "threads": 4\n}\n',
+                    },
+                },
+            },
+            {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook",
                 "hook-name": "Amazon Elastic MapReduce",
                 "connection-type": "emr",
@@ -1580,5 +1607,8 @@ def get_provider_info():
         ],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
-        "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
+        "queues": [
+            "airflow.providers.amazon.aws.queues.kinesis.KinesisMessageQueueProvider",
+            "airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider",
+        ],
     }

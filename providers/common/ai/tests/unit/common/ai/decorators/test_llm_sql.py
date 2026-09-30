@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import ImageUrl
@@ -45,7 +45,9 @@ class TestLLMSQLDecoratedOperator:
 
         assert result == "SELECT 1"
         assert op.prompt == "Get all users"
-        mock_agent.run_sync.assert_called_once_with("Get all users", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Get all users", usage_limits=None, cancellation_token=ANY
+        )
 
     @pytest.mark.parametrize(
         "return_value",
@@ -79,7 +81,7 @@ class TestLLMSQLDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

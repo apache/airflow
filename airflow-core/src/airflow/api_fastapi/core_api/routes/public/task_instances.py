@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -108,6 +108,7 @@ from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDe
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
     _discard_task_state_store,
+    _get_task_group_task_ids,
     _get_task_group_task_instances,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -384,10 +385,7 @@ def get_task_instance_tries(
         ).options(joinedload(orm_object.hitl_detail))
         return query
 
-    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
-    tis = session.scalars(
-        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
-    ).all()
+    tis = session.scalars(_query(TI)).all()
     task_instances = list(session.scalars(_query(TIH)).all()) + list(tis)
 
     if not task_instances:
@@ -905,6 +903,14 @@ def post_clear_task_instances(
 
     if future:
         body.end_date = None
+
+    # A task group has no per-task list at the call site; resolve every task in it from the dag
+    # structure so all are cleared, not just the first page the UI could enumerate.
+    if body.task_group_id is not None:
+        body.task_ids = cast(
+            "list[str | tuple[str, int]]",
+            _get_task_group_task_ids(dag_id, body.task_group_id, dag),
+        )
 
     if (task_markers_to_clear := body.task_ids) is not None:
         mapped_tasks_tuples = {t for t in task_markers_to_clear if isinstance(t, tuple)}

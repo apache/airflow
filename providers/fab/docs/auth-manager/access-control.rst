@@ -360,6 +360,14 @@ Stable API Permissions
      - GET
      - DAGs.can_read
      - Viewer
+   * - ``/api/v2/dagBundles/{bundle_name}``
+     - GET
+     - DAGs.can_read
+     - Viewer
+   * - ``/api/v2/dagBundles/{bundle_name}/files``
+     - GET
+     - DAGs.can_read
+     - Viewer
    * - ``/api/v2/dagSources/{dag_id}``
      - GET
      - DAGs.can_read, DAG Code.can_read
@@ -381,6 +389,10 @@ Stable API Permissions
      - DAGs.can_read
      - Viewer
    * - ``/api/v2/dags``
+     - PATCH
+     - DAGs.can_edit
+     - User
+   * - ``/api/v2/dags/bulk``
      - PATCH
      - DAGs.can_edit
      - User

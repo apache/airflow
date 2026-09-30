@@ -36,7 +36,12 @@ from airflow.version import version as airflow_version_str
 
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -145,13 +150,22 @@ class TestAwsLambdaExecutor:
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = airflow_key
+            task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = mock_executor.queued_tasks
+
         mock_executor.queue_workload(workload, mock.Mock())
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert task_queue[workload.ti.key] == workload
         assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(task_queue) == 0
         assert len(mock_executor.running) == 1
         assert workload.ti.key in mock_executor.running
         assert len(mock_executor.pending_workloads) == 1
@@ -189,6 +203,10 @@ class TestAwsLambdaExecutor:
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {}
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
 
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
@@ -235,9 +253,14 @@ class TestAwsLambdaExecutor:
         callback_id = mock_airflow_key()
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {"queue": "fast-queue"}
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
 
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload

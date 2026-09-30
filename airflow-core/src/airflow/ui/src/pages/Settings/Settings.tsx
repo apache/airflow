@@ -34,6 +34,7 @@ import {
   useDefaultGraphDirection,
   useDefaultLandingPage,
   useDefaultTaskInstanceTab,
+  useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
@@ -171,6 +172,7 @@ export const Settings = () => {
   useDocumentTitle(translate("settings.title"));
 
   const [graphDirection, setGraphDirection] = useDefaultGraphDirection();
+  const [taskGroupsExpanded, setTaskGroupsExpanded] = useDefaultTaskGroupsExpanded();
   const [clearRunOptions, setClearRunOptions] = useClearRunDefaultOptions();
   const [clearTaskOptions, setClearTaskOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTask, setPreventRunningTask] = useClearPreventRunningTaskDefault();
@@ -234,6 +236,18 @@ export const Settings = () => {
           />
         </Section>
         <Section title={translate("settings.graph.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.graph.taskGroupsExpanded.label")}
+                checked={taskGroupsExpanded}
+                data-testid="default-task-groups-expanded"
+                onCheckedChange={(event) => setTaskGroupsExpanded(event.checked)}
+              />
+            }
+            helper={translate("settings.graph.taskGroupsExpanded.helper")}
+            label={translate("settings.graph.taskGroupsExpanded.label")}
+          />
           <SelectSetting
             helper={translate("settings.graph.defaultDirection.helper")}
             label={translate("settings.graph.defaultDirection.label")}
