@@ -147,11 +147,15 @@ class TestMasking:
     def test_masks_a_tool_return_and_keeps_it_one(self, registered_secret):
         result = _call(
             _ScriptedToolset(
-                ToolReturn(return_value=f"key={registered_secret}", content=f"for {registered_secret}")
+                ToolReturn(
+                    return_value=f"key={registered_secret}",
+                    content=f"for {registered_secret}",
+                    metadata={"raw": registered_secret},
+                )
             )
         )
 
-        assert result == ToolReturn(return_value="key=***", content="for ***")
+        assert result == ToolReturn(return_value="key=***", content="for ***", metadata={"raw": "***"})
 
     def test_an_approval_request_keeps_its_type_and_is_not_logged_as_a_failure(
         self, registered_secret, caplog

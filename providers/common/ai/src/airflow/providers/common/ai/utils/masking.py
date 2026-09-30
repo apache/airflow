@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 from typing import Any, overload
@@ -105,10 +106,15 @@ def _mask(value: Any, seen: frozenset[int]) -> Any:
     if isinstance(value, (set, frozenset)):
         return type(value)(_mask(item, seen) for item in value)
     if _is_masked_dataclass(value):
-        # Rebuilt rather than turned into a dict, so a type the framework acts on, such as
-        # pydantic-ai's TextContent, still is one.
-        fields = [field for field in dataclasses.fields(value) if field.init]
-        return dataclasses.replace(value, **{f.name: _mask(getattr(value, f.name), seen) for f in fields})
+        # A copy with its fields masked, rather than a dict, so a type the framework acts on,
+        # such as pydantic-ai's TextContent, still is one. Not dataclasses.replace, which fails
+        # on an InitVar without a default and resets fields declared with init=False.
+        masked = copy.copy(value)
+        for field in dataclasses.fields(value):
+            if hasattr(value, field.name):
+                # object.__setattr__ so a frozen dataclass can be masked too.
+                object.__setattr__(masked, field.name, _mask(getattr(value, field.name), seen))
+        return masked
     return value
 
 

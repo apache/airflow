@@ -31,18 +31,20 @@ from pydantic import BaseModel
 from pydantic_ai import Agent, DeferredToolRequests, Tool
 from pydantic_ai.capabilities import (
     AbstractCapability,
+    CapabilityOrdering,
     CombinedCapability,
     PrefixTools,
     Thinking,
     Toolset,
     WebSearch,
 )
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import ModelRetry, ToolFailed, UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
     ToolReturnPart,
@@ -63,6 +65,7 @@ from airflow.providers.common.ai.durable.base import (
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
@@ -3237,11 +3240,43 @@ class TestAgentOperatorDurableUsageBudgetEndToEnd:
 
 
 def _echo_tool_result(messages, info: AgentInfo) -> ModelResponse:
-    """Call ``read_setting`` once, then answer with whatever it returned."""
-    returns = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
-    if returns:
-        return ModelResponse(parts=[TextPart(content=str(returns[-1].content))])
-    return ModelResponse(parts=[ToolCallPart(tool_name="read_setting", args={}, tool_call_id="c1")])
+    """
+    Call the first tool the agent offers once, whatever its name, then answer with what came back.
+
+    That is the tool's result, or the retry prompt pydantic-ai sends when the tool raises.
+    """
+    replies = [p for m in messages for p in m.parts if isinstance(p, (ToolReturnPart, RetryPromptPart))]
+    if replies:
+        return ModelResponse(parts=[TextPart(content=str(replies[-1].content))])
+    return ModelResponse(
+        parts=[ToolCallPart(tool_name=info.function_tools[0].name, args={}, tool_call_id="c1")]
+    )
+
+
+@dataclasses.dataclass
+class _ToolsFromGetToolset(AbstractCapability):
+    """Provides tools the way ``MCP`` and other built-in capabilities do, through ``get_toolset``."""
+
+    toolset: FunctionToolset = dataclasses.field(default_factory=FunctionToolset)
+
+    def get_toolset(self):
+        return self.toolset
+
+
+@dataclasses.dataclass
+class _RecordToolResults(AbstractCapability):
+    """A Dag author's capability that looks at every tool result, as a logging or guard capability would."""
+
+    seen: list = dataclasses.field(default_factory=list)
+
+    def get_ordering(self):
+        # Asks for the same spot the masking capability takes, next to the tool.
+        return CapabilityOrdering(position="innermost")
+
+    async def wrap_tool_execute(self, ctx, *, call, tool_def, args, handler):
+        result = await handler(args)
+        self.seen.append(result)
+        return result
 
 
 @pytest.mark.enable_redact
@@ -3249,14 +3284,18 @@ class TestAgentOperatorMasksToolOutput:
     """What any tool hands the model is masked, however the toolset reaches the agent."""
 
     @staticmethod
-    def _run(op: AgentOperator, storage=None) -> str:
+    def _agent(op: AgentOperator, storage=None) -> Agent:
         if storage is not None:
             op._durable_storage = storage
             op._durable_counter = DurableStepCounter()
-        hook = MagicMock(spec=["create_agent"])
-        hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(_echo_tool_result), **kw)
+        # The real create_agent, which adds the masking capability, with a scripted model.
+        hook = PydanticAIHook(llm_conn_id="c")
         op.llm_hook = hook
-        return op._build_agent().run_sync("hi").output
+        with patch.object(hook, "get_conn", autospec=True, return_value=FunctionModel(_echo_tool_result)):
+            return op._build_agent()
+
+    def _run(self, op: AgentOperator, storage=None) -> str:
+        return self._agent(op, storage).run_sync("hi").output
 
     @staticmethod
     def _dag_authors_toolset(secret: str) -> FunctionToolset:
@@ -3293,19 +3332,110 @@ class TestAgentOperatorMasksToolOutput:
 
         assert self._run(op) == "api key: ***"
 
-    def test_a_toolset_capability_is_masked_before_the_durable_cache_stores_it(self, registered_secret):
+    @pytest.mark.parametrize(
+        "passed_as",
+        [
+            pytest.param(lambda ts: {"toolsets": [ts]}, id="toolsets"),
+            pytest.param(lambda ts: {"capabilities": [Toolset(ts)]}, id="toolset-capability"),
+        ],
+    )
+    def test_a_toolset_is_masked_before_the_durable_cache_stores_it(self, registered_secret, passed_as):
+        """The cache sits below the masking capability, so the toolset has to be masked on its own."""
         storage = _InMemoryDurableStorage()
         op = AgentOperator(
             task_id="t",
             prompt="hi",
             llm_conn_id="c",
             durable=True,
-            agent_params={"capabilities": [Toolset(self._dag_authors_toolset(registered_secret))]},
+            **passed_as(self._dag_authors_toolset(registered_secret)),
         )
 
         assert self._run(op, storage) == "api key: ***"
         cached = [value for value, _ in storage.tools.values()]
         assert cached == ["api key: ***"]
+
+    @pytest.mark.parametrize(
+        "capability",
+        [
+            pytest.param(lambda ts: PrefixTools(wrapped=Toolset(ts), prefix="settings"), id="prefixed"),
+            pytest.param(lambda ts: CombinedCapability([Toolset(ts)]), id="combined"),
+            pytest.param(lambda ts: Toolset(lambda ctx: ts), id="toolset-built-per-run"),
+            pytest.param(lambda ts: _ToolsFromGetToolset(ts), id="capability-providing-tools"),
+        ],
+    )
+    def test_tools_from_any_capability(self, registered_secret, capability):
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            capabilities=[capability(self._dag_authors_toolset(registered_secret))],
+        )
+
+        assert self._run(op) == "api key: ***"
+
+    def test_function_tools_passed_through_agent_params(self, registered_secret):
+        def read_setting() -> str:
+            return f"api key: {registered_secret}"
+
+        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="c", agent_params={"tools": [read_setting]})
+
+        assert self._run(op) == "api key: ***"
+
+    def test_other_capabilities_only_see_the_masked_result(self, registered_secret):
+        seen = []
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            capabilities=[
+                _RecordToolResults(seen),
+                _ToolsFromGetToolset(self._dag_authors_toolset(registered_secret)),
+            ],
+        )
+
+        self._run(op)
+
+        assert seen == ["api key: ***"]
+
+    @pytest.mark.parametrize(
+        ("error", "reply_is"),
+        [
+            pytest.param(ModelRetry, lambda part: isinstance(part, RetryPromptPart), id="model-retry"),
+            pytest.param(
+                ToolFailed,
+                lambda part: isinstance(part, ToolReturnPart) and part.outcome == "failed",
+                id="tool-failed",
+            ),
+        ],
+    )
+    def test_an_error_from_a_capabilitys_tool_is_masked(self, registered_secret, error, reply_is):
+        """
+        pydantic-ai hands a capability both as its own wrapper errors; the model sees the part inside.
+
+        A ModelRetry comes back to the model as a retry prompt and a ToolFailed as a failed tool
+        result, which does not spend the retry budget; masking must keep them apart.
+        """
+
+        def read_setting() -> str:
+            raise error(f"bad key {registered_secret}")
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            capabilities=[_ToolsFromGetToolset(FunctionToolset(tools=[read_setting]))],
+        )
+
+        result = self._agent(op).run_sync("hi")
+
+        (reply,) = [
+            p
+            for m in result.all_messages()
+            for p in m.parts
+            if isinstance(p, (ToolReturnPart, RetryPromptPart))
+        ]
+        assert reply_is(reply)
+        assert reply.content == "bad key ***"
 
     def test_a_toolset_that_masks_its_own_output_is_not_wrapped_again(self):
         sql = SQLToolset("pg_default")

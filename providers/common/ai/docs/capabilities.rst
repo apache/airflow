@@ -85,7 +85,8 @@ templated inside a ``Toolset`` capability the same way as in ``toolsets=``:
 A ``Toolset`` capability built from a function is resolved when the run starts, so its
 connection IDs are not templated.
 
-Tool results from a ``Toolset`` capability are masked like those from ``toolsets=``, but
+Tool results from any capability whose tools run in the worker are masked like those from
+``toolsets=``, but
 ``enable_tool_logging`` only logs calls to ``toolsets=``. Pass a toolset in ``toolsets=`` unless
 you need it inside the capability list, for example to order it against a guardrail.
 

@@ -27,6 +27,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
+from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
@@ -562,6 +563,12 @@ class PydanticAIHook(BaseHook):
         GenAI spans through Airflow's tracing pipeline. See
         :mod:`airflow.providers.common.ai.observability`.
 
+        What each tool returns or raises while it runs passes through Airflow's secret
+        masker before the model sees it, whichever toolset or capability supplied the
+        tool: the agent gets a
+        :class:`~airflow.providers.common.ai.utils.toolset_base.MaskingCapability` after
+        any ``capabilities`` passed in.
+
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
             Required when *spec_file* is not given. When *spec_file* is given,
@@ -583,6 +590,11 @@ class PydanticAIHook(BaseHook):
         # it after construction so a caller that passes its own ``instrument``
         # still wins over the provider's auto-instrumentation.
         caller_instrument = agent_kwargs.pop("instrument", _UNSET)
+
+        # Masks what every tool returns or raises before the model sees it, however the tool
+        # reaches the agent. Last in the list: among capabilities that also ask to be innermost,
+        # the last one is closest to the tool.
+        agent_kwargs["capabilities"] = [*(agent_kwargs.get("capabilities") or ()), MaskingCapability()]
 
         if spec_file is not None:
             from_file_kwargs = dict(agent_kwargs)
