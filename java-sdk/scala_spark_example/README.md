@@ -41,7 +41,7 @@ cd scala_spark_example
 ```
 
 `fatJar` is disabled, so `build/bundle/` holds the bundle JAR plus every runtime
-JAR (Spark included) — copy it into the Dag bundle named by a Java coordinator's
+JAR (Spark included). Copy it into the Dag bundle named by a Java coordinator's
 `task_handler_bundle_name`. Every JAR in that Dag bundle goes on one classpath,
 so give Spark its own Dag bundle, coordinator and queue.
 

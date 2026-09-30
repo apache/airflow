@@ -284,9 +284,9 @@ Code Signing
 The bundle format itself does not require OS-level code signing.
 ``binary_sha256`` provides integrity against truncation, in-flight
 corruption, and naive tampering, and Airflow's threat model treats the Dag
-bundle holding the bundles as Deployment-Manager-controlled — *authenticity*
-(signed by a trusted identity) is a deployment-time concern rather than a
-bundle-format one.
+bundle holding the bundles as Deployment-Manager-controlled, so
+*authenticity* (signed by a trusted identity) is a deployment-time concern
+rather than a bundle-format one.
 
 **Compressors** such as UPX are NOT supported. They rewrite the file
 end-to-end, destroying both the trailer and the hash invariant.
