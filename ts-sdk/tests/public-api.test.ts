@@ -24,12 +24,15 @@ import type {
   ConnectionResult,
   DagSpec,
   GetXComOpts,
+  Node,
   SetXComOpts,
   TaskClient,
   Registerable,
   TaskContext,
   TaskFactory,
   TaskFunction,
+  TaskGroupOptions,
+  TaskGroupRef,
   TaskInput,
   TaskInputs,
   TaskOptions,
@@ -301,11 +304,31 @@ describe("public API", () => {
     // Variadic, and each returns its own receiver rather than its arguments,
     // return type included.
     expectTypeOf<TaskRef<boolean>["before"]>().toEqualTypeOf<
-      (...downstream: readonly TaskRef[]) => TaskRef<boolean>
+      (...downstream: readonly Node[]) => TaskRef<boolean>
     >();
     expectTypeOf<TaskRef<boolean>["after"]>().toEqualTypeOf<
-      (...upstream: readonly TaskRef[]) => TaskRef<boolean>
+      (...upstream: readonly Node[]) => TaskRef<boolean>
     >();
+    // A group is a scope and an edge endpoint, and nests the same way at
+    // every depth.
+    expectTypeOf<Extract<keyof TaskGroupRef, string>>().toEqualTypeOf<
+      "dagId" | "groupId" | "task" | "taskGroup" | "before" | "after"
+    >();
+    expectTypeOf<TaskGroupRef["groupId"]>().toEqualTypeOf<string>();
+    expectTypeOf<TaskGroupRef["taskGroup"]>().toEqualTypeOf<
+      (groupId: string, options?: TaskGroupOptions) => TaskGroupRef
+    >();
+    expectTypeOf<Dag["taskGroup"]>().toEqualTypeOf<
+      (groupId: string, options?: TaskGroupOptions) => TaskGroupRef
+    >();
+    // Python's prefix_group_id, and the only option a group takes so far.
+    expectTypeOf<TaskGroupOptions>().toEqualTypeOf<{ readonly prefixGroupId?: boolean }>();
+    expectTypeOf<TaskGroupRef["before"]>().toEqualTypeOf<
+      (...downstream: readonly Node[]) => TaskGroupRef
+    >();
+    // Both satisfy Node, which is what lets an edge join either kind.
+    expectTypeOf<TaskRef>().toExtend<Node>();
+    expectTypeOf<TaskGroupRef>().toExtend<Node>();
     // Wiring moved to the factory call, and the spec is the trailing argument
     // itself.
     expectTypeOf<TaskOptions>().toEqualTypeOf<TaskSpec>();
@@ -337,6 +360,10 @@ describe("public API", () => {
     expectTypeOf<Dag["taskIds"]>().toEqualTypeOf<readonly string[]>();
     // Both specs are all-optional, so `{}` stays assignable and a field the
     // schema gains later cannot break a call site.
+    // `queue` is the one Dag field Airflow's schema does not have: a native
+    // Dag's tasks all run on the same coordinator, so the queue that routes
+    // them there belongs on the Dag.
+    expectTypeOf<DagSpec["queue"]>().toEqualTypeOf<string | undefined>();
     const emptyDagSpec: DagSpec = {};
     const emptyTaskSpec: TaskSpec = {};
     expect([emptyDagSpec, emptyTaskSpec]).toEqual([{}, {}]);
