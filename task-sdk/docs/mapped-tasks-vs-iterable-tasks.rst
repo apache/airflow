@@ -15,16 +15,16 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _sdk-dynamic-task-mapping-vs-iteration:
+.. _sdk-mapped-tasks-vs-iterable-tasks:
 
-Dynamic Task Mapping vs Iterable Tasks
-======================================
+Mapped tasks vs iterable tasks
+==============================
 
 .. versionadded:: 3.4.0
 
 Airflow provides two complementary ways to process collections of data:
 
-- **Dynamic Task Mapping (DTM)** distributes work **across multiple workers**.
+- **Mapped tasks** distribute work **across multiple workers**.
   Each item becomes a separate Task Instance that can run on a different worker,
   giving you horizontal scalability and per-item observability.
 
@@ -33,7 +33,7 @@ Airflow provides two complementary ways to process collections of data:
   scheduling overhead and — when combined with async operators — enabling true
   I/O multiplexing through a shared event loop.
 
-In short: **DTM spreads load across workers; IT speeds up work within one worker.**
+In short: **mapping spreads load across workers; IT speeds up work within one worker.**
 
 While both approaches allow you to apply an operation over a collection,
 they differ significantly in execution model, scheduler impact, and observability.
@@ -52,7 +52,7 @@ uses ``iterate()`` itself):
 
    * - Approach
      - Execution Time
-   * - Dynamic Task Mapping with mapped ``SFTPOperator``
+   * - Mapped ``SFTPOperator``
      - 3 h 25 m
    * - Sync ``@task`` with ``SFTPHook`` (sequential loop)
      - 1 h 21 m
@@ -65,13 +65,13 @@ The ~60× improvement comes from eliminating per-item scheduling overhead and
 sharing a single event loop for concurrent I/O. This is the kind of workload
 IT is built for: many small, I/O-bound operations processed within one task.
 
-Dynamic Task Mapping (DTM)
---------------------------
+Mapped tasks
+------------
 
-Dynamic Task Mapping allows you to expand a single task definition into multiple
+Task mapping allows you to expand a single task definition into multiple
 Task Instances (TIs).
 
-For more details, see :ref:`dynamic task mapping <sdk-dynamic-task-mapping>`.
+For more details, see :ref:`task mapping <sdk-dynamic-task-mapping>`.
 
 Key characteristics:
 
@@ -130,7 +130,7 @@ Key characteristics:
 
 - A single Task Instance processes all items in the iterable.
 - No task expansion; the scheduler manages only one task.
-- Lower scheduler overhead compared to DTM.
+- Lower scheduler overhead compared to mapping.
 - Iterations share the same execution context (e.g., memory, event loop).
 - Particularly well suited for async operators and high-throughput workloads.
 
@@ -226,7 +226,7 @@ event loop, enabling true multiplexing of I/O-bound operations without any
 manual concurrency management by the DAG author. For a handful of items the
 difference is negligible, but for hundreds or thousands of items the
 concurrent approach is dramatically faster — see the
-:ref:`benchmarks above <sdk-dynamic-task-mapping-vs-iteration>`.
+:ref:`benchmarks above <sdk-mapped-tasks-vs-iterable-tasks>`.
 
 .. note::
 
@@ -254,10 +254,10 @@ concurrent approach is dramatically faster — see the
 Why Iterable Tasks?
 ---------------------------
 
-IT is designed to address limitations of Dynamic Task Mapping in specific scenarios:
+IT is designed to address limitations of task mapping in specific scenarios:
 
 - **Scheduler scalability**:
-  DTM creates one Task Instance per item, which can put pressure on the scheduler
+  Mapping creates one Task Instance per item, which can put pressure on the scheduler
   for very large datasets. IT avoids this by keeping execution within a single task.
 
 - **Async multiplexing**:
@@ -273,7 +273,7 @@ IT is designed to address limitations of Dynamic Task Mapping in specific scenar
   events directly in the Airflow metadata database. Unlike workers, triggerers
   cannot leverage a custom XCom backend to offload large payloads. This makes
   triggerers a bottleneck for sustained high-load async execution or workloads
-  that return large results. Dynamic Task Mapping with deferrable operators
+  that return large results. Mapping deferrable operators
   amplifies the problem further. IT sidesteps triggerers entirely — iterations
   execute on workers, which scale more effectively and support custom XCom
   backends.
@@ -335,7 +335,7 @@ Comparison
    :header-rows: 1
 
    * - Aspect
-     - Dynamic Task Mapping (DTM)
+     - Mapped tasks
      - Iterable Tasks (IT)
    * - Task Instances
      - One per item
@@ -394,17 +394,17 @@ The following table illustrates these differences using the Pokémon example fro
      - 1
      - 100 Pokémon
 
-When to Use Dynamic Task Mapping
---------------------------------
+When to Use Mapped Tasks
+------------------------
 
-Prefer DTM when:
+Prefer mapped tasks when:
 
 - Each item must be independently tracked in the UI.
 - You need fine-grained retries per item.
 - Tasks are long-running or resource-intensive.
 - Work should be distributed across multiple workers.
 - Scheduling decisions should be made per item.
-- You need deferrable operators or reschedule-mode sensors — these work natively with DTM,
+- You need deferrable operators or reschedule-mode sensors — these work natively with mapped tasks,
   since each mapped item has its own task instance to defer or reschedule.
 
 When to Use Iterable Tasks
@@ -433,7 +433,7 @@ Avoid Iterable Tasks when:
 
 .. tip::
 
-   IT is a **third execution option** alongside Dynamic Task Mapping and
+   IT is a **third execution option** alongside task mapping and
    deferrable operators. It is not intended as a replacement for either.
    Triggerers remain the right choice for long-running polling or waiting tasks
    (e.g., monitoring a remote job or waiting for a Kubernetes pod to complete).
@@ -454,7 +454,7 @@ Together, they enable patterns such as:
 - Concurrent request batching
 - Streaming data processing
 
-Unlike Dynamic Task Mapping, where each mapped task runs in its own execution context,
+Unlike task mapping, where each mapped task runs in its own execution context,
 IT allows all iterations to share the same event loop, enabling true multiplexing.
 
 Because IT executes on workers rather than triggerers, it also benefits from the
