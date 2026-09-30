@@ -2269,6 +2269,28 @@ def test_build_diff_reports_deadline_lists_as_one_stable_change() -> None:
     assert change["impact"] == "execution"
 
 
+@pytest.mark.parametrize("wrapped", [False, True])
+@pytest.mark.parametrize("fire_on_failure", [False, True])
+def test_build_diff_defaults_legacy_deadline_fire_on_failure(wrapped, fire_on_failure) -> None:
+    base = _build_payload(tasks=[])
+    target = _build_payload(tasks=[])
+    legacy = {"name": "completion", "interval": 60}
+    base["dag"]["deadline"] = [{"__type": "deadline_alert", "__var": legacy} if wrapped else legacy]
+    target["dag"]["deadline"] = [{**legacy, "fire_on_failure": fire_on_failure}]
+
+    for before, after in ((base, target), (target, base)):
+        result = build_serialized_dag_diff(base_data=before, target_data=after)
+
+        assert result["mode"] == "observed_state"
+        if fire_on_failure:
+            assert len(result["changes"]) == 1
+            assert result["changes"][0]["path"] == "/dag/deadline"
+            assert result["changes"][0]["category"] == "deadline"
+        else:
+            assert result["changes"] == []
+    assert "fire_on_failure" not in legacy
+
+
 def test_build_diff_preserves_order_sensitive_string_lists() -> None:
     base = _build_payload(tasks=[])
     target = _build_payload(tasks=[])

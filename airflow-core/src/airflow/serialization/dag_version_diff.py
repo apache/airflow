@@ -881,7 +881,7 @@ def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
         if path == ("dag", "deadline"):
             if value.get("__type") == "deadline_alert":
                 value = value["__var"]
-            value = {"name": None, **value}
+            value = {"name": None, "fire_on_failure": False, **value}
             interval = value.get("interval")
             if isinstance(interval, (int, float)) and not isinstance(interval, bool):
                 # Diff schema v1 uses the SDK's version-2 timedelta encoding for legacy seconds.
