@@ -259,31 +259,16 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         ``50`` requests -- pass ``"request_limit": None`` explicitly for no
         request cap.
 
-        On Airflow >= 3.3, when this is set, the limit counts usage across
-        every attempt of the task instance combined -- the initial run, every
-        retry, and every HITL regeneration all add to one running total kept
-        in the AIP-103 task state store under the ``__commonai_usage__`` key
-        -- rather than resetting on each attempt. This also applies to the
-        implicit ``request_limit=50`` default, which can now block a retry
-        that used to pass on its own. A step replayed by ``durable=True`` does
-        not count toward the total (see ``durable`` below). Clearing and
-        rerunning a *finished* (failed or
-        succeeded) task instance gets a fresh budget automatically; clearing
-        a *running* task instance does not bump ``max_tries``, so the
-        restarted attempt still sees the prior spend. To reset the budget for
-        a task instance that keeps retrying without a clear of a finished
-        attempt, delete the ``__commonai_usage__`` key via the Task State
-        Store UI. A worker killed with SIGKILL -- including after
-        ``on_kill``'s grace period expires, or an OOM kill -- cannot persist
-        that attempt's usage, so the next attempt's count under-represents
-        actual spend by that amount. To keep
-        the same effective per-attempt headroom this cross-attempt total used
-        to give each attempt on its own, scale each limit by
-        ``retries + 1``, or use ``usage_limits=None`` to opt back out. On
-        Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each attempt
-        is still checked and counted on its own, as before. See
-        :ref:`howto/operator:llm` for the full set of caveats, and
-        :ref:`howto/operator:agent` for more on the cross-attempt budget.
+        On Airflow >= 3.3, this counts usage across every attempt combined
+        -- initial run, retries, and HITL regenerations all add to one
+        running total instead of resetting each attempt. Scale each limit
+        by ``retries + 1``, or set ``usage_limits=None``, to keep the old
+        per-attempt headroom. On Airflow < 3.3, or when ``usage_limits`` is
+        ``None``, each attempt is checked and counted on its own, unchanged.
+        See :ref:`howto/operator:llm` for the full caveats, and
+        :ref:`the cross-attempt usage budget <agent-usage-budget>` for how
+        it is persisted, reset, and how ``durable`` replay and HITL
+        regeneration interact with it.
     :param durable: Experimental. When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
         steps are replayed instead of re-executing.  Each cached step is

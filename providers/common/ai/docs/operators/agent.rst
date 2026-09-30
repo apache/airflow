@@ -284,7 +284,9 @@ Parameters
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``capabilities``).
   See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
   such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
-- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
+- .. _agent-usage-budget:
+
+  ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
   agent run (initial run, durable replay, and HITL regeneration), or a
   ``dict`` of the same fields -- the dict form is templated via Jinja, then
   coerced per field type, failing the task with a ``ValueError`` naming the
