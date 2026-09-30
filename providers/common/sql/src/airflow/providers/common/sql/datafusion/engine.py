@@ -141,23 +141,6 @@ class DataFusionEngine(LoggingMixin):
             extra_config=extra_config,
         )
 
-    # Used by the wasb branch's env-precedence guard below.
-    _AZURE_ENV_SINGLE_VAR_CREDENTIALS = (
-        "AZURE_STORAGE_TOKEN",
-        "AZURE_STORAGE_ACCOUNT_KEY",
-        "AZURE_STORAGE_ACCESS_KEY",
-        "AZURE_STORAGE_MASTER_KEY",
-        "AZURE_FEDERATED_TOKEN_FILE",
-    )
-    _AZURE_ENV_CLIENT_ID_VARS = ("AZURE_STORAGE_CLIENT_ID", "AZURE_CLIENT_ID")
-    _AZURE_ENV_CLIENT_SECRET_VARS = ("AZURE_STORAGE_CLIENT_SECRET", "AZURE_CLIENT_SECRET")
-    _AZURE_ENV_TENANT_ID_VARS = (
-        "AZURE_STORAGE_TENANT_ID",
-        "AZURE_STORAGE_AUTHORITY_ID",
-        "AZURE_TENANT_ID",
-        "AZURE_AUTHORITY_ID",
-    )
-
     def _get_credentials(self, conn: Connection) -> tuple[dict[str, Any], dict[str, Any]]:
 
         credentials = {}
@@ -244,7 +227,7 @@ class DataFusionEngine(LoggingMixin):
                             "identity, or az login) are used."
                         )
                 credentials = {"account": self._resolve_wasb_account(conn.host, conn.login)}
-                explicit_credential = False
+                credential_tier: str | None = None
                 if tenant_id := _get_wasb_extra_field(extra_dejson, "tenant_id"):
                     if not conn.login or not conn.password:
                         # Falling through here would silently switch identity (ambient auth, or
@@ -257,11 +240,11 @@ class DataFusionEngine(LoggingMixin):
                     credentials.update(
                         {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
                     )
-                    explicit_credential = True
+                    credential_tier = "client_secret"
                 elif shared_access_key := _get_wasb_extra_field(extra_dejson, "shared_access_key"):
                     # Checked ahead of sas_token to match WasbHook.get_conn's precedence.
                     credentials["access_key"] = shared_access_key
-                    explicit_credential = True
+                    credential_tier = "access_key"
                 elif sas_token := _get_wasb_extra_field(extra_dejson, "sas_token"):
                     if sas_token.startswith("http"):
                         raise ValueError(
@@ -269,35 +252,15 @@ class DataFusionEngine(LoggingMixin):
                             "access; provide the SAS token as a query string instead."
                         )
                     credentials["sas_query_pairs"] = parse_qsl(sas_token.lstrip("?"))
-                    explicit_credential = True
+                    credential_tier = "sas"
                 else:
                     access_key = conn.password or _get_wasb_extra_field(extra_dejson, "account_key")
                     if access_key:
                         credentials["access_key"] = access_key
-                        explicit_credential = True
+                        credential_tier = "access_key"
 
-                if explicit_credential:
-                    # object_store's from_env() precedence, high to low: bearer token > access
-                    # key > workload identity > client secret > SAS. Anything above the
-                    # connection's own tier would silently win; SAS is the bottom tier, so an
-                    # env-derived SAS key never can and isn't checked.
-                    conflicting_env_vars = [
-                        var for var in self._AZURE_ENV_SINGLE_VAR_CREDENTIALS if os.environ.get(var)
-                    ]
-                    if (
-                        any(os.environ.get(var) for var in self._AZURE_ENV_CLIENT_ID_VARS)
-                        and any(os.environ.get(var) for var in self._AZURE_ENV_CLIENT_SECRET_VARS)
-                        and any(os.environ.get(var) for var in self._AZURE_ENV_TENANT_ID_VARS)
-                    ):
-                        conflicting_env_vars.extend(
-                            var
-                            for var in (
-                                *self._AZURE_ENV_CLIENT_ID_VARS,
-                                *self._AZURE_ENV_CLIENT_SECRET_VARS,
-                                *self._AZURE_ENV_TENANT_ID_VARS,
-                            )
-                            if os.environ.get(var)
-                        )
+                if credential_tier is not None:
+                    conflicting_env_vars = self._find_conflicting_azure_env_vars(credential_tier)
                     if conflicting_env_vars:
                         raise ValueError(
                             f"Worker environment variable(s) {', '.join(conflicting_env_vars)} would "
@@ -319,26 +282,88 @@ class DataFusionEngine(LoggingMixin):
 
     _AZURE_PUBLIC_SUFFIX = ".blob.core.windows.net"
 
+    # object_store's build() precedence, high to low: bearer token > access key > workload
+    # identity (client_id+tenant_id+federated_token_file) > client secret
+    # (client_id+client_secret+tenant_id) > SAS. Used by _find_conflicting_azure_env_vars.
+    _AZURE_ENV_BEARER_VARS = ("AZURE_STORAGE_TOKEN",)
+    _AZURE_ENV_ACCESS_KEY_VARS = (
+        "AZURE_STORAGE_ACCOUNT_KEY",
+        "AZURE_STORAGE_ACCESS_KEY",
+        "AZURE_STORAGE_MASTER_KEY",
+    )
+    _AZURE_ENV_CLIENT_ID_VARS = ("AZURE_STORAGE_CLIENT_ID", "AZURE_CLIENT_ID")
+    _AZURE_ENV_CLIENT_SECRET_VARS = ("AZURE_STORAGE_CLIENT_SECRET", "AZURE_CLIENT_SECRET")
+    _AZURE_ENV_TENANT_ID_VARS = (
+        "AZURE_STORAGE_TENANT_ID",
+        "AZURE_STORAGE_AUTHORITY_ID",
+        "AZURE_TENANT_ID",
+        "AZURE_AUTHORITY_ID",
+    )
+    _AZURE_ENV_FEDERATED_TOKEN_FILE_VAR = "AZURE_FEDERATED_TOKEN_FILE"
+
+    @classmethod
+    def _find_conflicting_azure_env_vars(cls, credential_tier: str) -> list[str]:
+        """
+        Return worker env vars that would silently outrank the connection's own credential.
+
+        The binding always calls `from_env()` with no way to skip it, so this can only be
+        caught here, not avoided. The connection's fields overwrite the same fields from
+        `from_env()`, so only a tier above the connection's own, or an unoccupied tier
+        (workload identity or client secret, for SAS) with *all* its fields present, can
+        actually take over.
+        """
+
+        def env_set(*var_groups: tuple[str, ...]) -> list[str]:
+            return [var for group in var_groups for var in group if os.environ.get(var)]
+
+        conflicting = env_set(cls._AZURE_ENV_BEARER_VARS)
+        if credential_tier == "access_key":
+            return conflicting
+        conflicting += env_set(cls._AZURE_ENV_ACCESS_KEY_VARS)
+        if credential_tier == "client_secret":
+            # client_id and tenant_id are already the connection's own; only the federated
+            # token file is left for env to complete the workload-identity triple with.
+            if os.environ.get(cls._AZURE_ENV_FEDERATED_TOKEN_FILE_VAR):
+                conflicting.append(cls._AZURE_ENV_FEDERATED_TOKEN_FILE_VAR)
+            return conflicting
+        # SAS occupies none of these fields, so each whole triple must come from env.
+        if (
+            any(os.environ.get(var) for var in cls._AZURE_ENV_CLIENT_ID_VARS)
+            and any(os.environ.get(var) for var in cls._AZURE_ENV_TENANT_ID_VARS)
+            and os.environ.get(cls._AZURE_ENV_FEDERATED_TOKEN_FILE_VAR)
+        ):
+            conflicting += env_set(cls._AZURE_ENV_CLIENT_ID_VARS, cls._AZURE_ENV_TENANT_ID_VARS)
+            conflicting.append(cls._AZURE_ENV_FEDERATED_TOKEN_FILE_VAR)
+        if (
+            any(os.environ.get(var) for var in cls._AZURE_ENV_CLIENT_ID_VARS)
+            and any(os.environ.get(var) for var in cls._AZURE_ENV_CLIENT_SECRET_VARS)
+            and any(os.environ.get(var) for var in cls._AZURE_ENV_TENANT_ID_VARS)
+        ):
+            conflicting += env_set(
+                cls._AZURE_ENV_CLIENT_ID_VARS,
+                cls._AZURE_ENV_CLIENT_SECRET_VARS,
+                cls._AZURE_ENV_TENANT_ID_VARS,
+            )
+        return list(dict.fromkeys(conflicting))
+
     @classmethod
     def _resolve_wasb_account(cls, host: str | None, login: str | None) -> str | None:
         """
         Return the storage account name the way WasbHook resolves it.
 
-        From ``host`` when set (its netloc's first label), falling back to ``login`` only when
-        ``host`` is empty -- login holds the service-principal client_id in that auth mode, not
-        the account name. Returns ``None`` when neither is set, so the binding falls back to
-        ``AZURE_STORAGE_ACCOUNT_NAME`` instead of targeting the literal string ``"None"``.
-        Reimplemented locally rather than importing
-        ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling the
-        microsoft-azure provider's full Azure SDK dependency stack into common-sql for one string
-        operation that only needs the stdlib.
+        From ``host`` (its netloc's first label) when set, falling back to ``login`` only when
+        ``host`` is empty -- login holds the service-principal client_id otherwise, not the
+        account name. Returns ``None`` when neither is set, so the binding falls back to
+        ``AZURE_STORAGE_ACCOUNT_NAME`` rather than the literal string ``"None"``. Reimplemented
+        locally instead of importing
+        ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling in
+        the microsoft-azure provider's Azure SDK dependency for one stdlib string operation.
 
-        Only the public ``*.blob.core.windows.net`` cloud is supported unless the worker sets
-        ``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT``: DataFusion's Azure binding takes no
-        endpoint override on this side, so a sovereign-cloud or emulator host would otherwise be
-        silently misrouted to the public account of the same name -- but once one of those
-        variables is set, the binding uses it verbatim instead of deriving the URL from the
-        account name, so the host no longer needs to match.
+        Only the public ``*.blob.core.windows.net`` cloud is supported, unless
+        ``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT`` is set for a real sovereign-cloud hostname
+        (DataFusion's binding otherwise has no endpoint override). A ``host:port`` netloc (the
+        Azurite emulator's shape) is never a real hostname, so it always raises instead --
+        checked before the dotless-host fallback below, which would otherwise mask it.
         """
         if not host and not login:
             return None
@@ -346,18 +371,29 @@ class DataFusionEngine(LoggingMixin):
         if not netloc:
             # No scheme was given (e.g. a bare DNS name); urlsplit put it all in the path instead.
             netloc = urlsplit(f"https://{host}").netloc
+        if host and ":" in netloc:
+            raise ValueError(
+                f"Connection host {host!r} looks like an emulator address (host:port), which "
+                "DataFusion's Azure Blob Storage binding cannot resolve an account name from -- "
+                "even with AZURE_STORAGE_ENDPOINT set. Put the account name in `login` with "
+                "`host` empty instead, alongside AZURE_STORAGE_ENDPOINT and AZURE_ALLOW_HTTP=true."
+            )
         if "." not in netloc:
+            if not login:
+                raise ValueError(
+                    f"Connection host {host!r} is not a full URL or DNS name, and no `login` was "
+                    "given to resolve it as an Active Directory ID instead."
+                )
             # Only an Active Directory ID was given, not a full URL or DNS name.
             netloc = f"{login}.blob.core.windows.net"
-        if not netloc.endswith(cls._AZURE_PUBLIC_SUFFIX) and not (
-            os.environ.get("AZURE_STORAGE_ENDPOINT") or os.environ.get("AZURE_ENDPOINT")
-        ):
-            raise ValueError(
-                f"Connection host {host!r} does not resolve to the public {cls._AZURE_PUBLIC_SUFFIX} "
-                "cloud, which is the only one DataFusion's Azure Blob Storage binding can target (it "
-                "has no endpoint override). Sovereign clouds and the Azurite emulator are not "
-                "supported unless the AZURE_STORAGE_ENDPOINT environment variable is set."
-            )
+        if not netloc.endswith(cls._AZURE_PUBLIC_SUFFIX):
+            if not (os.environ.get("AZURE_STORAGE_ENDPOINT") or os.environ.get("AZURE_ENDPOINT")):
+                raise ValueError(
+                    f"Connection host {host!r} does not resolve to the public {cls._AZURE_PUBLIC_SUFFIX} "
+                    "cloud, which is the only one DataFusion's Azure Blob Storage binding can target (it "
+                    "has no endpoint override). A sovereign cloud is supported once the "
+                    "AZURE_STORAGE_ENDPOINT environment variable is set."
+                )
         # Azure storage account names are capped at 24 characters.
         return netloc.split(".", 1)[0][:24]
 
