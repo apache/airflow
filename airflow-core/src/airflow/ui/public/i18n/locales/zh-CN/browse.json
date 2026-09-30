@@ -24,7 +24,23 @@
     "inactive": "已停用",
     "neverRefreshed": "从未",
     "notRefreshedYet": "尚未刷新",
-    "notVersioned": "未启用版本管理"
+    "notVersioned": "未启用版本管理",
+    "detail": {
+      "status": "状态"
+    },
+    "files": {
+      "columns": {
+        "file": "文件",
+        "lastParsed": "最后解析时间",
+        "parseDuration": "解析耗时"
+      },
+      "file_one": "文件",
+      "file_other": "文件",
+      "importErrorGone": "此导入错误已不再被记录，可能已通过重新解析修复。",
+      "neverParsed": "从未",
+      "showImportError_one": "查看错误",
+      "showImportError_other": "查看 {{count}} 个错误"
+    }
   },
   "deadlines": {
     "columns": {
