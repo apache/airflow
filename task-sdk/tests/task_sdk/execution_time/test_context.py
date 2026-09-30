@@ -602,9 +602,17 @@ class TestCurrentContext:
 
     @pytest.mark.asyncio
     async def test_concurrent_iterations_each_see_their_own_context(self):
-        """Iterations interleaving on one event loop never see each other's context."""
+        """
+        Iterations interleaving on one event loop never see each other's context.
+
+        Each one reads its context while the other is inside its own block, and neither leaves
+        before both have read, so a stack shared by the thread (as a thread-local would be) hands
+        one of them the other's context.
+        """
         entered: list[int] = []
+        seen: dict[int, object] = {}
         both_entered = asyncio.Event()
+        both_read = asyncio.Event()
 
         async def iteration(index):
             with set_indexed_context({"ContextId": index}):
@@ -612,10 +620,16 @@ class TestCurrentContext:
                 if len(entered) == 2:
                     both_entered.set()
                 await both_entered.wait()
-                return get_current_context()["ContextId"]
+                # Let the other iteration resume inside its block before reading.
+                await asyncio.sleep(0)
+                seen[index] = get_current_context()["ContextId"]
+                if len(seen) == 2:
+                    both_read.set()
+                await both_read.wait()
 
         with set_current_context({"ContextId": "task"}):
-            assert await asyncio.gather(iteration(0), iteration(1)) == [0, 1]
+            await asyncio.gather(iteration(0), iteration(1))
+            assert seen == {0: 0, 1: 1}
             assert get_current_context()["ContextId"] == "task"
 
 
