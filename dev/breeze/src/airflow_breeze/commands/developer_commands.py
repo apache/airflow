@@ -1152,6 +1152,7 @@ def down(
     current_worktree = str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else ""
     brought_down = bring_compose_projects_down(
         preserve_volumes=preserve_volumes,
+        cleanup_build_cache=cleanup_build_cache,
         all_worktrees=all_worktrees,
         only_project=project_name,
         current_worktree=current_worktree,
@@ -1187,9 +1188,6 @@ def down(
                 shutil.rmtree(hook_dir)
     if cleanup_pycache:
         run_command(["docker", "volume", "rm", "--force", PYCACHE_VOLUME_NAME])
-    if cleanup_build_cache:
-        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
-        run_command(command_to_execute)
 
 
 @main.command(name="exec", help="Joins the interactive shell of running airflow container.")
@@ -1330,8 +1328,7 @@ def doctor(ctx):
             shutil.rmtree(local_mypy_cache)
 
         console_print("\n[info]Cleaning build cache...\n")
-        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
-        run_command(command_to_execute)
+        bring_compose_projects_down(all_worktrees=True, preserve_volumes=True, cleanup_build_cache=True)
 
         console_print("\n[info]Deleting .build cache dir...\n")
         dirpath = Path(".build")
