@@ -2478,6 +2478,15 @@ class TestIndexedTaskInstance:
         assert ti.state == TaskInstanceState.SCHEDULED.value
         assert ti.is_mapped is True
 
+    def test_create_indexed_task_takes_the_parents_task_id(self):
+        """An iteration's XComs and state belong to the task instance running it, whatever the operator says."""
+        context, operator = self._parent_context_and_operator()
+        operator.task_id = "group.iterated"
+
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
+
+        assert ti.task_id == context["ti"].task_id == "iterated"
+
     def test_create_indexed_task_sees_the_parents_state_store_through_its_index(self):
         """User code in an iteration gets the parent's store with suffixed keys; the checkpoints do not."""
         context, operator = self._parent_context_and_operator()

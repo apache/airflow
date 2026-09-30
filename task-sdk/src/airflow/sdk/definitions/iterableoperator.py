@@ -76,6 +76,21 @@ SKIPPED_WITH_A_SKIPPED_UPSTREAM = frozenset(
 )
 
 
+def _unprefixed_task_id(operator: MappedOperator) -> str:
+    """
+    Return the wrapped operator's task id without its task group's prefix.
+
+    ``partial()`` already gave the wrapped operator the prefixed id, and ``BaseOperator.__init__``
+    prefixes the id it gets once more, since an IterableOperator is not built from a mapped
+    operator. Handing it the bare id keeps the two equal. The same rule as ``label``, which cannot
+    be used here because it returns the display name when there is one.
+    """
+    task_group = operator.task_group
+    if task_group and task_group.node_id and task_group.prefix_group_id:
+        return operator.task_id[len(task_group.node_id) + 1 :]
+    return operator.task_id
+
+
 def _fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
     """
     Digest one sub-task's input, stored on its checkpoint to tell whether the checkpoint still applies.
@@ -379,7 +394,7 @@ class IterableOperator(BaseOperator):
         super().__init__(
             **{
                 **kwargs,
-                "task_id": operator.task_id,
+                "task_id": _unprefixed_task_id(operator),
                 "owner": operator.owner,
                 "email": operator.email,
                 "email_on_retry": operator.email_on_retry,

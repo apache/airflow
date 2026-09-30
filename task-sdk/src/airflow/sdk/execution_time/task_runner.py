@@ -1005,7 +1005,8 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         return cls.model_construct(
             id=parent.id,
             parent_task_state_store=context["task_state_store"],
-            task_id=operator.task_id,
+            # The parent's: an iteration's XComs and state belong to the task instance that runs it.
+            task_id=parent.task_id,
             dag_id=operator.dag_id,
             run_id=parent.run_id,
             map_index=parent.map_index,

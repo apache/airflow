@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from typing import Any
 from unittest import mock
@@ -131,3 +132,48 @@ class TestIterate:
 
         del partial
         assert not any("was never mapped" in str(w.message) for w in recwarn.list)
+
+
+class TestIterateInTaskGroup:
+    """The iterated task and the operator it runs for each item have the same, once-prefixed task id."""
+
+    @staticmethod
+    def _dag(prefix_group_id: bool = True, nested: bool = False):
+        from airflow.sdk import BaseOperator, TaskGroup, task
+
+        class Op(BaseOperator):
+            def __init__(self, x=None, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with DAG("in_task_group") as dag:
+            with TaskGroup("outer", prefix_group_id=prefix_group_id):
+                with TaskGroup("inner") if nested else contextlib.nullcontext():
+
+                    @task
+                    def f(x):
+                        return x
+
+                    @task
+                    def g(x):
+                        return x
+
+                    decorated = f.iterate(x=[1, 2]).operator
+                    g.expand(x=[1, 2])
+                    classic = Op.partial(task_id="c").iterate(x=[1, 2])
+        return dag, decorated, classic
+
+    @pytest.mark.parametrize(
+        ("prefix_group_id", "nested", "prefix"),
+        [
+            pytest.param(True, False, "outer.", id="group"),
+            pytest.param(True, True, "outer.inner.", id="nested-groups"),
+            pytest.param(False, False, "", id="no-prefix"),
+        ],
+    )
+    def test_task_ids_are_prefixed_once(self, prefix_group_id, nested, prefix):
+        dag, decorated, classic = self._dag(prefix_group_id, nested)
+
+        assert sorted(dag.task_dict) == sorted(f"{prefix}{name}" for name in ("c", "f", "g"))
+        assert decorated.task_id == decorated._operator.task_id == f"{prefix}f"
+        assert classic.task_id == classic._operator.task_id == f"{prefix}c"

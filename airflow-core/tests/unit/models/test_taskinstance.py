@@ -3595,6 +3595,34 @@ class TestMappedTaskInstanceReceiveValue:
             assert sorted(received) == [10, 30]
             assert consume_states == {TaskInstanceState.SUCCESS}
 
+    def test_iterate_in_task_group_reaches_downstream(self, dag_maker, session):
+        """An iterated task in a TaskGroup pushes its results for its own task id, where downstream reads them."""
+        received = []
+
+        with dag_maker(dag_id="iterate_in_task_group", session=session, serialized=True) as dag:
+            with TaskGroup("group"):
+
+                @task
+                def produce(x):
+                    return x * 10
+
+                @task
+                def consume(value):
+                    received.append(value)
+
+                consume.expand(value=produce.iterate(x=[1, 2, 3]))
+
+        assert sorted(dag.task_dict) == ["group.consume", "group.produce"]
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ("group.produce", "group.consume"):
+            dag_run.refresh_from_db(session=session)
+            for ti in dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                if ti.task_id == task_id:
+                    dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+            session.flush()
+
+        assert sorted(received) == [10, 20, 30]
+
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
         out.touch()
