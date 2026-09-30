@@ -1079,7 +1079,7 @@ class IndexedTaskRunner(LoggingMixin):
     def __init__(
         self,
         task_instance: IndexedTaskInstance,
-        active_operators: set[BaseOperator] | None = None,
+        active_operators: dict[int, BaseOperator] | None = None,
         active_operators_lock: threading.Lock | None = None,
         outlet_events: OutletEventAccessors | None = None,
     ):
@@ -1089,10 +1089,10 @@ class IndexedTaskRunner(LoggingMixin):
         :param outlet_events: The accessor the sub-task's asset events are collected in, its own
             so they can be checkpointed and merged apart from its siblings'. Created here when not
             given; the caller reads it back through :attr:`outlet_events` after the run.
-        :param active_operators: Optional shared set the caller wants this operator registered
-            into for the duration of its execution (e.g. so IterableOperator.on_kill() can
-            propagate to whichever sub-tasks are currently in flight). Registration happens in
-            __enter__/__exit__ so callers no longer need their own try/finally bookkeeping.
+        :param active_operators: Optional shared register, keyed by ``id(operator)``, that the
+            operator is entered in while its code runs (see :meth:`in_flight`), so that
+            IterableOperator.on_kill() can reach whichever sub-tasks are in flight. Keyed by
+            identity because the sub-operators of one iterated task compare equal.
         :param active_operators_lock: Lock guarding ``active_operators``, required whenever
             ``active_operators`` is given since multiple sub-tasks may run concurrently.
         """
@@ -1147,22 +1147,47 @@ class IndexedTaskRunner(LoggingMixin):
         with set_indexed_context(indexed_context):
             yield indexed_context
 
+    @contextmanager
+    def in_flight(self) -> Iterator[None]:
+        """
+        Register the operator as running for exactly as long as its code runs.
+
+        Entered by :meth:`run` and :meth:`arun`, so in the worker thread or coroutine that executes
+        the operator: a sync operator stays registered while its thread is still inside ``execute``,
+        even after the coroutine waiting for it was cancelled, and ``IterableOperator.on_kill`` can
+        reach it. When the parent's execution timeout strikes this very operator (it runs on the
+        main thread, as async operators do), it is killed here, since it leaves the register as the
+        timeout unwinds and the parent's ``on_kill`` would no longer see it.
+        """
+        registered = self._active_operators is not None and self._active_operators_lock is not None
+        if registered:
+            with self._active_operators_lock:  # type: ignore[union-attr]
+                self._active_operators[id(self.operator)] = self.operator  # type: ignore[index]
+        try:
+            yield
+        except AirflowTaskTimeout:
+            try:
+                self.operator.on_kill()
+            except Exception:
+                self.log.exception("Error calling on_kill() for sub-task operator %s", self.task_id)
+            raise
+        finally:
+            if registered:
+                with self._active_operators_lock:  # type: ignore[union-attr]
+                    self._active_operators.pop(id(self.operator), None)  # type: ignore[union-attr]
+
     def run(self, context: Context):
         """Run the operator synchronously against this indexed task's own view of ``context``."""
-        with self.indexed_context(context) as indexed_context:
+        with self.in_flight(), self.indexed_context(context) as indexed_context:
             return _execute_task(indexed_context, self.task_instance, self.log)
 
     async def arun(self, context: Context):
         """Run the async operator against this indexed task's own view of ``context``."""
-        with self.indexed_context(context) as indexed_context:
+        with self.in_flight(), self.indexed_context(context) as indexed_context:
             return await _execute_async_task(indexed_context, self.task_instance, self.log)
 
     def __enter__(self):
         self._start_time = time.monotonic()
-
-        if self._active_operators is not None and self._active_operators_lock is not None:
-            with self._active_operators_lock:
-                self._active_operators.add(self.operator)
 
         if self.log.isEnabledFor(logging.INFO):
             self.log.info(
@@ -1176,10 +1201,6 @@ class IndexedTaskRunner(LoggingMixin):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self._active_operators is not None and self._active_operators_lock is not None:
-            with self._active_operators_lock:
-                self._active_operators.discard(self.operator)
-
         elapsed = time.monotonic() - self._start_time if self._start_time else 0.0
 
         if exc_value:

@@ -2603,53 +2603,71 @@ class TestIndexedTaskRunner:
         with executor as ctx:
             assert ctx is executor
 
-    def test_enter_registers_operator_in_active_operators(self, make_indexed_ti):
-        """__enter__ registers the operator into the caller-supplied active_operators set, so
-        callers (e.g. IterableOperator) can track in-flight sub-tasks without their own
-        try/finally bookkeeping."""
+    def test_in_flight_registers_the_operator_while_its_code_runs(self, make_indexed_ti):
+        """run()/arun() enter in_flight() in the thread or coroutine running the operator, not __enter__."""
         ti = make_indexed_ti()
-        active_operators: set = set()
-        lock = threading.Lock()
-        executor = IndexedTaskRunner(
-            task_instance=ti, active_operators=active_operators, active_operators_lock=lock
+        active_operators: dict = {}
+        runner = IndexedTaskRunner(
+            task_instance=ti, active_operators=active_operators, active_operators_lock=threading.Lock()
         )
 
-        assert ti.task not in active_operators
-        executor.__enter__()
-        assert ti.task in active_operators
+        with runner:
+            assert active_operators == {}
+            with runner.in_flight():
+                assert active_operators == {id(ti.task): ti.task}
+            assert active_operators == {}
 
-    def test_exit_discards_operator_from_active_operators_on_success(self, make_indexed_ti):
+    def test_in_flight_unregisters_on_failure(self, make_indexed_ti):
+        """The operator leaves the register even when it raises, so on_kill() never reaches a stopped one."""
         ti = make_indexed_ti()
-        active_operators: set = set()
+        active_operators: dict = {}
+        runner = IndexedTaskRunner(
+            task_instance=ti, active_operators=active_operators, active_operators_lock=threading.Lock()
+        )
+
+        with pytest.raises(ValueError, match="boom"):
+            with runner.in_flight():
+                raise ValueError("boom")
+
+        assert active_operators == {}
+        ti.task.on_kill.assert_not_called()
+
+    def test_in_flight_kills_the_operator_the_parent_timeout_strikes(self, make_indexed_ti):
+        """It leaves the register as the timeout unwinds, before the parent's on_kill() could see it."""
+        ti = make_indexed_ti()
+        active_operators: dict = {}
+        runner = IndexedTaskRunner(
+            task_instance=ti, active_operators=active_operators, active_operators_lock=threading.Lock()
+        )
+
+        with pytest.raises(AirflowTaskTimeout):
+            with runner.in_flight():
+                raise AirflowTaskTimeout("the task ran out of time")
+
+        ti.task.on_kill.assert_called_once_with()
+        assert active_operators == {}
+
+    def test_in_flight_keeps_operators_that_compare_equal_apart(self, make_indexed_ti):
+        """Sub-operators of one iterated task compare equal; each is registered on its own."""
+        first, second = make_indexed_ti(index=0), make_indexed_ti(index=1)
+        first.task, second.task = BaseOperator(task_id="same"), BaseOperator(task_id="same")
+        assert first.task == second.task
+        active_operators: dict = {}
         lock = threading.Lock()
 
         with IndexedTaskRunner(
-            task_instance=ti, active_operators=active_operators, active_operators_lock=lock
-        ):
-            assert ti.task in active_operators
-
-        assert ti.task not in active_operators
-
-    def test_exit_discards_operator_from_active_operators_on_failure(self, make_indexed_ti):
-        """The operator must be discarded from active_operators even when the sub-task raises,
-        so on_kill() never propagates to a sub-task that has already stopped running."""
-        ti = make_indexed_ti(try_number=3, max_tries=3)
-        active_operators: set = set()
-        lock = threading.Lock()
-
-        with pytest.raises(ValueError, match="boom"):
+            task_instance=first, active_operators=active_operators, active_operators_lock=lock
+        ).in_flight():
             with IndexedTaskRunner(
-                task_instance=ti, active_operators=active_operators, active_operators_lock=lock
-            ):
-                raise ValueError("boom")
-
-        assert ti.task not in active_operators
+                task_instance=second, active_operators=active_operators, active_operators_lock=lock
+            ).in_flight():
+                assert len(active_operators) == 2
 
     def test_active_operators_tracking_is_optional(self, make_indexed_ti):
-        """When active_operators is not supplied (the default), __enter__/__exit__ must not
-        raise even though no tracking set is available."""
+        """When active_operators is not supplied (the default), in_flight() must not raise."""
         ti = make_indexed_ti()
-        with IndexedTaskRunner(task_instance=ti):
+        runner = IndexedTaskRunner(task_instance=ti)
+        with runner, runner.in_flight():
             pass  # should not raise
 
     def test_exit_success_sets_state(self, make_indexed_ti):

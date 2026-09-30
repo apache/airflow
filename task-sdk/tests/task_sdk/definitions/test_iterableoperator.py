@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
@@ -1708,11 +1709,33 @@ class TestIterableOperator:
             )
 
         active_operator = MockOnKillOperator(task_id="active_sub_task")
-        iterable_op._active_sub_operators.add(active_operator)
+        iterable_op._active_sub_operators[id(active_operator)] = active_operator
 
         iterable_op.on_kill()
 
         assert active_operator.killed is True
+
+    def test_on_kill_reaches_sub_operators_that_compare_equal_and_kills_each_once(self):
+        """
+        The sub-operators of one iterated task compare equal (same task_id), so the register is keyed
+        by identity; and the runner's second on_kill() after a timeout does not kill them again.
+        """
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{}]), task_id="on_kill_equal", operator_class=MockOnKillOperator
+            )
+
+        first, second = MockOnKillOperator(task_id="same"), MockOnKillOperator(task_id="same")
+        assert first == second
+        kills = []
+        first.on_kill = lambda: kills.append("first")  # type: ignore[method-assign]
+        second.on_kill = lambda: kills.append("second")  # type: ignore[method-assign]
+        iterable_op._active_sub_operators.update({id(first): first, id(second): second})
+
+        iterable_op.on_kill()
+        iterable_op.on_kill()
+
+        assert sorted(kills) == ["first", "second"]
 
     def test_on_kill_is_noop_when_no_sub_operators_are_active(self):
         """on_kill() must not raise when called with no in-flight sub-tasks (e.g. the
@@ -1742,13 +1765,11 @@ class TestIterableOperator:
                 )
 
                 seen_active_during_run = []
-                original_run = IndexedTaskRunner.run
 
-                def tracking_run(self, context):
-                    seen_active_during_run.append(task.task in iterable_op._active_sub_operators)
-                    return original_run(self, context)
+                def tracking_execute(context, ti, log):
+                    seen_active_during_run.append(id(task.task) in iterable_op._active_sub_operators)
 
-                monkeypatch.setattr(IndexedTaskRunner, "run", tracking_run)
+                monkeypatch.setattr("airflow.sdk.execution_time.task_runner._execute_task", tracking_execute)
 
                 with event_loop() as loop, AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
                     _, _, raised = loop.run_until_complete(
@@ -1757,7 +1778,7 @@ class TestIterableOperator:
 
         assert raised is None
         assert seen_active_during_run == [True]
-        assert task.task not in iterable_op._active_sub_operators
+        assert id(task.task) not in iterable_op._active_sub_operators
 
     def test_multiple_outputs_is_ignored(self):
         with DAG("test_dag") as dag:
@@ -1981,6 +2002,78 @@ class TestIterableOperatorContextIsolation:
         assert "caps the whole iteration" in str(warning_list[0].message)
 
 
+KILLED_ON_TIMEOUT: list = []
+
+
+class MockSlowSyncOperator(BaseOperator):
+    """Sync operator that waits up to 3 s for on_kill(), as an operator stopping an external job would."""
+
+    template_fields = ("arg1",)
+
+    def __init__(self, arg1=None, **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+        self.stop = threading.Event()
+
+    def execute(self, context):
+        self.stop.wait(3)
+
+    def on_kill(self):
+        KILLED_ON_TIMEOUT.append(("sync", self.arg1))
+        self.stop.set()
+
+
+class MockSlowAsyncKillableOperator(BaseAsyncOperator):
+    template_fields = ("arg1",)
+
+    def __init__(self, arg1=None, **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+
+    async def aexecute(self, context):
+        await asyncio.sleep(3)
+
+    def on_kill(self):
+        KILLED_ON_TIMEOUT.append(("async", self.arg1))
+
+
+class TestExecutionTimeoutKillsInFlightSubTasks:
+    """
+    The parent's execution_timeout reaches every sub-task in flight, once, through on_kill().
+
+    Runs the operator through the runner's own ``_run_execute_callable`` with a real timeout, as the
+    task runner does, so the order in which the executor cancels and the runner calls on_kill() is
+    the real one.
+    """
+
+    @pytest.mark.parametrize(
+        ("operator_class", "kind"),
+        [(MockSlowSyncOperator, "sync"), (MockSlowAsyncKillableOperator, "async")],
+        ids=["sync", "async"],
+    )
+    def test_every_sub_task_in_flight_is_killed_once(self, operator_class, kind):
+        from airflow.sdk.execution_time.task_runner import _run_execute_callable
+
+        KILLED_ON_TIMEOUT.clear()
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            mapped_op = create_mapped_operator(
+                dag,
+                expand_input,
+                task_id="timed_out",
+                task_concurrency=2,
+                execution_timeout=timedelta(milliseconds=300),
+                operator_class=operator_class,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                with pytest.raises(AirflowTaskTimeout):
+                    _run_execute_callable(context, iterable_op.execute, iterable_op)
+
+        assert sorted(KILLED_ON_TIMEOUT) == [(kind, 1), (kind, 2)]
+
+
 class TestIterableOperatorCopy:
     """An iterated task can be deep-copied, as dag.partial_subset() does for every task it keeps."""
 
@@ -2011,19 +2104,19 @@ class TestIterableOperatorCopy:
 
         iterable_op = self._dag().task_dict["f"]
         in_flight = MockOperator(task_id="in_flight")
-        iterable_op._active_sub_operators.add(in_flight)
+        iterable_op._active_sub_operators[id(in_flight)] = in_flight
 
         copied = copy.deepcopy(iterable_op)
 
         assert isinstance(copied, IterableOperator)
         assert copied.task_id == "f"
-        assert copied._active_sub_operators == set()
+        assert copied._active_sub_operators == {}
         assert copied._active_sub_operators_lock is not iterable_op._active_sub_operators_lock
         assert isinstance(copied._active_sub_operators_lock, type(threading.Lock()))
         with copied._active_sub_operators_lock:
             pass
         # The original is untouched.
-        assert iterable_op._active_sub_operators == {in_flight}
+        assert iterable_op._active_sub_operators == {id(in_flight): in_flight}
 
     def test_partial_subset_keeps_the_iterated_task(self):
         dag = self._dag()

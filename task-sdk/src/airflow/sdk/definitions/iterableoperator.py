@@ -480,8 +480,13 @@ class IterableOperator(BaseOperator):
         # Populated with each sub-task's unmapped operator while it is actively executing, so
         # on_kill() (see below) can propagate a kill/timeout signal to whichever sub-tasks happen
         # to be in flight; guarded by a lock since sub-tasks execute concurrently.
-        self._active_sub_operators: set[BaseOperator] = set()
+        # Keyed by identity: BaseOperator equality compares fields such as task_id, which every
+        # sub-task of one iterated task shares, so a set would hold one of them at most.
+        self._active_sub_operators: dict[int, BaseOperator] = {}
         self._active_sub_operators_lock = threading.Lock()
+        # Identities of the sub-operators on_kill() already reached: the runner calls it again after
+        # the execution timeout that made _run_tasks call it first, and an operator is killed once.
+        self._killed_sub_operators: set[int] = set()
         # Per-run state of execute: the input resolved for this task instance.
         self._resolved: Resolved | None = None
 
@@ -489,8 +494,9 @@ class IterableOperator(BaseOperator):
         # A copy (deepcopy, dag.partial_subset) is another task with no sub-tasks in flight: it gets
         # a lock and a set of its own. The lock cannot be copied at all, so both are handed to
         # BaseOperator.__deepcopy__ through the memo it consults for every attribute.
-        memo[id(self._active_sub_operators)] = set()
+        memo[id(self._active_sub_operators)] = {}
         memo[id(self._active_sub_operators_lock)] = threading.Lock()
+        memo[id(self._killed_sub_operators)] = set()
         return super().__deepcopy__(memo)
 
     def on_kill(self) -> None:
@@ -498,7 +504,10 @@ class IterableOperator(BaseOperator):
         # currently in-flight sub-task unaware that the IterableOperator itself was killed
         # (SIGTERM) or hit its execution_timeout: propagate to each active sub-operator instead.
         with self._active_sub_operators_lock:
-            active_operators = list(self._active_sub_operators)
+            active_operators = [
+                op for key, op in self._active_sub_operators.items() if key not in self._killed_sub_operators
+            ]
+            self._killed_sub_operators.update(map(id, active_operators))
         for operator in active_operators:
             try:
                 operator.on_kill()
@@ -579,79 +588,86 @@ class IterableOperator(BaseOperator):
         with Checkpoints(context) as checkpoints:
             with event_loop() as loop:
                 with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
-                    for task, _result, raised in executor.imap_unordered(
-                        partial(
-                            self._run_task,
-                            executor,
-                            context,
-                            trust_checkpoints=checkpoints.trust_checkpoints,
-                            since=checkpoints.since,
-                        ),
-                        tasks,
-                    ):
-                        total += 1
-                        do_xcom_push = task.do_xcom_push
+                    try:
+                        for task, _result, raised in executor.imap_unordered(
+                            partial(
+                                self._run_task,
+                                executor,
+                                context,
+                                trust_checkpoints=checkpoints.trust_checkpoints,
+                                since=checkpoints.since,
+                            ),
+                            tasks,
+                        ):
+                            total += 1
+                            do_xcom_push = task.do_xcom_push
 
-                        if raised is None:
-                            continue
+                            if raised is None:
+                                continue
 
-                        if isinstance(raised, AirflowSkipException):
-                            skipped[task.index] = raised
-                            continue
+                            if isinstance(raised, AirflowSkipException):
+                                skipped[task.index] = raised
+                                continue
 
-                        if isinstance(raised, TaskDeferred):
-                            raise AirflowFailException(
-                                f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
-                                "Deferrable operators are not supported inside IterableOperator."
+                            if isinstance(raised, TaskDeferred):
+                                raise AirflowFailException(
+                                    f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
+                                    "Deferrable operators are not supported inside IterableOperator."
+                                )
+
+                            if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
+                                raise AirflowFailException(
+                                    f"Sub-task {task.task_id}[{task.index}] raised "
+                                    f"{type(raised).__name__}. Triggering DAG runs "
+                                    "(TriggerDagRunOperator) and skipping downstream tasks "
+                                    "(ShortCircuitOperator and similar) are not supported inside "
+                                    "IterableOperator: the sub-task's index has no downstream "
+                                    "tasks or DAG run of its own for the effect to apply to."
+                                ) from raised
+
+                            if isinstance(raised, AirflowRescheduleException):
+                                raise AirflowFailException(
+                                    f"Sub-task {task.task_id}[{task.index}] attempted to reschedule "
+                                    "(raised AirflowRescheduleException). Reschedule-mode sensors are not "
+                                    "supported inside IterableOperator: the sub-task's index has no task "
+                                    "instance of its own to reschedule."
+                                ) from raised
+
+                            # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
+                            # KeyboardInterrupt, SystemExit) must never be swallowed: they
+                            # signal conditions where continuing iteration is meaningless
+                            # because every subsequent task would fail for the same reason.
+                            # Re-raise immediately to stop iterating over the remaining sub-tasks.
+                            if isinstance(raised, DeadlockImminentError):
+                                raise AirflowFailException(
+                                    f"Sub-task {task.task_id}[{task.index}] made a synchronous SDK call "
+                                    "(e.g. Variable.get, BaseHook.get_connection/get_hook, ti.xcom_pull, or a "
+                                    "sync callback) from an async sub-task. Synchronous SDK calls are not safe "
+                                    "inside an async operator's aexecute(): they can collide with another "
+                                    "concurrently running sub-task's async SDK call and deadlock the event "
+                                    "loop, so this is detected and raised eagerly instead. Use the async-safe "
+                                    "equivalents (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, ti.axcom_pull) inside "
+                                    "async operators."
+                                ) from raised
+                            if not isinstance(raised, Exception):
+                                raise AirflowFailException(
+                                    f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
+                                    f"{type(raised).__name__}: {raised}"
+                                ) from raised
+
+                            self.log.exception(
+                                "An exception occurred for task_id %s with index %s",
+                                task.task_id,
+                                task.index,
+                                exc_info=raised,
                             )
-
-                        if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
-                            raise AirflowFailException(
-                                f"Sub-task {task.task_id}[{task.index}] raised "
-                                f"{type(raised).__name__}. Triggering DAG runs "
-                                "(TriggerDagRunOperator) and skipping downstream tasks "
-                                "(ShortCircuitOperator and similar) are not supported inside "
-                                "IterableOperator: the sub-task's index has no downstream "
-                                "tasks or DAG run of its own for the effect to apply to."
-                            ) from raised
-
-                        if isinstance(raised, AirflowRescheduleException):
-                            raise AirflowFailException(
-                                f"Sub-task {task.task_id}[{task.index}] attempted to reschedule "
-                                "(raised AirflowRescheduleException). Reschedule-mode sensors are not "
-                                "supported inside IterableOperator: the sub-task's index has no task "
-                                "instance of its own to reschedule."
-                            ) from raised
-
-                        # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
-                        # KeyboardInterrupt, SystemExit) must never be swallowed: they
-                        # signal conditions where continuing iteration is meaningless
-                        # because every subsequent task would fail for the same reason.
-                        # Re-raise immediately to stop iterating over the remaining sub-tasks.
-                        if isinstance(raised, DeadlockImminentError):
-                            raise AirflowFailException(
-                                f"Sub-task {task.task_id}[{task.index}] made a synchronous SDK call "
-                                "(e.g. Variable.get, BaseHook.get_connection/get_hook, ti.xcom_pull, or a "
-                                "sync callback) from an async sub-task. Synchronous SDK calls are not safe "
-                                "inside an async operator's aexecute(): they can collide with another "
-                                "concurrently running sub-task's async SDK call and deadlock the event "
-                                "loop, so this is detected and raised eagerly instead. Use the async-safe "
-                                "equivalents (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, ti.axcom_pull) inside "
-                                "async operators."
-                            ) from raised
-                        if not isinstance(raised, Exception):
-                            raise AirflowFailException(
-                                f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
-                                f"{type(raised).__name__}: {raised}"
-                            ) from raised
-
-                        self.log.exception(
-                            "An exception occurred for task_id %s with index %s",
-                            task.task_id,
-                            task.index,
-                            exc_info=raised,
-                        )
-                        exceptions.append(raised)
+                            exceptions.append(raised)
+                    except BaseException:
+                        # Whatever ends the loop early (the parent's execution_timeout, a failure that
+                        # stops the task) is followed by the executor cancelling the coroutines, which
+                        # would leave nothing registered for on_kill(); kill what is in flight first.
+                        self.on_kill()
+                        raise
 
             if exceptions:
                 # An AirflowFailException means the task must not be retried — propagate the first one
