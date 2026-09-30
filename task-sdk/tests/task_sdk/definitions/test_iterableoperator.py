@@ -1981,6 +1981,60 @@ class TestIterableOperatorContextIsolation:
         assert "caps the whole iteration" in str(warning_list[0].message)
 
 
+class TestIterableOperatorCopy:
+    """An iterated task can be deep-copied, as dag.partial_subset() does for every task it keeps."""
+
+    @staticmethod
+    def _dag():
+        from airflow.sdk import task
+
+        with DAG("copy_dag") as dag:
+
+            @task
+            def up():
+                return [1, 2]
+
+            @task
+            def f(x):
+                return x
+
+            @task
+            def down(values):
+                return values
+
+            down(f.iterate(x=up()))
+        return dag
+
+    def test_deepcopy_gets_its_own_lock_and_no_sub_tasks_in_flight(self):
+        import copy
+        import threading
+
+        iterable_op = self._dag().task_dict["f"]
+        in_flight = MockOperator(task_id="in_flight")
+        iterable_op._active_sub_operators.add(in_flight)
+
+        copied = copy.deepcopy(iterable_op)
+
+        assert isinstance(copied, IterableOperator)
+        assert copied.task_id == "f"
+        assert copied._active_sub_operators == set()
+        assert copied._active_sub_operators_lock is not iterable_op._active_sub_operators_lock
+        assert isinstance(copied._active_sub_operators_lock, type(threading.Lock()))
+        with copied._active_sub_operators_lock:
+            pass
+        # The original is untouched.
+        assert iterable_op._active_sub_operators == {in_flight}
+
+    def test_partial_subset_keeps_the_iterated_task(self):
+        dag = self._dag()
+
+        subset = dag.partial_subset("f", include_upstream=True, include_downstream=True)
+
+        assert sorted(subset.task_dict) == ["down", "f", "up"]
+        assert isinstance(subset.task_dict["f"], IterableOperator)
+        assert subset.task_dict["f"] is not dag.task_dict["f"]
+
+
 class TestCheckpoints:
     @staticmethod
     def _context(try_number: int, marker: dict | None = None):

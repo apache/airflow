@@ -376,8 +376,6 @@ class IterableOperator(BaseOperator):
         "expand_input",
         "partial_kwargs",
         "_log",
-        "_active_sub_operators",
-        "_active_sub_operators_lock",
         "_resolved",
     )
 
@@ -486,6 +484,14 @@ class IterableOperator(BaseOperator):
         self._active_sub_operators_lock = threading.Lock()
         # Per-run state of execute: the input resolved for this task instance.
         self._resolved: Resolved | None = None
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> IterableOperator:
+        # A copy (deepcopy, dag.partial_subset) is another task with no sub-tasks in flight: it gets
+        # a lock and a set of its own. The lock cannot be copied at all, so both are handed to
+        # BaseOperator.__deepcopy__ through the memo it consults for every attribute.
+        memo[id(self._active_sub_operators)] = set()
+        memo[id(self._active_sub_operators_lock)] = threading.Lock()
+        return super().__deepcopy__(memo)
 
     def on_kill(self) -> None:
         # The default BaseOperator.on_kill() is a no-op, which would otherwise leave every
