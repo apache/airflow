@@ -1379,6 +1379,121 @@ class TestAsyncVariableContext:
         assert exc_info.value.error.error == ErrorType.VARIABLE_NOT_FOUND
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_json_masks_from_cache(self, mock_amask_secret, mock_supervisor_comms):
+        """SecretCache hit path applies the same masking as the backends path."""
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw_json):
+            val = await _async_get_variable("db_config", deserialize_json=True)
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        mock_amask_secret.assert_any_await(raw_json, "db_config")
+        mock_amask_secret.assert_any_await({"password": "s3cr3t", "host": "db.example.com"})
+        # served from the cache, no backend was asked
+        mock_supervisor_comms.asend.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_value_masks_secret(self, mock_amask_secret, mock_supervisor_comms):
+        """A plain value is masked under the variable's key name."""
+        mock_supervisor_comms.asend.return_value = VariableResult(key="my_password", value="s3cr3t")
+
+        val = await _async_get_variable("my_password", deserialize_json=False)
+
+        assert val == "s3cr3t"
+        mock_amask_secret.assert_awaited_once_with("s3cr3t", "my_password")
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_json_masks_raw_string_and_dict_values(
+        self, mock_amask_secret, mock_supervisor_comms
+    ):
+        """Both the raw JSON string and the deserialized dict's sensitive fields are masked."""
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        mock_supervisor_comms.asend.return_value = VariableResult(key="db_config", value=raw_json)
+
+        val = await _async_get_variable("db_config", deserialize_json=True)
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        mock_amask_secret.assert_any_await(raw_json, "db_config")
+        mock_amask_secret.assert_any_await({"password": "s3cr3t", "host": "db.example.com"})
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_json_masks_list_values(self, mock_amask_secret, mock_supervisor_comms):
+        """A JSON list is handed to the masker whole, under the variable's key."""
+        raw_json = '[{"password": "s3cr3t"}, {"password": "s3cr3t2"}]'
+        mock_supervisor_comms.asend.return_value = VariableResult(key="db_configs", value=raw_json)
+
+        val = await _async_get_variable("db_configs", deserialize_json=True)
+
+        assert val == [{"password": "s3cr3t"}, {"password": "s3cr3t2"}]
+        mock_amask_secret.assert_any_await(raw_json, "db_configs")
+        mock_amask_secret.assert_any_await([{"password": "s3cr3t"}, {"password": "s3cr3t2"}], "db_configs")
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_json_sensitive_key_masks_raw_json(
+        self, mock_amask_secret, mock_supervisor_comms
+    ):
+        """A sensitive variable key masks the entire raw JSON string."""
+        raw_json = '{"endpoint": "https://api.example.com", "token": "abc123"}'
+        mock_supervisor_comms.asend.return_value = VariableResult(key="my_secret", value=raw_json)
+
+        val = await _async_get_variable("my_secret", deserialize_json=True)
+
+        assert val == {"endpoint": "https://api.example.com", "token": "abc123"}
+        mock_amask_secret.assert_any_await(raw_json, "my_secret")
+        mock_amask_secret.assert_any_await({"endpoint": "https://api.example.com", "token": "abc123"})
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_json_string_value_masks_both_forms(
+        self, mock_amask_secret, mock_supervisor_comms
+    ):
+        """A JSON string value masks both the quoted raw and the unquoted value."""
+        mock_supervisor_comms.asend.return_value = VariableResult(key="my_token", value='"s3cr3t"')
+
+        val = await _async_get_variable("my_token", deserialize_json=True)
+
+        assert val == "s3cr3t"
+        assert mock_amask_secret.await_count == 2
+        mock_amask_secret.assert_any_await('"s3cr3t"', "my_token")
+        mock_amask_secret.assert_any_await("s3cr3t", "my_token")
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_json_list_value_does_not_over_mask(
+        self, mock_amask_secret, mock_supervisor_comms
+    ):
+        """A non-sensitive list variable is never masked anonymously."""
+        raw_json = '["us-east-1", "eu-west-1"]'
+        mock_supervisor_comms.asend.return_value = VariableResult(key="aws_regions", value=raw_json)
+
+        val = await _async_get_variable("aws_regions", deserialize_json=True)
+
+        assert val == ["us-east-1", "eu-west-1"]
+        mock_amask_secret.assert_any_await(raw_json, "aws_regions")
+        mock_amask_secret.assert_any_await(["us-east-1", "eu-west-1"], "aws_regions")
+        # never anonymously -- that is what would mask the elements globally
+        assert mock.call(["us-east-1", "eu-west-1"]) not in mock_amask_secret.await_args_list
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_var_json_invalid_json_raises(self, mock_amask_secret, mock_supervisor_comms):
+        """Invalid JSON raises JSONDecodeError; the raw value is still masked before the error."""
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw = "not-valid-json"
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw):
+            with pytest.raises(json.JSONDecodeError):
+                await _async_get_variable("bad_var", deserialize_json=True)
+
+        mock_amask_secret.assert_awaited_once_with(raw, "bad_var")
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("key", "value", "description", "serialize_json"),
         [
