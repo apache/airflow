@@ -181,9 +181,9 @@ def _make_context(ti=None, task_state_store=None):
             return ti
         if key == "task_state_store" and task_state_store is not None:
             return task_state_store
-        return MagicMock()
+        return MagicMock(spec=[])
 
-    ctx = MagicMock()
+    ctx = MagicMock(spec=dict)
     ctx.__getitem__.side_effect = _getitem
     return ctx
 
