@@ -110,6 +110,11 @@ def llm_schema_compare_task(
     """
     Wrap a function that returns a prompt into an LLM schema comparison task.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The function body constructs the prompt (can use Airflow context, XCom, etc.).
     The decorator handles: schema introspection from multiple data sources,
     LLM-powered cross-system type comparison, and structured mismatch output.

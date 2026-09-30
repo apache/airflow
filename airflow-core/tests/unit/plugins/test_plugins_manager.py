@@ -645,6 +645,67 @@ class TestPluginTeamName:
         assert info_by_name["team_plugin"]["team_name"] == "team_a"
 
 
+class TestGetSchedulingClassTeams:
+    @staticmethod
+    def _plugin(team_name, **registries):
+        plugin = AirflowPlugin()
+        plugin.name = f"plugin_{team_name}"
+        plugin.team_name = team_name
+        for registry, classes in registries.items():
+            setattr(plugin, registry, classes)
+        return plugin
+
+    def test_maps_each_registry_by_qualname(self):
+        from airflow.example_dags.plugins.business_day_window import BusinessDayWindow
+        from airflow.example_dags.plugins.custom_partition_mapper import PrefixStripMapper
+        from airflow.example_dags.plugins.decreasing_priority_weight_strategy import (
+            DecreasingPriorityStrategy,
+        )
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        plugin = self._plugin(
+            "team_a",
+            timetables=[AfterWorkdayTimetable],
+            partition_mappers=[PrefixStripMapper],
+            windows=[BusinessDayWindow],
+            priority_weight_strategies=[DecreasingPriorityStrategy],
+        )
+        with mock_plugin_manager(plugins=[plugin]):
+            assert plugins_manager.get_scheduling_class_teams() == {
+                qualname(cls): frozenset({"team_a"})
+                for cls in (
+                    AfterWorkdayTimetable,
+                    PrefixStripMapper,
+                    BusinessDayWindow,
+                    DecreasingPriorityStrategy,
+                )
+            }
+
+    def test_class_registered_by_several_plugins_maps_to_all_their_teams(self):
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        plugins = [self._plugin(team, timetables=[AfterWorkdayTimetable]) for team in ("team_a", None)]
+        with mock_plugin_manager(plugins=plugins):
+            assert plugins_manager.get_scheduling_class_teams() == {
+                qualname(AfterWorkdayTimetable): frozenset({"team_a", None})
+            }
+
+    def test_airflow_classes_are_left_out(self):
+        """The decoder imports these directly, so no plugin can own them."""
+        from airflow.partition_mappers.temporal import StartOfDayMapper
+        from airflow.partition_mappers.window import DayWindow
+        from airflow.timetables.trigger import CronTriggerTimetable
+
+        plugin = self._plugin(
+            "team_a",
+            timetables=[CronTriggerTimetable],
+            partition_mappers=[StartOfDayMapper],
+            windows=[DayWindow],
+        )
+        with mock_plugin_manager(plugins=[plugin]):
+            assert plugins_manager.get_scheduling_class_teams() == {}
+
+
 class TestValidatePluginTeams:
     """``validate_plugin_teams`` startup validation."""
 

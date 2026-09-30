@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 import asyncio
+import traceback
 from typing import Any
 
 import pytest
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolResult
-
-SECRET = "crm-password-7f2a9c"
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult, collect_tools
 
 
 def _tool(function) -> AirflowTool:
@@ -48,7 +47,7 @@ class TestAirflowToolCall:
         assert seen == [{"key": "a"}]
         assert result == ToolResult(content={"rows": [[1, "Ada"]]})
 
-    def test_error_result_keeps_its_status(self):
+    def test_an_error_result_keeps_its_status(self):
         async def function(arguments: dict[str, Any]) -> ToolResult:
             return ToolResult(content="Unknown column 'nme'", is_error=True)
 
@@ -56,40 +55,73 @@ class TestAirflowToolCall:
 
         assert result == ToolResult(content="Unknown column 'nme'", is_error=True)
 
-    def test_exception_becomes_an_error_result(self):
+    def test_an_exception_fails_the_call(self):
         async def function(arguments: dict[str, Any]) -> ToolResult:
-            raise RuntimeError("upstream returned 503")
+            raise PermissionError("role cannot read orders")
 
-        result = asyncio.run(_tool(function).call({}))
+        with pytest.raises(ToolCallError, match="lookup failed: PermissionError: role cannot read orders"):
+            asyncio.run(_tool(function).call({}))
 
-        assert result == ToolResult(content="RuntimeError: upstream returned 503", is_error=True)
+    def test_a_tool_call_error_keeps_its_message(self):
+        async def function(arguments: dict[str, Any]) -> ToolResult:
+            raise ToolCallError("query kept failing after 1 correction(s)")
+
+        with pytest.raises(ToolCallError) as caught:
+            asyncio.run(_tool(function).call({}))
+
+        assert str(caught.value) == "query kept failing after 1 correction(s)"
+
+    def test_the_failure_is_raised_without_the_original_attached(self):
+        """Frameworks record a failed call's exception, context included, in their traces."""
+
+        async def function(arguments: dict[str, Any]) -> ToolResult:
+            raise PermissionError("role cannot read orders")
+
+        with pytest.raises(ToolCallError) as caught:
+            asyncio.run(_tool(function).call({}))
+
+        assert caught.value.__context__ is None
+
+
+class _Provider:
+    def __init__(self, *tools: AirflowTool) -> None:
+        self._tools = list(tools)
+
+    def airflow_tools(self) -> list[AirflowTool]:
+        return self._tools
+
+
+def _named(name: str) -> AirflowTool:
+    async def function(arguments: dict[str, Any]) -> ToolResult:
+        return ToolResult(content=name)
+
+    return AirflowTool(name=name, description=name, parameters={"type": "object"}, function=function)
+
+
+class TestCollectTools:
+    def test_flattens_toolsets_and_tools_in_order(self):
+        tools = collect_tools([_Provider(_named("a"), _named("b")), _named("c")])
+
+        assert [tool.name for tool in tools] == ["a", "b", "c"]
+
+    def test_refuses_two_tools_with_the_same_name(self):
+        """Frameworks route a call by name, so one of the two would never run."""
+        with pytest.raises(ValueError, match="More than one tool is named query"):
+            collect_tools([_Provider(_named("query")), _Provider(_named("query"))])
 
 
 @pytest.mark.enable_redact
 class TestAirflowToolMasking:
-    @pytest.fixture(autouse=True)
-    def _secret(self, register_secret):
-        register_secret(SECRET)
-
-    def test_masks_a_registered_secret_in_a_text_result(self):
+    def test_masks_a_secret_in_a_text_result(self, registered_secret):
         async def function(arguments: dict[str, Any]) -> ToolResult:
-            return ToolResult(content=f"token={SECRET}")
+            return ToolResult(content=f"token={registered_secret}")
 
         result = asyncio.run(_tool(function).call({}))
 
         assert result.content == "token=***"
 
-    def test_masks_a_registered_secret_inside_a_json_result(self):
-        async def function(arguments: dict[str, Any]) -> ToolResult:
-            return ToolResult(content={"rows": [["svc", f"https://svc:{SECRET}@crm.example.com"]]})
-
-        result = asyncio.run(_tool(function).call({}))
-
-        assert result.content == {"rows": [["svc", "https://svc:***@crm.example.com"]]}
-
-    def test_masks_a_secret_nested_deeper_than_the_masker_default(self):
-        """The masker's default depth is 5; an ordinary API payload can be nested further."""
-        payload = {"items": [{"spec": {"containers": [{"env": [{"value": f"pw={SECRET}"}]}]}}]}
+    def test_masks_a_secret_nested_deep_in_a_json_result(self, registered_secret):
+        payload = {"items": [{"spec": {"containers": [{"env": [{"value": f"pw={registered_secret}"}]}]}}]}
 
         async def function(arguments: dict[str, Any]) -> ToolResult:
             return ToolResult(content=payload)
@@ -98,14 +130,16 @@ class TestAirflowToolMasking:
 
         assert result.content == {"items": [{"spec": {"containers": [{"env": [{"value": "pw=***"}]}]}}]}
 
-    def test_masks_a_registered_secret_in_an_exception_message(self):
-        """Client libraries often put the credentialed URL in their error message."""
+    def test_a_failed_call_carries_only_the_masked_message(self, registered_secret):
+        """Frameworks record a failed call's exception, cause included, in their traces."""
 
         async def function(arguments: dict[str, Any]) -> ToolResult:
-            raise RuntimeError(f"GET https://svc:{SECRET}@crm.example.com returned 401")
+            raise RuntimeError(f"GET https://svc:{registered_secret}@crm.example.com returned 401")
 
-        result = asyncio.run(_tool(function).call({}))
+        with pytest.raises(ToolCallError) as caught:
+            asyncio.run(_tool(function).call({}))
 
-        assert result.is_error
-        assert SECRET not in str(result.content)
-        assert result.content == "RuntimeError: GET https://svc:***@crm.example.com returned 401"
+        assert str(caught.value) == (
+            "lookup failed: RuntimeError: GET https://svc:***@crm.example.com returned 401"
+        )
+        assert registered_secret not in "".join(traceback.format_exception(caught.value))

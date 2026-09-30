@@ -65,6 +65,11 @@ class SbxSandboxBackend(SandboxBackend):
     """
     Sandbox backend that runs agent commands in a Docker Sandboxes (``sbx``) microVM.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Drives the ``sbx`` CLI: ``create`` provisions a per-session microVM, ``exec``
     runs commands in it, and ``rm`` tears it down. Each sandbox is a microVM with
     its own kernel, so agent code is isolated by a hardware boundary rather than a
