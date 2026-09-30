@@ -34,9 +34,9 @@ if typing.TYPE_CHECKING:
 
 def _validate_asset_time_schedule(*, timetable: Timetable, asset_condition: SerializedAssetBase) -> None:
     if timetable.asset_triggered or timetable.asset_gated:
-        raise AirflowTimetableInvalid("cannot nest asset-aware timetables")
+        raise AirflowTimetableInvalid("Cannot nest asset-aware timetables")
     if not isinstance(asset_condition, SerializedAssetBase):
-        raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
+        raise AirflowTimetableInvalid("All elements in 'assets' must be assets")
 
 
 class AssetOrTimeSchedule(AssetTriggeredTimetable):
