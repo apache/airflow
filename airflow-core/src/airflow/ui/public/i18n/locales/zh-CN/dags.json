@@ -97,7 +97,8 @@
     "cancelDrain": "恢复调度",
     "drain": "完成后暂停",
     "drainPrompt": "此 Dag 有正在进行的 Dag 执行。您可以等待这些执行全部完成后再暂停 Dag，或立即停止调度而不等待它们完成。",
-    "pauseNow": "立即暂停"
+    "pauseNow": "立即暂停",
+    "pauseSelected": "暂停 / 完成后暂停"
   },
   "schedulingBanner": {
     "message": "此 Dag 将在当前的 Dag 执行全部完成后自动暂停。"
