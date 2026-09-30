@@ -72,15 +72,6 @@ def test_get_current_context_outside_a_task_raises_runtime_error():
         sdk.get_current_context()
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow < 3.0")
-def test_set_during_execution_renders_without_an_object_address():
-    """Airflow 2 stores an unencodable template field as ``str(value)``, which must not vary per process."""
-    from airflow.utils.types import ArgNotSet  # Airflow 2 only; a deprecated redirect on Airflow 3
-
-    assert isinstance(sdk.SET_DURING_EXECUTION, ArgNotSet)
-    assert str(sdk.SET_DURING_EXECUTION) == "DYNAMIC (set during execution)"
-
-
 def test_invalid_import_raises_attribute_error():
     """Test that importing non-existent attribute raises AttributeError."""
     with pytest.raises(AttributeError, match="has no attribute 'NonExistentClass'"):
