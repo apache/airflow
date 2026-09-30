@@ -225,8 +225,6 @@ def test_parent_in_mapped_task_group_skips_same_map_index(session, dag_maker):
     """
     A SkipMixin parent inside a mapped task group writes XCom per map index, so
     each child TI in the group must read the decision for its own map index.
-
-    Regression test for https://github.com/apache/airflow/issues/55225
     """
     with dag_maker("test_mapped_group_skip_dag", schedule=None, session=session):
 
