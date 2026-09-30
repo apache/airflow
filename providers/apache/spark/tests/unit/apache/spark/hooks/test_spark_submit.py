@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
+import subprocess
 from io import StringIO
 from pathlib import Path
 from types import ModuleType
@@ -356,9 +357,9 @@ class TestSparkSubmitHook:
 
         # Then
         expected_spark_standalone_cluster = [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
+            "sh",
+            "-c",
+            "curl --silent --show-error --fail --max-time 30 "
             "http://spark-standalone-master:6066/v1/submissions/status/driver-20171128111416-0001",
         ]
         expected_spark_yarn_cluster = [
@@ -381,9 +382,9 @@ class TestSparkSubmitHook:
         cmd = hook._build_track_driver_status_command()
 
         assert cmd == [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
+            "sh",
+            "-c",
+            "curl --silent --show-error --fail --max-time 30 "
             "http://spark-standalone-master:6066/v1/submissions/status/driver-20260820115651-0003",
         ]
 
@@ -394,11 +395,91 @@ class TestSparkSubmitHook:
 
         cmd = hook._build_track_driver_status_command()
 
-        assert cmd[0] == "sh"
-        assert cmd[1] == "-c"
-        assert "http://host1:6066/v1/submissions/status/driver-20260820115651-0003" in cmd[2]
-        assert "http://host2:6066/v1/submissions/status/driver-20260820115651-0003" in cmd[2]
-        assert " || " in cmd[2]
+        assert cmd == [
+            "sh",
+            "-c",
+            "curl --silent --show-error --fail --max-time 30 http://host1:6066/v1/submissions/status/driver-20260820115651-0003"
+            " || curl --silent --show-error --fail --max-time 30 http://host2:6066/v1/submissions/status/driver-20260820115651-0003",
+        ]
+
+    def test_standalone_curl_command_runs_and_falls_through_to_second_master(self):
+        # Executes the emitted command so the `||` failover is proven by a real shell, not
+        # a string comparison: host1 is unreachable (curl exits 7), host2 answers 200.
+        import threading
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+
+        # Spark's RestSubmissionServer pretty-prints, so driverState lands on its own line.
+        body = b"""{
+  "action" : "STATUS",
+  "submissionId" : "driver-1",
+  "success" : true,
+  "driverState" : "FINISHED"
+}"""
+        served = threading.Event()
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                served.set()
+
+            def log_message(self, format, *args):
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            urls = [
+                "http://127.0.0.1:9/v1/submissions/status/driver-1",  # discard port: refused
+                f"http://127.0.0.1:{server.server_port}/v1/submissions/status/driver-1",
+            ]
+            cmd = SparkSubmitHook._build_standalone_curl_command(
+                SparkSubmitHook.__new__(SparkSubmitHook), urls
+            )
+
+            # The poll loop merges stderr into stdout, exactly as here.
+            proc = subprocess.run(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False
+            )
+
+            assert proc.returncode == 0, proc.stdout
+            assert served.is_set(), "second master was never reached"
+            # curl's progress meter must not be spliced into the JSON: it would corrupt the
+            # parsed driverState and hang the poll loop on a non-terminal value.
+            assert "% Total" not in proc.stdout
+            # The first master's error survives for diagnostics but must not corrupt parsing.
+            hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+            hook._process_spark_status_log(iter(proc.stdout.splitlines()))
+            assert hook._driver_status == "FINISHED"
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_standalone_curl_command_resolves_curl_from_path(self, tmp_path):
+        # `curl` must be resolved from PATH by the shell, not hardcoded to /usr/bin/curl,
+        # so a curl installed elsewhere (conda, Homebrew, slim images) still works.
+        shim = tmp_path / "curl"
+        shim.write_text('#!/bin/sh\necho SHIM_RAN "$@"\n')
+        shim.chmod(0o755)
+
+        cmd = SparkSubmitHook._build_standalone_curl_command(
+            SparkSubmitHook.__new__(SparkSubmitHook),
+            ["http://spark-master:6066/v1/submissions/status/driver-1"],
+        )
+        # `sh` itself must stay resolvable, so keep the real bin dirs on PATH and only
+        # prepend the shim dir; the shim is found first, proving curl came from PATH.
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            env={"PATH": f"{tmp_path}:{os.environ['PATH']}"},
+        )
+
+        assert proc.returncode == 0, proc.stderr
+        assert "SHIM_RAN" in proc.stdout, "curl was not resolved from PATH"
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1240,9 +1321,9 @@ class TestSparkSubmitHook:
 
         # Then
         assert kill_cmd == [
-            "/usr/bin/curl",
-            "-X",
-            "DELETE",
+            "sh",
+            "-c",
+            "curl --silent --show-error --fail --max-time 30 -X DELETE "
             "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
         ]
 
@@ -1262,9 +1343,9 @@ class TestSparkSubmitHook:
         kill_cmd = hook._build_spark_driver_kill_command()
 
         assert kill_cmd == [
-            "/usr/bin/curl",
-            "-X",
-            "DELETE",
+            "sh",
+            "-c",
+            "curl --silent --show-error --fail --max-time 30 -X DELETE "
             "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
         ]
 
@@ -1275,10 +1356,14 @@ class TestSparkSubmitHook:
 
         kill_cmd = hook._build_spark_driver_kill_command()
 
-        assert kill_cmd[0] == "sh"
-        assert "http://host1:6066/v1/submissions/kill/driver-20171128111415-0001" in kill_cmd[2]
-        assert "http://host2:6066/v1/submissions/kill/driver-20171128111415-0001" in kill_cmd[2]
-        assert " || " in kill_cmd[2]
+        assert kill_cmd == [
+            "sh",
+            "-c",
+            "curl --silent --show-error --fail --max-time 30 -X DELETE "
+            "http://host1:6066/v1/submissions/kill/driver-20171128111415-0001"
+            " || curl --silent --show-error --fail --max-time 30 -X DELETE "
+            "http://host2:6066/v1/submissions/kill/driver-20171128111415-0001",
+        ]
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
