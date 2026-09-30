@@ -235,6 +235,12 @@ concurrent approach is dramatically faster — see the
     XComs the way it does with ``expand()``. Every key an iteration pushes or stores carries its
     index the same way: ``ti.xcom_push("foo", v)`` in iteration 2 lands under ``foo_2``, and so
     does ``task_state_store.set("foo", v)``, so iterations never overwrite each other's values.
+    This holds in the iteration's own thread or coroutine. A ``threading.Thread`` the task starts,
+    or ``loop.run_in_executor()``, does not inherit it: ``get_current_context()`` there returns
+    the task's own context, whose ``ti`` and ``task_state_store`` add no index, so the iterations'
+    keys overwrite each other. Use ``context["ti"]`` passed to the task, or start helpers with
+    ``asyncio.to_thread()`` or ``contextvars.copy_context().run()``, which carry the iteration's
+    context over.
 
 .. warning::
 

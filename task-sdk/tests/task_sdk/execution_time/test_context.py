@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -599,6 +600,27 @@ class TestCurrentContext:
                     seen = pool.submit(get_current_context).result()
 
         assert seen is task_context
+
+    @pytest.mark.asyncio
+    async def test_helpers_that_carry_the_iterations_context_over(self):
+        """
+        What the docs point iterations at for helper threads: ``asyncio.to_thread`` and
+        ``copy_context().run`` see the iteration's context, ``run_in_executor`` the task's.
+        """
+        task_context = {"ContextId": "task"}
+        indexed_context = {"ContextId": "iteration"}
+
+        with set_current_context(task_context):
+            with set_indexed_context(indexed_context):
+                in_to_thread = await asyncio.to_thread(get_current_context)
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    copied = contextvars.copy_context()
+                    in_copied_context = pool.submit(copied.run, get_current_context).result()
+                    in_executor = await asyncio.get_running_loop().run_in_executor(pool, get_current_context)
+
+        assert in_to_thread is indexed_context
+        assert in_copied_context is indexed_context
+        assert in_executor is task_context
 
     @pytest.mark.asyncio
     async def test_concurrent_iterations_each_see_their_own_context(self):
