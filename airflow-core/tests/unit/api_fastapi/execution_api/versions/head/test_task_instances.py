@@ -5456,6 +5456,7 @@ class TestGetCount:
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
         dag_maker.create_dagrun(session=session)
+        session.commit()
 
         response = client.get(
             "/execution/task-instances/count",
@@ -6067,6 +6068,7 @@ class TestGetTaskStates:
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
         dag_maker.create_dagrun(session=session)
+        session.commit()
 
         response = client.get(
             "/execution/task-instances/states",
