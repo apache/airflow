@@ -91,6 +91,12 @@ is Airflow's and which part stays yours.
        ADK agent the same tools, with the same masking. Guide: :doc:`adk`.
      - You
      - ``google-adk``
+   * - Anthropic SDK tool runner
+     - :class:`~airflow.providers.common.ai.tools.anthropic.AirflowTools` hands the same
+       tools to ``client.beta.messages.tool_runner`` and makes a tool failure the model
+       cannot fix fail the task. Guide: :doc:`anthropic`.
+     - You
+     - ``[anthropic]`` extra
    * - LangChain
      - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` returns chat
        and embedding models configured from a connection, and
@@ -107,9 +113,9 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands and ADK integrations and the tracing helper are experimental: they can change
-or be removed in a minor release of this provider. The framework-neutral tool interface
-under them is stable. See :ref:`howto/stability`.
+The Strands, ADK and Anthropic integrations and the tracing helper are experimental: they
+can change or be removed in a minor release of this provider. The framework-neutral tool
+interface under them is stable. See :ref:`howto/stability`.
 
 Tested versions
 ---------------
@@ -145,6 +151,8 @@ Start from the agent you already have:
   ``AirflowTools`` plugin. See :doc:`strands`.
 - **An existing ADK agent**: keep it, and add Airflow's toolsets with the ADK
   ``AirflowTools`` toolset. See :doc:`adk`.
+- **A loop written on the Anthropic SDK**: keep it, and pass the tools of
+  ``AirflowTools`` to its tool runner. See :doc:`anthropic`.
 - **An existing LangChain agent**: build its model with ``LangChainHook`` and add
   Airflow's toolsets with ``airflow_toolset_to_langchain_tools``.
 - **No agent yet, or no preference**: use ``AgentOperator`` or ``@task.agent``. That route
@@ -162,7 +170,7 @@ Airflow also depends on, such as OpenTelemetry or a vendor SDK.
 
 To give such a framework Airflow's toolsets rather than hand-written tools, build on
 the framework-neutral interface in :mod:`airflow.providers.common.ai.tools`, which is
-what the Strands and ADK integrations are written against:
+what the Strands, ADK and Anthropic integrations are written against:
 
 - :class:`~airflow.providers.common.ai.tools.AirflowTool` is one operation: a name, a
   description, a JSON Schema for its arguments and an async function. Call it through
@@ -182,7 +190,7 @@ what the Strands and ADK integrations are written against:
 An adapter maps these onto the framework's own tool type and error status, and makes
 sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
 plugin does. :func:`~airflow.providers.common.ai.tools.collect_tools` turns the toolsets and
-tools an adapter is given into one list, as the Strands and ADK adapters do.
+tools an adapter is given into one list, as the Strands, ADK and Anthropic adapters do.
 
 Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
 agent that calls two database tools at once gets its answers one after the other.
@@ -199,3 +207,4 @@ on; see :doc:`../observability`.
     Pydantic AI <pydantic_ai>
     Strands Agents <strands>
     Google ADK <adk>
+    Anthropic SDK <anthropic>
