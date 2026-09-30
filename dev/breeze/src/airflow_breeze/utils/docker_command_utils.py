@@ -1064,18 +1064,27 @@ def bring_compose_projects_down(
                 projects.add(project)
 
     if targets["container"]:
-        result = run_command(
-            ["docker", "container", "stop", *targets["container"]],
-            check=not stale_only,
-            capture_output=stale_only,
-        )
-        failed |= result.returncode != 0
+        # A `breeze shell` or `breeze start-airflow` container can exit later than `docker container stop`
+        # waits for, and it removes itself once it exits. So the exit is awaited separately, and only the
+        # containers that are still there afterwards are removed.
+        for action in ("stop", "wait"):
+            run_command(
+                ["docker", "container", action, *targets["container"]], check=False, capture_output=True
+            )
+        remaining, discovery_failed = _get_compose_resources("container", stale_only=stale_only)
+        failed |= discovery_failed
+        remaining_ids = {identifier for identifier, _ in remaining}
+        targets["container"] = [
+            identifier for identifier in targets["container"] if identifier in remaining_ids
+        ]
     for kind, identifiers in targets.items():
         if not identifiers:
             continue
         cmd = ["docker", kind, "rm"]
-        if kind == "container" and not preserve_volumes:
-            cmd.append("--volumes")
+        if kind == "container":
+            cmd.append("--force")
+            if not preserve_volumes:
+                cmd.append("--volumes")
         result = run_command(
             [*cmd, *identifiers],
             check=not stale_only,
