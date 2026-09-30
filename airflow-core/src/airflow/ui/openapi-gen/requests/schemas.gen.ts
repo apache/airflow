@@ -9854,6 +9854,11 @@ export const $CalendarTimeRangeResponse = {
         count: {
             type: 'integer',
             title: 'Count'
+        },
+        is_backfill: {
+            type: 'boolean',
+            title: 'Is Backfill',
+            default: false
         }
     },
     type: 'object',
