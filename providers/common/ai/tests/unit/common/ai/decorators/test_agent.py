@@ -25,6 +25,7 @@ from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -176,7 +177,7 @@ class TestAgentDecoratedOperator:
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert passed_toolsets[0].wrapped is toolset
+        assert passed_toolsets[0].wrapped == MaskingToolset(wrapped=toolset)
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

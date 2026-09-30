@@ -42,7 +42,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
 
@@ -56,7 +56,7 @@ from airflow.providers.common.ai.utils.decision import (
     review_reason,
     threshold_for,
 )
-from airflow.providers.common.compat.sdk import redact
+from airflow.providers.common.ai.utils.masking import mask_secrets
 
 try:
     from airflow.sdk.definitions.retry_policy import (
@@ -220,8 +220,7 @@ categories: those travel in the output schema with their descriptions, so a prom
 
 def redact_registered_secrets(message: str) -> str:
     """Mask values registered via ``mask_secret()``; the default ``redactor`` for the policies here."""
-    # redact() is typed for arbitrary containers; a str in always yields a str out.
-    return cast("str", redact(message))
+    return mask_secrets(message)
 
 
 _REDACTION_PARAMS_DOC = """
