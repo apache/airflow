@@ -624,6 +624,59 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 
     When using the ``@task_group`` decorator, the decorated-function's docstring will be used as the TaskGroups tooltip in the UI except when a ``tooltip`` value is explicitly supplied.
 
+.. _concepts:taskgroup-cycles:
+
+Cyclic TaskGroup dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. deprecated:: 3.4.0
+    Dags with cyclic TaskGroup dependencies are planned to fail Dag parsing from Airflow 3.5.
+
+When each TaskGroup is treated as a single unit, a TaskGroup and its siblings must not depend on each other
+in a cycle. A dependency into or out of any task in a group counts as a dependency of the whole group. This
+can make a group both upstream and downstream of a sibling, although no task-level dependency forms a cycle:
+
+.. code-block:: python
+
+    with TaskGroup("group1"):
+        a1 = EmptyOperator(task_id="a1")
+        a2 = EmptyOperator(task_id="a2")
+
+    with TaskGroup("group2"):
+        b1 = EmptyOperator(task_id="b1")
+        b2 = EmptyOperator(task_id="b2")
+
+    a1 >> b1  # group2 depends on group1
+    b2 >> a2  # group1 depends on group2
+
+A path that leaves a TaskGroup and comes back into it also forms a cycle, even when the tasks inside the
+group are ordered directly as well:
+
+.. code-block:: python
+
+    with TaskGroup("group"):
+        a = EmptyOperator(task_id="a")
+        b = EmptyOperator(task_id="b")
+        a >> b
+
+    bridge = EmptyOperator(task_id="bridge")
+
+    a >> bridge >> b  # group -> bridge -> group
+
+These Dags still parse and run, but features that act on a TaskGroup as a whole need an unambiguous order
+between groups. Parsing them emits a ``TaskGroupCycleDeprecationWarning`` and a Dag warning in the UI that
+name the TaskGroups and tasks involved.
+
+To remove the cycle, move tasks between TaskGroups, or out of them, so that each group depends on the others
+in one direction only. In the second example, move ``bridge`` into ``group``, or move ``b`` out of it.
+
+To catch these Dags in CI, turn the warning into an error. For example, when a pytest test loads your Dags
+into a ``DagBag`` and asserts there are no import errors:
+
+.. code-block:: bash
+
+    pytest -W error::airflow.sdk.exceptions.TaskGroupCycleDeprecationWarning tests/test_dags.py
+
 .. _concepts:edge-labels:
 
 Edge Labels
