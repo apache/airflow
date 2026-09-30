@@ -23,13 +23,14 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_ai.toolsets.abstract import ToolsetTool
 
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
     serialize_for_llm,
 )
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 from airflow.providers.common.compat.sdk import Stats
 
 if TYPE_CHECKING:
@@ -51,7 +52,7 @@ _PROMPT_SCHEMA: dict[str, Any] = {
 }
 
 
-class BaseManagedAgentToolset(AbstractToolset[Any]):
+class BaseManagedAgentToolset(AirflowToolset):
     """
     Base class exposing a vendor-managed agent as a single pydantic-ai tool.
 
@@ -207,11 +208,11 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
             name=self._tool_name,
             description=self._description,
             parameters_json_schema=_PROMPT_SCHEMA,
-            # HookToolset sets sequential=True because its tools call synchronous
-            # hook methods straight from the event loop. Here a blocking SDK goes
-            # through invoke_sync(), which the base class runs in a worker thread,
-            # and each call is an independent request to a remote service -- so
-            # two calls the model issues in one turn really can run at once.
+            # HookToolset sets sequential=True because its hook methods share one
+            # process-wide lock, so they run one at a time anyway. Here a blocking SDK
+            # goes through invoke_sync(), which the base class runs in a worker thread
+            # of its own, and each call is an independent request to a remote service,
+            # so two calls the model issues in one turn really can run at once.
             sequential=False,
             **return_schema_kwargs({"type": "string"}),
         )
@@ -230,10 +231,11 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
             )
         }
 
-    async def call_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:

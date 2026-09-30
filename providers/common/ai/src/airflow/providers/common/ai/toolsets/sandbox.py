@@ -19,8 +19,11 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
+import contextvars
 import logging
 import math
+import threading
 import time
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -44,11 +47,13 @@ from airflow.providers.common.ai.sandbox.output import (
     render_file_window,
     truncate_output,
 )
+from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     code_arg_kwargs,
     return_schema_kwargs,
 )
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 from airflow.providers.common.compat.sdk import get_current_context
 
 if TYPE_CHECKING:
@@ -64,6 +69,9 @@ log = logging.getLogger(__name__)
 # before the run gives up and logs: a claim left behind blocks other tasks from the sandbox.
 _RELEASE_ATTEMPTS = 3
 _RELEASE_RETRY_DELAY = 1.0
+
+# Runs backend.create off the event loop. Its threads start on first use, not at import.
+_provisioning = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="sandbox-create")
 
 RUN_COMMAND = "run_command"
 
@@ -140,7 +148,7 @@ _DESCRIPTIONS = {
 }
 
 
-class SandboxToolset(AbstractToolset[Any]):
+class SandboxToolset(AirflowToolset):
     """
     Give an agent shell and file access inside a disposable sandbox, off the Airflow worker.
 
@@ -290,7 +298,8 @@ class SandboxToolset(AbstractToolset[Any]):
         self._max_read_bytes = int(max_read_bytes)
         self._tool_prefix = tool_prefix
         self._sandbox: str | None = None
-        self._create_task: asyncio.Task[str] | None = None
+        self._create_lock = threading.Lock()
+        self._create_future: concurrent.futures.Future[str] | None = None
         # Set while attached: who this run claimed the sandbox as, when the sandbox ends
         # on this process's clock (None when the creator recorded no lifetime), and what
         # the tool description says about it, fixed at attach so it is the same on every
@@ -298,6 +307,9 @@ class SandboxToolset(AbstractToolset[Any]):
         self._holder: str | None = None
         self._expires_at: float | None = None
         self._attach_note: str | None = None
+        # Tools run only between enter and exit, so nothing outside a run can provision a
+        # sandbox that no exit will destroy, or use one it has not claimed.
+        self._open = False
 
     @property
     def id(self) -> str:
@@ -318,7 +330,7 @@ class SandboxToolset(AbstractToolset[Any]):
 
     async def for_run(self, ctx: RunContext[Any]) -> AbstractToolset[Any]:
         # pydantic-ai shares one toolset instance across runs, but each run holds
-        # its own sandbox in ``_sandbox``/``_create_task``. Hand every run a fresh
+        # its own sandbox in ``_sandbox``/``_create_future``. Hand every run a fresh
         # instance so concurrent runs never share a sandbox or destroy each
         # other's. The backend keys all state by unique sandbox handle, so
         # sharing the backend itself is safe. ``type(self)`` so a subclass does
@@ -363,15 +375,19 @@ class SandboxToolset(AbstractToolset[Any]):
         # nothing leaks if the run fails before any tool executes. An attached one is
         # claimed now, so a wrong handle or a held sandbox fails the run before the
         # model has spent anything, and the tool descriptions can state the lifetime.
-        if self._attach_mode:
-            await self._attach(self._attached_handle)
+        await asyncio.to_thread(self._open_run)
         return self
 
-    async def _attach(self, handle: str) -> None:
+    def _open_run(self) -> None:
+        if self._attach_mode:
+            self._attach(self._attached_handle)
+        self._open = True
+
+    def _attach(self, handle: str) -> None:
         owner, holder = self._identity()
         backend = self._attachable_backend
         try:
-            attached = await asyncio.to_thread(backend.attach, handle, owner=owner, holder=holder)
+            attached = backend.attach(handle, owner=owner, holder=holder)
         except SandboxTerminalError:
             raise
         except SandboxError as e:
@@ -453,7 +469,30 @@ class SandboxToolset(AbstractToolset[Any]):
         return _Identity(owner=self._owner if self._owner is not None else run, holder=holder)
 
     async def __aexit__(self, *args: Any) -> bool | None:
+        await asyncio.to_thread(self._close)
+        return None
+
+    def __enter__(self) -> Self:
+        """Own the sandbox's lifetime from synchronous code, such as a task running a native agent."""
+        self._open_run()
+        return self
+
+    def __exit__(self, *args: Any) -> bool | None:
+        self._close()
+        return None
+
+    def _close(self) -> None:
+        with self._create_lock:
+            self._open = False
+            pending = self._create_future
         sandbox = self._sandbox
+        if sandbox is None and pending is not None:
+            # The block ended while a tool was still provisioning the sandbox, such as when
+            # the task timed out: wait for it, so it is destroyed rather than left running.
+            try:
+                sandbox = pending.result()
+            except Exception:
+                sandbox = None
         holder = self._holder
         # Clear first: an instance entered again must never reuse a sandbox whose
         # cleanup was attempted.
@@ -465,12 +504,12 @@ class SandboxToolset(AbstractToolset[Any]):
             # Not ours to destroy. Give up the claim so the next run, or the task that
             # created the sandbox, finds it free.
             if holder is not None:
-                await self._release(self._attached_handle, holder)
-            return None
+                self._release(self._attached_handle, holder)
+            return
         if sandbox is None:
-            return None
+            return
         try:
-            await asyncio.to_thread(self._backend.destroy, sandbox)
+            self._backend.destroy(sandbox)
         except Exception:
             # The model work is finished and paid for by this point, so a teardown
             # blip must not turn a successful run into a task failure. Log loudly
@@ -482,15 +521,14 @@ class SandboxToolset(AbstractToolset[Any]):
                 self._backend.name,
                 exc_info=True,
             )
-        return None
 
-    async def _release(self, handle: str, holder: str) -> None:
+    def _release(self, handle: str, holder: str) -> None:
         backend = self._attachable_backend
         # A claim left behind blocks every other task from the sandbox until its lifetime
         # ends, so a blip in the tag service is worth a few more tries before giving up.
         for attempt in range(1, _RELEASE_ATTEMPTS + 1):
             try:
-                await asyncio.to_thread(backend.release, handle, holder=holder)
+                backend.release(handle, holder=holder)
                 return
             except SandboxTerminalError:
                 # The sandbox is gone, and the claim went with it.
@@ -511,28 +549,37 @@ class SandboxToolset(AbstractToolset[Any]):
                         exc_info=True,
                     )
                     return
-            await asyncio.sleep(_RELEASE_RETRY_DELAY)
+            time.sleep(_RELEASE_RETRY_DELAY)
 
     async def _ensure_sandbox(self) -> str:
         if self._sandbox is not None:
             return self._sandbox
         if self._attach_mode:
-            # Reached only when a tool is called on a toolset that was never entered, or
-            # after the attached sandbox ended: either way there is nothing to provision,
+            # Reached only after the attached sandbox ended: there is nothing to provision,
             # because the sandbox was never this toolset's to create.
             raise SandboxTerminalError(
-                f"Not attached to sandbox {self.attach_to!r}: the toolset was not entered, or the sandbox "
-                "ended. The toolset does not provision a replacement for a sandbox another task owns."
+                f"Not attached to sandbox {self.attach_to!r}: the sandbox ended. The toolset does not "
+                "provision a replacement for a sandbox another task owns."
             )
-        if self._create_task is None:
-            self._create_task = asyncio.create_task(asyncio.to_thread(self._backend.create, spec=self._spec))
-        create_task = self._create_task
+        # A native framework can make the first calls from several threads, each with an
+        # event loop of its own, so the one creation they share is a thread-safe future
+        # that any loop can await, not a task bound to the loop that started it.
+        with self._create_lock:
+            # Checked again under the lock: another thread may have finished creating it.
+            if self._sandbox is not None:
+                return self._sandbox
+            if self._create_future is None:
+                self._create_future = _provisioning.submit(
+                    contextvars.copy_context().run, self._backend.create, spec=self._spec
+                )
+            create_future = self._create_future
+        creating = asyncio.wrap_future(create_future)
         try:
-            sandbox = await asyncio.shield(create_task)
+            sandbox = await asyncio.shield(creating)
         except asyncio.CancelledError:
             # A thread cannot be cancelled. Wait until it publishes the handle so
             # __aexit__ can destroy a sandbox created during cancellation.
-            self._sandbox = await create_task
+            self._sandbox = await creating
             raise
         except SandboxTerminalError:
             raise
@@ -545,11 +592,16 @@ class SandboxToolset(AbstractToolset[Any]):
                 f"Could not provision a sandbox on backend {self._backend.name!r}: {e}"
             ) from e
         else:
-            self._sandbox = sandbox
+            with self._create_lock:
+                if not self._open:
+                    # The block ended while this call waited; closing destroys the sandbox.
+                    raise SandboxTerminalError("The sandbox was closed while it was being provisioned.")
+                self._sandbox = sandbox
             return sandbox
         finally:
-            if self._create_task is create_task:
-                self._create_task = None
+            with self._create_lock:
+                if self._create_future is create_future:
+                    self._create_future = None
 
     @property
     def _network_note(self) -> str:
@@ -628,16 +680,22 @@ class SandboxToolset(AbstractToolset[Any]):
             )
         return tools
 
-    async def call_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
         base = self._base_name(name)
         if base is None:
             raise ValueError(f"Unknown tool: {name!r}")
+        if not self._open:
+            raise SandboxTerminalError(
+                "SandboxToolset is not open. Use it inside `with sandbox:` or `async with sandbox:`, "
+                "so the sandbox it provisions is destroyed when the block ends."
+            )
         # Backend calls are synchronous and a command can take minutes, so offload
         # them to a thread instead of blocking the event loop.
         sandbox = await self._ensure_sandbox()
@@ -725,8 +783,9 @@ class SandboxToolset(AbstractToolset[Any]):
         return output
 
     def _truncate(self, text: str, already_truncated: bool) -> str:
+        # Masked before it is cut, or a secret split at the cut would no longer match.
         return truncate_output(
-            text,
+            mask_secrets(text),
             max_lines=self._max_output_lines,
             max_bytes=self._max_output_bytes,
             already_truncated=already_truncated,
@@ -740,7 +799,7 @@ class SandboxToolset(AbstractToolset[Any]):
             max_bytes=self._max_read_bytes,
         )
         return render_file_window(
-            data,
+            mask_secrets(data),
             offset=tool_args.get("offset"),
             limit=tool_args.get("limit"),
             max_lines=self._max_output_lines,
