@@ -1233,17 +1233,14 @@ class DagFileProcessorManager(LoggingMixin):
             del self._file_stats[file]
 
     @staticmethod
+    # Dag files inside a zip archive are scanned as the archive itself
+    # (``_find_files_in_bundle`` yields the ``.zip`` entry, not the inner
+    # files), so an inner path counts as present while its containing
+    # archive is still observed. Without this, a bundle refresh would
+    # treat e.g. ``my_dags.zip/my_dag.py`` as removed and kill a
+    # still-running callback processor for it.
     def _file_is_present(file: DagFileInfo, present_keys: set[tuple[str, Path]]) -> bool:
-        """
-        Check whether a tracked file is still observed in the bundle scan.
-
-        Dag files inside a zip archive are scanned as the archive itself
-        (``_find_files_in_bundle`` yields the ``.zip`` entry, not the inner
-        files), so an inner path counts as present while its containing
-        archive is still observed. Without this, a bundle refresh would
-        treat e.g. ``my_dags.zip/my_dag.py`` as removed and kill a
-        still-running callback processor for it.
-        """
+        """Check whether a tracked file is still observed in the bundle scan."""
         if file.presence_key in present_keys:
             return True
         return any(
