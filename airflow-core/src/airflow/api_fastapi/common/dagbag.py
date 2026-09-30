@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
@@ -61,6 +62,23 @@ def get_latest_version_of_dag(
     dag_bag: DBDagBag, dag_id: str, session: Session, include_reason: bool = False
 ) -> SerializedDAG:
     dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
+    if not dag:
+        if include_reason:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"The Dag with ID: `{dag_id}` was not found",
+                },
+            )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_id}` was not found")
+    return dag
+
+
+async def get_latest_version_of_dag_async(
+    dag_bag: DBDagBag, dag_id: str, session: AsyncSession, include_reason: bool = False
+) -> SerializedDAG:
+    dag = await dag_bag.get_latest_version_of_dag_async(dag_id, session=session)
     if not dag:
         if include_reason:
             raise HTTPException(
