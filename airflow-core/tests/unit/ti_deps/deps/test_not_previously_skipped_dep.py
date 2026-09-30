@@ -27,11 +27,13 @@ from airflow.models import DagRun, TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import BranchPythonOperator
+from airflow.sdk import task, task_group
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import (
     XCOM_SKIPMIXIN_FOLLOWED,
     XCOM_SKIPMIXIN_KEY,
+    XCOM_SKIPMIXIN_SKIPPED,
     NotPreviouslySkippedDep,
 )
 from airflow.utils.state import State
@@ -217,6 +219,50 @@ def test_unmapped_parent_skip_mapped_downstream(session, dag_maker):
     assert len(list(dep.get_dep_statuses(tis["op2"], DepContext(), session=session))) == 1
     assert not dep.is_met(tis["op2"], session=session)
     assert tis["op2"].state == State.SKIPPED
+
+
+def test_parent_in_mapped_task_group_skips_same_map_index(session, dag_maker):
+    """
+    A SkipMixin parent inside a mapped task group writes XCom per map index, so
+    each child TI in the group must read the decision for its own map index.
+
+    Regression test for https://github.com/apache/airflow/issues/55225
+    """
+    with dag_maker("test_mapped_group_skip_dag", schedule=None, session=session):
+
+        @task.short_circuit(task_id="gate")
+        def gate(value):
+            return value
+
+        @task_group
+        def group(value):
+            gate(value) >> EmptyOperator(task_id="child")
+
+        group.expand(value=[True, False])
+
+    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    for map_index in (0, 1):
+        tis[("group.gate", map_index)].state = State.SUCCESS
+        session.merge(tis[("group.gate", map_index)])
+    # Only the map index 1 gate short-circuited, as SkipMixin.skip records it.
+    XComModel.set(
+        key=XCOM_SKIPMIXIN_KEY,
+        value={XCOM_SKIPMIXIN_SKIPPED: ["group.child"]},
+        dag_id=dr.dag_id,
+        task_id="group.gate",
+        run_id=dr.run_id,
+        map_index=1,
+        session=session,
+    )
+    session.flush()
+
+    dep = NotPreviouslySkippedDep()
+
+    assert not dep.is_met(tis[("group.child", 1)], session=session)
+    assert tis[("group.child", 1)].state == State.SKIPPED
+    assert dep.is_met(tis[("group.child", 0)], session=session)
+    assert tis[("group.child", 0)].state != State.SKIPPED
 
 
 def test_branch_skip_decision_bypasses_custom_xcom_backend(session, dag_maker):
