@@ -398,6 +398,9 @@ async function sendSupervisorResponse(
  * Send a parse result as a request and wait for Airflow's acknowledgement, so
  * the process never exits before the result is recorded. An acknowledgement
  * carrying an error, including the socket closing first, throws.
+ *
+ * Unlike {@link sendSupervisorResponse}, which answers the first frame's id
+ * and expects no reply, this sends a new request and awaits its answer.
  */
 async function sendParseResult(body: unknown, comm: CommChannel, logs: LogChannel): Promise<void> {
   const ack = await comm.request(body, { timeoutMs: COORDINATOR_RESPONSE_TIMEOUT_MS });

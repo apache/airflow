@@ -24,7 +24,7 @@
 import type { TaskHandlerDeclaration, TaskHandlerParseRequest } from "../generated/supervisor.js";
 import type { RuntimeTaskHandlerParsingResult } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { getBundleTaskHandlers, type Bundle } from "../sdk/bundle.js";
+import { bundleTaskHandlers, type Bundle } from "../sdk/bundle.js";
 import type { TaskFunction } from "../sdk/task.js";
 
 /**
@@ -41,7 +41,7 @@ export function declareTaskHandlers(
 ): RuntimeTaskHandlerParsingResult {
   const requested = new Set(readDagIds(request));
   const declared: [string, TaskHandlerDeclaration[]][] = [];
-  for (const [dagId, handlers] of getBundleTaskHandlers(bundle)) {
+  for (const [dagId, handlers] of bundleTaskHandlers(bundle)) {
     if (!requested.has(dagId)) continue;
     declared.push([
       dagId,

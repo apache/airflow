@@ -229,7 +229,7 @@ export function bundleDags(bundle: Bundle): ReadonlyMap<string, Dag> {
 /** Internal: the handlers this bundle registered for tasks a Python Dag
  *  declares, keyed by dag_id and then task_id, both in registration order.
  *  Excludes the Dags declared in TypeScript. */
-export function getBundleTaskHandlers(
+export function bundleTaskHandlers(
   bundle: Bundle,
 ): ReadonlyMap<string, ReadonlyMap<string, TaskFunction>> {
   return taskHandlersOf(bundle);
