@@ -2884,7 +2884,7 @@ mypy = [
 requires-dist = [
     { name = "apache-airflow-core", editable = "airflow-core" },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "boto3", specifier = ">=1.42.79" },
+    { name = "boto3", specifier = ">=1.37.2" },
     { name = "testcontainers", specifier = ">=4.12.0" },
 ]
 
