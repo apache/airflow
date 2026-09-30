@@ -47,6 +47,7 @@ from airflow.sdk.execution_time.comms import GetVariable, MaskSecret, _RequestFr
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
+from tests_common.test_utils.config import conf_vars
 from unit.dag_processing.fake_lang_sdk import (
     FakeCoordinator,
     fake_coordinator,
@@ -206,6 +207,28 @@ class TestLangSDKDagFileProcessorProcess:
         assert [dag.dag_id for dag in proc.parsing_result.serialized_dags] == ["good_dag"]
         [message] = proc.parsing_result.import_errors.values()
         assert message.startswith(f"Cannot load the serialized Dag: {error}")
+
+    @conf_vars(
+        {
+            ("core", "max_active_tasks_per_dag"): "7",
+            ("core", "max_active_runs_per_dag"): "3",
+            ("scheduler", "catchup_by_default"): "True",
+        }
+    )
+    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    def test_a_dag_setting_left_unset_is_filled_from_the_config(self, mock_parse_dag, parse):
+        dag = _serialize_dag("native_dag")
+        del dag.data["dag"]["max_active_tasks"], dag.data["dag"]["catchup"]
+        dag.data["dag"]["max_active_runs"] = 16
+        mock_parse_dag.side_effect = play_runtime(_reply_with(dag))
+
+        proc = parse()
+
+        [stored] = proc.parsing_result.serialized_dags
+        assert proc.parsing_result.import_errors is None
+        assert stored.data["dag"]["max_active_tasks"] == 7
+        assert stored.data["dag"]["max_active_runs"] == 16
+        assert stored.data["dag"]["catchup"] is True
 
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
     def test_a_dag_with_a_cycle_is_an_import_error(self, mock_parse_dag, parse):

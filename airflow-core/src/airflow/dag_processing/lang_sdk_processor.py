@@ -398,6 +398,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         import_errors = dict(msg.import_errors or {})
         serialized_dags = []
         for dag in msg.serialized_dags:
+            DagSerialization.fill_config_defaults(dag.data)
             try:
                 DagSerialization.validate_serialized_dag(dag.data)
             except DeserializationError as e:
