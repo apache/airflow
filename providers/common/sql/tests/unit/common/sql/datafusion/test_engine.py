@@ -625,7 +625,7 @@ class TestDataFusionEngine:
             "access-key",
             "master-key",
             "bearer",
-            "sas-key-is-dead",
+            "sas-key-checked-after-query-pairs",
             "workload-identity-triple",
             "workload-identity-partial",
             "client-secret-triple-bare",
@@ -639,8 +639,8 @@ class TestDataFusionEngine:
         """A SAS connection sits at the bottom of object_store's precedence order and occupies
         none of the higher tiers' fields, so a bearer token or any access-key spelling always
         outranks it, and a complete workload-identity or client-secret triple (any recognized
-        spelling) does too -- but a partial triple, or the dead AZURE_STORAGE_SAS_KEY (which
-        sits below SAS itself), must not raise."""
+        spelling) does too -- but a partial triple, or AZURE_STORAGE_SAS_KEY (checked only after
+        the connection's own sas_query_pairs within SAS resolution itself), must not raise."""
         for var in env_vars:
             monkeypatch.setenv(var, "some-value")
         mock_conn = MagicMock()
