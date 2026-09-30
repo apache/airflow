@@ -19,6 +19,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -173,13 +175,21 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	}
 	warnOnSuspiciousIDs(stderr, meta)
 
-	manifest, err := renderManifest(meta, filepath.Base(sourcePath))
-	if err != nil {
-		return fmt.Errorf("rendering manifest: %w", err)
-	}
 	sourceBytes, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("reading source file: %w", err)
+	}
+	baseManifest, err := renderManifest(meta, filepath.Base(sourcePath), nil)
+	if err != nil {
+		return fmt.Errorf("rendering manifest: %w", err)
+	}
+	digests, err := computeDigests(execPath, sourceBytes, baseManifest)
+	if err != nil {
+		return err
+	}
+	manifest, err := renderManifest(meta, filepath.Base(sourcePath), &digests)
+	if err != nil {
+		return fmt.Errorf("rendering manifest: %w", err)
 	}
 
 	// Assemble the bundle through a temp file and atomically move it into
@@ -462,12 +472,53 @@ func runIntrospect(execPath string, flag string) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
+// cacheDigestDomain starts the cache digest's input, so the digest cannot equal
+// a SHA-256 taken of the same bytes for another purpose, and a later definition
+// can change the version.
+const cacheDigestDomain = "airflow-go-pack cache digest v1\x00"
+
+// bundleDigests is the manifest's digests mapping, each a lower-case hex SHA-256.
+type bundleDigests struct {
+	// Integrity covers the binary region; it equals the trailer's binary_sha256.
+	Integrity string
+	// Cache covers every region of the bundle except its own value. It is
+	// SHA-256(cacheDigestDomain || SHA-256(binary) || SHA-256(source) ||
+	// SHA-256(manifest rendered without digests)), with each inner digest as
+	// its 32 raw bytes. Packing the same inputs again gives the same value, and
+	// a change to any of them gives a different one.
+	Cache string
+}
+
+func computeDigests(execPath string, source, baseManifest []byte) (bundleDigests, error) {
+	binaryHash, err := bundlefooter.HashFile(execPath)
+	if err != nil {
+		return bundleDigests{}, fmt.Errorf("hashing executable %s: %w", execPath, err)
+	}
+	sourceHash := sha256.Sum256(source)
+	manifestHash := sha256.Sum256(baseManifest)
+
+	h := sha256.New()
+	h.Write([]byte(cacheDigestDomain))
+	h.Write(binaryHash[:])
+	h.Write(sourceHash[:])
+	h.Write(manifestHash[:])
+	return bundleDigests{
+		Integrity: hex.EncodeToString(binaryHash[:]),
+		Cache:     hex.EncodeToString(h.Sum(nil)),
+	}, nil
+}
+
 // renderManifest serialises the airflow-metadata manifest as deterministic,
 // sorted-key YAML matching airflow-metadata.schema.json. It injects the schema's
-// source field (the filename the manifest is built from), which the producer's
-// Manifest omits because only the packer knows it; every other field is copied
-// from the introspected manifest verbatim.
-func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, error) {
+// source field (the filename the manifest is built from) and, when digests is
+// not nil, the digests mapping, both of which the producer's Manifest omits
+// because only the packer knows them; every other field is copied from the
+// introspected manifest verbatim.
+func renderManifest(
+	meta airflowmetadata.Manifest,
+	sourceName string,
+	digests *bundleDigests,
+) ([]byte, error) {
 	version := meta.AirflowBundleMetadataVersion
 	if version == "" {
 		version = airflowmetadata.FormatVersion
@@ -514,9 +565,21 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 				},
 			},
 			scalar("source"), quotedScalar(sourceName),
-			scalar("dags"), dagsNode,
 		},
 	}
+	if digests != nil {
+		manifest.Content = append(manifest.Content,
+			scalar("digests"),
+			&yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					scalar("integrity"), quotedScalar(digests.Integrity),
+					scalar("cache"), quotedScalar(digests.Cache),
+				},
+			},
+		)
+	}
+	manifest.Content = append(manifest.Content, scalar("dags"), dagsNode)
 	root.Content = []*yaml.Node{manifest}
 
 	var buf bytes.Buffer

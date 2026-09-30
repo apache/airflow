@@ -98,7 +98,7 @@ func Append(execPath string, source, metadata []byte) error {
 	// Compute binary_sha256 over the file as it stands now: at this point the
 	// whole file is the binary region, so the digest matches what a reader
 	// recomputes over [0, source_start) after the append.
-	binaryHash, err := hashFile(execPath)
+	binaryHash, err := HashFile(execPath)
 	if err != nil {
 		return fmt.Errorf("bundlefooter: hashing binary region of %s: %w", execPath, err)
 	}
@@ -247,8 +247,10 @@ func decodeTrailer(b [TrailerSize]byte) (Trailer, error) {
 	return t, nil
 }
 
-// hashFile computes SHA-256 over the entire contents of the file at path.
-func hashFile(path string) ([sha256.Size]byte, error) {
+// HashFile computes SHA-256 over the entire contents of the file at path. For an
+// executable that has not had its trailer appended yet, that is the binary_sha256
+// Append records.
+func HashFile(path string) ([sha256.Size]byte, error) {
 	var sum [sha256.Size]byte
 	f, err := os.Open(path)
 	if err != nil {
