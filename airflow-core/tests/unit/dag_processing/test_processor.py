@@ -33,7 +33,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import structlog
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import select
 from structlog.typing import FilteringBoundLogger
 
@@ -58,6 +58,7 @@ from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    TaskHandlerDeclaration,
     TaskHandlerParseRequest,
     TaskHandlerParsingResult,
     ToDagProcessor,
@@ -2366,6 +2367,40 @@ class TestDagProcessingMessageTypes:
         assert task_handler_types - dag_processor_types == {TaskHandlerParseRequest}
 
 
+class TestTaskHandlerDeclaration:
+    @pytest.mark.parametrize(
+        ("binding", "param", "expected_name", "expected_exact_name"),
+        [
+            pytest.param("positional", {"name": None, "required": True}, None, False, id="positional"),
+            pytest.param(
+                "named", {"name": "day", "required": False, "exact_name": True}, "day", True, id="named"
+            ),
+            pytest.param(
+                "named_or_whole", {"name": "Day", "required": False}, "Day", False, id="named_or_whole"
+            ),
+        ],
+    )
+    def test_decodes_binding(self, binding, param, expected_name, expected_exact_name):
+        declaration = TaskHandlerDeclaration.model_validate(
+            {"task_id": "extract", "binding": binding, "params": [param]}
+        )
+
+        assert declaration.binding == binding
+        assert declaration.params[0].name == expected_name
+        assert declaration.params[0].exact_name is expected_exact_name
+
+    @pytest.mark.parametrize(
+        "declaration",
+        [
+            pytest.param({"task_id": "extract", "params": []}, id="missing"),
+            pytest.param({"task_id": "extract", "binding": "keyword", "params": []}, id="unknown"),
+        ],
+    )
+    def test_rejects_invalid_binding(self, declaration):
+        with pytest.raises(ValidationError, match="binding"):
+            TaskHandlerDeclaration.model_validate(declaration)
+
+
 class TestDagFileProcessorProcess:
     def test_registered_message_types(self):
         expected = set(typing.get_args(typing.get_args(ToManager)[0])) - {TaskHandlerParsingResult}
@@ -2424,6 +2459,7 @@ class TestDagFileProcessorProcess:
                     "etl": [
                         {
                             "task_id": "extract",
+                            "binding": "positional",
                             "params": [
                                 {"name": "day", "value_schema": {"type": "string"}, "required": True},
                                 {"name": "limit", "required": False},

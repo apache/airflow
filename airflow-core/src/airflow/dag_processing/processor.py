@@ -139,7 +139,8 @@ class DagFileParsingResult(BaseModel):
 class TaskHandlerParam(BaseModel):
     """One parameter of a task handler."""
 
-    name: str
+    name: str | None
+    """``None`` when the runtime has no name for this positional parameter."""
 
     value_schema: ArgValueSchema | None = None
     """JSON Schema of the values the parameter accepts; ``None`` when the handler does not constrain it."""
@@ -147,14 +148,27 @@ class TaskHandlerParam(BaseModel):
     required: bool
     """Whether the handler declares no default for the parameter."""
 
+    exact_name: bool = False
+    """Whether ``name`` matches only as spelled, not case-insensitively with underscores ignored."""
+
 
 class TaskHandlerDeclaration(BaseModel):
     """A task handler that a Lang-SDK artifact registers for one task."""
 
     task_id: str
 
+    binding: Literal["positional", "named", "named_or_whole"]
+    """
+    How stub-task arguments bind to ``params``.
+
+    - ``positional``: by position; names are informative only.
+    - ``named``: by name in any order, case-insensitively with underscores ignored unless ``exact_name`` is set.
+    - ``named_or_whole``: as ``named``, except that when there is exactly one argument and it matches no
+      parameter, it is decoded as the whole value.
+    """
+
     params: list[TaskHandlerParam]
-    """In declaration order, because stub-task arguments bind to them by position."""
+    """In declaration order; the order is significant only for ``positional`` binding."""
 
 
 class TaskHandlerParseRequest(BaseModel):
