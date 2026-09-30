@@ -18,11 +18,12 @@
 """
 Keep the Java SDK's bundled Supervisor Schema in sync with ``airflowSupervisorSchemaVersion``.
 
-The Gradle task ``:sdk:syncSupervisorSchema`` downloads a fresh ``schema.json`` when the
-``api_version`` inside it differs from the version declared in ``java-sdk/gradle.properties``.
+The Gradle task ``:sdk:syncSupervisorSchema`` copies the Task SDK's snapshot when it declares the
+configured ``api_version``, and otherwise downloads the published schema when the ``api_version``
+inside ``schema.json`` differs from the version declared in ``java-sdk/gradle.properties``.
 Starting Gradle for that comparison costs over a minute on a cold CI runner (wrapper download,
 JVM start, plugin resolution), so this hook does the same comparison in Python first and only
-hands over to Gradle when the two versions actually differ.
+hands over to Gradle when a download is needed.
 """
 
 from __future__ import annotations
@@ -37,6 +38,9 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 JAVA_SDK_DIR = REPO_ROOT / "java-sdk"
 GRADLE_PROPERTIES = JAVA_SDK_DIR / "gradle.properties"
 SCHEMA_FILE = JAVA_SDK_DIR / "sdk" / "schema" / "schema.json"
+MONOREPO_SCHEMA_FILE = (
+    REPO_ROOT / "task-sdk" / "src" / "airflow" / "sdk" / "execution_time" / "schema" / "schema.json"
+)
 
 VERSION_PATTERN = re.compile(r"^airflowSupervisorSchemaVersion\s*=\s*(\S+)\s*$", re.MULTILINE)
 
@@ -49,20 +53,28 @@ def configured_version() -> str:
     return match.group(1)
 
 
-def bundled_version() -> str | None:
-    if not SCHEMA_FILE.exists():
+def api_version_of(path: Path) -> str | None:
+    if not path.exists():
         return None
     try:
-        with SCHEMA_FILE.open() as schema:
+        with path.open() as schema:
             return json.load(schema).get("api_version")
     except json.JSONDecodeError:
-        # A truncated or conflict-marked file counts as drift; Gradle overwrites it.
+        # A truncated or conflict-marked file counts as drift; it is overwritten.
         return None
 
 
 def main() -> int:
     expected = configured_version()
-    actual = bundled_version()
+    if api_version_of(MONOREPO_SCHEMA_FILE) == expected:
+        snapshot = MONOREPO_SCHEMA_FILE.read_bytes()
+        if SCHEMA_FILE.exists() and SCHEMA_FILE.read_bytes() == snapshot:
+            print(f"Supervisor Schema matches the Task SDK snapshot (api_version={expected}).")
+        else:
+            print(f"Refreshing Supervisor Schema from {MONOREPO_SCHEMA_FILE.relative_to(REPO_ROOT)}.")
+            SCHEMA_FILE.write_bytes(snapshot)
+        return 0
+    actual = api_version_of(SCHEMA_FILE)
     if actual == expected:
         print(f"Supervisor Schema is up-to-date (api_version={expected}).")
         return 0
