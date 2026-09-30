@@ -101,7 +101,11 @@
     },
     "settings": "日志设置",
     "viewInExternal": "在 {{name}} 中查看日志（重试 {{attempt}}）",
-    "warning": "WARNING"
+    "warning": "WARNING",
+    "tryNotStarted": "此次重试尚未开始。",
+    "viewFailedTry": "查看第 {{tryNumber}} 次失败重试的日志",
+    "viewPreviousTry": "查看上一次重试（第 {{tryNumber}} 次）的日志",
+    "waitingToRetry": "第 {{tryNumber}} 次重试正在等待执行。"
   },
   "notFound": {
     "back": "返回",
