@@ -33,7 +33,9 @@ function toolset, including tools supplied through ``toolsets=``,
 ``agent_params={"tools": [...]}``, and capabilities such as factory-backed
 toolsets, nested capabilities, and MCP toolsets. Output tools such as
 ``final_result`` and provider-native tools, including native MCP, are not
-covered by Airflow's real-time tool-call logging.
+covered by Airflow's real-time tool-call logging. Tools added by another
+capability through its own wrapper toolset, such as ToolSearch's
+``search_tools`` and CodeMode's ``run_code``, are also not covered.
 
 ``AgentOperator`` adds ``ToolLoggingCapability`` automatically when
 ``enable_tool_logging=True``. Do not also add it to ``capabilities=`` or calls

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
@@ -107,6 +108,18 @@ class TestLoggingToolset:
         )
         assert end_group_index < failure_index
         assert caplog.records[failure_index].levelno == logging.ERROR
+
+    @pytest.mark.asyncio
+    async def test_closes_group_when_call_is_cancelled(
+        self, logging_toolset, wrapped_toolset, logger, caplog
+    ):
+        wrapped_toolset.call_tool = AsyncMock(side_effect=asyncio.CancelledError())
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(asyncio.CancelledError):
+                await logging_toolset.call_tool("slow_tool", {}, MagicMock(), MagicMock())
+
+        assert caplog.records[-1].message == "::endgroup::"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

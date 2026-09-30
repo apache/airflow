@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -74,6 +75,9 @@ class LoggingToolset(WrapperToolset[Any]):
             self.logger.info("Tool %s returned in %.2fs", name, elapsed)
             self.logger.info("::endgroup::")
             return result
+        except asyncio.CancelledError:
+            self.logger.info("::endgroup::")
+            raise
         except ApprovalRequired:
             # Not a failure: the run pauses here until a person approves or rejects the call.
             elapsed = time.monotonic() - start
@@ -103,6 +107,7 @@ class ToolLoggingCapability(AbstractCapability[Any]):
         return None
 
     def get_ordering(self) -> CapabilityOrdering:
+        """Place logging innermost so outer capability wrappers delegate base-tool calls through it."""
         return CapabilityOrdering(position="innermost")
 
     def get_wrapper_toolset(self, toolset: AbstractToolset[Any]) -> AbstractToolset[Any]:
