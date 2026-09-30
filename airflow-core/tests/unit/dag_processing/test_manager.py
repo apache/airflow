@@ -1794,6 +1794,63 @@ class TestDagFileProcessorManager:
         assert import_error.stacktrace.startswith("The Lang-SDK runtime sent an invalid frame: ")
         assert manager.selector.get_map() == {}
 
+    @mock.patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager, "_find_files_in_bundle", autospec=True, return_value=[Path("slow.native")]
+    )
+    def test_a_coordinator_file_past_the_import_timeout_is_an_import_error(
+        self, mock_find_files, mock_parse_dag, mock_timeout, tmp_path, configure_testing_dag_bundle
+    ):
+        mock_parse_dag.side_effect = play_runtime(lambda request, comms: time.sleep(60))
+        slow = write_native_file(tmp_path / "slow.native")
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+            manager.run()
+
+        with create_session() as session:
+            [import_error] = session.scalars(select(ParseImportError)).all()
+
+        assert import_error.filename == "slow.native"
+        assert import_error.stacktrace == f"The Lang-SDK runtime did not parse {slow} within 1.0s"
+        assert manager.selector.get_map() == {}
+
+    @mock.patch("airflow.settings.get_dagbag_import_timeout", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        return_value=[Path("broken.native"), Path("python_dag.py")],
+    )
+    def test_a_failing_import_timeout_policy_fails_only_its_file(
+        self, mock_find_files, mock_timeout, tmp_path, configure_testing_dag_bundle
+    ):
+        def get_dagbag_import_timeout(dag_file_path):
+            if dag_file_path.endswith(".native"):
+                raise RuntimeError("policy bug")
+            return 30
+
+        mock_timeout.side_effect = get_dagbag_import_timeout
+        write_native_file(tmp_path / "broken.native")
+        (tmp_path / "python_dag.py").write_text(
+            "from airflow.sdk import DAG\nfrom airflow.sdk.bases.operator import BaseOperator\n\n"
+            'with DAG("python_dag", schedule=None):\n    BaseOperator(task_id="task")\n'
+        )
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            DagFileProcessorManager(max_runs=1, processor_timeout=60).run()
+
+        with create_session() as session:
+            dag_ids = session.scalars(select(SerializedDagModel.dag_id)).all()
+            [import_error] = session.scalars(select(ParseImportError)).all()
+
+        assert dag_ids == ["python_dag"]
+        assert (import_error.filename, import_error.stacktrace) == (
+            "broken.native",
+            "Cannot start the Lang-SDK runtime: RuntimeError: policy bug",
+        )
+
     def test_terminate_orphan_processes_kills_then_closes_processor(self):
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
