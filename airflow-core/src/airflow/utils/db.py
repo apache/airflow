@@ -1473,7 +1473,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
     except ImportError:
         raise RuntimeError(
-            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "Import error occurred while importing FABDBManager. The apache-airflow-providers-fab package must be installed before we can "
             "downgrade to <3.0.0."
         )
 
