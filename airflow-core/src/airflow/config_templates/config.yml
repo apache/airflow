@@ -2727,8 +2727,8 @@ scheduler:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated, as well as assets that are no longer
-        referenced and should be marked as orphaned, and Lang-SDK task handler artifacts that no
-        stub task uses any more, which are deleted.
+        referenced and should be marked as orphaned. The same check deletes the Lang-SDK task
+        handler artifacts that no stub task uses any more.
       version_added: 2.5.0
       type: integer
       example: ~

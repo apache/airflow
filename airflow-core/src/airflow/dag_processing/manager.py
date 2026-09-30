@@ -97,6 +97,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
     from socket import socket
 
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
@@ -462,7 +463,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _sweep_task_handler_artifacts(self) -> None:
         now = time.monotonic()
-        if now - self._last_task_handler_artifact_sweep_time <= self.parsing_cleanup_interval:
+        if now - self._last_task_handler_artifact_sweep_time < self.parsing_cleanup_interval:
             return
         try:
             self.delete_unreferenced_task_handler_artifacts()
@@ -508,7 +509,7 @@ class DagFileProcessorManager(LoggingMixin):
                         .where(LangSDKTaskHandlerArtifact.id.in_(ids), *sweepable)
                         .execution_options(synchronize_session=False)
                     )
-                    deleted += getattr(result, "rowcount", 0)
+                    deleted += cast("CursorResult", result).rowcount
             if len(ids) < _TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE:
                 break
         if deleted:
