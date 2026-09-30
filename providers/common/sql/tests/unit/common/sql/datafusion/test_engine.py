@@ -605,18 +605,44 @@ class TestDataFusionEngine:
             engine._get_credentials(mock_conn)
 
     @pytest.mark.parametrize(
-        "env_var",
+        ("env_vars", "should_raise"),
         [
-            "AZURE_STORAGE_ACCOUNT_KEY",
-            "AZURE_STORAGE_ACCESS_KEY",
-            "AZURE_STORAGE_MASTER_KEY",
-            "AZURE_STORAGE_TOKEN",
+            (["AZURE_STORAGE_ACCOUNT_KEY"], True),
+            (["AZURE_STORAGE_ACCESS_KEY"], True),
+            (["AZURE_STORAGE_MASTER_KEY"], True),
+            (["AZURE_STORAGE_TOKEN"], True),
+            (["AZURE_STORAGE_SAS_KEY"], False),
+            (["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE"], True),
+            (["AZURE_FEDERATED_TOKEN_FILE"], False),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"], True),
+            (["AZURE_STORAGE_CLIENT_ID", "AZURE_STORAGE_CLIENT_SECRET", "AZURE_STORAGE_TENANT_ID"], True),
+            (["AZURE_STORAGE_CLIENT_ID", "AZURE_STORAGE_CLIENT_SECRET", "AZURE_STORAGE_AUTHORITY_ID"], True),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_AUTHORITY_ID"], True),
+            (["AZURE_CLIENT_ID"], False),
+        ],
+        ids=[
+            "account-key",
+            "access-key",
+            "master-key",
+            "bearer",
+            "sas-key-is-dead",
+            "workload-identity-triple",
+            "workload-identity-partial",
+            "client-secret-triple-bare",
+            "client-secret-triple-storage-prefixed",
+            "client-secret-triple-storage-authority",
+            "client-secret-triple-bare-authority",
+            "client-secret-partial",
         ],
     )
-    def test_get_credentials_azure_sas_rejects_when_env_would_outrank_it(self, env_var, monkeypatch):
-        """A bearer token or any access-key spelling in env sits above SAS in object_store's
-        precedence order, so it would silently win over a connection's SAS credential."""
-        monkeypatch.setenv(env_var, "some-value")
+    def test_get_credentials_azure_sas_env_precedence(self, env_vars, should_raise, monkeypatch):
+        """A SAS connection sits at the bottom of object_store's precedence order and occupies
+        none of the higher tiers' fields, so a bearer token or any access-key spelling always
+        outranks it, and a complete workload-identity or client-secret triple (any recognized
+        spelling) does too -- but a partial triple, or the dead AZURE_STORAGE_SAS_KEY (which
+        sits below SAS itself), must not raise."""
+        for var in env_vars:
+            monkeypatch.setenv(var, "some-value")
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
         mock_conn.host = None
@@ -625,125 +651,44 @@ class TestDataFusionEngine:
         mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
         engine = DataFusionEngine()
 
-        with pytest.raises(ValueError, match=env_var):
-            engine._get_credentials(mock_conn)
-
-    def test_get_credentials_azure_sas_ignores_sas_key_env_var(self, monkeypatch):
-        """AZURE_STORAGE_SAS_KEY sits below every explicit credential in object_store's
-        precedence order, so it can never outrank a connection's credential and must not raise."""
-        monkeypatch.setenv("AZURE_STORAGE_SAS_KEY", "some-value")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = None
-        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {
-            "account": "myaccount",
-            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
-        }
-        assert extra_config == {}
-
-    def test_get_credentials_azure_sas_rejects_when_env_workload_identity_triple_would_outrank_it(
-        self, monkeypatch
-    ):
-        """A full client_id+tenant_id+federated_token_file triple in env sits above SAS in
-        object_store's precedence order, so it would silently win over a connection's SAS
-        credential."""
-        monkeypatch.setenv("AZURE_CLIENT_ID", "some-client-id")
-        monkeypatch.setenv("AZURE_TENANT_ID", "some-tenant-id")
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/var/run/token")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = None
-        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
-        engine = DataFusionEngine()
-
-        with pytest.raises(ValueError, match="AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_FEDERATED_TOKEN_FILE"):
-            engine._get_credentials(mock_conn)
-
-    def test_get_credentials_azure_sas_ignores_partial_env_workload_identity_triple(self, monkeypatch):
-        """Only a complete client_id+tenant_id+federated_token_file triple can form a
-        workload-identity credential in object_store -- a lone federated_token_file (the shape
-        every AKS pod gets from the workload-identity webhook) must not raise on its own."""
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/var/run/token")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = None
-        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {
-            "account": "myaccount",
-            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
-        }
-        assert extra_config == {}
+        if should_raise:
+            with pytest.raises(ValueError, match=", ".join(env_vars)):
+                engine._get_credentials(mock_conn)
+        else:
+            credentials, extra_config = engine._get_credentials(mock_conn)
+            assert credentials == {
+                "account": "myaccount",
+                "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
+            }
+            assert extra_config == {}
 
     @pytest.mark.parametrize(
-        ("client_id_var", "client_secret_var", "tenant_id_var"),
+        ("env_vars", "should_raise"),
         [
-            ("AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"),
-            ("AZURE_STORAGE_CLIENT_ID", "AZURE_STORAGE_CLIENT_SECRET", "AZURE_STORAGE_TENANT_ID"),
-            ("AZURE_STORAGE_CLIENT_ID", "AZURE_STORAGE_CLIENT_SECRET", "AZURE_STORAGE_AUTHORITY_ID"),
-            ("AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_AUTHORITY_ID"),
+            (["AZURE_STORAGE_TOKEN"], True),
+            (["AZURE_STORAGE_ACCOUNT_KEY"], False),
+            (["AZURE_STORAGE_ACCESS_KEY"], False),
+            (["AZURE_STORAGE_MASTER_KEY"], False),
+            (["AZURE_FEDERATED_TOKEN_FILE"], False),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"], False),
         ],
-        ids=["bare", "storage-prefixed", "storage-authority", "bare-authority"],
+        ids=[
+            "bearer",
+            "account-key",
+            "access-key",
+            "master-key",
+            "federated-token-file",
+            "client-secret-triple",
+        ],
     )
-    def test_get_credentials_azure_sas_rejects_when_env_client_secret_triple_would_outrank_it(
-        self, client_id_var, client_secret_var, tenant_id_var, monkeypatch
-    ):
-        """A full client_id+client_secret+tenant_id triple in env, in any of its recognized
-        spellings, sits above SAS in object_store's precedence order, so it would silently win
-        over a connection's SAS credential."""
-        monkeypatch.setenv(client_id_var, "some-client-id")
-        monkeypatch.setenv(client_secret_var, "some-client-secret")
-        monkeypatch.setenv(tenant_id_var, "some-tenant-id")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = None
-        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
-        engine = DataFusionEngine()
-
-        with pytest.raises(ValueError, match=f"{client_id_var}, {client_secret_var}, {tenant_id_var}"):
-            engine._get_credentials(mock_conn)
-
-    def test_get_credentials_azure_sas_ignores_partial_env_client_secret_triple(self, monkeypatch):
-        """Only a complete client_id+client_secret+tenant_id triple can form a credential in
-        object_store; a single leftover variable must not raise on its own."""
-        monkeypatch.setenv("AZURE_CLIENT_ID", "some-client-id")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = None
-        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {
-            "account": "myaccount",
-            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
-        }
-        assert extra_config == {}
-
-    def test_get_credentials_azure_access_key_rejects_bearer_token_env_var(self, monkeypatch):
-        """A bearer token is the only tier above access_key, and a connection's access_key
-        overwrites any env-derived access_key/workload-identity/client-secret field, so only
-        AZURE_STORAGE_TOKEN can outrank a shared-key connection."""
-        monkeypatch.setenv("AZURE_STORAGE_TOKEN", "some-value")
+    def test_get_credentials_azure_access_key_env_precedence(self, env_vars, should_raise, monkeypatch):
+        """A shared-key connection overwrites the same field object_store's build() would
+        otherwise read from env, and build() picks access_key ahead of every lower tier -- so
+        only a bearer token, the one tier above access_key, can actually outrank it, even on an
+        AKS pod where the workload-identity webhook injects AZURE_FEDERATED_TOKEN_FILE into
+        every labelled pod."""
+        for var in env_vars:
+            monkeypatch.setenv(var, "some-value")
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
         mock_conn.host = None
@@ -752,76 +697,43 @@ class TestDataFusionEngine:
         mock_conn.extra_dejson = {}
         engine = DataFusionEngine()
 
-        with pytest.raises(ValueError, match="AZURE_STORAGE_TOKEN"):
-            engine._get_credentials(mock_conn)
+        if should_raise:
+            with pytest.raises(ValueError, match=", ".join(env_vars)):
+                engine._get_credentials(mock_conn)
+        else:
+            credentials, extra_config = engine._get_credentials(mock_conn)
+            assert credentials == {"account": "myaccount", "access_key": "mykey"}
+            assert extra_config == {}
 
     @pytest.mark.parametrize(
-        "env_var",
+        ("env_vars", "should_raise"),
         [
-            "AZURE_STORAGE_ACCOUNT_KEY",
-            "AZURE_STORAGE_ACCESS_KEY",
-            "AZURE_STORAGE_MASTER_KEY",
-            "AZURE_FEDERATED_TOKEN_FILE",
+            (["AZURE_STORAGE_TOKEN"], True),
+            (["AZURE_STORAGE_ACCOUNT_KEY"], True),
+            (["AZURE_STORAGE_ACCESS_KEY"], True),
+            (["AZURE_STORAGE_MASTER_KEY"], True),
+            (["AZURE_FEDERATED_TOKEN_FILE"], True),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"], False),
+        ],
+        ids=[
+            "bearer",
+            "account-key",
+            "access-key",
+            "master-key",
+            "federated-token-file",
+            "client-secret-triple",
         ],
     )
-    def test_get_credentials_azure_access_key_ignores_env_vars_it_already_overwrites(
-        self, env_var, monkeypatch
-    ):
-        """object_store's build() overlays the connection's access_key onto the builder before
-        resolving, and picks access_key ahead of workload identity and client secret -- so none
-        of these can actually outrank a shared-key connection, even on an AKS pod where the
-        workload-identity webhook injects AZURE_FEDERATED_TOKEN_FILE into every labelled pod."""
-        monkeypatch.setenv(env_var, "some-value")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = "mykey"
-        mock_conn.extra_dejson = {}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"account": "myaccount", "access_key": "mykey"}
-        assert extra_config == {}
-
-    def test_get_credentials_azure_access_key_ignores_env_client_secret_triple(self, monkeypatch):
-        """The client-secret tier sits below access_key in object_store's precedence order, so a
-        full triple in env still can't outrank a shared-key connection."""
-        monkeypatch.setenv("AZURE_CLIENT_ID", "some-client-id")
-        monkeypatch.setenv("AZURE_CLIENT_SECRET", "some-client-secret")
-        monkeypatch.setenv("AZURE_TENANT_ID", "some-tenant-id")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "myaccount"
-        mock_conn.password = "mykey"
-        mock_conn.extra_dejson = {}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"account": "myaccount", "access_key": "mykey"}
-        assert extra_config == {}
-
-    @pytest.mark.parametrize(
-        "env_var",
-        [
-            "AZURE_STORAGE_TOKEN",
-            "AZURE_STORAGE_ACCOUNT_KEY",
-            "AZURE_STORAGE_ACCESS_KEY",
-            "AZURE_STORAGE_MASTER_KEY",
-            "AZURE_FEDERATED_TOKEN_FILE",
-        ],
-    )
-    def test_get_credentials_azure_service_principal_rejects_when_env_would_outrank_it(
-        self, env_var, monkeypatch
+    def test_get_credentials_azure_service_principal_env_precedence(
+        self, env_vars, should_raise, monkeypatch
     ):
         """A bearer token or any access-key spelling sits above client secret in object_store's
-        precedence order. The connection's own client_id and tenant_id already complete two of
-        workload identity's three fields, so a federated token file alone is enough for the
-        environment to complete that tier and outrank the connection."""
-        monkeypatch.setenv(env_var, "some-value")
+        precedence order, and the connection's own client_id and tenant_id already complete two
+        of workload identity's three fields, so a federated token file alone is enough for env to
+        complete that tier -- but a client-secret triple in env is moot, since the connection's
+        own client_id/client_secret/tenant_id overwrite the same fields."""
+        for var in env_vars:
+            monkeypatch.setenv(var, "some-value")
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
         mock_conn.host = None
@@ -830,33 +742,18 @@ class TestDataFusionEngine:
         mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
         engine = DataFusionEngine()
 
-        with pytest.raises(ValueError, match=env_var):
-            engine._get_credentials(mock_conn)
-
-    def test_get_credentials_azure_service_principal_ignores_env_client_secret_triple(self, monkeypatch):
-        """The connection's own client_id/client_secret/tenant_id fields overwrite any
-        env-derived values for the same fields, so a client-secret triple in env can't outrank a
-        service-principal connection."""
-        monkeypatch.setenv("AZURE_CLIENT_ID", "env-client-id")
-        monkeypatch.setenv("AZURE_CLIENT_SECRET", "env-client-secret")
-        monkeypatch.setenv("AZURE_TENANT_ID", "env-tenant-id")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "wasb"
-        mock_conn.host = None
-        mock_conn.login = "client-id"
-        mock_conn.password = "client-secret"
-        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {
-            "account": "client-id",
-            "client_id": "client-id",
-            "client_secret": "client-secret",
-            "tenant_id": "tenant-id",
-        }
-        assert extra_config == {}
+        if should_raise:
+            with pytest.raises(ValueError, match=", ".join(env_vars)):
+                engine._get_credentials(mock_conn)
+        else:
+            credentials, extra_config = engine._get_credentials(mock_conn)
+            assert credentials == {
+                "account": "client-id",
+                "client_id": "client-id",
+                "client_secret": "client-secret",
+                "tenant_id": "tenant-id",
+            }
+            assert extra_config == {}
 
     def test_get_credentials_azure_env_precedence_guard_ignores_pure_ambient_auth(self, monkeypatch):
         """The guard only fires for an explicit connection credential -- a connection with none
