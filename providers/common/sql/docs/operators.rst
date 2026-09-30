@@ -369,10 +369,15 @@ Use an ``az://`` URI with a ``conn_id`` pointing to a ``wasb`` connection.
 ``abfs://`` and ``abfss://`` URIs are not recognized yet. The account name
 comes from ``host`` (its first DNS label) when set, falling back to
 ``login`` only when ``host`` is empty; only the public
-``*.blob.core.windows.net`` cloud is supported unless the worker sets
-``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT``, since DataFusion's binding
-otherwise has no endpoint override. ``client_secret_auth_config`` (the
-authority override ``WasbHook`` honors) is not read here.
+``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
+otherwise has no endpoint override -- unless the worker sets
+``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT`` for a real sovereign-cloud
+hostname. A ``host:port`` address (the Azurite emulator's shape, e.g.
+``azurite:10000``) is never a real DNS hostname and always raises instead,
+even with those variables set: put the account name in ``login`` with
+``host`` left empty for Azurite, alongside those same variables and
+``AZURE_ALLOW_HTTP=true``. ``client_secret_auth_config`` (the authority
+override ``WasbHook`` honors) is not read here.
 
 The connection supplies one of the following credentials, checked in this
 order (matching ``WasbHook.get_conn``):
@@ -384,19 +389,20 @@ order (matching ``WasbHook.get_conn``):
 4. Shared key -- ``password``, or the ``account_key`` extra
 5. None of the above -- ambient auth (see below)
 
-**A worker environment variable can override the connection.** DataFusion
-reads ``AZURE_*`` environment variables first, and an environment bearer
-token, access key, workload-identity token, or client secret wins over the
-connection's SAS token or shared key (a SAS token is the lowest-precedence
-credential, so an environment SAS token can never override a connection).
-If the connection sets an explicit credential (1-4 above) and the worker
-also has ``AZURE_STORAGE_TOKEN``, ``AZURE_STORAGE_ACCOUNT_KEY``,
-``AZURE_STORAGE_ACCESS_KEY``, ``AZURE_STORAGE_MASTER_KEY``,
-``AZURE_FEDERATED_TOKEN_FILE``, or a full client-secret triple
-(``AZURE_CLIENT_ID``/``AZURE_STORAGE_CLIENT_ID``,
-``AZURE_CLIENT_SECRET``/``AZURE_STORAGE_CLIENT_SECRET``, and
-``AZURE_TENANT_ID``/``AZURE_STORAGE_TENANT_ID``/``AZURE_STORAGE_AUTHORITY_ID``/``AZURE_AUTHORITY_ID``)
-set, this raises instead of silently using the wrong identity.
+**A worker environment variable can override the connection, but only from a
+higher-priority tier.** DataFusion reads ``AZURE_*`` environment variables
+first, and resolves credentials in this priority order:
+
+1. Bearer token
+2. Access key -- the shared-key connection's tier
+3. Workload identity
+4. Client secret -- the service-principal connection's tier
+5. SAS -- the SAS connection's tier
+
+Only a complete credential from an earlier tier can override the
+connection -- a single bearer or access-key variable, or every variable a
+multi-field tier needs. This raises when found, naming the variables,
+instead of silently using the wrong identity.
 
 With no explicit credential, authentication falls back to ``AZURE_*``
 environment variables, managed identity, or workload identity. Unlike
