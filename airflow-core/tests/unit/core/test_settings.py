@@ -522,6 +522,44 @@ def test_explicit_sql_alchemy_conn_async_is_not_rewritten():
         settings.configure_vars()
 
 
+@pytest.mark.parametrize(
+    ("otel_on", "otel_debug_traces_on", "expected_otel_debug_traces_on"),
+    [
+        pytest.param("True", "True", True, id="all-true"),
+        pytest.param("False", "True", False, id="otel-disabled"),
+        pytest.param("True", "False", False, id="otel-enabled-debug-traces-disabled"),
+    ],
+)
+def test_initialize_otel_core_and_sdk_conf_in_sync(
+    otel_on, otel_debug_traces_on, expected_otel_debug_traces_on
+):
+    """
+    Tests that the otel configuration for both airflow-core and task-sdk are in sync.
+    """
+    import airflow.settings
+
+    from tests_common.test_utils.config import conf_vars
+
+    with conf_vars(
+        {("traces", "otel_on"): otel_on, ("traces", "otel_debug_traces_on"): otel_debug_traces_on}
+    ):
+        airflow.settings.initialize()
+
+    from airflow._shared.observability import traces as core_traces
+    from airflow.sdk._shared.observability import traces as sdk_traces
+
+    core_debug_traces_on = core_traces._otel_debug_traces_on
+    sdk_debug_traces_on = sdk_traces._otel_debug_traces_on
+
+    # Both flags should be synced.
+    assert core_debug_traces_on is expected_otel_debug_traces_on
+    assert sdk_debug_traces_on is expected_otel_debug_traces_on
+
+    # Reset flags.
+    core_traces._otel_debug_traces_on = False
+    sdk_traces._otel_debug_traces_on = False
+
+
 class TestDisposeOrm:
     """Tests for dispose_orm() async engine disposal."""
 

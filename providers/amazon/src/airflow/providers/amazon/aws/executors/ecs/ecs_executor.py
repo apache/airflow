@@ -61,6 +61,19 @@ from airflow.utils.state import State
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
+try:
+    from airflow.sdk._shared.observability.traces import start_debug_span
+except ImportError:
+
+    def start_debug_span(name, **_kwargs):
+        """No-op fallback so executor code can decorate methods unconditionally."""
+
+        def _decorator(func):
+            return func
+
+        return _decorator
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -163,6 +176,7 @@ class AwsEcsExecutor(BaseExecutor):
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             self.queued_tasks[workload.ti.key] = workload
 
+    @start_debug_span("ecs_executor._process_workloads")
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         """:sphinx-autoapi-skip:."""
         from airflow.executors import workloads
