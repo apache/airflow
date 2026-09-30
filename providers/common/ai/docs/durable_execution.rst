@@ -107,30 +107,53 @@ cache:
    never replays responses that belong to a different conversation.
 4. After successful completion, the cached steps are deleted.
 
-Fingerprints are computed from pydantic's JSON rendering of each value, the same
-rendering a json-mode dump produces, so ordinary types that are not JSON -- a
-``datetime`` or ``Decimal`` tool argument, a dataclass in ``tool_choice``, the
-bytes in a ``BinaryContent``, a dict keyed by date -- fingerprint normally, and
-entries cached by an earlier version still match. The one adjustment is that the
-members of a ``set`` are ordered before hashing, so a set matches on a later
-attempt too. If a value cannot be rendered at all, that step is not cached, and on
-retry it runs live rather than replaying an unverified entry. A parameter annotated ``Iterable[...]`` is one such case:
-pydantic validates it lazily, and reading it in order to hash it would consume
-the input the tool itself has not read yet, so the step runs live instead of
-being cached.
+Plain JSON arguments and settings are fingerprinted exactly as before. Anything
+else is fingerprinted from pydantic's JSON rendering, so ordinary types that are
+not JSON -- a ``datetime`` or ``Decimal`` tool argument, a dataclass in
+``tool_choice``, the bytes in a ``BinaryContent``, a dict keyed by date --
+fingerprint normally. Bytes in tool arguments and settings are rendered as base64,
+so binary data that is not valid UTF-8 fingerprints too; bytes inside a pydantic
+model follow that model's ``ser_json_bytes`` setting instead, which renders them as
+UTF-8 text by default. Because a tool call is fingerprinted from how its arguments
+render, a field excluded from serialization and a secret value, which renders
+masked, take no part in it.
 
-On the model path this is rarely confined to a single step: the causes are such a
-value in ``model_settings``, which is attached to every request, in the tool
-definitions the request carries, or in the message history, which every later
-request carries forward. Any one of them degrades every model step from that point
-on, so the retry re-runs the agent from there at full cost -- from the start when
-the cause is in the settings or the tool definitions, which are there from the
-first request, and from the step where it entered when it arrives mid-run in the
-history, for example in a tool return. The ``could not fingerprint model request``
-warning names the step where this began.
+A step whose request cannot be fingerprinted is not cached, and on retry it runs
+live rather than replaying an unverified entry. That happens when pydantic cannot
+render a value at all, which includes a set of models and a model used as a dict
+key; when two distinct dict keys render alike, such as ``1`` and ``"1"``, because
+the fingerprint would then be unable to tell those payloads apart; and when a value
+would render through an iterator, since rendering it would consume it. A parameter
+annotated ``Iterable[...]`` is the usual iterator: pydantic validates it lazily,
+and reading it in order to hash it would consume the input the tool itself has not
+read yet. Tool arguments are rendered from copies, so fingerprinting never changes
+what the tool receives, and an argument that cannot be copied is not fingerprinted
+either. Such a step counts among the steps the end-of-run summary reports as not
+cached.
 
-A tool call is fingerprinted from its name, arguments and call id alone, so
-neither of those causes reaches it. One that cannot be fingerprinted is reported
+Apart from those, a step that an earlier version could already fingerprint hashes
+the same way as before, so its cached entry still matches, with one exception: the
+members of a ``set`` are now ordered before hashing, so that a set matches on a
+later attempt. A history holding a set whose order was already stable, such as a
+set of integers returned by a tool, can therefore re-run from that step once, on
+the first retry after upgrading. A list that a serializer produces is hashed as the
+serializer produced it, so a set that a serializer turns into a list may not match
+on retry.
+
+On the model path a request that cannot be fingerprinted is rarely confined to a
+single step. The value at fault is usually in ``model_settings``, which is attached
+to every request, in the tool definitions the request carries, or in the message
+history, which every later request carries forward, so it usually degrades every
+model step from that point on, and the retry re-runs the agent from there at full
+cost. For the settings and the tool definitions that point is normally the first
+request, though settings given as a function of the run context, or a tool's
+``prepare`` function, can bring such a value in later and drop it again; for the
+history it is the step where the value entered, for example in a tool return. Each
+``could not fingerprint model request`` warning names its step, so the first one
+shows where this began.
+
+A tool call is fingerprinted from its name, arguments and call id alone, so none
+of those causes reaches it. One that cannot be fingerprinted is reported
 as ``could not fingerprint tool call``. It costs that call, and -- if the live
 re-run returns something different from the first attempt -- the model steps
 after it, because the result becomes part of the message history they
