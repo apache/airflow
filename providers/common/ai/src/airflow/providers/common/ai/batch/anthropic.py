@@ -94,6 +94,11 @@ class AnthropicBatchAdapter(BatchAdapter):
     """
     Batch adapter for Anthropic's Message Batches API.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     :param api_key: Passed straight to the ``anthropic.Anthropic`` client.
         ``None`` falls back to the SDK's own env-var resolution
         (``ANTHROPIC_API_KEY``).

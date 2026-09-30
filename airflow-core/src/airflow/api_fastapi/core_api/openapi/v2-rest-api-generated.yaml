@@ -1989,6 +1989,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -5352,14 +5358,6 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: is_alive
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Is Alive
       - name: start_date_gte
         in: query
         required: false
@@ -5506,6 +5504,22 @@ paths:
           - type: string
           - type: 'null'
           title: Executor Class
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
+      - name: is_alive
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Alive
       responses:
         '200':
           description: Successful Response
@@ -10189,6 +10203,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '409':
           content:
             application/json:
@@ -10337,6 +10357,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -11084,6 +11110,14 @@ paths:
           items:
             type: string
           title: State
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: response_received
         in: query
         required: false
@@ -13011,6 +13045,13 @@ components:
         prevent_running_task:
           type: boolean
           title: Prevent Running Task
+          default: false
+        keep_task_state:
+          type: boolean
+          title: Keep Task State
+          description: Keep the task state store entries of the cleared task instances
+            so the next attempt resumes from them. By default they are discarded,
+            so the task starts over.
           default: false
         note:
           anyOf:
@@ -16495,6 +16536,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - task_id
@@ -16678,6 +16728,15 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id

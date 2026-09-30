@@ -20,6 +20,11 @@
 Detect schema drift: ``LLMSchemaCompareOperator``
 =================================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Use :class:`~airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator`
 to compare schemas across different database systems and detect drift using LLM reasoning.
 

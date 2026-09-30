@@ -669,16 +669,6 @@ export const useConfigServiceGetConfigValueSuspense = <TData = Common.ConfigServ
 */
 export const useConfigServiceGetConfigsSuspense = <TData = Common.ConfigServiceGetConfigsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey), queryFn: () => ConfigService.getConfigs() as TData, ...options });
 /**
-* Get Backends Order Value
-* @param data The data for the request.
-* @param data.accept
-* @returns Config Successful Response
-* @throws ApiError
-*/
-export const useConfigServiceGetBackendsOrderValueSuspense = <TData = Common.ConfigServiceGetBackendsOrderValueDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept }: {
-  accept?: "application/json" | "text/plain" | "*/*";
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetBackendsOrderValueKeyFn({ accept }, queryKey), queryFn: () => ConfigService.getBackendsOrderValue({ accept }) as TData, ...options });
-/**
 * List Dag Warnings
 * Get a list of Dag warnings.
 * @param data The data for the request.
@@ -1481,6 +1471,7 @@ export const useTaskInstanceServiceGetHitlDetailTryDetailSuspense = <TData = Com
 * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.mapIndex
 * @param data.state
+* @param data.teams
 * @param data.responseReceived
 * @param data.respondedByUserId
 * @param data.respondedByUserName
@@ -1493,7 +1484,7 @@ export const useTaskInstanceServiceGetHitlDetailTryDetailSuspense = <TData = Com
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetHitlDetailsSuspense = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }: {
+export const useTaskInstanceServiceGetHitlDetailsSuspense = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }: {
   bodySearch?: string;
   createdAtGt?: string;
   createdAtGte?: string;
@@ -1515,7 +1506,8 @@ export const useTaskInstanceServiceGetHitlDetailsSuspense = <TData = Common.Task
   taskId?: string;
   taskIdPattern?: string;
   taskIdPrefixPattern?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }) as TData, ...options });
+  teams?: string[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }) as TData, ...options });
 /**
 * Get Import Error
 * Get an import error.
@@ -1554,7 +1546,6 @@ export const useImportErrorServiceGetImportErrorsSuspense = <TData = Common.Impo
 * Get Jobs
 * Get all jobs.
 * @param data The data for the request.
-* @param data.isAlive
 * @param data.startDateGte
 * @param data.startDateGt
 * @param data.startDateLte
@@ -1571,10 +1562,12 @@ export const useImportErrorServiceGetImportErrorsSuspense = <TData = Common.Impo
 * @param data.jobType
 * @param data.hostname
 * @param data.executorClass
+* @param data.teams
+* @param data.isAlive
 * @returns JobCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useJobServiceGetJobsSuspense = <TData = Common.JobServiceGetJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }: {
+export const useJobServiceGetJobsSuspense = <TData = Common.JobServiceGetJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }: {
   dagId?: string;
   endDateGt?: string;
   endDateGte?: string;
@@ -1592,7 +1585,8 @@ export const useJobServiceGetJobsSuspense = <TData = Common.JobServiceGetJobsDef
   startDateGte?: string;
   startDateLt?: string;
   startDateLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseJobServiceGetJobsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }, queryKey), queryFn: () => JobService.getJobs({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }) as TData, ...options });
+  teams?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseJobServiceGetJobsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }, queryKey), queryFn: () => JobService.getJobs({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }) as TData, ...options });
 /**
 * Get Plugins
 * @param data The data for the request.

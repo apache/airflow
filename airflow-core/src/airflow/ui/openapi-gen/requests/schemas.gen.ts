@@ -2446,6 +2446,12 @@ export const $ClearTaskInstancesBody = {
             title: 'Prevent Running Task',
             default: false
         },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.',
+            default: false
+        },
         note: {
             anyOf: [
                 {
@@ -7712,6 +7718,18 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
+        },
+        state_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State Reason',
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
         }
     },
     type: 'object',
@@ -8012,6 +8030,18 @@ export const $TaskInstanceResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        state_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State Reason',
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
         }
     },
     type: 'object',
@@ -9824,6 +9854,11 @@ export const $CalendarTimeRangeResponse = {
         count: {
             type: 'integer',
             title: 'Count'
+        },
+        is_backfill: {
+            type: 'boolean',
+            title: 'Is Backfill',
+            default: false
         }
     },
     type: 'object',

@@ -27,10 +27,11 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import quote
 
 import attrs
@@ -43,10 +44,8 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
-from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
-from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -85,6 +84,7 @@ from airflow.sdk.exceptions import (
     TaskAwaitingInput,
     TaskDeferred,
 )
+from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
@@ -124,6 +124,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     ToTask,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
@@ -147,6 +148,7 @@ from airflow.sdk.execution_time.email_backend import (
     _LegacyEmailBackendNotifier,
 )
 from airflow.sdk.execution_time.sentry import Sentry
+from airflow.sdk.execution_time.tracing import detail_span
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
@@ -168,38 +170,6 @@ if TYPE_CHECKING:
 log = structlog.get_logger("task")
 
 tracer = trace.get_tracer(__name__)
-
-
-class detail_span:
-    """Context manager and decorator that creates a child span when detail level > 1."""
-
-    def __init__(self, *args, **kwargs):
-        self._args = args
-        self._kwargs = kwargs
-        self._ctx = None
-
-    def _make_ctx(self):
-        parent_span = trace.get_current_span()
-        config_level = get_task_span_detail_level(span=parent_span)
-        if config_level > 1:
-            return tracer.start_as_current_span(*self._args, **self._kwargs)
-        return trace.INVALID_SPAN
-
-    def __enter__(self):
-        self._ctx = self._make_ctx()
-        return self._ctx.__enter__()
-
-    def __exit__(self, *exc_info):
-        return self._ctx.__exit__(*exc_info)
-
-    def __call__(self, f):
-        @functools.wraps(f)
-        def wrapper(*inner_args, **inner_kwargs):
-            with self._make_ctx():
-                return f(*inner_args, **inner_kwargs)
-
-        wrapper.__signature__ = inspect.signature(f)
-        return wrapper
 
 
 @contextmanager
@@ -732,6 +702,17 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.dag_run
 
+    def update_dagrun_note(self, note: str | None) -> None:
+        """
+        Update the note for this task instance's DagRun.
+
+        A string sets or replaces the note and an empty string removes it. ``None`` is a
+        no-op, so an existing user-authored note is left untouched.
+        """
+        if note is None:
+            return
+        SUPERVISOR_COMMS.send(msg=UpdateDagRunNote(ti_id=self.id, note=note))
+
     def get_previous_ti(
         self,
         state: TaskInstanceState | None = None,
@@ -1033,13 +1014,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 
     bundle_info = what.bundle_info
     bundle_prepare_start = time.monotonic()
-    bundle_instance = DagBundlesManager().get_bundle(
-        name=bundle_info.name,
-        version=bundle_info.version,
-        version_data=bundle_info.version_data,
-    )
-    bundle_instance.initialize()
-    _verify_bundle_access(bundle_instance, log)
+    bundle_instance = initialize_ti_bundle(bundle_info)
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
@@ -1133,43 +1108,6 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 1. Start up (receive details from supervisor)
 # 2. Execution (run task code, possibly send requests)
 # 3. Shutdown and report status
-
-
-@detail_span("_verify_bundle_access")
-def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
-    """
-    Verify bundle is accessible by the current user.
-
-    This is called after user impersonation (if any) to ensure the bundle
-    is actually accessible. Uses os.access() which works with any permission
-    scheme (standard Unix permissions, ACLs, SELinux, etc.).
-
-    :param bundle_instance: The bundle instance to check
-    :param log: Logger instance
-    :raises AirflowException: if bundle is not accessible
-    """
-    from getpass import getuser
-
-    from airflow.sdk.exceptions import AirflowException
-
-    bundle_path = bundle_instance.path
-
-    if not bundle_path.exists():
-        # Already handled by initialize() with a warning
-        return
-
-    # Check read permission (and execute for directories to list contents)
-    access_mode = os.R_OK
-    if bundle_path.is_dir():
-        access_mode |= os.X_OK
-
-    if not os.access(bundle_path, access_mode):
-        raise AirflowException(
-            f"Bundle '{bundle_instance.name}' path '{bundle_path}' is not accessible "
-            f"by user '{getuser()}'. When using run_as_user, ensure bundle directories "
-            f"are readable by the impersonated user. "
-            f"See: https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/dag-bundles.html"
-        )
 
 
 def get_startup_details() -> StartupDetails:
@@ -1279,8 +1217,6 @@ def _serialize_template_field(
 
     Uses the SDK secrets masker to redact secrets in the serialized output.
     """
-    import inspect
-
     from airflow.sdk._shared.module_loading import qualname
     from airflow.sdk._shared.secrets_masker import redact
 
@@ -1816,6 +1752,8 @@ def _evaluate_retry_policy(
     Returns ``None`` when no policy is configured so the caller falls through
     to the standard retry logic.
     """
+    from airflow.sdk._shared.secrets_masker import redact
+
     policy = getattr(ti.task, "retry_policy", None)
     if policy is None:
         return None
@@ -1828,6 +1766,9 @@ def _evaluate_retry_policy(
             context=context,
         )
         if decision.reason:
+            # Mask here, where mask_secret() registered the value: the API server rendering this
+            # later has its own masker and does not know the worker's secrets.
+            decision = replace(decision, reason=cast("str", redact(decision.reason)))
             # Close the group so the retry policy decision is not hidden inside "Post Execute".
             log.info("::endgroup::")
             log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)

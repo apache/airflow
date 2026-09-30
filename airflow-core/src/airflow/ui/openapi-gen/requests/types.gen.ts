@@ -770,6 +770,10 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -2050,6 +2054,10 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -2093,6 +2101,10 @@ export type TaskInstanceResponse = {
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -2505,6 +2517,7 @@ export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
+    is_backfill?: boolean;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
@@ -3712,12 +3725,6 @@ export type GetConfigValueResponse = Config;
 
 export type GetConfigsResponse = ConfigResponse;
 
-export type GetBackendsOrderValueData = {
-    accept?: 'application/json' | 'text/plain' | '*/*';
-};
-
-export type GetBackendsOrderValueResponse = Config;
-
 export type ListDagWarningsData = {
     dagId?: string | null;
     limit?: number;
@@ -4498,6 +4505,7 @@ export type GetHitlDetailsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
@@ -4556,6 +4564,7 @@ export type GetJobsData = {
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetJobsResponse = JobCollectionResponse;
@@ -5518,6 +5527,10 @@ export type $OpenApiTs = {
                  */
                 200: NextRunAssetsResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6003,6 +6016,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: ConnectionTestResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6625,29 +6642,6 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
-            };
-        };
-    };
-    '/ui/backends_order': {
-        get: {
-            req: GetBackendsOrderValueData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: Config;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Not Acceptable
-                 */
-                406: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
             };
         };
     };
@@ -7687,6 +7681,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstancesLogResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -8755,6 +8753,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
@@ -8986,6 +8988,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: PartitionedDagRunDetailResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -9232,6 +9238,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TeamCollectionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

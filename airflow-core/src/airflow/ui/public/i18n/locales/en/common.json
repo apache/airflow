@@ -271,6 +271,10 @@
   "selected": "Selected",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Keep task state store entries by default when clearing task instances, instead of discarding them.",
+        "label": "Keep task state on clear"
+      },
       "preventRunningTask": {
         "helper": "Skip tasks that are currently running when clearing task instances.",
         "label": "Prevent clearing running tasks"
@@ -454,6 +458,11 @@
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
+    "stateReason": "Reason for state",
+    "stateReasonSummary": {
+      "failed": "Stopped on try {{tryNumber}} of {{totalTries}}",
+      "upForRetry": "Retrying after try {{tryNumber}} of {{totalTries}}"
+    },
     "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",
