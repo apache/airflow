@@ -1018,6 +1018,11 @@ class AssetPartitionDagRun(Base):
             "pending_partition_key",
             name="apdr_target_dag_id_pending_partition_key_uq",
         ),
+        # AssetManager._get_or_create_apdr: WHERE partition_key=? AND target_dag_id=? ORDER BY id DESC LIMIT 1
+        Index("idx_apdr_target_dag_id_partition_key_id", target_dag_id, partition_key, id),
+        # SchedulerJobRunner._create_dagruns_for_partitioned_asset_dags:
+        # WHERE created_dag_run_id IS NULL ORDER BY created_at, id
+        Index("idx_apdr_created_dag_run_id_created_at_id", created_dag_run_id, created_at, id),
     )
 
     @validates("created_dag_run_id")
