@@ -1106,7 +1106,7 @@ class TestGCSTimeSpanFileTransformOperator:
             (3, [GoogleCloudError("fail"), None], True, [2]),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.operators.gcs.time.sleep")
+    @mock.patch("tenacity.nap.time.sleep")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -1168,7 +1168,7 @@ class TestGCSTimeSpanFileTransformOperator:
             (2, [GoogleCloudError("fail"), None], True, [2]),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.operators.gcs.time.sleep")
+    @mock.patch("tenacity.nap.time.sleep")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
