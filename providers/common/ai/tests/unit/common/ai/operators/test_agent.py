@@ -43,6 +43,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.wrapper import WrapperModel
+from pydantic_ai.tools import Tool
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
@@ -2884,7 +2885,9 @@ class _DurableBudgetScenario:
             self.live_tool_calls += 1
             return "B"
 
-        return FunctionToolset(tools=[tool_a, tool_b])
+        # Cache tool_a before tool_b fails; sibling cancellation in a parallel batch
+        # can otherwise prevent the successful result from being persisted.
+        return FunctionToolset(tools=[Tool(tool_a, sequential=True), tool_b])
 
     def run_attempt(
         self, *, max_tries=0, prompt="run", limits=None, fail_after_run=False, interrupt_at_step=None
