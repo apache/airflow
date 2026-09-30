@@ -110,11 +110,13 @@ export const CalendarCell = ({
       display="flex"
       filter="drop-shadow(0 0 1px rgba(0, 0, 0, 0.7))"
       fontSize="9px"
+      height="100%"
       justifyContent="center"
+      left="0"
       lineHeight={1}
       position="absolute"
-      right="0"
       top="0"
+      width="100%"
     >
       <RunTypeIcon runType="backfill" />
     </Box>
