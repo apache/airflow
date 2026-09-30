@@ -36,6 +36,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.lang_sdk_processor import (
     LangSDKDagFileProcessorProcess,
     LangSDKRuntimeSchemaVersion,
+    _get_import_timeout,
 )
 from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult
 from airflow.sdk import DAG, BaseOperator
@@ -336,6 +337,27 @@ class TestLangSDKDagFileProcessorProcess:
         assert proc._exit_code == -signal.SIGKILL
         assert "The Lang-SDK runtime did not exit after its parse result; killing it" in cap_structlog
 
+    @pytest.mark.parametrize(
+        ("policy", "error"),
+        [
+            pytest.param(
+                {"side_effect": RuntimeError("policy bug")}, "RuntimeError: policy bug", id="raises"
+            ),
+            pytest.param(
+                {"return_value": "30"},
+                "TypeError: Value (30) from get_dagbag_import_timeout must be int or float",
+                id="not-a-number",
+            ),
+        ],
+    )
+    def test_a_failing_import_timeout_policy_is_an_import_error(self, parse, policy, error):
+        with patch("airflow.settings.get_dagbag_import_timeout", autospec=True, **policy):
+            proc = parse()
+
+        assert proc.parsing_result.import_errors == {
+            "dag.native": f"Cannot start the Lang-SDK runtime: {error}"
+        }
+
     @pytest.mark.skipif(not Path("/proc/self/fd").is_dir(), reason="reads /proc")
     @pytest.mark.parametrize("use_exec", [False, True], ids=["fork", "spawn"])
     def test_the_runtime_inherits_only_its_standard_streams(self, monkeypatch, tmp_path, use_exec):
@@ -361,13 +383,12 @@ class TestLangSDKDagFileProcessorProcess:
 
 class TestRun:
     @staticmethod
-    def _run(tmp_path, *, timeout: float | None = 30) -> DagFileParsingResult:
+    def _run(tmp_path, **spec) -> DagFileParsingResult:
         return LangSDKDagFileProcessorProcess.run(
-            path=write_native_file(tmp_path / "dag.native"),
+            path=write_native_file(tmp_path / "dag.native", **spec),
             bundle_path=tmp_path,
             bundle_name="testing",
             dag_file_rel_path="dag.native",
-            timeout=timeout,
             logger=structlog.get_logger(),
         )
 
@@ -402,9 +423,9 @@ class TestRun:
         mock_mask_secret.assert_called_once_with("native-secret", "native_conn")
 
     @pytest.mark.parametrize("connected", [False, True], ids=["before-connecting", "after-connecting"])
-    def test_a_parse_past_its_timeout_is_killed(self, tmp_path, connected):
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    def test_a_parse_past_the_import_timeout_is_killed(self, mock_timeout, tmp_path, connected):
         # A runtime that never connects leaves both listeners open when it is killed.
-        write_native_file(tmp_path / "dag.native", argv=["/bin/sh", "-c", "exec sleep 60"])
         fds_before = _get_open_fds()
 
         with (
@@ -422,21 +443,60 @@ class TestRun:
                 autospec=True,
                 side_effect=LangSDKDagFileProcessorProcess.close,
             ) as mock_close,
-            pytest.raises(TimeoutError, match=r"did not parse .*dag\.native within 1s"),
         ):
-            LangSDKDagFileProcessorProcess.run(
-                path=tmp_path / "dag.native",
-                bundle_path=tmp_path,
-                bundle_name="testing",
-                dag_file_rel_path="dag.native",
-                timeout=1,
-                logger=structlog.get_logger(),
-            )
+            result = self._run(tmp_path, argv=["/bin/sh", "-c", "exec sleep 60"])
 
+        assert result.import_errors == {
+            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s"
+        }
         [proc] = [c.args[0] for c in mock_close.call_args_list]
         assert proc._exit_code == -9
         assert not proc._open_sockets
         assert _get_open_fds() <= fds_before
+
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    def test_the_import_timeout_holds_after_the_runtime_exits(self, mock_timeout, tmp_path):
+        with patch.object(
+            LangSDKDagFileProcessorProcess,
+            "close",
+            autospec=True,
+            side_effect=LangSDKDagFileProcessorProcess.close,
+        ) as mock_close:
+            # The runtime exits, and the process it leaves behind keeps its output open.
+            result = self._run(tmp_path, argv=["/bin/sh", "-c", "sleep 30 & exit 0"])
+        [proc] = [c.args[0] for c in mock_close.call_args_list]
+        os.killpg(proc.pid, signal.SIGKILL)
+
+        assert result.import_errors == {
+            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s"
+        }
+        assert proc._exit_code == 0
+        assert not proc._open_sockets
+
+    @conf_vars({("dag_processor", "dag_file_processor_timeout"): "1"})
+    @patch.object(
+        FakeCoordinator,
+        "_build_parse_dag_command",
+        autospec=True,
+        side_effect=lambda self, *, path: time.sleep(60),
+    )
+    def test_the_dag_file_processor_timeout_applies_until_the_import_timeout_is_reported(
+        self, mock_build_parse_dag_command, tmp_path
+    ):
+        result = self._run(tmp_path)
+
+        assert result.import_errors == {
+            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s"
+        }
+
+
+@pytest.mark.parametrize(("configured", "expected"), [(30, 30), (0.5, 0.5), (0, None), (-1, None)])
+@patch("airflow.settings.get_dagbag_import_timeout", autospec=True)
+def test_only_a_positive_import_timeout_applies(mock_timeout, configured, expected):
+    mock_timeout.return_value = configured
+
+    assert _get_import_timeout("/b/dag.native") == expected
+    mock_timeout.assert_called_once_with("/b/dag.native")
 
 
 def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
