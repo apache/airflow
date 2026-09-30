@@ -27,6 +27,7 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
@@ -263,6 +264,9 @@ def get_mapped_xcom_by_slice(
 @router.head(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     responses={
+        **create_openapi_http_exception_doc(
+            [(status.HTTP_400_BAD_REQUEST, "map_index cannot be specified in a HEAD request")]
+        ),
         status.HTTP_200_OK: {
             "description": "Metadata about the number of matching XCom values",
             "headers": {
@@ -361,6 +365,14 @@ def get_xcom(
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            (
+                status.HTTP_400_BAD_REQUEST,
+                "The key is empty, the value is too large to map, or is unserializable",
+            )
+        ]
+    ),
 )
 def set_xcom(
     dag_id: str,
