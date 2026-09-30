@@ -86,6 +86,9 @@ from airflow.api_fastapi.common.parameters.filter import (
     FilterParam as FilterParam,
     filter_param_factory as filter_param_factory,
 )
+from airflow.api_fastapi.common.parameters.job import (
+    QueryJobTeamsFilter as QueryJobTeamsFilter,
+)
 from airflow.api_fastapi.common.parameters.misc import (
     QueryConnectionIdPatternSearch as QueryConnectionIdPatternSearch,
     QueryConnectionIdPrefixPatternSearch as QueryConnectionIdPrefixPatternSearch,
@@ -102,6 +105,7 @@ from airflow.api_fastapi.common.parameters.misc import (
     QueryHITLDetailTaskIdPrefixPatternSearch as QueryHITLDetailTaskIdPrefixPatternSearch,
     QueryIncludeDownstream as QueryIncludeDownstream,
     QueryIncludeUpstream as QueryIncludeUpstream,
+    QueryJobIsAliveFilter as QueryJobIsAliveFilter,
     QueryParseImportErrorBundleNameFilter as QueryParseImportErrorBundleNameFilter,
     QueryParseImportErrorFilenameFilter as QueryParseImportErrorFilenameFilter,
     QueryParseImportErrorFilenamePatternSearch as QueryParseImportErrorFilenamePatternSearch,

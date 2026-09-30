@@ -3506,6 +3506,7 @@ export class TaskInstanceService {
      * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.mapIndex
      * @param data.state
+     * @param data.teams
      * @param data.responseReceived
      * @param data.respondedByUserId
      * @param data.respondedByUserName
@@ -3537,6 +3538,7 @@ export class TaskInstanceService {
                 task_id_prefix_pattern: data.taskIdPrefixPattern,
                 map_index: data.mapIndex,
                 state: data.state,
+                teams: data.teams,
                 response_received: data.responseReceived,
                 responded_by_user_id: data.respondedByUserId,
                 responded_by_user_name: data.respondedByUserName,
@@ -3624,7 +3626,6 @@ export class JobService {
      * Get Jobs
      * Get all jobs.
      * @param data The data for the request.
-     * @param data.isAlive
      * @param data.startDateGte
      * @param data.startDateGt
      * @param data.startDateLte
@@ -3641,6 +3642,8 @@ export class JobService {
      * @param data.jobType
      * @param data.hostname
      * @param data.executorClass
+     * @param data.teams
+     * @param data.isAlive
      * @returns JobCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3649,7 +3652,6 @@ export class JobService {
             method: 'GET',
             url: '/api/v2/jobs',
             query: {
-                is_alive: data.isAlive,
                 start_date_gte: data.startDateGte,
                 start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
@@ -3665,7 +3667,9 @@ export class JobService {
                 dag_id: data.dagId,
                 job_type: data.jobType,
                 hostname: data.hostname,
-                executor_class: data.executorClass
+                executor_class: data.executorClass,
+                teams: data.teams,
+                is_alive: data.isAlive
             },
             errors: {
                 400: 'Bad Request',

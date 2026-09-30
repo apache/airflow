@@ -554,6 +554,7 @@ toolsets:
       - airflow.providers.common.ai.toolsets.datafusion
       - airflow.providers.common.ai.toolsets.logging
       - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.object_storage
       - airflow.providers.common.ai.toolsets.sandbox
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge

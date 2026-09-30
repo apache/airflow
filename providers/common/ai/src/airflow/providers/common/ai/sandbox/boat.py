@@ -140,6 +140,11 @@ class BoatSandboxBackend(SandboxBackend):
     """
     Sandbox backend that runs agent commands in a `Boat <https://docs.boat.dev/quickstart>`__ sandbox.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Boat (formerly Ascii Box) is a hosted cloud-computer API: the Airflow worker
     needs only network access and an API key, with no local daemon or host
     virtualization. Credentials resolve lazily from an Airflow connection on
@@ -268,6 +273,16 @@ class BoatSandboxBackend(SandboxBackend):
             )
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
+        if spec is not None and spec.owner is not None:
+            # An owner exists so that a later task can attach to the sandbox, and the
+            # ownership rules live in per-sandbox metadata this backend does not read
+            # back, so recording one would promise an attach that cannot be checked.
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, but this backend keeps no per-sandbox metadata the "
+                "ownership rules could be read back from, so a sandbox created here cannot be attached "
+                "to from another task. Drop owner, or provision the sandbox on a backend that supports "
+                "attaching, such as ModalSandboxBackend."
+            )
         if spec is not None and spec.allow_egress_to:
             raise SandboxTerminalError(
                 "The Boat backend cannot apply a per-domain egress allowlist. "

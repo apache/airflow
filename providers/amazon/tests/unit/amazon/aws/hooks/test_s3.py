@@ -1491,6 +1491,25 @@ class TestAwsS3Hook:
             assert mock_hook.delete_bucket(bucket_name="not-exists-bucket-name", force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
 
+    @mock_aws
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.time.sleep")
+    def test_delete_bucket_force_delete_retries_after_late_write(self, mock_sleep, s3_bucket):
+        hook = S3Hook()
+        hook.load_string("data", key="key", bucket_name=s3_bucket)
+        late_writes = []
+
+        def put_late_object(**kwargs):
+            if not late_writes:
+                late_writes.append("late_key")
+                hook.conn.put_object(Bucket=s3_bucket, Key="late_key", Body=b"late")
+
+        hook.conn.meta.events.register("before-call.s3.DeleteBucket", put_late_object)
+        hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+
+        assert late_writes == ["late_key"]
+        assert not hook.check_for_bucket(s3_bucket)
+        mock_sleep.assert_called_once_with(500)
+
     def test_provide_bucket_name(self):
         with mock.patch.object(
             S3Hook,
