@@ -1452,11 +1452,12 @@ class TestUpdateDagParsingResults:
     def test_exceeds_max_non_backfill_reflects_real_active_runs_for_non_schedulable_dag(
         self, testing_dag_bundle, session, dag_maker
     ):
-        """A schedule=None Dag's exceeds_max_non_backfill must reflect real active-run counts.
+        """A schedule=None Dag's exceeds_max_non_backfill reflects its real active-run count.
 
-        ``can_be_scheduled`` is False for schedule=None Dags, but that must not make the
-        parser hardcode num_active_runs to 0 -- the flag is read regardless of whether the
-        Dag can be automatically scheduled.
+        ``can_be_scheduled`` is False for schedule=None Dags; the active-run count comes from the
+        batched query in ``update_dags`` for every Dag either way. Nothing reads the flag for
+        such a Dag (it never gets ``next_dagrun_create_after`` set), so this only keeps the cached
+        column accurate rather than changing scheduling.
         """
         with dag_maker("dag_schedule_none_exceeds_max", schedule=None, max_active_runs=1) as dag:
             ...

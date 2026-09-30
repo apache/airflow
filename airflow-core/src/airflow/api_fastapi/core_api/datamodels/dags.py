@@ -224,14 +224,8 @@ class DAGDetailsResponse(DAGResponse):
     active_runs_count: int = 0
     is_at_max_active_runs: bool = Field(
         description=(
-            "Whether this Dag currently has as many active runs as its max_active_runs allows. "
-            "Counted differently from active_runs_count above: this counts RUNNING and QUEUED "
-            "runs (excluding backfill runs), matching the scheduler's own promotion check, while "
-            "active_runs_count counts RUNNING runs only and includes backfill runs. A Dag with "
-            "one running backfill run and no others can show active_runs_count: 1 alongside "
-            "is_at_max_active_runs: false, and a Dag with one queued (non-backfill) run and "
-            "otherwise no active runs can show active_runs_count: 0 alongside "
-            "is_at_max_active_runs: true."
+            "Whether this Dag is currently at its max_active_runs limit, counting running and "
+            "queued runs (backfill runs excluded)."
         )
     )
     team_name: str | None = None
