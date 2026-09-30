@@ -222,7 +222,7 @@ def test_core_asset_time_schedules_reject_nested_asset_aware_timetable(outer_typ
     asset = SerializedAsset("test_asset", "test://asset/", "asset", {}, [])
     timetable = outer_type(timetable=inner_type(), assets=asset)
 
-    with pytest.raises(AirflowTimetableInvalid, match="cannot nest asset-aware timetables"):
+    with pytest.raises(AirflowTimetableInvalid, match="Cannot nest asset-aware timetables"):
         timetable.validate()
 
 
