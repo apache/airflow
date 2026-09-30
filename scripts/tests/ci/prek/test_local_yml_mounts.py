@@ -14,16 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Tests for the exit code of local_yml_mounts.py.
-
-The script refuses to be imported as a module, so these tests run the real script as a
-subprocess against a stubbed ``breeze`` and a stubbed ``common_prek_utils``.
-"""
+"""Tests for the exit code of local_yml_mounts.py."""
 
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 import textwrap
@@ -48,43 +43,27 @@ BREEZE_STUB = textwrap.dedent(
     """
 )
 
-COMMON_PREK_UTILS_STUB = textwrap.dedent(
-    """\
-    class _Console:
-        def print(self, *args, **kwargs):
-            pass
-
-
-    console = _Console()
-
-
-    def initialize_breeze_prek(name, file):
-        pass
-    """
-)
-
 
 def run_script(tmp_path: Path, breeze_returncode: int) -> subprocess.CompletedProcess:
-    script_dir = tmp_path / "prek"
-    script_dir.mkdir()
-    script_path = script_dir / SCRIPT_PATH.name
-    shutil.copy(SCRIPT_PATH, script_path)
-    (script_dir / "common_prek_utils.py").write_text(COMMON_PREK_UTILS_STUB)
-
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     breeze_stub = bin_dir / "breeze"
     breeze_stub.write_text(BREEZE_STUB)
     breeze_stub.chmod(0o755)
 
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "BREEZE_STUB_CALL_LOG": os.fspath(tmp_path / CALL_LOG_NAME),
+        "BREEZE_STUB_RETURNCODE": str(breeze_returncode),
+    }
+    # initialize_breeze_prek honours this by exiting 0 before it ever reaches breeze.
+    env.pop("SKIP_BREEZE_PREK_HOOKS", None)
+
+    # The script exits when imported as a module, so it has to run as a subprocess.
     return subprocess.run(
-        [sys.executable, os.fspath(script_path)],
-        env={
-            **os.environ,
-            "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
-            "BREEZE_STUB_CALL_LOG": os.fspath(tmp_path / CALL_LOG_NAME),
-            "BREEZE_STUB_RETURNCODE": str(breeze_returncode),
-        },
+        [sys.executable, os.fspath(SCRIPT_PATH)],
+        env=env,
         capture_output=True,
         text=True,
         check=False,
@@ -95,6 +74,6 @@ def run_script(tmp_path: Path, breeze_returncode: int) -> subprocess.CompletedPr
 def test_hook_exits_with_the_breeze_return_code(tmp_path, breeze_returncode):
     result = run_script(tmp_path, breeze_returncode)
 
-    # Without this the script crashing on its own would exit 1 and satisfy the assertion below.
-    assert (tmp_path / CALL_LOG_NAME).exists(), f"breeze was never invoked: {result.stderr}"
+    # Without this, an exit from initialize_breeze_prek's own preflight would satisfy the next line.
+    assert (tmp_path / CALL_LOG_NAME).exists(), f"breeze was never invoked: {result.stdout}{result.stderr}"
     assert result.returncode == breeze_returncode
