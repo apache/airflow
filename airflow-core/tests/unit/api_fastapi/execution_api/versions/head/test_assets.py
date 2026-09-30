@@ -30,7 +30,6 @@ DEFAULT_DATE = timezone.parse("2021-01-01T00:00:00")
 pytestmark = pytest.mark.db_test
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetAssetByName:
     def test_get_asset_by_name(self, client, session):
         asset = AssetModel(
@@ -74,7 +73,6 @@ class TestGetAssetByName:
         }
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetAssetByUri:
     def test_get_asset_by_uri(self, client, session):
         asset = AssetModel(
@@ -115,7 +113,6 @@ class TestGetAssetByUri:
         }
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetAssetAsyncQueries:
     @pytest.mark.parametrize(
         ("path", "params"),

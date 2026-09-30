@@ -3758,7 +3758,6 @@ class TestTIPutRTIF:
         }
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestPreviousDagRun:
     def setup_method(self):
         clear_db_runs()
@@ -3857,7 +3856,6 @@ class TestPreviousDagRun:
         }
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetRescheduleStartDate:
     @mock.patch.object(AsyncSession, "scalar", autospec=True)
     def test_awaits_async_scalar(self, mock_scalar, client):
@@ -4205,7 +4203,6 @@ class TestGetCount:
         assert response.json() == expected_count
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetPreviousTI:
     def setup_method(self):
         clear_db_runs()
@@ -4806,7 +4803,6 @@ class TestGetTaskStates:
         assert response.json() == {"task_states": {dr.run_id: expected}}
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetTaskInstanceBreadcrumbs:
     def setup_method(self):
         clear_db_runs()

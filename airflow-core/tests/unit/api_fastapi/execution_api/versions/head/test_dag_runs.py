@@ -495,7 +495,6 @@ class TestDagRunDetail:
         assert response.status_code == 404
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestDagRunState:
     def setup_method(self):
         clear_db_runs()
@@ -530,7 +529,6 @@ class TestDagRunState:
         mock_scalars.assert_awaited_once()
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetDagRunCount:
     def setup_method(self):
         clear_db_runs()
