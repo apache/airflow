@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.parameters.asset import (
     QueryAssetNamePrefixPatternSearch as QueryAssetNamePrefixPatternSearch,
     QueryConsumingAssetPatternSearch as QueryConsumingAssetPatternSearch,
     QueryHasAssetScheduleFilter as QueryHasAssetScheduleFilter,
+    QueryHasEventsFilter as QueryHasEventsFilter,
     QueryPartitionedDagRunDagIdFilter as QueryPartitionedDagRunDagIdFilter,
     QueryPartitionedDagRunHasCreatedDagRunIdFilter as QueryPartitionedDagRunHasCreatedDagRunIdFilter,
     QueryUriExactMatch as QueryUriExactMatch,
