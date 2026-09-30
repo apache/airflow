@@ -25,11 +25,14 @@ import math
 import os
 import subprocess
 import sys
+import textwrap
 from collections.abc import Iterable
 from decimal import Decimal
+from typing import Any
 
 import httpx
 import pydantic
+import pydantic.alias_generators
 import pytest
 from pydantic import TypeAdapter
 from pydantic_ai import Agent
@@ -593,3 +596,167 @@ class TestUnwalkablePayloadsDegradeRatherThanRaise:
         )
 
         assert fp is None
+
+
+def _lazy_ints():
+    return pydantic.TypeAdapter(Iterable[int]).validate_python([1, 2, 3])
+
+
+class _QueryWithIterableField(pydantic.BaseModel):
+    ids: Iterable[int]
+
+
+class _QueryWithIterableExtra(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(extra="allow")
+    __pydantic_extra__: dict[str, Iterable[int]]
+
+
+@dataclasses.dataclass
+class _GroupWithIterable:
+    ids: Iterable[int]
+
+
+class TestNestedIterators:
+    """An iterator nested anywhere in the arguments is refused, and left unread for the tool."""
+
+    @pytest.mark.parametrize(
+        "shape", ["list", "tuple", "dict", "model-field", "dataclass-field", "model-extra"]
+    )
+    def test_nested_iterator_is_refused_and_left_unread(self, shape):
+        if shape == "model-field":
+            holder = _QueryWithIterableField(ids=[1, 2, 3])
+            args, values = {"query": holder}, holder.ids
+        elif shape == "model-extra":
+            holder = _QueryWithIterableExtra(ids=[1, 2, 3])
+            args, values = {"query": holder}, holder.model_extra["ids"]
+        else:
+            values = _lazy_ints()
+            args = {
+                "list": {"groups": [values]},
+                "tuple": {"groups": (values,)},
+                "dict": {"groups": {"a": values}},
+                "dataclass-field": {"group": _GroupWithIterable(ids=values)},
+            }[shape]
+
+        assert fingerprint_tool_call("total", args, "id1") is None
+        assert list(values) == [1, 2, 3]
+
+    def test_generator_in_a_tool_return_is_refused_and_left_unread(self):
+        """The model still receives every value, where rendering it first would hand it []."""
+        returned = (n for n in (1, 2, 3))
+
+        fp = fingerprint_model_request("m", _with_tool_return(returned), None, ModelRequestParameters())
+
+        assert fp is None
+        assert list(returned) == [1, 2, 3]
+
+
+class _HeadersWithoutAuth(pydantic.BaseModel):
+    headers: dict[str, str]
+
+    @pydantic.field_serializer("headers")
+    def _drop_authorization(self, headers: dict[str, str]) -> dict[str, str]:
+        return {key: value for key, value in headers.items() if key != "authorization"}
+
+
+class _QueryWithSortedFilters(pydantic.BaseModel):
+    filters: dict[str, Any]
+
+    @pydantic.field_serializer("filters")
+    def _sort(self, filters: dict[str, Any]) -> dict[str, Any]:
+        return dict(sorted(filters.items()))
+
+
+class TestSerializersThatChangeKeys:
+    """A serializer that drops or reorders keys is left as pydantic rendered it."""
+
+    def test_dropped_key_is_not_mistaken_for_a_collision(self):
+        messages = _with_tool_return(
+            _HeadersWithoutAuth(headers={"authorization": "secret", "accept": "json"})
+        )
+
+        fp = fingerprint_model_request("m", messages, None, ModelRequestParameters())
+
+        assert fp is not None
+        assert fp == _json_mode_reference("m", messages, ModelRequestParameters())
+
+    def test_reordered_keys_do_not_pair_a_value_with_the_wrong_rendering(self):
+        """Pairing by position would sort ``order`` as if it were the set, so both orders hash alike."""
+        one = _QueryWithSortedFilters(filters={"status": {3, 7}, "order": ["created", "id"]})
+        other = _QueryWithSortedFilters(filters={"status": {3, 7}, "order": ["id", "created"]})
+
+        assert fingerprint_tool_call("t", {"q": one}, "id1") != fingerprint_tool_call(
+            "t", {"q": other}, "id1"
+        )
+
+    def test_colliding_keys_are_still_refused(self):
+        assert fingerprint_tool_call("t", {"d": {1: "a", "1": "b"}}, "id1") is None
+
+
+_MANY = {f"tag-{n}" for n in range(12)}
+
+
+class TestAliasedAndRootModelSets:
+    """Sets under an alias or in a ``RootModel`` are ordered too."""
+
+    def test_set_under_an_alias_is_ordered(self):
+        class Aliased(pydantic.BaseModel):
+            tags: set[str] = pydantic.Field(alias="labels")
+
+        assert _render(Aliased(labels=_MANY)) == {"labels": sorted(_MANY)}
+
+    def test_set_under_a_generated_alias_is_ordered(self):
+        class Camel(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(
+                alias_generator=pydantic.alias_generators.to_camel, serialize_by_alias=True
+            )
+            my_tags: set[str]
+
+        assert _render(Camel(myTags=_MANY)) == {"myTags": sorted(_MANY)}
+
+    def test_root_model_set_is_ordered(self):
+        assert _render(pydantic.RootModel[set[str]](_MANY)) == sorted(_MANY)
+
+    def test_digests_are_stable_across_process_hash_seeds(self):
+        """Aliased, camelCase and root-model sets, and ``revealed_tool_names`` in real request params."""
+        snippet = textwrap.dedent(
+            f"""
+            import importlib.util
+            import pydantic
+            from pydantic.alias_generators import to_camel
+            from pydantic_ai.messages import ModelRequest, ToolReturnPart
+            from pydantic_ai.models import ModelRequestParameters
+
+            spec = importlib.util.spec_from_file_location("fp", r"{fingerprint_module.__file__}")
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+
+            class Aliased(pydantic.BaseModel):
+                tags: set[str] = pydantic.Field(alias="labels")
+
+            class Camel(pydantic.BaseModel):
+                model_config = pydantic.ConfigDict(alias_generator=to_camel, serialize_by_alias=True)
+                my_tags: set[str]
+
+            tags = {{"alpha", "beta", "gamma", "delta", "epsilon"}}
+            print(mod.fingerprint_tool_call(
+                "t", {{"a": Aliased(labels=tags), "r": pydantic.RootModel[set[str]](tags)}}, "c1"
+            ))
+            history = [ModelRequest(parts=[ToolReturnPart(tool_name="t", content=Camel(myTags=tags), tool_call_id="c1")])]
+            params = ModelRequestParameters(revealed_tool_names={{"search", "fetch", "summarize", "rank"}})
+            print(mod.fingerprint_model_request("m", history, None, params))
+            """
+        )
+        outputs = set()
+        for seed in ("0", "1", "2", "42"):
+            completed = subprocess.run(
+                [sys.executable, "-c", snippet],
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
+                check=True,
+            )
+            outputs.add(tuple(completed.stdout.strip().splitlines()[-2:]))
+
+        assert len(outputs) == 1, f"digest depends on the hash seed: {outputs}"
+        assert "None" not in next(iter(outputs))

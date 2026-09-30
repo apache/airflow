@@ -48,9 +48,11 @@ verification.  A lazily validated ``Iterable`` argument lands there deliberately
 since hashing it would consume the input the tool has not read yet, as does a
 value pydantic cannot serialize at all.  On the model path this is seldom
 confined to one step, because model settings, the tool definitions and the
-message history are carried into every later request, so durable execution stops
-contributing anything for the rest of the run.  A tool call is fingerprinted from its name, arguments and
-call id alone, so it can only lose its own step.
+message history are carried into every later request, so every model step from
+that point on is lost.  A tool call is fingerprinted from its name, arguments and
+call id alone, so it cannot stop another step from being fingerprinted, though a
+live re-run that returns something different still invalidates the model steps
+after it, because its result is part of the history they fingerprint.
 """
 
 from __future__ import annotations
@@ -61,7 +63,7 @@ import json
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, RootModel, TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_core import to_jsonable_python
@@ -152,7 +154,9 @@ def _refuse_iterators(value: Any) -> None:
     elif isinstance(value, (list, tuple, set, frozenset)):
         children = value
     elif isinstance(value, BaseModel):
+        # Extras are rendered like declared fields, so they need the same check.
         children = [getattr(value, name, None) for name in type(value).model_fields]
+        children.extend((value.model_extra or {}).values())
     elif _is_dataclass_instance(value):
         children = [getattr(value, field.name, None) for field in dataclasses.fields(value)]
     else:
@@ -175,6 +179,9 @@ def _order_sets(value: Any, rendered: Any) -> Any:
     only to find those lists; a branch whose rendering does not line up with the
     object, such as one with a custom serializer, is left exactly as rendered.
     """
+    if isinstance(value, RootModel):
+        # Renders straight to its root, so the root is what lines up with ``rendered``.
+        return _order_sets(value.root, rendered)
     if isinstance(value, (set, frozenset)):
         if not isinstance(rendered, list) or len(rendered) != len(value):
             return rendered
@@ -183,23 +190,38 @@ def _order_sets(value: Any, rendered: Any) -> Any:
     if isinstance(value, Mapping):
         if not isinstance(rendered, dict):
             return rendered
-        if len(rendered) != len(value):
+        own_keys = list(to_jsonable_python(dict.fromkeys(value), bytes_mode="base64"))
+        if len(own_keys) < len(value):
             # Distinct keys that render alike, such as 1 and "1": the digest could no
             # longer tell those payloads apart, so refuse rather than hash either one.
             raise TypeError("dict keys collide once rendered as JSON")
+        if own_keys != list(rendered):
+            # A serializer dropped or reordered keys, so a value can no longer be
+            # paired with its own rendering; pairing by position could sort the wrong
+            # list and make two different payloads hash alike.
+            return rendered
         return {
             key: _order_sets(item, rendered_item)
-            for (_, item), (key, rendered_item) in zip(value.items(), rendered.items())
+            for item, (key, rendered_item) in zip(value.values(), rendered.items())
         }
     if isinstance(value, (list, tuple)):
         if not isinstance(rendered, list) or len(rendered) != len(value):
             return rendered
         return [_order_sets(item, rendered_item) for item, rendered_item in zip(value, rendered)]
     if isinstance(rendered, dict) and (isinstance(value, BaseModel) or _is_dataclass_instance(value)):
-        return {
-            key: _order_sets(getattr(value, key), rendered_item) if hasattr(value, key) else rendered_item
-            for key, rendered_item in rendered.items()
-        }
+        # A field renders under its alias when there is one, so map rendered keys
+        # back to attribute names. Plain dataclasses have no aliases.
+        fields = getattr(type(value), "__pydantic_fields__", None) or {}
+        names: dict[str, str] = {}
+        for name, info in fields.items():
+            names[info.serialization_alias or info.alias or name] = name
+        ordered = {}
+        for key, rendered_item in rendered.items():
+            attr = names.get(key, str(key))
+            ordered[key] = (
+                _order_sets(getattr(value, attr), rendered_item) if hasattr(value, attr) else rendered_item
+            )
+        return ordered
     return rendered
 
 
