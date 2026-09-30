@@ -484,7 +484,7 @@ class TestBeamRunJavaPipelineOperator:
             "output": "gs://test/output",
             "serviceAccount": TEST_SERVICE_ACCOUNT,
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
-            "max_num_workers": 7,
+            "maxNumWorkers": 7,
         }
         persist_link_mock.assert_called_once_with(
             context={},
