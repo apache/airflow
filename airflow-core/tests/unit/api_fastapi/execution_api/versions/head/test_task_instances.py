@@ -3167,7 +3167,7 @@ class TestTISkipDownstream:
     def test_ti_skip_downstream_expanded_mapped_task(
         self, client, session, dag_maker, tasks, expected_skipped
     ):
-        """A bare task_id skips an already expanded mapped task, not only map_index -1 (#55225)."""
+        """A bare task_id skips an already expanded mapped task, not only map_index -1."""
         with dag_maker("skip_downstream_mapped_dag", session=session):
 
             @task
