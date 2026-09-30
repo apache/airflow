@@ -3214,6 +3214,19 @@ dag_processor:
       example: "/tmp/some-place"
       default: ~
 
+    dag_bundle_provider:
+      description: |
+        Import path for the class that provides configured Dag bundle metadata and constructs Dag bundles.
+        The class must extend ``airflow.dag_processing.bundles.provider.DagBundleProvider`` and have a
+        no-argument constructor.
+
+        The default implementation reads ``dag_bundle_config_list``. A custom implementation can read
+        bundle configuration from another source and must return the complete set of configured bundles.
+      version_added: 3.4.0
+      type: string
+      example: ~
+      default: "airflow.dag_processing.bundles.provider.ConfigDagBundleProvider"
+
     dag_bundle_config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
