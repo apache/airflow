@@ -272,8 +272,8 @@
   "settings": {
     "clearing": {
       "keepTaskState": {
-        "helper": "清除任务实例时默认保留任务状态记录，而不是将其丢弃。",
-        "label": "清除时保留任务状态"
+        "helper": "清除任务实例时默认保留任务存储条目，而不是将其丢弃。",
+        "label": "清除时保留任务存储"
       },
       "preventRunningTask": {
         "helper": "清除任务实例时跳过正在执行的任务。",
