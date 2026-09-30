@@ -188,8 +188,10 @@ Whether that matters depends on what happened to the job:
   Most triggers cancel the external job there too.
   ``GlueJobCompleteTrigger`` and ``LivyTrigger`` don't implement ``on_kill``, but neither writes a
   job id to the state store when deferred either, so ``keep_task_state`` will not help for them. For
-  a deferred ``GlueJobOperator``, set ``durable=True`` so the next attempt reattaches regardless of
-  state store contents; for a deferred ``LivyOperator``, cancel the batch yourself before clearing.
+  a deferred ``GlueJobOperator``, ``durable`` defaults to ``True``, so it reattaches to a still-running
+  Glue run by default and clearing it does not start over; stop the Glue run before clearing, or set
+  ``durable=False``, to force a fresh one. For a deferred ``LivyOperator``, cancel the batch yourself
+  before clearing.
 
 In the cases where the job is left running (the second bullet or a failed task), pass
 ``keep_task_state`` so the next attempt reconnects to the job already in flight instead of paying
