@@ -311,6 +311,78 @@ already exists changes nothing. Each returns the reference it was called on, so
 Pass a value as an argument when the downstream task needs it, and use ``before`` or ``after`` when
 it only needs to run in order.
 
+Task groups
+~~~~~~~~~~~
+
+``dag.taskGroup(groupId)`` opens a scope with the same ``task`` and ``taskGroup`` methods as the Dag,
+prefixing the id of everything declared in it, as Python's ``prefix_group_id`` does:
+
+.. code-block:: typescript
+
+    const staging = dag.taskGroup("staging");
+    staging.task("stage_rows", stageRows)();        // task id "staging.stage_rows"
+    staging.taskGroup("checks").task("nulls", checkNulls)();  // "staging.checks.nulls"
+
+    staging.before(loaded);                          // staging >> loaded
+
+A group is an edge endpoint in its own right, so ``before`` and ``after`` order a whole group against
+a task or against another group.
+
+Tasks and groups share one id namespace, as they do in Python, so a Dag cannot hold both a task and a
+group called ``staging``. A ``.`` is what separates a group from what it holds, so it cannot appear in
+an id of either.
+
+Pass ``{ prefixGroupId: false }`` to keep the ids declared in a group as written, as ``prefix_group_id=False``
+does in Python; they then have to be unique across the Dag. A group id is made of letters, digits, dashes and
+underscores, and is at most 200 characters.
+
+Serialization
+~~~~~~~~~~~~~
+
+A native Dag serializes into the same Dag JSON a Python Dag produces, so the scheduler reads it
+without knowing which language declared it.
+
+``schedule`` accepts what maps to a stock timetable: unset, ``@once``, ``@continuous``, or a cron
+expression. A cron preset such as ``@daily`` is recorded as the expression it stands for. Anything
+else names a Python object a TypeScript bundle cannot point at, and is rejected.
+
+Every task of a native Dag runs on the Node coordinator, so it needs the queue the deployment routes
+there. Set it once on the Dag and each task inherits it:
+
+.. code-block:: typescript
+
+    const dag = new Dag("ts_etl", { schedule: "@daily", queue: "typescript" });
+
+    // ...and one task that needs its own.
+    dag.task("heavy", heavyHandler, { queue: "typescript_large" })();
+
+``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
+``queue_to_coordinator`` entry that sends that queue to the coordinator.
+
+Conditional branching
+~~~~~~~~~~~~~~~~~~~~~
+
+``dag.if`` takes a task whose handler returns a boolean, and names the task each outcome runs:
+
+.. code-block:: typescript
+
+    const condition = dag.task("has_rows", async ({ rows }: { rows: number }) => rows > 0);
+    const gated = condition({ rows: extracted });
+
+    dag.if(gated).then(loaded).else(reportedEmpty);
+
+The condition is an ordinary task, so it is declared, typed and wired like any other, and the
+compiler checks that its handler really returns a boolean. ``else`` is optional: a one-sided
+condition skips its own branch when the condition fails and follows nothing.
+
+A guarded task takes no argument for the control edge, because a condition's boolean decides whether
+the task runs rather than what it runs on. Read a value from the condition with
+``getClient().getXCom``.
+
+The side not taken is skipped when the run reaches it, and stays skipped if you clear it later. Only
+the branches named here are skipped, so a task that several branches converge on still runs — unlike
+Python's ``@task.branch``, which skips every immediate downstream it did not follow.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
