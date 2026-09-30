@@ -77,6 +77,15 @@ passes its result through Airflow's secret masker.
 Outside ``AgentOperator``, a toolset's connection ID is used as written: it is not
 rendered as a template.
 
+Tracing
+-------
+
+The example runs the agent inside
+:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`, so ADK's
+OpenTelemetry spans carry the task's identity and leave out prompts, completions and tool
+inputs and outputs unless ``[common.ai] capture_content`` is on. See
+:doc:`../observability`.
+
 Differences from ``AgentOperator``
 ----------------------------------
 

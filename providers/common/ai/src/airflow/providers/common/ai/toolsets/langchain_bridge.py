@@ -39,6 +39,7 @@ from pydantic import JsonValue  # noqa: TC002
 
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
+from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
 if TYPE_CHECKING:
     from langchain_core.tools import StructuredTool, ToolException
@@ -118,7 +119,8 @@ def _to_structured_tool(
     tool_exception_cls: type[ToolException],
 ) -> StructuredTool:
     async def call(**kwargs: Any) -> JsonValue:
-        result = await tool.call(kwargs)
+        with calling_framework("langchain"):
+            result = await tool.call(kwargs)
         if result.is_error:
             # With handle_tool_error, LangChain hands this text to the model as an error result.
             raise tool_exception_cls(str(result.content))

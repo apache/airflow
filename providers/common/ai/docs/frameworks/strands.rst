@@ -147,6 +147,18 @@ the masker. To give one of your own functions the same treatment, wrap it as an
     )
     agent = Agent(model=model, plugins=[AirflowTools(warehouse, lookup)])
 
+Tracing
+-------
+
+The example runs the agent inside
+:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`, so Strands'
+OpenTelemetry spans carry the task's identity and leave out prompts, completions and tool
+inputs and outputs unless ``[common.ai] capture_content`` is on. Create the ``Agent``
+inside the block: Strands reads the switch once per process, when it creates its one
+tracer, so an ``Agent`` created earlier in the process, such as at module level, keeps
+content capture on. See
+:doc:`../observability`.
+
 Differences from ``AgentOperator``
 ----------------------------------
 

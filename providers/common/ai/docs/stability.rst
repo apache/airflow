@@ -181,3 +181,8 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`toolsets/hook`)
      - New; how a pinned argument is matched to each method's parameters may change after
        first use.
+   * - The ``common_ai.tool_calls`` metric and
+       :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
+       (:doc:`observability`)
+     - The tracing helper follows the agent frameworks' own telemetry, which is still
+       changing; the metric's tags may change as more frameworks get adapters.

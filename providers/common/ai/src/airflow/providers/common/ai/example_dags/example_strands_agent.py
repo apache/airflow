@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import os
 
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import BaseHook, dag, task
 
 LLM_CONN_ID = os.environ.get("LLM_CONN_ID", "anthropic_default")
 LLM_MODEL = os.environ.get("LLM_MODEL", "claude-sonnet-5")
@@ -59,8 +59,8 @@ def example_strands_agent():
         from strands.models.anthropic import AnthropicModel
 
         from airflow.providers.common.ai.tools.strands import AirflowTools
+        from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
         from airflow.providers.common.ai.toolsets.sql import SQLToolset
-        from airflow.providers.common.compat.sdk import BaseHook
 
         llm = BaseHook.get_connection(LLM_CONN_ID)
         model = AnthropicModel(
@@ -68,17 +68,19 @@ def example_strands_agent():
             model_id=LLM_MODEL,
             max_tokens=2048,
         )
-        agent = Agent(
-            model=model,
-            plugins=[AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID))],
-            system_prompt=(
-                "You are a SQL analyst. Use list_tables and get_schema to explore "
-                "the database, then run read-only queries to answer the question."
-            ),
-            # Strands streams the reply to stdout by default; the task returns it instead.
-            callback_handler=None,
-        )
-        return str(agent(question))
+        # Spans carry the task's identity and no prompt text; see the tracing section of the guide.
+        with agent_framework_tracing():
+            agent = Agent(
+                model=model,
+                plugins=[AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID))],
+                system_prompt=(
+                    "You are a SQL analyst. Use list_tables and get_schema to explore "
+                    "the database, then run read-only queries to answer the question."
+                ),
+                # Strands streams the reply to stdout by default; the task returns it instead.
+                callback_handler=None,
+            )
+            return str(agent(question))
 
     run_strands_agent()
 

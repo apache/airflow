@@ -24,7 +24,7 @@ import logging
 import threading
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from pydantic_ai.exceptions import ApprovalRequired, CallDeferred, ModelRetry, ToolFailed
 from pydantic_ai.messages import ToolReturn
@@ -35,6 +35,7 @@ from typing_extensions import ParamSpec
 
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.utils.masking import mask_secrets
+from airflow.providers.common.ai.utils.tool_metrics import record_tool_call
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -60,9 +61,8 @@ _blocking_call_lock = threading.Lock()
 # toolset does not log it again.
 _STRIPPED = "_airflow_secrets_masked"
 
-# How the model or the run acts on a call without a result, rather than failures: pydantic-ai
-# asks the model to correct its call, or pauses the run for approval or deferred execution.
-_CONTROL_FLOW = (ModelRetry, ToolFailed, ApprovalRequired, CallDeferred)
+# How pydantic-ai pauses a run until a person approves a call or the call runs elsewhere.
+_PAUSED = (ApprovalRequired, CallDeferred)
 
 
 def _call_locked(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:
@@ -70,7 +70,7 @@ def _call_locked(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:
         return fn(*args, **kwargs)
 
 
-async def _masked(name: str, call: Awaitable[Any]) -> Any:
+async def _masked(name: str, call: Awaitable[Any], *, count_as: str | None = None) -> Any:
     """
     Await a tool call and mask everything it hands on: its result, or the exception it raised.
 
@@ -80,16 +80,26 @@ async def _masked(name: str, call: Awaitable[Any]) -> Any:
     retry rule can therefore match the exception's type but not its cause. A failure is
     logged first, with its cause, to the task log, which masks it on the way out.
     """
+    outcome: Literal["executed", "failed"] | None = "failed"
     error: Exception | None = None
     try:
         result = await call
-    except _CONTROL_FLOW as e:
-        log.debug("Tool %s returned no result", name, exc_info=e)
+        outcome = "executed"
+    except _PAUSED as e:
+        # The run pauses for approval or deferred execution; the call has not happened yet.
+        log.debug("Tool %s is waiting to run", name, exc_info=e)
+        outcome = None
+        error = _strip(e)
+    except (ModelRetry, ToolFailed) as e:
+        log.debug("Tool %s returned an error for the model", name, exc_info=e)
         error = _strip(e)
     except Exception as e:
         if not getattr(e, _STRIPPED, False):
             log.warning("Tool %s failed", name, exc_info=e)
         error = _strip(e)
+    finally:
+        if count_as and outcome:
+            record_tool_call(count_as, outcome)
     if error is not None:
         # Raised outside the except blocks, so Python does not chain the original back on.
         raise error
@@ -158,7 +168,9 @@ class AirflowToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        return await _masked(name, self._execute_tool(name, tool_args, ctx, tool))
+        return await _masked(
+            name, self._execute_tool(name, tool_args, ctx, tool), count_as=type(self).__name__
+        )
 
     @abstractmethod
     async def _execute_tool(
