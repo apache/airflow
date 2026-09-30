@@ -16,30 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useDisclosure } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
-import { LuSettings } from "react-icons/lu";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 
-import { StatsCard } from "src/components/StatsCard";
+type StateReasonDisplay = { status: "error" | "warning"; titleKey: string };
 
-import { BackendsOrderModal } from "./BackendsOrderModal";
-
-export const BackendsOrderCard = () => {
-  const { i18n, t: translate } = useTranslation("admin");
-  const isRTL = i18n.dir() === "rtl";
-  const { onClose, onOpen, open } = useDisclosure();
-
-  return (
-    <Box alignItems="center" display="flex">
-      <StatsCard
-        colorScheme="gray"
-        icon={<LuSettings />}
-        isLoading={false}
-        isRTL={isRTL}
-        label={translate("variables.backendsOrder")}
-        onClick={onOpen}
-      />
-      <BackendsOrderModal onClose={onClose} open={open} />
-    </Box>
-  );
+// The header banner and the per-try row both look the state up here, so a state added to one
+// surface cannot be forgotten on the other: it has to bring a title with it. Keyed by
+// TaskInstanceState so a misspelt state is a compile error rather than a row that never renders.
+const STATE_REASON_DISPLAY: Partial<Record<TaskInstanceState, StateReasonDisplay>> = {
+  failed: { status: "error", titleKey: "failed" },
+  up_for_retry: { status: "warning", titleKey: "upForRetry" },
 };
+
+export const stateReasonDisplay = (state: TaskInstanceState | null | undefined) =>
+  state === null || state === undefined ? undefined : STATE_REASON_DISPLAY[state];

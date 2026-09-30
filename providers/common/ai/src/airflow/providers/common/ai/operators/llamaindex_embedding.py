@@ -38,6 +38,11 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
     """
     Chunk documents and produce embedding vectors using LlamaIndex.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Bridges document loading (e.g.
     :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
     output) and vector storage (pgvector, Pinecone, Weaviate, ...). Input is

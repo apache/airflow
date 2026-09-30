@@ -40,7 +40,7 @@ type Task interface {
 // Bundle looks up a registered task by dag_id and task_id. The coordinator
 // runtime uses Bundle to find the task the supervisor asked for.
 type Bundle interface {
-	LookupTask(dagId, taskId string) (Task, bool)
+	LookupTask(dagID, taskID string) (Task, bool)
 }
 
 // TaskHandlerInfo identifies a registered task handler by its dag_id and task_id.

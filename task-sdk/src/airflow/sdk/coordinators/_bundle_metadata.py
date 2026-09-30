@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 import pathlib
 import stat
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 import attrs
 import structlog
@@ -36,6 +36,13 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators")
+
+
+class _UnsetArtifactRoots:
+    """Sentinel distinguishing an omitted artifact-roots option from an empty value."""
+
+
+ARTIFACT_ROOTS_NOT_CONFIGURED: Final = _UnsetArtifactRoots()
 
 
 def convert_roots(
@@ -94,6 +101,25 @@ def _sorted_children(directory: pathlib.Path) -> list[pathlib.Path]:
         return sorted(directory.iterdir())
     except OSError:
         return []
+
+
+def convert_configured_roots(
+    value: _UnsetArtifactRoots
+    | None
+    | os.PathLike[str]
+    | pathlib.Path
+    | list[os.PathLike[str] | pathlib.Path],
+) -> list[pathlib.Path]:
+    """Normalize configured roots while rejecting explicitly empty values."""
+    if isinstance(value, _UnsetArtifactRoots):
+        return []
+    values = [value] if isinstance(value, (str, os.PathLike)) else (value or [])
+    if not values or any(not os.fspath(v).strip() for v in values):
+        raise ValueError(
+            "Artifact roots must contain at least one path when provided, and each path must be non-empty; "
+            "omit the option to use the task's Dag bundle."
+        )
+    return convert_roots(value)
 
 
 def validate_schema_version(instance, _, value) -> str:

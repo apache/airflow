@@ -31,6 +31,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -245,7 +246,39 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
         }
+
+    def test_should_include_state_reason(self, test_client, session):
+        self.create_task_instances(session, task_instances=[{"retry_reason": "auth error, do not retry"}])
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth error, do not retry"
+
+    @pytest.fixture
+    def masked_secret(self):
+        """The masker is a cached process global, so drop the pattern again for the next test."""
+        from airflow._shared.secrets_masker import _secrets_masker
+
+        masker = _secrets_masker()
+        patterns, replacer = set(masker.patterns), masker.replacer
+        mask_secret("hunter2")
+        yield
+        masker.patterns, masker.replacer = patterns, replacer
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason(self, test_client, session, masked_secret):
+        """A policy may compose the reason from an unredacted exception, so mask on the way out."""
+        self.create_task_instances(
+            session, task_instances=[{"retry_reason": "auth: the token hunter2 expired"}]
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth: the token *** expired"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
@@ -330,6 +363,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
             "dag_version": {
                 "id": response_data["dag_version"]["id"],
                 "version_number": expected_version_number,
@@ -426,6 +460,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
             },
             "team_name": None,
+            "state_reason": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -480,6 +515,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
         }
 
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
@@ -537,6 +573,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
         }
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client):
@@ -658,6 +695,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
+                "state_reason": None,
             }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -2806,7 +2844,43 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
+
+    def test_should_include_state_reason_from_history(self, test_client, session):
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.SUCCESS, "retry_reason": "auth error, do not retry"}],
+            with_ti_history=True,
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth error, do not retry"
+
+    @pytest.fixture
+    def masked_secret(self):
+        from airflow._shared.secrets_masker import _secrets_masker
+
+        masker = _secrets_masker()
+        patterns, replacer = set(masker.patterns), masker.replacer
+        mask_secret("hunter2")
+        yield
+        masker.patterns, masker.replacer = patterns, replacer
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason_from_history(self, test_client, session, masked_secret):
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.SUCCESS, "retry_reason": "auth: the token hunter2 expired"}],
+            with_ti_history=True,
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth: the token *** expired"
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_should_respond_200_with_different_try_numbers(self, test_client, try_number, session):
@@ -2852,6 +2926,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -2928,6 +3003,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                     "id": response_data["dag_version"]["id"],
                     "version_number": 1,
                 },
+                "state_reason": None,
             }
 
     def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
@@ -2996,6 +3072,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -3043,6 +3120,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -3118,6 +3196,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
+            "state_reason": None,
         }
 
     def test_should_not_return_duplicate_runs(self, test_client, session):
@@ -3855,6 +3934,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
+                "state_reason": None,
                 "try_number": 1,
                 "unixname": getuser(),
             },
@@ -4266,6 +4346,123 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ti_id = response_data["task_instances"][0]["id"]
         _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
 
+    def _seed_task_state(self, session, dag_id, task_id=None, map_index=None):
+        """Store one task state key for the TI matching the given task_id/map_index."""
+        stmt = select(TaskInstance).where(TaskInstance.dag_id == dag_id)
+        if task_id is not None:
+            stmt = stmt.where(TaskInstance.task_id == task_id)
+        if map_index is not None:
+            stmt = stmt.where(TaskInstance.map_index == map_index)
+        ti = session.scalars(stmt).one()
+        MetastoreBackend().set(
+            TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+            "job_id",
+            "app_1234",
+            session=session,
+        )
+        session.commit()
+
+    def _task_state_rows(self, session, dag_id, task_id=None, map_index=None):
+        stmt = select(TaskStateStoreModel).where(TaskStateStoreModel.dag_id == dag_id)
+        if task_id is not None:
+            stmt = stmt.where(TaskStateStoreModel.task_id == task_id)
+        if map_index is not None:
+            stmt = stmt.where(TaskStateStoreModel.map_index == map_index)
+        return session.scalars(stmt).all()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("payload_extra", "expect_kept"),
+        [
+            pytest.param({}, False, id="default-discards"),
+            pytest.param({"keep_task_state": True}, True, id="keep-preserves"),
+            pytest.param({"keep_task_state": False}, False, id="explicit-false-discards"),
+        ],
+    )
+    def test_clear_task_state_store(self, test_client, session, payload_extra, expect_kept):
+        """Clearing one mapped index discards only that index's task state, unless kept."""
+        dag_id = "example_task_mapping_second_order"
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[
+                {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                {
+                    "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                    "state": State.FAILED,
+                    "map_indexes": (0, 1),
+                },
+            ],
+            update_extras=False,
+        )
+        self._seed_task_state(session, dag_id, "times_2", 0)
+        self._seed_task_state(session, dag_id, "times_2", 1)
+        assert self._task_state_rows(session, dag_id, "times_2", 0)
+        assert self._task_state_rows(session, dag_id, "times_2", 1)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "dry_run": False,
+                "reset_dag_runs": False,
+                "only_failed": True,
+                "task_ids": [["times_2", 0]],
+                **payload_extra,
+            },
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        assert bool(self._task_state_rows(session, dag_id, "times_2", 0)) is expect_kept
+        # The untargeted map index is never touched, regardless of keep_task_state.
+        assert self._task_state_rows(session, dag_id, "times_2", 1)
+
+    @pytest.mark.db_test
+    def test_clear_dry_run_does_not_discard_task_state(self, test_client, session):
+        """A dry run previews the clear and must not touch task state."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        self._seed_task_state(session, dag_id)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={"dry_run": True, "reset_dag_runs": False, "only_failed": True},
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+        session.expire_all()
+        assert self._task_state_rows(session, dag_id)
+
+    @pytest.mark.db_test
+    @mock.patch.object(MetastoreBackend, "clear", side_effect=RuntimeError("boom"))
+    def test_clear_task_state_store_discard_failure_fails_request(self, mock_clear, test_client, session):
+        """A backend.clear() failure fails the whole request instead of reporting a partial clear as success."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        self._seed_task_state(session, dag_id)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            test_client.post(
+                f"/dags/{dag_id}/clearTaskInstances",
+                json={"dry_run": False, "reset_dag_runs": False, "only_failed": True},
+            )
+
+        session.expire_all()
+        assert self._task_state_rows(session, dag_id)
+        ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).one()
+        assert ti.state == State.FAILED
+
     @pytest.mark.parametrize(
         ("task_group_id", "expected_task_ids"),
         [
@@ -4414,6 +4611,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "id": response_data["task_instances"][0]["dag_version"]["id"],
                         "version_number": 1,
                     },
+                    "state_reason": None,
                 },
                 {
                     "dag_id": "example_python_operator",
@@ -4451,6 +4649,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "id": response_data["task_instances"][1]["dag_version"]["id"],
                         "version_number": 1,
                     },
+                    "state_reason": None,
                 },
             ],
             "total_entries": 2,
@@ -4563,6 +4762,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                             "id": response_data["task_instances"][0]["dag_version"]["id"],
                             "version_number": 1,
                         },
+                        "state_reason": None,
                     },
                     {
                         "dag_id": "example_python_operator",
@@ -4600,6 +4800,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                             "id": response_data["task_instances"][1]["dag_version"]["id"],
                             "version_number": 1,
                         },
+                        "state_reason": None,
                     },
                 ],
                 "total_entries": 2,
@@ -4667,6 +4868,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
+            "state_reason": None,
         }
 
 
@@ -4792,6 +4994,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5070,6 +5273,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "trigger": None,
                             "triggerer_job": None,
                             "team_name": None,
+                            "state_reason": None,
                         }
                     ],
                     "total_entries": 1,
@@ -5210,6 +5414,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5275,6 +5480,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5372,6 +5578,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "trigger": None,
                         "triggerer_job": None,
                         "team_name": None,
+                        "state_reason": None,
                     }
                 ],
                 "total_entries": 1,
@@ -5457,6 +5664,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
+                "state_reason": None,
             }
 
             _check_task_instance_note(
@@ -5653,6 +5861,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5943,6 +6152,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "trigger": None,
                             "triggerer_job": None,
                             "team_name": None,
+                            "state_reason": None,
                         }
                     ],
                     "total_entries": 1,

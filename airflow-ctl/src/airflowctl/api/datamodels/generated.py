@@ -304,6 +304,13 @@ class ClearTaskInstancesBody(BaseModel):
         ),
     ] = None
     prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            title="Keep Task State",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
@@ -2414,6 +2421,13 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")]
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None
+    state_reason: Annotated[
+        str | None,
+        Field(
+            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            title="State Reason",
+        ),
+    ] = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -2456,6 +2470,13 @@ class TaskInstanceResponse(BaseModel):
     triggerer_job: JobResponse | None
     dag_version: DagVersionResponse | None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+    state_reason: Annotated[
+        str | None,
+        Field(
+            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            title="State Reason",
+        ),
+    ] = None
 
 
 class TaskResponse(BaseModel):
