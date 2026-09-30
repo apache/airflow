@@ -318,11 +318,25 @@ def test_sync_bundles_to_db_looks_up_teams_in_a_fixed_number_of_queries(clear_db
 
 
 @pytest.mark.db_test
-@conf_vars({("core", "LOAD_EXAMPLES"): "False", ("core", "multi_team"): "False"})
-def test_sync_bundles_to_db_skips_team_queries_without_multi_team(clear_db, session):
-    bundle_config = _build_bundle_config(4, with_team=False)
-    _sync_and_count_team_queries(bundle_config, session)
-    assert _sync_and_count_team_queries(bundle_config, session) == 0
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_sync_bundles_to_db_removes_team_ownership_after_multi_team_is_disabled(clear_db, session):
+    session.add_all([Team(name="team-a"), Team(name="team-b")])
+    session.commit()
+
+    def _get_bundle_teams():
+        return {
+            bundle.name: [team.name for team in bundle.teams]
+            for bundle in session.scalars(select(DagBundleModel))
+        }
+
+    with conf_vars({("core", "multi_team"): "True"}):
+        _sync_and_count_team_queries(_build_bundle_config(2), session)
+    assert _get_bundle_teams() == {"bundle-0": ["team-b"], "bundle-1": ["team-a"]}
+
+    # bundle-0 stays configured without a team; bundle-1 is dropped and deactivated.
+    with conf_vars({("core", "multi_team"): "False"}):
+        _sync_and_count_team_queries(_build_bundle_config(1, with_team=False), session)
+    assert _get_bundle_teams() == {"bundle-0": [], "bundle-1": []}
 
 
 @pytest.mark.db_test
