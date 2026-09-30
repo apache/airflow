@@ -787,11 +787,13 @@ def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
     assert finished[0].parent is None
 
 
+# The trace and parent ids from the W3C Trace Context specification's traceparent example; the trailing
+# flags byte is 00, "not sampled".
 UNSAMPLED_TRACE_ID = 0x4BF92F3577B34DA6A3CE929D0E0E4736
 UNSAMPLED_CARRIER = {"traceparent": f"00-{UNSAMPLED_TRACE_ID:032x}-00f067aa0ba902b7-00"}
 
 
-def _startup_with_carrier(make_ti_context, carrier: dict[str, str]) -> StartupDetails:
+def _make_startup_with_carrier(make_ti_context, carrier: dict[str, str]) -> StartupDetails:
     return StartupDetails(
         ti=TaskInstance(
             id=uuid7(),
@@ -820,7 +822,7 @@ def test_with_no_tracer_provider_an_unsampled_parent_is_not_made_current(make_ti
     with (
         mock.patch("airflow.sdk.execution_time.task_runner.tracer", trace.NoOpTracer()),
         mock.patch.object(trace, "get_tracer_provider", return_value=trace.ProxyTracerProvider()),
-        _make_task_span(_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
+        _make_task_span(_make_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
     ):
         current = trace.get_current_span().get_span_context()
         with task_code_provider.get_tracer("agent_framework").start_as_current_span("agent run"):
@@ -841,7 +843,7 @@ def test_with_a_tracer_provider_installed_the_dag_runs_sampling_decision_holds(m
     with (
         mock.patch("airflow.sdk.execution_time.task_runner.tracer", installed.get_tracer("airflow")),
         mock.patch.object(trace, "get_tracer_provider", return_value=installed),
-        _make_task_span(_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
+        _make_task_span(_make_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
     ):
         with installed.get_tracer("agent_framework").start_as_current_span("agent run"):
             pass
