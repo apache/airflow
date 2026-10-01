@@ -225,7 +225,7 @@ class BaseManagedAgentToolset(AirflowToolset):
                 # Zero disables the ``ModelRetry`` path entirely -- the first one
                 # becomes a hard error -- so raise it only when the remote agent's
                 # rejections are genuinely worth re-prompting.
-                max_retries=self._tool_max_retries(ctx),
+                max_retries=self._get_tool_max_retries(ctx),
                 args_validator=build_args_validator(_PROMPT_SCHEMA),
             )
         }

@@ -166,7 +166,7 @@ class HookToolset(AirflowToolset):
         return f"hook-{name}-{self.conn_id}" if self.conn_id else f"hook-{name}"
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        max_retries = self._tool_max_retries(ctx)
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for method_name in self._allowed_methods:
             method = getattr(self._hook, method_name)

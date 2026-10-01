@@ -188,10 +188,10 @@ class AirflowToolset(AbstractToolset[Any]):
             name, self.execute_tool(name, tool_args, ctx=ctx, tool=tool), count_as=type(self).__name__
         )
 
-    #: A subclass that takes ``max_retries`` stores it here; ``None`` follows the run.
+    # A subclass that takes ``max_retries`` stores it here; ``None`` follows the run.
     _max_retries: int | None = None
 
-    def _tool_max_retries(self, ctx: RunContext[Any]) -> int:
+    def _get_tool_max_retries(self, ctx: RunContext[Any]) -> int:
         """
         Return how many times the model may correct a failed call to this toolset's tools.
 

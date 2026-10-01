@@ -159,7 +159,7 @@ class DataFusionToolset(AirflowToolset):
         return self._engine
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        max_retries = self._tool_max_retries(ctx)
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
 
         for name, description, schema in (

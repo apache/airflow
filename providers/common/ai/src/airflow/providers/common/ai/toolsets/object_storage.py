@@ -194,7 +194,7 @@ class ObjectStorageToolset(AirflowToolset):
         return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        max_retries = self._tool_max_retries(ctx)
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for base, schema in _SCHEMAS.items():
             name = self._tool_name(base)
