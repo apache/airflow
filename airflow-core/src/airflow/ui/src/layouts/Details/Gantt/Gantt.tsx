@@ -32,6 +32,7 @@ import {
 } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGroups } from "src/context/groups";
 import { useTimezone } from "src/context/timezone";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
@@ -116,8 +117,11 @@ export const Gantt = ({
   const gridTiSummaries = summariesByRunId.get(runId);
   const summariesLoading = Boolean(runId && selectedRun && !summariesByRunId.has(runId));
 
+  const startDateGte = searchParams.get(SearchParamsKeys.START_DATE_GTE) ?? undefined;
+  const endDateLte = searchParams.get(SearchParamsKeys.START_DATE_LTE) ?? undefined;
+
   const { data: ganttData, isLoading: ganttLoading } = useGanttServiceGetGanttData(
-    { dagId, runId },
+    { dagId, endDateLte, runId, startDateGte },
     undefined,
     {
       enabled: Boolean(dagId) && Boolean(runId) && Boolean(selectedRun),

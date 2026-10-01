@@ -2205,10 +2205,12 @@ export const prefetchUseGridServiceGetGridTiSummariesStream = (queryClient: Quer
 * @returns GanttResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseGanttServiceGetGanttData = (queryClient: QueryClient, { dagId, runId }: {
+export const prefetchUseGanttServiceGetGanttData = (queryClient: QueryClient, { dagId, endDateLte, runId, startDateGte }: {
   dagId: string;
+  endDateLte?: string | null;
   runId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, runId }), queryFn: () => GanttService.getGanttData({ dagId, runId }) });
+  startDateGte?: string | null;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, endDateLte, runId, startDateGte }), queryFn: () => GanttService.getGanttData({ dagId, endDateLte, runId, startDateGte }) });
 /**
 * Get Calendar
 * Get calendar data for a Dag including historical and planned Dag runs.

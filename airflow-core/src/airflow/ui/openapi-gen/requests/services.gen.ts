@@ -5355,6 +5355,10 @@ export class GanttService {
                 dag_id: data.dagId,
                 run_id: data.runId
             },
+            query: {
+                end_date_lte: data.endDateLte,
+                start_date_gte: data.startDateGte
+            },
             errors: {
                 404: 'Not Found',
                 422: 'Validation Error'

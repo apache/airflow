@@ -2205,10 +2205,12 @@ export const useGridServiceGetGridTiSummariesStream = <TData = Common.GridServic
 * @returns GanttResponse Successful Response
 * @throws ApiError
 */
-export const useGanttServiceGetGanttData = <TData = Common.GanttServiceGetGanttDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runId }: {
+export const useGanttServiceGetGanttData = <TData = Common.GanttServiceGetGanttDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateLte, runId, startDateGte }: {
   dagId: string;
+  endDateLte?: string | null;
   runId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, runId }, queryKey), queryFn: () => GanttService.getGanttData({ dagId, runId }) as TData, ...options });
+  startDateGte?: string | null;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, endDateLte, runId, startDateGte }, queryKey), queryFn: () => GanttService.getGanttData({ dagId, endDateLte, runId, startDateGte }) as TData, ...options });
 /**
 * Get Calendar
 * Get calendar data for a Dag including historical and planned Dag runs.

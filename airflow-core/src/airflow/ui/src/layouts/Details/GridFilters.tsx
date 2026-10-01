@@ -17,7 +17,7 @@
  * under the License.
  */
 import { FilterBar } from "src/components/FilterBar";
-
+import type { DagView } from "src/constants/dagView";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
@@ -29,8 +29,14 @@ const searchParamKeys: Array<FilterableSearchParamsKeys> = [
   SearchParamsKeys.RUN_AFTER_RANGE,
 ];
 
-export const GridFilters = () => {
-  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
+const ganttSearchParamKeys: Array<FilterableSearchParamsKeys> = [
+  ...searchParamKeys,
+  SearchParamsKeys.START_DATE_RANGE,
+];
+
+export const GridFilters = ({ dagView }: { readonly dagView?: DagView }) => {
+  const keys = dagView === "gantt" ? ganttSearchParamKeys : searchParamKeys;
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(keys);
 
   return (
     <FilterBar

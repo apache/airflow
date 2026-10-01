@@ -5119,7 +5119,9 @@ export type GetGridTiSummariesStreamResponse = string;
 
 export type GetGanttDataData = {
     dagId: string;
+    endDateLte?: string | null;
     runId: string;
+    startDateGte?: string | null;
 };
 
 export type GetGanttDataResponse = GanttResponse;

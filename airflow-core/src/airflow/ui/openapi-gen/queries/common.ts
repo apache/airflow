@@ -1126,10 +1126,12 @@ export const UseGridServiceGetGridTiSummariesStreamKeyFn = ({ dagId, runIds }: {
 export type GanttServiceGetGanttDataDefaultResponse = Awaited<ReturnType<typeof GanttService.getGanttData>>;
 export type GanttServiceGetGanttDataQueryResult<TData = GanttServiceGetGanttDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGanttServiceGetGanttDataKey = "GanttServiceGetGanttData";
-export const UseGanttServiceGetGanttDataKeyFn = ({ dagId, runId }: {
+export const UseGanttServiceGetGanttDataKeyFn = ({ dagId, endDateLte, runId, startDateGte }: {
   dagId: string;
+  endDateLte?: string | null;
   runId: string;
-}, queryKey?: Array<unknown>) => [useGanttServiceGetGanttDataKey, ...(queryKey ?? [{ dagId, runId }])];
+  startDateGte?: string | null;
+}, queryKey?: Array<unknown>) => [useGanttServiceGetGanttDataKey, ...(queryKey ?? [{ dagId, endDateLte, runId, startDateGte }])];
 export type CalendarServiceGetCalendarDefaultResponse = Awaited<ReturnType<typeof CalendarService.getCalendar>>;
 export type CalendarServiceGetCalendarQueryResult<TData = CalendarServiceGetCalendarDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useCalendarServiceGetCalendarKey = "CalendarServiceGetCalendar";

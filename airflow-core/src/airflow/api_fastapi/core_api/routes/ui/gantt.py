@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import or_, select, union_all
+from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import func, or_, select, union_all
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.parameters.range import OptionalDateTimeQuery
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, GanttTaskInstance
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -59,6 +60,8 @@ def get_gantt_data(
     dag_id: str,
     run_id: str,
     session: SessionDep,
+    start_date_gte: OptionalDateTimeQuery = Query(default=None, alias="start_date_gte"),
+    end_date_lte: OptionalDateTimeQuery = Query(default=None, alias="end_date_lte"),
 ) -> GanttResponse:
     """Get all task instance tries for Gantt chart."""
     # Exclude mapped tasks (use grid summaries) and UP_FOR_RETRY (already in history)
@@ -92,6 +95,22 @@ def get_gantt_data(
         TaskInstanceHistory.run_id == run_id,
         TaskInstanceHistory.map_index == -1,
     )
+
+    if start_date_gte:
+        current_tis = current_tis.where(
+            or_(TaskInstance.end_date >= start_date_gte, TaskInstance.end_date.is_(None))
+        )
+        history_tis = history_tis.where(
+            or_(TaskInstanceHistory.end_date >= start_date_gte, TaskInstanceHistory.end_date.is_(None))
+        )
+
+    if end_date_lte:
+        current_tis = current_tis.where(
+            func.coalesce(TaskInstance.start_date, TaskInstance.queued_dttm, TaskInstance.scheduled_dttm) <= end_date_lte
+        )
+        history_tis = history_tis.where(
+            func.coalesce(TaskInstanceHistory.start_date, TaskInstanceHistory.queued_dttm, TaskInstanceHistory.scheduled_dttm) <= end_date_lte
+        )
 
     combined = union_all(current_tis, history_tis).subquery()
     query = select(combined).order_by(combined.c.task_id, combined.c.try_number)

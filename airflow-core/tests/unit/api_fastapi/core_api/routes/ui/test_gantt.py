@@ -331,6 +331,45 @@ class TestGetGanttDataEndpoint:
         assert tis[TASK_ID_3]["scheduled_dttm"] is None
         assert tis[TASK_ID_3]["queued_dttm"] is None
 
+    @pytest.mark.parametrize(
+        ("start_date_gte", "end_date_lte", "expected_task_ids"),
+        [
+            pytest.param(
+                "2024-11-30T10:07:00Z",
+                None,
+                ["task2", "task3"],
+                id="filter_start_only",
+            ),
+            pytest.param(
+                None,
+                "2024-11-30T10:00:00Z",
+                ["task"],
+                id="filter_end_only",
+            ),
+            pytest.param(
+                "2024-11-30T10:03:00Z",
+                "2024-11-30T10:07:00Z",
+                ["task", "task2"],
+                id="filter_both_start_and_end",
+            ),
+        ],
+    )
+    def test_time_range_filtering(
+        self, test_client, start_date_gte, end_date_lte, expected_task_ids
+    ):
+        params = {}
+        if start_date_gte:
+            params["start_date_gte"] = start_date_gte
+        if end_date_lte:
+            params["end_date_lte"] = end_date_lte
+        
+        response = test_client.get(f"/gantt/{DAG_ID}/run_1", params=params)
+        assert response.status_code == 200
+        data = response.json()
+        
+        actual_task_ids = sorted([ti["task_id"] for ti in data["task_instances"]])
+        assert actual_task_ids == expected_task_ids
+
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/gantt/{DAG_ID}/run_1")
         assert response.status_code == 401
