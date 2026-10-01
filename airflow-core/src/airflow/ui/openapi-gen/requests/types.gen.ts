@@ -473,6 +473,10 @@ export type BulkDAGRunClearBody = {
      */
     partition_date_end?: string | null;
     dry_run?: boolean;
+    /**
+     * Preserve task state store entries so cleared tasks can resume from their checkpoints.
+     */
+    keep_task_state?: boolean;
     only_failed?: boolean;
     /**
      * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
@@ -1046,6 +1050,10 @@ export type DAGResponse = {
  */
 export type DAGRunClearBody = {
     dry_run?: boolean;
+    /**
+     * Preserve task state store entries so cleared tasks can resume from their checkpoints.
+     */
+    keep_task_state?: boolean;
     only_failed?: boolean;
     /**
      * Only queue newly added tasks in the latest Dag version without clearing existing tasks.

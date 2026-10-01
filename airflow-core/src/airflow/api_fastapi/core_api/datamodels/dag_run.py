@@ -119,6 +119,10 @@ class BaseDAGRunClear(StrictBaseModel):
     """Shared options for the single-run and bulk Dag Run clear endpoints."""
 
     dry_run: bool = True
+    keep_task_state: bool = Field(
+        default=False,
+        description="Preserve task state store entries so cleared tasks can resume from their checkpoints.",
+    )
     only_failed: bool = False
     only_new: bool = Field(
         default=False,

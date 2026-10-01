@@ -1,0 +1,1 @@
+Make task-state checkpoint clearing consistent across Dag-run, task, and CLI clear operations.

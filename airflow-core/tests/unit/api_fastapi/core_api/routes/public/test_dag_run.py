@@ -29,6 +29,7 @@ from sqlalchemy import delete, func, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -38,12 +39,14 @@ from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, Param, result, task
 from airflow.settings import _configure_async_session
+from airflow.state.metastore import MetastoreBackend
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
@@ -2137,6 +2140,53 @@ class TestGetDagRunAssetTriggerEvents:
 
 class TestClearDagRun:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("payload", "expect_kept"),
+        [
+            pytest.param({"dry_run": False}, False, id="default-discards"),
+            pytest.param({"dry_run": False, "keep_task_state": False}, False, id="explicit-false-discards"),
+            pytest.param({"dry_run": False, "keep_task_state": True}, True, id="keep-preserves"),
+            pytest.param({"dry_run": True}, True, id="dry-run-preserves"),
+        ],
+    )
+    @pytest.mark.parametrize("bulk", [False, True], ids=["single", "bulk"])
+    def test_clear_dag_run_task_state(self, test_client, session, payload, expect_kept, bulk):
+        tis = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == DAG1_ID)).all()
+        scopes = [
+            TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+            for ti in tis
+        ]
+        for scope in scopes:
+            MetastoreBackend().set(
+                scope,
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.commit()
+        assert tis
+
+        if bulk:
+            response = test_client.post(
+                f"/dags/{DAG1_ID}/clearDagRuns",
+                json={**payload, "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}]},
+            )
+        else:
+            response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=payload)
+        assert response.status_code == 200
+        session.expire_all()
+        for scope in scopes:
+            rows = session.scalars(
+                select(TaskStateStoreModel).where(
+                    TaskStateStoreModel.dag_id == scope.dag_id,
+                    TaskStateStoreModel.run_id == scope.run_id,
+                    TaskStateStoreModel.task_id == scope.task_id,
+                    TaskStateStoreModel.map_index == scope.map_index,
+                )
+            ).all()
+            assert bool(rows) is (expect_kept if scope.run_id == DAG1_RUN1_ID else True)
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run(self, test_client, session):
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
@@ -2360,6 +2410,7 @@ class TestClearDagRun:
             task_ids=None,
             only_new=True,
             only_failed=False,
+            keep_task_state=False,
             run_on_latest_version=False,
             session=mock.ANY,
         )

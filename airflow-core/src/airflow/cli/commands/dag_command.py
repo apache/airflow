@@ -203,6 +203,7 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
         run_ids,
         only_failed=args.only_failed,
         only_running=args.only_running,
+        keep_task_state=args.keep_task_state,
         session=session,
     )
     print(f"Cleared {cleared} task instance(s) across {len(run_ids)} Dag run(s).")
@@ -214,6 +215,8 @@ def _bulk_clear_runs(
     only_failed: bool,
     only_running: bool,
     session: Session,
+    *,
+    keep_task_state: bool = False,
 ) -> int:
     """Clear task instances for the given run_ids in chunks instead of one transaction per run."""
     state_filter: list[TaskInstanceState] = []
@@ -233,7 +236,7 @@ def _bulk_clear_runs(
         tis = session.scalars(ti_query).all()
         if not tis:
             continue
-        clear_task_instances(list(tis), session=session)
+        clear_task_instances(list(tis), session=session, keep_task_state=keep_task_state)
         session.flush()
         cleared += len(tis)
 

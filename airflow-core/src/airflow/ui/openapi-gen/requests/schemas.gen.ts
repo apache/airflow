@@ -1550,6 +1550,12 @@ export const $BulkDAGRunClearBody = {
             title: 'Dry Run',
             default: true
         },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Preserve task state store entries so cleared tasks can resume from their checkpoints.',
+            default: false
+        },
         only_failed: {
             type: 'boolean',
             title: 'Only Failed',
@@ -3806,6 +3812,12 @@ export const $DAGRunClearBody = {
             type: 'boolean',
             title: 'Dry Run',
             default: true
+        },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Preserve task state store entries so cleared tasks can resume from their checkpoints.',
+            default: false
         },
         only_failed: {
             type: 'boolean',
