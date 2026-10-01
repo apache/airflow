@@ -48,6 +48,12 @@ if TYPE_CHECKING:
 TS_SDK_PATH = AIRFLOW_ROOT_PATH / "ts-sdk"
 # The SDK's `engines` requirement.
 MIN_NODE_MAJOR = 22
+COORDINATORS = {
+    "ts": {
+        "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+        "kwargs": {"node_executable": shutil.which("node")},
+    }
+}
 
 
 def _get_toolchain_problem() -> str | None:
@@ -95,23 +101,10 @@ def example_bundle(tmp_path_factory) -> Path:
 
 
 @pytest.fixture
-def node_coordinator() -> Iterator[None]:
-    spec = {
-        "ts": {
-            "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-            "kwargs": {"node_executable": shutil.which("node")},
-        }
-    }
+def fresh_coordinator_manager() -> Iterator[None]:
     reset_coordinator_manager()
-    try:
-        # The parse child is a bare fork even on macOS, so it sees this config.
-        with (
-            conf_vars({("sdk", "coordinators"): json.dumps(spec)}),
-            mock.patch.object(supervisor, "_should_use_exec", return_value=False),
-        ):
-            yield
-    finally:
-        reset_coordinator_manager()
+    yield
+    reset_coordinator_manager()
 
 
 def _declare(task_id: str, *renames: str) -> TaskHandlerDeclaration:
@@ -125,8 +118,10 @@ def _declare(task_id: str, *renames: str) -> TaskHandlerDeclaration:
     )
 
 
-@pytest.mark.usefixtures("node_coordinator")
-def test_a_packed_bundle_declares_its_task_handlers(example_bundle):
+@pytest.mark.usefixtures("fresh_coordinator_manager")
+@conf_vars({("sdk", "coordinators"): json.dumps(COORDINATORS)})
+@mock.patch.object(supervisor, "_should_use_exec", autospec=True, return_value=False)
+def test_a_packed_bundle_declares_its_task_handlers(mock_should_use_exec, example_bundle):
     result = LangSDKTaskHandlerProcessorProcess.run(
         coordinator="ts",
         path=example_bundle,
