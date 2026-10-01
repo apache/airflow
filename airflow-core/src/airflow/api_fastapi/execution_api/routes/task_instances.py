@@ -1370,6 +1370,10 @@ async def get_previous_task_instance(
     )
 
 
+# Hydrating full TaskInstance entities would block the API event loop on large runs.
+_TI_STATE_COLUMNS = (TI.run_id, TI.task_id, TI.map_index, TI.state)
+
+
 @router.get("/states", status_code=status.HTTP_200_OK)
 async def get_task_instance_states(
     dag_id: str,
@@ -1384,7 +1388,7 @@ async def get_task_instance_states(
     """Get the states for Task Instances with the given criteria."""
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
-    query = select(TI).where(TI.dag_id == dag_id)
+    query = select(*_TI_STATE_COLUMNS).where(TI.dag_id == dag_id)
 
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
@@ -1398,7 +1402,7 @@ async def get_task_instance_states(
     if map_index is not None:
         query = query.where(TI.map_index == map_index)
 
-    results = (await session.scalars(query)).all()
+    results = (await session.execute(query)).all()
 
     if task_group_id:
         group_tasks = await _get_group_tasks(
@@ -1473,8 +1477,8 @@ async def _get_group_tasks(
 
     # First get all task instances to get the task_id, map_index pairs
     group_tasks = (
-        await session.scalars(
-            select(TI).where(
+        await session.execute(
+            select(*_TI_STATE_COLUMNS).where(
                 TI.dag_id == dag_id,
                 TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
                 *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
