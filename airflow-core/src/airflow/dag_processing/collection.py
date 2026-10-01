@@ -27,6 +27,7 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
+import functools
 import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
@@ -84,6 +85,15 @@ if TYPE_CHECKING:
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
+
+
+@functools.lru_cache(maxsize=1)
+def _get_fab_auth_manager_class() -> type | None:
+    try:
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+    except ImportError:
+        return None
+    return FabAuthManager
 
 
 def _create_orm_dags(
@@ -291,7 +301,10 @@ def _serialize_dag_capturing_errors(
             DagCode.update_source_code(
                 dag.dag_id, dag.fileloc, dag_source_code=dag_source_code, session=session
             )
-        if "FabAuthManager" in conf.get("core", "auth_manager"):
+
+        auth_manager_cls = conf.getimport(section="core", key="auth_manager")
+        fab_auth_manager_cls = _get_fab_auth_manager_class()
+        if fab_auth_manager_cls and auth_manager_cls and issubclass(auth_manager_cls, fab_auth_manager_cls):
             _sync_dag_perms(dag, session=session)
 
         return []

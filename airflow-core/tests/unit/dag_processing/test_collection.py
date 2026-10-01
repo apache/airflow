@@ -712,6 +712,44 @@ class TestUpdateDagParsingResults:
         yield dag_import_error_listener
         dag_import_error_listener.clear()
 
+    @pytest.fixture
+    def clear_fab_auth_manager_cache(self):
+        get_fab_auth_manager_class = airflow.dag_processing.collection._get_fab_auth_manager_class
+        get_fab_auth_manager_class.cache_clear()
+        yield
+        get_fab_auth_manager_class.cache_clear()
+
+    @patch.object(SerializedDagModel, "write_dag", return_value=True)
+    @patch.object(airflow.dag_processing.collection, "_sync_dag_perms")
+    @patch.object(conf, "getimport")
+    def test_sync_perms_for_fab_auth_manager_subclass(
+        self, mock_getimport, mock_sync_dag_perms, mock_write_dag, clear_fab_auth_manager_cache, session
+    ):
+        FabAuthManager = pytest.importorskip(
+            "airflow.providers.fab.auth_manager.fab_auth_manager"
+        ).FabAuthManager
+
+        class CustomAuthManager(FabAuthManager):
+            pass
+
+        mock_getimport.return_value = CustomAuthManager
+        dag = DAG(dag_id="test")
+
+        for _ in range(2):
+            assert (
+                airflow.dag_processing.collection._serialize_dag_capturing_errors(
+                    dag, "testing", session, None
+                )
+                == []
+            )
+
+        cache_info = airflow.dag_processing.collection._get_fab_auth_manager_class.cache_info()
+        assert cache_info.misses == 1
+        assert cache_info.hits == 1
+        assert mock_getimport.call_count == 2
+        assert mock_sync_dag_perms.call_count == 2
+        mock_sync_dag_perms.assert_called_with(dag, session=session)
+
     @mark_fab_auth_manager_test
     @conf_vars({("core", "min_serialized_dag_update_interval"): "5"})
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
