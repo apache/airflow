@@ -89,6 +89,7 @@ from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.exceptions import TaskAwaitingInput
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
+from airflow.sdk.importers import get_importer_registry
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import coerce_to_core_timetable
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -100,7 +101,7 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.file import list_py_file_paths
+from airflow.utils.file import list_dag_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -1178,7 +1179,7 @@ class TestDag:
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
-            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+            rel_filelocs=list_dag_file_paths(settings.DAGS_FOLDER, get_importer_registry()),
         )
 
         orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))

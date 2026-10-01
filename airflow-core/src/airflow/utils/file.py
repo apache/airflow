@@ -25,7 +25,7 @@ import zipfile
 from collections.abc import Generator
 from io import TextIOWrapper
 from pathlib import Path
-from typing import overload
+from typing import TYPE_CHECKING, overload
 
 from airflow._shared.module_loading import (
     get_unique_dag_module_name as get_unique_dag_module_name,
@@ -33,6 +33,9 @@ from airflow._shared.module_loading import (
     might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
 from airflow.configuration import conf
+
+if TYPE_CHECKING:
+    from airflow.sdk.importers import DagImporterRegistry
 
 log = logging.getLogger(__name__)
 
@@ -76,19 +79,22 @@ def open_maybe_zipped(fileloc, mode="r"):
     return open(fileloc, mode=mode)
 
 
-def list_py_file_paths(
+def list_dag_file_paths(
     directory: str | os.PathLike[str] | None,
+    registry: DagImporterRegistry,
+    *,
     safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
 ) -> list[str]:
     """
-    Traverse a directory and look for Python files.
+    Traverse a directory and return paths of Dag files.
 
-    :param directory: the directory to traverse
-    :param safe_mode: whether to use a heuristic to determine whether a file
-        contains Airflow DAG definitions. If not provided, use the
-        core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
-        to safe.
-    :return: a list of paths to Python files in the specified directory
+    :param directory: The directory to traverse.
+    :param registry: The Dag importer registry for the bundle. A file is
+        discovered only when an importer in the registry claims its extension,
+        and that importer's own ``might_contain_dag`` accepts it.
+    :param safe_mode: Passed to each importer for Dag file detection heuristic.
+        If not provided, use the core.DAG_DISCOVERY_SAFE_MODE configuration.
+    :return: A list of paths to candidate Dag files in the specified directory.
     """
     file_paths: list[str] = []
     if directory is None:
@@ -96,23 +102,28 @@ def list_py_file_paths(
     elif os.path.isfile(directory):
         file_paths = [str(directory)]
     elif os.path.isdir(directory):
-        file_paths.extend(find_dag_file_paths(directory, safe_mode))
+        file_paths.extend(find_dag_file_paths(directory, registry, safe_mode))
     return file_paths
 
 
-def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
-    """Find file paths of all DAG files."""
+def find_dag_file_paths(
+    directory: str | os.PathLike[str],
+    registry: DagImporterRegistry,
+    safe_mode: bool,
+) -> list[str]:
+    """Find paths of candidate Dag files under *directory*."""
     from airflow._shared.module_loading.file_discovery import find_path_from_directory
+    from airflow.sdk.importers import FilesystemDagDefinition
 
     file_paths = []
     ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
 
     for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
-        path = Path(file_path)
         try:
-            if path.is_file() and (path.suffix == ".py" or zipfile.is_zipfile(path)):
-                if might_contain_dag(file_path, safe_mode, conf=conf):
-                    file_paths.append(file_path)
+            if not (path := Path(file_path)).is_file() or (importer := registry.get_importer(path)) is None:
+                continue
+            if importer.might_contain_dag(FilesystemDagDefinition(path), safe_mode):
+                file_paths.append(file_path)
         except Exception:
             log.exception("Error while examining %s", file_path)
 

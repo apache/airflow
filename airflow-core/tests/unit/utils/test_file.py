@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import zipfile
+from pathlib import Path
 from pprint import pformat
 from unittest import mock
 
@@ -29,7 +30,8 @@ from airflow.configuration import conf
 from airflow.utils import file as file_utils
 from airflow.utils.file import (
     correct_maybe_zipped,
-    list_py_file_paths,
+    find_dag_file_paths,
+    list_dag_file_paths,
     open_maybe_zipped,
 )
 
@@ -41,6 +43,26 @@ TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
     return False
+
+
+class _FakeYamlImporter:
+    """Minimal duck-typed Dag importer: claims .yaml/.yml and detects dags its own way."""
+
+    supported_extensions = [".yaml", ".yml"]
+
+    def might_contain_dag(self, definition, safe_mode):
+        # A YAML-specific heuristic -- note it does NOT require the "airflow" marker the Python
+        # importer looks for, so it accepts a plain `dag_id:` file in safe mode.
+        return not safe_mode or b"dag_id" in definition.read_bytes()
+
+
+def _registry(*, yaml=False, defaults=True):
+    from airflow.sdk.importers import DagImporterRegistry
+
+    reg = DagImporterRegistry(register_defaults=defaults)
+    if yaml:
+        reg.register(_FakeYamlImporter(), extensions=[".yaml", ".yml"])
+    return reg
 
 
 class TestCorrectMaybeZipped:
@@ -181,7 +203,7 @@ class TestListPyFilesPath:
 
         assert len(modules) == 0
 
-    def test_list_py_file_paths(self, test_zip_path):
+    def test_list_dag_file_paths(self, test_zip_path):
         detected_files = set()
         expected_files = set()
         # No_dags is empty, _invalid_ is ignored by .airflowignore
@@ -208,10 +230,38 @@ class TestListPyFilesPath:
                 if file_name.endswith((".py", ".zip")):
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
-        detected_files = set(list_py_file_paths(TEST_DAG_FOLDER))
+        detected_files = set(list_dag_file_paths(TEST_DAG_FOLDER, _registry()))
         assert detected_files == expected_files, (
             f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
         )
+
+    def test_find_dag_file_paths_uses_each_importers_might_contain_dag(self, tmp_path):
+        """Each file is gated by ITS importer's might_contain_dag, not a single shared sniff."""
+        (tmp_path / "a.py").write_text("from airflow.sdk import DAG\n")  # airflow + dag markers
+        (tmp_path / "b.yaml").write_text("dag_id: d\n")  # NO "airflow" marker
+        (tmp_path / "c.txt").write_text("not a dag\n")
+
+        # No YAML importer registered: only .py is discovered (via the Python importer).
+        assert {Path(x).name for x in find_dag_file_paths(tmp_path, _registry(), safe_mode=True)} == {"a.py"}
+
+        # With a YAML importer: its own heuristic accepts the .yaml in safe mode even though it
+        # lacks the "airflow" marker the Python importer requires. .txt has no importer -> skipped.
+        assert {
+            Path(x).name for x in find_dag_file_paths(tmp_path, _registry(yaml=True), safe_mode=True)
+        } == {"a.py", "b.yaml"}
+
+    def test_find_dag_file_paths_follows_registered_importers(self, tmp_path):
+        """Dropping the built-in importers drops their extensions -- nothing is hardcoded."""
+        (tmp_path / "a.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "b.yaml").write_text("dag_id: d\n")
+        reg = _registry(yaml=True, defaults=False)  # only the YAML importer, no Python/Zip
+        assert {Path(x).name for x in find_dag_file_paths(tmp_path, reg, safe_mode=False)} == {"b.yaml"}
+
+    def test_list_dag_file_paths_forwards_registry(self, tmp_path):
+        (tmp_path / "a.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "b.yaml").write_text("dag_id: d\n")
+        names = {Path(x).name for x in list_dag_file_paths(tmp_path, _registry(yaml=True), safe_mode=False)}
+        assert names == {"a.py", "b.yaml"}
 
 
 @pytest.mark.parametrize(

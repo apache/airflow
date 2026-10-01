@@ -284,6 +284,15 @@ SWEEP_FILES = 4
 SWEEP_CALLS = 4
 
 
+class _FakeYamlImporter:
+    """Minimal duck-typed Dag importer: claims .yaml/.yml and detects dags its own way."""
+
+    supported_extensions = [".yaml", ".yml"]
+
+    def might_contain_dag(self, definition, safe_mode):
+        return not safe_mode or b"dag_id" in definition.read_bytes()
+
+
 class LateResolvingBundle(BaseDagBundle):
     supports_versioning = True
 
@@ -475,6 +484,40 @@ class TestDagFileProcessorManager:
         if not safe_mode:
             expected.add(Path("no_keywords.py"))
         assert set(manager._find_files_in_bundle(bundle)) == expected
+
+    def test_find_files_in_bundle_uses_registry_importers(self, tmp_path, monkeypatch):
+        """Discovery gates each file by its importer's might_contain_dag; a YAML importer finds .yaml.
+
+        Closes the discovery half of the AIP-85 importer gap: a registered YAML importer makes the
+        manager hand .yaml files to parsing, accepted by the importer's own heuristic (here in
+        safe mode, with no "airflow" marker). Default bundles discover only the built-in
+        importers' extensions.
+        """
+        from airflow.sdk.importers import DagImporterRegistry
+
+        (tmp_path / "pipeline.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "pipeline.yaml").write_text("dag_id: d\n")  # no "airflow" marker
+        (tmp_path / "notes.txt").write_text("ignore me\n")
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.name = "testing"
+        bundle.path = tmp_path
+
+        def _make(yaml):
+            reg = DagImporterRegistry()  # built-in Python/Zip importers
+            if yaml:
+                reg.register(_FakeYamlImporter(), extensions=[".yaml", ".yml"])
+            return reg
+
+        # Built-in importers only: .yaml is not discovered.
+        monkeypatch.setattr("airflow.sdk.importers.get_importer_registry", lambda name=None: _make(False))
+        manager = DagFileProcessorManager(max_runs=1)
+        assert set(manager._find_files_in_bundle(bundle)) == {Path("pipeline.py")}
+
+        # With a YAML importer: pipeline.yaml is discovered via its own might_contain_dag;
+        # notes.txt has no importer and is ignored.
+        monkeypatch.setattr("airflow.sdk.importers.get_importer_registry", lambda name=None: _make(True))
+        manager = DagFileProcessorManager(max_runs=1)
+        assert set(manager._find_files_in_bundle(bundle)) == {Path("pipeline.py"), Path("pipeline.yaml")}
 
     @pytest.mark.parametrize(
         "safe_mode",
