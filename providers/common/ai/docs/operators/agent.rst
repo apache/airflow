@@ -249,8 +249,8 @@ Five features have pages of their own:
 - :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
 - :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
   on retry instead of paying for them again.
-- :doc:`../guardrails`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
-  through ``agent_params``.
+- :doc:`../capabilities`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
+  with ``capabilities=``.
 - :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
   ``run_code`` tool the model drives by writing Python.
 - :doc:`../tool_approval`: mark tools that need a person's approval, and the task pauses before
@@ -277,13 +277,13 @@ Parameters
   ``BaseModel`` for structured output.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
   ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
+- ``capabilities``: List of pydantic-ai capabilities (``Thinking``, ``WebSearch``, guardrails,
+  etc.). See :ref:`capabilities`.
 - ``enable_tool_logging``: Wrap each toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
-  ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``capabilities``).
-  See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
-  such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
+  ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
 - .. _agent-usage-budget:
 
   ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every

@@ -26,7 +26,9 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 from pydantic_ai import Agent
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
@@ -43,6 +45,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     _has_recognized_provider_prefix,
     _looks_like_unrecognized_provider_prefix,
 )
+from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
@@ -1152,6 +1155,7 @@ class TestPydanticAIHookCreateAgent:
             mock_model,
             output_type=str,
             instructions="You are a helpful assistant.",
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1177,7 +1181,41 @@ class TestPydanticAIHookCreateAgent:
             output_type=dict,
             instructions="Be helpful.",
             retries=3,
+            capabilities=[MaskingCapability()],
         )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_adds_masking_after_the_callers_capabilities(self, mock_agent_cls, mock_infer_model):
+        """Last, so it is innermost among capabilities that also ask to be."""
+        mock_infer_model.return_value = MagicMock(spec=Model)
+        callers = [MagicMock(spec=AbstractCapability)]
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn):
+            hook.create_agent(instructions="hi", capabilities=callers)
+
+        assert mock_agent_cls.call_args.kwargs["capabilities"] == [*callers, MaskingCapability()]
+        assert len(callers) == 1
+
+    @pytest.mark.enable_redact
+    def test_create_agent_masks_what_a_tool_returns(self, registered_secret):
+        """Operators other than AgentOperator pass agent_params tools straight to create_agent."""
+
+        def read_setting() -> str:
+            return f"api key: {registered_secret}"
+
+        def call_then_echo(messages, info):
+            returns = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            if returns:
+                return ModelResponse(parts=[TextPart(content=str(returns[-1].content))])
+            return ModelResponse(parts=[ToolCallPart(tool_name="read_setting", args={}, tool_call_id="c1")])
+
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        with patch.object(hook, "get_conn", autospec=True, return_value=FunctionModel(call_then_echo)):
+            agent = hook.create_agent(instructions="hi", tools=[read_setting])
+
+        assert agent.run_sync("hi").output == "api key: ***"
 
     def test_create_agent_without_instructions_or_spec_file_raises(self):
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
@@ -1200,6 +1238,7 @@ class TestPydanticAIHookCreateAgent:
             "/path/to/agent.yaml",
             model=mock_model,
             output_type=str,
+            capabilities=[MaskingCapability()],
         )
         mock_agent_cls.assert_not_called()
 
@@ -1218,6 +1257,7 @@ class TestPydanticAIHookCreateAgent:
         mock_agent_cls.from_file.assert_called_once_with(
             "/path/to/agent.yaml",
             output_type=str,
+            capabilities=[MaskingCapability()],
         )
         mock_agent_cls.assert_not_called()
 
@@ -1256,6 +1296,7 @@ class TestPydanticAIHookCreateAgent:
             spec_path,
             model=mock_model,
             output_type=str,
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1280,6 +1321,7 @@ class TestPydanticAIHookCreateAgent:
             model=mock_model,
             output_type=str,
             instructions="Override instructions.",
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1298,6 +1340,7 @@ class TestPydanticAIHookCreateAgent:
             "/path/to/agent.yaml",
             model=mock_model,
             output_type=dict,
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1322,6 +1365,7 @@ class TestPydanticAIHookCreateAgent:
             output_type=str,
             retries=5,
             end_strategy="early",
+            capabilities=[MaskingCapability()],
         )
 
 
@@ -1372,6 +1416,7 @@ class TestPydanticAIHookCreateAgentInstrumentation:
             mock_model,
             output_type=str,
             instructions="hi",
+            capabilities=[MaskingCapability()],
         )
         assert agent.instrument is False
         mock_settings.assert_not_called()

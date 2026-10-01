@@ -23,19 +23,28 @@ import sys
 from contextlib import nullcontext
 from datetime import timedelta
 from decimal import Decimal
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, DeferredToolRequests, Tool
-from pydantic_ai.capabilities import Toolset
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.capabilities import (
+    AbstractCapability,
+    CapabilityOrdering,
+    CombinedCapability,
+    PrefixTools,
+    Thinking,
+    Toolset,
+    WebSearch,
+)
+from pydantic_ai.exceptions import ModelRetry, ToolFailed, UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
     ToolReturnPart,
@@ -56,6 +65,7 @@ from airflow.providers.common.ai.durable.base import (
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
@@ -80,6 +90,7 @@ from airflow.providers.common.ai.utils.usage_budget import (
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 from airflow.sdk import DAG, task
 
+from tests_common.test_utils.compat import OperatorSerialization
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
@@ -381,28 +392,30 @@ class TestAgentOperatorToolsetTemplating:
         assert found._db_conn_id == "tenant_acme"
         assert inner._db_conn_id == "tenant_{{ params.customer }}"
 
-    def test_toolset_capability_is_rendered(self):
+    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
+    def test_toolset_capability_is_rendered(self, passed_as):
         capability = Toolset(SQLToolset(db_conn_id="tenant_{{ params.customer }}"))
-        op = AgentOperator(
-            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
+        kwargs = (
+            {"capabilities": [capability]}
+            if passed_as == "capabilities"
+            else {"agent_params": {"capabilities": [capability]}}
         )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", **kwargs)
 
         op.render_template_fields(self.CONTEXT)
 
-        (rendered,) = op.agent_params["capabilities"]
+        (rendered,) = op._declared_capabilities
         assert rendered.toolset._db_conn_id == "tenant_acme"
         assert capability.toolset._db_conn_id == "tenant_{{ params.customer }}"
 
     def test_callable_toolset_capability_is_left_as_is(self):
         """A factory resolved per run has no toolset to render until the run starts."""
         capability = Toolset(lambda ctx: SQLToolset(db_conn_id="tenant_{{ params.customer }}"))
-        op = AgentOperator(
-            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
-        )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[capability])
 
         op.render_template_fields(self.CONTEXT)
 
-        assert op.agent_params["capabilities"][0] is capability
+        assert op.capabilities[0] is capability
 
     def test_only_connection_ids_are_templated(self):
         """allowed_tables is validated and canonicalised in __init__, so rendering it later
@@ -433,13 +446,11 @@ class TestAgentOperatorToolsetTemplating:
 
     def test_wrapped_toolset_inside_a_capability_is_rendered(self):
         capability = Toolset(SQLToolset(db_conn_id="tenant_{{ params.customer }}").prefixed("crm"))
-        op = AgentOperator(
-            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
-        )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[capability])
 
         op.render_template_fields(self.CONTEXT)
 
-        found = find_toolset([op.agent_params["capabilities"][0].toolset], SQLToolset)
+        found = find_toolset([op.capabilities[0].toolset], SQLToolset)
         assert found is not None
         assert found.id == "sql-tenant_acme"
 
@@ -1130,6 +1141,147 @@ class TestAgentOperatorExecute:
 
         with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
             op.execute(context=context)
+
+
+@dataclasses.dataclass
+class _FakeCodeMode(AbstractCapability):
+    """Stands in for pydantic-ai-harness ``CodeMode``, which the ``code-mode`` extra installs."""
+
+
+def _harness_root_without_code_mode_extra() -> ModuleType:
+    """
+    The pydantic_ai_harness package as installed without the ``code-mode`` extra.
+
+    Like the real package, it exports CodeMode through a module ``__getattr__`` that imports
+    ``pydantic_ai_harness.code_mode``, and that import fails because pydantic-monty is missing.
+    """
+    root = ModuleType("pydantic_ai_harness")
+
+    def __getattr__(name: str) -> object:
+        raise ImportError("pydantic-monty is required for CodeMode")
+
+    root.__getattr__ = __getattr__  # type: ignore[method-assign]
+    return root
+
+
+@pytest.fixture
+def fake_harness(monkeypatch):
+    """The harness with CodeMode imported: its ``code_mode`` module is loaded."""
+    monkeypatch.setitem(sys.modules, "pydantic_ai_harness", _harness_root_without_code_mode_extra())
+    monkeypatch.setitem(sys.modules, "pydantic_ai_harness.code_mode", SimpleNamespace(CodeMode=_FakeCodeMode))
+
+
+@pytest.fixture
+def harness_without_code_mode_extra(monkeypatch):
+    """The harness installed for other capabilities, with CodeMode never imported."""
+    monkeypatch.setitem(sys.modules, "pydantic_ai_harness", _harness_root_without_code_mode_extra())
+    monkeypatch.delitem(sys.modules, "pydantic_ai_harness.code_mode", raising=False)
+
+
+class TestAgentOperatorCapabilities:
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_capabilities_are_passed_to_the_agent_in_order(self, mock_hook_cls, make_mock_run_result):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+        thinking, search = Thinking(effort="high"), WebSearch()
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[thinking, search])
+        op.execute(context=_make_context())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call.kwargs["capabilities"] == [thinking, search]
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_capabilities_in_both_places_are_refused(self, mock_hook_cls):
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            capabilities=[Thinking()],
+            agent_params={"capabilities": [WebSearch()]},
+        )
+
+        with pytest.raises(ValueError, match="not both"):
+            op.execute(context=_make_context())
+        mock_hook_cls.get_hook.return_value.create_agent.assert_not_called()
+
+    def test_capabilities_are_left_out_of_the_serialized_dag(self):
+        with DAG(dag_id="d", schedule=None):
+            op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[Thinking()])
+
+        serialized = OperatorSerialization.serialize_operator(op)
+
+        assert "Thinking" not in json.dumps(serialized, default=str)
+
+    @pytest.mark.parametrize(
+        "wrap",
+        [
+            pytest.param(lambda code_mode: code_mode, id="direct"),
+            pytest.param(lambda code_mode: CombinedCapability([Thinking(), code_mode]), id="combined"),
+            pytest.param(lambda code_mode: code_mode.prefix_tools("sandboxed"), id="prefixed"),
+            pytest.param(
+                lambda code_mode: CombinedCapability([PrefixTools(wrapped=code_mode, prefix="sandboxed")]),
+                id="prefixed-in-combined",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
+    def test_durable_refuses_a_code_mode_capability(self, fake_harness, wrap, passed_as):
+        capabilities = [wrap(_FakeCodeMode())]
+        kwargs = (
+            {"capabilities": capabilities}
+            if passed_as == "capabilities"
+            else {"agent_params": {"capabilities": capabilities}}
+        )
+
+        with pytest.raises(ValueError, match="CodeMode capability"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, **kwargs)
+
+    def test_durable_accepts_capabilities_without_code_mode(self, fake_harness):
+        thinking = Thinking()
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[thinking])
+
+        assert op.capabilities == [thinking]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
+    @pytest.mark.parametrize(
+        ("capability", "supported"),
+        [
+            pytest.param(Thinking(), True, id="thinking"),
+            pytest.param(_FakeCodeMode(), False, id="code-mode"),
+        ],
+    )
+    def test_code_mode_capability_turns_off_tool_approval(self, fake_harness, capability, supported):
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[capability])
+
+        assert op._supports_tool_approval() is supported
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
+    def test_harness_without_the_code_mode_extra_does_not_break_other_agents(
+        self, harness_without_code_mode_extra
+    ):
+        # Neither the durable check at construction nor the approval check at run time may
+        # touch the harness root, whose CodeMode export would raise ImportError here.
+        AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[Thinking()])
+        op = AgentOperator(task_id="u", prompt="p", llm_conn_id="llm", capabilities=[Thinking()])
+
+        assert op._supports_tool_approval() is True
+
+    def test_code_mode_flag_and_code_mode_capability_are_refused_together(self, fake_harness):
+        with pytest.raises(ValueError, match="one or the other"):
+            AgentOperator(
+                task_id="t", prompt="p", llm_conn_id="llm", code_mode=True, capabilities=[_FakeCodeMode()]
+            )
+
+    def test_capability_function_is_left_for_the_run_to_resolve(self, fake_harness):
+        def build(ctx):
+            return Thinking()
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[build])
+
+        assert op.capabilities == [build]
 
 
 @pytest.mark.skipif(
@@ -3088,11 +3240,43 @@ class TestAgentOperatorDurableUsageBudgetEndToEnd:
 
 
 def _echo_tool_result(messages, info: AgentInfo) -> ModelResponse:
-    """Call ``read_setting`` once, then answer with whatever it returned."""
-    returns = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
-    if returns:
-        return ModelResponse(parts=[TextPart(content=str(returns[-1].content))])
-    return ModelResponse(parts=[ToolCallPart(tool_name="read_setting", args={}, tool_call_id="c1")])
+    """
+    Call the first tool the agent offers once, whatever its name, then answer with what came back.
+
+    That is the tool's result, or the retry prompt pydantic-ai sends when the tool raises.
+    """
+    replies = [p for m in messages for p in m.parts if isinstance(p, (ToolReturnPart, RetryPromptPart))]
+    if replies:
+        return ModelResponse(parts=[TextPart(content=str(replies[-1].content))])
+    return ModelResponse(
+        parts=[ToolCallPart(tool_name=info.function_tools[0].name, args={}, tool_call_id="c1")]
+    )
+
+
+@dataclasses.dataclass
+class _ToolsFromGetToolset(AbstractCapability):
+    """Provides tools the way ``MCP`` and other built-in capabilities do, through ``get_toolset``."""
+
+    toolset: FunctionToolset = dataclasses.field(default_factory=FunctionToolset)
+
+    def get_toolset(self):
+        return self.toolset
+
+
+@dataclasses.dataclass
+class _RecordToolResults(AbstractCapability):
+    """A Dag author's capability that looks at every tool result, as a logging or guard capability would."""
+
+    seen: list = dataclasses.field(default_factory=list)
+
+    def get_ordering(self):
+        # Asks for the same spot the masking capability takes, next to the tool.
+        return CapabilityOrdering(position="innermost")
+
+    async def wrap_tool_execute(self, ctx, *, call, tool_def, args, handler):
+        result = await handler(args)
+        self.seen.append(result)
+        return result
 
 
 @pytest.mark.enable_redact
@@ -3100,14 +3284,18 @@ class TestAgentOperatorMasksToolOutput:
     """What any tool hands the model is masked, however the toolset reaches the agent."""
 
     @staticmethod
-    def _run(op: AgentOperator, storage=None) -> str:
+    def _agent(op: AgentOperator, storage=None) -> Agent:
         if storage is not None:
             op._durable_storage = storage
             op._durable_counter = DurableStepCounter()
-        hook = MagicMock(spec=["create_agent"])
-        hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(_echo_tool_result), **kw)
+        # The real create_agent, which adds the masking capability, with a scripted model.
+        hook = PydanticAIHook(llm_conn_id="c")
         op.llm_hook = hook
-        return op._build_agent().run_sync("hi").output
+        with patch.object(hook, "get_conn", autospec=True, return_value=FunctionModel(_echo_tool_result)):
+            return op._build_agent()
+
+    def _run(self, op: AgentOperator, storage=None) -> str:
+        return self._agent(op, storage).run_sync("hi").output
 
     @staticmethod
     def _dag_authors_toolset(secret: str) -> FunctionToolset:
@@ -3144,19 +3332,110 @@ class TestAgentOperatorMasksToolOutput:
 
         assert self._run(op) == "api key: ***"
 
-    def test_a_toolset_capability_is_masked_before_the_durable_cache_stores_it(self, registered_secret):
+    @pytest.mark.parametrize(
+        "passed_as",
+        [
+            pytest.param(lambda ts: {"toolsets": [ts]}, id="toolsets"),
+            pytest.param(lambda ts: {"capabilities": [Toolset(ts)]}, id="toolset-capability"),
+        ],
+    )
+    def test_a_toolset_is_masked_before_the_durable_cache_stores_it(self, registered_secret, passed_as):
+        """The cache sits below the masking capability, so the toolset has to be masked on its own."""
         storage = _InMemoryDurableStorage()
         op = AgentOperator(
             task_id="t",
             prompt="hi",
             llm_conn_id="c",
             durable=True,
-            agent_params={"capabilities": [Toolset(self._dag_authors_toolset(registered_secret))]},
+            **passed_as(self._dag_authors_toolset(registered_secret)),
         )
 
         assert self._run(op, storage) == "api key: ***"
         cached = [value for value, _ in storage.tools.values()]
         assert cached == ["api key: ***"]
+
+    @pytest.mark.parametrize(
+        "capability",
+        [
+            pytest.param(lambda ts: PrefixTools(wrapped=Toolset(ts), prefix="settings"), id="prefixed"),
+            pytest.param(lambda ts: CombinedCapability([Toolset(ts)]), id="combined"),
+            pytest.param(lambda ts: Toolset(lambda ctx: ts), id="toolset-built-per-run"),
+            pytest.param(lambda ts: _ToolsFromGetToolset(ts), id="capability-providing-tools"),
+        ],
+    )
+    def test_tools_from_any_capability(self, registered_secret, capability):
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            capabilities=[capability(self._dag_authors_toolset(registered_secret))],
+        )
+
+        assert self._run(op) == "api key: ***"
+
+    def test_function_tools_passed_through_agent_params(self, registered_secret):
+        def read_setting() -> str:
+            return f"api key: {registered_secret}"
+
+        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="c", agent_params={"tools": [read_setting]})
+
+        assert self._run(op) == "api key: ***"
+
+    def test_other_capabilities_only_see_the_masked_result(self, registered_secret):
+        seen = []
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            capabilities=[
+                _RecordToolResults(seen),
+                _ToolsFromGetToolset(self._dag_authors_toolset(registered_secret)),
+            ],
+        )
+
+        self._run(op)
+
+        assert seen == ["api key: ***"]
+
+    @pytest.mark.parametrize(
+        ("error", "reply_is"),
+        [
+            pytest.param(ModelRetry, lambda part: isinstance(part, RetryPromptPart), id="model-retry"),
+            pytest.param(
+                ToolFailed,
+                lambda part: isinstance(part, ToolReturnPart) and part.outcome == "failed",
+                id="tool-failed",
+            ),
+        ],
+    )
+    def test_an_error_from_a_capabilitys_tool_is_masked(self, registered_secret, error, reply_is):
+        """
+        pydantic-ai hands a capability both as its own wrapper errors; the model sees the part inside.
+
+        A ModelRetry comes back to the model as a retry prompt and a ToolFailed as a failed tool
+        result, which does not spend the retry budget; masking must keep them apart.
+        """
+
+        def read_setting() -> str:
+            raise error(f"bad key {registered_secret}")
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            capabilities=[_ToolsFromGetToolset(FunctionToolset(tools=[read_setting]))],
+        )
+
+        result = self._agent(op).run_sync("hi")
+
+        (reply,) = [
+            p
+            for m in result.all_messages()
+            for p in m.parts
+            if isinstance(p, (ToolReturnPart, RetryPromptPart))
+        ]
+        assert reply_is(reply)
+        assert reply.content == "bad key ***"
 
     def test_a_toolset_that_masks_its_own_output_is_not_wrapped_again(self):
         sql = SQLToolset("pg_default")

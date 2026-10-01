@@ -137,11 +137,12 @@ outputs (``gen_ai.input.messages`` / ``gen_ai.output.messages``), set:
 
 .. warning::
 
-    With ``capture_content`` enabled, prompts, completions, and tool IO are
+    With ``capture_content`` enabled, prompts, completions, and tool arguments are
     exported to your tracing backend **without redaction**. Airflow's secret masking
     applies to logs and rendered template fields, not to OpenTelemetry span
-    attributes, so it does not scrub this content. Enable it only for debugging
-    in a trusted environment. It has no effect unless ``otel_export_enabled`` is
+    attributes. The one exception is what a tool returns or raises while it runs in
+    an agent this provider builds, which is masked before the span records it (see
+    :doc:`agent_security`). Enable it only for debugging in a trusted environment. It has no effect unless ``otel_export_enabled`` is
     ``True``.
 
 Agents built with other frameworks
