@@ -300,7 +300,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         itself in the middle of a request raises :class:`DeadlockImminentError`, as waiting there
         would never end.
         """
-        frame_bytes = self._make_frame(msg).as_bytes()
+        request = self._make_frame(msg)
+        frame_bytes = request.as_bytes()
         with self._thread_lock:
             # Another thread's request makes the acquire above wait for it. This thread's own lets
             # it in again: in the middle of that request, the call would wait for its own response,
@@ -308,9 +309,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             # channel is free and this call is exchanged whole in between.
             if self._is_exchanging:
                 raise DeadlockImminentError(msg)
-            return self._exchange(msg, frame_bytes)
+            return self._exchange(msg, request.id, frame_bytes)
 
-    def _exchange(self, msg: SendMsgType, frame_bytes: bytes | bytearray) -> ReceiveMsgType | None:
+    def _exchange(
+        self, msg: SendMsgType, request_id: int, frame_bytes: bytes | bytearray
+    ) -> ReceiveMsgType | None:
         """
         Write one request and read its response; the caller holds ``_thread_lock``.
 
@@ -326,7 +329,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 # We need special handling here! The server can't send us the fd number, as the number on the
                 # supervisor will be different to in this process, so we have to mutate the message ourselves here.
                 frame, fds = self._read_frame(maxfds=1)
-                resp = self._from_frame(frame)
+                resp = self._from_frame(frame, request_id=request_id)
                 if TYPE_CHECKING:
                     assert isinstance(resp, SentFDs)
                 resp.fds = fds
@@ -334,12 +337,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
-            return self._get_response()
+            return self._from_frame(self._read_frame(), request_id=request_id)
         finally:
             self._is_exchanging = False
 
     def _acquire_and_exchange(
-        self, msg: SendMsgType, frame_bytes: bytes | bytearray, abandoned: threading.Event
+        self, msg: SendMsgType, request_id: int, frame_bytes: bytes | bytearray, abandoned: threading.Event
     ) -> ReceiveMsgType | None:
         """
         Take ``_thread_lock``, exchange one request and its response, and release it.
@@ -352,7 +355,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         with self._thread_lock:
             if abandoned.is_set():
                 return None
-            return self._exchange(msg, frame_bytes)
+            return self._exchange(msg, request_id, frame_bytes)
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
@@ -364,11 +367,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         sent has its response drained before the thread lets go of the channel, so the next request
         never reads a response that was not its own.
         """
-        frame_bytes = self._make_frame(msg).as_bytes()
+        request = self._make_frame(msg)
+        frame_bytes = request.as_bytes()
         abandoned = threading.Event()
         try:
             return await asyncio.get_running_loop().run_in_executor(
-                self._worker.get_executor(), self._acquire_and_exchange, msg, frame_bytes, abandoned
+                self._worker.get_executor(), self._acquire_and_exchange, msg, request.id, frame_bytes, abandoned
             )
         except BaseException:
             abandoned.set()
@@ -422,8 +426,17 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             return resp, fds or []
         return resp
 
-    def _from_frame(self, frame) -> ReceiveMsgType | None:
+    def _from_frame(self, frame, request_id: int | None = None) -> ReceiveMsgType | None:
         from airflow.sdk.exceptions import AirflowRuntimeError
+
+        # A frame for a different request means the stream is out of step, and returning it would hand
+        # the caller another request's data.
+        if request_id is not None and frame.id != request_id:
+            raise RuntimeError(
+                f"Received a response for request {frame.id} while waiting for the response to request "
+                f"{request_id}. The connection to the supervisor is out of sync, which can happen when "
+                "another process, such as a forked child, has used it."
+            )
 
         if frame.error is not None:
             err = self.err_decoder.validate_python(frame.error)
