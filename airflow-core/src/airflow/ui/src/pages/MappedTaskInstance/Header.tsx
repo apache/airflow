@@ -29,13 +29,12 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 
-import { useDurationFormat, useFormatNumber } from "src/utils";
+import { formatNumber, useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { dagId = "", runId = "" } = useParams();
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { formatElapsed } = useDurationFormat();
-  const formatNumber = useFormatNumber();
   const entries: Array<{ key?: string; label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
 
@@ -53,7 +52,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
             height="10px"
             width="10px"
           />
-          {formatNumber(count)}
+          {formatNumber(count, i18n.language)}
         </HStack>
       ),
     });
@@ -90,7 +89,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
       state={taskInstance.state}
       stats={stats}
       subTitle={<Time datetime={taskInstance.min_start_date} />}
-      title={`${taskInstance.task_display_name} [${formatNumber(taskCount)}]`}
+      title={`${taskInstance.task_display_name} [${formatNumber(taskCount, i18n.language)}]`}
       type="taskInstance"
     />
   );

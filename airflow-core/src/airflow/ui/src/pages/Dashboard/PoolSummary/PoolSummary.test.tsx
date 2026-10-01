@@ -43,8 +43,8 @@ vi.mock("openapi/queries/queries", () => ({
 }));
 
 vi.mock("src/utils", () => ({
+  formatNumber: String,
   useAutoRefresh: () => false,
-  useFormatNumber: () => String,
 }));
 
 vi.mock("react-i18next", () => ({

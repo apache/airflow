@@ -19,6 +19,7 @@
 import type { ReactNode } from "react";
 
 import { Box, HStack, Skeleton, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiChevronRight, FiChevronLeft } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -26,7 +27,7 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 import { StateBadge } from "src/components/StateBadge";
 
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 export const StatsCard = ({
   colorScheme,
@@ -49,7 +50,7 @@ export const StatsCard = ({
   readonly onClick?: () => void;
   readonly state?: TaskInstanceState | null;
 }) => {
-  const formatNumber = useFormatNumber();
+  const { i18n } = useTranslation();
 
   if (isLoading) {
     return <Skeleton borderRadius="lg" height="42px" width="175px" />;
@@ -67,7 +68,7 @@ export const StatsCard = ({
     >
       <StateBadge colorPalette={colorScheme} mr={2} state={state}>
         {icon}
-        {formatNumber(count)}
+        {formatNumber(count, i18n.language)}
       </StateBadge>
 
       <Text color="fg" fontSize="sm" fontWeight="bold">

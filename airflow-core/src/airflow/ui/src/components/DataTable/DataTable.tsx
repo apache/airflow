@@ -42,7 +42,7 @@ import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay"
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 type DataTableProps<TData> = {
   readonly cardDef?: CardDef<TData>;
@@ -138,8 +138,7 @@ export const DataTable = <TData,>({
 }: DataTableProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
 
-  const { t: translate } = useTranslation(["common"]);
-  const formatNumber = useFormatNumber();
+  const { i18n, t: translate } = useTranslation(["common"]);
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
     tableRef: undefined,
   });
@@ -234,7 +233,7 @@ export const DataTable = <TData,>({
   const headingNode = Boolean(hideRowCountHeading) ? undefined : (
     <Heading py={1} size="md">
       {hasRowCount
-        ? `${formatNumber(total)}${isCapped ? "+" : ""} ${translateModelName(total)}`
+        ? `${formatNumber(total, i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
         : pluralModelName}
     </Heading>
   );

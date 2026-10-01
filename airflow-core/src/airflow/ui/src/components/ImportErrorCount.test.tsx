@@ -17,17 +17,29 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
 import { ImportErrorCount } from "./ImportErrorCount";
 
 describe("ImportErrorCount", () => {
-  it("groups thousands in the count", () => {
+  beforeAll(async () => {
+    await i18n.use(initReactI18next).init({ lng: "en", resources: { de: {}, en: {} } });
+  });
+
+  it("groups thousands in the count and regroups on a language switch", async () => {
     render(<ImportErrorCount count={1234} />, { wrapper: Wrapper });
 
     expect(screen.getByText("1,234")).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("de");
+    });
+
+    expect(screen.getByText("1.234")).toBeInTheDocument();
   });
 });

@@ -29,11 +29,10 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 export const Header = ({ bundle }: { readonly bundle: DagBundleDetailResponse }) => {
-  const { t: translate } = useTranslation(["browse", "common"]);
-  const formatNumber = useFormatNumber();
+  const { i18n, t: translate } = useTranslation(["browse", "common"]);
   // Teams exist only in multi-team deployments, and a bundle need not belong to one; an
   // empty "Team" stat reads as a broken page.
   const showTeam = useShowTeam(bundle.team_name);
@@ -67,7 +66,7 @@ export const Header = ({ bundle }: { readonly bundle: DagBundleDetailResponse })
           <Time datetime={bundle.last_refreshed} />
         ),
     },
-    { label: translate("common:dag_other"), value: formatNumber(bundle.dag_count) },
+    { label: translate("common:dag_other"), value: formatNumber(bundle.dag_count, i18n.language) },
     {
       label: translate("browse:dagBundles.columns.importErrors"),
       value: <ImportErrorCount count={bundle.import_error_count} />,

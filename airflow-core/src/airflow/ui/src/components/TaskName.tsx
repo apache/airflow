@@ -19,11 +19,12 @@
 import type { CSSProperties } from "react";
 
 import { Box, type TextProps } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 export type TaskNameProps = {
   readonly childCount?: number;
@@ -51,7 +52,7 @@ export const TaskName = ({
   setupTeardownType,
   ...rest
 }: TaskNameProps) => {
-  const formatNumber = useFormatNumber();
+  const { i18n } = useTranslation();
 
   if (isGroup) {
     return (
@@ -79,7 +80,9 @@ export const TaskName = ({
       {...rest}
     >
       {label}
-      {isMapped ? ` [${childCount === undefined ? " " : formatNumber(childCount)}]` : undefined}
+      {isMapped
+        ? ` [${childCount === undefined ? " " : formatNumber(childCount, i18n.language)}]`
+        : undefined}
       {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
       {setupTeardownType === "teardown" && (
         <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />

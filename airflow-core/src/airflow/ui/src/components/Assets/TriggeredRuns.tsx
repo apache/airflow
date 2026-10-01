@@ -23,7 +23,7 @@ import type { DagRunAssetReference, DagRunState } from "openapi/requests/types.g
 
 import { Popover, RouterLink } from "src/system-components";
 
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 import { StateBadge } from "../StateBadge";
 
@@ -38,8 +38,7 @@ const DagRunGroup = ({
   readonly dagRuns: Array<DagRunAssetReference>;
   readonly prefix: string;
 }) => {
-  const { t: translate } = useTranslation();
-  const formatNumber = useFormatNumber();
+  const { i18n, t: translate } = useTranslation();
 
   return dagRuns.length === 1 ? (
     <Flex flexWrap="wrap" gap={1}>
@@ -54,7 +53,7 @@ const DagRunGroup = ({
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild>
         <Button variant="outline">
-          {`${formatNumber(dagRuns.length)} ${prefix} ${translate("dagRun_other", { count: dagRuns.length })}`}
+          {`${formatNumber(dagRuns.length, i18n.language)} ${prefix} ${translate("dagRun_other", { count: dagRuns.length })}`}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">

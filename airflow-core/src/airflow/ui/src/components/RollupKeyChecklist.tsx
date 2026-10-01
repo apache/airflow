@@ -17,11 +17,12 @@
  * under the License.
  */
 import { Button, HStack, Text, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiCheck, FiMinus } from "react-icons/fi";
 
 import { Popover } from "src/system-components";
 
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 type ChecklistProps = {
   readonly receivedKeys: ReadonlyArray<string>;
@@ -75,7 +76,7 @@ export const RollupKeyChecklistPopover = ({
   requiredCount,
   requiredKeys,
 }: PopoverProps) => {
-  const formatNumber = useFormatNumber();
+  const { i18n } = useTranslation();
 
   return (
     // eslint-disable-next-line jsx-a11y/no-autofocus
@@ -88,7 +89,7 @@ export const RollupKeyChecklistPopover = ({
           size="sm"
           variant="ghost"
         >
-          {formatNumber(receivedCount)} / {formatNumber(requiredCount)}
+          {formatNumber(receivedCount, i18n.language)} / {formatNumber(requiredCount, i18n.language)}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">

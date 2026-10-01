@@ -16,21 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback } from "react";
-
-import { useTranslation } from "react-i18next";
-
 import { createIntlCache } from "./intlCache";
 
 const numberFormatter = createIntlCache<Intl.NumberFormat>();
 
-const getNumberFormatter = (locale: string): Intl.NumberFormat =>
-  numberFormatter("number", locale, (forLocale) => new Intl.NumberFormat(forLocale));
-
-/** Locale digit grouping for counters rendered outside translations; use instead of `toLocaleString`. */
-export const useFormatNumber = (): ((value: number) => string) => {
-  const { i18n } = useTranslation();
-  const locale = i18n.language;
-
-  return useCallback((value: number) => getNumberFormatter(locale).format(value), [locale]);
-};
+/**
+ * Locale digit grouping for counters rendered outside translations; use instead of `toLocaleString`.
+ *
+ * Components pass `i18n.language` from `useTranslation`, which the React Compiler tracks (react-i18next
+ * hands out a new `i18n` wrapper on every language switch). A language read from the i18next singleton
+ * in here is invisible to the compiler, so a memoized counter would keep its old grouping.
+ */
+export const formatNumber = (value: number, locale: string): string =>
+  numberFormatter("number", locale, (forLocale) => new Intl.NumberFormat(forLocale)).format(value);

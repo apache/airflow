@@ -27,7 +27,7 @@ import { Popover } from "src/system-components";
 
 import Time from "src/components/Time";
 
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 type ListPopoverProps = {
   readonly items: Array<{ key: string; label: ReactNode }>;
@@ -35,14 +35,14 @@ type ListPopoverProps = {
 };
 
 const ListPopover = ({ items, noun }: ListPopoverProps) => {
-  const formatNumber = useFormatNumber();
+  const { i18n } = useTranslation();
 
   return (
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild disabled={items.length === 0}>
         <Button variant="outline">
-          {formatNumber(items.length)} {noun}
+          {formatNumber(items.length, i18n.language)} {noun}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">

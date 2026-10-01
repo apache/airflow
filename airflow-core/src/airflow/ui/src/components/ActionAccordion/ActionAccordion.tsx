@@ -31,7 +31,7 @@ import { Accordion } from "src/system-components";
 
 import ReactMarkdown from "src/components/ReactMarkdown";
 
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 import { DataTable } from "../DataTable";
 import { getColumns, type RowSelection } from "./columns";
@@ -73,8 +73,7 @@ const TasksTable = ({
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
 const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, selection, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
-  const { t: translate } = useTranslation();
-  const formatNumber = useFormatNumber();
+  const { i18n, t: translate } = useTranslation();
 
   // Group task instances by dag_run_id when requested
   const runGroups = (() => {
@@ -123,7 +122,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, selection,
                         <Text fontSize="sm" fontWeight="semibold">
                           {translate("runId")}: {runId}{" "}
                           <Text as="span" color="fg.subtle" fontWeight="normal">
-                            ({formatNumber(tis.length)})
+                            ({formatNumber(tis.length, i18n.language)})
                           </Text>
                         </Text>
                       </Accordion.ItemTrigger>

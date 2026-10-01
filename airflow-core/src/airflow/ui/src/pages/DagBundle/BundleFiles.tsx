@@ -35,7 +35,7 @@ import { ImportErrorCount } from "src/components/ImportErrorCount";
 import Time from "src/components/Time";
 
 import { useDagBundleRefetchInterval } from "src/queries/useDagBundleRefetchInterval";
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 import { FileImportError } from "./FileImportError";
 
@@ -45,7 +45,7 @@ type FileRow = { row: { original: DagBundleFileResponse } };
 // parameter and the table offers none.
 const createColumns = (
   translate: TFunction,
-  formatNumber: (value: number) => string,
+  locale: string,
   onShowImportError: (relativeFileloc: string) => void,
 ): Array<ColumnDef<DagBundleFileResponse>> => [
   {
@@ -56,7 +56,7 @@ const createColumns = (
   },
   {
     accessorKey: "dag_count",
-    cell: ({ row: { original } }: FileRow) => formatNumber(original.dag_count),
+    cell: ({ row: { original } }: FileRow) => formatNumber(original.dag_count, locale),
     enableSorting: false,
     header: translate("common:dag_other"),
   },
@@ -105,8 +105,7 @@ const createColumns = (
 ];
 
 export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => {
-  const { t: translate } = useTranslation(["browse", "common"]);
-  const formatNumber = useFormatNumber();
+  const { i18n, t: translate } = useTranslation(["browse", "common"]);
   const refetchInterval = useDagBundleRefetchInterval();
 
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -133,7 +132,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
         relativeFileloc={errorFileloc}
       />
       <DataTable
-        columns={createColumns(translate, formatNumber, setErrorFileloc)}
+        columns={createColumns(translate, i18n.language, setErrorFileloc)}
         data={data?.dag_bundle_files ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

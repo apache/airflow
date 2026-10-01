@@ -26,13 +26,12 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
-import { useDurationFormat, useFormatNumber } from "src/utils";
+import { formatNumber, useDurationFormat } from "src/utils";
 
 export const Details = () => {
   const { dagId = "", taskId = "" } = useParams();
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { formatElapsed } = useDurationFormat();
-  const formatNumber = useFormatNumber();
 
   // The aggregate summary (per-state counts, dates) is streamed once by the parent page and
   // shared through the router outlet, so this tab does not re-open the TI summaries stream.
@@ -68,7 +67,7 @@ export const Details = () => {
                     height="10px"
                     width="10px"
                   />
-                  {formatNumber(count)}
+                  {formatNumber(count, i18n.language)}
                 </Flex>
               </Table.Cell>
             </Table.Row>

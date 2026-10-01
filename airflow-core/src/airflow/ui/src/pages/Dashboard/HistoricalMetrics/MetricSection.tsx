@@ -25,7 +25,7 @@ import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFormatNumber } from "src/utils";
+import { formatNumber } from "src/utils";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
@@ -61,8 +61,7 @@ export const MetricSection = ({
   const searchParams = new URLSearchParams(
     `?${stateParam}=${state}&${SearchParamsKeys.START_DATE_GTE}=${startDate}`,
   );
-  const { t: translate } = useTranslation();
-  const formatNumber = useFormatNumber();
+  const { i18n, t: translate } = useTranslation();
 
   if (endDate !== undefined) {
     searchParams.append(SearchParamsKeys.END_DATE, endDate);
@@ -75,7 +74,7 @@ export const MetricSection = ({
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
             <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
               {}
-              {`${formatNumber(runs)}${capped ? "+" : ""}`}
+              {`${formatNumber(runs, i18n.language)}${capped ? "+" : ""}`}
             </StateBadge>
           </RouterLink>
           <Text>{translate(`states.${state}`)}</Text>

@@ -46,7 +46,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
-import { useDocumentTitle, useFormatNumber } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
@@ -139,8 +139,7 @@ const getColumns = ({
 };
 
 export const Connections = () => {
-  const { t: translate } = useTranslation(["admin", "common"]);
-  const formatNumber = useFormatNumber();
+  const { i18n, t: translate } = useTranslation(["admin", "common"]);
 
   useDocumentTitle(translate("common:admin.Connections"));
 
@@ -222,7 +221,7 @@ export const Connections = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {formatNumber(selectedRows.size)} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("deleteActions.tooltip")}>
