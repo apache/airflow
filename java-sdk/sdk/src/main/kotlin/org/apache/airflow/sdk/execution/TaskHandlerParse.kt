@@ -66,8 +66,8 @@ private fun declare(task: TaskDef): Map<String, Any?> {
 /**
  * How [definition] binds the stub call's arguments. Flat parameters bind by
  * position; a [TaskInput] binds by name. A task that reads no argument is
- * declared as binding by name with no parameters, so an argument passed to it
- * stands out as one nothing takes.
+ * declared as binding by name with no parameters: it ignores an argument
+ * passed to it, so the Dag processor only warns about one.
  */
 private fun bindingOf(definition: Class<out Task>): Pair<Binding, List<Map<String, Any?>>> {
   if (InputTask::class.java.isAssignableFrom(definition)) {
@@ -76,7 +76,7 @@ private fun bindingOf(definition: Class<out Task>): Pair<Binding, List<Map<Strin
   val declared = taskParamsOf(definition) ?: return Binding.NAMED to emptyList()
   declared.input?.let { return Binding.NAMED to inputParams(it) }
   if (declared.flat.isEmpty()) return Binding.NAMED to emptyList()
-  return Binding.POSITIONAL to declared.flat.map { param(it.name, it.type, required = true, exactName = false) }
+  return Binding.POSITIONAL to declared.flat.map { param(it.name, it.type, exactName = false) }
 }
 
 /** The [TaskParams] the annotation processor recorded on a generated task class, if [definition] is one. */
@@ -90,18 +90,15 @@ private fun taskParamsOf(definition: Class<*>): TaskParams? {
   return if (Modifier.isStatic(field.modifiers)) field.get(null) as? TaskParams else null
 }
 
-// A field nothing supplies keeps its Java default and only warns, so no field is required.
 private fun inputParams(inputType: Class<out TaskInput>): List<Map<String, Any?>> =
-  bindableFields(inputType).map { param(argNameOf(it), it.genericType, required = false, exactName = isPinned(it)) }
+  bindableFields(inputType).map { param(argNameOf(it), it.genericType, exactName = isPinned(it)) }
 
 private fun param(
   name: String,
   type: Type,
-  required: Boolean,
   exactName: Boolean,
 ): Map<String, Any?> =
   linkedMapOf<String, Any?>(
     "name" to name,
-    "required" to required,
     "exact_name" to exactName,
   ).apply { buildValueSchema(type)?.let { put("value_schema", it) } }

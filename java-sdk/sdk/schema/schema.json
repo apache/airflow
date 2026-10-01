@@ -4166,19 +4166,24 @@
         "binding": {
           "enum": [
             "positional",
-            "named",
-            "named_or_whole",
-            "named_open"
+            "named"
           ],
           "title": "Binding",
           "type": "string"
         },
         "params": {
-          "items": {
-            "$ref": "#/$defs/TaskHandlerParam"
-          },
-          "title": "Params",
-          "type": "array"
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TaskHandlerParam"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Task Handler Params"
         }
       },
       "required": [
@@ -4214,10 +4219,6 @@
           ],
           "default": null
         },
-        "required": {
-          "title": "Required",
-          "type": "boolean"
-        },
         "exact_name": {
           "default": false,
           "title": "Exact Name",
@@ -4225,8 +4226,7 @@
         }
       },
       "required": [
-        "name",
-        "required"
+        "name"
       ],
       "title": "TaskHandlerParam",
       "type": "object"

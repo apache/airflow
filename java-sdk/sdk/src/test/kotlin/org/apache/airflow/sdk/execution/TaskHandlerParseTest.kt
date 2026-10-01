@@ -119,9 +119,8 @@ private fun request() =
 private fun param(
   name: String,
   schema: Map<String, Any?>,
-  required: Boolean = false,
   exactName: Boolean = false,
-) = mapOf("name" to name, "required" to required, "exact_name" to exactName, "value_schema" to schema)
+) = mapOf("name" to name, "exact_name" to exactName, "value_schema" to schema)
 
 private val SCORE_INPUT_PARAMS =
   listOf(
@@ -179,8 +178,8 @@ class TaskHandlerParseTest {
                   "binding" to "positional",
                   "params" to
                     listOf(
-                      param("rows", mapOf("type" to "integer", "format" to "int64"), required = true),
-                      param("regions", regions, required = true),
+                      param("rows", mapOf("type" to "integer", "format" to "int64")),
+                      param("regions", regions),
                     ),
                 ),
                 mapOf("task_id" to "score", "binding" to "named", "params" to SCORE_INPUT_PARAMS),

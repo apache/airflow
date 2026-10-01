@@ -137,7 +137,7 @@ def _declare_positional(task_id: str, *params: tuple[str, dict]) -> TaskHandlerD
     return TaskHandlerDeclaration(
         task_id=task_id,
         binding="positional",
-        params=[TaskHandlerParam(name=name, value_schema=schema, required=True) for name, schema in params],
+        params=[TaskHandlerParam(name=name, value_schema=schema) for name, schema in params],
     )
 
 
@@ -146,7 +146,7 @@ def _declare_named(task_id: str, *params: tuple[str, dict, bool]) -> TaskHandler
         task_id=task_id,
         binding="named",
         params=[
-            TaskHandlerParam(name=name, value_schema=schema, required=False, exact_name=exact)
+            TaskHandlerParam(name=name, value_schema=schema, exact_name=exact)
             for name, schema, exact in params
         ],
     )
