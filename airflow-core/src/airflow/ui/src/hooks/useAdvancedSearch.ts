@@ -16,17 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { advancedSearchKey } from "src/constants/localStorage";
 
-// Toggle is intentionally NOT mirrored in the URL: shared links default to the
+// Toggle is intentionally NOT mirrored in the URL by default: shared links default to the
 // fast prefix-search behavior, and recipients can opt back into substring search
-// per searchbar if they want it.
-export const useAdvancedSearch = (key: string) => {
-  const [enabled, setEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), false);
+// per searchbar if they want it. However, if searchParamKey is provided, it will sync with the URL.
+export const useAdvancedSearch = (key: string, searchParamKey?: string) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [localEnabled, setLocalEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), false);
 
-  return { enabled, onToggle: setEnabled };
+  const urlEnabled = searchParamKey ? searchParams.get(searchParamKey) === "true" : null;
+  const enabled = urlEnabled ?? localEnabled;
+
+  const onToggle = (newEnabled: boolean) => {
+    if (searchParamKey) {
+      if (newEnabled) {
+        searchParams.set(searchParamKey, "true");
+      } else {
+        searchParams.delete(searchParamKey);
+      }
+      setSearchParams(searchParams);
+    }
+    setLocalEnabled(newEnabled);
+  };
+
+  return { enabled, onToggle };
 };
 
 type AdvancedSearchArgOptions<TPrefix extends string, TPattern extends string> = {

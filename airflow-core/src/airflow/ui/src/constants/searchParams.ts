@@ -79,6 +79,7 @@ export enum SearchParamsKeys {
   LOGICAL_DATE_RANGE = "logical_date_range",
   MAP_INDEX = "map_index",
   MAPPED = "mapped",
+  MATCH_ANYWHERE = "match_anywhere",
   MAX_ACTIVE_RUNS_GTE = "max_active_runs_gte",
   MAX_ACTIVE_RUNS_LTE = "max_active_runs_lte",
   MISSED = "missed",

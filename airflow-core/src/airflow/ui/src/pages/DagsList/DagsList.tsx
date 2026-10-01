@@ -248,6 +248,7 @@ const {
   DAG_RUN_STATE_WITHIN_HOURS,
   FAVORITE,
   LAST_DAG_RUN_STATE,
+  MATCH_ANYWHERE,
   NAME_PATTERN,
   NEEDS_REVIEW,
   OFFSET,
@@ -305,7 +306,7 @@ export const DagsList = () => {
 
   const { pagination, sorting } = tableURLState;
   const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
-  const advancedSearch = useAdvancedSearch("dags");
+  const advancedSearch = useAdvancedSearch("dags", MATCH_ANYWHERE);
 
   const orderBy = sorting.length
     ? sorting.map((sort) => `${sort.desc ? "-" : ""}${sort.id}`)
