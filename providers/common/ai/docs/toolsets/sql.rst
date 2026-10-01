@@ -205,6 +205,8 @@ Parameters
   transferred is its own call. See :ref:`bounded-query-results`.
 - ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
   See :ref:`bounded-query-results`.
+- ``max_retries``: How many times the model may correct a failed call to these
+  tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
 .. _bounded-query-results:
 
@@ -296,7 +298,7 @@ subqueries and joins.
 - It does not classify failures. A connection error or a typo in a column
   name reaching ``list_tables``, ``get_schema`` or ``query`` becomes one
   ``ModelRetry``, so the two are treated the same way until the retry budget
-  runs out and the task fails for Airflow to retry. Two paths do not raise:
+  (:ref:`toolset-retry-budget`) runs out and the task fails for Airflow to retry. Two paths do not raise:
   ``check_query`` catches its own errors and reports them back as a normal
   ``{"valid": false, ...}`` result, and ``get_schema`` returns a normal
   ``{"error": ...}`` result instead of raising when the requested table is

@@ -54,7 +54,7 @@ func (m *mockXComClient) PushXCom(
 
 func (m *mockXComClient) GetXCom(
 	ctx context.Context,
-	dagId, runId, taskId string,
+	dagID, runID, taskID string,
 	mapIndex *int,
 	key string,
 	value any,

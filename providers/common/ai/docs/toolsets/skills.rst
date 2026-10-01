@@ -20,6 +20,11 @@
 Agent Skills: ``AgentSkillsToolset``
 ====================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 :class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` loads
 `Agent Skills <https://agentskills.io>`__ -- ``SKILL.md`` bundles (instructions,
 and optionally scripts and resources) that the model discovers and loads *on

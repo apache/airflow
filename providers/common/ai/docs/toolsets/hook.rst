@@ -82,6 +82,47 @@ is not a connection ID yet. The same warning as for ``SQLToolset`` applies: buil
 the ID from values the Dag controls, not from ``params`` or ``dag_run.conf`` (see
 :ref:`sql-toolset-templated-connection`).
 
+Fix arguments the model must not choose
+---------------------------------------
+
+.. note::
+
+    Experimental: ``pinned_arguments`` can change or be removed in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
+
+Exposing a method lets the model pick every argument it takes. When some of them are
+the Dag author's decision, such as which bucket a storage hook reads, pin them:
+
+.. code-block:: python
+
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+    from airflow.providers.common.ai.toolsets import HookToolset
+
+    reports = HookToolset(
+        S3Hook(aws_conn_id="aws_default"),
+        allowed_methods=["list_keys", "read_key"],
+        pinned_arguments={"bucket_name": "acme-reports"},
+    )
+
+A pinned argument is left out of the schema the model sees and passed to every allowed
+method. If the model supplies it anyway, the call is refused and the model is told the
+argument is fixed.
+
+A pin binds one parameter name, so every allowed method has to take it by that name.
+When one does not, the toolset raises ``ValueError`` when it is created: a method that
+takes the same thing under another name, such as ``S3Hook.delete_objects``, which takes
+``bucket``, or inside a dict or ``**kwargs``, such as ``S3Hook.generate_presigned_url``,
+would let the model choose it after all. Expose such a method from a second
+``HookToolset``, where what it can reach is visible in the Dag. A method that works out
+the value again from another argument it is given, such as a full URL, is outside what
+the pin controls.
+
+Pinned values are passed as written: they are not rendered as templates, and they are not
+part of what ``AgentOperator(durable=True)`` fingerprints, so change one only between Dag
+runs, not between the tries of one.
+
 Parameters
 ----------
 
@@ -90,6 +131,11 @@ Parameters
   are validated with ``hasattr`` + ``callable`` at instantiation time.
 - ``tool_name_prefix``: Optional prefix prepended to each tool name
   (e.g. ``"s3_"`` produces ``"s3_list_keys"``).
+- ``pinned_arguments``: Arguments fixed by the Dag author rather than chosen by the
+  model. See above.
+- ``max_retries``: How many times the model may correct a call with invalid arguments,
+  or one that changes a pinned argument. Default ``None``, the agent's ``retries``. See
+  :ref:`toolset-retry-budget`.
 
 When to choose it
 -----------------
@@ -103,20 +149,21 @@ reflection-based adapter, so the work is choosing the method list.
 
 **What it cannot do**
 
-- It allow-lists method *names*, not arguments. Once ``read_key`` is exposed,
-  the agent picks the key; the :ref:`defense-layer table <toolset-defense-layers>`
-  states this outright. Choose methods whose worst case you accept, not methods
-  you intend to constrain later.
+- It allow-lists method *names*, and fixes only the arguments you pin. Once
+  ``read_key`` is exposed, the agent picks the key within the pinned bucket; the
+  :ref:`defense-layer table <toolset-defense-layers>` states this outright. Choose
+  methods whose worst case you accept, not methods you intend to constrain later.
 - Its calls act as barriers. The tools are registered with ``sequential=True``
-  because hook methods perform synchronous I/O, so a slow call holds up every
-  other tool the model emitted in that step, not only this toolset's. This is
-  not specific to ``HookToolset``; see :ref:`toolset-call-barriers`.
+  and each hook method runs in a worker thread, one blocking hook call at a time
+  in the task process, so a slow call holds up every other tool the model emitted
+  in that step, not only this toolset's. This is not specific to ``HookToolset``;
+  see :ref:`toolset-call-barriers`.
 - It returns exactly one shape. Every result goes through ``serialize_for_llm``
   and comes back as a JSON-encoded string; there is no structured error type and
   no ``ModelRetry`` wrapper, so a hook exception fails the agent run, and the
   task with it, instead of giving the model something it can correct.
   ``SQLToolset``, by contrast, hands the database's own error back as a retry.
-- Its ``call_tool`` calls the method and serializes what comes back. The code
+- It calls the method and serializes what comes back. The code
   contains no path that awaits a coroutine result, and none that checks for one,
   so an ``async def`` hook method is not a case this adapter is written to
   handle. Treat synchronous methods as the supported set.
