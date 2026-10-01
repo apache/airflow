@@ -163,6 +163,7 @@ CREATE TABLE lang_sdk_task_handler_artifact (
     relative_fileloc_hash  VARCHAR(32)   NOT NULL,   -- md5 of relative_fileloc; the path is too long to index
     size_bytes             BIGINT        NOT NULL,   -- cheap fingerprint tier
     cache_digest           VARCHAR(128)  NOT NULL,   -- content fingerprint tier; see "The fast path"
+    task_handlers          JSON          NOT NULL,   -- {dag_id: [TaskHandlerDeclaration, ...]}, the probe answer
     last_probed_at         TIMESTAMP     NOT NULL,
     CONSTRAINT lang_sdk_task_handler_artifact_pkey PRIMARY KEY (id),
     CONSTRAINT lang_sdk_task_handler_artifact_bundle_fileloc_uq UNIQUE (bundle_name, relative_fileloc_hash)
@@ -175,8 +176,6 @@ CREATE TABLE lang_sdk_task_handler (
     dag_bundle_name            VARCHAR(250)  NOT NULL,   -- the *Python* file that owns this row
     dag_relative_fileloc       VARCHAR(2000) NOT NULL,   -- ditto
     dag_relative_fileloc_hash  VARCHAR(32)   NOT NULL,   -- md5 of dag_relative_fileloc
-    handler_binding            VARCHAR(20)   NOT NULL,   -- positional | named | named_or_whole
-    handler_params             JSON          NOT NULL,   -- list[TaskHandlerParam], ordered
     CONSTRAINT lang_sdk_task_handler_pkey PRIMARY KEY (dag_id, task_id),
     CONSTRAINT lang_sdk_task_handler_dag_id_fkey FOREIGN KEY (dag_id)
         REFERENCES dag (dag_id) ON DELETE CASCADE,
@@ -198,11 +197,10 @@ joining through `DagModel`: `dag.relative_fileloc` is not indexed, and the codeb
 that querying it means "a sequential scan of dag"
 ([`reassign_dags_with_unconfigured_bundles`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/bundles/manager.py#L478)).
 
-`handler_params` stores what the runtime declared, so a changed Python file can be re-validated
-against a cached declaration with no subprocess. It is deliberately **not** called `arg_bindings`:
-that name already denotes the Python side of the comparison (`XComArgBinding` / `LiteralArgBinding`,
-carrying wiring and values, [`build_arg_bindings`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/serialization/stub_arg_bindings.py#L221-L286)),
-and reusing it would make the validation read as comparing a thing to itself.
+`task_handlers` caches the artifact's whole probe answer, every handler it registers keyed by
+`dag_id`, so a changed Python file can be re-validated against it with no subprocess. It is written
+only from a probe, together with `size_bytes` and `cache_digest`, so the answer always belongs to the
+fingerprint beside it. A binding row is then only a mapping from a stub task to its artifact.
 
 `cache_digest` is **opaque and coordinator-defined**, not "SHA-256 of the file".
 
