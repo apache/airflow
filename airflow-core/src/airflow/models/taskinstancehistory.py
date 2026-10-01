@@ -24,6 +24,7 @@ from uuid import UUID
 import dill
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     Float,
     ForeignKeyConstraint,
@@ -119,6 +120,10 @@ class TaskInstanceHistory(Base):
     # preserved per try (TI columns are cleared on the next ti_run).
     retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    ignore_upstream_deps: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     dag_version = relationship(
         "DagVersion",

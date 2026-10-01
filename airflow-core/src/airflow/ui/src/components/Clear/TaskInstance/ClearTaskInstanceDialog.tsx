@@ -25,7 +25,7 @@ import { CgRedo } from "react-icons/cg";
 import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+import { Alert, Checkbox, Modal, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { taskInstanceKey } from "src/components/ActionAccordion/columns";
@@ -42,6 +42,7 @@ import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDr
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
+import { resolveClearOptions } from "./forceRun";
 import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
 // Discriminated union: callers pass either `allMapped: true` together with
@@ -89,12 +90,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
   const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
+  const [forceRun, setForceRun] = useState(false);
 
-  const onlyFailed = selectedOptions.includes("onlyFailed");
-  const past = selectedOptions.includes("past");
-  const future = selectedOptions.includes("future");
-  const upstream = selectedOptions.includes("upstream");
-  const downstream = selectedOptions.includes("downstream");
+  const { downstream, future, onlyFailed, past, upstream } = resolveClearOptions(selectedOptions, forceRun);
   const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
 
@@ -118,6 +116,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const onCloseDialog = () => {
     setNote(taskInstance?.note ?? null);
     setKeepTaskState(keepTaskStateDefault);
+    setForceRun(false);
     closeDialog();
   };
 
@@ -237,6 +236,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
             >
               {translate("dags:runAndTaskActions.options.preventRunningTasks")}
             </Checkbox>
+            <Checkbox checked={forceRun} onCheckedChange={(event) => setForceRun(Boolean(event.checked))}>
+              {translate("dags:runAndTaskActions.options.forceRun")}
+            </Checkbox>
             {shouldShowRunOnLatestOption ? (
               <Checkbox
                 checked={runOnLatestVersionForced || runOnLatestVersion}
@@ -293,20 +295,26 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 value: "future",
               },
               {
+                disabled: forceRun,
                 label: translate("dags:runAndTaskActions.options.upstream"),
                 value: "upstream",
               },
               {
+                disabled: forceRun,
                 label: translate("dags:runAndTaskActions.options.downstream"),
                 value: "downstream",
               },
               {
+                disabled: forceRun,
                 label: translate("dags:runAndTaskActions.options.onlyFailed"),
                 value: "onlyFailed",
               },
             ]}
           />
         </Flex>
+        {forceRun ? (
+          <Alert status="warning" title={translate("dags:runAndTaskActions.forceRunWarning")} />
+        ) : undefined}
         <ActionAccordion
           affectedTasks={affectedTasks}
           note={note}
@@ -363,6 +371,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                     task_ids: taskIds,
                     ...(keepTaskState ? { keep_task_state: true } : {}),
                     ...(preventRunningTask ? { prevent_running_task: true } : {}),
+                    ...(forceRun ? { ignore_upstream_deps: true } : {}),
                   },
                 });
               }
@@ -386,6 +395,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
                 ...(keepTaskState ? { keep_task_state: true } : {}),
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
+                ...(forceRun ? { ignore_upstream_deps: true } : {}),
               },
             });
             onCloseDialog();

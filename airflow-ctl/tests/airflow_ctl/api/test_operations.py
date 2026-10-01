@@ -1889,6 +1889,7 @@ class TestTaskInstancesOperations:
         trigger=None,
         triggerer_job=None,
         dag_version=None,
+        ignore_upstream_deps=False,
     )
     task_instance_collection_response = TaskInstanceCollectionResponse(
         task_instances=[task_instance_response],
@@ -1994,6 +1995,7 @@ class TestTasksOperations:
         trigger=None,
         triggerer_job=None,
         dag_version=None,
+        ignore_upstream_deps=False,
     )
     task_instance_collection_response = TaskInstanceCollectionResponse(
         task_instances=[task_instance_response],
