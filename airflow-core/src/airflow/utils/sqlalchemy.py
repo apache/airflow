@@ -636,10 +636,13 @@ class CommitProhibitorGuard:
         self.session = session
 
     def _validate_commit(self, _):
-        if self.expected_commit:
+         if self.session.in_nested_transaction():
+          return
+
+         if self.expected_commit:
             self.expected_commit = False
             return
-        raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
+         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
     def __enter__(self) -> Self:
         event.listen(self.session, "before_commit", self._validate_commit)

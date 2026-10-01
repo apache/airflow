@@ -195,6 +195,11 @@ class TestSqlAlchemyUtils:
             with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
                 self.session.commit()
 
+    def test_prohibit_commit_allows_nested_transaction(self):
+        with prohibit_commit(self.session):
+            with self.session.begin_nested():
+                self.session.execute(text("SELECT 1"))
+
     def test_prohibit_commit_specific_session_only(self):
         """
         Test that "prohibit_commit" applies only to the given session object,
