@@ -22,7 +22,11 @@ from decimal import Decimal
 
 import pytest
 
-from airflow.providers.common.ai.utils.query_results import build_query_result, build_schema_result
+from airflow.providers.common.ai.utils.query_results import (
+    _SCHEMA_SAMPLE_SIZE,
+    build_query_result,
+    build_schema_result,
+)
 
 
 def _build(columns, rows, *, max_rows=50, max_result_bytes=65_536, more=False, total=None) -> dict:
@@ -213,19 +217,50 @@ class TestSchemaResult:
         assert data["columns"] == []
         assert data["column_count"] == 0
         assert data["name_contains"] == "zzz"
+        assert data["total_columns"] == 5
         assert "error" not in data
         assert "all 5 columns" in data["hint"]
 
+    def test_no_match_on_a_wide_table_does_not_point_back_at_the_filter(self):
+        """When the full list would itself summarize, the hint must not say 'call without it'."""
+        data = _schema(_cols(300), max_columns=100, name_contains="zzz")
+        assert data["columns"] == []
+        assert data["total_columns"] == 300
+        assert "without name_contains" not in data["hint"]
+        assert "different substring" in data["hint"]
+
     def test_too_many_columns_are_summarized_not_listed(self):
-        data = _schema(_cols(250), max_columns=100)
+        raw = build_schema_result(_cols(250), max_columns=100, max_result_bytes=65_536)
+        data = json.loads(raw)
         assert data["truncated"] is True
         assert data["truncated_by"] == "max_columns"
         assert data["column_count"] == 250
         assert "columns" not in data
         assert data["type_histogram"] == {"VARCHAR": 250}
-        assert len(data["sample_columns"]) == 100
+        # A small fixed preview, not the first max_columns, so the summary is far smaller than the
+        # list it replaces rather than a near-identical prefix with the tail dropped.
+        assert len(data["sample_columns"]) == _SCHEMA_SAMPLE_SIZE
         assert data["sample_columns"][0] == {"name": "col_0", "type": "VARCHAR"}
+        assert len(raw.encode("utf-8")) < len(json.dumps(_cols(250)).encode("utf-8"))
         assert "name_contains" in data["hint"]
+
+    @pytest.mark.parametrize("budget", [500, 2000, 65_536])
+    def test_summary_never_exceeds_the_byte_budget(self, budget):
+        """The contract the docstring promises: a summary that fits the budget stays within it."""
+        cols = [{"name": f"customer_attribute_{i}", "type": "VARCHAR(255)"} for i in range(500)]
+        raw = build_schema_result(cols, max_columns=100, max_result_bytes=budget)
+        assert json.loads(raw)["truncated"] is True
+        assert len(raw.encode("utf-8")) <= budget
+
+    def test_histogram_is_dropped_but_the_sample_is_still_filled(self):
+        """A histogram too big for the budget must not strip the preview off every column too."""
+        # Many distinct long type names make the histogram large. The budget holds the core plus a
+        # few short-named columns but not the histogram.
+        cols = [{"name": f"c{i}", "type": f"CUSTOM_STRUCT_TYPE_NUMBER_{i:04d}"} for i in range(200)]
+        data = _schema(cols, max_columns=100, max_result_bytes=600)
+        assert data["truncated"] is True
+        assert "type_histogram" not in data
+        assert len(data["sample_columns"]) >= 1
 
     def test_long_names_blow_the_byte_budget_despite_few_columns(self):
         cols = [{"name": "x" * 500, "type": "VARCHAR"} for _ in range(10)]
@@ -236,6 +271,17 @@ class TestSchemaResult:
     def test_max_columns_takes_precedence_when_both_bounds_are_exceeded(self):
         data = _schema(_cols(300), max_columns=100, max_result_bytes=256)
         assert data["truncated_by"] == "max_columns"
+
+    def test_summary_hint_is_worded_from_the_limit_it_hit(self):
+        over_count = _schema(_cols(250), max_columns=100)
+        assert "250 columns, more than the max_columns limit of 100" in over_count["hint"]
+
+        # One column whose name alone blows a tiny budget: the count fits, the bytes do not, so the
+        # wording must say so and read "1 column" (not "1 columns").
+        over_bytes = _schema([{"name": "x" * 500, "type": "VARCHAR"}], max_columns=100, max_result_bytes=200)
+        assert over_bytes["truncated_by"] == "max_result_bytes"
+        assert "1 column that did not fit max_result_bytes" in over_bytes["hint"]
+        assert "1 columns" not in over_bytes["hint"]
 
     def test_filtered_result_still_too_wide_is_summarized(self):
         cols = [{"name": f"customer_{i}", "type": "VARCHAR"} for i in range(200)]

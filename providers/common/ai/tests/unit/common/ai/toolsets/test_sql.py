@@ -218,6 +218,25 @@ class TestSQLToolsetGetSchema:
         assert data["name_contains"] == "name"
         assert data["total_columns"] == 2
 
+    @patch("airflow.providers.common.ai.toolsets.sql.build_schema_result", return_value="{}")
+    def test_get_schema_forwards_the_toolsets_bounds(self, mock_build):
+        """The toolset's own max_columns/max_result_bytes reach build_schema_result, not defaults."""
+        ts = SQLToolset("pg_default", max_columns=7, max_result_bytes=123)
+        ts._hook = _make_mock_db_hook()
+
+        asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "users", "name_contains": "id"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        kwargs = mock_build.call_args.kwargs
+        assert kwargs["max_columns"] == 7
+        assert kwargs["max_result_bytes"] == 123
+        assert kwargs["name_contains"] == "id"
+
     def test_blocks_table_not_in_allowed_list(self):
         """The allow-list guard fires before any introspection or filtering."""
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
@@ -234,6 +253,8 @@ class TestSQLToolsetGetSchema:
         data = json.loads(result)
         assert "error" in data
         assert "secrets" in data["error"]
+        # The guard must short-circuit before touching the database.
+        ts._hook.get_table_schema.assert_not_called()
 
     def test_introspection_error_raises_model_retry(self):
         """A failure while reading a table's schema is returned to the agent as a retry."""

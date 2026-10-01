@@ -122,7 +122,8 @@ class DataFusionToolset(AirflowToolset):
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
         Default ``50``. The query is limited to ``max_rows + 1`` rows, so a large
         result is never fully materialized; the extra row only signals truncation.
-    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes.
+    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes, and the
+        byte backstop that also triggers the ``get_schema`` summary (see ``max_columns``).
         Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
         row of a 3000-column table is larger than a thousand rows of a narrow one, and
         a tool result stays in the model's message history for the rest of the run, so

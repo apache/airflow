@@ -47,7 +47,9 @@ Changelog
   ``max_result_bytes``, it returns a bounded summary (``column_count``, a ``type_histogram`` and a
   ``sample_columns`` preview, with ``truncated``, ``truncated_by`` and a ``hint``) in place of the
   full list. Update any system prompt or direct ``call_tool("get_schema", ...)`` caller that read
-  the old top-level array to read ``result["columns"]`` instead.
+  the old top-level array: check ``truncated`` first, then read ``result["columns"]`` on a full
+  result or ``result["sample_columns"]`` on a summary. A summary carries no ``columns`` key, so
+  ``result["columns"]`` raises ``KeyError`` on any table wide enough to be summarized.
 
 0.10.0
 ......

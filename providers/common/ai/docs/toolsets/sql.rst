@@ -204,8 +204,9 @@ Parameters
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
   Rows beyond it are not read out of a DBAPI cursor; what the driver has already
   transferred is its own call. See :ref:`bounded-query-results`.
-- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
-  See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result, and the byte backstop
+  that also triggers the ``get_schema`` summary. Default 64 KiB.
+  See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
 - ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
   Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
 - ``max_retries``: How many times the model may correct a failed call to these

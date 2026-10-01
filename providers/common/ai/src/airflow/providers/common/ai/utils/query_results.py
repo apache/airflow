@@ -59,6 +59,11 @@ DEFAULT_MAX_COLUMNS = 100
 _SCHEMA_TYPE_HISTOGRAM_TOP_K = 20
 _SCHEMA_TYPE_HISTOGRAM_OTHER_KEY = "(other)"
 
+# Columns previewed in a ``get_schema`` summary. A small fixed sample -- deliberately not the
+# first ``max_columns`` -- keeps the summary much smaller than the list it replaces and reads as
+# "here is what the names look like, now filter", never as a usable prefix of the table.
+_SCHEMA_SAMPLE_SIZE = 20
+
 # Tool results are machine-read, so no whitespace. ensure_ascii=False matters as much as
 # the separators: escaping one CJK character to \uXXXX costs six bytes instead of three,
 # so an ASCII-escaped result is charged several times over against the budget and
@@ -244,15 +249,25 @@ def build_schema_result(
 
     if name_contains is not None and not selected:
         plural = "" if total_columns == 1 else "s"
+        # Do not tell the agent to call without name_contains when the full list would itself be
+        # summarized (total_columns > max_columns) -- that would bounce it back to this filter.
+        if total_columns > max_columns:
+            advice = (
+                f"No columns match name_contains={name_contains!r}. Try a different substring "
+                f"(the table has {total_columns} column{plural}, too many to list in full)."
+            )
+        else:
+            advice = (
+                f"No columns match name_contains={name_contains!r}. Call get_schema without "
+                f"name_contains to list all {total_columns} column{plural}."
+            )
         return _dumps(
             {
                 "columns": [],
                 "column_count": 0,
                 "name_contains": name_contains,
-                "hint": (
-                    f"No columns match name_contains={name_contains!r}. Call get_schema without "
-                    f"name_contains to list all {total_columns} column{plural}."
-                ),
+                "total_columns": total_columns,
+                "hint": advice,
             }
         )
 
@@ -281,40 +296,42 @@ def _summarize_schema(
     name_contains: str | None,
 ) -> str:
     """Build the bounded summary returned when the full column list does not fit."""
-    # Count is checked before bytes: it is the cheaper, more explainable bound and the one the
-    # issue is about. A bytes-only truncation then means "count fits but names/types are
-    # pathologically long", a distinct and rarer signal.
-    truncated_by = "max_columns" if len(selected) > max_columns else "max_result_bytes"
-    hint = (
-        f"This filter matches {len(selected)} columns, more than can be returned at once. "
+    # Count is checked before bytes: it is the cheaper, more explainable bound. A bytes-only
+    # truncation then means "count fits but names/types are pathologically long", a rarer signal.
+    n = len(selected)
+    plural = "" if n == 1 else "s"
+    truncated_by = "max_columns" if n > max_columns else "max_result_bytes"
+    subject = f"name_contains={name_contains!r} matched" if name_contains is not None else "This table has"
+    if truncated_by == "max_columns":
+        reason = f"{subject} {n} column{plural}, more than the max_columns limit of {max_columns}."
+    else:
+        reason = f"{subject} {n} column{plural} that did not fit max_result_bytes ({max_result_bytes})."
+    move = (
         "Use a more specific name_contains substring to narrow to the columns you need."
         if name_contains is not None
-        else (
-            f"This table has {len(selected)} columns, more than can be returned at once. Call "
-            "get_schema again with a name_contains substring to return only the matching columns."
-        )
+        else "Call get_schema with a name_contains substring to return only the columns you need."
     )
 
     output: dict[str, Any] = {
-        "column_count": len(selected),
+        "column_count": n,
         "truncated": True,
         "truncated_by": truncated_by,
-        "hint": hint,
+        "hint": f"{reason} {move}",
     }
     if name_contains is not None:
         output["name_contains"] = name_contains
         output["total_columns"] = total_columns
 
-    # The core above is the guaranteed-useful payload. Add the histogram and a sample of columns
-    # only while they fit, reserving the core first -- the same contiguous-prefix accounting
-    # build_query_result uses for rows -- so a pathologically small budget still returns the core.
+    # The core above is the guaranteed-useful payload. Add the histogram and a small sample of
+    # columns only while they fit, reserving the core first. If the histogram alone would not fit,
+    # drop it but still fill the sample from what remains, so a wide struct type cannot strip the
+    # preview off every other column. A pathologically small budget still returns the core.
     output["type_histogram"] = _build_type_histogram(selected)
     output["sample_columns"] = []
     if _size(output) > max_result_bytes:
         del output["type_histogram"]
-        return _dumps(output)
     budget = max_result_bytes - _size(output)
-    for col in selected[:max_columns]:
+    for col in selected[:_SCHEMA_SAMPLE_SIZE]:
         cost = _size(col) + (1 if output["sample_columns"] else 0)
         if cost > budget:
             break
