@@ -26,6 +26,7 @@ from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 
 try:
@@ -196,7 +197,7 @@ class TestAgentDecoratedOperator:
         op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_call.kwargs["capabilities"] == [thinking]
+        assert create_call.kwargs["capabilities"] == [thinking, PromptCaching()]
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

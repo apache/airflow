@@ -1263,7 +1263,7 @@ class TestAgentOperatorCapabilities:
         op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_call.kwargs["capabilities"] == [thinking, search]
+        assert create_call.kwargs["capabilities"] == [thinking, search, PromptCaching()]
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_capabilities_in_both_places_are_refused(self, mock_hook_cls):
