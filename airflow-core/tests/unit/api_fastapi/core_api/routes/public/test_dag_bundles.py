@@ -951,10 +951,12 @@ class TestGetDagBundleFiles:
 
 class TestRefreshDagBundle:
     def setup_method(self):
+        clear_db_dags()
         clear_db_dag_bundles()
         clear_db_logs()
 
     def teardown_method(self):
+        clear_db_dags()
         clear_db_dag_bundles()
         clear_db_logs()
 
