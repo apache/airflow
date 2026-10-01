@@ -3800,6 +3800,37 @@ class TestMappedTaskInstanceReceiveValue:
         assert {f"return_value_{i}" for i in range(8)} <= keys
         assert {f"k{n}_{i}" for n in range(5) for i in range(8)} <= keys
 
+    def test_iterate_concurrent_sync_items_read_variables_while_a_sibling_is_served(self, dag_maker, session):
+        """
+        Under the in-process supervisor, an item's Variable lookup must not miss while a sibling's
+        request is served: hiding the comms from the whole process sent it to the fallback secrets
+        backends, which do not have a Variable stored in the metadata database.
+        """
+        from airflow.models.variable import Variable
+        from airflow.sdk import Variable as SdkVariable
+
+        Variable.set(key="iterate_db_variable", value="v", session=session)
+        session.commit()
+
+        with dag_maker(dag_id="iterate_in_process_variables", session=session, serialized=True):
+
+            @task(task_concurrency=4)
+            def read(x, ti=None):
+                for _ in range(25):
+                    assert SdkVariable.get("iterate_db_variable") == "v"
+                    ti.xcom_push(key="k", value=x)
+                return x
+
+            read.iterate(x=list(range(8)))
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == TaskInstanceState.SUCCESS
+
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
         out.touch()

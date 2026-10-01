@@ -330,8 +330,8 @@ def in_task_execution_context() -> bool:
 
     There requests go through the supervisor (the Execution API), not the metadata database. Read
     from the task runner without importing it, so server processes that never ran a task pay
-    nothing. A thread serving a request of the in-process supervisor (``dag.test()``) is the server
-    side and gets ``False``, while the task's other threads keep ``True``.
+    nothing. The code serving a request of the in-process supervisor (``dag.test()``) is the server
+    side and gets ``False``, while the task's own threads keep ``True``.
     """
     task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
     if task_runner is None:

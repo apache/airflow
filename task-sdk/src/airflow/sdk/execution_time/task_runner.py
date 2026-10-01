@@ -1519,42 +1519,38 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 # The in-process supervisor of dag.test() serves a task's requests in the task's own process. The
 # code serving a request (models.Variable, models.Connection, the secrets backends, mask forwarding)
-# has to act as the server side there, so it must not see the comms. It runs on whatever threads the
-# in-process API server uses (its event loop, its worker threads), not only on the thread that sent
-# the request, so the flag is process-wide. InProcessSupervisorComms sets it while holding the lock
-# that serves one request at a time, so it is never left set, unlike removing SUPERVISOR_COMMS from
-# the module, which overlapping requests could leave removed.
-_serving_supervisor_request = False
+# has to act as the server side there, so it must not see the comms. That code runs in the sender's
+# thread (the supervisor's _handle_request) and in the in-process API server, on its event loop and
+# its worker threads for sync routes. Both set this flag around the request: the sender here, the
+# server around each request it handles (InProcessExecutionAPI), and the server's threads inherit it
+# from there. Being a ContextVar, it hides the comms from the code serving the request only: the
+# task's other threads keep theirs while it is served.
+_serving_supervisor_request: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_serving_supervisor_request", default=False
+)
 
 
 def supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
     """
     Return the comms to the supervisor, or ``None``.
 
-    ``None`` outside a task execution context, and while the in-process supervisor serves a request
-    (see :func:`serving_supervisor_request`). Code that decides whether it runs inside a task should
-    ask this instead of checking for ``SUPERVISOR_COMMS``.
+    ``None`` outside a task execution context, and in the code serving a request of the in-process
+    supervisor (see :func:`serving_supervisor_request`). Code that decides whether it runs inside a
+    task should ask this instead of checking for ``SUPERVISOR_COMMS``.
     """
-    if _serving_supervisor_request:
+    if _serving_supervisor_request.get():
         return None
     return globals().get("SUPERVISOR_COMMS")
 
 
 @contextmanager
 def serving_supervisor_request() -> Iterator[None]:
-    """
-    Hide the comms while the in-process supervisor serves a request, from every thread serving it.
-
-    Only to be entered with the lock that serves one request at a time held
-    (``InProcessSupervisorComms._lock``).
-    """
-    global _serving_supervisor_request
-    previous = _serving_supervisor_request
-    _serving_supervisor_request = True
+    """Hide the comms from the code serving a request of the in-process supervisor, and only from it."""
+    token = _serving_supervisor_request.set(True)
     try:
         yield
     finally:
-        _serving_supervisor_request = previous
+        _serving_supervisor_request.reset(token)
 
 
 # State machine!

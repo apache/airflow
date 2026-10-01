@@ -392,3 +392,47 @@ class TestTraceContextPropagation:
                 await gen.asend(None)  # resume past the yield -> else branch -> detach
 
         detach_spy.assert_called_once()
+
+
+def test_in_process_execution_api_serves_requests_as_the_server_side():
+    """
+    Under dag.test() the task, its supervisor and the in-process API share one process.
+
+    The code serving a request, on the API's event loop or in the worker thread of a sync route, must
+    act as the server side and not see the task's comms. A thread of the task that is not serving the
+    request keeps them meanwhile, so its own Variable or Connection lookups still go to the supervisor.
+    """
+    from airflow.sdk.execution_time import task_runner
+
+    comms = object()
+    seen: dict[str, object] = {}
+    route_entered = threading.Event()
+    task_thread_read = threading.Event()
+
+    def task_thread():
+        route_entered.wait(5)
+        seen["task thread"] = task_runner.supervisor_comms()
+        task_thread_read.set()
+
+    async def probe_async():
+        seen["async route"] = task_runner.supervisor_comms()
+
+    def probe_sync():
+        route_entered.set()
+        task_thread_read.wait(5)
+        seen["sync route"] = task_runner.supervisor_comms()
+
+    api = InProcessExecutionAPI()
+    api.app.add_api_route("/probe-async", probe_async, methods=["GET"])
+    api.app.add_api_route("/probe-sync", probe_sync, methods=["GET"])
+
+    with mock.patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True):
+        thread = threading.Thread(target=task_thread)
+        thread.start()
+        with httpx.Client(transport=api.transport, base_url="http://localhost") as client:
+            assert client.get("/probe-async").status_code == 200
+            assert client.get("/probe-sync").status_code == 200
+        thread.join(5)
+        seen["after"] = task_runner.supervisor_comms()
+
+    assert seen == {"async route": None, "sync route": None, "task thread": comms, "after": comms}

@@ -2411,8 +2411,9 @@ class InProcessSupervisorComms:
         Send a request to the supervisor.
 
         Safe to call from several threads: requests are served one at a time, each thread getting
-        its own answer, and only the thread serving a request stops seeing the comms meanwhile
-        (``task_runner.serving_supervisor_request``), so the task's other threads keep theirs.
+        its own answer. Only the code serving the request stops seeing the comms meanwhile
+        (``task_runner.serving_supervisor_request``, also entered by the in-process API server for
+        its own threads), so the task's other threads keep theirs.
         """
         from airflow.sdk.execution_time.task_runner import serving_supervisor_request
 
