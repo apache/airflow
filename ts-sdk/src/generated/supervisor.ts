@@ -277,6 +277,9 @@ export type Warnings = unknown[] | null;
 export type ImportErrors = {
   [k: string]: string;
 } | null;
+export type ParsedDefinitions = string[];
+export type SourceCode = string;
+export type Language = string;
 export type Type16 = "DagFileParsingResult";
 export type DagId4 = string;
 export type IsPaused = boolean;
@@ -1112,6 +1115,8 @@ export interface DagFileParsingResult {
   serialized_dags: SerializedDags;
   warnings?: Warnings;
   import_errors?: ImportErrors;
+  parsed_definitions?: ParsedDefinitions;
+  dag_source_codes?: DagSourceCodes;
   type?: Type16;
 }
 /**
@@ -1129,6 +1134,19 @@ export interface LazyDeserializedDAG {
 }
 export interface Data {
   [k: string]: unknown;
+}
+export interface DagSourceCodes {
+  [k: string]: DagSourceCode;
+}
+/**
+ * Raw source code and its language identifier for a DAG definition.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "DagSourceCode".
+ */
+export interface DagSourceCode {
+  source_code: SourceCode;
+  language: Language;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema

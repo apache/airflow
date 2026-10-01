@@ -1355,6 +1355,7 @@ class DagFileProcessorManager(LoggingMixin):
         files_parsed: set[tuple[str, str]] | None = None
         if relative_fileloc is not None:
             files_parsed = {(bundle_name, relative_fileloc)}
+            files_parsed.update((bundle_name, rel_path) for rel_path in parsing_result.parsed_definitions)
             files_parsed.update(import_errors.keys())
 
         warnings = parsing_result.warnings or []
@@ -1371,6 +1372,7 @@ class DagFileProcessorManager(LoggingMixin):
             warnings=set(warnings),
             session=session,
             files_parsed=files_parsed,
+            dag_source_codes=parsing_result.dag_source_codes,
         )
 
     def _collect_results(self):

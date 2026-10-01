@@ -229,6 +229,8 @@ class AbstractDagImporter(ABC, Generic[DefT]):
     :meth:`.list_dag_definitions` yields definitions of :class:`DagDefinition`
     subtypes, and those same objects are fed back to :meth:`import_definition`,
     so a concrete importer only ever deals with its own definition type.
+
+    .. note:: |experimental|
     """
 
     @abstractmethod
