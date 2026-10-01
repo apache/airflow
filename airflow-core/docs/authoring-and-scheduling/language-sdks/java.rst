@@ -306,6 +306,14 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
        ``dag`` must match the ``dag_id`` and ``task`` the stub function name; omitting ``task``
        derives it from the method name.  There is no class-level annotation on this surface — the
        Dag is the Python file's, so the handler names the pair it binds to.
+   * - ``@Builder.Dag(id = "...")``
+     - Marks a class as a Dag that Java itself owns.  Attributes (``schedule``, ``description``,
+       ``tags``, ``catchup``, …) are Airflow's own Dag settings; only attributes written
+       explicitly are applied.  See :ref:`java-sdk/native-dags`.
+   * - ``@Builder.Task(id = "...")``
+     - Marks a method as a task of a Java-owned Dag.  If ``id`` is omitted the method name is
+       used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) are Airflow's own
+       task settings; only attributes written explicitly are applied.
    * - ``TaskInput`` / ``@ArgName("...")``
      - Marks a class as a task's input, so keyword arguments bind by name instead of by position:
        each public field receives the argument whose name matches it, ignoring case and
@@ -348,7 +356,8 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``; both carry a fluent
+``config(key, value)`` whose keys are Airflow's own setting names.
 
 The runner creates a fresh instance of the task class through reflection for every task-instance run,
 which puts four constraints on the class:
@@ -531,6 +540,54 @@ writes and later reads.  A call site with a single argument is worth the one-fie
 An ``InputTask`` whose type argument is not a concrete ``TaskInput`` fails when the bundle is built,
 rather than mid-run.  Plain ``Task`` remains the right interface for a task the Dag file
 calls with no arguments.
+
+.. _java-sdk/native-dags:
+
+Native Java Dags
+----------------
+
+A Dag can also be authored entirely in Java: the annotations (or the ``DagDef`` / ``TaskDef``
+objects) carry the configuration, and Java declares the graph.
+
+Building the Dag in Java
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+``dag.task(...)`` registers a task as it creates it and hands back a handle.  ``before`` and
+``after`` draw every edge on this surface, and the task body moves the data itself, by reading the
+upstream's XCom through ``Client``:
+
+.. code-block:: java
+
+    var dag = new DagDef("java_etl");
+
+    var extract = dag.task("extract", Extract.class);
+    var transform = dag.task("transform", Transform.class);
+    var load = dag.task("load", Load.class);
+
+    transform.after(extract).before(load);
+
+Both are variadic, so ``a.before(b, c)`` fans out and ``d.after(b, c)`` fans in, and both return
+their own receiver, so a chain reads from one task outwards.  ``Flow.of(a, b).before(c, d)``, from
+``org.apache.airflow.sdk.Deps.Flow``, draws every edge between two sets in one call.
+
+Edges are checked when the Dag is registered with a ``Bundle``: an upstream that belongs to another
+Dag, or to no Dag, and a cycle anywhere in the graph both fail there rather than at the first task
+run.
+
+Configuration attributes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``@Builder.Dag`` and ``@Builder.Task`` configuration attributes, and the keys accepted by
+``DagDef.config`` and ``TaskDef.config``, are Airflow's own Dag and task settings, under the names
+Airflow uses.  Annotation attributes are ``camelCase`` (``retryDelay``); ``config`` keys are those
+names as Airflow writes them (``"retry_delay"``).
+Only attributes written explicitly at the use site are applied, so Airflow's own defaults still
+apply to everything left out.
+
+Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT5M"``,
+``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
+``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
+fails the build for an annotation, and the ``config`` call itself for an object.
 
 .. _java-sdk/logging:
 
@@ -988,9 +1045,15 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Default
      - Description
    * - ``jars_root``
-     - *(required)*
+     - *(optional)*
      - One or more directories scanned recursively for ``.jar`` files. Accepts a string,
-       a path, or a list of strings/paths.
+       a path, or a list of strings/paths. When omitted, JARs are located through a Dag
+       bundle instead (see the note below). Explicitly setting this option to ``null`` or
+       an empty list is invalid.
+   * - ``dag_bundle_name``
+     - *(auto: task's own bundle)*
+     - Name of a configured Dag bundle to load JARs from. Mutually exclusive with
+       ``jars_root``.
    * - ``java_executable``
      - ``"java"``
      - Path to the ``java`` binary.  Defaults to ``java`` on ``$PATH``.
@@ -999,14 +1062,26 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Extra JVM arguments such as ``["-Xmx1g", "-Dsome.property=value"]``.
    * - ``main_class``
      - *(auto-detect)*
-     - Explicit entry-point class. If omitted,
-       :class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans ``jars_root`` for a
-       JAR whose manifest sets ``Main-Class``. If multiple executable JARs are found the
-       result is non-deterministic; set ``main_class`` explicitly in that case.
+     - Explicit entry-point class. If omitted, the coordinator scans for a JAR whose
+       manifest sets ``Main-Class`` — in ``jars_root`` when set, otherwise across the
+       resolved Dag bundle. If multiple executable JARs match the result is
+       non-deterministic; set ``main_class`` explicitly in that case.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
        JVM startup is slow (e.g. on constrained hardware or with a large classpath).
+
+.. note::
+
+  **Locating JARs.** ``jars_root`` and ``dag_bundle_name`` are mutually exclusive, and both
+  are optional:
+
+  * Set ``jars_root`` to scan explicit filesystem directories you manage yourself.
+  * Set ``dag_bundle_name`` to load JARs from a configured Dag bundle, so they are delivered and
+    versioned through the same bundle machinery as your Dags. The task uses the version that bundle
+    is on when it starts, pinned for the whole task.
+  * Leave both unset (the default) to load JARs from the **task's own** Dag bundle, pinned to
+    the version the run was created with.
 
 .. note::
 

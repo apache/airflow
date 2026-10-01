@@ -24,7 +24,7 @@ import warnings
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from functools import cached_property
+from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import pendulum
@@ -38,13 +38,14 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.callback import ExecuteCallback
 from airflow.executors.workloads.connection_test import TestConnection
-from airflow.executors.workloads.task import ExecuteTask
-from airflow.executors.workloads.types import state_class_for_key
+from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
+from airflow.executors.workloads.types import TaskInstanceUuid, state_class_for_key
 from airflow.models import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -209,6 +210,9 @@ class BaseExecutor(LoggingMixin):
     supports_callbacks = _LegacyWorkloadFlag(WorkloadType.EXECUTE_CALLBACK)
     supports_connection_test = _LegacyWorkloadFlag(WorkloadType.TEST_CONNECTION)
     supports_multi_team: bool = False
+    # Opt in only when submission, adoption, result decoding and cleanup all carry UUIDs.
+    # Coordinate-only providers cannot distinguish attempts that reuse the entire key.
+    supports_task_instance_uuid: ClassVar[bool] = False
     sentry_integration: str = ""
 
     _legacy_warned: ClassVar[set[str]] = set()
@@ -248,6 +252,31 @@ class BaseExecutor(LoggingMixin):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
+        if queue_workload := cls.__dict__.get("queue_workload"):
+
+            @wraps(queue_workload)
+            def register_queued_task(self, workload, *args, **kwargs):
+                if isinstance(workload, ExecuteTask):
+                    self._register_task(workload.ti)
+                return queue_workload(self, workload, *args, **kwargs)
+
+            cls.queue_workload = register_queued_task  # type: ignore[method-assign]
+        if try_adopt := cls.__dict__.get("try_adopt_task_instances"):
+
+            @wraps(try_adopt)
+            def register_adopted_tasks(self, tis, *args, **kwargs):
+                keys = [(ti.id, self.get_task_key(ti)) for ti in tis]
+                for ti in tis:
+                    self._register_task(ti)
+                rejected = try_adopt(self, tis, *args, **kwargs)
+                rejected_ids = {ti.id for ti in rejected}
+                for task_id, key in keys:
+                    state, _ = self.event_buffer.get(key, (None, None))
+                    if task_id not in rejected_ids and state not in State.finished:
+                        self.running.add(key)
+                return rejected
+
+            cls.try_adopt_task_instances = register_adopted_tasks  # type: ignore[method-assign]
         cls._legacy_warned = set()
         enabled: set[WorkloadType] = set()
         disabled: set[WorkloadType] = set()
@@ -314,6 +343,7 @@ class BaseExecutor(LoggingMixin):
         # re-enqueue of the same key so a stale defer-exit SUCCESS keeps its old id.
         self._workload_run_ids: dict[TaskInstanceKey, deque[str]] = defaultdict(deque)
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
+        self._task_coordinates: dict[TaskInstanceUuid, TaskInstanceKey] = {}
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
 
@@ -386,10 +416,29 @@ class BaseExecutor(LoggingMixin):
 
     def log_task_event(self, *, event: str, extra: str, ti_key: WorkloadKey):
         """Add an event to the log table."""
-        if not isinstance(ti_key, TaskInstanceKey):
+        if not isinstance(ti_key, (TaskInstanceUuid, TaskInstanceKey)):
             self.log.debug("Skipping log_task_event for callback key %s (event=%s)", ti_key, event)
             return
-        self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
+        coordinates = ti_key if isinstance(ti_key, TaskInstanceKey) else self._task_coordinates.get(ti_key)
+        if coordinates is None:
+            extra = f"Task instance {ti_key}: {extra}"
+        self._task_event_logs.append(Log(event=event, task_instance=coordinates, extra=extra))
+
+    def _register_task(self, ti: TaskInstance | TaskInstanceDTO) -> None:
+        """Snapshot identity before provider submission or adoption can emit events."""
+        self._task_coordinates[TaskInstanceUuid(ti.id)] = ti.key
+
+    @classmethod
+    def get_task_key(cls, ti: TaskInstance | TaskInstanceDTO) -> TaskInstanceUuid | TaskInstanceKey:
+        """Return the task key supported by this executor's provider contract."""
+        return TaskInstanceUuid(ti.id) if cls.supports_task_instance_uuid else ti.key
+
+    @classmethod
+    def get_workload_key(cls, workload: ExecutorWorkload) -> WorkloadKey:
+        """Return the executor key without changing the legacy workload property."""
+        if isinstance(workload, ExecuteTask):
+            return cls.get_task_key(workload.ti)
+        return workload.key
 
     def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
         if workload.type not in self.supported_workload_types:
@@ -398,7 +447,9 @@ class BaseExecutor(LoggingMixin):
                 f"Add WorkloadType.{workload.type.name} to supported_workload_types and implement handling "
                 f"in _process_workloads()."
             )
-        self.executor_queues[workload.type][workload.key] = workload
+        if isinstance(workload, ExecuteTask):
+            self._register_task(workload.ti)
+        self.executor_queues[workload.type][self.get_workload_key(workload)] = workload
 
         if isinstance(workload, workloads.ExecuteTask):
             run_id = getattr(workload.ti, "workload_run_id", None)
@@ -493,12 +544,13 @@ class BaseExecutor(LoggingMixin):
         :return: True if the task is known to this executor
         """
         task_queue = self.executor_queues.get(WorkloadType.EXECUTE_TASK, {})
-        return (
-            task_instance.id in task_queue
-            or task_instance.id in self.running
-            or task_instance.key in task_queue
-            or task_instance.key in self.running
-        )
+        key = self.get_task_key(task_instance)
+        if (
+            isinstance(key, TaskInstanceKey)
+            and self._task_coordinates.get(TaskInstanceUuid(task_instance.id)) != key
+        ):
+            return False
+        return key in task_queue or key in self.running
 
     def sync(self) -> None:
         """
@@ -708,10 +760,53 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                if not isinstance(key, TaskInstanceKey) or key.dag_id in dag_ids:
+                coordinates = self._task_coordinates.get(key) if isinstance(key, TaskInstanceUuid) else None
+                if isinstance(key, TaskInstanceKey):
+                    coordinates = key
+                if not isinstance(key, (TaskInstanceUuid, TaskInstanceKey)) or (
+                    coordinates is not None and coordinates.dag_id in dag_ids
+                ):
                     cleared_events[key] = self.event_buffer.pop(key)
 
+        task_queue = self.executor_queues.get(WorkloadType.EXECUTE_TASK, {})
+        for task_id, coordinates in list(self._task_coordinates.items()):
+            if not any(
+                key in container
+                for key in (task_id, coordinates)
+                for container in (self.running, task_queue, self.event_buffer)
+            ):
+                del self._task_coordinates[task_id]
+
         return cleared_events
+
+    def _drain_events_with_task_ids(
+        self, dag_ids=None
+    ) -> tuple[dict[WorkloadKey, EventBufferValueType], dict[TaskInstanceUuid, TaskInstanceKey]]:
+        """Drain events with captured attempt identities and coordinates."""
+        captured_coordinates = self._task_coordinates.copy()
+        task_ids: dict[TaskInstanceKey, TaskInstanceUuid | None] = {}
+        for task_id, coordinates in captured_coordinates.items():
+            task_ids[coordinates] = None if coordinates in task_ids else task_id
+        events: dict[WorkloadKey, EventBufferValueType] = {}
+        event_coordinates: dict[TaskInstanceUuid, TaskInstanceKey] = {}
+        for key, value in self.get_event_buffer(dag_ids).items():
+            if isinstance(key, TaskInstanceKey):
+                captured_id = task_ids.get(key)
+                if captured_id is None:
+                    self.log.warning(
+                        "Discarding executor event without a unique captured task identity: %s", key
+                    )
+                    continue
+                events[captured_id] = value
+                event_coordinates[captured_id] = key
+            else:
+                events[key] = value
+                if (
+                    isinstance(key, TaskInstanceUuid)
+                    and (captured := captured_coordinates.get(key)) is not None
+                ):
+                    event_coordinates[key] = captured
+        return events, event_coordinates
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         """
@@ -765,7 +860,7 @@ class BaseExecutor(LoggingMixin):
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
         Anything that is not adopted will be cleared by the scheduler (and then become eligible for
-        re-scheduling)
+        re-scheduling). Accepted unfinished tasks occupy executor slots until completion is reported.
 
         :return: any TaskInstances that were unable to be adopted
         """

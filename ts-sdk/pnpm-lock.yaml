@@ -41,7 +41,10 @@ importers:
         version: 8.67.0(eslint@10.4.0)(typescript@6.0.3)
       vitest:
         specifier: ^4.1.7
-        version: 4.1.7(@types/node@26.2.0)(@vitest/coverage-v8@4.1.7)(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12))
+        version: 4.1.7(@types/node@26.2.0)(@vitest/coverage-v8@4.1.7)(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1))
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   example:
     dependencies:
@@ -1183,6 +1186,11 @@ packages:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
 
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
@@ -1571,7 +1579,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.7(@types/node@26.2.0)(@vitest/coverage-v8@4.1.7)(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12))
+      vitest: 4.1.7(@types/node@26.2.0)(@vitest/coverage-v8@4.1.7)(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1))
     optional: true
 
   '@vitest/expect@4.1.7':
@@ -1583,13 +1591,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.7(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12))':
+  '@vitest/mocker@4.1.7(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1))':
     dependencies:
       '@vitest/spy': 4.1.7
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)
+      vite: 8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1)
 
   '@vitest/pretty-format@4.1.7':
     dependencies:
@@ -2115,7 +2123,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12):
+  vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -2127,11 +2135,12 @@ snapshots:
       esbuild: 0.28.2
       fsevents: 2.3.3
       tsx: 4.23.12
+      yaml: 2.9.1
 
-  vitest@4.1.7(@types/node@26.2.0)(@vitest/coverage-v8@4.1.7)(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)):
+  vitest@4.1.7(@types/node@26.2.0)(@vitest/coverage-v8@4.1.7)(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.7
-      '@vitest/mocker': 4.1.7(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12))
+      '@vitest/mocker': 4.1.7(vite@8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1))
       '@vitest/pretty-format': 4.1.7
       '@vitest/runner': 4.1.7
       '@vitest/snapshot': 4.1.7
@@ -2148,7 +2157,7 @@ snapshots:
       tinyexec: 1.1.1
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vite: 8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)
+      vite: 8.0.10(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.2.0
@@ -2166,5 +2175,7 @@ snapshots:
       stackback: 0.0.2
 
   word-wrap@1.2.5: {}
+
+  yaml@2.9.1: {}
 
   yocto-queue@0.1.0: {}

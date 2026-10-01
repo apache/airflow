@@ -56,7 +56,7 @@ const (
 //
 // The command-line flags of the executable decide what Serve does.
 // With --airflow-metadata it prints the bundle's manifest and returns, which is how
-// airflow-go-pack reads the registered Dag and task ids.
+// airflow-go-pack reads the Dag and task ids of the registered task handlers.
 // With --comm and --logs, which the Airflow supervisor passes, it runs one task over the
 // coordinator protocol.
 //

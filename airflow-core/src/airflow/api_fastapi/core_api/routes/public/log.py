@@ -79,7 +79,7 @@ def _buffered_ndjson_stream(
 @task_instances_log_router.get(
     "/{task_id}/logs/{try_number}",
     responses={
-        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        **create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {
             "description": "Successful Response",
             "content": ndjson_example_response_for_get_log,

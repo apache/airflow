@@ -223,6 +223,13 @@ maliciously, or inject harmful code), **all open PRs by the same author** will b
 and labeled ``suspicious changes detected``. A comment is posted on each PR explaining that
 the closure was triggered by suspicious changes found in the flagged PR.
 
+**What happens when a PR is closed because of the open PR limit?**
+
+When the `limit on open PRs <32_open_pull_request_limit.rst>`__ was introduced, maintainers ran a
+one-time closure of the PRs of contributors who had more than 5 open PRs, except PRs where a
+maintainer had already engaged. Those PRs are labeled ``closed because of open PR limit`` and can be
+reopened once you have a free slot.
+
 If a contributor believes any closure described above was applied in error, the appeal channel
 is the PMC private list — see the
 `Community escalation process <../COMMUNITY_ESCALATION.md>`_ for how to email

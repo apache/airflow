@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -107,6 +107,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _discard_task_state_store,
     _get_task_group_task_ids,
     _get_task_group_task_instances,
     _patch_task_group_state,
@@ -384,10 +385,7 @@ def get_task_instance_tries(
         ).options(joinedload(orm_object.hitl_detail))
         return query
 
-    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
-    tis = session.scalars(
-        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
-    ).all()
+    tis = session.scalars(_query(TI)).all()
     task_instances = list(session.scalars(_query(TIH)).all()) + list(tis)
 
     if not task_instances:
@@ -994,6 +992,13 @@ def post_clear_task_instances(
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
+
+        # After the clear has succeeded, so a failed clear cannot take the task state with it.
+        # This is the only clear path that discards task state today; Dag-run clear and
+        # mark-as-failed/success (which clear downstream tasks) still keep it unconditionally.
+        # It is tracked through https://github.com/apache/airflow/issues/72929
+        if not body.keep_task_state:
+            _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 
         if body.note is not None:
             _patch_task_instance_note(

@@ -59,7 +59,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_4_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
@@ -381,6 +381,16 @@ class KubernetesExecutor(BaseExecutor):
                 record_event(key, state, info, consume_run_id=consume_run_id)
             return
         self.event_buffer[key] = (state, info)  # type: ignore[assignment]
+
+    # TODO: Remove this once the minimum supported Airflow version is 3.1+ and defer to BaseExecutor.queue_workload.
+    if not AIRFLOW_V_3_1_PLUS:
+
+        def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+            from airflow.executors import workloads
+
+            if not isinstance(workload, workloads.ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+            self.queued_tasks[workload.ti.key] = workload
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask

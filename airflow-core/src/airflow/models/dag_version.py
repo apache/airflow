@@ -233,6 +233,7 @@ class DagVersion(Base):
         dag_id: str,
         version_number: int | None = None,
         *,
+        load_dag_code: bool = False,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
@@ -241,12 +242,16 @@ class DagVersion(Base):
         :param dag_id: The DAG ID.
         :param version_number: The version number to look up. When ``None``, the latest
             version is returned; any other value -- ``0`` included -- is used as a filter.
+        :param load_dag_code: Whether to eagerly load the associated DagCode in the same query.
         :param session: The database session.
         :return: The version of the DAG or None if not found.
         """
         version_select_obj = select(cls).where(cls.dag_id == dag_id)
         if version_number is not None:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
+
+        if load_dag_code:
+            version_select_obj = version_select_obj.options(joinedload(cls.dag_code))
 
         return session.scalar(version_select_obj.order_by(cls.version_number.desc()).limit(1))
 

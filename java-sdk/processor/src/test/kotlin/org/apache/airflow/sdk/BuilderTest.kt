@@ -58,7 +58,7 @@ class BuilderTest {
 
           @Builder.Task
           public int t2(Client client) {
-            return (Integer) client.getXCom("t0");
+            return 7;
           }
 
           @Builder.Task
@@ -95,18 +95,21 @@ class BuilderTest {
              dag.addTask(new TaskDef("t3", T3.class));
              return dag;
            }
+
            public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
                new TestExample().t1();
              }
            }
+
            public static final class T2 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
                client.setXCom(new TestExample().t2(client));
              }
            }
+
            public static final class T3 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -164,6 +167,7 @@ class BuilderTest {
              dag.addTask(new TaskDef("t", T.class));
              return dag;
            }
+
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -227,6 +231,7 @@ class BuilderTest {
              dag.addTask(new TaskDef("t", T.class));
              return dag;
            }
+
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -245,27 +250,18 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("bind a TaskInput through the shared populator")
-  fun generateBuilderBindsTaskInputFields() {
+  @DisplayName("lower explicit annotation attributes into config calls")
+  fun generateBuilderLowersConfigAttributes() {
     val compilation =
       compile(
         """
         package org.apache.airflow.example;
-        import java.util.List;
-        import org.apache.airflow.sdk.ArgName;
         import org.apache.airflow.sdk.Builder;
-        import org.apache.airflow.sdk.Client;
-        import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Builder.Dag(id = "cfg", schedule = "@daily", tags = {"a", "b"}, catchup = true,
+            startDate = "2026-01-01T00:00:00Z")
         public class TestExample {
-          public static class ScoreInput implements TaskInput {
-            @ArgName("region_code") public String region;
-            public double threshold;
-            public List<String> tags;
-          }
-
-          @Builder.Task
-          public double score(Client client, ScoreInput input) { return input.threshold; }
+          @Builder.Task(retries = 2, queue = "q", retryDelay = "PT5M", retryExponentialBackoff = 1.5)
+          public void t1() {}
         }
       """,
       )
@@ -280,24 +276,30 @@ class BuilderTest {
 
          import java.lang.Exception;
          import java.lang.Override;
+         import java.time.Duration;
+         import java.time.OffsetDateTime;
+         import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
-         import org.apache.airflow.sdk.internal.ArgValues;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("score", Score.class));
+             var dag = new DagDef("cfg");
+             dag.config("schedule", "@daily");
+             dag.config("tags", List.of("a", "b"));
+             dag.config("catchup", true);
+             dag.config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"));
+             dag.addTask(new TaskDef("t1", T1.class).config("retries", 2).config("queue", "q").config("retry_delay", Duration.parse("PT5M")).config("retry_exponential_backoff", 1.5));
              return dag;
            }
-           public static final class Score implements Task {
+
+           public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TestExample.ScoreInput input = ArgValues.bindInput(client, TestExample.ScoreInput.class);
-               client.setXCom(new TestExample().score(client, input));
+               new TestExample().t1();
              }
            }
          }
@@ -411,6 +413,7 @@ class BuilderTest {
              dag.addTask(new TaskDef("named", Named.class));
              return dag;
            }
+
            public static final class Flat implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -420,6 +423,7 @@ class BuilderTest {
                new TestExample().flat(client_, context_);
              }
            }
+
            public static final class Named implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -617,7 +621,9 @@ class BuilderTest {
         """
          package org.apache.airflow.example;
          import org.apache.airflow.sdk.DagDef;
-         public final class TestExampleBuilder { public static DagDef build() { var dag = new DagDef("foo"); return dag; } }
+         public final class TestExampleBuilder {
+           public static DagDef build() { var dag = new DagDef("foo"); return dag; }
+         }
         """,
       )
   }
@@ -640,7 +646,9 @@ class BuilderTest {
         """
          package org.apache.airflow.example;
          import org.apache.airflow.sdk.DagDef;
-         public final class Foo { public static DagDef build() { var dag = new DagDef("TestExample"); return dag; } }
+         public final class Foo {
+           public static DagDef build() { var dag = new DagDef("TestExample"); return dag; }
+         }
         """,
       )
   }
@@ -654,7 +662,9 @@ class BuilderTest {
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Builder;
         @Builder.Dag
-        public class TestExample { @Builder.Task(id = "foo") public void t1() {} }
+        public class TestExample {
+          @Builder.Task(id = "foo") public void t1() {}
+        }
       """,
       )
 
@@ -664,6 +674,7 @@ class BuilderTest {
         "org.apache.airflow.example.TestExampleBuilder",
         """
          package org.apache.airflow.example;
+
          import java.lang.Exception;
          import java.lang.Override;
          import org.apache.airflow.sdk.Client;
@@ -671,14 +682,19 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
              dag.addTask(new TaskDef("foo", T1.class));
              return dag;
            }
+
            public static final class T1 implements Task {
-             @Override public void execute(Context context, Client client) throws Exception { new TestExample().t1(); }
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().t1();
+             }
            }
          }
         """,
@@ -701,6 +717,110 @@ class BuilderTest {
     assertThat(compilation).hadErrorContaining(
       "Cannot create task from vararg function t1",
     )
+  }
+
+  @Test
+  @DisplayName("reject a duration attribute that is not ISO-8601")
+  fun rejectInvalidDurationAttribute() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task(retryDelay = "5 minutes") public void t() {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Annotation attribute 'retryDelay' is not valid ISO-8601: '5 minutes'",
+    )
+  }
+
+  @Test
+  @DisplayName("escape quotes and backslashes in a string-array attribute")
+  fun generateBuilderEscapesStringArrayValues() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag(tags = {"say \"hi\"", "back\\slash"})
+        public class TestExample {
+          @Builder.Task public void t() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .contentsAsUtf8String()
+      .contains("""dag.config("tags", List.of("say \"hi\"", "back\\slash"));""")
+  }
+
+  @Test
+  @DisplayName("bind a TaskInput through the shared populator")
+  fun generateBuilderBindsTaskInputFields() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import java.util.List;
+        import org.apache.airflow.sdk.ArgName;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Client;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            @ArgName("region_code") public String region;
+            public double threshold;
+            public List<String> tags;
+          }
+
+          @Builder.Task
+          public double score(Client client, ScoreInput input) { return input.threshold; }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Override;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.ArgValues;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("score", Score.class));
+             return dag;
+           }
+
+           public static final class Score implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TestExample.ScoreInput input = ArgValues.bindInput(client, TestExample.ScoreInput.class);
+               client.setXCom(new TestExample().score(client, input));
+             }
+           }
+         }
+        """,
+      )
   }
 
   @Test
