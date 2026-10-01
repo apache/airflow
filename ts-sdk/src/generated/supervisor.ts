@@ -596,11 +596,10 @@ export type Breadcrumbs = {
 }[];
 export type Type76 = "TaskBreadcrumbsResult";
 export type TaskId10 = string;
-export type Binding = "positional" | "named" | "named_or_whole" | "named_open";
+export type Binding = "positional" | "named";
+export type TaskHandlerParams = TaskHandlerParam[] | null;
 export type Name16 = string | null;
-export type Required = boolean;
 export type ExactName = boolean;
-export type Params2 = TaskHandlerParam[];
 export type File1 = string;
 export type BundlePath1 = string;
 export type BundleName5 = string;
@@ -1849,7 +1848,7 @@ export interface TaskBreadcrumbsResult {
 export interface TaskHandlerDeclaration {
   task_id: TaskId10;
   binding: Binding;
-  params: Params2;
+  params: TaskHandlerParams;
 }
 /**
  * One parameter of a task handler.
@@ -1860,7 +1859,6 @@ export interface TaskHandlerDeclaration {
 export interface TaskHandlerParam {
   name: Name16;
   value_schema?: ArgValueSchema | null;
-  required: Required;
   exact_name?: ExactName;
 }
 /**
