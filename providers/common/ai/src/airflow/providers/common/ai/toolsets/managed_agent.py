@@ -245,6 +245,10 @@ class BaseManagedAgentToolset(AirflowToolset):
         """Resolve identity for a log line or a metric tag without letting resolution fail the call."""
         try:
             return self.agent_ref
+        except ModelRetry:
+            # The calling model's control flow, not a resolution failure; this module
+            # never swallows it, here or anywhere else.
+            raise
         except Exception:
             log.warning("Managed agent identity could not be resolved", exc_info=True)
             return None
