@@ -117,7 +117,7 @@ const createColumns = (
   {
     accessorKey: "dag_display_name",
     cell: ({ row: { original } }) => (
-      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`}>
+      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`} whiteSpace="nowrap">
         {original.dag_display_name}
       </RouterLink>
     ),
@@ -126,13 +126,15 @@ const createColumns = (
   {
     accessorKey: "timetable_description",
     cell: ({ row: { original } }) => (
-      <Schedule
-        assetExpression={original.asset_expression}
-        dagId={original.dag_id}
-        timetableDescription={original.timetable_description}
-        timetablePartitioned={original.timetable_partitioned}
-        timetableSummary={original.timetable_summary}
-      />
+      <Box whiteSpace="nowrap">
+        <Schedule
+          assetExpression={original.asset_expression}
+          dagId={original.dag_id}
+          timetableDescription={original.timetable_description}
+          timetablePartitioned={original.timetable_partitioned}
+          timetableSummary={original.timetable_summary}
+        />
+      </Box>
     ),
     enableSorting: false,
     header: () => translate("dagDetails.schedule"),
@@ -143,10 +145,12 @@ const createColumns = (
       original.is_paused ? undefined : original.scheduling_state === "draining" ? (
         <DrainingBadge />
       ) : Boolean(original.next_dagrun_run_after) ? (
-        <DagRunInfo
-          logicalDate={original.next_dagrun_logical_date}
-          runAfter={original.next_dagrun_run_after as string}
-        />
+        <Box whiteSpace="nowrap">
+          <DagRunInfo
+            logicalDate={original.next_dagrun_logical_date}
+            runAfter={original.next_dagrun_run_after as string}
+          />
+        </Box>
       ) : undefined,
     header: () => translate("dagDetails.nextRun"),
   },
@@ -157,6 +161,7 @@ const createColumns = (
         <RouterLink
           fontWeight="bold"
           to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].run_id}`}
+          whiteSpace="nowrap"
         >
           <DagRunInfo
             endDate={original.latest_dag_runs[0].end_date}
@@ -189,7 +194,11 @@ const createColumns = (
       row: {
         original: { tags },
       },
-    }) => <DagTags hideIcon tags={tags} />,
+    }) => (
+      <Box whiteSpace="nowrap">
+        <DagTags hideIcon tags={tags} />
+      </Box>
+    ),
     enableSorting: false,
     header: () => translate("dagDetails.tags"),
   },
@@ -198,7 +207,9 @@ const createColumns = (
         {
           accessorKey: "team_name",
           cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) => (
-            <TeamName teamName={original.team_name} />
+            <Box whiteSpace="nowrap">
+              <TeamName teamName={original.team_name} />
+            </Box>
           ),
           enableSorting: false,
           header: () => translate("dagDetails.team"),
