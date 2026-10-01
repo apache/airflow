@@ -30,6 +30,7 @@ pytest.importorskip("opensandbox")
 from opensandbox.exceptions import SandboxApiException
 from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule
 
+from airflow.providers.common.ai.sandbox import base
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
     SandboxFileTooLargeError,
@@ -761,6 +762,18 @@ class TestExportFile:
 
         with pytest.raises(SandboxFileTooLargeError):
             backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=10)
+
+    def test_a_download_slower_than_its_deadline_is_ended(self, monkeypatch):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        stream = _stream(b"he", b"llo")
+        sandbox.files.read_bytes_stream.return_value = stream
+        monkeypatch.setattr(base, "_export_allowance", lambda max_bytes: 0.0)
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=100)
+
+        stream.close.assert_called_once()
 
     def test_a_file_that_changed_size_is_an_error(self):
         backend, sandbox = _backend_with_sandbox()

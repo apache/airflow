@@ -26,6 +26,7 @@ import math
 import sys
 import threading
 import time
+import uuid
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from fsspec.implementations.local import LocalFileSystem
@@ -76,6 +77,16 @@ _RELEASE_RETRY_DELAY = 1.0
 _provisioning = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="sandbox-create")
 
 RUN_COMMAND = "run_command"
+
+
+def _sentence(error: BaseException) -> str:
+    """Return an exception's message ending in exactly one full stop, to join into a longer one."""
+    return f"{str(error).rstrip('.')}."
+
+
+# Ends the name of the staging key an export is copied to before it is moved into place,
+# so a consumer globbing its destination's own extension never matches one.
+_PARTIAL_SUFFIX = ".partial"
 
 
 class _Identity(NamedTuple):
@@ -542,10 +553,11 @@ class SandboxToolset(AirflowToolset):
 
     async def __aexit__(self, *args: Any) -> bool | None:
         # Read here, not in the thread: the exception being handled belongs to this frame.
-        run_failed = args[0] is not None or self._run_failed()
+        run_failed = args[0] is not None or self._run_failed
         await asyncio.to_thread(self._close, run_failed=run_failed)
         return None
 
+    @property
     def _run_failed(self) -> bool:
         """
         Whether the run this toolset served ended in an exception.
@@ -617,27 +629,60 @@ class SandboxToolset(AirflowToolset):
 
         Before teardown, and never best effort: a task that promised a file and did not
         deliver it must fail, or its downstream task finds nothing and cannot tell why.
+
+        Each file is copied to a staging key next to its destination, and only once every
+        file has been copied are they moved into place. A failed export therefore leaves
+        every destination as it was, including one an earlier run filled, rather than
+        holding a truncated copy or a part of this run's set.
         """
-        written: list[ObjectStoragePath] = []
+        staged: list[tuple[ObjectStoragePath, ObjectStoragePath]] = []
         for path, destination in self._exports.items():
             target = self._export_target(destination)
+            partial = target.with_name(f"{target.name}.{uuid.uuid4().hex[:12]}{_PARTIAL_SUFFIX}")
             try:
                 if isinstance(target.fs, LocalFileSystem):
                     # A per-run destination names a directory nothing has created yet. Only
                     # locally: on object storage a key needs no parent, and an s3fs mkdir
                     # can create a bucket.
                     target.parent.mkdir(parents=True, exist_ok=True)
-                written.append(target)
-                with target.open("wb") as stream:
+                staged.append((partial, target))
+                with partial.open("wb") as stream:
                     size = self._backend.export_file(sandbox, path, stream, max_bytes=self._max_export_bytes)
             except Exception as e:
-                left_behind = self._remove_exports(written)
-                note = f" Left behind, to delete by hand: {', '.join(left_behind)}." if left_behind else ""
-                raise SandboxTerminalError(
-                    f"Could not export {path!r} from sandbox {sandbox} on backend {self._backend.name!r} "
-                    f"to {destination}: {e}.{note}"
+                raise self._export_failed(
+                    staged,
+                    f"Could not export {path!r} from sandbox {sandbox} "
+                    f"on backend {self._backend.name!r} to {destination}: {_sentence(e)}",
                 ) from e
-            log.info("Exported %s from sandbox %s to %s (%s)", path, sandbox, destination, format_size(size))
+            log.info("Exported %s from sandbox %s (%s)", path, sandbox, format_size(size))
+        published: list[str] = []
+        for partial, target in staged:
+            try:
+                # Within one store: a rename on a local disk, a server-side copy on object
+                # storage, so the bytes do not pass through the worker a second time.
+                partial.move(target)
+            except Exception as e:
+                done = f" Already in place: {', '.join(published)}." if published else ""
+                raise self._export_failed(
+                    staged, f"Could not move the export into {target}: {_sentence(e)}{done}"
+                ) from e
+            published.append(str(target))
+            log.info("Published %s", target)
+
+    @staticmethod
+    def _export_failed(
+        staged: list[tuple[ObjectStoragePath, ObjectStoragePath]], message: str
+    ) -> SandboxTerminalError:
+        """Remove the staging keys of a failed export, and build the error that names any left behind."""
+        left_behind = []
+        for partial, _ in staged:
+            try:
+                partial.unlink(missing_ok=True)
+            except Exception:
+                log.warning("Could not remove %s after a failed export", partial, exc_info=True)
+                left_behind.append(str(partial))
+        note = f" Left behind, to delete by hand: {', '.join(left_behind)}." if left_behind else ""
+        return SandboxTerminalError(f"{message}{note}")
 
     def _export_target(self, destination: str) -> ObjectStoragePath:
         # ``conn_id`` only when one is set: on Airflow 3.0 and 3.1 an explicit None
@@ -645,24 +690,6 @@ class SandboxToolset(AirflowToolset):
         if self._export_conn_id is None:
             return ObjectStoragePath(destination)
         return ObjectStoragePath(destination, conn_id=self._export_conn_id)
-
-    @staticmethod
-    def _remove_exports(targets: list[ObjectStoragePath]) -> list[str]:
-        """
-        Remove what this attempt wrote after an export failed, returning what could not be.
-
-        Closing a stream commits what was written, so a failed copy leaves a truncated
-        object, and the files exported before it belong to a task that failed. A
-        consumer that runs whatever the outcome must not find either.
-        """
-        left_behind = []
-        for target in targets:
-            try:
-                target.unlink(missing_ok=True)
-            except Exception:
-                log.warning("Could not remove %s after a failed export", target, exc_info=True)
-                left_behind.append(str(target))
-        return left_behind
 
     def _destroy(self, sandbox: str) -> None:
         try:

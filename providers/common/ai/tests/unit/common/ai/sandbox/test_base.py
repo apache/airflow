@@ -349,6 +349,19 @@ class TestDefaultExport:
         with pytest.raises(SandboxFileTooLargeError):
             local.export_file("s", str(target), io.BytesIO(), max_bytes=200)
 
+    def test_an_export_slower_than_its_deadline_is_ended(self, local, tmp_path, monkeypatch):
+        # Each slice has its own command timeout, so only the whole-copy deadline stops a
+        # guest that sends every slice just inside it.
+        (tmp_path / "out.bin").write_bytes(b"x" * 100)
+        monkeypatch.setattr(base, "_export_allowance", lambda max_bytes: 0.0)
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            local.export_file("s", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=1000)
+
+    def test_the_deadline_scales_with_the_budget(self):
+        assert base._export_allowance(1024**3) == 1024
+        assert base._export_allowance(1024) == base._FILE_OP_TIMEOUT
+
     def test_a_truncated_slice_is_an_error_not_a_short_file(self, local, tmp_path):
         # A slice cut short decodes cleanly into the wrong bytes, so it must not be
         # mistaken for the end of the file.

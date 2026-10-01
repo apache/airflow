@@ -84,6 +84,8 @@ class _RecordingBackend(SandboxBackend):
         self.files: dict[str, bytes] = {}
         # (sandbox, path, max_bytes, whether the sandbox was already destroyed)
         self.exported: list[tuple[str, str, int, bool]] = []
+        # Paths whose copy writes some bytes and then fails, as a copy cut off partway does.
+        self.fail_partway: set[str] = set()
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
         self.created.append(spec)
@@ -114,6 +116,9 @@ class _RecordingBackend(SandboxBackend):
         self.exported.append((sandbox, path, max_bytes, sandbox in self.destroyed))
         if path not in self.files:
             raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.")
+        if path in self.fail_partway:
+            dest.write(self.files[path][:1])
+            raise SandboxError(f"the sandbox stopped sending {path!r}")
         dest.write(self.files[path])
         return len(self.files[path])
 
@@ -833,6 +838,7 @@ class TestExports:
         assert backend.destroyed == ["box-1"]
         assert (tmp_path / "report.parquet").read_bytes() == b"PAR1..."
         assert (tmp_path / "chart.png").read_bytes() == b"\x89PNG"
+        assert sorted(f.name for f in tmp_path.iterdir()) == ["chart.png", "report.parquet"]
 
     @pytest.mark.asyncio
     async def test_a_failed_run_exports_nothing_and_still_destroys_the_sandbox(self, tmp_path):
@@ -853,9 +859,7 @@ class TestExports:
         assert not (tmp_path / "out.bin").exists()
 
     @pytest.mark.asyncio
-    async def test_a_file_that_cannot_be_exported_fails_the_task_and_leaves_nothing_behind(self, tmp_path):
-        # A stale object from an earlier attempt must not be mistaken for this run's output.
-        (tmp_path / "out.bin").write_bytes(b"from an earlier try")
+    async def test_a_file_that_cannot_be_exported_fails_the_task(self, tmp_path):
         backend = _RecordingBackend()
         ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
 
@@ -864,7 +868,22 @@ class TestExports:
                 await _call(ts, "run_command", {"command": "forgot to write it"})
 
         assert backend.destroyed == ["box-1"]
-        assert not (tmp_path / "out.bin").exists()
+        assert list(tmp_path.iterdir()) == []
+
+    @pytest.mark.asyncio
+    async def test_a_copy_that_fails_partway_leaves_the_destination_as_it_was(self, tmp_path):
+        (tmp_path / "out.bin").write_bytes(b"ORIGINAL")
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"new contents"}
+        backend.fail_partway = {"out.bin"}
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        with pytest.raises(SandboxTerminalError, match="stopped sending"):
+            async with ts:
+                await _call(ts, "run_command", {"command": "x"})
+
+        assert (tmp_path / "out.bin").read_bytes() == b"ORIGINAL"
+        assert [f.name for f in tmp_path.iterdir()] == ["out.bin"]
 
     @pytest.mark.asyncio
     async def test_for_run_carries_the_export_connection_across(self):
@@ -880,9 +899,10 @@ class TestExports:
         path_cls.assert_called_once_with("s3://b/out.bin", conn_id="reports")
 
     @pytest.mark.asyncio
-    async def test_a_failed_export_removes_what_the_attempt_already_exported(self, tmp_path):
-        # The task fails, so a consumer that runs whatever the outcome must not find
-        # half of its files.
+    async def test_a_failed_export_changes_none_of_the_destinations(self, tmp_path):
+        # Nothing is moved into place until every file has been copied, so a consumer
+        # that runs whatever the outcome never finds half of a set.
+        (tmp_path / "first.bin").write_bytes(b"ORIGINAL")
         backend = _RecordingBackend()
         backend.files = {"first.bin": b"one"}
         ts = SandboxToolset(
@@ -897,8 +917,35 @@ class TestExports:
             async with ts:
                 await _call(ts, "run_command", {"command": "x"})
 
-        assert not (tmp_path / "first.bin").exists()
-        assert not (tmp_path / "second.bin").exists()
+        assert (tmp_path / "first.bin").read_bytes() == b"ORIGINAL"
+        assert [f.name for f in tmp_path.iterdir()] == ["first.bin"]
+
+    @pytest.mark.asyncio
+    async def test_a_publish_that_fails_names_what_is_already_in_place(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"first.bin": b"one", "second.bin": b"two"}
+        ts = SandboxToolset(
+            backend,
+            exports={
+                "first.bin": f"file://{tmp_path}/first.bin",
+                "second.bin": f"file://{tmp_path}/second.bin",
+            },
+        )
+        move = ObjectStoragePath.move
+
+        def fail_the_second(self, path, **kwargs):
+            if str(path).endswith("second.bin"):
+                raise OSError("permission denied")
+            return move(self, path, **kwargs)
+
+        with patch.object(ObjectStoragePath, "move", autospec=True, side_effect=fail_the_second):
+            with pytest.raises(
+                SandboxTerminalError, match=r"second\.bin: permission denied.*Already in place: .*first\.bin"
+            ):
+                async with ts:
+                    await _call(ts, "run_command", {"command": "x"})
+
+        assert sorted(f.name for f in tmp_path.iterdir()) == ["first.bin"]
 
     @pytest.mark.asyncio
     async def test_a_copy_that_cannot_be_removed_is_named_in_the_error(self, tmp_path, caplog):
@@ -906,7 +953,9 @@ class TestExports:
         ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
 
         with patch.object(ObjectStoragePath, "unlink", autospec=True, side_effect=OSError("denied")):
-            with pytest.raises(SandboxTerminalError, match=r"Left behind, to delete by hand: .*out\.bin"):
+            with pytest.raises(
+                SandboxTerminalError, match=r"Left behind, to delete by hand: .*out\.bin\.\w+\.partial"
+            ):
                 async with ts:
                     await _call(ts, "run_command", {"command": "x"})
 

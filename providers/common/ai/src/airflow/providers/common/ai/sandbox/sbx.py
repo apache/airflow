@@ -38,6 +38,8 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxTerminalError,
+    _check_export_deadline,
+    _export_deadline,
     _new_sandbox_name,
     _validate_positive_finite,
 )
@@ -58,9 +60,9 @@ _FILE_OP_TIMEOUT = 120.0
 # Helpers return a status or a directory listing, never bulk file content, so a
 # small cap is enough to bound what a hostile guest can push into worker memory.
 _HELPER_OUTPUT_CAP = 1024 * 1024
-# Seconds an export may go without a byte arriving before it is ended. A stall, not a
-# budget for the whole file: measured, 200 MB streams out of a local microVM in under
-# three seconds, and a larger file only takes longer.
+# Seconds an export may go without a byte arriving before it is ended. The whole copy
+# is bounded separately, by ``_export_deadline``; measured, 200 MB streams out of a
+# local microVM in under three seconds.
 _EXPORT_STALL_TIMEOUT = 120.0
 
 log = logging.getLogger(__name__)
@@ -476,11 +478,13 @@ class SbxSandboxBackend(SandboxBackend):
         quoted = shlex.quote(path)
         script = (
             f"{self._export_checks(quoted, max_bytes)} "
-            f"{self._report_export_size(to_stderr=True)} exec head -c {max_bytes + 1} -- {quoted}"
+            f"{self._print_export_size(to_stderr=True)} exec head -c {max_bytes + 1} -- {quoted}"
         )
+        deadline = _export_deadline(max_bytes)
         written = 0
         stderr = bytearray()
         stalled = threading.Event()
+        expired = threading.Event()
         finished = threading.Event()
         last_progress = [time.monotonic()]
         with subprocess.Popen(
@@ -498,11 +502,13 @@ class SbxSandboxBackend(SandboxBackend):
                     proc.kill()
 
             def watch() -> None:
-                # The clock restarts with every chunk, so a large file that keeps moving
-                # is never cut off; only one that stops is.
+                # Two clocks: the stall one restarts with every chunk, so a large file that
+                # keeps moving is not cut off; the deadline does not, so a guest that
+                # trickles a byte now and then is ended too.
                 while not finished.wait(min(1.0, _EXPORT_STALL_TIMEOUT / 4)):
-                    if time.monotonic() - last_progress[0] > _EXPORT_STALL_TIMEOUT:
-                        stalled.set()
+                    now = time.monotonic()
+                    if now - last_progress[0] > _EXPORT_STALL_TIMEOUT or now > deadline:
+                        (stalled if now <= deadline else expired).set()
                         kill()
                         return
 
@@ -529,13 +535,15 @@ class SbxSandboxBackend(SandboxBackend):
                     kill()
                     proc.wait()
                 drainer.join(timeout=5.0)
+        if expired.is_set():
+            _check_export_deadline(path, deadline, max_bytes)
         if stalled.is_set():
             raise SandboxError(f"Exporting {path!r} stalled: no data arrived for {_EXPORT_STALL_TIMEOUT:g}s.")
         report = stderr.decode(errors="replace")
         self._raise_for_export_status(
             path, SandboxExecResult(exit_code=proc.returncode, stdout="", stderr=report), max_bytes
         )
-        self._check_export_size(path, expected=self._reported_export_size(report), written=written)
+        self._check_export_size(path, expected=self._parse_export_size(report), written=written)
         return written
 
     def destroy(self, sandbox: str) -> None:

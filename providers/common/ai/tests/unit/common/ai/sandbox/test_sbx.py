@@ -26,7 +26,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.common.ai.sandbox import sbx
+from airflow.providers.common.ai.sandbox import base, sbx
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
     SandboxFileTooLargeError,
@@ -407,6 +407,19 @@ class TestExportFileOverride:
 
         with pytest.raises(SandboxError, match="changed while it was exported"):
             local_sbx.export_file("box", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=100)
+
+    def test_a_transfer_that_keeps_trickling_is_ended_by_the_deadline(self, local_sbx, tmp_path, monkeypatch):
+        # The stall clock is far off, so only the whole-copy deadline can end this one.
+        (tmp_path / "out.bin").write_bytes(b"x")
+        monkeypatch.setenv("FAKE_SBX_STALL", "30")
+        monkeypatch.setattr(sbx, "_EXPORT_STALL_TIMEOUT", 3600.0)
+        monkeypatch.setattr(base, "_export_allowance", lambda max_bytes: 0.5)
+        start = time.monotonic()
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            local_sbx.export_file("box", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=100)
+
+        assert time.monotonic() - start < 10
 
     def test_a_stalled_transfer_is_ended(self, local_sbx, tmp_path, monkeypatch):
         (tmp_path / "out.bin").write_bytes(b"x")

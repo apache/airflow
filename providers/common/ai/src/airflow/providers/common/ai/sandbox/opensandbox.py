@@ -32,6 +32,8 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxTerminalError,
+    _check_export_deadline,
+    _export_deadline,
     _new_sandbox_name,
     _validate_positive_finite,
 )
@@ -490,9 +492,11 @@ class OpenSandboxBackend(SandboxBackend):
             raise SandboxError(f"{path!r} is not a regular file; only a regular file can be exported.")
         if entry.size > max_bytes:
             raise SandboxFileTooLargeError(path, entry.size, max_bytes)
+        deadline = _export_deadline(max_bytes)
         written = 0
         with closing(self._download(sandbox_client, path, max_bytes=max_bytes)) as chunks:
             for chunk in chunks:
+                _check_export_deadline(path, deadline, max_bytes)
                 written += len(chunk)
                 if written > max_bytes:
                     raise SandboxFileTooLargeError(path, written, max_bytes)

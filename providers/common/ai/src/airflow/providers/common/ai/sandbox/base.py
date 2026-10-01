@@ -106,6 +106,28 @@ _FILE_OP_OUTPUT_CAP = 1024 * 1024
 _EXPORT_CHUNK_BYTES = 4 * 1024 * 1024
 # Prefix on the line an export check prints the file's size on.
 _EXPORT_SIZE_TAG = "airflow-export-size:"
+# The slowest an export may run on average before it is ended, so a guest that trickles
+# a byte at a time cannot hold the task open: 1 GiB, the toolset's default budget, gets
+# about 17 minutes.
+_EXPORT_MIN_RATE = 1024 * 1024
+
+
+def _export_allowance(max_bytes: int) -> float:
+    """Seconds a whole export of a file of up to ``max_bytes`` may take."""
+    return max(_FILE_OP_TIMEOUT, max_bytes / _EXPORT_MIN_RATE)
+
+
+def _export_deadline(max_bytes: int) -> float:
+    """When an export starting now must have finished, on the ``time.monotonic`` clock."""
+    return time.monotonic() + _export_allowance(max_bytes)
+
+
+def _check_export_deadline(path: str, deadline: float, max_bytes: int) -> None:
+    if time.monotonic() > deadline:
+        raise SandboxError(
+            f"Exporting {path!r} took longer than the {_export_allowance(max_bytes):g}s allowed for a "
+            f"file of up to {max_bytes} bytes; the sandbox is sending it too slowly."
+        )
 
 
 def _validate_positive_finite(value: float, name: str) -> None:
@@ -469,25 +491,29 @@ class SandboxBackend(ABC):
         command per slice, and needs ``stat``, ``tail``, ``head`` and ``base64`` in the
         guest. It relies on ``run_command`` returning each slice's output intact, or
         setting ``stdout_truncated`` when it could not, and on nothing but the command's
-        own output reaching stdout. Override it when the vendor can stream a file out.
+        own output reaching stdout. Override it when the vendor can stream a file out,
+        and bound the whole copy by :func:`_export_deadline` as this one does, since a
+        guest that keeps sending a byte now and then never trips a stall timeout.
         """
+        deadline = _export_deadline(max_bytes)
         quoted = shlex.quote(path)
         check = self.run_command(
             sandbox,
-            f"{self._export_checks(quoted, max_bytes)} {self._report_export_size()}",
+            f"{self._export_checks(quoted, max_bytes)} {self._print_export_size()}",
             timeout=_FILE_OP_TIMEOUT,
             max_output_bytes=_FILE_OP_OUTPUT_CAP,
         )
         self._raise_for_export_status(path, check, max_bytes)
-        size = self._reported_export_size(check.stdout)
+        size = self._parse_export_size(check.stdout)
         written = 0
         while True:
+            _check_export_deadline(path, deadline, max_bytes)
             # ``tail -c +N`` seeks on a regular file, so each slice costs its own
             # length rather than a read from the start.
             result = self.run_command(
                 sandbox,
                 f"tail -c +{written + 1} -- {quoted} | head -c {_EXPORT_CHUNK_BYTES} | base64",
-                timeout=_FILE_OP_TIMEOUT,
+                timeout=max(1.0, min(_FILE_OP_TIMEOUT, deadline - time.monotonic())),
                 max_output_bytes=_EXPORT_CHUNK_BYTES * 2 + 4096,
             )
             if result.sandbox_terminated:
@@ -521,11 +547,11 @@ class SandboxBackend(ABC):
             f"sz=$(stat -Lc %s -- {quoted} 2>/dev/null) || exit {cls._MISSING_PATH_STATUS}; "
             f"[ -d {quoted} ] && exit {cls._IS_DIRECTORY_STATUS}; "
             f"[ -f {quoted} ] || exit {cls._NOT_REGULAR_FILE_STATUS}; "
-            f'[ "$sz" -gt {max_bytes} ] && {{ {cls._report_export_size(to_stderr=True)} exit {cls._TOO_LARGE_STATUS}; }};'
+            f'[ "$sz" -gt {max_bytes} ] && {{ {cls._print_export_size(to_stderr=True)} exit {cls._TOO_LARGE_STATUS}; }};'
         )
 
     @staticmethod
-    def _report_export_size(*, to_stderr: bool = False) -> str:
+    def _print_export_size(*, to_stderr: bool = False) -> str:
         """
         Shell that prints ``$sz`` on a line of its own, tagged.
 
@@ -535,7 +561,7 @@ class SandboxBackend(ABC):
         return f'printf "\\n{_EXPORT_SIZE_TAG}%s\\n" "$sz"{redirect};'
 
     @staticmethod
-    def _reported_export_size(text: str) -> int:
+    def _parse_export_size(text: str) -> int:
         sizes = re.findall(rf"^{_EXPORT_SIZE_TAG}(\d+)$", text, flags=re.MULTILINE)
         if not sizes:
             raise SandboxError("The sandbox did not report the size of the file being exported.")
@@ -554,7 +580,7 @@ class SandboxBackend(ABC):
             raise SandboxError(f"{path!r} is not a regular file; only a regular file can be exported.")
         if result.exit_code == cls._TOO_LARGE_STATUS:
             try:
-                size = cls._reported_export_size(result.stderr)
+                size = cls._parse_export_size(result.stderr)
             except SandboxError:
                 size = max_bytes + 1
             raise SandboxFileTooLargeError(path, size, max_bytes)

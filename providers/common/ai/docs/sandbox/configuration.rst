@@ -225,18 +225,21 @@ credentials from ``export_conn_id``. Only a regular file is exported, up to
 ``max_export_bytes`` (1 GiB by default). Two outcomes are kept apart:
 
 * **A promised file that cannot be exported fails the task.** The file is missing,
-  is a directory, is over the limit, changed size while it was copied, or the
-  storage refused the write. Everything this attempt exported is removed, the
-  truncated copy included, and anything that could not be removed is logged and
-  named in the error. The sandbox is still destroyed.
+  is a directory, is over the limit, changed size while it was copied, took longer
+  than the limit allows at 1 MiB/s, or the storage refused the write. Every file is
+  first copied to a staging key beside its destination, named after it with a
+  ``.partial`` suffix, and the files are moved into place only once all of them
+  have been copied, so a failed export leaves every destination as it was. The
+  staging keys are removed, and one that cannot be is logged and named in the
+  error. The sandbox is still destroyed.
 * **A sandbox that cannot be destroyed afterwards does not.** The file is delivered,
   the failure is logged with the sandbox's name, and the backend's lifetime or an
   operator's sweep reclaims it.
 
 A run that fails exports nothing, and a run that never called a tool has no
 sandbox to export from, which fails the task the same way a missing file does.
-Neither touches the destinations, so a file an earlier try exported is still
-there: a consumer that runs whatever the outcome, such as one with
+None of these touches the destinations, so a file an earlier try exported is
+still there: a consumer that runs whatever the outcome, such as one with
 ``trigger_rule=TriggerRule.ALL_DONE``, should check that the task succeeded before
 it trusts a file. A destination that renders to something other than a storage
 URL fails the task before the model runs.
