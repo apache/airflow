@@ -54,7 +54,13 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.dag_processing.importer_routing import get_claiming_coordinator
+from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
+from airflow.dag_processing.processor import (
+    BaseDagFileProcessorProcess,
+    DagFileParsingResult,
+    DagFileProcessorProcess,
+)
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -262,7 +268,7 @@ class DagFileProcessorManager(LoggingMixin):
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
-    _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
+    _processors: dict[DagFileInfo, BaseDagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
     _num_run: int = attrs.field(default=0, init=False)
@@ -1277,7 +1283,7 @@ class DagFileProcessorManager(LoggingMixin):
     def handle_parsing_result(
         self,
         file: DagFileInfo,
-        proc: DagFileProcessorProcess,
+        proc: BaseDagFileProcessorProcess,
         *,
         session: Session = NEW_SESSION,
     ) -> None:
@@ -1461,25 +1467,34 @@ class DagFileProcessorManager(LoggingMixin):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
+    def _create_process(self, dag_file: DagFileInfo) -> BaseDagFileProcessorProcess:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
-
-        return DagFileProcessorProcess.start(
+        kwargs: dict[str, Any] = dict(
             id=id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
             bundle_name=dag_file.bundle_name,
             dag_file_rel_path=str(dag_file.rel_path),
-            callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
             subprocess_logs_to_stdout=conf.get("logging", "dag_processor_log_target") == "stdout",
             client=self.client,
         )
+
+        if get_claiming_coordinator(dag_file.absolute_path, dag_file.bundle_name) is not None:
+            if callback_to_execute_for_file:
+                self.log.warning(
+                    "Dropping %d callbacks for %s: Lang-SDK runtimes do not run callbacks",
+                    len(callback_to_execute_for_file),
+                    dag_file.rel_path,
+                )
+            return LangSDKDagFileProcessorProcess.start(**kwargs)
+
+        return DagFileProcessorProcess.start(callbacks=callback_to_execute_for_file, **kwargs)
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
