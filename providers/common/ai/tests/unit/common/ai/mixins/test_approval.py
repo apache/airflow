@@ -35,8 +35,8 @@ from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
 from airflow.providers.common.compat.notifier import BaseNotifier
+from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTriggerEventError
-from airflow.sdk import DAG
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.sdk.exceptions import TaskAwaitingInput

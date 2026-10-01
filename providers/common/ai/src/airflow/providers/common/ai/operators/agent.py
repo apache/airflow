@@ -47,6 +47,7 @@ from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentR
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
+    make_task_instance_run_key,
     stamp_identity_on_agent_spans,
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
@@ -472,7 +473,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         "usage_limits",
     )
 
-    operator_extra_links = (HITLReviewLink(),)
+    # HITL review needs Airflow 3.1. Airflow 2 would also log an error for the unregistered
+    # link class every time the webserver loads a Dag with this operator.
+    operator_extra_links = (HITLReviewLink(),) if AIRFLOW_V_3_1_PLUS else ()
 
     def __init__(
         self,
@@ -996,7 +999,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             return
         ti = context["task_instance"]
         try:
-            ti.xcom_push(key="run_id", value=str(ti.id))
+            ti.xcom_push(key="run_id", value=make_task_instance_run_key(ti))
         except Exception:
             self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
         if attempt_usage is not None:
@@ -1106,10 +1109,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self._run_identity_attrs = build_run_identity_attributes(ti)
         stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
 
-        # The task-instance id is non-nullable and regenerated on each retry, so it
-        # is a unique, reverse-resolvable join key. It lands on result.run_id, the
-        # run's messages, and the ``gen_ai.agent.call.id`` span attribute.
-        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": str(ti.id)}
+        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on
+        # each retry; dag/run/task/map/try on Airflow 2) is a unique, reverse-resolvable
+        # join key. It lands on result.run_id, the run's messages, and the
+        # ``gen_ai.agent.call.id`` span attribute.
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": make_task_instance_run_key(ti)}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history

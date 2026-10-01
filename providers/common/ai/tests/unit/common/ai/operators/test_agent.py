@@ -86,11 +86,16 @@ from airflow.providers.common.ai.utils.usage_budget import (
     copy_run_usage,
     dump_run_usage,
 )
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
-from airflow.sdk import DAG, task
+from airflow.providers.common.compat.sdk import (
+    DAG,
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+    task,
+)
 
 from tests_common.test_utils.compat import OperatorSerialization
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
 try:
@@ -248,7 +253,8 @@ class _InMemoryDurableStorage:
 
 class TestAgentOperatorValidation:
     def test_requires_llm_conn_id(self):
-        with pytest.raises(TypeError):
+        # Airflow 2's BaseOperator reports a missing required argument as AirflowException.
+        with pytest.raises(TypeError if AIRFLOW_V_3_0_PLUS else AirflowException):
             AgentOperator(task_id="test", prompt="hello")
 
     @pytest.mark.skipif(
@@ -527,6 +533,10 @@ class TestAgentOperatorToolsetTemplating:
             pytest.param("decorator", "tenant_{{ task.op_kwargs.customer }}", id="decorator"),
         ],
     )
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS,
+        reason="Airflow 2's MappedOperator resolves expansions through the metadata database and a task session",
+    )
     def test_each_map_index_gets_its_own_connection(self, form, template):
         """Through the real MappedOperator render path, for both authoring forms."""
         shared = SQLToolset(db_conn_id=template)
@@ -772,6 +782,20 @@ class TestAgentOperatorExecute:
         mock_agent.run_sync.assert_called_once_with(
             "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_keys_the_run_by_attempt_without_a_task_instance_id(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        """Airflow 2 task instances have no ``id``; the run key falls back to dag/run/task/map/try."""
+        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = AgentOperator(task_id="test", prompt="hello", llm_conn_id="my_llm")
+
+        op.execute(context=_make_context(_make_ti(id=None, try_number=2)))
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["run_id"] == "dag/run/task/-1/2"
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls, make_mock_run_result):

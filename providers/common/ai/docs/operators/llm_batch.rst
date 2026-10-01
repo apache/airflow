@@ -282,8 +282,8 @@ provider's own batch listing first.
 ``cancel_on_kill`` cancels the batch if the task is killed. In deferrable mode this runs from the
 trigger's ``on_kill``, which only **Airflow 3.3+** calls; on those versions clearing, marking
 success or marking failed on a deferred task from the UI counts as a kill, so the batch is
-cancelled and the next attempt submits a fresh one rather than re-attaching. On Airflow 3.0 to
-3.2 a killed deferred task's batch keeps running and a clear re-attaches to it. Set
+cancelled and the next attempt submits a fresh one rather than re-attaching. Before
+Airflow 3.3 a killed deferred task's batch keeps running and a clear re-attaches to it. Set
 ``cancel_on_kill=False`` if you want clear-to-re-attach on 3.3+ as well.
 
 ``cancel_on_timeout=False`` lets a batch keep running (and billing) past this task's own

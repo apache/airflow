@@ -67,14 +67,17 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=3.0.0",
-    "apache-airflow-providers-common-compat>=1.15.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.15.0",  # use next version
     "apache-airflow-providers-standard>=1.20.0",
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
     # of which raise TypeError on 2.31 and earlier. The cost API this provider relies on
     # (RunUsage.cost, UsageLimits.cost_limit) landed earlier, in 2.23.0.
     "pydantic-ai-slim>=2.33.0",
+    # Airflow 3 brings structlog in through the Task SDK; Airflow 2 does not. 24.2.0 is the first
+    # release whose render_to_log_kwargs hands ``stacklevel`` to stdlib logging under that name.
+    "structlog>=24.2.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file

@@ -32,13 +32,14 @@ import dataclasses
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic_ai.usage import RunUsage
+
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 # Reserved task state store key for the cumulative cross-attempt usage record. Separate
 # from durable's ``DURABLE_KEY_PREFIX`` (see durable/base.py) so it is never mistaken for
