@@ -26,7 +26,7 @@ from airflow.providers.google.go_module_utils import _execute_in_subprocess
 
 
 class TestExecuteInSubprocess:
-    @mock.patch("airflow.providers.google.go_module_utils.subprocess.Popen")
+    @mock.patch("airflow.providers.google.go_module_utils.subprocess.Popen", autospec=True)
     def test_success(self, mock_popen):
         process = mock_popen.return_value.__enter__.return_value
         process.stdout = None
@@ -45,7 +45,7 @@ class TestExecuteInSubprocess:
         )
         process.wait.assert_called_once_with()
 
-    @mock.patch("airflow.providers.google.go_module_utils.subprocess.Popen")
+    @mock.patch("airflow.providers.google.go_module_utils.subprocess.Popen", autospec=True)
     def test_nonzero_exit_code_raises(self, mock_popen):
         process = mock_popen.return_value.__enter__.return_value
         process.stdout = None
@@ -57,7 +57,7 @@ class TestExecuteInSubprocess:
         assert exc_info.value.returncode == 1
         assert exc_info.value.cmd == ["go", "version"]
 
-    @mock.patch("airflow.providers.google.go_module_utils.subprocess.Popen")
+    @mock.patch("airflow.providers.google.go_module_utils.subprocess.Popen", autospec=True)
     def test_logs_subprocess_output(self, mock_popen, caplog):
         process = mock_popen.return_value.__enter__.return_value
         process.stdout.readline.side_effect = [
@@ -69,5 +69,5 @@ class TestExecuteInSubprocess:
 
         _execute_in_subprocess(["go", "version"])
 
-        assert "first line" in caplog.text
-        assert "second line" in caplog.text
+        assert "first line" in caplog
+        assert "second line" in caplog
