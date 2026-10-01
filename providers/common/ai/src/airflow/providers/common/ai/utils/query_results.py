@@ -15,22 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Bounded, columnar payloads for the ``query`` tool of the SQL toolsets.
+Bounded payloads for the ``query`` and ``get_schema`` tools of the SQL toolsets.
 
 A tool result stays in the model's message history for the rest of the run, so its
-cost is re-paid on every subsequent request. Two things here keep that bounded:
+cost is re-paid on every subsequent request. Three things here keep that bounded:
 
-* **Columnar shape.** ``{"columns": [...], "rows": [[...], ...]}`` names each column
-  once instead of repeating it in a dict per row. On a table with thousands of
+* **Columnar query results.** ``{"columns": [...], "rows": [[...], ...]}`` names each
+  column once instead of repeating it in a dict per row. On a table with thousands of
   columns the repeated names, not the values, are the bulk of the payload.
-* **A byte budget.** ``max_rows`` caps rows, which says nothing about size -- a
-  single row of a 3000-column table dwarfs a thousand rows of a narrow one. The
-  budget here is what actually bounds context, and when it bites the payload says
-  so, in terms the agent can act on (narrow the projection).
+* **A byte budget.** ``max_rows`` and ``max_columns`` cap how many rows or columns come
+  back, which says nothing about size -- a single row of a 3000-column table dwarfs a
+  thousand rows of a narrow one. The budget here is what actually bounds context, and
+  when it bites the payload says so, in terms the agent can act on (narrow the
+  projection, or filter the columns).
+* **A column cap for get_schema.** Column names are what the agent needs to write SQL,
+  so above ``max_columns`` the full list is replaced by a summary (count, a type
+  histogram, a sample) that points at the ``name_contains`` filter rather than
+  truncating blindly.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Sequence
 from typing import Any
 
@@ -41,6 +47,17 @@ from airflow.providers.common.ai.utils.masking import dumps_masked
 # unaffected, small enough that no single tool result can dominate the context window.
 # Deployments that keep many results in history should lower it.
 DEFAULT_MAX_RESULT_BYTES = 65_536
+
+# Column cap for ``get_schema`` above which the full column list is replaced by a summary. The
+# byte budget is the real backstop. This is a deterministic, count-based trigger that is easy for
+# the agent to reason about and keeps an ordinary-width table returning in full.
+DEFAULT_MAX_COLUMNS = 100
+
+# Cap on distinct keys in a ``get_schema`` type histogram. Parametrized types (``VARCHAR(255)``,
+# ``Decimal128(38,10)``) would otherwise produce a distinct key per parameterization and defeat the
+# bound, so everything past the most common ``_SCHEMA_TYPE_HISTOGRAM_TOP_K`` is folded into one entry.
+_SCHEMA_TYPE_HISTOGRAM_TOP_K = 20
+_SCHEMA_TYPE_HISTOGRAM_OTHER_KEY = "(other)"
 
 # Tool results are machine-read, so no whitespace. ensure_ascii=False matters as much as
 # the separators: escaping one CJK character to \uXXXX costs six bytes instead of three,
@@ -58,6 +75,22 @@ QUERY_TOOL_DESCRIPTION = (
     "-- either more rows matched than were returned, or the result was too large -- and "
     "`truncated_by` names the limit that was hit; narrow the projection or aggregate in "
     "SQL rather than paging through the result."
+)
+
+#: Description for the ``get_schema`` tool. Column names are what the agent needs to write SQL, so
+#: unlike query rows they cannot be silently dropped: the description states the ``name_contains``
+#: filter and the summary shape so a truncated result is read as "narrow your request", not as a
+#: small table.
+GET_SCHEMA_TOOL_DESCRIPTION = (
+    "Get a table's columns. Returns JSON of the form "
+    '{"columns": [{"name": ..., "type": ...}, ...], "column_count": N}. Pass `name_contains` to '
+    "return only the columns whose name contains that substring (case-insensitive) -- use it to "
+    "find the columns relevant to your question on a wide table. When a table has more columns "
+    "than can be returned at once, the full list is replaced by a summary (`column_count`, and "
+    "where the budget allows a `type_histogram` and a `sample_columns` preview) with `truncated` "
+    "set, `truncated_by` naming the limit that was hit, and a `hint`. Call get_schema again with "
+    "a `name_contains` substring to retrieve the specific columns you need instead of the whole "
+    "table."
 )
 
 
@@ -154,4 +187,137 @@ def build_query_result(
             f"Only the first {max_rows} rows are shown. Filter or aggregate in SQL rather "
             f"than paging through the result."
         )
+    return _dumps(output)
+
+
+def _build_type_histogram(columns: Sequence[dict[str, str]]) -> dict[str, int]:
+    """
+    Count columns per type, capped to the most common ``_SCHEMA_TYPE_HISTOGRAM_TOP_K`` types.
+
+    Ordered by ``(-count, type)`` so the output is content-stable (deterministic for byte
+    accounting and tests, not merely input-ordered). The long tail is folded into a single
+    aggregate entry rather than listed, so parametrized types cannot inflate the key count.
+
+    :param columns: ``{"name", "type"}`` dicts.
+    """
+    counts = Counter(col["type"] for col in columns)
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    if len(ordered) <= _SCHEMA_TYPE_HISTOGRAM_TOP_K:
+        return dict(ordered)
+    histogram = dict(ordered[:_SCHEMA_TYPE_HISTOGRAM_TOP_K])
+    histogram[_SCHEMA_TYPE_HISTOGRAM_OTHER_KEY] = sum(
+        count for _, count in ordered[_SCHEMA_TYPE_HISTOGRAM_TOP_K:]
+    )
+    return histogram
+
+
+def build_schema_result(
+    columns: Sequence[dict[str, str]],
+    *,
+    max_columns: int,
+    max_result_bytes: int,
+    name_contains: str | None = None,
+) -> str:
+    """
+    Render a table's columns as a bounded JSON tool result.
+
+    Column names are the information an agent needs to write SQL, so unlike query rows they cannot
+    simply be dropped: above ``max_columns`` (or the byte budget) the full list is replaced by a
+    summary -- count, a type histogram, and a sample of columns -- that names ``name_contains`` as
+    the way to retrieve specific columns. ``columns`` is assumed to hold distinct names (a table's
+    introspected columns are unique by construction).
+
+    :param columns: ``{"name", "type"}`` dicts in table order.
+    :param max_columns: Column count above which a summary replaces the full list.
+    :param max_result_bytes: Budget for the serialized result.
+    :param name_contains: Case-insensitive substring. When given (and non-empty), only matching
+        columns are considered and the value is echoed back so a filtered subset is never mistaken
+        for the whole table.
+    """
+    name_contains = name_contains or None
+    total_columns = len(columns)
+    if name_contains is not None:
+        needle = name_contains.casefold()
+        selected = [col for col in columns if needle in col["name"].casefold()]
+    else:
+        selected = list(columns)
+
+    if name_contains is not None and not selected:
+        plural = "" if total_columns == 1 else "s"
+        return _dumps(
+            {
+                "columns": [],
+                "column_count": 0,
+                "name_contains": name_contains,
+                "hint": (
+                    f"No columns match name_contains={name_contains!r}. Call get_schema without "
+                    f"name_contains to list all {total_columns} column{plural}."
+                ),
+            }
+        )
+
+    full: dict[str, Any] = {"columns": selected, "column_count": len(selected)}
+    if name_contains is not None:
+        full["name_contains"] = name_contains
+        full["total_columns"] = total_columns
+    if len(selected) <= max_columns and _size(full) <= max_result_bytes:
+        return _dumps(full)
+
+    return _summarize_schema(
+        selected,
+        total_columns=total_columns,
+        max_columns=max_columns,
+        max_result_bytes=max_result_bytes,
+        name_contains=name_contains,
+    )
+
+
+def _summarize_schema(
+    selected: list[dict[str, str]],
+    *,
+    total_columns: int,
+    max_columns: int,
+    max_result_bytes: int,
+    name_contains: str | None,
+) -> str:
+    """Build the bounded summary returned when the full column list does not fit."""
+    # Count is checked before bytes: it is the cheaper, more explainable bound and the one the
+    # issue is about. A bytes-only truncation then means "count fits but names/types are
+    # pathologically long", a distinct and rarer signal.
+    truncated_by = "max_columns" if len(selected) > max_columns else "max_result_bytes"
+    hint = (
+        f"This filter matches {len(selected)} columns, more than can be returned at once. "
+        "Use a more specific name_contains substring to narrow to the columns you need."
+        if name_contains is not None
+        else (
+            f"This table has {len(selected)} columns, more than can be returned at once. Call "
+            "get_schema again with a name_contains substring to return only the matching columns."
+        )
+    )
+
+    output: dict[str, Any] = {
+        "column_count": len(selected),
+        "truncated": True,
+        "truncated_by": truncated_by,
+        "hint": hint,
+    }
+    if name_contains is not None:
+        output["name_contains"] = name_contains
+        output["total_columns"] = total_columns
+
+    # The core above is the guaranteed-useful payload. Add the histogram and a sample of columns
+    # only while they fit, reserving the core first -- the same contiguous-prefix accounting
+    # build_query_result uses for rows -- so a pathologically small budget still returns the core.
+    output["type_histogram"] = _build_type_histogram(selected)
+    output["sample_columns"] = []
+    if _size(output) > max_result_bytes:
+        del output["type_histogram"]
+        return _dumps(output)
+    budget = max_result_bytes - _size(output)
+    for col in selected[:max_columns]:
+        cost = _size(col) + (1 if output["sample_columns"] else 0)
+        if cost > budget:
+            break
+        budget -= cost
+        output["sample_columns"].append(col)
     return _dumps(output)

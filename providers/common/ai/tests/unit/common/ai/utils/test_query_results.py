@@ -22,7 +22,7 @@ from decimal import Decimal
 
 import pytest
 
-from airflow.providers.common.ai.utils.query_results import build_query_result
+from airflow.providers.common.ai.utils.query_results import build_query_result, build_schema_result
 
 
 def _build(columns, rows, *, max_rows=50, max_result_bytes=65_536, more=False, total=None) -> dict:
@@ -169,3 +169,99 @@ def test_a_secret_that_json_escapes_is_masked_in_the_rows(register_secret):
     result = _build(["user", "password"], [["admin", secret]])
 
     assert result["rows"] == [["admin", "***"]]
+
+
+def _schema(columns, *, max_columns=100, max_result_bytes=65_536, name_contains=None) -> dict:
+    return json.loads(
+        build_schema_result(
+            columns,
+            max_columns=max_columns,
+            max_result_bytes=max_result_bytes,
+            name_contains=name_contains,
+        )
+    )
+
+
+def _cols(n: int, *, type_: str = "VARCHAR", prefix: str = "col") -> list[dict[str, str]]:
+    return [{"name": f"{prefix}_{i}", "type": type_} for i in range(n)]
+
+
+class TestSchemaResult:
+    def test_small_table_returns_every_column(self):
+        cols = _cols(3)
+        assert _schema(cols) == {"columns": cols, "column_count": 3}
+
+    def test_name_contains_filters_case_insensitively(self):
+        cols = [
+            {"name": "CustomerId", "type": "INT"},
+            {"name": "amount", "type": "NUMERIC"},
+            {"name": "customer_name", "type": "VARCHAR"},
+        ]
+        data = _schema(cols, name_contains="customer")
+        assert data["columns"] == [cols[0], cols[2]]
+        assert data["column_count"] == 2
+        assert data["name_contains"] == "customer"
+        assert data["total_columns"] == 3
+        assert "truncated" not in data
+
+    def test_empty_name_contains_is_treated_as_no_filter(self):
+        cols = _cols(3)
+        assert _schema(cols, name_contains="") == {"columns": cols, "column_count": 3}
+
+    def test_name_contains_with_no_matches_guides_without_erroring(self):
+        data = _schema(_cols(5), name_contains="zzz")
+        assert data["columns"] == []
+        assert data["column_count"] == 0
+        assert data["name_contains"] == "zzz"
+        assert "error" not in data
+        assert "all 5 columns" in data["hint"]
+
+    def test_too_many_columns_are_summarized_not_listed(self):
+        data = _schema(_cols(250), max_columns=100)
+        assert data["truncated"] is True
+        assert data["truncated_by"] == "max_columns"
+        assert data["column_count"] == 250
+        assert "columns" not in data
+        assert data["type_histogram"] == {"VARCHAR": 250}
+        assert len(data["sample_columns"]) == 100
+        assert data["sample_columns"][0] == {"name": "col_0", "type": "VARCHAR"}
+        assert "name_contains" in data["hint"]
+
+    def test_long_names_blow_the_byte_budget_despite_few_columns(self):
+        cols = [{"name": "x" * 500, "type": "VARCHAR"} for _ in range(10)]
+        data = _schema(cols, max_columns=100, max_result_bytes=512)
+        assert data["truncated"] is True
+        assert data["truncated_by"] == "max_result_bytes"
+
+    def test_max_columns_takes_precedence_when_both_bounds_are_exceeded(self):
+        data = _schema(_cols(300), max_columns=100, max_result_bytes=256)
+        assert data["truncated_by"] == "max_columns"
+
+    def test_filtered_result_still_too_wide_is_summarized(self):
+        cols = [{"name": f"customer_{i}", "type": "VARCHAR"} for i in range(200)]
+        data = _schema(cols, max_columns=100, name_contains="customer")
+        assert data["truncated"] is True
+        assert data["truncated_by"] == "max_columns"
+        assert data["name_contains"] == "customer"
+        assert data["total_columns"] == 200
+        assert "more specific name_contains" in data["hint"]
+
+    def test_type_histogram_is_capped_and_ordered_by_count(self):
+        cols: list[dict[str, str]] = []
+        for t in range(30):
+            cols.extend({"name": f"c_{t}_{i}", "type": f"T{t:02d}"} for i in range(t + 1))
+        histogram = _schema(cols, max_columns=1)["type_histogram"]
+        keys = list(histogram.keys())
+        assert len(histogram) == 21  # 20 most common types plus the folded remainder
+        assert keys[0] == "T29"  # highest count first
+        assert keys[-1] == "(other)"
+        assert histogram["(other)"] == sum(range(1, 11))  # T00..T09 => 1 + 2 + ... + 10
+
+    def test_summary_core_survives_a_pathologically_small_budget(self):
+        data = _schema(_cols(300), max_columns=100, max_result_bytes=1)
+        assert data["column_count"] == 300
+        assert data["truncated"] is True
+        assert data["truncated_by"] == "max_columns"
+        assert data["sample_columns"] == []
+        assert "type_histogram" not in data
+        assert data["hint"]

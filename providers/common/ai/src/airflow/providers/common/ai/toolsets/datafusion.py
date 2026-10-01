@@ -37,9 +37,12 @@ from pydantic_ai.toolsets.abstract import ToolsetTool
 
 from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
+    DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
+    GET_SCHEMA_TOOL_DESCRIPTION as _GET_SCHEMA_DESCRIPTION,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
     build_query_result,
+    build_schema_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
@@ -61,6 +64,13 @@ _GET_SCHEMA_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "table_name": {"type": "string", "description": "Name of the table to inspect."},
+        "name_contains": {
+            "type": "string",
+            "description": (
+                "Return only columns whose name contains this substring (case-insensitive). "
+                "Use it to find the relevant columns on a very wide table."
+            ),
+        },
     },
     "required": ["table_name"],
 }
@@ -121,6 +131,11 @@ class DataFusionToolset(AirflowToolset):
         rather than skipping it and packing later ones, so one wide row early in the
         result ends it. The result reports which limit it hit so the agent can narrow
         its projection rather than page through the table.
+    :param max_columns: Maximum number of columns ``get_schema`` returns in full. Default
+        ``100``. Above it -- or when the serialized columns exceed ``max_result_bytes`` --
+        the full list is replaced by a bounded summary (column count, a type histogram, a
+        sample of columns) that points the agent at the ``name_contains`` filter, so a
+        several-thousand-column table cannot exhaust the context before a query is written.
     :param max_retries: How many times the model may correct a failed call to one of these
         tools before the run fails. ``None`` (the default) uses the agent's tool retry
         budget, its ``retries``, as pydantic-ai's own toolsets do.
@@ -133,6 +148,7 @@ class DataFusionToolset(AirflowToolset):
         allow_writes: bool = False,
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
+        max_columns: int = DEFAULT_MAX_COLUMNS,
         max_retries: int | None = None,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
@@ -142,6 +158,7 @@ class DataFusionToolset(AirflowToolset):
         self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._max_result_bytes = max_result_bytes
+        self._max_columns = max_columns
         self._engine: DataFusionEngine | None = None
 
     @property
@@ -164,7 +181,7 @@ class DataFusionToolset(AirflowToolset):
 
         for name, description, schema in (
             ("list_tables", "List available table names.", _LIST_TABLES_SCHEMA),
-            ("get_schema", "Get column names and types for a table.", _GET_SCHEMA_SCHEMA),
+            ("get_schema", _GET_SCHEMA_DESCRIPTION, _GET_SCHEMA_SCHEMA),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
         ):
             tool_def = ToolDefinition(
@@ -192,7 +209,9 @@ class DataFusionToolset(AirflowToolset):
         if name == "list_tables":
             return await self.run_blocking(self._list_tables)
         if name == "get_schema":
-            return await self.run_blocking(self._get_schema, tool_args["table_name"])
+            return await self.run_blocking(
+                self._get_schema, tool_args["table_name"], tool_args.get("name_contains")
+            )
         if name == "query":
             return await self.run_blocking(self._query, tool_args["sql"])
         raise ValueError(f"Unknown tool: {name!r}")
@@ -206,7 +225,7 @@ class DataFusionToolset(AirflowToolset):
             log.warning("list_tables failed: %s", ex)
             return dumps_masked({"error": str(ex)})
 
-    def _get_schema(self, table_name: str) -> str:
+    def _get_schema(self, table_name: str, name_contains: str | None = None) -> str:
         engine = self._get_engine()
         # session_context lookup is required here instead of engine.registered_tables,
         # because registered_tables only tracks tables registered via datasource config.
@@ -220,7 +239,12 @@ class DataFusionToolset(AirflowToolset):
         # TODO: refactor engine.get_schema() to return JSON and update this accordingly
         table = engine.session_context.table(table_name)
         columns = [{"name": f.name, "type": str(f.type)} for f in table.schema()]
-        return dumps_masked(columns)
+        return build_schema_result(
+            columns,
+            max_columns=self._max_columns,
+            max_result_bytes=self._max_result_bytes,
+            name_contains=name_contains,
+        )
 
     def _query(self, sql: str) -> str:
         try:
