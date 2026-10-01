@@ -2149,9 +2149,7 @@ ARTIFACT_BUNDLE = "java-task-handlers"
 OTHER_TEAM_BUNDLE = "go-task-handlers"
 TASK_HANDLERS = {
     "etl": [
-        TaskHandlerDeclaration(
-            task_id="extract", binding="positional", params=[TaskHandlerParam(name=None, required=True)]
-        )
+        TaskHandlerDeclaration(task_id="extract", binding="positional", params=[TaskHandlerParam(name=None)])
     ]
 }
 

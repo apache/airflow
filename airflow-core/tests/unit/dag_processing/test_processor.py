@@ -2545,7 +2545,7 @@ class TestTaskHandlerBinding:
                         TaskHandlerDeclaration(
                             task_id="extract",
                             binding="positional",
-                            params=[TaskHandlerParam(name=None, required=True)],
+                            params=[TaskHandlerParam(name=None)],
                         )
                     ]
                 },
