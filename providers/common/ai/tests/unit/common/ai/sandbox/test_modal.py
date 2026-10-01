@@ -19,16 +19,23 @@ from __future__ import annotations
 import builtins
 import importlib
 import json
+import logging
 import sys
 import threading
 
 import pytest
+import time_machine
 
 import airflow.providers.common.ai.sandbox as sandbox_package
 from airflow.providers.common.ai.sandbox.base import (
+    EXPIRES_AT_TAG,
+    HOLDER_TAG,
+    NETWORK_TAG,
+    OWNER_TAG,
     SandboxError,
     SandboxSpec,
     SandboxTerminalError,
+    decode_network_policy,
 )
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -112,6 +119,7 @@ class TestVendorContract:
             "cloud",
             "block_network",
             "outbound_domain_allowlist",
+            "outbound_cidr_allowlist",
         ):
             assert name in parameters, f"Sandbox.create no longer takes {name!r}"
 
@@ -128,6 +136,11 @@ class TestVendorContract:
             assert hasattr(_SandboxFilesystem, name)
         assert "timeout" in inspect.signature(real_modal.Sandbox.exec).parameters
         assert hasattr(real_modal.Sandbox, "from_id")
+        # Attaching keeps its ownership rules in tags, so both directions have to exist,
+        # and set_tags has to take the whole set: releasing a claim is a rewrite without
+        # the holder key, which a merging API would never clear.
+        assert hasattr(real_modal.Sandbox, "get_tags")
+        assert list(inspect.signature(real_modal.Sandbox.set_tags).parameters)[:2] == ["self", "tags"]
 
     def test_the_exception_hierarchy_the_classifier_relies_on_holds(self, real_modal):
         exception = real_modal.exception
@@ -353,6 +366,146 @@ class TestSpecEnforcement:
         assert sandbox.create_kwargs["env"] is None
 
 
+class TestAddressAllowlist:
+    """
+    ``allow_egress_to_cidrs`` maps onto Modal's address-layer allowlist.
+
+    Measured live on 2026-09-22 with ``outbound_cidr_allowlist=["1.1.1.1/32"]``: the listed
+    address connected on 443 and 53, an unlisted one timed out on both, and hostnames still
+    resolved through Modal's own resolver. That enforcement has no caveat for the author
+    to accept, so unlike the hostname list it needs no opt-in.
+    """
+
+    def test_maps_to_the_cidr_allowlist_without_an_opt_in(self, backend, fake):
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=["10.20.0.0/16"]))
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == ["10.20.0.0/16"]
+        # Modal rejects the two together, and an allowlist alone already denies the rest.
+        assert "block_network" not in sandbox.create_kwargs
+        assert "outbound_domain_allowlist" not in sandbox.create_kwargs
+
+    def test_combines_with_a_hostname_allowlist_under_sni(self, backend_class, fake):
+        """Modal applies the two lists additively, so both are passed when both are given."""
+        backend = backend_class(egress_enforcement="sni")
+
+        _, sandbox = _created(
+            backend,
+            fake,
+            SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["203.0.113.7/32"]),
+        )
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == ["203.0.113.7/32"]
+        assert sandbox.create_kwargs["outbound_domain_allowlist"] == ["pypi.org"]
+
+    def test_the_hostname_half_still_needs_the_opt_in(self, backend, fake):
+        """Adding an address list does not launder the hostname list past its opt-in."""
+        with pytest.raises(SandboxTerminalError, match="egress_enforcement='sni'"):
+            backend.create(
+                spec=SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["10.0.0.0/8"])
+            )
+        assert fake.Sandbox.created == []
+
+    def test_the_refusal_names_the_address_list_as_the_way_out(self, backend):
+        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
+            backend.create(spec=SandboxSpec(allow_egress_to=["pypi.org"]))
+
+    def test_without_block_network_is_contradictory(self, backend, fake):
+        with pytest.raises(SandboxTerminalError, match="block_network"):
+            backend.create(spec=SandboxSpec(block_network=False, allow_egress_to_cidrs=["10.0.0.0/8"]))
+        assert fake.Sandbox.created == []
+
+    @pytest.mark.parametrize(
+        ("entry", "canonical"),
+        [
+            ("203.0.113.7", "203.0.113.7/32"),
+            ("203.0.113.7/32", "203.0.113.7/32"),
+            ("203.0.113.0/24", "203.0.113.0/24"),
+        ],
+    )
+    def test_normalises_entries_to_canonical_cidr(self, backend, fake, entry, canonical):
+        """A bare address means that one address, and is written as such for Modal."""
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=[entry]))
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == [canonical]
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            "pypi.org",
+            "https://10.0.0.1",
+            "10.0.0.1:443",
+            "10.0.0.1/8",
+            "10.0.0.0/33",
+            "",
+            "*",
+            443,
+            # Modal's allowlist rejects IPv6 at create ("does not support IPv6 CIDRs",
+            # measured 2026-09-22) and the sandbox has no IPv6 route, so refuse it here
+            # with the reason rather than letting the task fail on the vendor's message.
+            "2001:db8::",
+            "2001:db8::/32",
+            "::/0",
+            "fe80::1%eth0",
+        ],
+    )
+    def test_refuses_an_entry_that_is_not_an_ipv4_cidr(self, backend, fake, entry):
+        """
+        Modal sends these strings on unvalidated and matches them against the address.
+
+        A hostname or URL would match nothing while reading as a restriction, and a range
+        with host bits set names a different network from the one written.
+        """
+        with pytest.raises(SandboxTerminalError, match="IPv4 address ranges"):
+            backend.create(spec=SandboxSpec(allow_egress_to_cidrs=[entry]))
+        assert fake.Sandbox.created == []
+
+    def test_refuses_a_bare_string_instead_of_a_list(self, backend, fake):
+        with pytest.raises(SandboxTerminalError, match="not one string"):
+            backend.create(spec=SandboxSpec(allow_egress_to_cidrs="10.0.0.0/8"))
+        assert fake.Sandbox.created == []
+
+    def test_refuses_a_range_that_matches_every_address(self, backend, fake):
+        """An allowlist of everything is an open network that reads as a restriction."""
+        with pytest.raises(SandboxTerminalError, match="restricts nothing"):
+            backend.create(spec=SandboxSpec(allow_egress_to_cidrs=["203.0.113.0/24", "0.0.0.0/0"]))
+        assert fake.Sandbox.created == []
+
+    def test_combining_with_hostnames_warns_that_port_443_is_no_longer_confined(
+        self, backend_class, fake, caplog
+    ):
+        """
+        Modal admits traffic matching either list, and the hostname list admits TLS on 443
+        to every address whose handshake names a listed host. Measured: 8.8.8.8:443 timed
+        out under 1.1.1.1/32 alone and connected once pypi.org was added beside it.
+        """
+        caplog.set_level(logging.WARNING, logger="airflow.providers.common.ai.sandbox.modal")
+        backend = backend_class(egress_enforcement="sni")
+
+        _created(
+            backend, fake, SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["1.1.1.1/32"])
+        )
+
+        assert "port 443 is admitted to ANY address" in caplog.text
+        assert "1.1.1.1/32" in caplog.text
+
+    def test_an_address_list_alone_does_not_warn(self, backend, fake, caplog):
+        caplog.set_level(logging.WARNING, logger="airflow.providers.common.ai.sandbox.modal")
+
+        _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=["1.1.1.1/32"]))
+
+        assert not caplog.records
+
+    def test_surrounding_whitespace_is_tolerated(self, backend, fake):
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=[" 10.20.0.0/16 "]))
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == ["10.20.0.0/16"]
+
+    def test_an_empty_list_means_no_egress(self, backend, fake):
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=[]))
+
+        assert sandbox.create_kwargs["block_network"] is True
+
+
 class TestEnvironment:
     def test_env_reaches_the_sandbox(self, backend, fake):
         _, sandbox = _created(backend, fake, SandboxSpec(env={"HF_TOKEN": "secret"}))
@@ -450,7 +603,7 @@ class TestCreate:
         assert len(set(handles)) == 4, "each run gets its own sandbox"
         assert len(fake.App.lookups) == 4
         for handle in handles:
-            assert backend._sandboxes[handle].object_id == handle
+            assert backend._tracked[handle].handle.object_id == handle
 
     def test_credential_failure_is_terminal(self, backend, fake):
         fake.Sandbox.create_error = fake.exception.AuthError("bad token")
@@ -784,7 +937,7 @@ class TestRunCommand:
         assert result.sandbox_terminated is expect_terminated
         assert result.exit_code == returncode
         if expect_terminated:
-            assert handle not in backend._sandboxes, "a dead handle is not kept"
+            assert handle not in backend._tracked, "a dead handle is not kept"
 
     @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])
     def test_rejects_an_impossible_timeout(self, backend, fake, timeout):
@@ -1052,6 +1205,47 @@ class TestMalformedHelperReply:
         assert "run_command" not in str(caught.value)
 
 
+class TestLivenessProbe:
+    """
+    The probe after a deadline decides whether the handle is kept.
+
+    Only a Modal error is evidence that the sandbox is gone. Anything else raised by the
+    probe says nothing about the sandbox, and the command it follows has already produced
+    its output, so the handle is kept and the result is reported as a plain timeout.
+    """
+
+    def test_a_non_modal_error_in_the_probe_keeps_the_handle(self, backend, fake, caplog):
+        caplog.set_level(logging.DEBUG, logger="airflow.providers.common.ai.sandbox.modal")
+        handle, sandbox = _created(backend, fake)
+        sandbox.process = FakeProcess(returncode=-1)
+        # Let the command through, then fail only the probe that follows it.
+        sandbox.exec_errors = [None, RuntimeError("client hiccup")]
+
+        result = backend.run_command(handle, "sleep 5", timeout=2, max_output_bytes=1024)
+
+        assert result.timed_out is True
+        assert result.sandbox_terminated is False
+        assert "Could not check whether Modal sandbox" in caplog.text
+        # The handle is still cached, so the next command needs no lookup and no create.
+        fake.Sandbox.from_id_error = AssertionError("a kept handle must not be looked up again")
+        sandbox.process = FakeProcess(returncode=0)
+        assert backend.run_command(handle, "true", timeout=2, max_output_bytes=1024).exit_code == 0
+        assert len(fake.Sandbox.by_id) == 1
+
+    def test_a_modal_error_in_the_probe_drops_the_handle(self, backend, fake):
+        handle, sandbox = _created(backend, fake)
+        sandbox.process = FakeProcess(returncode=-1)
+        sandbox.exec_errors = [None, fake.exception.NotFoundError("gone")]
+
+        result = backend.run_command(handle, "sleep 5", timeout=2, max_output_bytes=1024)
+
+        assert result.sandbox_terminated is True
+        # The cached handle is gone, so a later call has to look the sandbox up again.
+        fake.Sandbox.from_id_error = fake.exception.NotFoundError("gone")
+        with pytest.raises(SandboxTerminalError):
+            backend.run_command(handle, "true", timeout=2, max_output_bytes=1024)
+
+
 class TestDestroy:
     def test_terminates_without_waiting(self, backend, fake):
         """``terminate(wait=True)`` took 31s when measured, and this runs in every teardown."""
@@ -1068,7 +1262,7 @@ class TestDestroy:
         backend.destroy(handle)
         backend.destroy(handle)
 
-        assert handle not in backend._sandboxes
+        assert handle not in backend._tracked
 
     def test_forgets_a_missing_sandbox_quietly(self, backend):
         backend.destroy("sb-never-existed")
@@ -1118,3 +1312,193 @@ class TestDestroy:
         assert sandbox.terminated is True
         assert len(result) == 1
         assert result[0].exit_code == 0
+
+
+class TestAttach:
+    """
+    A task provisions, an agent task attaches, the task destroys. The rules ride on tags.
+
+    The policy itself is tested on the base class; here it is the Modal half: what
+    ``create`` stamps, how tags are read and written, and that an attached sandbox's
+    remaining life bounds the commands run in it exactly as an owned one's does.
+    """
+
+    @pytest.fixture
+    def backend(self, backend_class):
+        # No idle timeout: a backend provisioning a sandbox for attaching refuses one.
+        return backend_class(app_name="test-app", sandbox_timeout=600)
+
+    @pytest.fixture
+    def wall_clock(self):
+        with time_machine.travel(1_000_000, tick=False):
+            yield
+
+    def test_create_stamps_the_owner_and_the_expiry(self, backend, fake, wall_clock):
+        _, sandbox = _created(backend, fake, SandboxSpec(owner="my_dag/manual__1"))
+
+        tags = sandbox.create_kwargs["tags"]
+        assert tags[OWNER_TAG] == "my_dag/manual__1"
+        # Wall clock, whole seconds: the process that attaches later has no access to
+        # this one's monotonic clock.
+        assert tags[EXPIRES_AT_TAG] == str(1_000_000 + 600)
+
+    def test_a_spec_without_an_owner_stamps_no_owner(self, backend, fake):
+        _, sandbox = _created(backend, fake, SandboxSpec())
+
+        assert OWNER_TAG not in sandbox.create_kwargs["tags"]
+        assert EXPIRES_AT_TAG in sandbox.create_kwargs["tags"]
+
+    def test_create_stamps_the_network_policy_so_an_attacher_can_describe_it(self, backend, fake):
+        spec = SandboxSpec(block_network=True, allow_egress_to_cidrs=["1.1.1.1/32"], owner="o")
+
+        _, sandbox = _created(backend, fake, spec)
+
+        assert decode_network_policy(sandbox.create_kwargs["tags"][NETWORK_TAG]) == SandboxSpec(
+            block_network=True, allow_egress_to_cidrs=["1.1.1.1/32"]
+        )
+
+    def test_an_owner_is_refused_when_idle_reclamation_would_beat_the_attacher(self, backend_class):
+        # The sandbox sits idle between the provisioning task and the agent task, and
+        # again through a review wait; an idle timeout would reclaim it in the first gap.
+        backend = backend_class(app_name="test-app", sandbox_timeout=600, idle_timeout=60)
+
+        with pytest.raises(SandboxTerminalError, match="idle_timeout=60"):
+            backend.create(spec=SandboxSpec(owner="o"))
+
+    def test_reserved_keys_overwrite_the_authors_tags(self, backend_class, fake):
+        # An author's tag of a reserved name would let a sandbox claim an owner it was
+        # never provisioned for, so the backend's own value wins.
+        backend = backend_class(tags={OWNER_TAG: "forged", "team": "data"})
+
+        _, sandbox = _created(backend, fake, SandboxSpec(owner="my_dag/run"))
+
+        assert sandbox.create_kwargs["tags"][OWNER_TAG] == "my_dag/run"
+        assert sandbox.create_kwargs["tags"]["team"] == "data"
+
+    def test_attach_and_release_round_trip_through_the_tags(self, backend, fake, wall_clock):
+        handle, sandbox = _created(backend, fake, SandboxSpec(owner="my_dag/run"))
+
+        attached = backend.attach(handle, owner="my_dag/run", holder="my_dag/agent")
+
+        assert attached.remaining_lifetime == 600.0
+        assert sandbox.tags[HOLDER_TAG] == "my_dag/agent"
+        assert sandbox.tags[OWNER_TAG] == "my_dag/run", (
+            "set_tags replaces the set, so the owner must be rewritten"
+        )
+
+        backend.release(handle, holder="my_dag/agent")
+
+        assert HOLDER_TAG not in sandbox.tags
+        assert sandbox.tags[OWNER_TAG] == "my_dag/run"
+
+    def test_release_forgets_what_attach_cached(self, backend_class, backend, fake):
+        # A long-lived backend instance driving many attached runs must not keep a
+        # client-bearing Sandbox object per run.
+        handle, _ = _created(backend, fake, SandboxSpec(owner="o"))
+        attacher = backend_class(app_name="test-app")
+        attacher.attach(handle, owner="o", holder="h")
+        attacher.run_command(handle, "true", timeout=5, max_output_bytes=1024)
+
+        attacher.release(handle, holder="h")
+
+        assert handle not in attacher._tracked
+
+    def test_an_attached_sandbox_bounds_commands_by_what_its_creator_left(
+        self, backend_class, fake, wall_clock, monkeypatch
+    ):
+        """
+        The attaching process is not the one that created the sandbox, so it has no
+        expiry of its own to clamp against. The stamped one has to serve, or a 900s
+        command in a sandbox with 600s left would die half way through.
+        """
+        creator = backend_class(app_name="test-app", sandbox_timeout=600)
+        handle, sandbox = _created(creator, fake, SandboxSpec(owner="o"))
+        monkeypatch.setattr("airflow.providers.common.ai.sandbox.modal.time.monotonic", lambda: 50.0)
+        # Another process: a fresh backend whose own lifetime setting is irrelevant.
+        attacher = backend_class(app_name="test-app", sandbox_timeout=3600)
+
+        attacher.attach(handle, owner="o", holder="h")
+        attacher.run_command(handle, "sleep 900", timeout=900, max_output_bytes=1024)
+
+        exec_call = next(call for call in sandbox.calls if call[0] == "exec")
+        assert exec_call[2]["timeout"] == 600
+
+    def test_attaching_to_a_sandbox_that_does_not_exist_is_terminal(self, backend):
+        with pytest.raises(SandboxTerminalError, match="gone"):
+            backend.attach("sb-nope", owner="o", holder="h")
+
+    def test_the_attachers_own_lifetime_setting_does_not_refuse_a_long_command(
+        self, backend_class, fake, wall_clock, monkeypatch
+    ):
+        # The creator gave the sandbox 3600s; the attacher's backend was built with the
+        # default 600 it never used. Its setting says nothing about this sandbox, so the
+        # command is clamped to the creator's remaining life, not refused with advice
+        # about the wrong backend.
+        creator = backend_class(app_name="test-app", sandbox_timeout=3600)
+        handle, sandbox = _created(creator, fake, SandboxSpec(owner="o"))
+        monkeypatch.setattr("airflow.providers.common.ai.sandbox.modal.time.monotonic", lambda: 50.0)
+        attacher = backend_class(app_name="test-app", sandbox_timeout=600)
+        attacher.attach(handle, owner="o", holder="h")
+
+        attacher.run_command(handle, "sleep 900", timeout=900, max_output_bytes=1024)
+
+        exec_call = next(call for call in sandbox.calls if call[0] == "exec")
+        assert exec_call[2]["timeout"] == 900
+
+    def test_an_attached_sandbox_keeps_its_creators_working_directory(self, backend_class, fake):
+        # The attacher was built with the default workdir; the creator chose another.
+        # Relative paths in file operations have to follow the shell, which runs in the
+        # creator's directory, or the model writes a script it then cannot find. The
+        # creator stamped it, so no command runs to find out.
+        creator = backend_class(app_name="test-app", workdir="/data")
+        handle, sandbox = _created(creator, fake, SandboxSpec(owner="o"))
+        attacher = backend_class(app_name="test-app")
+        attacher.attach(handle, owner="o", holder="h")
+
+        attacher.write_file(handle, "report.md", b"x")
+
+        assert ("write_bytes", "/data/report.md", b"x") in sandbox.calls
+        assert not [call for call in sandbox.calls if call[0] == "exec"]
+
+    def test_an_attached_sandbox_whose_creator_left_the_image_to_decide_is_asked(self, backend_class, fake):
+        creator = backend_class(app_name="test-app", workdir=None)
+        handle, sandbox = _created(creator, fake, SandboxSpec(owner="o"))
+        sandbox.processes = [FakeProcess(stdout=[b"/srv/app\n"])]
+        attacher = backend_class(app_name="test-app")
+        attacher.attach(handle, owner="o", holder="h")
+
+        attacher.write_file(handle, "report.md", b"x")
+
+        assert ("write_bytes", "/srv/app/report.md", b"x") in sandbox.calls
+
+    def test_a_refused_attach_keeps_nothing(self, backend, fake):
+        handle, _ = _created(backend, fake, SandboxSpec(owner="o"))
+        attacher = type(backend)(app_name="test-app")
+
+        with pytest.raises(SandboxTerminalError):
+            attacher.attach(handle, owner="someone-else", holder="h")
+
+        assert handle not in attacher._tracked
+
+    @pytest.mark.parametrize("handle", [None, "", 42])
+    def test_something_that_is_not_a_handle_is_refused_legibly(self, backend, handle):
+        # A collecting task on ALL_DONE gets None from a missing XCom; the SDK would fail
+        # inside from_id with an AttributeError that names neither the value nor the cause.
+        with pytest.raises(SandboxTerminalError, match="is not a sandbox handle"):
+            backend.run_command(handle, "true", timeout=5, max_output_bytes=1024)
+        with pytest.raises(SandboxTerminalError, match="is not a sandbox handle"):
+            backend.destroy(handle)
+
+    def test_a_tags_error_is_translated_like_any_other(self, backend, fake):
+        handle, sandbox = _created(backend, fake, SandboxSpec(owner="o"))
+        sandbox.get_tags_error = fake.exception.AuthError("bad token")
+
+        with pytest.raises(SandboxTerminalError, match="credentials"):
+            backend.attach(handle, owner="o", holder="h")
+
+    def test_a_write_error_is_translated_too(self, backend, fake):
+        handle, sandbox = _created(backend, fake, SandboxSpec(owner="o"))
+        sandbox.set_tags_error = fake.exception.ConnectionError("blip")
+
+        with pytest.raises(SandboxError):
+            backend.attach(handle, owner="o", holder="h")

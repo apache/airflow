@@ -280,7 +280,9 @@ class TestLLMSchemaCompareOperator:
             instructions="system_prompt",
             param="value",
         )
-        mock_agent.run_sync.assert_called_once_with("user_prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "user_prompt", usage_limits=None, cancellation_token=mock.ANY
+        )
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
 
     @mock.patch(
@@ -395,6 +397,7 @@ class TestLLMSchemaCompareOperator:
         mock_agent.run_sync.assert_called_once_with(
             "Compare S3 Parquet schema against the Postgres table and flag breaking changes",
             usage_limits=None,
+            cancellation_token=mock.ANY,
         )
         assert result["compatible"] is True
         assert result["summary"] == "S3 and Postgres schemas are compatible"

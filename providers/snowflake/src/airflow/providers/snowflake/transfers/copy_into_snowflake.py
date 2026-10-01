@@ -73,7 +73,10 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ("files",)
+    template_fields: Sequence[str] = (
+        "files",
+        "snowflake_conn_id",
+    )
     template_fields_renderers = {"files": "json"}
 
     def __init__(

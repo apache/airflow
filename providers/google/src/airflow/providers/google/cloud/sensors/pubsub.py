@@ -107,6 +107,7 @@ class PubSubPullSensor(BaseSensorOperator):
         "project_id",
         "subscription",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#ff7f50"
 

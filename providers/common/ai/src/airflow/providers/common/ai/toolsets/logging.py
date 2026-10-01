@@ -24,6 +24,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 
 if TYPE_CHECKING:
@@ -34,7 +35,14 @@ if TYPE_CHECKING:
 
 @dataclass
 class LoggingToolset(WrapperToolset[Any]):
-    """Wrap a toolset to log each tool call with timing."""
+    """
+    Wrap a toolset to log each tool call with timing.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+    """
 
     logger: Logger | logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
@@ -55,6 +63,11 @@ class LoggingToolset(WrapperToolset[Any]):
             self.logger.info("Tool %s returned in %.2fs", name, elapsed)
             self.logger.info("::endgroup::")
             return result
+        except ApprovalRequired:
+            # Not a failure: the run pauses here until a person approves or rejects the call.
+            self.logger.info("Tool %s is waiting to be approved", name)
+            self.logger.info("::endgroup::")
+            raise
         except Exception:
             elapsed = time.monotonic() - start
             self.logger.exception("Tool %s failed after %.2fs", name, elapsed)

@@ -632,6 +632,7 @@ ExaConnection
 Exasol
 exasol
 exc
+execd
 executables
 exitcode
 expanduser
@@ -947,6 +948,7 @@ Json
 json
 jsonl
 JsonValue
+jti
 juli
 Jupyter
 jupyter
@@ -957,6 +959,7 @@ jwt
 Kafka
 kafka
 Kamil
+Kata
 KEDA
 keepalive
 keepalives
@@ -1099,6 +1102,7 @@ midnights
 milli
 millis
 milton
+minification
 minikube
 misconfiguration
 misconfigured
@@ -1212,6 +1216,7 @@ openfaas
 OpenID
 openjdk
 openlineage
+opensandbox
 OpenSearch
 opensearch
 OpenTelemetry
@@ -1385,6 +1390,7 @@ pyproject
 pypsrp
 pyspark
 pytest
+PythonAgentTool
 pythonic
 PythonOperator
 pythonpath
@@ -1447,6 +1453,7 @@ renderers
 renewer
 reparse
 reparsed
+reparsing
 replicaSet
 repo
 repos

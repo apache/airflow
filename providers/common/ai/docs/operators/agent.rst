@@ -17,11 +17,11 @@
 
 .. _howto/operator:agent:
 
-``AgentOperator`` & ``@task.agent``
-===================================
+Agents with tools: ``AgentOperator`` and ``@task.agent``
+========================================================
 
 Use :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` or
-the ``@task.agent`` decorator to run an LLM agent with **tools** — the agent
+the ``@task.agent`` decorator to run an LLM agent with **tools**: the agent
 reasons about the prompt, calls tools (database queries, API calls, etc.) in
 a multi-turn loop, and returns a final answer.
 
@@ -65,7 +65,7 @@ Hook-based tools
 ----------------
 
 Wrap any Airflow Hook's methods as agent tools using ``HookToolset``. Only
-methods you explicitly list are exposed — there is no auto-discovery.
+methods you explicitly list are exposed; there is no auto-discovery.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
@@ -108,7 +108,6 @@ to the model. This mirrors the input types accepted by pydantic-ai's
     Combining a non-string prompt with ``enable_hitl_review=True`` is not
     currently supported -- the HITL session model stores the prompt as a
     string, so a ``Sequence`` prompt will raise at the review boundary.
-    Widening HITL review to multimodal prompts is tracked as a follow-up.
 
 Structured output
 -----------------
@@ -161,18 +160,101 @@ Open the **Rendered Template** tab on the task instance to see the
 substituted ``system_prompt`` after Jinja fills in ``classify``'s XCom
 values.
 
+.. _howto/operator:agent-reuse:
+
+Reuse one agent across tasks
+----------------------------
+
+When several tasks, or several Dags, run the same agent, define it once and
+import it. ``AgentOperator`` and ``@task.agent`` take the whole agent definition
+as keyword arguments, so a dict in a module next to your Dags is enough. A task
+that needs something different overrides single keys.
+
+.. code-block:: python
+
+    # dags/shared_agents/__init__.py
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    ORDERS_ANALYST = {
+        "llm_conn_id": "pydanticai_default",
+        "system_prompt": "You are the orders analyst. Answer only from the orders database.",
+        "toolsets": [SQLToolset(db_conn_id="orders_db", allowed_tables=["orders"])],
+        "agent_params": {"name": "orders_analyst"},
+    }
+
+.. code-block:: python
+
+    # dags/orders.py
+    from shared_agents import ORDERS_ANALYST
+
+    from airflow.sdk import dag, task
+
+
+    @dag(schedule=None)
+    def orders():
+        @task.agent(**ORDERS_ANALYST)
+        def weekly_summary() -> str:
+            return "Summarize this week's orders."
+
+        @task.agent(**{**ORDERS_ANALYST, "system_prompt": "Answer in one sentence."})
+        def one_liner() -> str:
+            return "How many orders are there?"
+
+        weekly_summary()
+        one_liner()
+
+
+    orders()
+
+When span export is on (see :doc:`../observability`), the ``name`` in
+``agent_params`` becomes the ``gen_ai.agent.name`` attribute on each agent run's
+span, so traces from every task that uses the definition group under one agent.
+
+To keep the definition out of Python, for example to share it with a program that
+does not run on Airflow, write a pydantic-ai
+`agent spec <https://pydantic.dev/docs/ai/core-concepts/agent-spec/>`__ file and pass its path through
+``agent_params``. A model set on the connection wins over a ``model`` in the
+file, and ``system_prompt`` is added to the file's ``instructions``:
+
+.. code-block:: yaml
+
+    # dags/shared_agents/orders_analyst.yaml
+    name: orders_analyst
+    instructions: >
+      You are the orders analyst. Answer only from the orders database.
+    retries: 2
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    AgentOperator(
+        task_id="orders_question",
+        llm_conn_id="pydanticai_default",
+        prompt="How many orders are there?",
+        agent_params={"spec_file": Path(__file__).parent / "shared_agents" / "orders_analyst.yaml"},
+    )
+
+Build the path from ``__file__``: a relative path resolves against the worker's
+working directory, not the Dag file.
+
+With ``durable=True``, tools from capabilities declared in the spec file are not
+replayed on retry; they run again. Pass tools you need replayed in ``toolsets=``.
+
 Agent features
 --------------
 
-Four features have pages of their own:
+Five features have pages of their own:
 
-- :doc:`../message_history` — pass ``message_history`` to carry a conversation across runs.
-- :doc:`../durable_execution` — set ``durable=True`` to replay completed model and tool steps
+- :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
+- :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
   on retry instead of paying for them again.
-- :doc:`../guardrails` — pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
-  through ``agent_params``.
-- :doc:`../code_mode` — set ``code_mode=True`` to collapse the agent's tools into a single
+- :doc:`../capabilities`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
+  with ``capabilities=``.
+- :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
   ``run_code`` tool the model drives by writing Python.
+- :doc:`../tool_approval`: mark tools that need a person's approval, and the task pauses before
+  a marked call runs.
 
 .. _agent-durable-execution:
 
@@ -195,40 +277,70 @@ Parameters
   ``BaseModel`` for structured output.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
   ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
+- ``capabilities``: List of pydantic-ai capabilities (``Thinking``, ``WebSearch``, guardrails,
+  etc.). See :ref:`capabilities`.
 - ``enable_tool_logging``: Wrap each toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
-  ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``capabilities``).
-  See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
-  such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
-- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
+  ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- .. _agent-usage-budget:
+
+  ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
   agent run (initial run, durable replay, and HITL regeneration), or a
   ``dict`` of the same fields -- the dict form is templated via Jinja, then
   coerced per field type, failing the task with a ``ValueError`` naming the
   field if a rendered value doesn't parse. Use it to cap requests, tokens, or
   tool calls per task -- agents are particularly prone to runaway tool loops,
-  so ``tool_calls_limit`` is a useful guardrail. It also supports a per-run
+  so ``tool_calls_limit`` is a useful guardrail. It also supports a
   USD ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a
   hard guarantee; not enforced for models pydantic-ai can't price, which log
   a warning instead of failing the run) and an example. Default ``None``.
 
-  .. warning::
-     With ``durable=True``, a task retry replays cached model steps instead of
-     re-calling the model -- but pydantic-ai still adds each replayed step's
-     cost to the retry's own usage total, since it cannot distinguish a replay
-     from a live call. A ``cost_limit`` therefore counts already-paid-for
-     replayed cost against every retry's fresh budget, leaving less headroom
-     for the new calls the retry actually makes. And if the limit is lowered
-     between attempts -- easy to do by accident when ``usage_limits`` is
-     templated as a dict -- a retry can exceed it with zero new model calls.
-     The ``LLM run cost`` line in the task log reports the run's cumulative
-     cost for the same reason, not what this attempt actually spent.
+  On Airflow >= 3.3, setting this counts usage across every attempt of the
+  task instance combined -- the initial run, every retry, and every HITL
+  regeneration all add to one running total kept in the AIP-103 task state
+  store under the ``__commonai_usage__`` key -- instead of each attempt
+  starting a fresh count. This also applies to the implicit
+  ``request_limit=50`` default, which can now block a retry that used to
+  pass on its own. A step replayed by ``durable=True`` does not count toward
+  that total -- see ``durable`` below. To keep the same effective
+  per-attempt headroom this cross-attempt total used to give each attempt on
+  its own, scale each limit by ``retries + 1``, or use ``usage_limits=None``
+  to opt back out.
+
+  Clearing and rerunning a *finished* (failed or succeeded) task instance
+  gets a fresh budget automatically; clearing a *running* task instance does
+  not bump ``max_tries``, so the restarted attempt still sees the prior
+  spend. To reset the budget for a task instance that keeps retrying without
+  a clear of a finished attempt, delete the ``__commonai_usage__`` key via
+  the Task State Store UI.
+
+  .. note::
+     A worker killed with SIGKILL -- including after ``on_kill``'s grace
+     period expires, or an OOM kill -- cannot persist that attempt's usage,
+     so the next attempt's count under-represents actual spend by that
+     amount.
+
+  On Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each attempt is
+  still checked and counted on its own, as before. Within one attempt, a HITL
+  regeneration shares the count of the run before it whenever ``usage_limits``
+  is set, on every Airflow version; with ``usage_limits=None`` each
+  regeneration starts a fresh count.
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results. On retry, cached steps are replayed instead of re-executing
   expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
   configuration needed); on older cores it requires the ``[common.ai]
-  durable_cache_path`` config option to be set. Default ``False``.
+  durable_cache_path`` config option to be set. Default ``False``. A replayed
+  step adds nothing to the usage counted against ``usage_limits`` or reported
+  in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
+  each attempt counts only the model and tool calls it actually makes, on
+  every Airflow version. A step that re-runs live because the conversation
+  changed since the previous attempt is counted like any other live call, and
+  a retry whose cross-attempt total already sits at a limit can still start
+  when the steps it needs are cached. Clearing a failed task instance starts
+  a fresh budget but keeps the durable cache its attempts left behind, so what
+  the rerun replays from that cache is free there too.
 - ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
   tool that the model drives by writing Python, executed in the Monty sandbox.
   Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
@@ -243,23 +355,10 @@ Parameters
   Pydantic instance flows through XCom unchanged. Set to ``True`` when a
   downstream consumer needs the dict shape.
 
-**HITL Review parameters** (requires the ``hitl_review`` plugin -- see
-:doc:`../hitl_review` for the full review workflow):
-
-- ``enable_hitl_review``: When ``True``, the operator enters an iterative
-  review loop after the first generation. A human reviewer can approve,
-  reject, or request changes via the plugin's REST API at ``/hitl-review``
-  or through the **HITL Review** extra link on the task instance. Default
-  ``False``.
-- ``max_hitl_iterations``: Maximum outputs shown to the reviewer (1 = initial
-  output). When the reviewer requests changes at iteration >= this limit, the
-  task fails with ``HITLMaxIterationsError`` without calling the LLM. E.g. 5
-  allows changes at iterations 1-4. Default ``5``.
-- ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds
-  combined. ``None`` means no timeout (the operator blocks until a terminal
-  action).
-- ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
-  human response. Default ``10``.
+**HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
+``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
+loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
+parameter and the review workflow.
 
 Logging
 -------
@@ -268,7 +367,7 @@ All AI operators automatically log a post-run summary after ``run_sync()``
 completes. ``AgentOperator`` additionally wraps toolsets for real-time
 per-tool-call logging (controlled by ``enable_tool_logging``).
 
-**Real-time tool call logging** (AgentOperator only) — each tool call is
+**Real-time tool call logging** (AgentOperator only): each tool call is
 logged as it happens:
 
 .. code-block:: text
@@ -283,7 +382,7 @@ logged as it happens:
 Tool arguments are logged at DEBUG level to avoid leaking sensitive data at
 the default log level.
 
-**Post-run summary** (all operators) — after the LLM run finishes, a summary
+**Post-run summary** (all operators): after the LLM run finishes, a summary
 is logged with model name, token usage, and the full tool call sequence:
 
 .. code-block:: text

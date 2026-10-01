@@ -207,6 +207,10 @@ own agent harness. In Claude Code:
 
 `magpie@apache-magpie` installs every family at once; other families
 (`magpie-security`, `magpie-release-management`, …) install individually.
+`magpie-release-management` is in the project floor (`.apache-magpie.lock`):
+its `verify-rc` skill verifies a release candidate and, per
+[`.apache-magpie-overrides/release-verify-rc.md`](.apache-magpie-overrides/release-verify-rc.md),
+can test your own changes against a providers wave.
 The contributor-facing summary lives in the [Agent-assisted contribution
 section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 

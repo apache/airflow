@@ -16,14 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai.capabilities import Thinking
 from pydantic_ai.messages import ImageUrl
+from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -70,7 +73,7 @@ class TestAgentDecoratedOperator:
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
         mock_agent.run_sync.assert_called_once_with(
-            "Who is our top customer?", usage_limits=None, run_id="ti-1"
+            "Who is our top customer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @pytest.mark.parametrize(
@@ -105,7 +108,9 @@ class TestAgentDecoratedOperator:
         op.execute(context=_make_context())
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, run_id="ti-1")
+        mock_agent.run_sync.assert_called_once_with(
+            prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_sequence_prompt_with_hitl_review_raises_before_run_sync(self, mock_hook_cls):
@@ -149,7 +154,7 @@ class TestAgentDecoratedOperator:
 
         assert op.prompt == "Analyze revenue trends"
         mock_agent.run_sync.assert_called_once_with(
-            "Analyze revenue trends", usage_limits=None, run_id="ti-1"
+            "Analyze revenue trends", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -159,13 +164,13 @@ class TestAgentDecoratedOperator:
         mock_agent.run_sync.return_value = make_mock_run_result("result")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        mock_toolset = MagicMock()
+        toolset = FunctionToolset()
 
         op = _AgentDecoratedOperator(
             task_id="test",
             python_callable=lambda: "Do something",
             llm_conn_id="my_llm",
-            toolsets=[mock_toolset],
+            toolsets=[toolset],
         )
         op.execute(context=_make_context())
 
@@ -173,7 +178,25 @@ class TestAgentDecoratedOperator:
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert passed_toolsets[0].wrapped is mock_toolset
+        assert passed_toolsets[0].wrapped == MaskingToolset(wrapped=toolset)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_passes_capabilities_through(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("result")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        thinking = Thinking(effort="high")
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "Do something",
+            llm_conn_id="my_llm",
+            capabilities=[thinking],
+        )
+        op.execute(context=_make_context())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call.kwargs["capabilities"] == [thinking]
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

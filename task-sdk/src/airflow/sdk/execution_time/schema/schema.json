@@ -1015,6 +1015,20 @@
           "default": null,
           "title": "Import Errors"
         },
+        "parsed_definitions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parsed Definitions",
+          "type": "array"
+        },
+        "dag_source_codes": {
+          "additionalProperties": {
+            "$ref": "#/$defs/DagSourceCode"
+          },
+          "title": "Dag Source Codes",
+          "type": "object"
+        },
         "type": {
           "const": "DagFileParsingResult",
           "default": "DagFileParsingResult",
@@ -1492,6 +1506,25 @@
       ],
       "title": "DagRunType",
       "type": "string"
+    },
+    "DagSourceCode": {
+      "description": "Raw source code and its language identifier for a DAG definition.",
+      "properties": {
+        "source_code": {
+          "title": "Source Code",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_code",
+        "language"
+      ],
+      "title": "DagSourceCode",
+      "type": "object"
     },
     "DeferTask": {
       "additionalProperties": false,
@@ -3150,7 +3183,17 @@
       "title": "InactiveAssetsResult",
       "type": "object"
     },
-    "JsonValue": {},
+    "JsonValue": {
+      "title": "JsonValue",
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ]
+    },
     "LazyDeserializedDAG": {
       "description": "Lazily build information from the serialized DAG structure.\n\nAn object that will present \"enough\" of the DAG like interface to update DAG db models etc, without having\nto deserialize the full DAG and Task hierarchy.",
       "properties": {
@@ -4203,6 +4246,18 @@
           ],
           "default": null,
           "title": "Rendered Map Index"
+        },
+        "retry_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry Reason"
         }
       },
       "required": [
@@ -4356,6 +4411,38 @@
         "run_id"
       ],
       "title": "TriggerDagRun",
+      "type": "object"
+    },
+    "UpdateDagRunNote": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        },
+        "type": {
+          "const": "UpdateDagRunNote",
+          "default": "UpdateDagRunNote",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "note"
+      ],
+      "title": "UpdateDagRunNote",
       "type": "object"
     },
     "UpdateHITLDetail": {
@@ -5111,6 +5198,11 @@
           ],
           "default": null,
           "title": "Arg Bindings"
+        },
+        "multi_team": {
+          "default": false,
+          "title": "Multi Team",
+          "type": "boolean"
         }
       },
       "required": [

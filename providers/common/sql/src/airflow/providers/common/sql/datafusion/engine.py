@@ -153,6 +153,14 @@ class DataFusionEngine(LoggingMixin):
                     conf[key] = conn.extra_dejson[key]
             return conf
 
+        def _get_gcp_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
+            # Older Airflow connection UIs wrote custom extra fields as
+            # extra__google_cloud_platform__<field_name> instead of the bare key; GoogleBaseHook
+            # still reads that legacy spelling as a fallback, so this must too.
+            if field_name in extra_dejson:
+                return extra_dejson[field_name]
+            return extra_dejson.get(f"extra__google_cloud_platform__{field_name}")
+
         match conn.conn_type:
             case "aws":
                 try:
@@ -179,14 +187,14 @@ class DataFusionEngine(LoggingMixin):
             case "google_cloud_platform":
                 extra_dejson = conn.extra_dejson
                 for unsupported_field in ("key_secret_name", "credential_config_file", "impersonation_chain"):
-                    if extra_dejson.get(unsupported_field):
+                    if _get_gcp_extra_field(extra_dejson, unsupported_field):
                         raise ValueError(
                             f"Connection field {unsupported_field!r} is not supported for DataFusion "
                             "GCS access; only key_path, keyfile_dict, GOOGLE_APPLICATION_CREDENTIALS, or "
                             "ambient credentials (gcloud ADC file / metadata server) are used."
                         )
-                key_path = extra_dejson.get("key_path") or None
-                keyfile_dict = extra_dejson.get("keyfile_dict") or None
+                key_path = _get_gcp_extra_field(extra_dejson, "key_path") or None
+                keyfile_dict = _get_gcp_extra_field(extra_dejson, "keyfile_dict") or None
                 if key_path and keyfile_dict:
                     raise ValueError(
                         "The `keyfile_dict` and `key_path` fields are mutually exclusive. "

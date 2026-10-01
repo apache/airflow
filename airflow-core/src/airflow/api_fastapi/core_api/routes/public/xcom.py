@@ -395,6 +395,8 @@ def update_xcom_entry(
             run_id=dag_run_id,
             map_index=patch_body.map_index,
             serialize=False,
+            # Not recomputed from the new value: a custom XCom backend stores only a reference.
+            mapped_length=xcom_entry.mapped_length,
             session=session,
         )
     except (ValueError, TypeError) as e:

@@ -190,6 +190,7 @@ class GCSToGCSOperator(BaseOperator):
         "delimiter",
         "impersonation_chain",
         "match_glob",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 

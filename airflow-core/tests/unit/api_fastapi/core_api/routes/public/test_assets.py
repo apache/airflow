@@ -2305,13 +2305,13 @@ class TestPostAssetMaterialize(TestAssets):
         return_value="Jane Doe",
     )
     def test_materialize_records_triggering_user_display_name(self, mock_display_name, test_client):
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 200
         assert response.json()["triggering_user_name"] == "Jane Doe"
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 200
         assert response.json() == {
             "bundle_version": None,
@@ -2338,6 +2338,31 @@ class TestPostAssetMaterialize(TestAssets):
             "note": None,
             "team_name": None,
         }
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("headers", "content"),
+        [
+            pytest.param(None, None, id="no-body"),
+            pytest.param(
+                {"content-type": "application/x-www-form-urlencoded"}, b"", id="empty-urlencoded-form"
+            ),
+            pytest.param(
+                {"content-type": "application/x-www-form-urlencoded"},
+                b"partition_key=x",
+                id="urlencoded-form-with-field",
+            ),
+            pytest.param({"content-type": "multipart/form-data; boundary=x"}, b"", id="empty-multipart-form"),
+            pytest.param({"content-type": "text/plain"}, b"", id="empty-text-plain"),
+        ],
+    )
+    def test_should_reject_missing_or_non_json_body(self, test_client, session, headers, content):
+        # The request body is required and must be JSON, like the other mutating endpoints. A bodyless
+        # request and a browser HTML form submission (url-encoded/multipart/text, which is all a plain
+        # cross-origin <form> can send) are both rejected without queuing a Dag run.
+        response = test_client.post("/assets/1/materialize", content=content, headers=headers)
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_partition_key(self, test_client):
@@ -2401,12 +2426,12 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 403
 
     def test_should_respond_409_on_multiple_dags(self, test_client):
-        response = test_client.post("/assets/2/materialize")
+        response = test_client.post("/assets/2/materialize", json={})
         assert response.status_code == 409
         assert response.json()["detail"] == "More than one Dag materializes asset with ID: 2"
 
     def test_should_respond_404_on_multiple_dags(self, test_client):
-        response = test_client.post("/assets/3/materialize")
+        response = test_client.post("/assets/3/materialize", json={})
         assert response.status_code == 404
         assert response.json()["detail"] == "No Dag materializes asset with ID: 3"
 
@@ -2422,7 +2447,7 @@ class TestPostAssetMaterialize(TestAssets):
             .values(_data=data)
         )
         session.commit()
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -2459,7 +2484,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.json()["bundle_version"] == "v1"
 
         # Without bundle_version the latest (v2) governs and rejects the run.
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -2474,7 +2499,7 @@ class TestPostAssetMaterialize(TestAssets):
         ) as mock_get_auth_manager:
             mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
 
-            response = test_client.post("/assets/1/materialize")
+            response = test_client.post("/assets/1/materialize", json={})
 
             assert response.status_code == 403
             assert response.json()["detail"] == (
@@ -2603,7 +2628,7 @@ class TestPostAssetMaterialize(TestAssets):
                 DagModel, "get_team_name", return_value=team_name, autospec=True
             ) as mock_get_team_name,
         ):
-            test_client.post("/assets/1/materialize")
+            test_client.post("/assets/1/materialize", json={})
 
         assert len(recorded) == 1, "expected exactly one authorization check"
         details = recorded[0]["details"]

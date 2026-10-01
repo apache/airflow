@@ -17,10 +17,16 @@
 
 .. _howto/hook:langchain:
 
-``LangChainHook``
-=================
+LangChain models: ``LangChainHook``
+===================================
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 .. toctree::
+    :titlesonly:
     :hidden:
     :maxdepth: 1
 
@@ -36,9 +42,6 @@ two universal entry-point functions:
   the right vendor based on the ``provider:name`` prefix.
 - ``langchain.embeddings.init_embeddings`` for embedding models, same
   dispatch story.
-
-The hook owns its own ``langchain`` connection type so the UI is honest about
-which framework a connection configures.
 
 Chat model usage
 ----------------
@@ -56,13 +59,14 @@ rest of LangChain's runnable surface
 (``ChatPromptTemplate`` / ``StrOutputParser`` / ``RunnableSequence`` / ...).
 
 Supported chat providers
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Any model identifier accepted by
 `langchain.chat_models.init_chat_model <https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html>`__
-works out of the box. Common identifiers:
+works when the provider's chat class accepts ``api_key`` and ``base_url``.
+Common identifiers:
 
-- ``openai:gpt-4o``, ``openai:gpt-4o-mini`` -- requires ``langchain-openai``
+- ``openai:gpt-5``, ``openai:gpt-5-mini`` -- requires ``langchain-openai``
 - ``anthropic:claude-sonnet-5`` -- requires ``langchain-anthropic``
 - ``groq:llama-3.3-70b-versatile`` -- requires ``langchain-groq``
 - ``mistralai:mistral-large-latest`` -- requires ``langchain-mistralai``
@@ -70,9 +74,7 @@ works out of the box. Common identifiers:
 - ``deepseek:deepseek-chat`` -- requires ``langchain-deepseek``
 
 Cloud providers with non-standard auth (AWS Bedrock, Google Vertex AI, Azure
-OpenAI) are not covered by the ``api_key`` + ``base_url`` surface here and are
-deferred to per-vendor hooks (mirroring the pydantic-ai cloud-auth subclass
-pattern).
+OpenAI) are not covered by the ``api_key`` + ``base_url`` surface here.
 
 Embedding model usage
 ---------------------
@@ -94,7 +96,7 @@ identifiers are set:
     :end-before: [END howto_hook_langchain_chat_and_embedding]
 
 Supported embedding providers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The hook passes ``api_key`` and (optional) ``base_url`` from the connection to
 `langchain.embeddings.init_embeddings <https://reference.langchain.com/python/langchain/embeddings/base/init_embeddings>`__.
@@ -108,12 +110,10 @@ Providers whose embedding classes accept this kwarg shape work directly:
 Bedrock, Vertex AI, Azure OpenAI, ...), but their embedding classes expect
 provider-specific credential kwargs (``cohere_api_key``, AWS auth chain, GCP
 service-account, ...) rather than the generic ``api_key`` / ``base_url`` this
-hook forwards. Those are deferred to per-vendor subclasses mirroring the
-pydantic-ai pattern (``PydanticAIBedrockHook`` / ``PydanticAIVertexHook`` /
-``PydanticAIAzureHook``).
+hook forwards.
 
 Different connections for chat and embeddings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If chat and embeddings live on different API keys (e.g. premium chat key vs
 free-tier embeddings key), pass an explicit ``embed_conn_id``. When unset it
@@ -133,7 +133,7 @@ The hook reads credentials from the Airflow connection of type ``langchain``:
   ``init_embeddings``).
 - **host** -- Optional base URL (passed as ``base_url``; useful for custom
   OpenAI-compatible endpoints, Ollama, vLLM).
-- **extra** JSON -- ``{"model": "openai:gpt-4o", "embed_model": "openai:text-embedding-3-small"}``
+- **extra** JSON -- ``{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}``
   to set default chat and embedding model identifiers on the connection.
 
 Parameters
@@ -156,20 +156,38 @@ Parameters
        common one-provider case, leave unset and the hook reuses ``llm_conn_id``.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["model"]`` on the connection)
-     - Chat model identifier in ``provider:name`` form, e.g. ``openai:gpt-4o``.
+     - Chat model identifier in ``provider:name`` form, e.g. ``openai:gpt-5``.
        Only required when calling ``get_chat_model()``.
    * - ``embed_model``
      - ``None`` (falls back to ``extra["embed_model"]`` on the connection)
      - Embedding model identifier in ``provider:name`` form, e.g.
        ``openai:text-embedding-3-small``. Only required when calling
-       ``get_embedding_model()``.
+       ``get_embedding_model()``. When ``embedding_kwargs`` supplies
+       ``provider`` explicitly, use a model name without the provider prefix.
+   * - ``embedding_kwargs``
+     - ``None``
+     - Additional keyword arguments passed to the embedding model constructor,
+       for example ``{"dimensions": 128}``. Values are forwarded without
+       filtering and can override hook-provided settings, including the endpoint
+       and credentials. In particular, ``provider`` takes precedence over the
+       provider inferred from ``embed_model``. When ``provider`` is set,
+       LangChain treats the entire ``embed_model`` value as the model name rather
+       than parsing a ``provider:name`` identifier. The hook logs a warning when
+       both forms are supplied. Connection ``api_key`` and ``base_url`` values
+       take precedence over the same top-level keys, but the underlying integration
+       may accept alternative or nested options that take precedence. Only pass
+       trusted values.
+
+.. seealso::
+   `langchain.embeddings.init_embeddings <https://reference.langchain.com/python/langchain/embeddings/base/init_embeddings>`__
+   for valid ``embedding_kwargs`` keys.
 
 Dependencies
 ------------
 
 Install the ``langchain`` extra to use this hook::
 
-    pip install apache-airflow-providers-common-ai[langchain]
+    pip install "apache-airflow-providers-common-ai[langchain]"
 
 That extra installs only ``langchain`` itself, since the framework is
 vendor-agnostic. Install the LangChain integration package for whichever
