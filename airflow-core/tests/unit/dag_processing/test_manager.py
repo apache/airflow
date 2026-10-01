@@ -1390,6 +1390,29 @@ class TestDagFileProcessorManager:
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
 
     @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_matches_dags_nested_in_a_container(self, session):
+        session.add(
+            DagModel(
+                dag_id="nested_dag",
+                bundle_name="testing",
+                relative_fileloc="dags.zip/sub/nested_dag.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        manager.deactivate_stale_dags(
+            last_parsed={
+                DagFileInfo(rel_path=Path("dags.zip"), bundle_name="testing"): timezone.utcnow()
+                + timedelta(hours=1)
+            }
+        )
+
+        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "nested_dag"))
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
         """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
 
@@ -4192,8 +4215,8 @@ class TestDagFileProcessorManager:
             ),
             mock.patch.object(manager, "update_bundle_state"),
             mock.patch.object(manager, "_find_files_in_bundle", side_effect=OSError("listing failed")),
-            mock.patch.object(manager, "deactivate_deleted_dags") as mock_deactivate,
-            mock.patch.object(manager, "clear_orphaned_import_errors") as mock_clear,
+            mock.patch.object(manager, "deactivate_deleted_dags", autospec=True) as mock_deactivate,
+            mock.patch.object(manager, "clear_orphaned_import_errors", autospec=True) as mock_clear,
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),
