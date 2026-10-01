@@ -151,7 +151,8 @@ type TaskSpec struct {
 	StartDate time.Time
 
 	// TaskID is the task_id of the task. When TaskID is empty, the task_id is the
-	// name of the Go function that the task runs.
+	// name of the Go function that the task runs. A task from TriggerDagRun runs no
+	// Go function, so it needs a TaskID.
 	TaskID string
 
 	// TriggerRule corresponds to the JSON schema field "trigger_rule".

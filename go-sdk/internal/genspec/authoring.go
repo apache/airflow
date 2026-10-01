@@ -180,7 +180,7 @@ var taskShape = authoringShape{
 		"retry_exponential_backoff": {goType: "float64"},
 		"task_id": {
 			goType: "string",
-			doc:    "TaskID is the task_id of the task. When TaskID is empty, the task_id is the name of the Go function that the task runs.",
+			doc:    "TaskID is the task_id of the task. When TaskID is empty, the task_id is the name of the Go function that the task runs. A task from TriggerDagRun runs no Go function, so it needs a TaskID.",
 		},
 	},
 }
