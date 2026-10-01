@@ -27,14 +27,16 @@ from task_sdk.coordinators.node._bundle_test_utils import (
     BUNDLE_NAME,
     mutate_byte,
     read_layout,
+    replace_layout_payload,
     write_bundle,
 )
 from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators.node import _bundle_reader as _reader
-from airflow.sdk.coordinators.node._bundle_reader import _digest_cache
+from airflow.sdk.coordinators.node._bundle_reader import _digest_cache, read_cache_digest
 from airflow.sdk.coordinators.node.coordinator import NodeCoordinator, _Bundle
+from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
 SCHEMA_VERSION = "2026-06-16"
 
@@ -142,6 +144,34 @@ class TestNodeCoordinatorParseTaskHandlerCommand:
 
         with pytest.raises(ValueError, match=error):
             NodeCoordinator()._build_parse_task_handler_command(path=path)
+
+
+class TestListTaskHandlerCandidates:
+    def test_lists_min_mjs_files_with_a_layout_line(self, tmp_path):
+        bundle = write_bundle(tmp_path, "test_dag", name="team-a/handlers.min.mjs")
+        _write_plain_file(tmp_path)
+        write_bundle(tmp_path, "test_dag", name="handlers.mjs")
+
+        assert NodeCoordinator().list_task_handler_candidates(tmp_path) == [
+            TaskHandlerCandidate(
+                rel_path="team-a/handlers.min.mjs",
+                size_bytes=bundle.stat().st_size,
+                cache_digest=read_cache_digest(bundle),
+            )
+        ]
+
+    def test_lists_a_bundle_with_an_invalid_layout_line_with_an_error(self, tmp_path):
+        bundle = write_bundle(tmp_path, "test_dag", name="handlers.min.mjs")
+        replace_layout_payload(bundle, b"[]")
+
+        assert NodeCoordinator().list_task_handler_candidates(tmp_path) == [
+            TaskHandlerCandidate(
+                rel_path="handlers.min.mjs",
+                size_bytes=bundle.stat().st_size,
+                cache_digest=None,
+                error="handlers.min.mjs: embedded airflow bundle layout must contain a mapping",
+            )
+        ]
 
 
 class TestBundleFind:

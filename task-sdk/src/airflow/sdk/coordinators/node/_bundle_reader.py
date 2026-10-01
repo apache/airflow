@@ -131,6 +131,42 @@ def read_bundle(bundle_path: pathlib.Path) -> BundleMetadata:
     return _parse_bundle_metadata(_read_verified_payloads(bundle_path).metadata)
 
 
+def read_cache_digest(bundle_path: pathlib.Path) -> str | None:
+    """
+    Return the cache digest of the TypeScript bundle at *bundle_path*: the SHA-256 of its layout line.
+
+    The layout line, the first line of the bundle, records the SHA-256 of every region, so the digest
+    changes whenever any region changes. Only that line is read and checked; no region is hashed, so
+    a match does not prove the bundle is intact.
+
+    Returns ``None`` when the file cannot be read or has no valid layout line.
+    """
+    try:
+        with bundle_path.open("rb") as bundle_file:
+            return _read_cache_digest(bundle_file, path=bundle_path)
+    except (OSError, ValueError):
+        return None
+
+
+def _read_cache_digest(bundle_file: BinaryIO, *, path: pathlib.Path) -> str:
+    """
+    Return the SHA-256 of the layout line at the start of the open bundle *bundle_file*.
+
+    :raises OSError: when the line cannot be read.
+    :raises ValueError: when the file has no valid layout line.
+    """
+    payload = _read_prefixed_line(
+        bundle_file,
+        path=path,
+        marker=_LAYOUT_COMMENT_PREFIX,
+        max_bytes=_MAX_LAYOUT_LINE_BYTES,
+        section="bundle layout",
+        missing_error=f"{path.name} has no airflow bundle layout",
+    )
+    _parse_layout(payload)
+    return hashlib.sha256(_LAYOUT_COMMENT_PREFIX + payload + b"\n").hexdigest()
+
+
 def read_bundle_source(bundle_path: pathlib.Path, dag_id: str | None = None) -> str | None:
     """
     Return the author source ``airflow-ts-pack`` embedded for *dag_id*, or ``None``.

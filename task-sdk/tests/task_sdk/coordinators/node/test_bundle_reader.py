@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -47,6 +48,7 @@ from airflow.sdk.coordinators.node._bundle_reader import (
     _hash_region,
     read_bundle,
     read_bundle_source,
+    read_cache_digest,
 )
 
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
@@ -613,3 +615,47 @@ class TestBundleReader:
         assert cache.get(build_key(2)) is None
         assert cache.get(build_key(1)) == digests
         assert cache.get(build_key(3)) == digests
+
+
+class TestReadCacheDigest:
+    @pytest.mark.parametrize(
+        "build",
+        [
+            pytest.param(lambda root: write_bundle(root, "sales"), id="written"),
+            pytest.param(lambda root: TYPESCRIPT_V1_FIXTURE, id="packed-by-airflow-ts-pack"),
+        ],
+    )
+    def test_is_the_sha256_of_the_whole_layout_line(self, tmp_path, build):
+        bundle = build(tmp_path)
+        layout_line = bundle.read_bytes().splitlines(keepends=True)[0]
+
+        assert read_cache_digest(bundle) == hashlib.sha256(layout_line).hexdigest()
+
+    def test_hashes_no_region(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        digest = read_cache_digest(bundle)
+        _mutate_byte(bundle, int(_read_layout(bundle)["code"]["start"], 16))  # type: ignore[index, call-overload]
+
+        with pytest.raises(ValueError, match="code SHA-256 mismatch"):
+            read_bundle(bundle)
+        assert read_cache_digest(bundle) == digest
+
+    def test_changes_when_a_region_changes(self, tmp_path):
+        first = write_bundle(tmp_path / "first", "sales", code=b"export const version = 1;\n")
+        second = write_bundle(tmp_path / "second", "sales", code=b"export const version = 2;\n")
+
+        assert read_cache_digest(first) != read_cache_digest(second)
+
+    @pytest.mark.parametrize(
+        "corrupt",
+        [
+            pytest.param(lambda bundle: bundle.write_bytes(b"export {};\n"), id="no-layout-line"),
+            pytest.param(lambda bundle: _replace_layout_payload(bundle, b"{not json"), id="invalid-layout"),
+            pytest.param(lambda bundle: bundle.unlink(), id="missing-file"),
+        ],
+    )
+    def test_returns_none_without_a_valid_layout_line(self, tmp_path, corrupt):
+        bundle = write_bundle(tmp_path, "sales")
+        corrupt(bundle)
+
+        assert read_cache_digest(bundle) is None
