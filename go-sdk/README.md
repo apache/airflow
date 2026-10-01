@@ -296,18 +296,21 @@ the full range of task states, and alternate XCom backends without implementing 
   ```
 
   `task_handler_bundle_name` names the Dag bundle the coordinator scans for packed bundles (the task's own
-  Dag bundle when unset); `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go
-  coordinator. Only files with the executable bit are considered, so use a Dag bundle that keeps it: a
-  `LocalDagBundle` does, object-store Dag bundles such as `S3DagBundle` do not.
+  Dag bundle when unset). It is used only by mixed-language Dags, to locate the task handlers for the
+  `@task.stub` tasks of a Python Dag; Dags defined natively in a language SDK do not use it.
+  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. Only files with the
+  executable bit are considered, so use a Dag bundle that keeps it: a `LocalDagBundle` does, object-store
+  Dag bundles such as `S3DagBundle` do not.
 
   > [!IMPORTANT]
-  > The coordinator is part of the Airflow worker, so the `[sdk]` config and the packed bundle files only
-  > need to be present wherever tasks actually execute. With `CeleryExecutor`, setting it on the Celery
-  > workers is sufficient. With `LocalExecutor`, tasks run inside the scheduler process, so it must be set
-  > where the scheduler can read it. The API server and Dag processor do not need it. Register the Dag
-  > bundle in `[dag_processor] dag_bundle_config_list` on every component, like your other Dag bundles:
-  > the worker resolves `task_handler_bundle_name` through it, and wherever the `[sdk]` config is read it
-  > is rejected if the name is missing there.
+  > The `[sdk]` config and the packed bundle files must be present wherever tasks execute and on the Dag
+  > processor. With `CeleryExecutor`, tasks execute on the Celery workers; with `LocalExecutor`, they run
+  > inside the scheduler process. The Dag processor checks the stub tasks of each Python Dag against the
+  > task handlers the packed bundles register, so it runs them too and needs bundles built for its
+  > operating system and CPU architecture. The API server does not need any of it. Register the Dag bundle
+  > in `[dag_processor] dag_bundle_config_list` on every component, like your other Dag bundles: the worker
+  > and the Dag processor resolve `task_handler_bundle_name` through it, and wherever the `[sdk]` config is
+  > read it is rejected if the name is missing there.
 
 - Deploy the matching Python stub Dag (above) into Airflow. There is no separate Go worker to run: the
   Airflow worker forks the bundle binary once per task instance.

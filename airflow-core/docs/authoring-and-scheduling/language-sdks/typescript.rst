@@ -48,9 +48,9 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 Prerequisites
 -------------
 
-* Node.js 22 or later must be available on the Airflow worker nodes.
+* Node.js 22 or later must be available on the Airflow worker nodes and the Dag processor.
 * The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
-  from the worker, in the Dag bundle the coordinator scans.
+  from the worker and the Dag processor, in the Dag bundle the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 * In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
@@ -243,13 +243,14 @@ task instance.
 
 .. note::
 
-  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config and the packed ``*.min.mjs``
-  bundles only need to be present wherever tasks actually execute. With ``CeleryExecutor``, setting them on
-  the Celery workers is sufficient. With ``LocalExecutor``, tasks run inside the scheduler process, so they
-  must be present where the scheduler can read them. The API server and Dag processor do not need them.
-  Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every component, like your other
-  Dag bundles: the worker resolves ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
-  is read it is rejected if the name is missing there.
+  The ``[sdk]`` config, the packed ``*.min.mjs`` bundles and Node.js must be present wherever tasks execute
+  and on the Dag processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with
+  ``LocalExecutor``, they run inside the scheduler process. The Dag processor checks the stub tasks of each
+  Python Dag against the task handlers the packed bundles register, so it runs them too. The API server
+  does not need any of it. Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
+  component, like your other Dag bundles: the worker and the Dag processor resolve
+  ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read it is rejected if the
+  name is missing there.
 
 .. _typescript-sdk/native-dag:
 
@@ -544,8 +545,10 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``task_handler_bundle_name``
      - *(task's own Dag bundle)*
      - Name of the Dag bundle searched recursively for an integrity-verified ``*.min.mjs`` bundle that
-       declares the requested Dag. It must be registered in ``[dag_processor] dag_bundle_config_list``. It is
-       checked when the ``[sdk]`` configuration is loaded, so a typo fails there rather than on the first task.
+       declares the requested Dag. It is used only by mixed-language Dags, to locate the task handlers for
+       the ``@task.stub`` tasks of a Python Dag; Dags defined natively in a language SDK do not use it. It
+       must be registered in ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]``
+       configuration is loaded, so a typo fails there rather than on the first task.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -556,8 +559,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  **Locating the bundle.** Packed bundles are read from a Dag bundle, so they are delivered, refreshed and
-  versioned by the same machinery as your Dags.
+  **Locating the bundle.** The packed bundles for the ``@task.stub`` tasks of a Python Dag are read from a
+  Dag bundle, so they are delivered, refreshed and versioned by the same machinery as your Dags.
 
   * The expected layout is a separate Dag bundle for the packed bundles, named by
     ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task uses

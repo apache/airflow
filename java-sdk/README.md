@@ -93,8 +93,8 @@ Now `cd example` into the example project, and
 
 * Put the [DAG with stub tasks](./example/src/resources/dags) to somewhere Airflow can find.
 
-* Ensure the `java` command is available in the same environment the Airflow
-  task worker is in.
+* Ensure the `java` command is available in the same environments the Airflow
+  task worker and the Dag processor are in.
 
 * Register the packaged example as a Dag bundle, and configure Airflow to route tasks in the *java*
   queue to be run with Java from it:
@@ -116,6 +116,13 @@ Now `cd example` into the example project, and
   }'
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'
   ```
+
+  Set these, and make the bundle directory available, for the Dag processor
+  as well as the worker: the Dag processor checks the stub tasks against the
+  task handlers the JARs register. The API server does not need them.
+  `task_handler_bundle_name` is used only by mixed-language Dags, to locate
+  the task handlers for the `@task.stub` tasks of a Python Dag; Dags defined
+  natively in a language SDK do not use it.
 
 * Ensure the Connection and Variable needed by the example DAG are available:
 

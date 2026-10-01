@@ -2191,11 +2191,18 @@ sdk:
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
 
-        The language SDK coordinators read their compiled task handlers from the
-        Dag bundle named by the ``task_handler_bundle_name`` kwarg. It must name a
-        bundle in ``[dag_processor] dag_bundle_config_list`` and is checked when
-        this option is loaded. When it is unset, a task reads its handlers from its
+        The language SDK coordinators read the task handlers for the
+        ``@task.stub`` tasks of a Python Dag from the Dag bundle named by the
+        ``task_handler_bundle_name`` kwarg. Dags defined natively in a language
+        SDK do not use it. It must name a bundle in
+        ``[dag_processor] dag_bundle_config_list`` and is checked when this
+        option is loaded. When it is unset, a task reads its handlers from its
         own Dag bundle.
+
+        The Dag processor needs this option too, with the language runtime the
+        coordinator starts and the files of that Dag bundle, because it checks
+        the stub tasks of each Python Dag against the task handlers those files
+        register. The API server does not need it.
 
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself

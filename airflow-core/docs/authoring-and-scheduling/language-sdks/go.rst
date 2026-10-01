@@ -48,7 +48,8 @@ Prerequisites
 
 * Go 1.24 or later to build and pack bundles. This is a build-time requirement only; the worker that runs a
   packed bundle needs no Go toolchain, because the bundle is a self-contained native executable.
-* The packed bundle must be accessible from the Airflow worker, in the Dag bundle the coordinator scans.
+* The packed bundle must be accessible from the Airflow worker and the Dag processor, in the Dag bundle the
+  coordinator scans, and built for the operating system and CPU architecture of both.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 
@@ -210,13 +211,14 @@ There is no separate Go worker to run: the Airflow worker forks the bundle binar
 
 .. note::
 
-  The coordinator is part of the Airflow worker, so the ``[sdk]`` config and the packed bundle files only
-  need to be present wherever tasks actually execute. With ``CeleryExecutor``, setting it on the Celery
-  workers is sufficient. With ``LocalExecutor``, tasks run inside the scheduler process, so it must be set
-  where the scheduler can read it. The API server and Dag processor do not need it. Register the Dag
-  bundle in ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles:
-  the worker resolves ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read
-  it is rejected if the name is missing there.
+  The ``[sdk]`` config and the packed bundle files must be present wherever tasks execute and on the Dag
+  processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with ``LocalExecutor``, they run
+  inside the scheduler process. The Dag processor checks the stub tasks of each Python Dag against the task
+  handlers the packed bundles register, so it runs them too and needs bundles built for its operating
+  system and CPU architecture. The API server does not need any of it. Register the Dag bundle in
+  ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker
+  and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
+  is read it is rejected if the name is missing there.
 
 Writing tasks
 -------------
@@ -466,9 +468,9 @@ coordinator scans (see `Deploying`_):
 Cross-platform builds
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The worker that runs a bundle often uses a different operating system or CPU architecture than your build
-machine (for example, deploying to a Linux host from an Apple-silicon ``darwin/arm64`` laptop). Pass
-``--goos`` / ``--goarch`` and the packer cross-builds for you:
+The worker and the Dag processor that run a bundle often use a different operating system or CPU
+architecture than your build machine (for example, deploying to a Linux host from an Apple-silicon
+``darwin/arm64`` laptop). Pass ``--goos`` / ``--goarch`` and the packer cross-builds for you:
 
 .. code-block:: bash
 
@@ -524,7 +526,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``task_handler_bundle_name``
      - *(task's own Dag bundle)*
-     - Name of the Dag bundle scanned recursively for executable bundles. It must be registered in
+     - Name of the Dag bundle scanned recursively for executable bundles. It is used only by
+       mixed-language Dags, to locate the task handlers for the ``@task.stub`` tasks of a Python Dag;
+       Dags defined natively in a language SDK do not use it. It must be registered in
        ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]`` configuration is
        loaded, so a typo fails there rather than on the first task.
    * - ``task_startup_timeout``
@@ -534,8 +538,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  **Locating bundles.** Packed bundles are read from a Dag bundle, so they are delivered, refreshed and
-  versioned by the same machinery as your Dags.
+  **Locating bundles.** The packed bundles for the ``@task.stub`` tasks of a Python Dag are read from a Dag
+  bundle, so they are delivered, refreshed and versioned by the same machinery as your Dags.
 
   * The expected layout is a separate Dag bundle for the packed bundles, named by
     ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task
