@@ -66,11 +66,41 @@ if TYPE_CHECKING:
 __all__ = [
     "BaseCoordinator",
     "CoordinatorManager",
+    "TaskHandlerCandidate",
     "get_coordinator_manager",
     "reset_coordinator_manager",
 ]
 
 log = structlog.get_logger(__name__)
+
+# The longest digest the Dag processor can record with an artifact's answer.
+_MAX_CACHE_DIGEST_LENGTH = 128
+
+
+def _drop_unrecordable_cache_digest(cache_digest: str | None) -> str | None:
+    if cache_digest is not None and len(cache_digest) > _MAX_CACHE_DIGEST_LENGTH:
+        return None
+    return cache_digest
+
+
+@attrs.frozen(kw_only=True)
+class TaskHandlerCandidate:
+    """An artifact in a Dag bundle that a coordinator can ask for its task handlers."""
+
+    rel_path: str
+    """POSIX path of the artifact within the Dag bundle."""
+
+    size_bytes: int
+
+    cache_digest: str | None = attrs.field(converter=_drop_unrecordable_cache_digest)
+    """
+    The fingerprint the artifact stores; ``None`` when it stores none.
+
+    A digest longer than 128 characters becomes ``None``, so the artifact is probed on every parse.
+    """
+
+    error: str | None = None
+    """Why the artifact cannot be asked for its task handlers; ``None`` when it can."""
 
 
 class BaseCoordinator:
@@ -132,6 +162,17 @@ class BaseCoordinator:
         :raises Exception: when the runtime cannot be resolved or started.
         """
         raise NotImplementedError(f"{type(self).__name__} does not parse task handlers")
+
+    def list_task_handler_candidates(self, bundle_path: pathlib.Path) -> list[TaskHandlerCandidate]:
+        """
+        Return the artifacts under the Dag bundle root *bundle_path* that :meth:`parse_task_handler` can ask.
+
+        The order is the same for the same files. Listing runs no artifact and does not hash one, so a
+        candidate's stored ``cache_digest`` says it changed, not that it is intact.
+
+        A coordinator opts in by overriding this; the default raises :class:`NotImplementedError`.
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not list task handler artifacts")
 
 
 class _CoordinatorSpec(pydantic.BaseModel):

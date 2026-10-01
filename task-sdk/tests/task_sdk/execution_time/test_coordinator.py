@@ -31,6 +31,7 @@ from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
     InvalidCoordinatorError,
+    TaskHandlerCandidate,
     _PythonCoordinator,
     _warm_shutdown_signals,
     get_coordinator_manager,
@@ -556,6 +557,25 @@ def test_a_coordinator_parses_no_task_handlers_by_default(tmp_path):
             logs_address=("127.0.0.1", 1002),
             report_schema_version=lambda schema_version: None,
         )
+
+
+def test_a_coordinator_lists_no_task_handler_artifacts_by_default(tmp_path):
+    with pytest.raises(NotImplementedError, match="_CoordinatorB does not list task handler artifacts"):
+        _CoordinatorB().list_task_handler_candidates(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("cache_digest", "expected"),
+    [
+        pytest.param("a" * 128, "a" * 128, id="longest-recordable"),
+        pytest.param("a" * 129, None, id="too-long"),
+        pytest.param(None, None, id="none"),
+    ],
+)
+def test_task_handler_candidate_drops_a_cache_digest_too_long_to_record(cache_digest, expected):
+    candidate = TaskHandlerCandidate(rel_path="handlers.jar", size_bytes=1, cache_digest=cache_digest)
+
+    assert candidate.cache_digest == expected
 
 
 class TestPythonCoordinatorWarmShutdown:

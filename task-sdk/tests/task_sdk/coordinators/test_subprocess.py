@@ -47,7 +47,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerCandidate
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
 from tests_common.test_utils.config import conf_vars
@@ -1165,3 +1165,53 @@ class TestParseTaskHandler:
         finally:
             with contextlib.suppress(psutil.NoSuchProcess):
                 runtime.kill()
+
+
+@attrs.define(kw_only=True)
+class _ListingCoordinator(_StubSubprocessCoordinator):
+    """Lists the files ending in ``.artifact`` and records every file it is asked about."""
+
+    asked: list[tuple[pathlib.Path, str]] = attrs.field(init=False, factory=list)
+
+    def _read_task_handler_candidate(self, path, *, rel_path):
+        self.asked.append((path, rel_path))
+        if path.suffix != ".artifact":
+            return None
+        return TaskHandlerCandidate(rel_path=rel_path, size_bytes=path.stat().st_size, cache_digest=None)
+
+
+class TestListTaskHandlerCandidates:
+    def test_asks_about_each_file_in_sorted_walk_order(self, tmp_path):
+        for rel_path in ("c/d/e.artifact", "b.artifact", "a/z.artifact", "a/readme.txt"):
+            (tmp_path / rel_path).parent.mkdir(parents=True, exist_ok=True)
+            (tmp_path / rel_path).write_bytes(b"artifact")
+        coordinator = _ListingCoordinator(command=["x"])
+
+        candidates = coordinator.list_task_handler_candidates(tmp_path)
+
+        assert coordinator.asked == [
+            (tmp_path / "a" / "readme.txt", "a/readme.txt"),
+            (tmp_path / "a" / "z.artifact", "a/z.artifact"),
+            (tmp_path / "b.artifact", "b.artifact"),
+            (tmp_path / "c" / "d" / "e.artifact", "c/d/e.artifact"),
+        ]
+        assert candidates == [
+            TaskHandlerCandidate(rel_path=rel_path, size_bytes=8, cache_digest=None)
+            for rel_path in ("a/z.artifact", "b.artifact", "c/d/e.artifact")
+        ]
+
+    def test_lists_a_file_reached_through_symlinks_once(self, tmp_path):
+        (tmp_path / "real").mkdir()
+        (tmp_path / "real" / "handlers.artifact").write_bytes(b"artifact")
+        (tmp_path / "a-link.artifact").symlink_to(tmp_path / "real" / "handlers.artifact")
+        (tmp_path / "linked").symlink_to(tmp_path / "real", target_is_directory=True)
+
+        assert _ListingCoordinator(command=["x"]).list_task_handler_candidates(tmp_path) == [
+            TaskHandlerCandidate(rel_path="a-link.artifact", size_bytes=8, cache_digest=None)
+        ]
+
+    def test_a_coordinator_without_the_hook_raises_before_walking_even_an_empty_bundle(self, tmp_path):
+        with pytest.raises(
+            NotImplementedError, match="_StubSubprocessCoordinator does not list task handler artifacts"
+        ):
+            _StubSubprocessCoordinator(command=["x"]).list_task_handler_candidates(tmp_path)
