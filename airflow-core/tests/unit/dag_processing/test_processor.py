@@ -59,6 +59,7 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
     TaskHandlerDeclaration,
+    TaskHandlerParam,
     TaskHandlerParseRequest,
     TaskHandlerParsingResult,
     ToDagProcessor,
@@ -2369,32 +2370,41 @@ class TestDagProcessingMessageTypes:
 
 class TestTaskHandlerDeclaration:
     @pytest.mark.parametrize(
-        ("binding", "param", "expected_name", "expected_exact_name"),
+        ("binding", "param", "expected"),
         [
-            pytest.param("positional", {"name": None, "required": True}, None, False, id="positional"),
+            pytest.param("positional", {"name": None}, TaskHandlerParam(name=None), id="positional"),
             pytest.param(
-                "named", {"name": "day", "required": False, "exact_name": True}, "day", True, id="named"
+                "named",
+                {"name": "day", "exact_name": True},
+                TaskHandlerParam(name="day", exact_name=True),
+                id="named",
             ),
-            pytest.param(
-                "named_or_whole", {"name": "Day", "required": False}, "Day", False, id="named_or_whole"
-            ),
-            pytest.param("named_open", {"name": "day", "required": False}, "day", False, id="named_open"),
         ],
     )
-    def test_decodes_binding(self, binding, param, expected_name, expected_exact_name):
+    def test_decodes_binding(self, binding, param, expected):
         declaration = TaskHandlerDeclaration.model_validate(
             {"task_id": "extract", "binding": binding, "params": [param]}
         )
 
         assert declaration.binding == binding
-        assert declaration.params[0].name == expected_name
-        assert declaration.params[0].exact_name is expected_exact_name
+        assert declaration.params == [expected]
+
+    def test_decodes_unlisted_params(self):
+        declaration = TaskHandlerDeclaration.model_validate(
+            {"task_id": "extract", "binding": "named", "params": None}
+        )
+
+        assert declaration.params is None
 
     @pytest.mark.parametrize(
         "declaration",
         [
             pytest.param({"task_id": "extract", "params": []}, id="missing"),
             pytest.param({"task_id": "extract", "binding": "keyword", "params": []}, id="unknown"),
+            pytest.param(
+                {"task_id": "extract", "binding": "named_or_whole", "params": []}, id="named_or_whole"
+            ),
+            pytest.param({"task_id": "extract", "binding": "named_open", "params": []}, id="named_open"),
         ],
     )
     def test_rejects_invalid_binding(self, declaration):
@@ -2462,8 +2472,8 @@ class TestDagFileProcessorProcess:
                             "task_id": "extract",
                             "binding": "positional",
                             "params": [
-                                {"name": "day", "value_schema": {"type": "string"}, "required": True},
-                                {"name": "limit", "required": False},
+                                {"name": "day", "value_schema": {"type": "string"}},
+                                {"name": "limit"},
                             ],
                         }
                     ]
