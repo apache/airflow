@@ -168,10 +168,7 @@ export async function startCoordinator(
     const body = asMsgFromSupervisor(firstFrame.body);
 
     if (body.type === "TaskHandlerParseRequest") {
-      runtimeLogs.info("Received task handler parse request", {
-        file: body.file,
-        dag_ids: body.dag_ids,
-      });
+      runtimeLogs.info("Received task handler parse request", { file: body.file });
       const result = declareTaskHandlers(bundle, body);
       await sendParseResult(result, comm, runtimeLogs);
       runtimeLogs.info("Declared task handlers", {

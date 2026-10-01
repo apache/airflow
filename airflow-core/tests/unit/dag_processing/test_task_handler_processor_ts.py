@@ -128,7 +128,6 @@ def test_a_packed_bundle_declares_its_task_handlers(mock_should_use_exec, exampl
         bundle_path=example_bundle.parent,
         bundle_name="ts-task-handlers",
         artifact_rel_path=example_bundle.name,
-        dag_ids=["typescript_taskflow_example", "typescript_example", "not_registered"],
         logger=structlog.get_logger(),
     )
 

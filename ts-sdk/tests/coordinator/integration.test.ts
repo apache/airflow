@@ -617,7 +617,6 @@ describe("coordinator runtime integration", () => {
     const parseRequest = {
       type: "TaskHandlerParseRequest",
       file: "/bundles/etl.min.mjs",
-      dag_ids: ["py_dag"],
       bundle_path: "/bundles",
       bundle_name: "ts-task-handlers",
     };

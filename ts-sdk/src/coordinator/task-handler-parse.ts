@@ -17,9 +17,9 @@
  * under the License.
  */
 
-// The answer to a TaskHandlerParseRequest: the task handlers this bundle
-// registers for the Dags a Python file declares, as the Dag processor checks
-// them against that file's `@task.stub` calls.
+// The answer to a TaskHandlerParseRequest: every task handler this bundle
+// registers, as the Dag processor checks them against a Python file's
+// `@task.stub` calls.
 
 import type { TaskHandlerDeclaration, TaskHandlerParseRequest } from "../generated/supervisor.js";
 import type { RuntimeTaskHandlerParsingResult } from "./protocol.js";
@@ -28,21 +28,16 @@ import { bundleTaskHandlers, type Bundle } from "../sdk/bundle.js";
 import type { TaskFunction } from "../sdk/task.js";
 
 /**
- * Declare the task handlers registered for the requested Dags, each Dag's in
- * registration order. A requested Dag with no handler is left out rather than
- * mapped to an empty list, and a Dag declared in TypeScript is never declared.
- * No handler runs.
- *
- * @throws when the request's `dag_ids` is not a list of strings.
+ * Declare every registered task handler, keyed by Dag id, each Dag's in
+ * registration order. A Dag declared in TypeScript is never declared. No
+ * handler runs.
  */
 export function declareTaskHandlers(
   bundle: Bundle,
-  request: Pick<TaskHandlerParseRequest, "file" | "dag_ids">,
+  request: Pick<TaskHandlerParseRequest, "file">,
 ): RuntimeTaskHandlerParsingResult {
-  const requested = new Set(readDagIds(request));
   const declared: [string, TaskHandlerDeclaration[]][] = [];
   for (const [dagId, handlers] of bundleTaskHandlers(bundle)) {
-    if (!requested.has(dagId)) continue;
     declared.push([
       dagId,
       [...handlers].map(([taskId, handler]) => declareTaskHandler(taskId, handler)),
@@ -75,15 +70,4 @@ function declareTaskHandler(taskId: string, handler: TaskFunction): TaskHandlerD
       exact_name: true,
     })),
   };
-}
-
-function readDagIds(request: Pick<TaskHandlerParseRequest, "dag_ids">): string[] {
-  // Checked, or a request this SDK cannot read would be answered with no handlers at all.
-  const dagIds: unknown = request.dag_ids;
-  if (!Array.isArray(dagIds) || !dagIds.every((dagId) => typeof dagId === "string")) {
-    throw new Error(
-      `TaskHandlerParseRequest.dag_ids must be a list of strings, got ${JSON.stringify(dagIds)}`,
-    );
-  }
-  return dagIds as string[];
 }

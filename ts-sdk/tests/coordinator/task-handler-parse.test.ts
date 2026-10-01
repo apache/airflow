@@ -29,19 +29,19 @@ const FILE = "/bundles/etl.min.mjs";
 
 async function noop(): Promise<void> {}
 
-function declare(bundle: Bundle, dagIds: unknown) {
-  return declareTaskHandlers(bundle, { file: FILE, dag_ids: dagIds as string[] });
+function declare(bundle: Bundle) {
+  return declareTaskHandlers(bundle, { file: FILE });
 }
 
 describe("declareTaskHandlers", () => {
-  it("declares each requested Dag's handlers in registration order", () => {
+  it("declares every Dag's handlers in registration order", () => {
     const bundle = new Bundle(
       new TaskHandler("etl", "extract", noop),
       new TaskHandler("reports", "send", noop),
       new TaskHandler("etl", "load", noop),
     );
 
-    const result = declare(bundle, ["reports", "etl"]);
+    const result = declare(bundle);
 
     expect(result).toStrictEqual({
       type: "TaskHandlerParsingResult",
@@ -68,7 +68,7 @@ describe("declareTaskHandlers", () => {
       async ({ label }: ReportArgs) => label,
     );
 
-    const result = declare(new Bundle(new TaskHandler("etl", "report", report)), ["etl"]);
+    const result = declare(new Bundle(new TaskHandler("etl", "report", report)));
 
     expect(result.task_handlers).toEqual({
       etl: [
@@ -84,34 +84,20 @@ describe("declareTaskHandlers", () => {
     });
   });
 
-  it("leaves out unrequested Dags and requested Dags with no handler", () => {
-    const bundle = new Bundle(
-      new TaskHandler("etl", "extract", noop),
-      new TaskHandler("reports", "send", noop),
-    );
-
-    expect(Object.keys(declare(bundle, ["etl", "missing"]).task_handlers)).toEqual(["etl"]);
-    expect(declare(bundle, ["missing"]).task_handlers).toEqual({});
-  });
-
   it("does not declare a Dag declared in TypeScript", () => {
     const native = new Dag("native");
     native.task("run", noop)();
-    const bundle = new Bundle(native, new TaskHandler("etl", "extract", noop));
 
-    expect(Object.keys(declare(bundle, ["native", "etl"]).task_handlers)).toEqual(["etl"]);
+    const mixed = new Bundle(native, new TaskHandler("etl", "extract", noop));
+
+    expect(declare(new Bundle(native)).task_handlers).toEqual({});
+    expect(Object.keys(declare(mixed).task_handlers)).toEqual(["etl"]);
   });
 
   it("keeps a Dag named __proto__ as a key", () => {
-    const result = declare(new Bundle(new TaskHandler("__proto__", "run", noop)), ["__proto__"]);
+    const result = declare(new Bundle(new TaskHandler("__proto__", "run", noop)));
 
     expect(Object.keys(result.task_handlers)).toEqual(["__proto__"]);
     expect(Object.getPrototypeOf(result.task_handlers)).toBe(Object.prototype);
-  });
-
-  it.each([[undefined], ["etl"], [["etl", 1]]])("rejects dag_ids of %j", (dagIds) => {
-    const bundle = new Bundle(new TaskHandler("etl", "extract", noop));
-
-    expect(() => declare(bundle, dagIds)).toThrow(/dag_ids must be a list of strings/);
   });
 });

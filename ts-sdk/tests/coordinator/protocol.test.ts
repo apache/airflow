@@ -58,7 +58,6 @@ describe("protocol decode", () => {
     const raw = {
       type: "TaskHandlerParseRequest",
       file: "/x.min.mjs",
-      dag_ids: ["d"],
       bundle_path: "/",
       bundle_name: "ts-task-handlers",
     };
