@@ -472,59 +472,59 @@ export const DagsList = () => {
             selectedRows={selectedRows}
           >
             <DataTable
-            cardDef={cardDef}
-            columns={columns}
-            data={data?.dags ?? []}
-            displayMode={display}
-            enableMultiSort
-            errorMessage={<ErrorAlert error={error} />}
-            filterActions={
-              <VStack alignItems="flex-start" gap={2} w="100%">
-                <SearchBar
-                  advancedSearch={advancedSearch}
-                  defaultValue={dagDisplayNamePattern}
-                  onChange={handleSearchChange}
-                  placeholder={translate("dags:search.dags")}
-                />
-                <DagsFilters />
-              </VStack>
-            }
-            headingExtra={<DagImportErrors iconOnly />}
-            initialState={tableURLState}
-            isFetching={isFetching}
-            isLoading={isLoading}
-            modelName="common:dag"
-            onDisplayToggleChange={handleDisplayToggleChange}
-            onStateChange={setTableURLState}
-            presentationActions={
-              hasFolderTree || display === "card" ? (
-                <>
-                  {hasFolderTree ? (
-                    <Tooltip
-                      content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                      openDelay={200}
-                      portalled
-                    >
-                      <IconButton
-                        aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                        onClick={() => setShowFolders(!showFolders)}
-                        size="sm"
-                        variant={showFolders ? "solid" : "ghost"}
+              cardDef={cardDef}
+              columns={columns}
+              data={data?.dags ?? []}
+              displayMode={display}
+              enableMultiSort
+              errorMessage={<ErrorAlert error={error} />}
+              filterActions={
+                <VStack alignItems="flex-start" gap={2} w="100%">
+                  <SearchBar
+                    advancedSearch={advancedSearch}
+                    defaultValue={dagDisplayNamePattern}
+                    onChange={handleSearchChange}
+                    placeholder={translate("dags:search.dags")}
+                  />
+                  <DagsFilters />
+                </VStack>
+              }
+              headingExtra={<DagImportErrors iconOnly />}
+              initialState={tableURLState}
+              isFetching={isFetching}
+              isLoading={isLoading}
+              modelName="common:dag"
+              onDisplayToggleChange={handleDisplayToggleChange}
+              onStateChange={setTableURLState}
+              presentationActions={
+                hasFolderTree || display === "card" ? (
+                  <>
+                    {hasFolderTree ? (
+                      <Tooltip
+                        content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                        openDelay={200}
+                        portalled
                       >
-                        <FiSidebar />
-                      </IconButton>
-                    </Tooltip>
-                  ) : undefined}
-                  {display === "card" ? (
-                    <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
-                  ) : undefined}
-                </>
-              ) : undefined
-            }
-            showDisplayToggle
-            skeletonCount={display === "card" ? 5 : undefined}
-            total={totalEntries}
-          />
+                        <IconButton
+                          aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                          onClick={() => setShowFolders(!showFolders)}
+                          size="sm"
+                          variant={showFolders ? "solid" : "outline"}
+                        >
+                          <FiSidebar />
+                        </IconButton>
+                      </Tooltip>
+                    ) : undefined}
+                    {display === "card" ? (
+                      <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
+                    ) : undefined}
+                  </>
+                ) : undefined
+              }
+              showDisplayToggle
+              skeletonCount={display === "card" ? 5 : undefined}
+              total={totalEntries}
+            />
             <ActionBar.Root
               closeOnInteractOutside={false}
               open={display === "table" && selectedRows.size > 0}
