@@ -629,9 +629,7 @@ def _make_known_artifact_body(**overrides) -> dict:
         "size_bytes": 1024,
         "cache_digest": "ab12",
         "task_handlers": {
-            "etl": [
-                {"task_id": "extract", "binding": "positional", "params": [{"name": None, "required": True}]}
-            ]
+            "etl": [{"task_id": "extract", "binding": "positional", "params": [{"name": None}]}]
         },
         **overrides,
     }
@@ -673,7 +671,7 @@ def test_parse_file_entrypoint_decodes_known_artifacts():
                     TaskHandlerDeclaration(
                         task_id="extract",
                         binding="positional",
-                        params=[TaskHandlerParam(name=None, required=True)],
+                        params=[TaskHandlerParam(name=None)],
                     )
                 ]
             },

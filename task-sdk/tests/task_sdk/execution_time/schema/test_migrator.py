@@ -541,7 +541,7 @@ class TestRealBundleKnownArtifacts:
                             TaskHandlerDeclaration(
                                 task_id="extract",
                                 binding="positional",
-                                params=[TaskHandlerParam(name=None, required=True)],
+                                params=[TaskHandlerParam(name=None)],
                             )
                         ]
                     },
@@ -572,9 +572,7 @@ class TestRealBundleKnownArtifacts:
                         {
                             "task_id": "extract",
                             "binding": "positional",
-                            "params": [
-                                {"name": None, "value_schema": None, "required": True, "exact_name": False}
-                            ],
+                            "params": [{"name": None, "value_schema": None, "exact_name": False}],
                         }
                     ]
                 },
