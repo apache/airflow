@@ -307,20 +307,19 @@ Without it, a transient parse failure would silently wipe every binding the file
 
 A candidate the fast path skips is answered from its recorded `task_handlers`, so the child resolves and validates every stub task of the file on every parse, and a list always holds all of the file's bindings. There is no separate "keep these" signal for the reconcile to get wrong.
 
-**Scheduler → worker.** `ExecuteTask` and `StartupDetails` each gain one optional reference. The
-artifact bundle is a second, independent bundle, so it needs its own `BundleInfo`.
+**Scheduler → worker.** `ExecuteTask` and `StartupDetails` each gain one optional reference to the artifact that implements the stub task.
 
 ```python
-class SDKTaskHandlerRef(BaseModel):
-    bundle_info: BundleInfo  # the artifact bundle: name, version, version_data
-    rel_path: str  # path within it
+class TaskHandlerArtifactRef(BaseModel):
+    bundle_info: BundleInfo | None = None  # the artifact bundle; None: the task's own Dag bundle
+    rel_path: str  # POSIX path within it
 
 
 class ExecuteTask(BaseDagBundleWorkload):
     ti: TaskInstanceDTO
     dag_rel_path: os.PathLike[str]  # the Python Dag file, unchanged
     bundle_info: BundleInfo  # the Dag bundle, unchanged
-    task_handler: SDKTaskHandlerRef | None = None  # new
+    task_handler_artifact: TaskHandlerArtifactRef | None = None  # new
     ...
 
 
@@ -328,9 +327,13 @@ class StartupDetails(BaseModel):
     ti: TaskInstance
     dag_rel_path: str
     bundle_info: BundleInfo
-    task_handler: SDKTaskHandlerRef | None = None  # new
+    task_handler_artifact: TaskHandlerArtifactRef | None = None  # new, as the workload carries it
     ...
 ```
+
+An artifact in a named bundle needs that bundle's own `BundleInfo`, since it is a second, independent bundle. An artifact in the task's own Dag bundle has `bundle_info=None` instead, because a copy of the Dag's `BundleInfo` would send its `version_data`, which can be a whole object manifest, a second time on every workload.
+
+The task's own bundle is read at the version the run uses: its pinned version, or the version current when the task starts if the run is not pinned. For a pinned run, the artifact then matches the Dag code the run is pinned to. A named bundle carries no version, since artifact rows record none, so it resolves to the version current when the task starts. Either way the resolved version is pinned for the whole task. The scheduler decides "own bundle" by name, so a coordinator whose `task_handler_bundle_name` names the Dag's own bundle also reads it at the version the run uses.
 
 `None` means "this task needs no Lang-SDK artifact" (an ordinary Python task). It never means
 "unknown": a stub task that failed to resolve is not queued at all (see "Failure handling").
@@ -486,10 +489,10 @@ SchedulerJobRunner._enqueue_task_instances_with_queued_state   [no further DB re
         is_stub and no binding?  → FAIL the TI with the reason   ← new
                                    never queue it
         │
-        └── ExecuteTask.make(ti, task_handler=SDKTaskHandlerRef(...))
-              dag_rel_path   ← ti.dag_model.relative_fileloc      (existing)
-              bundle_info    ← Dag bundle, pinned to the run       (existing)
-              task_handler   ← artifact bundle + rel_path          ← new
+        └── ExecuteTask.make(ti, task_handler_artifact=TaskHandlerArtifactRef(...))
+              dag_rel_path            ← ti.dag_model.relative_fileloc   (existing)
+              bundle_info             ← Dag bundle, pinned to the run    (existing)
+              task_handler_artifact   ← artifact bundle + rel_path       ← new
               │
               └── executor.queue_workload(workload)
 ```
@@ -502,22 +505,22 @@ A stub task with no binding is **failed with its reason**, not skipped.
 executor worker process
   └── BaseExecutor.run_workload(workload)
         └── supervise_task(ti=…, bundle_info=…, dag_rel_path=…,
-                           task_handler=workload.task_handler)        ← new
+                           task_handler_artifact=workload.task_handler_artifact)   ← new
               │
               ├── coordinator = get_coordinator_manager().for_queue(ti.queue)
               │     unchanged: execution still routes on queue
               │
-              └── coordinator.execute_task(what=ti, …, task_handler=…)
+              └── coordinator.execute_task(what=ti, …, task_handler_artifact=…)
+                    ├── bundle = initialize(task_handler_artifact.bundle_info
+                    │                       or the task's bundle_info)   ← the artifact's bundle
+                    │                                                      (the task's own, or a named one)
+                    │   pinned and held under BundleVersionLock for the whole task
+                    ├── bundle.path / rel_path is not a file in it?  → fail the task
+                    │
                     └── SubprocessCoordinator._build_execute_task_command(
-                            what=ti, task_handler=task_handler)        ← signature change
+                            what=ti, task_handler_artifact=…)        ← signature change
                           │
-                          ├── bundle = DagBundlesManager().get_bundle(
-                          │       name=task_handler.bundle_info.name,
-                          │       version=task_handler.bundle_info.version,
-                          │       version_data=task_handler.bundle_info.version_data)
-                          │   bundle.initialize()          ← the SECOND bundle
-                          │
-                          ├── artifact = bundle.path / task_handler.rel_path
+                          ├── artifact = bundle.path / task_handler_artifact.rel_path
                           │   NO directory walk. NO dag_id match. NO metadata["dags"].
                           │
                           ├── verify integrity, read supervisor_schema_version
@@ -534,7 +537,7 @@ executor worker process
                     │
                     └── _PopenActivitySubprocess.start(…)
                           ──StartupDetails(ti, dag_rel_path, bundle_info,
-                                           task_handler)──▶ runtime
+                                           task_handler_artifact)──▶ runtime
                           runtime looks up its own registration by
                           (ti.dag_id, ti.task_id) — unchanged
 ```
@@ -597,8 +600,8 @@ definition whose author can act) naming both artifact paths, since the fix is in
   and versioning from `DagBundle`. Deployments that mount artifacts themselves point a `LocalDagBundle` at the mount.
 - Two new tables and one migration. `lang_sdk_task_handler` is reconciled on every parse of a file
   that owns rows in it; `lang_sdk_task_handler_artifact` is a cache with no per-file eviction.
-- The artifact bundle is a second bundle on the execution path. `ExecuteTask` and `StartupDetails`
-  each grow one optional `SDKTaskHandlerRef`, and the worker performs a second `initialize()`. Workload payloads grow by roughly one `BundleInfo`.
+- `ExecuteTask` and `StartupDetails` each grow one optional `TaskHandlerArtifactRef`. On the coordinator
+  path the worker initializes the artifact's bundle, the task's own or a named one, in place of the Dag bundle, not in addition to it. Workload payloads grow by an artifact path, plus a bundle name for a named bundle.
 - `DagFileParseRequest` gains a field and `DagFileParsingResult` two, and `ToSDKTaskHandlerProcessor`
   becomes a fifth union the supervisor-schema registry introspects. Both messages already appear in
   the generated schemas of all three SDKs, so the snapshot is regenerated and the two prek hooks guarding it run.
