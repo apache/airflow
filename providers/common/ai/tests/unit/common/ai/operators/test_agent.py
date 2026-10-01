@@ -24,6 +24,7 @@ from contextlib import nullcontext
 from datetime import timedelta
 from decimal import Decimal
 from types import ModuleType, SimpleNamespace
+from typing import Any
 from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 
 import pytest
@@ -76,6 +77,7 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 from airflow.providers.common.ai.utils.toolsets import find_toolset
 from airflow.providers.common.ai.utils.usage_budget import (
@@ -765,7 +767,7 @@ class TestAgentOperatorExecute:
         # On 3.3+ the agent may also end on a tool call awaiting approval.
         expected_output_type = [str, DeferredToolRequests] if AIRFLOW_V_3_3_PLUS else str
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=expected_output_type, instructions="You are helpful."
+            output_type=expected_output_type, instructions="You are helpful.", capabilities=[PromptCaching()]
         )
         mock_agent.run_sync.assert_called_once_with(
             "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
@@ -835,13 +837,19 @@ class TestAgentOperatorExecute:
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_code_mode_default_off_no_capabilities(self, mock_hook_cls, make_mock_run_result):
-        """code_mode defaults to False, so no capabilities are injected."""
+        """code_mode defaults to False, so with cache_prompt off no capabilities are injected."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "ok", make_mock_run_result
         )
 
-        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()])
-        op.execute(context=MagicMock())
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            toolsets=[MagicMock(spec=AbstractToolset)],
+            cache_prompt=False,
+        )
+        op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert "capabilities" not in create_call[1]
@@ -855,9 +863,14 @@ class TestAgentOperatorExecute:
         )
 
         op = AgentOperator(
-            task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()], code_mode=True
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            toolsets=[MagicMock(spec=AbstractToolset)],
+            code_mode=True,
+            cache_prompt=False,
         )
-        op.execute(context=MagicMock())
+        op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["capabilities"] == ["CM"]
@@ -878,9 +891,10 @@ class TestAgentOperatorExecute:
             prompt="hi",
             llm_conn_id="my_llm",
             code_mode=True,
+            cache_prompt=False,
             agent_params={"capabilities": ["existing"]},
         )
-        op.execute(context=MagicMock())
+        op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["capabilities"] == ["existing", "CM"]
@@ -916,6 +930,53 @@ class TestAgentOperatorExecute:
         """durable and code_mode cannot be combined (durable replay assumes stable step order)."""
         with pytest.raises(ValueError, match="durable=True and code_mode=True"):
             AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", durable=True, code_mode=True)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_cache_prompt_default_on_appends_capability_last(self, mock_hook_cls, make_mock_run_result):
+        """cache_prompt defaults to True and adds PromptCaching after any user capability."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+
+        op = AgentOperator(
+            task_id="t", prompt="hi", llm_conn_id="my_llm", agent_params={"capabilities": ["existing"]}
+        )
+        op.execute(context=_make_context())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call[1]["capabilities"] == ["existing", PromptCaching()]
+        assert op.agent_params["capabilities"] == ["existing"]
+
+    @pytest.mark.parametrize(
+        ("cache_prompt", "expected_anthropic_messages"),
+        [pytest.param(True, True, id="on"), pytest.param(False, None, id="off")],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_cache_prompt_reaches_the_model_request(
+        self, mock_hook_cls, cache_prompt, expected_anthropic_messages
+    ):
+        """The cache settings arrive on the model request, alongside the caller's own settings."""
+        seen: dict[str, Any] = {}
+
+        def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            seen.update(info.model_settings or {})
+            return ModelResponse(parts=[TextPart("ok")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            cache_prompt=cache_prompt,
+            agent_params={"model_settings": {"temperature": 0}},
+        )
+        op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+
+        assert seen["temperature"] == 0
+        assert seen.get("anthropic_cache_messages") is expected_anthropic_messages
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -1202,7 +1263,7 @@ class TestAgentOperatorCapabilities:
         op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_call.kwargs["capabilities"] == [thinking, search]
+        assert create_call.kwargs["capabilities"] == [thinking, search, PromptCaching()]
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_capabilities_in_both_places_are_refused(self, mock_hook_cls):

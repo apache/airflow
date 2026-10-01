@@ -20,6 +20,7 @@ import logging
 from decimal import Decimal
 from unittest.mock import MagicMock
 
+import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
@@ -59,7 +60,9 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None, co
         "total_tokens": 3359,
     }
     result = MagicMock()
-    result.usage = MagicMock(cost=cost, **usage_kwargs)
+    result.usage = MagicMock(
+        spec=RunUsage, cost=cost, **{"cache_read_tokens": 0, "cache_write_tokens": 0, **usage_kwargs}
+    )
     result.response = MagicMock(model_name=model_name)
 
     messages: list = []
@@ -147,6 +150,46 @@ class TestLogRunSummary:
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert not any("LLM run cost" in r.message for r in records)
 
+    def test_no_cache_tokens_skips_cache_line(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result()
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert not any("prompt cache" in r.message for r in records)
+
+    @pytest.mark.parametrize(
+        ("cache_read_tokens", "cache_write_tokens"),
+        [
+            pytest.param(2900, 0, id="read-only"),
+            pytest.param(0, 3000, id="write-only"),
+            pytest.param(2900, 3000, id="read-and-write"),
+        ],
+    )
+    def test_cache_tokens_logged_after_the_usage_line(self, caplog, cache_read_tokens, cache_write_tokens):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(
+            usage_kwargs={
+                "requests": 2,
+                "tool_calls": 1,
+                "input_tokens": 6000,
+                "output_tokens": 40,
+                "total_tokens": 6040,
+                "cache_read_tokens": cache_read_tokens,
+                "cache_write_tokens": cache_write_tokens,
+            }
+        )
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == (
+            f"LLM prompt cache: cache_read_tokens={cache_read_tokens}, cache_write_tokens={cache_write_tokens}"
+        )
+
     def test_cost_set_logs_cost_line_with_value(self, caplog):
         logger = logging.getLogger("test.log_run_summary")
         result = _make_mock_result(cost=Decimal("0.0123"))
@@ -199,6 +242,16 @@ class TestLogRunSummaryUsageOverride:
 
 
 class TestLogRunUsage:
+    def test_logs_cache_tokens_on_the_failure_path(self, caplog):
+        logger = logging.getLogger("test.log_run_usage")
+        usage = RunUsage(requests=1, input_tokens=5000, cache_write_tokens=4000)
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_usage"):
+            log_run_usage(logger, usage, outcome="failed")
+
+        records = [r for r in caplog.records if r.name == "test.log_run_usage"]
+        assert records[1].message == "LLM prompt cache: cache_read_tokens=0, cache_write_tokens=4000"
+
     def test_logs_usage_fields_and_outcome(self):
         logger = MagicMock(spec=logging.Logger)
         usage = RunUsage(requests=2, tool_calls=1, input_tokens=10, output_tokens=5)

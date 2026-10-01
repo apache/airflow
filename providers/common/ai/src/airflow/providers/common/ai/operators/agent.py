@@ -57,6 +57,7 @@ from airflow.providers.common.ai.utils.logging import (
     wrap_toolsets_for_logging,
 )
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
@@ -366,6 +367,19 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         stable per-step call order that code mode does not guarantee), whether
         code mode comes from this flag or from a ``CodeMode`` capability.
         Default ``False``.
+    :param cache_prompt: When ``True`` (default), asks the provider to cache the
+        tool definitions, system prompt and conversation so far, so the next
+        request in the run -- and a mapped task's other instances within the
+        cache lifetime -- reads them back at a fraction of the input price instead
+        of paying for them again. Turns on prompt caching for Anthropic models and
+        for Bedrock and OpenRouter models that support it; a no-op for OpenAI and
+        Gemini, which cache long prompts on their own. A provider's own cache
+        settings in ``agent_params["model_settings"]`` or a spec file take
+        precedence: setting any ``anthropic_cache*`` key leaves Anthropic caching
+        entirely to you, and a ``CachePoint`` in the prompt or message history
+        leaves all of it to you. Set ``False`` where a cache write is rarely read
+        back, such as a single long request that is not mapped. See
+        :ref:`agent-prompt-caching` for when caching costs more than it saves.
     :param message_history: Prior conversation to seed the run with, for
         multi-turn sessions that span task runs. Accepts a ``list`` of
         pydantic-ai ``ModelMessage`` objects, or their JSON form as ``str`` /
@@ -476,6 +490,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         durable: bool = False,
         code_mode: bool = False,
+        cache_prompt: bool = True,
         message_history: list[ModelMessage] | str | bytes | None = None,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
@@ -510,6 +525,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
         self.durable = durable
         self.code_mode = code_mode
+        self.cache_prompt = cache_prompt
 
         # Populated per run in ``execute`` when durable=True. Declared here so
         # ``_build_agent`` -- also reached via ``regenerate_with_feedback``
@@ -750,6 +766,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
         if self.code_mode:
             capabilities.append(_build_code_mode())
+        if self.cache_prompt:
+            capabilities.append(PromptCaching())
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
         return self.llm_hook.create_agent(
