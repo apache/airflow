@@ -51,6 +51,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.manager import (
     BundleState,
     DagFileInfo,
@@ -71,9 +72,9 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG as SdkDAG
+from airflow.sdk import DAG as SdkDAG, BaseOperator
 from airflow.sdk.importers import DagDefinition, DagImporterRegistry, DagImportError, DagSourceCode
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -89,6 +90,12 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
     clear_db_teams,
+)
+from unit.dag_processing.fake_lang_sdk import (
+    FakeCoordinator,
+    fake_coordinator,
+    play_runtime,
+    write_native_file,
 )
 from unit.models import TEST_DAGS_FOLDER
 
@@ -1660,6 +1667,132 @@ class TestDagFileProcessorManager:
 
         _, kwargs = mock_start.call_args
         assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
+
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_create_process_parses_a_coordinator_file_with_its_runtime(self, mock_get_logger, tmp_path):
+        mock_get_logger.return_value = (MagicMock(), MagicMock())
+        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("dags.native"), bundle_path=tmp_path)
+
+        with (
+            fake_coordinator(),
+            mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True) as mock_start,
+        ):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._create_process(dag_file)
+
+        kwargs = mock_start.call_args.kwargs
+        assert (kwargs["path"], kwargs["dag_file_rel_path"]) == (tmp_path / "dags.native", "dags.native")
+        assert kwargs["client"] is manager.client
+
+    @pytest.mark.parametrize("rel_path", ["my_dag.py", "dags.fake"])
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_create_process_keeps_the_python_parse_for_other_files(self, mock_get_logger, rel_path, tmp_path):
+        mock_get_logger.return_value = (MagicMock(), MagicMock())
+        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path(rel_path), bundle_path=tmp_path)
+
+        with (
+            fake_coordinator(),
+            mock.patch.object(DagFileProcessorProcess, "start", autospec=True) as mock_start,
+            mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True) as mock_lang_sdk_start,
+        ):
+            DagFileProcessorManager(max_runs=1)._create_process(dag_file)
+
+        mock_start.assert_called_once()
+        mock_lang_sdk_start.assert_not_called()
+
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_create_process_drops_callbacks_for_a_coordinator_file(self, mock_get_logger, tmp_path, caplog):
+        mock_get_logger.return_value = (MagicMock(), MagicMock())
+        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("dags.native"), bundle_path=tmp_path)
+        callback = DagCallbackRequest(
+            filepath="dags.native",
+            dag_id="native_dag",
+            run_id="run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+        )
+
+        with (
+            fake_coordinator(),
+            mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True) as mock_start,
+            caplog.at_level(logging.WARNING, logger="airflow.dag_processing.manager"),
+        ):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._callback_to_execute[dag_file] = [callback]
+            manager._create_process(dag_file)
+
+        assert "callbacks" not in mock_start.call_args.kwargs
+        assert dag_file not in manager._callback_to_execute
+        assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [
+            "Dropping 1 callbacks for dags.native: Lang-SDK runtimes do not run callbacks"
+        ]
+
+    @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager, "_find_files_in_bundle", autospec=True, return_value=[Path("good.native")]
+    )
+    def test_coordinator_files_are_persisted(
+        self, mock_find_files, mock_parse_dag, tmp_path, configure_testing_dag_bundle
+    ):
+        def reply(request, comms):
+            with SdkDAG("native_dag", schedule=None) as dag:
+                BaseOperator(task_id="extract")
+            data = DagSerialization.to_dict(dag)
+            data["dag"].update(fileloc=request.file, relative_fileloc="good.native")
+            return DagFileParsingResult(
+                fileloc=request.file, serialized_dags=[LazyDeserializedDAG(data=data)]
+            )
+
+        mock_parse_dag.side_effect = play_runtime(reply)
+        write_native_file(tmp_path / "good.native")
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            DagFileProcessorManager(max_runs=1, processor_timeout=60).run()
+
+        with create_session() as session:
+            serialized_dag = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == "native_dag")
+            )
+            dag_code = session.scalar(select(DagCode).where(DagCode.dag_id == "native_dag"))
+
+        assert serialized_dag.data["dag"]["tasks"][0]["__var"]["task_id"] == "extract"
+        assert dag_code.source_code == (tmp_path / "good.native").read_text()
+
+    @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        return_value=[Path("garbage.native"), Path("python_dag.py")],
+    )
+    def test_an_invalid_frame_does_not_stop_other_files_parsing(
+        self, mock_find_files, mock_parse_dag, tmp_path, configure_testing_dag_bundle
+    ):
+        def reply(request, comms):
+            comms.socket.sendall(bytes.fromhex("00000003c1c1c1"))
+            time.sleep(60)
+
+        mock_parse_dag.side_effect = play_runtime(reply)
+        write_native_file(tmp_path / "garbage.native")
+        (tmp_path / "python_dag.py").write_text(
+            "from airflow.sdk import DAG\nfrom airflow.sdk.bases.operator import BaseOperator\n\n"
+            'with DAG("python_dag", schedule=None):\n    BaseOperator(task_id="task")\n'
+        )
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+            manager.run()
+
+        with create_session() as session:
+            dag_ids = session.scalars(select(SerializedDagModel.dag_id)).all()
+            import_errors = session.scalars(select(ParseImportError)).all()
+
+        assert dag_ids == ["python_dag"]
+        [import_error] = import_errors
+        assert import_error.filename == "garbage.native"
+        assert import_error.stacktrace.startswith("The Lang-SDK runtime sent an invalid frame: ")
+        assert manager.selector.get_map() == {}
 
     def test_terminate_orphan_processes_kills_then_closes_processor(self):
         manager = DagFileProcessorManager(max_runs=1)
