@@ -2870,30 +2870,17 @@ def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session):
     assert retry_ti.priority_weight == 2
 
 
-@pytest.mark.need_serialized_dag
 def test_schedule_tis_refreshes_a_retry_that_defers_from_trigger(dag_maker, session):
-    class TestOperator(BaseOperator):
-        start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.testing.SuccessTrigger",
-            trigger_kwargs=None,
-            next_method="execute_complete",
-            timeout=None,
-        )
-        start_from_trigger = True
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.start_trigger_args.trigger_kwargs = {}
-
-        def execute_complete(self):
-            pass
-
     with dag_maker(session=session):
-        TestOperator(task_id="task")
+        task = MockOperator(task_id="task")
+        task.start_from_trigger = True
+        task.start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            next_method="execute_complete",
+        )
 
     dr = dag_maker.create_dagrun(session=session)
-    ti = dr.get_task_instance("task", session=session)
-    ti.task = dr.dag.get_task("task")
+    ti = dag_maker.create_ti("task", dag_run=dr)
     ti.state = TaskInstanceState.UP_FOR_RETRY
     ti.try_number = 2
     session.commit()
@@ -2910,9 +2897,7 @@ def test_schedule_tis_refreshes_a_retry_that_defers_from_trigger(dag_maker, sess
 
     assert hook_calls == [("task", 2)]
     session.expire_all()
-    deferred_ti = dr.get_task_instance("task", session=session)
-    assert deferred_ti.state == TaskInstanceState.DEFERRED
-    assert deferred_ti.queue == "retry_queue"
+    assert (ti.state, ti.queue) == (TaskInstanceState.DEFERRED, "retry_queue")
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
