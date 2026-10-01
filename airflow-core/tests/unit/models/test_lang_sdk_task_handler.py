@@ -54,13 +54,14 @@ def _make_artifact(
     *,
     bundle_name: str = ARTIFACT_BUNDLE,
     relative_fileloc: str = "etl.jar",
+    cache_digest: str | None = "0" * 64,
     task_handlers: dict[str, list[dict[str, Any]]] | None = None,
 ) -> LangSDKTaskHandlerArtifact:
     return LangSDKTaskHandlerArtifact(
         bundle_name=bundle_name,
         relative_fileloc=relative_fileloc,
         size_bytes=1024,
-        cache_digest="0" * 64,
+        cache_digest=cache_digest,
         task_handlers=TASK_HANDLERS if task_handlers is None else task_handlers,
     )
 
@@ -107,6 +108,14 @@ def test_artifact_stores_its_task_handlers(session, task_handlers):
     session.expire_all()
 
     assert session.scalar(select(LangSDKTaskHandlerArtifact.task_handlers)) == task_handlers
+
+
+def test_artifact_can_store_no_cache_digest(session):
+    session.add(_make_artifact(cache_digest=None))
+    session.flush()
+    session.expire_all()
+
+    assert session.scalar(select(LangSDKTaskHandlerArtifact.cache_digest)) is None
 
 
 def test_deleting_referenced_artifact_fails(testing_dag_bundle, session):

@@ -72,7 +72,8 @@ class LangSDKTaskHandlerArtifact(Base):
         String(32), nullable=False, default=_build_fileloc_hash_default("relative_fileloc")
     )
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    cache_digest: Mapped[str] = mapped_column(String(128), nullable=False)
+    # NULL means the artifact stores no fingerprint and is probed again on every parse.
+    cache_digest: Mapped[str | None] = mapped_column(String(128), nullable=True)
     task_handlers: Mapped[dict[str, list[dict[str, Any]]]] = mapped_column(sa.JSON(), nullable=False)
     last_probed_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
