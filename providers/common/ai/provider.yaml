@@ -51,6 +51,7 @@ integrations:
       - /docs/apache-airflow-providers-common-ai/operators/llm_sql.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst
       - /docs/apache-airflow-providers-common-ai/operators/document_loader.rst
+      - /docs/apache-airflow-providers-common-ai/operators/harness.rst
     tags: [ai]
   - integration-name: Pydantic AI
     external-doc-url: https://ai.pydantic.dev/
@@ -537,6 +538,7 @@ operators:
       - airflow.providers.common.ai.operators.document_loader
       - airflow.providers.common.ai.operators.llamaindex_embedding
       - airflow.providers.common.ai.operators.llamaindex_retrieval
+      - airflow.providers.common.ai.operators.harness
 
 triggers:
   - integration-name: Common AI

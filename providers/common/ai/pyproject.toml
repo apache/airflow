@@ -151,6 +151,10 @@ dependencies = [
 "git" = [
     "apache-airflow-providers-git"
 ]
+# Native agent harness backed by the Claude Agent SDK: HarnessOperator runs the vendor's
+# own agent loop in-process, with the CLI it bundles as a subprocess. 0.2.160 is the
+# version this harness was verified against.
+"claude-agent-sdk" = ["claude-agent-sdk>=0.2.160"]
 
 [dependency-groups]
 dev = [
@@ -175,6 +179,7 @@ dev = [
     "openai>=2.47.0",
     "anthropic>=1.0.0",
     "opensandbox>=1.1.0",
+    "claude-agent-sdk>=0.2.160",
 ]
 
 # To build docs:
