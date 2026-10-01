@@ -25,7 +25,7 @@ This prevents stale SUCCESS from a defer-exit worker from failing a
 resumed attempt that shares the same TaskInstanceKey.
 
 Revision ID: c7d4e8f1a203
-Revises: 5182d0596ee2
+Revises: c9f4b3e7a218
 Create Date: 2026-09-18 00:00:00.000000
 
 """
@@ -36,7 +36,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "c7d4e8f1a203"
-down_revision = "5182d0596ee2"
+down_revision = "c9f4b3e7a218"
 branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"
