@@ -4232,18 +4232,11 @@
       "type": "object"
     },
     "TaskHandlerParseRequest": {
-      "description": "Request for Task Handler Parsing.\n\nAsks a Lang-SDK runtime which task handlers an artifact registers for the given Dags.",
+      "description": "Request for Task Handler Parsing.\n\nAsks a Lang-SDK runtime for every task handler an artifact registers.",
       "properties": {
         "file": {
           "title": "File",
           "type": "string"
-        },
-        "dag_ids": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Dag Ids",
-          "type": "array"
         },
         "bundle_path": {
           "format": "path",
@@ -4263,7 +4256,6 @@
       },
       "required": [
         "file",
-        "dag_ids",
         "bundle_path",
         "bundle_name"
       ],
@@ -4271,7 +4263,7 @@
       "type": "object"
     },
     "TaskHandlerParsingResult": {
-      "description": "Result of Task Handler Parsing.\n\nThe task handlers a Lang-SDK artifact registers, keyed by Dag id.",
+      "description": "Result of Task Handler Parsing.\n\nEvery task handler a Lang-SDK artifact registers, keyed by Dag id.\n\nThe answer depends only on the artifact, never on the request.",
       "properties": {
         "fileloc": {
           "title": "Fileloc",

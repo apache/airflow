@@ -177,13 +177,11 @@ class TaskHandlerParseRequest(BaseModel):
     """
     Request for Task Handler Parsing.
 
-    Asks a Lang-SDK runtime which task handlers an artifact registers for the given Dags.
+    Asks a Lang-SDK runtime for every task handler an artifact registers.
     """
 
     file: str
     """The artifact to ask."""
-
-    dag_ids: list[str]
 
     bundle_path: Path
 
@@ -196,13 +194,15 @@ class TaskHandlerParsingResult(BaseModel):
     """
     Result of Task Handler Parsing.
 
-    The task handlers a Lang-SDK artifact registers, keyed by Dag id.
+    Every task handler a Lang-SDK artifact registers, keyed by Dag id.
+
+    The answer depends only on the artifact, never on the request.
     """
 
     fileloc: str
 
     task_handlers: dict[str, list[TaskHandlerDeclaration]]
-    """A requested Dag id the artifact registers no task handler for is omitted, not mapped to ``[]``."""
+    """Every Dag id the artifact registers a task handler for; ``{}`` when it registers none."""
 
     import_errors: dict[str, str] | None = None
     warnings: list | None = None
