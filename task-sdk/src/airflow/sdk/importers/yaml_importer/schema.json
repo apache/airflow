@@ -1,0 +1,307 @@
+{
+  "$defs": {
+    "CodeTask": {
+      "additionalProperties": true,
+      "description": "A task running custom code.\n\nThis should have ``run`` holding function arguments, and optionally\n``queue`` to route it.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "needs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Needs",
+          "type": "array"
+        },
+        "extends": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Extends",
+          "type": "array"
+        },
+        "with": {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/XComRef"
+              },
+              {
+                "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/ConstRef"
+              },
+              {
+                "$ref": "#/$defs/_Literal"
+              }
+            ]
+          },
+          "title": "With",
+          "type": "object"
+        },
+        "run": {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/XComRef"
+              },
+              {
+                "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/ConstRef"
+              },
+              {
+                "$ref": "#/$defs/_Literal"
+              }
+            ]
+          },
+          "title": "Run",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "CodeTask",
+      "type": "object"
+    },
+    "ConstRef": {
+      "additionalProperties": false,
+      "description": "Force a literal; the value is taken verbatim.",
+      "properties": {
+        "$const": {
+          "title": "$Const"
+        }
+      },
+      "required": [
+        "$const"
+      ],
+      "title": "ConstRef",
+      "type": "object"
+    },
+    "OperatorTask": {
+      "additionalProperties": true,
+      "description": "A ready-made operator.\n\nThis should have ``uses`` (import path) + ``with``.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "needs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Needs",
+          "type": "array"
+        },
+        "extends": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Extends",
+          "type": "array"
+        },
+        "with": {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/XComRef"
+              },
+              {
+                "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/ConstRef"
+              },
+              {
+                "$ref": "#/$defs/_Literal"
+              }
+            ]
+          },
+          "title": "With",
+          "type": "object"
+        },
+        "uses": {
+          "title": "Uses",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "uses"
+      ],
+      "title": "OperatorTask",
+      "type": "object"
+    },
+    "TaskTemplate": {
+      "additionalProperties": true,
+      "description": "A reusable, partial task fragment merged into any task that ``extends`` it.\n\nThis holds arbitrary keys as-is. All validation is done on the merged task.",
+      "properties": {},
+      "title": "TaskTemplate",
+      "type": "object"
+    },
+    "TemplateRef": {
+      "additionalProperties": false,
+      "description": "A Jinja template.",
+      "properties": {
+        "$t": {
+          "title": "$T",
+          "type": "string"
+        }
+      },
+      "required": [
+        "$t"
+      ],
+      "title": "TemplateRef",
+      "type": "object"
+    },
+    "TimetableSchedule": {
+      "additionalProperties": false,
+      "description": "A constructed timetable.",
+      "properties": {
+        "uses": {
+          "title": "Uses",
+          "type": "string"
+        },
+        "with": {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/XComRef"
+              },
+              {
+                "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/ConstRef"
+              },
+              {
+                "$ref": "#/$defs/_Literal"
+              }
+            ]
+          },
+          "title": "With",
+          "type": "object"
+        }
+      },
+      "required": [
+        "uses"
+      ],
+      "title": "TimetableSchedule",
+      "type": "object"
+    },
+    "XComRef": {
+      "additionalProperties": false,
+      "description": "An upstream task's XCom output.",
+      "properties": {
+        "$x": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/XComTarget"
+            }
+          ],
+          "title": "$X"
+        }
+      },
+      "required": [
+        "$x"
+      ],
+      "title": "XComRef",
+      "type": "object"
+    },
+    "XComTarget": {
+      "additionalProperties": false,
+      "description": "The object form of an XCom reference.",
+      "properties": {
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "title": "XComTarget",
+      "type": "object"
+    },
+    "_Literal": {
+      "description": "A literal value.\n\nContainers recurse so nested markers are still resolved; scalars pass\nthrough.",
+      "title": "_Literal"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A Dag represented by one YAML document.\n\nExtra top-level keys are Dag-level arguments.",
+  "properties": {
+    "compatibility_date": {
+      "title": "Compatibility Date",
+      "type": "string"
+    },
+    "dag_id": {
+      "title": "Dag Id",
+      "type": "string"
+    },
+    "schedule": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/TimetableSchedule"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Schedule"
+    },
+    "templates": {
+      "additionalProperties": {
+        "$ref": "#/$defs/TaskTemplate"
+      },
+      "title": "Templates",
+      "type": "object"
+    },
+    "tasks": {
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/OperatorTask"
+          },
+          {
+            "$ref": "#/$defs/CodeTask"
+          }
+        ]
+      },
+      "title": "Tasks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "compatibility_date",
+    "dag_id"
+  ],
+  "title": "Airflow YAML DAG (2026-10-30)",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-airflow-compatibility-date": "2026-10-30"
+}
