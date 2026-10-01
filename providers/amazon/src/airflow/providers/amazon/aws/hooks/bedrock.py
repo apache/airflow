@@ -261,13 +261,12 @@ class BedrockAgentCoreHook(AwsBaseHook, BaseManagedAgentHook):
             raise ValueError(f"An AgentCore agent is a runtime ARN, got {agent!r}.")
         return ManagedAgentRef(platform=self.agent_platform, name=agent)
 
-    def agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
+    def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
         return ManagedAgentCapabilities(sessions=True, structured_output=True, trace=True)
 
     def invoke_agent(self, agent: str, request: ManagedAgentRequest) -> ManagedAgentResponse:
         self.resolve_agent(agent)
-        reserved = _RESERVED_OPTIONS.intersection(request.vendor_options)
-        if reserved:
+        if reserved := _RESERVED_OPTIONS.intersection(request.vendor_options):
             raise ValueError(f"vendor_options cannot override contract fields: {sorted(reserved)}")
         if request.session_id is not None and len(request.session_id) not in _SESSION_ID_LENGTH:
             raise ValueError(
@@ -289,7 +288,7 @@ class BedrockAgentCoreHook(AwsBaseHook, BaseManagedAgentHook):
         if request.session_id is not None:
             kwargs["runtimeSessionId"] = request.session_id
         try:
-            response = self._client_for(request.timeout).invoke_agent_runtime(
+            response = self._get_client(request.timeout).invoke_agent_runtime(
                 agentRuntimeArn=agent,
                 payload=json.dumps(payload).encode(),
                 contentType="application/json",
@@ -299,18 +298,17 @@ class BedrockAgentCoreHook(AwsBaseHook, BaseManagedAgentHook):
             body = self._read_json_body(agent, response, max_response_bytes)
         except ClientError as exc:
             if exc.response.get("Error", {}).get("Code") in _TERMINAL_ERROR_CODES:
-                raise ManagedAgentInvocationError(f"{self._where(agent)}: {exc}") from exc
+                raise ManagedAgentInvocationError(f"{self._describe_call(agent)}: {exc}") from exc
             raise  # throttling, conflicts, server errors: Airflow's task retry is the right layer
-        raw = {**response, "response": body}
         return ManagedAgentResponse(
-            text=self._text(agent, body, text_key),
-            raw=raw,
+            text=self._extract_text(agent, body, text_key),
+            raw={**response, "response": body},
             structured=None if isinstance(body, str) else body,
             session_id=response.get("runtimeSessionId"),
             trace_ref=response.get("ResponseMetadata", {}).get("RequestId"),
         )
 
-    def _client_for(self, timeout: float | None) -> Any:
+    def _get_client(self, timeout: float | None) -> Any:
         """
         One boto3 client per distinct request timeout, built on first use and reused.
 
@@ -333,7 +331,7 @@ class BedrockAgentCoreHook(AwsBaseHook, BaseManagedAgentHook):
             return base
         return base.merge(Config(connect_timeout=timeout, read_timeout=timeout))
 
-    def _where(self, agent: str) -> str:
+    def _describe_call(self, agent: str) -> str:
         return f"AgentCore agent {agent} via connection {self.aws_conn_id!r}"
 
     def _read_json_body(self, agent: str, response: dict[str, Any], max_response_bytes: int) -> Any:
@@ -341,27 +339,27 @@ class BedrockAgentCoreHook(AwsBaseHook, BaseManagedAgentHook):
             content_type = response.get("contentType", "").split(";", 1)[0].strip().lower()
             if content_type != "application/json":
                 raise ManagedAgentInvocationError(
-                    f"{self._where(agent)} returned {content_type or 'no Content-Type'}; "
+                    f"{self._describe_call(agent)} returned {content_type or 'no Content-Type'}; "
                     "this hook handles application/json only."
                 )
             data = stream.read(max_response_bytes + 1)
         if len(data) > max_response_bytes:
             raise ManagedAgentInvocationError(
-                f"{self._where(agent)} returned more than max_response_bytes={max_response_bytes}."
+                f"{self._describe_call(agent)} returned more than max_response_bytes={max_response_bytes}."
             )
         try:
             return json.loads(data)
         except ValueError as exc:
             raise ManagedAgentInvocationError(
-                f"{self._where(agent)} returned a body that is not JSON: {exc}"
+                f"{self._describe_call(agent)} returned a body that is not JSON: {exc}"
             ) from exc
 
-    def _text(self, agent: str, body: Any, text_key: str | None) -> str:
+    def _extract_text(self, agent: str, body: Any, text_key: str | None) -> str:
         if text_key is not None:
             value = body.get(text_key) if isinstance(body, dict) else None
             if not isinstance(value, str):
                 raise ManagedAgentInvocationError(
-                    f"{self._where(agent)} returned no string at text_key={text_key!r}."
+                    f"{self._describe_call(agent)} returned no string at text_key={text_key!r}."
                 )
             return value
         if isinstance(body, str):

@@ -175,7 +175,7 @@ class BaseManagedAgentHook(ABC):
         """Normalize ``agent`` into a platform-qualified reference. Must not make a network call."""
 
     @abstractmethod
-    def agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
+    def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
         """Report what ``agent`` on this connection can do. Must not make a network call."""
 
     @abstractmethod
@@ -227,7 +227,7 @@ class BoundManagedAgent:
 
     @cached_property
     def capabilities(self) -> ManagedAgentCapabilities:
-        return self.hook.agent_capabilities(self.agent)
+        return self.hook.get_agent_capabilities(self.agent)
 
     def invoke(self, request: ManagedAgentRequest) -> ManagedAgentResponse:
         if request.session_id is not None and not self.capabilities.sessions:

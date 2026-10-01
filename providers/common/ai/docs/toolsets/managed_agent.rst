@@ -270,7 +270,7 @@ A vendor hook adopts
 :class:`~airflow.providers.common.ai.managed_agents.base.BaseManagedAgentHook`
 as a mixin beside its own base and implements three methods: ``resolve_agent``
 (normalize the agent identifier into a platform-qualified reference, without a
-network call), ``agent_capabilities`` (what the pair can do, so consumers can
+network call), ``get_agent_capabilities`` (what the pair can do, so consumers can
 refuse rather than degrade) and ``invoke_agent`` (send a request, return an
 answer, sort failures into the three buckets). ``hook.agent(...)`` then returns a
 bound client the toolset accepts.

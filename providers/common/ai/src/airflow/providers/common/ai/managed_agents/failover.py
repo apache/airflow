@@ -121,7 +121,7 @@ class FailoverManagedAgentClient:
                 # rather than agent name to keep cardinality bounded.
                 Stats.incr(
                     "managed_agent.failover",
-                    tags={"from_platform": _platform(member), "to_platform": _platform(standby)},
+                    tags={"from_platform": _get_platform(member), "to_platform": _get_platform(standby)},
                 )
                 continue
             return self._served(position, member, response)
@@ -138,7 +138,7 @@ class FailoverManagedAgentClient:
         return response
 
 
-def _platform(client: ManagedAgentClient) -> str:
+def _get_platform(client: ManagedAgentClient) -> str:
     try:
         return client.ref.platform
     except Exception:

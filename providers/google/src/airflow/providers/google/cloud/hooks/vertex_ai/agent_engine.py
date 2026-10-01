@@ -190,7 +190,7 @@ class AgentEngineHook(GoogleBaseHook, BaseManagedAgentHook):
         self._parse_agent(agent)
         return ManagedAgentRef(platform=self.agent_platform, name=agent)
 
-    def agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
+    def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
         return ManagedAgentCapabilities(structured_output=True)
 
     def invoke_agent(self, agent: str, request: ManagedAgentRequest) -> ManagedAgentResponse:

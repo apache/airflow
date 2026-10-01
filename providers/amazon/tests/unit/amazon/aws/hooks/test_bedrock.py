@@ -125,38 +125,42 @@ def respond(call, body, **extra):
     return stream
 
 
-def hook(**kwargs) -> BedrockAgentCoreHook:
+def create_bedrock_agent_core_hook(**kwargs) -> BedrockAgentCoreHook:
     return BedrockAgentCoreHook(aws_conn_id="aws_default", region_name="us-east-1", **kwargs)
 
 
 @needs_common_ai
 class TestBedrockAgentCoreHookAgent:
     def test_resolves_a_runtime_arn(self):
-        assert hook().resolve_agent(ARN) == ManagedAgentRef(platform="aws.bedrock_agentcore", name=ARN)
+        assert create_bedrock_agent_core_hook().resolve_agent(ARN) == ManagedAgentRef(
+            platform="aws.bedrock_agentcore", name=ARN
+        )
 
     @pytest.mark.parametrize("agent", ["investigator", "arn:aws:bedrock:us-east-1:1:agent/x"])
     def test_rejects_anything_but_a_runtime_arn(self, agent):
         with pytest.raises(ValueError, match="runtime ARN"):
-            hook().resolve_agent(agent)
+            create_bedrock_agent_core_hook().resolve_agent(agent)
 
     def test_capabilities(self):
-        assert hook().agent_capabilities(ARN) == ManagedAgentCapabilities(
+        assert create_bedrock_agent_core_hook().get_agent_capabilities(ARN) == ManagedAgentCapabilities(
             sessions=True, structured_output=True, trace=True
         )
 
     def test_botocore_does_not_retry_an_invocation_with_unknown_effects(self):
-        assert hook()._call_config(None).retries == {"total_max_attempts": 1}
+        assert create_bedrock_agent_core_hook()._call_config(None).retries == {"total_max_attempts": 1}
 
     @pytest.mark.parametrize(
         "config", [{"read_timeout": 900}, Config(read_timeout=900)], ids=["dict", "Config"]
     )
     def test_caller_config_is_kept_and_only_retries_defaulted(self, config):
-        call_config = hook(config=config)._call_config(None)
+        call_config = create_bedrock_agent_core_hook(config=config)._call_config(None)
         assert call_config.read_timeout == 900
         assert call_config.retries == {"total_max_attempts": 1}
 
     def test_caller_retries_win_over_the_default(self):
-        call_config = hook(config=Config(retries={"total_max_attempts": 3}))._call_config(None)
+        call_config = create_bedrock_agent_core_hook(
+            config=Config(retries={"total_max_attempts": 3})
+        )._call_config(None)
         assert call_config.retries == {"total_max_attempts": 3}
 
     def test_connection_config_kwargs_are_honored_like_every_other_aws_hook(self, monkeypatch):
@@ -176,7 +180,7 @@ class TestBedrockAgentCoreHookInvokeAgent:
     def test_prompt_session_and_passthrough_reach_the_api(self, invoke_agent_runtime):
         stream = respond(invoke_agent_runtime, {"result": "Looks fine", "confidence": 0.9})
         response = (
-            hook()
+            create_bedrock_agent_core_hook()
             .agent(ARN)
             .invoke(
                 ManagedAgentRequest(prompt="Check it", session_id=SESSION, vendor_options={"qualifier": "v2"})
@@ -198,7 +202,7 @@ class TestBedrockAgentCoreHookInvokeAgent:
     def test_messages_are_sent_as_messages(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, {"output": "ok"})
         messages = [{"role": "user", "content": [{"type": "text", "text": "hi"}]}]
-        hook().agent(ARN).invoke(ManagedAgentRequest(messages=messages))
+        create_bedrock_agent_core_hook().agent(ARN).invoke(ManagedAgentRequest(messages=messages))
         assert json.loads(invoke_agent_runtime.call_args.kwargs["payload"]) == {"messages": messages}
 
     @pytest.mark.parametrize("session_id", ["short", "x" * 257])
@@ -206,58 +210,68 @@ class TestBedrockAgentCoreHookInvokeAgent:
         self, invoke_agent_runtime, session_id
     ):
         with pytest.raises(ValueError, match="33 to 256"):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x", session_id=session_id))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(
+                ManagedAgentRequest(prompt="x", session_id=session_id)
+            )
         invoke_agent_runtime.assert_not_called()
 
     def test_text_key_overrides_the_default_lookup(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, {"output": "wrong", "answer": "right"})
         request = ManagedAgentRequest(prompt="x", vendor_options={"text_key": "answer"})
-        assert hook().agent(ARN).invoke(request).text == "right"
+        assert create_bedrock_agent_core_hook().agent(ARN).invoke(request).text == "right"
 
     @pytest.mark.parametrize("body", [{"output": "something"}, "just a string"], ids=["dict", "str"])
     def test_missing_text_key_is_terminal_not_silent(self, invoke_agent_runtime, body):
         respond(invoke_agent_runtime, body)
         with pytest.raises(ManagedAgentInvocationError, match="text_key='answer'"):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x", vendor_options={"text_key": "answer"}))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(
+                ManagedAgentRequest(prompt="x", vendor_options={"text_key": "answer"})
+            )
 
     def test_a_body_that_is_not_json_is_terminal(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, "ignored")
         invoke_agent_runtime.return_value["response"] = io.BytesIO(b"{not json")
         with pytest.raises(ManagedAgentInvocationError, match="not JSON"):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
 
     def test_terminal_errors_name_the_agent_and_the_connection(self, invoke_agent_runtime):
         invoke_agent_runtime.side_effect = ClientError(
             {"Error": {"Code": "AccessDeniedException", "Message": "m"}}, "InvokeAgentRuntime"
         )
         with pytest.raises(ManagedAgentInvocationError, match=f"{ARN} via connection 'aws_default'"):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
 
     def test_unknown_shape_is_dumped_not_guessed(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, {"findings": ["a"], "score": 1})
-        response = hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+        response = create_bedrock_agent_core_hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
         assert json.loads(response.text) == {"findings": ["a"], "score": 1}
 
     @pytest.mark.parametrize("option", ["agentRuntimeArn", "accountId", "mcpSessionId"])
     def test_vendor_options_cannot_retarget_the_call(self, invoke_agent_runtime, option):
         with pytest.raises(ValueError, match=option):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x", vendor_options={option: "other"}))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(
+                ManagedAgentRequest(prompt="x", vendor_options={option: "other"})
+            )
         invoke_agent_runtime.assert_not_called()
 
     def test_request_timeout_becomes_the_call_clients_timeouts(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, {"output": "ok"})
-        hook(config={"read_timeout": 900}).agent(ARN).invoke(ManagedAgentRequest(prompt="x", timeout=15))
+        create_bedrock_agent_core_hook(config={"read_timeout": 900}).agent(ARN).invoke(
+            ManagedAgentRequest(prompt="x", timeout=15)
+        )
         config = BedrockAgentCoreHook.get_client_type.call_args.kwargs["config"]
         assert (config.read_timeout, config.connect_timeout) == (15, 15)
         assert config.retries == {"total_max_attempts": 1}
 
     def test_no_request_timeout_keeps_the_hooks_config(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, {"output": "ok"})
-        hook(config={"read_timeout": 900}).agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+        create_bedrock_agent_core_hook(config={"read_timeout": 900}).agent(ARN).invoke(
+            ManagedAgentRequest(prompt="x")
+        )
         assert BedrockAgentCoreHook.get_client_type.call_args.kwargs["config"].read_timeout == 900
 
     def test_one_client_per_timeout_reused_across_calls(self, invoke_agent_runtime):
-        bound = hook().agent(ARN)
+        bound = create_bedrock_agent_core_hook().agent(ARN)
         for prompt, timeout in (("x", 15), ("y", 15), ("z", 30)):
             respond(invoke_agent_runtime, {"output": "ok"})
             bound.invoke(ManagedAgentRequest(prompt=prompt, timeout=timeout))
@@ -284,18 +298,18 @@ class TestBedrockAgentCoreHookInvokeAgent:
         # Resolved here rather than in the parametrize list, which is evaluated even where common.ai
         # is absent and the class is skipped.
         with pytest.raises(ManagedAgentInvocationError if terminal else ClientError):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
 
     def test_non_json_content_type_is_terminal(self, invoke_agent_runtime):
         stream = respond(invoke_agent_runtime, "ignored", contentType="text/event-stream")
         with pytest.raises(ManagedAgentInvocationError, match="application/json only"):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
         assert stream.closed
 
     def test_oversized_body_is_terminal_and_closed(self, invoke_agent_runtime):
         stream = respond(invoke_agent_runtime, "x" * 64)
         with pytest.raises(ManagedAgentInvocationError, match="max_response_bytes=32"):
-            hook().agent(ARN).invoke(
+            create_bedrock_agent_core_hook().agent(ARN).invoke(
                 ManagedAgentRequest(prompt="x", vendor_options={"max_response_bytes": 32})
             )
         assert stream.closed
@@ -312,7 +326,9 @@ class TestBedrockAgentCoreHookInvokeAgent:
     )
     def test_malformed_hook_options_are_rejected_before_the_call(self, invoke_agent_runtime, options):
         with pytest.raises(ValueError, match="vendor_options"):
-            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x", vendor_options=options))
+            create_bedrock_agent_core_hook().agent(ARN).invoke(
+                ManagedAgentRequest(prompt="x", vendor_options=options)
+            )
         invoke_agent_runtime.assert_not_called()
 
 

@@ -226,7 +226,7 @@ class BaseManagedAgentToolset(AirflowToolset):
         # Identity is resolved after the call, never before it: a toolset whose identity comes
         # from a misconfigured connection must not fail a call that would have succeeded, and
         # a failover group's identity joins every member's, standbys included.
-        ref = self._safe_agent_ref()
+        ref = self._resolve_agent_ref()
         log.info(
             "Consulted managed agent %s",
             f"{ref.name} on {ref.platform}"
@@ -241,7 +241,7 @@ class BaseManagedAgentToolset(AirflowToolset):
         )
         return serialize_for_llm(result)
 
-    def _safe_agent_ref(self) -> ManagedAgentRef | None:
+    def _resolve_agent_ref(self) -> ManagedAgentRef | None:
         """Resolve identity for a log line or a metric tag without letting resolution fail the call."""
         try:
             return self.agent_ref

@@ -45,7 +45,7 @@ class RecordingHook(BaseManagedAgentHook):
             raise ValueError("empty agent")
         return ManagedAgentRef(platform=self.agent_platform, name=agent.upper())
 
-    def agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
+    def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
         return ManagedAgentCapabilities(sessions=True)
 
     def invoke_agent(self, agent: str, request: ManagedAgentRequest) -> ManagedAgentResponse:
@@ -97,7 +97,7 @@ class TestBaseManagedAgentHook:
 
     def test_a_session_is_refused_for_a_hook_without_sessions_before_the_hook_is_called(self):
         class Stateless(RecordingHook):
-            def agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
+            def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
                 return ManagedAgentCapabilities()
 
         hook = Stateless()
