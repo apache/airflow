@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from urllib.parse import urlparse
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -635,21 +636,21 @@ class TestGetClientEnvironment:
 
     def test_defaults_to_production(self):
         with get_client(kind=ClientKind.CLI, api_token="TOKEN") as client:
-            assert "prod.example.com" in str(client.base_url)
+            assert urlparse(str(client.base_url)).hostname == "prod.example.com"
 
     def test_uses_the_requested_environment(self):
         with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="staging") as client:
-            assert "staging.example.com" in str(client.base_url)
+            assert urlparse(str(client.base_url)).hostname == "staging.example.com"
 
     def test_no_auth_uses_the_requested_environment(self):
         with get_client(kind=ClientKind.NO_AUTH, api_environment="staging") as client:
-            assert "staging.example.com" in str(client.base_url)
+            assert urlparse(str(client.base_url)).hostname == "staging.example.com"
 
     def test_environment_variable_beats_the_explicit_argument(self, monkeypatch):
         """AIRFLOW_CLI_ENVIRONMENT keeps precedence, matching Credentials' own contract."""
         monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "staging")
         with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="production") as client:
-            assert "staging.example.com" in str(client.base_url)
+            assert urlparse(str(client.base_url)).hostname == "staging.example.com"
 
     def test_decorator_forwards_the_env_argument(self):
         """``@provide_api_client`` reads ``--env`` off the parsed args namespace."""
@@ -661,7 +662,7 @@ class TestGetClientEnvironment:
         def command_under_test(args, api_client=None):
             # Inspect the client inside the command: the wrapper closes it
             # before returning.
-            return "staging.example.com" in str(api_client.base_url)
+            return urlparse(str(api_client.base_url)).hostname == "staging.example.com"
 
         args = SimpleNamespace(env="staging", api_token="TOKEN")
         assert command_under_test(args) is True
