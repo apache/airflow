@@ -407,11 +407,17 @@ type DagFileParseRequest struct {
 // serialized DAGs,
 // import errors and warnings to send back to the scheduler to store in the DB.
 type DagFileParsingResult struct {
+	// DagSourceCodes corresponds to the JSON schema field "dag_source_codes".
+	DagSourceCodes DagSourceCodes `msgpack:"dag_source_codes,omitempty"`
+
 	// Fileloc corresponds to the JSON schema field "fileloc".
 	Fileloc string `msgpack:"fileloc"`
 
 	// ImportErrors corresponds to the JSON schema field "import_errors".
 	ImportErrors *ImportErrors `msgpack:"import_errors,omitempty"`
+
+	// ParsedDefinitions corresponds to the JSON schema field "parsed_definitions".
+	ParsedDefinitions []string `msgpack:"parsed_definitions,omitempty"`
 
 	// SerializedDags corresponds to the JSON schema field "serialized_dags".
 	SerializedDags []LazyDeserializedDAG `msgpack:"serialized_dags"`
@@ -633,6 +639,17 @@ const DagRunTypeBackfill DagRunType = "backfill"
 const DagRunTypeManual DagRunType = "manual"
 const DagRunTypeOperatorTriggered DagRunType = "operator_triggered"
 const DagRunTypeScheduled DagRunType = "scheduled"
+
+// Raw source code and its language identifier for a DAG definition.
+type DagSourceCode struct {
+	// Language corresponds to the JSON schema field "language".
+	Language string `msgpack:"language"`
+
+	// SourceCode corresponds to the JSON schema field "source_code".
+	SourceCode string `msgpack:"source_code"`
+}
+
+type DagSourceCodes map[string]DagSourceCode
 
 type Data map[string]interface{}
 
@@ -1839,6 +1856,17 @@ type TriggerDagRun struct {
 
 type TriggerKwargs map[string]interface{}
 
+type UpdateDagRunNote struct {
+	// Note corresponds to the JSON schema field "note".
+	Note interface{} `msgpack:"note"`
+
+	// TIID corresponds to the JSON schema field "ti_id".
+	TIID string `msgpack:"ti_id"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
 	// ChosenOptions corresponds to the JSON schema field "chosen_options".
@@ -1853,6 +1881,19 @@ type UpdateHITLDetail struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
+type Warnings []interface{}
+
+type VersionData map[string]interface{}
 
 type ValidateInletsAndOutlets struct {
 	// TIID corresponds to the JSON schema field "ti_id".
@@ -1873,15 +1914,6 @@ type VariableKeysResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
-
 type VariableResult struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
@@ -1892,10 +1924,6 @@ type VariableResult struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
 }
-
-type VersionData map[string]interface{}
-
-type Warnings []interface{}
 
 // One positional stub-task argument pulled from an upstream task's XCom.
 type XComArgBinding struct {
