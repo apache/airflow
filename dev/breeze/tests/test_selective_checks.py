@@ -45,6 +45,7 @@ from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
     _get_test_list_as_json,
+    _imports_module,
     _split_list,
 )
 
@@ -1313,25 +1314,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow-core/tests/unit/utils/test_cli_util.py",),
                 {
-                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "selected-providers-list-as-string": None,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
                     "run-unit-tests": "true",
-                    "run-amazon-tests": "true",
-                    "docs-build": "true",
-                    "full-tests-needed": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-                    "upgrade-to-newer-dependencies": "false",
+                    "full-tests-needed": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "providers-test-types-list-as-strings-in-json": "null",
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should be run when tests/utils/ change",
+                id="Core tests only when airflow-core/tests/unit/utils/ change",
             )
         ),
         (
@@ -1360,6 +1352,51 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-mypy-providers": "true",
                 },
                 id="All tests should be run when devel-common/ change",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/tests_common/pytest_plugin.py",),
+                {
+                    "full-tests-needed": "true",
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                },
+                id="All tests should be run when the tests_common pytest plugin changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/tests_common/test_utils/mock_plugins.py",),
+                {
+                    "full-tests-needed": "true",
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                },
+                id="All tests should be run when a test helper imported by the pytest plugin changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/tests_common/test_utils/permissions.py",),
+                {
+                    "selected-providers-list-as-string": "common.compat fab",
+                    "full-tests-needed": "false",
+                    "run-unit-tests": "true",
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                    ),
+                },
+                id="Only the tests importing a test helper should run when it changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/sphinx_exts/exampleinclude.py",),
+                {
+                    "full-tests-needed": "false",
+                    "docs-build": "true",
+                    "providers-test-types-list-as-strings-in-json": "null",
+                },
+                id="Docs should be built but not all tests run when a Sphinx extension changes",
             )
         ),
         (
@@ -4270,3 +4307,28 @@ def test_helm_test_kubernetes_versions(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param(
+            "from tests_common.test_utils.mock_context import mock_context\n", True, id="from-module"
+        ),
+        pytest.param("from tests_common.test_utils import mock_context\n", True, id="from-package"),
+        pytest.param(
+            "from tests_common.test_utils import (\n    db,\n    mock_context,\n)\n",
+            True,
+            id="multiline-from",
+        ),
+        pytest.param("import tests_common.test_utils.mock_context as mc\n", True, id="import"),
+        pytest.param('pytest_plugins = ["tests_common.test_utils.mock_context"]\n', True, id="dotted-string"),
+        pytest.param("mock_context = {}\n", False, id="same-name-variable"),
+        pytest.param("from tests_common.test_utils.mock_context_extra import x\n", False, id="longer-module"),
+        pytest.param(
+            "# mock_context\nfrom tests_common.test_utils import db\n", False, id="other-package-member"
+        ),
+    ],
+)
+def test_imports_module(source: str, expected: bool):
+    assert _imports_module(source, "tests_common.test_utils.mock_context") is expected

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import difflib
 import itertools
 import json
@@ -353,6 +354,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
+            r"^devel-common/src/sphinx_exts",
             r"^\.github/SECURITY\.md",
             r"^providers/.*/docs/",
             r"^providers/.*/src/.*\.py$",
@@ -473,8 +475,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r".*pyproject\.toml$",
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
-            r"^airflow-core/tests/unit/utils/",
-            r"^devel-common/.*\.py$",
+            r"^devel-common/src/tests_common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task-sdk/src/airflow/sdk/.*\.py$",
@@ -674,6 +675,75 @@ def _matching_files(
     return matched_files
 
 
+TESTS_COMMON_SOURCE_ROOT = "devel-common/src/"
+TESTS_COMMON_PYTEST_PLUGIN = "devel-common/src/tests_common/pytest_plugin.py"
+
+
+def _imports_module(text: str, module: str) -> bool:
+    package, _, name = module.rpartition(".")
+    if not re.search(rf"\b{re.escape(module)}\b", text) and not (
+        f"from {package} import" in text and re.search(rf"\b{re.escape(name)}\b", text)
+    ):
+        return False
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return True
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(alias.name == module or alias.name.startswith(f"{module}.") for alias in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            if node.module == module or node.module.startswith(f"{module}."):
+                return True
+            if node.module == package and any(alias.name == name for alias in node.names):
+                return True
+    # Dotted references outside import statements, e.g. `pytest_plugins` entries.
+    return re.search(rf"\b{re.escape(module)}\b", text) is not None
+
+
+@clearable_cache
+def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
+    """
+    Return the files outside ``tests_common`` that import ``helper``, directly or through other helpers.
+
+    ``None`` means the change cannot be narrowed down to its importers: the helper is loaded for every
+    test run (the pytest plugin, anything it imports, conftest and package ``__init__`` modules) or it
+    no longer exists.
+    """
+    if (
+        helper == TESTS_COMMON_PYTEST_PLUGIN
+        or Path(helper).name in ("conftest.py", "__init__.py")
+        or not (AIRFLOW_ROOT_PATH / helper).is_file()
+    ):
+        return None
+    importers: set[str] = set()
+    seen = {helper}
+    pending = [helper]
+    while pending:
+        module = pending.pop()[len(TESTS_COMMON_SOURCE_ROOT) :].removesuffix(".py").replace("/", ".")
+        result = run_command(
+            ["git", "grep", "-l", "-F", "-w", module.rpartition(".")[2], "--", "*.py"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+        )
+        for candidate in result.stdout.splitlines():
+            if candidate in seen:
+                continue
+            if not _imports_module((AIRFLOW_ROOT_PATH / candidate).read_text(errors="replace"), module):
+                continue
+            seen.add(candidate)
+            if candidate.startswith(f"{TESTS_COMMON_SOURCE_ROOT}tests_common/"):
+                if candidate == TESTS_COMMON_PYTEST_PLUGIN or Path(candidate).name == "conftest.py":
+                    return None
+                pending.append(candidate)
+            else:
+                importers.add(candidate)
+    return frozenset(importers)
+
+
 def _split_list(input_list, n) -> list[list[str]]:
     """
     Splits input_list into exactly n sub-lists, distributing items as evenly as possible.
@@ -742,6 +812,20 @@ class SelectiveChecks:
         platform: str = CI_AMD_PLATFORM,
     ):
         self._files = files
+        # A changed test helper selects the tests that import it, as if those test files had changed;
+        # only helpers loaded for every test run still force the full set of tests.
+        self._test_helpers_loaded_by_all_tests: tuple[str, ...] = ()
+        self._test_helpers_replaced_by_importers: tuple[str, ...] = ()
+        helper_importers: set[str] = set()
+        for helper in _matching_files(files, FileGroupForCi.TESTS_UTILS_FILES, CI_FILE_GROUP_MATCHES):
+            importers = _find_test_helper_importers(helper)
+            if importers is None:
+                self._test_helpers_loaded_by_all_tests += (helper,)
+            else:
+                self._test_helpers_replaced_by_importers += (helper,)
+                helper_importers |= importers
+        if helper_importers:
+            self._files = tuple(sorted(set(files) | helper_importers))
         self._default_branch = default_branch
         self._default_constraints_branch = default_constraints_branch
         self._commit_ref = commit_ref
@@ -880,11 +964,11 @@ class SelectiveChecks:
                 "and for now we have core tests depending on them.[/]"
             )
             return True
-        if self._matching_files(
-            FileGroupForCi.TESTS_UTILS_FILES,
-            CI_FILE_GROUP_MATCHES,
-        ):
-            console_print("[warning]Running full set of tests because tests/utils changed[/]")
+        if self._test_helpers_loaded_by_all_tests:
+            console_print(
+                "[warning]Running full set of tests because test helpers loaded by every test run "
+                f"changed: {', '.join(self._test_helpers_loaded_by_all_tests)}[/]"
+            )
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             console_print(
@@ -1986,6 +2070,8 @@ class SelectiveChecks:
         all_providers_affected = False
         suspended_providers: set[str] = set()
         for changed_file in self._files:
+            if changed_file in self._test_helpers_replaced_by_importers:
+                continue
             provider = find_provider_affected(changed_file, include_docs=include_docs)
             if provider == "Providers":
                 all_providers_affected = True
