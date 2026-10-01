@@ -414,6 +414,21 @@ class TestAgentOperatorToolsetTemplating:
 
         assert op.capabilities[0] is capability
 
+    def test_sandbox_export_destinations_are_rendered_on_a_copy(self):
+        toolset = SandboxToolset(
+            _NoopBackend(),
+            exports={"out/report.csv": "s3://reports/{{ params.customer }}/report.csv"},
+            export_conn_id="s3_{{ params.customer }}",
+        )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", toolsets=[toolset])
+
+        op.render_template_fields(self.CONTEXT)
+
+        (rendered,) = op.toolsets
+        assert rendered._exports == {"out/report.csv": "s3://reports/acme/report.csv"}
+        assert rendered._export_conn_id == "s3_acme"
+        assert toolset._exports == {"out/report.csv": "s3://reports/{{ params.customer }}/report.csv"}
+
     def test_only_connection_ids_are_templated(self):
         """allowed_tables is validated and canonicalised in __init__, so rendering it later
         would bypass the fail-closed empty-list check."""

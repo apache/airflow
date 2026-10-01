@@ -321,9 +321,14 @@ in. Subclass :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` in you
 own package and pass an instance to ``SandboxToolset``.
 
 **Three methods are required**: ``create``, ``run_command`` and ``destroy``. The
-three file operations ship as defaults implemented over ``run_command``, because
-reading, writing and listing a file are all expressible as shell commands.
-Override them only when the vendor has a native file API:
+file operations ship as defaults implemented over ``run_command``, because
+reading, writing, listing and exporting a file are all expressible as shell
+commands. The default ``export_file``, behind ``SandboxToolset(exports=...)``,
+copies a file in 4 MiB slices, one command each, and needs ``stat``, ``tail``,
+``head`` and ``base64`` in the guest. It relies on ``run_command`` returning each
+slice's output intact, or setting ``stdout_truncated`` when it could not. Override
+it when the vendor can stream a download, as the ``sbx`` and OpenSandbox backends do. Override the others
+only when the vendor has a native file API:
 
 .. code-block:: python
 
