@@ -20,9 +20,19 @@ name: "CodeQL"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
   push:
-    branches: [main]
+    branches:
+      - main
+      - chart/v[0-9]+-[0-9]+x-test
+      - airflow-ctl/v[0-9]+-[0-9]+-test
   schedule:
     - cron: '0 2 * * *'
 
