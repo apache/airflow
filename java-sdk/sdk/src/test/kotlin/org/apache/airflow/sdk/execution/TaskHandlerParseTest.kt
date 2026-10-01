@@ -109,10 +109,9 @@ private class Audit : Task {
   ) = Unit
 }
 
-private fun request(vararg dagIds: String) =
+private fun request() =
   TaskHandlerParseRequest().apply {
     file = "/bundles/java/etl.jar"
-    this.dagIds = dagIds.toList()
     bundlePath = "/bundles/java"
     bundleName = "java-task-handlers"
   }
@@ -151,8 +150,8 @@ private fun assertConforms(
 
 class TaskHandlerParseTest {
   @Test
-  @DisplayName("Should declare each requested Dag's task handlers in registration order")
-  fun declaresRequestedDagsInRegistrationOrder() {
+  @DisplayName("Should declare every task handler in registration order")
+  fun declaresEveryTaskHandlerInRegistrationOrder() {
     val bundle =
       Bundle()
         .register("etl", "extract", GeneratedFlat::class.java)
@@ -163,7 +162,7 @@ class TaskHandlerParseTest {
         .register("report", "audit", Audit::class.java)
         .register(DagDef("native").addTask("audit", Audit::class.java))
 
-    val result = parseTaskHandlers(bundle, request("etl", "native", "missing", "etl"))
+    val result = parseTaskHandlers(bundle, request())
 
     val regions =
       mapOf("anyOf" to listOf(mapOf("type" to "array", "items" to NULLABLE_STRING), mapOf("type" to "null")))
@@ -189,9 +188,11 @@ class TaskHandlerParseTest {
                 mapOf("task_id" to "audit", "binding" to "named", "params" to emptyList<Any>()),
                 mapOf("task_id" to "notify", "binding" to "named", "params" to emptyList<Any>()),
               ),
+            "report" to listOf(mapOf("task_id" to "audit", "binding" to "named", "params" to emptyList<Any>())),
           ),
       )
     assertEquals(expected, result)
+    assertEquals(listOf("etl", "report"), (result["task_handlers"] as Map<*, *>).keys.toList())
   }
 
   @Test
@@ -203,7 +204,7 @@ class TaskHandlerParseTest {
         .register("etl", "score", GeneratedInput::class.java)
         .register("etl", "audit", Audit::class.java)
 
-    val result = parseTaskHandlers(bundle, request("etl"))
+    val result = parseTaskHandlers(bundle, request())
 
     assertConforms("TaskHandlerParsingResult", result)
     val bindings =
@@ -221,11 +222,11 @@ class TaskHandlerParseTest {
   }
 
   @Test
-  @DisplayName("Should send an empty map when no requested Dag has task handlers")
-  fun sendsEmptyTaskHandlersWhenNothingMatches() {
-    val bundle = Bundle().register("etl", "audit", Audit::class.java)
+  @DisplayName("Should send an empty map when the bundle registers no task handler")
+  fun sendsEmptyTaskHandlersWithoutHandlers() {
+    val bundle = Bundle().register(DagDef("native").addTask("audit", Audit::class.java))
 
-    val result = parseTaskHandlers(bundle, request("other"))
+    val result = parseTaskHandlers(bundle, request())
 
     assertEquals(emptyMap<String, Any?>(), result["task_handlers"])
   }

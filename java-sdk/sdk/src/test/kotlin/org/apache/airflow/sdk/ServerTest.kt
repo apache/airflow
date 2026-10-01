@@ -135,7 +135,7 @@ class ServerTest {
     val supervisor =
       Thread {
         runBlocking {
-          toServer.writeFrame(taskHandlerParseRequestFrame(3, "/bundle/etl.jar", listOf("etl")))
+          toServer.writeFrame(taskHandlerParseRequestFrame(3, "/bundle/etl.jar"))
           val prefix = fromServer.readByteArray(4)
           val raw = Frame.decodeRaw(ArrayBufferInput(fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())))
           reported.put(raw)
@@ -169,7 +169,7 @@ class ServerTest {
     val supervisor =
       Thread {
         runBlocking {
-          toServer.writeFrame(taskHandlerParseRequestFrame(3, "/bundle/etl.jar", listOf("etl")))
+          toServer.writeFrame(taskHandlerParseRequestFrame(3, "/bundle/etl.jar"))
           val prefix = fromServer.readByteArray(4)
           fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
           toServer.close()
@@ -187,17 +187,14 @@ class ServerTest {
   private fun taskHandlerParseRequestFrame(
     id: Int,
     file: String,
-    dagIds: List<String>,
   ): ByteArray {
     val out = ByteArrayOutputStream()
     MessagePack.newDefaultPacker(out).use { packer ->
       packer.packArrayHeader(2)
       packer.packInt(id)
-      packer.packMapHeader(5)
+      packer.packMapHeader(4)
       packer.packString("type").packString("TaskHandlerParseRequest")
       packer.packString("file").packString(file)
-      packer.packString("dag_ids").packArrayHeader(dagIds.size)
-      dagIds.forEach { packer.packString(it) }
       packer.packString("bundle_path").packString("/bundle")
       packer.packString("bundle_name").packString("java-task-handlers")
     }

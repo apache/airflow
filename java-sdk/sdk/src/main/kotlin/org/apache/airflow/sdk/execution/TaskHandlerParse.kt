@@ -36,29 +36,23 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
 /**
- * Answers a [TaskHandlerParseRequest] with the task handlers [bundle]
- * registers for the requested Dags, as a TaskHandlerParsingResult body.
+ * Answers a [TaskHandlerParseRequest] with every task handler [bundle]
+ * registers, keyed by Dag id in registration order, as a
+ * TaskHandlerParsingResult body.
  *
  * Only task-handler registrations count: a Dag declared in Java is its own,
- * not a Python Dag's. A requested Dag with no handlers is left out. The
- * generated models cannot hold `task_handlers`, so the body is a map.
+ * not a Python Dag's. The generated models cannot hold `task_handlers`, so
+ * the body is a map.
  */
 internal fun parseTaskHandlers(
   bundle: Bundle,
   request: TaskHandlerParseRequest,
-): Map<String, Any?> {
-  val declarations = linkedMapOf<String, List<Map<String, Any?>>>()
-  for (dagId in request.dagIds) {
-    if (dagId in declarations) continue
-    val dag = bundle.taskHandlers[dagId] ?: continue
-    declarations[dagId] = dag.tasks.values.map(::declare)
-  }
-  return linkedMapOf(
+): Map<String, Any?> =
+  linkedMapOf(
     "type" to "TaskHandlerParsingResult",
     "fileloc" to request.file,
-    "task_handlers" to declarations,
+    "task_handlers" to bundle.taskHandlers.mapValues { (_, dag) -> dag.tasks.values.map(::declare) },
   )
-}
 
 private fun declare(task: TaskDef): Map<String, Any?> {
   val (binding, params) = bindingOf(task.definition)

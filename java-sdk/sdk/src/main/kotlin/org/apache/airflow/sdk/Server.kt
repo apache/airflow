@@ -73,9 +73,8 @@ class ApiError(
  * execution requests to the registered [Bundle].
  *
  * The Dag processor starts the same entry point to ask which task handlers
- * the bundle registers. That process replies with the handlers registered for
- * the requested Dags and how each binds its arguments, runs no task, and
- * exits.
+ * the bundle registers. That process replies with every registered handler
+ * and how each binds its arguments, runs no task, and exits.
  *
  * The typical entry point is:
  *

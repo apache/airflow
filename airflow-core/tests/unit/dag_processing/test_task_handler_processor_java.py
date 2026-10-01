@@ -162,13 +162,6 @@ def test_a_built_bundle_declares_its_task_handlers(example_bundle):
         bundle_path=example_bundle,
         bundle_name="java-task-handlers",
         artifact_rel_path=jar.name,
-        dag_ids=[
-            "java_xcom_casting_example",
-            "java_interface_example",
-            "java_annotation_example",
-            "java_native_interface_example",
-            "not_registered",
-        ],
         logger=structlog.get_logger(),
     )
 
@@ -207,9 +200,9 @@ def test_a_built_bundle_declares_its_task_handlers(example_bundle):
         },
     )
     assert list(result.task_handlers) == [
-        "java_xcom_casting_example",
         "java_interface_example",
         "java_annotation_example",
+        "java_xcom_casting_example",
     ]
     with zipfile.ZipFile(jar) as zf:
         manifest = _parse_manifest(zf.read("META-INF/MANIFEST.MF"))
