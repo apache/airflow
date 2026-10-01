@@ -26,6 +26,7 @@ import time
 from collections.abc import Hashable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
@@ -79,12 +80,15 @@ def airflow_tools_from_toolset(toolset: AbstractToolset[Any], *, deps: Any = Non
 
     Outside a pydantic-ai run there is no live ``RunContext``, so an inert one with a
     placeholder model is passed. That is enough for toolsets whose ``call_tool`` ignores
-    the context, which is true of every toolset this provider exposes this way.
+    the context, which is true of every toolset this provider exposes this way. Its
+    ``max_retries`` is the pydantic-ai agent's default of one, the budget a tool gets
+    when its toolset takes it from the run. Each call then gets its own copy carrying
+    that tool's ``retry`` count and ``max_retries``, as inside a pydantic-ai run.
 
     :param toolset: The pydantic-ai toolset to expose.
     :param deps: Exposed to the toolset as ``ctx.deps``.
     """
-    ctx: RunContext[Any] = RunContext(deps=deps, model=TestModel(), usage=RunUsage())
+    ctx: RunContext[Any] = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), max_retries=1)
     toolset_tools = run_coroutine_sync(toolset.get_tools(ctx))
     in_order = _InOrder()
     return [_as_airflow_tool(toolset, name, tool, ctx, in_order) for name, tool in toolset_tools.items()]
@@ -162,6 +166,11 @@ class _RetryBudget:
         self._failed_turn: Hashable | None = None
         self._counted_until = float("-inf")
 
+    @property
+    def failures(self) -> int:
+        """Consecutive failures counted so far, what pydantic-ai passes a tool as ``ctx.retry``."""
+        return self._failures
+
     def start(self, run: Hashable | None) -> None:
         """Start the count over when a call belongs to a new run."""
         if run is not None and run != self._run:
@@ -209,8 +218,11 @@ def _as_airflow_tool(
             return correctable(started, turn, str(e))
         # A ValidationError raised by the tool itself is not the model's to fix: the call
         # may already have had a side effect, so it propagates rather than inviting a retry.
+        # Per call, as pydantic-ai's ToolManager does, so ``ctx.retry`` and ``ctx.last_attempt``
+        # mean the same here as inside a pydantic-ai run.
+        call_ctx = replace(ctx, retry=budget.failures, max_retries=tool.max_retries)
         try:
-            result = await toolset.call_tool(name, validated, ctx, tool)
+            result = await toolset.call_tool(name, validated, call_ctx, tool)
         except ModelRetry as e:
             return correctable(started, turn, e.message)
         except ToolFailed as e:

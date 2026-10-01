@@ -23,13 +23,21 @@ import sys
 from contextlib import nullcontext
 from datetime import timedelta
 from decimal import Decimal
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
+from typing import Any
 from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 
 import pytest
 from pydantic import BaseModel
-from pydantic_ai import Agent, DeferredToolRequests
-from pydantic_ai.capabilities import Toolset
+from pydantic_ai import Agent, DeferredToolRequests, Tool
+from pydantic_ai.capabilities import (
+    AbstractCapability,
+    CombinedCapability,
+    PrefixTools,
+    Thinking,
+    Toolset,
+    WebSearch,
+)
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
@@ -69,6 +77,7 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 from airflow.providers.common.ai.utils.toolsets import find_toolset
 from airflow.providers.common.ai.utils.usage_budget import (
@@ -80,6 +89,7 @@ from airflow.providers.common.ai.utils.usage_budget import (
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 from airflow.sdk import DAG, task
 
+from tests_common.test_utils.compat import OperatorSerialization
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
@@ -381,28 +391,45 @@ class TestAgentOperatorToolsetTemplating:
         assert found._db_conn_id == "tenant_acme"
         assert inner._db_conn_id == "tenant_{{ params.customer }}"
 
-    def test_toolset_capability_is_rendered(self):
+    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
+    def test_toolset_capability_is_rendered(self, passed_as):
         capability = Toolset(SQLToolset(db_conn_id="tenant_{{ params.customer }}"))
-        op = AgentOperator(
-            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
+        kwargs = (
+            {"capabilities": [capability]}
+            if passed_as == "capabilities"
+            else {"agent_params": {"capabilities": [capability]}}
         )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", **kwargs)
 
         op.render_template_fields(self.CONTEXT)
 
-        (rendered,) = op.agent_params["capabilities"]
+        (rendered,) = op._declared_capabilities
         assert rendered.toolset._db_conn_id == "tenant_acme"
         assert capability.toolset._db_conn_id == "tenant_{{ params.customer }}"
 
     def test_callable_toolset_capability_is_left_as_is(self):
         """A factory resolved per run has no toolset to render until the run starts."""
         capability = Toolset(lambda ctx: SQLToolset(db_conn_id="tenant_{{ params.customer }}"))
-        op = AgentOperator(
-            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
-        )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[capability])
 
         op.render_template_fields(self.CONTEXT)
 
-        assert op.agent_params["capabilities"][0] is capability
+        assert op.capabilities[0] is capability
+
+    def test_sandbox_export_destinations_are_rendered_on_a_copy(self):
+        toolset = SandboxToolset(
+            _NoopBackend(),
+            exports={"out/report.csv": "s3://reports/{{ params.customer }}/report.csv"},
+            export_conn_id="s3_{{ params.customer }}",
+        )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", toolsets=[toolset])
+
+        op.render_template_fields(self.CONTEXT)
+
+        (rendered,) = op.toolsets
+        assert rendered._exports == {"out/report.csv": "s3://reports/acme/report.csv"}
+        assert rendered._export_conn_id == "s3_acme"
+        assert toolset._exports == {"out/report.csv": "s3://reports/{{ params.customer }}/report.csv"}
 
     def test_only_connection_ids_are_templated(self):
         """allowed_tables is validated and canonicalised in __init__, so rendering it later
@@ -433,13 +460,11 @@ class TestAgentOperatorToolsetTemplating:
 
     def test_wrapped_toolset_inside_a_capability_is_rendered(self):
         capability = Toolset(SQLToolset(db_conn_id="tenant_{{ params.customer }}").prefixed("crm"))
-        op = AgentOperator(
-            task_id="t", prompt="p", llm_conn_id="llm", agent_params={"capabilities": [capability]}
-        )
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[capability])
 
         op.render_template_fields(self.CONTEXT)
 
-        found = find_toolset([op.agent_params["capabilities"][0].toolset], SQLToolset)
+        found = find_toolset([op.capabilities[0].toolset], SQLToolset)
         assert found is not None
         assert found.id == "sql-tenant_acme"
 
@@ -742,7 +767,7 @@ class TestAgentOperatorExecute:
         # On 3.3+ the agent may also end on a tool call awaiting approval.
         expected_output_type = [str, DeferredToolRequests] if AIRFLOW_V_3_3_PLUS else str
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=expected_output_type, instructions="You are helpful."
+            output_type=expected_output_type, instructions="You are helpful.", capabilities=[PromptCaching()]
         )
         mock_agent.run_sync.assert_called_once_with(
             "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
@@ -812,13 +837,19 @@ class TestAgentOperatorExecute:
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_code_mode_default_off_no_capabilities(self, mock_hook_cls, make_mock_run_result):
-        """code_mode defaults to False, so no capabilities are injected."""
+        """code_mode defaults to False, so with cache_prompt off no capabilities are injected."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "ok", make_mock_run_result
         )
 
-        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()])
-        op.execute(context=MagicMock())
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            toolsets=[MagicMock(spec=AbstractToolset)],
+            cache_prompt=False,
+        )
+        op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert "capabilities" not in create_call[1]
@@ -832,9 +863,14 @@ class TestAgentOperatorExecute:
         )
 
         op = AgentOperator(
-            task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()], code_mode=True
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            toolsets=[MagicMock(spec=AbstractToolset)],
+            code_mode=True,
+            cache_prompt=False,
         )
-        op.execute(context=MagicMock())
+        op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["capabilities"] == ["CM"]
@@ -855,9 +891,10 @@ class TestAgentOperatorExecute:
             prompt="hi",
             llm_conn_id="my_llm",
             code_mode=True,
+            cache_prompt=False,
             agent_params={"capabilities": ["existing"]},
         )
-        op.execute(context=MagicMock())
+        op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["capabilities"] == ["existing", "CM"]
@@ -893,6 +930,53 @@ class TestAgentOperatorExecute:
         """durable and code_mode cannot be combined (durable replay assumes stable step order)."""
         with pytest.raises(ValueError, match="durable=True and code_mode=True"):
             AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", durable=True, code_mode=True)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_cache_prompt_default_on_appends_capability_last(self, mock_hook_cls, make_mock_run_result):
+        """cache_prompt defaults to True and adds PromptCaching after any user capability."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+
+        op = AgentOperator(
+            task_id="t", prompt="hi", llm_conn_id="my_llm", agent_params={"capabilities": ["existing"]}
+        )
+        op.execute(context=_make_context())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call[1]["capabilities"] == ["existing", PromptCaching()]
+        assert op.agent_params["capabilities"] == ["existing"]
+
+    @pytest.mark.parametrize(
+        ("cache_prompt", "expected_anthropic_messages"),
+        [pytest.param(True, True, id="on"), pytest.param(False, None, id="off")],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_cache_prompt_reaches_the_model_request(
+        self, mock_hook_cls, cache_prompt, expected_anthropic_messages
+    ):
+        """The cache settings arrive on the model request, alongside the caller's own settings."""
+        seen: dict[str, Any] = {}
+
+        def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            seen.update(info.model_settings or {})
+            return ModelResponse(parts=[TextPart("ok")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            cache_prompt=cache_prompt,
+            agent_params={"model_settings": {"temperature": 0}},
+        )
+        op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+
+        assert seen["temperature"] == 0
+        assert seen.get("anthropic_cache_messages") is expected_anthropic_messages
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -1130,6 +1214,147 @@ class TestAgentOperatorExecute:
 
         with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
             op.execute(context=context)
+
+
+@dataclasses.dataclass
+class _FakeCodeMode(AbstractCapability):
+    """Stands in for pydantic-ai-harness ``CodeMode``, which the ``code-mode`` extra installs."""
+
+
+def _harness_root_without_code_mode_extra() -> ModuleType:
+    """
+    The pydantic_ai_harness package as installed without the ``code-mode`` extra.
+
+    Like the real package, it exports CodeMode through a module ``__getattr__`` that imports
+    ``pydantic_ai_harness.code_mode``, and that import fails because pydantic-monty is missing.
+    """
+    root = ModuleType("pydantic_ai_harness")
+
+    def __getattr__(name: str) -> object:
+        raise ImportError("pydantic-monty is required for CodeMode")
+
+    root.__getattr__ = __getattr__  # type: ignore[method-assign]
+    return root
+
+
+@pytest.fixture
+def fake_harness(monkeypatch):
+    """The harness with CodeMode imported: its ``code_mode`` module is loaded."""
+    monkeypatch.setitem(sys.modules, "pydantic_ai_harness", _harness_root_without_code_mode_extra())
+    monkeypatch.setitem(sys.modules, "pydantic_ai_harness.code_mode", SimpleNamespace(CodeMode=_FakeCodeMode))
+
+
+@pytest.fixture
+def harness_without_code_mode_extra(monkeypatch):
+    """The harness installed for other capabilities, with CodeMode never imported."""
+    monkeypatch.setitem(sys.modules, "pydantic_ai_harness", _harness_root_without_code_mode_extra())
+    monkeypatch.delitem(sys.modules, "pydantic_ai_harness.code_mode", raising=False)
+
+
+class TestAgentOperatorCapabilities:
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_capabilities_are_passed_to_the_agent_in_order(self, mock_hook_cls, make_mock_run_result):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+        thinking, search = Thinking(effort="high"), WebSearch()
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[thinking, search])
+        op.execute(context=_make_context())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call.kwargs["capabilities"] == [thinking, search, PromptCaching()]
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_capabilities_in_both_places_are_refused(self, mock_hook_cls):
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            capabilities=[Thinking()],
+            agent_params={"capabilities": [WebSearch()]},
+        )
+
+        with pytest.raises(ValueError, match="not both"):
+            op.execute(context=_make_context())
+        mock_hook_cls.get_hook.return_value.create_agent.assert_not_called()
+
+    def test_capabilities_are_left_out_of_the_serialized_dag(self):
+        with DAG(dag_id="d", schedule=None):
+            op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[Thinking()])
+
+        serialized = OperatorSerialization.serialize_operator(op)
+
+        assert "Thinking" not in json.dumps(serialized, default=str)
+
+    @pytest.mark.parametrize(
+        "wrap",
+        [
+            pytest.param(lambda code_mode: code_mode, id="direct"),
+            pytest.param(lambda code_mode: CombinedCapability([Thinking(), code_mode]), id="combined"),
+            pytest.param(lambda code_mode: code_mode.prefix_tools("sandboxed"), id="prefixed"),
+            pytest.param(
+                lambda code_mode: CombinedCapability([PrefixTools(wrapped=code_mode, prefix="sandboxed")]),
+                id="prefixed-in-combined",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
+    def test_durable_refuses_a_code_mode_capability(self, fake_harness, wrap, passed_as):
+        capabilities = [wrap(_FakeCodeMode())]
+        kwargs = (
+            {"capabilities": capabilities}
+            if passed_as == "capabilities"
+            else {"agent_params": {"capabilities": capabilities}}
+        )
+
+        with pytest.raises(ValueError, match="CodeMode capability"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, **kwargs)
+
+    def test_durable_accepts_capabilities_without_code_mode(self, fake_harness):
+        thinking = Thinking()
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[thinking])
+
+        assert op.capabilities == [thinking]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
+    @pytest.mark.parametrize(
+        ("capability", "supported"),
+        [
+            pytest.param(Thinking(), True, id="thinking"),
+            pytest.param(_FakeCodeMode(), False, id="code-mode"),
+        ],
+    )
+    def test_code_mode_capability_turns_off_tool_approval(self, fake_harness, capability, supported):
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[capability])
+
+        assert op._supports_tool_approval() is supported
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
+    def test_harness_without_the_code_mode_extra_does_not_break_other_agents(
+        self, harness_without_code_mode_extra
+    ):
+        # Neither the durable check at construction nor the approval check at run time may
+        # touch the harness root, whose CodeMode export would raise ImportError here.
+        AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[Thinking()])
+        op = AgentOperator(task_id="u", prompt="p", llm_conn_id="llm", capabilities=[Thinking()])
+
+        assert op._supports_tool_approval() is True
+
+    def test_code_mode_flag_and_code_mode_capability_are_refused_together(self, fake_harness):
+        with pytest.raises(ValueError, match="one or the other"):
+            AgentOperator(
+                task_id="t", prompt="p", llm_conn_id="llm", code_mode=True, capabilities=[_FakeCodeMode()]
+            )
+
+    def test_capability_function_is_left_for_the_run_to_resolve(self, fake_harness):
+        def build(ctx):
+            return Thinking()
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[build])
+
+        assert op.capabilities == [build]
 
 
 @pytest.mark.skipif(
@@ -2884,7 +3109,9 @@ class _DurableBudgetScenario:
             self.live_tool_calls += 1
             return "B"
 
-        return FunctionToolset(tools=[tool_a, tool_b])
+        # Cache tool_a before tool_b fails; sibling cancellation in a parallel batch
+        # can otherwise prevent the successful result from being persisted.
+        return FunctionToolset(tools=[Tool(tool_a, sequential=True), tool_b])
 
     def run_attempt(
         self, *, max_tries=0, prompt="run", limits=None, fail_after_run=False, interrupt_at_step=None

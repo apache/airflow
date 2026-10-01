@@ -229,9 +229,8 @@ actual isolation. Choose the smallest boundary that fits, then configure it.
      - ``SandboxToolset``
    * - Produce a large artifact for a downstream task
      - A ``@task`` driving a backend directly when the Dag knows the job. When
-       the agent has to produce it, a ``@task`` provisions the sandbox, the agent
-       attaches, and a ``@task`` reads the file out; see
-       :ref:`A sandbox another task owns <sandbox-attach>`.
+       the agent has to produce it, ``SandboxToolset(exports=...)`` copies the file
+       to object storage when the run ends; see :ref:`sandbox-results`.
    * - A whole task's worth of untrusted work isolated, with no agent involved
      - ``KubernetesPodOperator``
    * - Airflow's own credentials kept away from the agent

@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dag_version import DagVersion
+    from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
 
 log = logging.getLogger(__name__)
 
@@ -75,24 +76,40 @@ class DagCode(Base):
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False)
     __table_args__ = (Index("idx_dag_code_dag_id_last_updated", dag_id, last_updated),)
 
-    def __init__(self, dag_version, full_filepath: str, source_code: str | None = None):
+    def __init__(
+        self,
+        dag_version: DagVersion,
+        full_filepath: str,
+        source_code: str | None = None,
+        language: str = "python",
+    ):
         self.dag_version = dag_version
         self.fileloc = full_filepath
         self.source_code = source_code or DagCode.code(self.dag_version.dag_id)
         self.source_code_hash = self.dag_source_hash(self.source_code)
         self.dag_id = dag_version.dag_id
+        self.language = language
 
     @classmethod
     @provide_session
-    def write_code(cls, dag_version: DagVersion, fileloc: str, *, session: Session = NEW_SESSION) -> DagCode:
+    def write_code(
+        cls,
+        dag_version: DagVersion,
+        fileloc: str,
+        *,
+        dag_source_code: DagSourceCode | None = None,
+        session: Session = NEW_SESSION,
+    ) -> DagCode:
         """
         Write code into database.
 
         :param fileloc: file path of DAG to sync
+        :param dag_source_code: Source code read by the Dag importer; read from ``fileloc`` when not given
         :param session: ORM Session
         """
         log.debug("Writing DAG file %s into DagCode table", fileloc)
-        dag_code = DagCode(dag_version, fileloc, cls.get_code_from_file(fileloc))
+        source_code, language = cls._get_source_code_and_language(fileloc, dag_source_code)
+        dag_code = DagCode(dag_version, fileloc, source_code, language=language)
         session.add(dag_code)
         log.debug("DAG file %s written into DagCode table", fileloc)
         return dag_code
@@ -132,6 +149,14 @@ class DagCode(Base):
             if test_mode:
                 return "source_code"
             raise
+
+    @classmethod
+    def _get_source_code_and_language(
+        cls, fileloc: str, dag_source_code: DagSourceCode | None
+    ) -> tuple[str, str]:
+        if dag_source_code is None:
+            return cls.get_code_from_file(fileloc), "python"
+        return dag_source_code.source_code, dag_source_code.language
 
     @classmethod
     @provide_session
@@ -177,23 +202,33 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def update_source_code(cls, dag_id: str, fileloc: str, *, session: Session = NEW_SESSION) -> None:
+    def update_source_code(
+        cls,
+        dag_id: str,
+        fileloc: str,
+        *,
+        dag_source_code: DagSourceCode | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """
         Check if the source code of the DAG has changed and update it if needed.
 
         :param dag_id: Dag ID
         :param fileloc: The path of code file to read the code from
+        :param dag_source_code: Source code read by the Dag importer; read from ``fileloc`` when not given
         :param session: The database session.
         :return: None
         """
         latest_dagcode = cls.get_latest_dagcode(dag_id, session=session)
         if not latest_dagcode:
             return
-        new_source_code = cls.get_code_from_file(fileloc)
+        new_source_code, new_language = cls._get_source_code_and_language(fileloc, dag_source_code)
         new_source_code_hash = cls.dag_source_hash(new_source_code)
         if new_source_code_hash != latest_dagcode.source_code_hash:
             latest_dagcode.source_code = new_source_code
             latest_dagcode.source_code_hash = new_source_code_hash
+        if latest_dagcode.language != new_language:
+            latest_dagcode.language = new_language
         # Keep fileloc aligned even when the contents are unchanged (e.g. the file was moved/renamed).
         if fileloc != latest_dagcode.fileloc:
             latest_dagcode.fileloc = fileloc

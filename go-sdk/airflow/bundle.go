@@ -31,7 +31,11 @@ import (
 type BundleRef struct {
 	// closed ends registration for everything the bundle can hold, so a kind added later
 	// is covered without a flag of its own. Serve sets it; Register reads it.
-	closed       atomic.Bool
+	closed atomic.Bool
+	// mu is the lock for writes to taskHandlers and dags. Register holds it for the whole call,
+	// so two concurrent calls cannot register a task handler and a Dag with the same dag_id.
+	// Readers such as LookupTask take only the lock of the map they read.
+	mu           sync.Mutex
 	taskHandlers taskHandlerMap
 	dags         dagMap
 }
@@ -76,21 +80,41 @@ type Registerable interface{ registerable() }
 // registered.
 //
 // Register panics if a task handler with the same dag_id and task_id is already registered,
-// if a Dag with the same dag_id is already registered, or if [BundleRef.Serve] has already
-// been called: registration closes when serving starts.
+// if a Dag with the same dag_id is already registered, if a task handler and a Dag have the
+// same dag_id, or if [BundleRef.Serve] has already been called: registration closes when
+// serving starts. A task handler runs a task of a Python Dag, so its dag_id cannot also belong
+// to a Dag authored in Go.
 func (b *BundleRef) Register(items ...Registerable) {
 	if b.closed.Load() {
 		panic(
 			"airflow.BundleRef.Register: Serve has already been called; register everything before Serve",
 		)
 	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	for _, item := range items {
 		switch item := item.(type) {
 		case *taskHandler:
+			if b.dags.has(item.dagID) {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: Dag %q is already registered as a Dag from "+
+						"airflow.Dag, so it cannot also have task handlers from "+
+						"airflow.TaskHandler",
+					item.dagID,
+				))
+			}
 			b.taskHandlers.add(item.dagID, item.taskID, item.task)
 		case *DagRef:
 			if item == nil {
 				panic("airflow.BundleRef.Register: cannot register a nil *airflow.DagRef")
+			}
+			if b.taskHandlers.hasDag(item.dagID) {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: Dag %q already has task handlers from "+
+						"airflow.TaskHandler, so it cannot also be registered as a Dag from "+
+						"airflow.Dag",
+					item.dagID,
+				))
 			}
 			b.dags.add(item)
 		default:
@@ -135,6 +159,14 @@ func (m *taskHandlerMap) add(dagID, taskID string, task bundle.Task) {
 	m.order = append(m.order, bundle.TaskHandlerInfo{DagID: dagID, TaskID: taskID})
 }
 
+func (m *taskHandlerMap) hasDag(dagID string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	_, exists := m.handlers[dagID]
+	return exists
+}
+
 func (m *taskHandlerMap) LookupTask(dagID, taskID string) (bundle.Task, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -168,4 +200,12 @@ func (m *dagMap) add(dag *DagRef) {
 		m.dags = make(map[string]*DagRef)
 	}
 	m.dags[dag.dagID] = dag
+}
+
+func (m *dagMap) has(dagID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	_, exists := m.dags[dagID]
+	return exists
 }

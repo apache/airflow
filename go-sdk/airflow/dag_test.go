@@ -251,6 +251,12 @@ func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 			task: `github\.com/apache/airflow/go-sdk/airflow\.` +
 				`TestTaskRejectsASecondTaskSpec\.func\d+`,
 		},
+		{
+			name: "TriggerDagRun and no TaskID",
+			fn:   TriggerDagRun(TriggerDagRunSpec{DagID: "downstream_etl"}),
+			opts: []TaskOption{TaskSpec{}, TaskSpec{}},
+			task: `airflow\.TriggerDagRun`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -23,7 +23,6 @@ from unittest import mock
 
 import pendulum
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import and_, func, select
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
@@ -83,18 +82,13 @@ def clean_db():
 
 
 @pytest.fixture
-def dag_reader_test_client(test_client):
+def dag_reader_headers(test_client):
     """A caller who may read the Dags but not write them: viewer is below the role edits require."""
     auth_manager = test_client.app.state.auth_manager
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="reader", role="viewer"))
     )
-    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
-            test_client.app,
-            headers={"Authorization": f"Bearer {token}"},
-            base_url=str(test_client.base_url),
-        )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def make_dags():
@@ -1599,22 +1593,24 @@ class TestPauseBackfill(TestBackfillEndpoint):
         response = unauthorized_test_client.put(f"/backfills/{backfill.id}/pause")
         assert response.status_code == 404
 
-    def test_pause_backfill_403(self, session, dag_reader_test_client):
+    def test_pause_backfill_403(self, session, dag_reader_headers, test_client):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
-        response = dag_reader_test_client.put(f"/backfills/{backfill.id}/pause")
+        response = test_client.put(f"/backfills/{backfill.id}/pause", headers=dag_reader_headers)
         assert response.status_code == 403
 
     def test_pause_backfill_unknown_id_is_not_authorized_by_a_body_dag_id(
-        self, session, dag_reader_test_client
+        self, session, dag_reader_headers, test_client
     ):
         (dag,) = self._create_dag_models()
         session.commit()
-        response = dag_reader_test_client.put(f"/backfills/{231984098}/pause", json={"dag_id": dag.dag_id})
+        response = test_client.put(
+            f"/backfills/{231984098}/pause", json={"dag_id": dag.dag_id}, headers=dag_reader_headers
+        )
         assert response.status_code == 404
         assert response.json().get("detail") == "Backfill not found"
 

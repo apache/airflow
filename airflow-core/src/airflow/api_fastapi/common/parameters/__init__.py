@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.parameters.asset import (
     QueryAssetNamePrefixPatternSearch as QueryAssetNamePrefixPatternSearch,
     QueryConsumingAssetPatternSearch as QueryConsumingAssetPatternSearch,
     QueryHasAssetScheduleFilter as QueryHasAssetScheduleFilter,
+    QueryHasEventsFilter as QueryHasEventsFilter,
     QueryPartitionedDagRunDagIdFilter as QueryPartitionedDagRunDagIdFilter,
     QueryPartitionedDagRunHasCreatedDagRunIdFilter as QueryPartitionedDagRunHasCreatedDagRunIdFilter,
     QueryUriExactMatch as QueryUriExactMatch,
@@ -66,7 +67,9 @@ from airflow.api_fastapi.common.parameters.dag import (
     QueryTagsFilter as QueryTagsFilter,
     QueryTeamsFilter as QueryTeamsFilter,
     QueryTimetableTypePrefixPatternSearch as QueryTimetableTypePrefixPatternSearch,
+    _DagIdTagsFilter as _DagIdTagsFilter,
     _DagIdTeamsFilter as _DagIdTeamsFilter,
+    tags_filter_factory as tags_filter_factory,
     teams_filter_factory as teams_filter_factory,
 )
 from airflow.api_fastapi.common.parameters.dag_run import (
