@@ -645,6 +645,73 @@ class TestWatchedSubprocess:
         expected_start_date = start_date or fallback_now
         assert msg.start_date == expected_start_date
 
+    def test_conf_serialized_to_dag_run_conf_json(self, mocker, make_ti_context):
+        """Supervisor must strip dag_run.conf into dag_run_conf_json before msgpack-encoding StartupDetails.
+
+        This prevents the full Python object graph from being encoded/decoded across the pipe for
+        large DagRun.conf payloads (issue #74025).
+        """
+        conf_payload = {"records": [{"id": i} for i in range(10)]}
+        mock_client = MagicMock(spec=sdk_client.Client)
+        ti_context = make_ti_context(conf=conf_payload)
+        mock_client.task_instances.start.return_value = ti_context
+
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        proc.wait()
+
+        startup_calls = [
+            c for c in mock_send.call_args_list if len(c.args) > 1 and hasattr(c.args[1], "dag_run_conf_json")
+        ]
+        assert len(startup_calls) >= 1
+        msg = startup_calls[0].args[1]
+        assert msg.dag_run_conf_json == json.dumps(conf_payload, separators=(",", ":"))
+        assert msg.ti_context.dag_run.conf is None
+
+    def test_conf_not_set_when_dag_run_has_no_conf(self, mocker, make_ti_context):
+        """When dag_run.conf is falsy, dag_run_conf_json must remain None in StartupDetails."""
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context(conf=None)
+
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        proc.wait()
+
+        startup_calls = [
+            c for c in mock_send.call_args_list if len(c.args) > 1 and hasattr(c.args[1], "dag_run_conf_json")
+        ]
+        assert len(startup_calls) >= 1
+        msg = startup_calls[0].args[1]
+        assert msg.dag_run_conf_json is None
+
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
         import airflow.sdk.execution_time.supervisor

@@ -3936,6 +3936,18 @@
           "title": "Sentry Integration",
           "type": "string"
         },
+        "dag_run_conf_json": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dag Run Conf Json"
+        },
         "type": {
           "const": "StartupDetails",
           "default": "StartupDetails",

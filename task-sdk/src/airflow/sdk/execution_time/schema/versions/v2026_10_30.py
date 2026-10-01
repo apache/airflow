@@ -30,7 +30,7 @@ from cadwyn import VersionChange, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext
-from airflow.sdk.execution_time.comms import TaskState
+from airflow.sdk.execution_time.comms import StartupDetails, TaskState
 
 
 class AddArgBindingsToSupervisorTIRunContext(VersionChange):
@@ -63,4 +63,19 @@ class AddDagDefinitionsToDagFileParsingResult(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(DagFileParsingResult).field("parsed_definitions").didnt_exist,
         schema(DagFileParsingResult).field("dag_source_codes").didnt_exist,
+    )
+
+
+class AddDagRunConfJsonToStartupDetails(VersionChange):
+    """
+    Add ``dag_run_conf_json`` to StartupDetails.
+
+    Allows transporting DagRun.conf as a compact JSON string to avoid deserializing
+    it across msgpack in the supervisor and task process.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(StartupDetails).field("dag_run_conf_json").didnt_exist,
     )

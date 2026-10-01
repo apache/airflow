@@ -313,6 +313,113 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     )
 
 
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
+def test_parse_restores_dag_run_conf_from_json(mock_dagbag, make_ti_context):
+    """parse() must deserialize dag_run_conf_json and store it in _ti_context_from_server.dag_run.conf.
+
+    The supervisor strips dag_run.conf before msgpack-encoding StartupDetails to avoid
+    re-materializing the full Python object graph across the pipe.  parse() is responsible
+    for reconstructing it on the task-process side.
+    """
+    mock_bag_instance = mock.Mock()
+    mock_dagbag.return_value = mock_bag_instance
+    mock_dag = mock.Mock(spec=DAG)
+    mock_task = mock.Mock(spec=BaseOperator)
+    mock_task.deserialization_allowed_class_fields = ()
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dag.task_dict = {"a": mock_task}
+    mock_dag.tasks = [mock_task]
+
+    conf_payload = {"key": "value", "nested": {"n": 1}}
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        # conf is cleared from ti_context by the supervisor before sending
+        ti_context=make_ti_context(conf=None),
+        dag_run_conf_json=json.dumps(conf_payload),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": "/tmp", "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        ti = parse(what, mock.Mock())
+
+    assert ti._ti_context_from_server is not None
+    assert ti._ti_context_from_server.dag_run.conf == conf_payload
+
+
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
+def test_parse_leaves_dag_run_conf_none_when_no_json(mock_dagbag, make_ti_context):
+    """When dag_run_conf_json is None (no conf on the run), dag_run.conf stays None after parse()."""
+    mock_bag_instance = mock.Mock()
+    mock_dagbag.return_value = mock_bag_instance
+    mock_dag = mock.Mock(spec=DAG)
+    mock_task = mock.Mock(spec=BaseOperator)
+    mock_task.deserialization_allowed_class_fields = ()
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dag.task_dict = {"a": mock_task}
+    mock_dag.tasks = [mock_task]
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(conf=None),
+        dag_run_conf_json=None,
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": "/tmp", "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        ti = parse(what, mock.Mock())
+
+    assert ti._ti_context_from_server is not None
+    assert ti._ti_context_from_server.dag_run.conf is None
+
+
 @pytest.mark.parametrize(
     ("dag_id", "task_id", "expected_error"),
     (

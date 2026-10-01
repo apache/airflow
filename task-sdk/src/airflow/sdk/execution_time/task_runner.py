@@ -22,6 +22,7 @@ from __future__ import annotations
 import contextvars
 import functools
 import inspect
+import json
 import os
 import sys
 import time
@@ -1091,12 +1092,22 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         bundle_prepare_ms=bundle_prepare_ms,
         dag_file_parse_ms=dag_file_parse_ms,
     )
+    ti_context = what.ti_context
+    if what.dag_run_conf_json is not None:
+        # The supervisor stripped conf from ti_context before msgpack-encoding to avoid
+        # re-materializing the full Python object graph across the pipe. Restore it now
+        # with a single json.loads() call inside the task process.
+        ti_context = ti_context.model_copy(
+            update={
+                "dag_run": ti_context.dag_run.model_copy(update={"conf": json.loads(what.dag_run_conf_json)})
+            }
+        )
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
         task=task,
         bundle_instance=bundle_instance,
-        _ti_context_from_server=what.ti_context,
-        max_tries=what.ti_context.max_tries,
+        _ti_context_from_server=ti_context,
+        max_tries=ti_context.max_tries,
         start_date=what.start_date,
         state=TaskInstanceState.RUNNING,
         sentry_integration=what.sentry_integration,

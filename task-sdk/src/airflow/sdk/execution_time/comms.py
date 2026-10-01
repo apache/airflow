@@ -421,6 +421,11 @@ class StartupDetails(BaseModel):
     start_date: datetime
     ti_context: TIRunContext
     sentry_integration: str
+    # DagRun.conf transported as a compact JSON string to avoid deserializing it into a
+    # full Python object graph during msgpack encoding in the supervisor and decoding in
+    # the task process.  The task runner restores the parsed dict into ti_context on
+    # receipt.  None means the original conf was also None or empty.
+    dag_run_conf_json: str | None = None
     type: Literal["StartupDetails"] = "StartupDetails"
 
 

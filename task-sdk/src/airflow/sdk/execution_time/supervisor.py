@@ -23,6 +23,7 @@ import atexit
 import contextlib
 import functools
 import io
+import json
 import logging
 import os
 import pkgutil
@@ -1700,11 +1701,23 @@ class ActivitySubprocess(WatchedSubprocess):
         # for more context. Do not remove this without updating related comments and deferral handling.
         start_date = ti_context.start_date or datetime.now(tz=timezone.utc)
 
+        # Serialize conf as a compact JSON string so the full Python object graph is
+        # not msgpack-encoded in this process and decoded again in the task process.
+        # model_copy produces a new DagRun instance with conf cleared; the task runner
+        # restores the parsed dict from dag_run_conf_json on receipt.
+        dag_run_conf_json: str | None = None
+        if ti_context.dag_run.conf:
+            dag_run_conf_json = json.dumps(ti_context.dag_run.conf, separators=(",", ":"))
+            ti_context = ti_context.model_copy(
+                update={"dag_run": ti_context.dag_run.model_copy(update={"conf": None})}
+            )
+
         msg = StartupDetails.model_construct(
             ti=ti,
             dag_rel_path=os.fspath(dag_rel_path),
             bundle_info=bundle_info,
             ti_context=ti_context,
+            dag_run_conf_json=dag_run_conf_json,
             start_date=start_date,
             sentry_integration=sentry_integration,
         )
