@@ -348,6 +348,18 @@ repos:
         #   prek run sync-java-sdk-dag-schema --hook-stage manual
         stages: ['manual']
         files: ^java-sdk/sdk/schema/dag-schema\.json$
+      - id: sync-go-sdk-schemas
+        name: Sync Go SDK vendored schemas with the distributions that own them
+        description: "Copy airflow-core's Dag schema and task-sdk's supervisor schema when go-sdk's vendored copies drift"
+        entry: ./scripts/ci/prek/sync_go_sdk_schemas.py
+        language: python
+        pass_filenames: false
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
+          ^scripts/ci/prek/sync_go_sdk_schemas\.py$
       - id: check-go-sdk-generated-drift
         name: Check Go SDK generated files against the schemas they generate from
         description: "Regenerate the Dag specs and the coordinator-protocol models, and fail when a committed file differs"
@@ -355,10 +367,11 @@ repos:
         # golang so prek provisions the toolchain the generators need, the way the
         # other checks that shell out to `go` in go-sdk get theirs.
         language: golang
+        # The vendored schemas, not the Python originals: sync-go-sdk-schemas above is
+        # what ties those to the copies, and it needs neither Go nor the network.
         files: >
           (?x)
-          ^airflow-core/src/airflow/serialization/schema\.json$|
-          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
           ^go-sdk/airflow/spec\.gen\.go$|
           ^go-sdk/airflow/spec\.go$|
           ^go-sdk/internal/genspec/.*\.go$|

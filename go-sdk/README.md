@@ -380,17 +380,34 @@ Python supervisor / task runner
 The Go side of the protocol is implemented in `pkg/execution/`. On the Python side it is the
 `ExecutableCoordinator` in `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py`.
 
+## The vendored schemas
+
+`schema/dag-schema.json` and `schema/supervisor-schema.json` are byte-for-byte copies of schemas
+airflow-core and task-sdk own. The generators read the copies, not the originals, so a generated file
+is explainable from a file inside this module and a standalone checkout — a published Go module, an
+ASF source release — can regenerate and test without the monorepo around it. `ts-sdk` and `java-sdk`
+vendor theirs the same way.
+
+Two prek hooks split the work that keeps the copies honest: `sync-go-sdk-schemas` copies an original
+over its copy when the two differ and fails, since copying is mechanical; and
+`check-go-sdk-generated-drift` regenerates from the copies and fails when the committed Go differs,
+since what to do about a new schema construct — a generator rule, an authoring exclusion — is a
+decision.
+
 ## Regenerating the coordinator-protocol models
 
-The types in `pkg/execution/genmodels/` are generated from the in-tree supervisor schema snapshot
-(`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit them by hand. To move the
-SDK to a newer schema version:
+The types in `pkg/execution/genmodels/` are generated from `schema/supervisor-schema.json`, this
+module's vendored copy of the supervisor schema snapshot the Python Task SDK owns
+(`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit either by hand. To move
+the SDK to a newer schema version:
 
-1. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
-   snapshot's `api_version` date.
-2. Run `just generate-models`.
+1. Refresh the copy: `prek run sync-go-sdk-schemas --all-files`, which overwrites
+   `schema/supervisor-schema.json` from task-sdk's and fails so the change lands in review.
+2. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
+   copy's `api_version` date.
+3. Run `just generate-models`, and commit the copy with what it generated.
 
-`TestSupervisorSchemaVersionMatchesSnapshot` fails when the constant and the snapshot's `api_version`
+`TestSupervisorSchemaVersionMatchesSnapshot` fails when the constant and the copy's `api_version`
 drift, so a missed bump is caught by `go test`. A snapshot can also grow a field without the
 `api_version` moving, which leaves the models behind with nothing failing — msgpack drops a field the
 struct does not declare — so the `check-go-sdk-generated-drift` prek hook regenerates them and fails
@@ -399,9 +416,10 @@ when the committed files differ.
 ## Regenerating the Dag and task specs
 
 `airflow.DagSpec` and `airflow.TaskSpec` in [`airflow/spec.gen.go`](./airflow/spec.gen.go) are
-generated from airflow-core's Dag serialization schema
-(`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do not edit them by hand.
-Run `just generate-specs` after changing the schema or the generator.
+generated from `schema/dag-schema.json`, this module's vendored copy of airflow-core's Dag
+serialization schema (`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do
+not edit either by hand. Refresh the copy with `prek run sync-go-sdk-schemas --all-files`, then run
+`just generate-specs` after changing the schema or the generator.
 
 The schema is the serialized shape rather than the authoring one, so
 [`internal/genspec/authoring.go`](./internal/genspec/authoring.go) holds the three tables that turn
