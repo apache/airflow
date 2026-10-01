@@ -48,6 +48,9 @@ and must resolve to an existing asset when the task context is created. Target i
 static so Airflow can record the inlet; use templated event filters to select a run's events.
 By default the sensor succeeds once **at least one** matching event exists.
 
+Choose one target form: ``obj``, ``alias_name``, or ``name`` / ``uri``. The name and URI may be
+supplied together, but other combinations are rejected to avoid silently selecting a different asset.
+
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
     :dedent: 4
@@ -68,7 +71,8 @@ Use ``expected_count`` and ``count_policy`` to control how many processed events
 * ``count_policy="exact"`` succeeds only at ``expected_count``. Use this policy with zero to check
   that no matching events exist. An exact count can be missed if several events arrive between pokes.
 
-Counts must be non-negative. With the minimum policy, zero always satisfies the count condition.
+Counts must be non-negative integers, and ``limit`` must be a positive integer when supplied.
+With the minimum policy, zero always satisfies the count condition.
 If no ``process_result`` callback is provided, a ``limit`` below ``expected_count`` is rejected
 at construction instead of waiting until the sensor times out.
 
@@ -85,6 +89,15 @@ Pass a ``process_result`` callable (or a dotted import path to one) to transform
 filter the fetched events **before** the count check. It receives the list of asset events and must
 return a list; the processed events are pushed to XCom. It runs on every poke, so it should be
 idempotent and free of side effects.
+
+The query applies ``limit`` **before** processing. A callback may expand the fetched list, so
+``limit < expected_count`` is allowed when a callback is supplied; the count is checked on its
+output. Choose the limit with any filtering or deduplication in mind.
+
+With ascending order and a limit, each poke returns the same oldest matching events while those
+events remain in the query range. If the callback rejects them, newer acceptable events beyond
+the limit are never inspected. Prefer query filters such as ``partition_key``, ``extra`` and time
+bounds where possible. For a check of recent events, use ``ascending=False`` with a suitable limit.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
