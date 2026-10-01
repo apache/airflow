@@ -2999,7 +2999,8 @@ class TestExecuteAsyncTask:
         )
         ti = make_indexed_ti(is_async=True)
         ti.task = operator
-        with pytest.raises(TimeoutError):
+        # The limit raises asyncio.TimeoutError, the built-in TimeoutError only from Python 3.11 on.
+        with pytest.raises((TimeoutError, asyncio.TimeoutError)):
             await _execute_async_task({}, ti, mock.MagicMock())
         return operator
 

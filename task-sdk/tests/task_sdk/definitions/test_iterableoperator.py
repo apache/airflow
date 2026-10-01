@@ -2159,7 +2159,8 @@ class TestIterableOperatorContextIsolation:
             iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
 
         with mock_context(task=iterable_op) as context:
-            with pytest.raises(TimeoutError):
+            # asyncio.TimeoutError is only the built-in TimeoutError from Python 3.11 on.
+            with pytest.raises((TimeoutError, asyncio.TimeoutError)):
                 iterable_op.execute(context=context)
 
     def test_sync_subtask_with_execution_timeout_emits_warning(self):
