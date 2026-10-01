@@ -594,6 +594,7 @@ export type Type72 = "SkipDownstreamTasks";
 export type DagRelPath = string;
 export type StartDate6 = string;
 export type SentryIntegration = string;
+export type RelPath = string;
 export type Type73 = "StartupDetails";
 export type State7 = "success";
 export type EndDate7 = string;
@@ -1869,7 +1870,18 @@ export interface StartupDetails {
   start_date: StartDate6;
   ti_context: TIRunContext;
   sentry_integration: SentryIntegration;
+  task_handler_artifact?: TaskHandlerArtifactRef | null;
   type?: Type73;
+}
+/**
+ * The Lang-SDK artifact that implements a stub task: its Dag bundle and its path in that bundle.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerArtifactRef".
+ */
+export interface TaskHandlerArtifactRef {
+  bundle_info?: BundleInfo | null;
+  rel_path: RelPath;
 }
 /**
  * Update a task's state to success. Includes task_outlets and outlet_events for registering asset events.
