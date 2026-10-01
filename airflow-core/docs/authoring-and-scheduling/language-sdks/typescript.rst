@@ -289,6 +289,53 @@ The task id may be omitted, in which case it is the handler's function name:
 name of its own, such as an arrow function passed inline, has nothing to take an id from and needs
 one: either positionally or as ``taskId`` in its spec. Give it in one place only, not both.
 
+Order-only edges
+~~~~~~~~~~~~~~~~
+
+An edge that carries no value has no argument name to travel under, so it is drawn between the
+references themselves with ``before`` and ``after``, the TypeScript pair for Python's ``>>`` and
+``<<``:
+
+.. code-block:: typescript
+
+    const loaded = load({ transformed });
+    const cleaned = cleanup();
+
+    loaded.before(cleaned);                  // loaded >> cleaned
+    cleaned.after(loaded, transformed);      // [loaded, transformed] >> cleaned
+
+Both take any number of references, so one call draws several edges, and drawing an edge that
+already exists changes nothing. Each returns the reference it was called on, so
+``loaded.before(cleaned).before(notified)`` draws both edges from ``loaded``.
+
+Pass a value as an argument when the downstream task needs it, and use ``before`` or ``after`` when
+it only needs to run in order.
+
+Task groups
+~~~~~~~~~~~
+
+``dag.taskGroup(groupId)`` opens a scope with the same ``task`` and ``taskGroup`` methods as the Dag,
+prefixing the id of everything declared in it, as Python's ``prefix_group_id`` does:
+
+.. code-block:: typescript
+
+    const staging = dag.taskGroup("staging");
+    staging.task("stage_rows", stageRows)();        // task id "staging.stage_rows"
+    staging.taskGroup("checks").task("nulls", checkNulls)();  // "staging.checks.nulls"
+
+    staging.before(loaded);                          // staging >> loaded
+
+A group is an edge endpoint in its own right, so ``before`` and ``after`` order a whole group against
+a task or against another group.
+
+Tasks and groups share one id namespace, as they do in Python, so a Dag cannot hold both a task and a
+group called ``staging``. A ``.`` is what separates a group from what it holds, so it cannot appear in
+an id of either.
+
+Pass ``{ prefixGroupId: false }`` to keep the ids declared in a group as written, as ``prefix_group_id=False``
+does in Python; they then have to be unique across the Dag. A group id is made of letters, digits, dashes and
+underscores, and is at most 200 characters.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
@@ -413,9 +460,12 @@ The code is minified because an integrity digest is only worth taking over an ar
 read or edit in place. Function names are kept through minification, since a task id defaults to its
 handler's name. The ``/*! */`` license banners of bundled dependencies are kept.
 
-Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim in a
-``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something readable to
-display for the Dag. Only the entry module is embedded, not the modules it imports.
+Because the shipped code is not the code anyone wrote, the packer also embeds each Dag-defining source
+file verbatim in its own ``/*# airflowSource:<path> ... #*/`` block comment, verified by its own digest,
+so Airflow has something readable to display for each Dag. Each native Dag's file is embedded — the file
+its ``new Dag(...)`` constructor ran in — so a bundle that declares its Dags across several files gets one
+source region per file, mapped to their ``dag_id`` by the ``dag_source_paths`` field in the manifest. Files
+that only supply utilities or types are not embedded.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
@@ -457,9 +507,15 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Default
      - Description
    * - ``bundles_root``
-     - *(required)*
+     - *(optional)*
      - One or more directories searched recursively, in order, for an integrity-verified ``*.min.mjs``
-       bundle that declares the requested Dag. Accepts a string, a path, or a list of strings/paths.
+       bundle that declares the requested Dag. Accepts a string, a path, or a list of strings/paths. When
+       omitted, the bundle is located through a Dag bundle instead (see the note below). Explicitly setting
+       this option to ``null`` or an empty list is invalid.
+   * - ``dag_bundle_name``
+     - *(auto: task's own bundle)*
+     - Name of a configured Dag bundle to load the ``*.min.mjs`` bundle from. Mutually exclusive with
+       ``bundles_root``.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -467,6 +523,18 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``10.0``
      - Seconds to wait for the Node.js subprocess to connect after launch. Increase this if your bundle
        startup is slow (e.g. on constrained hardware).
+
+.. note::
+
+  **Locating the bundle.** ``bundles_root`` and ``dag_bundle_name`` are mutually exclusive, and both
+  are optional:
+
+  * Set ``bundles_root`` to scan explicit filesystem directories you manage yourself.
+  * Set ``dag_bundle_name`` to load the bundle from a configured Dag bundle, so it is delivered
+    and versioned through the same bundle machinery as your Dags. The task uses the version that
+    bundle is on when it starts, pinned for the whole task.
+  * Leave both unset (the default) to load the bundle from the **task's own** Dag bundle, pinned to the
+    version the run was created with.
 
 Limitations
 -----------

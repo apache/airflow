@@ -262,6 +262,7 @@ Here's what each workflow group does and when it runs:
 | **Additional PROD Image Tests**    | Final validation of production images (AMD only)            | Yes     | Yes     | Yes       |
 | **Kubernetes Tests**               | Tests deployment in Kubernetes environments                 | Yes     | Yes     | Yes (1)   |
 | **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                     | Yes     | Yes     | Yes       |
+| **Agent Framework Tests**          | Tests Common AI's adapters for other agent frameworks (4)   | Yes     | Yes     | No        |
 | **Finalize Tests**                 | Publishes results and updates shared resources              | Yes     | Yes (2) | Yes (2)   |
 
 #### AMD-Only Workflows
@@ -311,6 +312,31 @@ Special tests (integration and system tests) run selectively:
 - When complete test coverage is required for thorough validation
 - In canary runs for scheduled quality checks
 - When dependency upgrades require thorough testing
+
+**`(4)` Agent Framework Tests**
+
+The [Common AI provider](../../../../providers/common/ai/docs/index.rst) lets an agent built with
+another framework use Airflow's toolsets, through small adapters in
+[`airflow.providers.common.ai.tools`](../../../../providers/common/ai/src/airflow/providers/common/ai/tools).
+The adapter tests import the framework they adapt, so they only run where that framework is
+installed. Today that is two frameworks, [Strands Agents](https://strandsagents.com/), an open-source
+agent SDK from AWS, and [Google ADK](https://google.github.io/adk-docs/), and neither can be installed
+in the workspace: Strands caps `mcp`, and ADK caps `opentelemetry` and `websockets`, below the versions
+`uv.lock` resolves. The regular test jobs therefore skip their adapter tests.
+
+This job runs once per framework, each installing its framework into the CI image and running the
+Common AI tool tests (`providers/common/ai/tests/unit/common/ai/tools`), so a breaking release of one
+framework does not hide the other's result. It runs on `main` only, on amd64, when Common AI or
+common.sql code, the Common AI dependencies or `uv.lock` change, or when the run tests everything.
+
+- Outside a canary run, every package in the image keeps its version and the frameworks' caps on them
+  are overridden, so the adapters are tested against the same dependencies as the rest of Airflow.
+- On a canary run, the frameworks' own dependency pins win, which is the environment a user who
+  installs them gets.
+
+Both install the newest framework releases older than the repository's uv `exclude-newer` window, so a
+release that breaks an adapter fails this job about that long after it ships. The job is not a
+dependency of **Finalize Tests**, so such a release does not stop the image cache from being pushed.
 
 ## Runners
 

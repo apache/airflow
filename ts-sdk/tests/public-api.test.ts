@@ -24,12 +24,15 @@ import type {
   ConnectionResult,
   DagSpec,
   GetXComOpts,
+  Node,
   SetXComOpts,
   TaskClient,
   Registerable,
   TaskContext,
   TaskFactory,
   TaskFunction,
+  TaskGroupOptions,
+  TaskGroupRef,
   TaskInput,
   TaskInputs,
   TaskOptions,
@@ -59,8 +62,11 @@ describe("public API", () => {
     );
     const upstream = upstreamTask();
     const downstream = downstreamTask({ upstream });
-    expect(upstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_task" });
-    expect(downstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_downstream" });
+    expect(upstream).toMatchObject({ dagId: "public_api_dag", taskId: "public_api_task" });
+    expect(downstream).toMatchObject({
+      dagId: "public_api_dag",
+      taskId: "public_api_downstream",
+    });
     expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
     // serve() hands the bundle to the runtime, which needs the supervisor's
     // socket addresses that Airflow puts on argv.
@@ -283,6 +289,11 @@ describe("public API", () => {
   });
 
   it("keeps the Dag authoring signatures extensible via trailing specs", () => {
+    // Identity, plus the two order-only edge verbs; the handler and the value
+    // stay hidden.
+    expectTypeOf<Extract<keyof TaskRef, string>>().toEqualTypeOf<
+      "dagId" | "taskId" | "before" | "after"
+    >();
     expectTypeOf<TaskRef["dagId"]>().toEqualTypeOf<string>();
     expectTypeOf<TaskRef["taskId"]>().toEqualTypeOf<string>();
     // A reference carries its handler's return type, so a construct that needs
@@ -290,6 +301,34 @@ describe("public API", () => {
     // a wider one is, and not the other way round.
     expectTypeOf<TaskRef<boolean>>().toMatchTypeOf<TaskRef>();
     expectTypeOf<TaskRef>().not.toMatchTypeOf<TaskRef<boolean>>();
+    // Variadic, and each returns its own receiver rather than its arguments,
+    // return type included.
+    expectTypeOf<TaskRef<boolean>["before"]>().toEqualTypeOf<
+      (...downstream: readonly Node[]) => TaskRef<boolean>
+    >();
+    expectTypeOf<TaskRef<boolean>["after"]>().toEqualTypeOf<
+      (...upstream: readonly Node[]) => TaskRef<boolean>
+    >();
+    // A group is a scope and an edge endpoint, and nests the same way at
+    // every depth.
+    expectTypeOf<Extract<keyof TaskGroupRef, string>>().toEqualTypeOf<
+      "dagId" | "groupId" | "task" | "taskGroup" | "before" | "after"
+    >();
+    expectTypeOf<TaskGroupRef["groupId"]>().toEqualTypeOf<string>();
+    expectTypeOf<TaskGroupRef["taskGroup"]>().toEqualTypeOf<
+      (groupId: string, options?: TaskGroupOptions) => TaskGroupRef
+    >();
+    expectTypeOf<Dag["taskGroup"]>().toEqualTypeOf<
+      (groupId: string, options?: TaskGroupOptions) => TaskGroupRef
+    >();
+    // Python's prefix_group_id, and the only option a group takes so far.
+    expectTypeOf<TaskGroupOptions>().toEqualTypeOf<{ readonly prefixGroupId?: boolean }>();
+    expectTypeOf<TaskGroupRef["before"]>().toEqualTypeOf<
+      (...downstream: readonly Node[]) => TaskGroupRef
+    >();
+    // Both satisfy Node, which is what lets an edge join either kind.
+    expectTypeOf<TaskRef>().toExtend<Node>();
+    expectTypeOf<TaskGroupRef>().toExtend<Node>();
     // Wiring moved to the factory call, and the spec is the trailing argument
     // itself.
     expectTypeOf<TaskOptions>().toEqualTypeOf<TaskSpec>();
