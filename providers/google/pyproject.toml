@@ -163,7 +163,7 @@ dependencies = [
     "apache-airflow-providers-apache-beam>=6.2.2",
 ]
 "cncf.kubernetes" = [
-    "apache-airflow-providers-cncf-kubernetes>=10.1.0",
+    "apache-airflow-providers-cncf-kubernetes>=10.1.0",  # use next version
 ]
 "fab" = [
     "apache-airflow-providers-fab>=2.0.0",
