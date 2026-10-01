@@ -120,7 +120,7 @@ def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
         task_id="via_flat_args",
         binding="positional",
         params=[
-            TaskHandlerParam(name=None, required=True, value_schema=schema)
+            TaskHandlerParam(name=None, value_schema=schema)
             for schema in (
                 STRING,
                 INT64,
@@ -137,16 +137,22 @@ def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
         task_id="via_struct_arg_tag",
         binding="named",
         params=[
-            TaskHandlerParam(name="region_code", exact_name=True, required=False, value_schema=STRING),
-            TaskHandlerParam(name="threshold", exact_name=True, required=False, value_schema=DOUBLE),
+            TaskHandlerParam(name="region_code", exact_name=True, value_schema=STRING),
+            TaskHandlerParam(name="threshold", exact_name=True, value_schema=DOUBLE),
         ],
+    )
+    # The Dag passes this handler an argument it does not take, which only warns under named binding.
+    assert declarations["via_struct_more_args"] == TaskHandlerDeclaration(
+        task_id="via_struct_more_args",
+        binding="named",
+        params=[TaskHandlerParam(name="region_code", exact_name=True, value_schema=STRING)],
     )
     assert declarations["via_flat_map"] == TaskHandlerDeclaration(
         task_id="via_flat_map",
-        binding="named_or_whole",
+        binding="named",
         params=[
-            TaskHandlerParam(name="Region", required=False, value_schema=STRING),
-            TaskHandlerParam(name="Count", required=False, value_schema=INT64),
+            TaskHandlerParam(name="Region", value_schema=STRING),
+            TaskHandlerParam(name="Count", value_schema=INT64),
         ],
     )
 

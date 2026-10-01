@@ -188,11 +188,11 @@ func TestDeclareFlatParams(t *testing.T) {
 	assert.Equal(t, genmodels.TaskHandlerDeclaration{
 		TaskID:  "task",
 		Binding: genmodels.TaskHandlerDeclarationBindingPositional,
-		Params: []genmodels.TaskHandlerParam{
-			{Required: true, ValueSchema: schemaOf(stringFragment)},
-			{Required: true, ValueSchema: schemaOf(int64Fragment)},
-			{Required: true, ValueSchema: schemaOf(nullOr(stringFragment))},
-			{Required: true, ValueSchema: schemaOf(map[string]any{"type": "object"})},
+		Params: &genmodels.TaskHandlerParams{
+			{ValueSchema: schemaOf(stringFragment)},
+			{ValueSchema: schemaOf(int64Fragment)},
+			{ValueSchema: schemaOf(nullOr(stringFragment))},
+			{ValueSchema: schemaOf(map[string]any{"type": "object"})},
 		},
 	}, decl)
 }
@@ -203,7 +203,7 @@ func TestDeclareTaggedStruct(t *testing.T) {
 	assert.Equal(t, genmodels.TaskHandlerDeclaration{
 		TaskID:  "task",
 		Binding: genmodels.TaskHandlerDeclarationBindingNamed,
-		Params: []genmodels.TaskHandlerParam{
+		Params: &genmodels.TaskHandlerParams{
 			{Name: "region_code", ExactName: true, ValueSchema: schemaOf(stringFragment)},
 			{Name: "Threshold", ValueSchema: schemaOf(doubleFragment)},
 			{Name: "Count", ValueSchema: schemaOf(int64Fragment)},
@@ -214,8 +214,8 @@ func TestDeclareTaggedStruct(t *testing.T) {
 func TestDeclareUntaggedStruct(t *testing.T) {
 	want := genmodels.TaskHandlerDeclaration{
 		TaskID:  "task",
-		Binding: genmodels.TaskHandlerDeclarationBindingNamedOrWhole,
-		Params: []genmodels.TaskHandlerParam{
+		Binding: genmodels.TaskHandlerDeclarationBindingNamed,
+		Params: &genmodels.TaskHandlerParams{
 			{Name: "RegionCode", ValueSchema: schemaOf(stringFragment)},
 			{
 				Name: "Labels",
@@ -241,6 +241,6 @@ func TestDeclareContextOnly(t *testing.T) {
 	assert.Equal(t, genmodels.TaskHandlerDeclaration{
 		TaskID:  "task",
 		Binding: genmodels.TaskHandlerDeclarationBindingPositional,
-		Params:  []genmodels.TaskHandlerParam{},
+		Params:  &genmodels.TaskHandlerParams{},
 	}, decl)
 }

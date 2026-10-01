@@ -49,21 +49,21 @@ func TestDeclareTaskHandlers(t *testing.T) {
 				{
 					TaskID:  "transform",
 					Binding: genmodels.TaskHandlerDeclarationBindingPositional,
-					Params: []genmodels.TaskHandlerParam{
-						{Required: true, ValueSchema: &genmodels.ArgValueSchema{"type": "string"}},
+					Params: &genmodels.TaskHandlerParams{
+						{ValueSchema: &genmodels.ArgValueSchema{"type": "string"}},
 					},
 				},
 				{
 					TaskID:  "extract",
 					Binding: genmodels.TaskHandlerDeclarationBindingPositional,
-					Params:  []genmodels.TaskHandlerParam{},
+					Params:  &genmodels.TaskHandlerParams{},
 				},
 			},
 			"report": {
 				{
 					TaskID:  "render",
 					Binding: genmodels.TaskHandlerDeclarationBindingPositional,
-					Params:  []genmodels.TaskHandlerParam{},
+					Params:  &genmodels.TaskHandlerParams{},
 				},
 			},
 		},

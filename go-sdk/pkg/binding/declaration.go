@@ -29,31 +29,23 @@ import (
 // Declare describes the parameters that the task function's TaskFlow arguments fill, so the Dag
 // processor can check a stub task against its Go handler before the task runs.
 //
-// Flat parameters bind by position and carry no name. A lone struct binds by field name,
-// exactly for an `arg:`-tagged field and ignoring case and underscores otherwise. An untagged
-// lone struct can also take one unmatched argument as a whole value.
+// Flat parameters bind by position and carry no name. A lone struct, tagged or not, binds by
+// field name, exactly for an `arg:`-tagged field and ignoring case and underscores otherwise.
 func (p *Plan) Declare(taskID string) genmodels.TaskHandlerDeclaration {
 	decl := genmodels.TaskHandlerDeclaration{
 		TaskID:  taskID,
 		Binding: genmodels.TaskHandlerDeclarationBindingPositional,
-		// A nil slice would go out as null, which the Dag processor rejects.
-		Params: []genmodels.TaskHandlerParam{},
 	}
+	// Not nil: a null list would tell the Dag processor that the params cannot be listed.
+	params := genmodels.TaskHandlerParams{}
 	for _, plan := range p.params {
 		switch plan.kind {
 		case paramData:
-			decl.Params = append(decl.Params, genmodels.TaskHandlerParam{
-				Required:    true,
-				ValueSchema: valueSchema(plan.typ),
-			})
+			params = append(params, genmodels.TaskHandlerParam{ValueSchema: valueSchema(plan.typ)})
 		case paramLoneStruct:
-			decl.Binding = genmodels.TaskHandlerDeclarationBindingNamedOrWhole
-			if plan.tagged {
-				decl.Binding = genmodels.TaskHandlerDeclarationBindingNamed
-			}
-			// An unfilled field keeps its zero value, so none is required.
+			decl.Binding = genmodels.TaskHandlerDeclarationBindingNamed
 			for _, sf := range plan.fields {
-				decl.Params = append(decl.Params, genmodels.TaskHandlerParam{
+				params = append(params, genmodels.TaskHandlerParam{
 					Name:        sf.argName,
 					ExactName:   sf.tagged,
 					ValueSchema: valueSchema(sf.fieldType),
@@ -61,6 +53,7 @@ func (p *Plan) Declare(taskID string) genmodels.TaskHandlerDeclaration {
 			}
 		}
 	}
+	decl.Params = &params
 	return decl
 }
 

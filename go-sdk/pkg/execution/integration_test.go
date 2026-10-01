@@ -973,12 +973,10 @@ func TestServeTaskHandlerParseRequestEndToEnd(t *testing.T) {
 					"params": []any{
 						map[string]any{
 							"name":         nil,
-							"required":     true,
 							"value_schema": map[string]any{"type": "string"},
 						},
 						map[string]any{
-							"name":     nil,
-							"required": true,
+							"name": nil,
 							"value_schema": map[string]any{"anyOf": []any{
 								map[string]any{"type": "integer", "format": "int64"},
 								map[string]any{"type": "null"},
@@ -992,7 +990,6 @@ func TestServeTaskHandlerParseRequestEndToEnd(t *testing.T) {
 					"params": []any{map[string]any{
 						"name":         "table_name",
 						"exact_name":   true,
-						"required":     false,
 						"value_schema": map[string]any{"type": "string"},
 					}},
 				},
