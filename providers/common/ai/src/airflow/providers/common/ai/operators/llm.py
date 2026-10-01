@@ -52,12 +52,11 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
 try:
-    # New enough cores register an operator's declared ``output_type`` classes for
-    # XCom deserialization from a worker-side walk over the loaded DAG. On those
-    # cores the model instance flows through XCom unchanged. Older cores lack that
-    # walk, so the operator dumps to a dict instead (still deserializable anywhere).
+    # The worker-side DAG walk registers operator-declared ``output_type`` classes
+    # for XCom deserialization. ``apache-airflow-task-sdk`` versions with this walk
+    # send model instances unchanged; older versions dump them to a dict instead.
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
-except ImportError:  # pragma: no cover - cores before the worker-side registration walk
+except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
@@ -226,7 +225,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
-        # Return the Pydantic instance when the core can register ``output_type``
+        # Return the Pydantic instance when ``apache-airflow-task-sdk`` can register ``output_type``
         # for deserialization (its worker-side DAG walk); otherwise, or when the
         # user opts in, dump to a dict so the value is deserializable anywhere.
         self._serialize_model_output = serialize_output or not _CORE_WALKER
@@ -237,13 +236,13 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
             raise ValueError(
                 f"on_approval_timeout must be 'fail', 'approve', or 'reject', got {on_approval_timeout!r}."
             )
-        # Checked before the combination rule so an old core reports the core version
+        # Checked before the combination rule so an older Airflow version reports the Airflow version
         # rather than sending the user to drop an argument that was never the problem.
         if require_approval and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException("require_approval=True needs Airflow 3.1+.")
         if self.decision_policy.reviews and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException(
-                "DecisionPolicy(on_uncertain='review') needs Airflow 3.1+; use on_uncertain='fail' on this core."
+                "DecisionPolicy(on_uncertain='review') needs Airflow 3.1+; use on_uncertain='fail' on Airflow versions older than 3.1."
             )
 
         # A review can open either way; both settings make the approval flow reachable.
@@ -346,7 +345,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]
 
         if self._serialize_model_output and isinstance(output, BaseModel):
-            # ``serialize_output=True``, or a core without the worker-side
+            # ``serialize_output=True``, or an ``apache-airflow-task-sdk`` version without the worker-side
             # deserialization-class walk: dump to a dict so XCom carries a plain
             # JSON payload that deserializes without an allow-list entry.
             output = output.model_dump()

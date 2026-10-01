@@ -45,18 +45,18 @@ import hashlib
 import json
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
 
 from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.settings import ModelSettings
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 _MODEL_REQUEST_PARAMETERS_ADAPTER = TypeAdapter(ModelRequestParameters)
 

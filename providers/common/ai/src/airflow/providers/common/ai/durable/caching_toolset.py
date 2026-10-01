@@ -21,11 +21,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 
 from airflow.providers.common.ai.durable.base import build_tool_step_key
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.ai.utils.tool_metrics import record_tool_call
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 
 @dataclass
