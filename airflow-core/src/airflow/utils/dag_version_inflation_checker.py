@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import ast
+import zipfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -580,6 +581,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
 def check_dag_file_stability(file_path) -> DagVersionInflationCheckResult:
     from airflow.configuration import conf
+    from airflow._shared.module_loading.dag_file import might_contain_dag
 
     try:
         check_level = DagVersionInflationCheckLevel(
@@ -591,12 +593,42 @@ def check_dag_file_stability(file_path) -> DagVersionInflationCheckResult:
     if check_level == DagVersionInflationCheckLevel.off:
         return DagVersionInflationCheckResult(check_level=check_level)
 
+    if not zipfile.is_zipfile(file_path):
+        try:
+            parsed = ast.parse(Path(file_path).read_bytes())
+        except (SyntaxError, ValueError, TypeError, FileNotFoundError):
+            return DagVersionInflationCheckResult(check_level=check_level)
+
+        checker = AirflowRuntimeVaryingValueChecker(check_level)
+        checker.visit(parsed)
+        checker.static_check_result.runtime_varying_values = checker.varying_vars
+        return checker.static_check_result
+
+    result = DagVersionInflationCheckResult(check_level=check_level)
+
     try:
-        parsed = ast.parse(Path(file_path).read_bytes())
-    except (SyntaxError, ValueError, TypeError, FileNotFoundError):
+        with zipfile.ZipFile(file_path) as zip_file:
+            for zip_info in zip_file.infolist():
+                if zip_info.is_dir() or not zip_info.filename.endswith(".py"):
+                    continue
+
+                if not might_contain_dag(zip_info.filename, zip_file=zip_file, conf=conf):
+                    continue
+
+                try:
+                    parsed = ast.parse(zip_file.read(zip_info.filename))
+                except (SyntaxError, ValueError, TypeError):
+                    continue
+
+                checker = AirflowRuntimeVaryingValueChecker(check_level)
+                checker.visit(parsed)
+
+                for warning in checker.static_check_result.warnings.values():
+                    result.warnings[len(result.warnings)] = warning
+
+                for var_name, var_info in checker.varying_vars.items():
+                    result.runtime_varying_values.setdefault(var_name, var_info)
+    except (OSError, zipfile.BadZipFile):
         return DagVersionInflationCheckResult(check_level=check_level)
 
-    checker = AirflowRuntimeVaryingValueChecker(check_level)
-    checker.visit(parsed)
-    checker.static_check_result.runtime_varying_values = checker.varying_vars
-    return checker.static_check_result
+    return result
