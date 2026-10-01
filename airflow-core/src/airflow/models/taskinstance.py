@@ -1077,6 +1077,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         TaskInstanceHistory.record_ti(self, session=session)
         session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
+        self.external_executor_id = None
         self.id = uuid7()
         self.try_number += 1
 
@@ -1090,7 +1091,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             self.max_tries = max(self.max_tries, self.try_number)
         self.prepare_db_for_next_try(session)
         self.state = None
-        self.external_executor_id = None
         self.clear_next_method_args()
         session.flush()
 
