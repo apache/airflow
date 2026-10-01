@@ -47,7 +47,7 @@ from airflow.providers.common.ai.utils.query_results import (
     build_query_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -250,6 +250,9 @@ class SQLToolset(AirflowToolset):
         rather than skipping it and packing later ones, so one wide row early in the
         result ends it. The result reports which limit it hit so the agent can narrow
         its projection rather than page through the table.
+    :param max_retries: How many times the model may correct a failed call to one of these
+        tools before the run fails. ``None`` (the default) uses the agent's tool retry
+        budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -266,7 +269,9 @@ class SQLToolset(AirflowToolset):
         allow_writes: bool = False,
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
+        max_retries: int | None = None,
     ) -> None:
+        self._max_retries = validate_max_retries(max_retries)
         self._allowed_tables: frozenset[str] | None
         if allowed_tables is _UNSET:
             self._allowed_tables = None
@@ -369,6 +374,7 @@ class SQLToolset(AirflowToolset):
     # ------------------------------------------------------------------
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
 
         for name, description, schema in (
@@ -392,7 +398,7 @@ class SQLToolset(AirflowToolset):
             tools[name] = ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
-                max_retries=1,
+                max_retries=max_retries,
                 args_validator=build_args_validator(schema),
             )
         return tools
