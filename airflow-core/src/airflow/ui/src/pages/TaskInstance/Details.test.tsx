@@ -135,3 +135,20 @@ describe("Details state reason row", () => {
     expect(screen.getByText(i18n.t("common:taskInstance.stateReason"))).toBeInTheDocument();
   });
 });
+
+describe("Details force run row", () => {
+  // Matches both the raw key and the English label, whether or not a bundle is loaded.
+  const forceRunLabel = /force ?run/iu;
+
+  it("does not show the force run row when the task instance was not forced", () => {
+    renderDetails(buildTaskInstance({ ignore_upstream_deps: false }));
+
+    expect(screen.queryByText(forceRunLabel)).not.toBeInTheDocument();
+  });
+
+  it("shows the force run row when the task instance was forced", () => {
+    renderDetails(buildTaskInstance({ ignore_upstream_deps: true }));
+
+    expect(screen.getByText(forceRunLabel)).toBeInTheDocument();
+  });
+});

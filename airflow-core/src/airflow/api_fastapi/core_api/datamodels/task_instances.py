@@ -90,6 +90,7 @@ class TaskInstanceResponse(BaseModel):
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
     dag_version: DagVersionResponse | None
     team_name: str | None = None
+    ignore_upstream_deps: bool
     state_reason: str | None = Field(
         default=None,
         validation_alias="retry_reason",
@@ -258,6 +259,20 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="Keep the task state store entries of the cleared task instances so the next "
         "attempt resumes from them. By default they are discarded, so the task starts over.",
     )
+    ignore_upstream_deps: bool = Field(
+        default=False,
+        description=(
+            "Force run: re-run the cleared task instances even if their dependencies on other task "
+            "instances are not met (trigger rule, branch/ShortCircuit skips, depends_on_past, "
+            "wait_for_downstream, mapped upstream). Retry delay, sensor reschedule interval, pools, "
+            "concurrency limits, paused Dags and Dag-run state still apply. Cannot be combined with "
+            "include_upstream or include_downstream. Usually combine with only_failed=false, because "
+            "an instance blocked on its dependencies is not in the failed state. The flag stays on "
+            "the task instances until they are cleared again. Each listed task instance is forced "
+            "independently, so the caller owns the ordering between them; include_past and "
+            "include_future apply the flag in every selected run."
+        ),
+    )
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
 
     @model_validator(mode="before")
@@ -280,6 +295,15 @@ class ClearTaskInstancesBody(StrictBaseModel):
         if data.get("task_ids") and data.get("task_group_id"):
             raise ValueError("Only one of task_ids or task_group_id may be provided")
         return data
+
+    @model_validator(mode="after")
+    def validate_ignore_upstream_deps(self) -> ClearTaskInstancesBody:
+        """Force run cannot be combined with expanding the clear to relatives."""
+        if self.ignore_upstream_deps and (self.include_upstream or self.include_downstream):
+            raise ValueError(
+                "ignore_upstream_deps cannot be combined with include_upstream or include_downstream"
+            )
+        return self
 
 
 class PatchTaskInstanceBody(StrictBaseModel):

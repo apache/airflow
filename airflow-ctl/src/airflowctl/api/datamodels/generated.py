@@ -311,6 +311,13 @@ class ClearTaskInstancesBody(BaseModel):
             title="Keep Task State",
         ),
     ] = False
+    ignore_upstream_deps: Annotated[
+        bool | None,
+        Field(
+            description="Force run: re-run the cleared task instances even if their dependencies on other task instances are not met (trigger rule, branch/ShortCircuit skips, depends_on_past, wait_for_downstream, mapped upstream). Retry delay, sensor reschedule interval, pools, concurrency limits, paused Dags and Dag-run state still apply. Cannot be combined with include_upstream or include_downstream. Usually combine with only_failed=false, because an instance blocked on its dependencies is not in the failed state. The flag stays on the task instances until they are cleared again. Each listed task instance is forced independently, so the caller owns the ordering between them; include_past and include_future apply the flag in every selected run.",
+            title="Ignore Upstream Deps",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
@@ -2599,6 +2606,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")]
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None
+    ignore_upstream_deps: Annotated[bool, Field(title="Ignore Upstream Deps")]
     state_reason: Annotated[
         str | None,
         Field(
@@ -2648,6 +2656,7 @@ class TaskInstanceResponse(BaseModel):
     triggerer_job: JobResponse | None
     dag_version: DagVersionResponse | None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+    ignore_upstream_deps: Annotated[bool, Field(title="Ignore Upstream Deps")]
     state_reason: Annotated[
         str | None,
         Field(
