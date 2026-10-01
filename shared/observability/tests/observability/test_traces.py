@@ -381,7 +381,8 @@ _FORK_SCENARIO = textwrap.dedent(
 
     from airflow_shared.observability.traces import _ForkSafeTracerProvider
 
-    _ForkSafeTracerProvider()  # registers the after_in_child handler under test
+    # Kept referenced: the SDK registers the after_in_child handler under test through a WeakMethod.
+    provider = _ForkSafeTracerProvider(shutdown_on_exit=False)
 
     with otel_resources._service_instance_id_lock:
         pid = os.fork()
