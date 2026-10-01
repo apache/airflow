@@ -276,7 +276,10 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
-                team_name=self.job.team_name,
+                # A triggerer is started with at most one ``--team-name`` for now, so while a Job can
+                # serve several teams this one never does, and the runner stays scoped to a single team.
+                # If we later let a triggerer take several ``--team-name`` values, this must fan out.
+                team_name=next(iter(self.job.team_names), None),
             )
             # Run the main DB comms loop in this process
             self.trigger_runner.run()

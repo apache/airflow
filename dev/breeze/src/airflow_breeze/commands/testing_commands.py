@@ -62,6 +62,7 @@ from airflow_breeze.commands.common_options import (
     option_no_db_cleanup,
     option_parallelism,
     option_postgres_version,
+    option_project_name,
     option_providers_integration,
     option_python,
     option_run_db_tests_only,
@@ -119,6 +120,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     FILES_PATH,
     cleanup_python_generated_files,
+    get_default_project_name,
 )
 from airflow_breeze.utils.run_tests import (
     TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
@@ -323,9 +325,9 @@ def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
     """Return compose project name and project name."""
     project_name = file_name_from_test_type(shell_params.test_type)
     if shell_params.test_type == ALL_TEST_TYPE:
-        compose_project_name = "breeze-airflow-test"
+        compose_project_name = f"{shell_params.project_name}-airflow-test"
     else:
-        compose_project_name = f"breeze-airflow-test-{project_name}"
+        compose_project_name = f"{shell_params.project_name}-airflow-test-{project_name}"
     return compose_project_name, project_name
 
 
@@ -706,6 +708,7 @@ option_total_test_timeout = click.option(
 @option_parallel_core_test_types
 @option_parallelism
 @option_postgres_version
+@option_project_name
 @option_python
 @option_run_db_tests_only
 @option_run_in_parallel
@@ -770,6 +773,7 @@ def core_tests(**kwargs):
 @option_parallel_providers_test_types
 @option_parallelism
 @option_postgres_version
+@option_project_name
 @option_providers_constraints_location
 @option_providers_skip_constraints
 @option_python
@@ -1706,6 +1710,8 @@ def ui_e2e_tests(
             "TEST_PASSWORD": test_admin_password,
             "TEST_DAG_ID": "example_bash_operator",
         }
+        if browser != "all":
+            env_vars["TEST_BROWSER"] = browser
 
         if force_reinstall_deps:
             clean_cmd = ["pnpm", "install", "--force"]
@@ -1904,6 +1910,7 @@ def _run_test_command(
     use_xdist: bool,
     mysql_version: str = "",
     postgres_version: str = "",
+    project_name: str | None = None,
 ):
     _verify_parallelism_parameters(
         excluded_parallel_test_types, run_db_tests_only, run_in_parallel, use_xdist
@@ -1938,6 +1945,7 @@ def _run_test_command(
         parallel_test_types_list=test_list,
         parallelism=parallelism,
         postgres_version=postgres_version,
+        project_name=project_name or get_default_project_name(),
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
         python=python,

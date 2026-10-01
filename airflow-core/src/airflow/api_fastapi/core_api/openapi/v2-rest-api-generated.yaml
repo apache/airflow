@@ -1989,6 +1989,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -2619,6 +2625,25 @@ paths:
           items:
             type: string
           title: Teams
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: order_by
         in: query
         required: false
@@ -3805,6 +3830,9 @@ paths:
         schema:
           anyOf:
           - $ref: '#/components/schemas/DagWarningType'
+          - type: string
+            maxLength: 50
+            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
           - type: 'null'
           title: Warning Type
       - name: limit
@@ -4580,6 +4608,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/bulk:
+    patch:
+      tags:
+      - DAG
+      summary: Bulk Dags
+      description: Bulk pause, resume, or drain Dags by id.
+      operationId: bulk_dags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkBody_BulkDAGBody_'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/dags/{dag_id}/favorite:
     post:
       tags:
@@ -5215,13 +5284,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            filename, bundle_name, stacktrace, import_error_id`'
+            filename, source_reference, bundle_name, stacktrace, import_error_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, timestamp, filename,
-          bundle_name, stacktrace, import_error_id`'
+          source_reference, bundle_name, stacktrace, import_error_id`'
       - name: filename_pattern
         in: query
         required: false
@@ -5308,14 +5377,6 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: is_alive
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Is Alive
       - name: start_date_gte
         in: query
         required: false
@@ -5462,6 +5523,22 @@ paths:
           - type: string
           - type: 'null'
           title: Executor Class
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
+      - name: is_alive
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Alive
       responses:
         '200':
           description: Successful Response
@@ -10145,6 +10222,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '409':
           content:
             application/json:
@@ -10293,6 +10376,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -11040,6 +11129,14 @@ paths:
           items:
             type: string
           title: State
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: response_received
         in: query
         required: false
@@ -12039,6 +12136,21 @@ components:
 
         This structure helps users understand which key actions succeeded and which
         failed.'
+    BulkBody_BulkDAGBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_BulkDAGBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_BulkDAGBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_BulkDAGBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[BulkDAGBody]
     BulkBody_BulkDAGRunBody_:
       properties:
         actions:
@@ -12114,6 +12226,28 @@ components:
       required:
       - actions
       title: BulkBody[VariableBody]
+    BulkCreateAction_BulkDAGBody_:
+      properties:
+        action:
+          type: string
+          const: create
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkDAGBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[BulkDAGBody]
     BulkCreateAction_BulkDAGRunBody_:
       properties:
         action:
@@ -12224,6 +12358,26 @@ components:
       - action
       - entities
       title: BulkCreateAction[VariableBody]
+    BulkDAGBody:
+      properties:
+        is_paused:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Paused
+        scheduling_state:
+          anyOf:
+          - $ref: '#/components/schemas/DagSchedulingState'
+          - type: 'null'
+        dag_id:
+          type: string
+          title: Dag Id
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      title: BulkDAGBody
+      description: Request body for bulk update of Dags.
     BulkDAGRunBody:
       properties:
         dag_run_id:
@@ -12315,6 +12469,30 @@ components:
       type: object
       title: BulkDAGRunClearBody
       description: Request body for the bulk clear Dag Runs endpoint.
+    BulkDeleteAction_BulkDAGBody_:
+      properties:
+        action:
+          type: string
+          const: delete
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkDAGBody'
+          type: array
+          title: Entities
+          description: A list of entity id/key or entity objects to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[BulkDAGBody]
     BulkDeleteAction_BulkDAGRunBody_:
       properties:
         action:
@@ -12520,6 +12698,38 @@ components:
       - task_id
       title: BulkTaskInstanceBody
       description: Request body for bulk update, and delete task instances.
+    BulkUpdateAction_BulkDAGBody_:
+      properties:
+        action:
+          type: string
+          const: update
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkDAGBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[BulkDAGBody]
     BulkUpdateAction_BulkDAGRunBody_:
       properties:
         action:
@@ -12854,6 +13064,13 @@ components:
         prevent_running_task:
           type: boolean
           title: Prevent Running Task
+          default: false
+        keep_task_state:
+          type: boolean
+          title: Keep Task State
+          description: Keep the task state store entries of the cleared task instances
+            so the next attempt resumes from them. By default they are discarded,
+            so the task starts over.
           default: false
         note:
           anyOf:
@@ -14129,6 +14346,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Language
       type: object
       required:
       - content
@@ -14191,7 +14413,12 @@ components:
           type: string
           title: Dag Id
         warning_type:
-          $ref: '#/components/schemas/DagWarningType'
+          anyOf:
+          - $ref: '#/components/schemas/DagWarningType'
+          - type: string
+            maxLength: 50
+            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
+          title: Warning Type
         message:
           type: string
           title: Message
@@ -15296,6 +15523,11 @@ components:
         filename:
           type: string
           title: Filename
+        source_reference:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Reference
         bundle_name:
           anyOf:
           - type: string
@@ -15315,6 +15547,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - source_reference
       - bundle_name
       - stack_trace
       - file_token
@@ -15389,11 +15622,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
-        team_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
+        team_names:
+          items:
+            type: string
+          type: array
+          title: Team Names
         bundle_names:
           anyOf:
           - items:
@@ -16322,6 +16555,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - task_id
@@ -16505,6 +16747,15 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id
@@ -17211,16 +17462,16 @@ components:
           - type: string
           - type: 'null'
           title: Latest Triggerer Heartbeat
-        team_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
+        team_names:
+          items:
+            type: string
+          type: array
+          title: Team Names
       type: object
       required:
       - hostname
       - latest_triggerer_heartbeat
-      - team_name
+      - team_names
       title: TriggererInstanceInfoResponse
       description: Triggerer instance info serializer for responses.
     UpdateHITLDetailPayload:

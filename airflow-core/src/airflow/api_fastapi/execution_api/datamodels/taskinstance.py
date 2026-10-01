@@ -67,6 +67,12 @@ class TIEnterRunningPayload(StrictBaseModel):
     """When the task started executing"""
 
 
+class DagRunNoteUpdatePayload(StrictBaseModel):
+    """Schema for updating the DagRun note associated with a task instance."""
+
+    note: str | None = Field(None, max_length=1000)
+
+
 # Create an enum to give a nice name in the generated datamodels
 class TerminalStateNonSuccess(str, Enum):
     """TaskInstance states that can be reported without extra information."""
@@ -75,16 +81,20 @@ class TerminalStateNonSuccess(str, Enum):
     SKIPPED = TerminalTIState.SKIPPED
     REMOVED = TerminalTIState.REMOVED
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED
+    SERVER_TERMINATED = "server_terminated"
 
 
 class TITerminalStatePayload(StrictBaseModel):
-    """Schema for updating TaskInstance to a terminal state except SUCCESS state."""
+    """Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination."""
 
     state: TerminalStateNonSuccess
 
     end_date: UtcDateTime
     """When the task completed executing"""
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -238,7 +248,7 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
 
     if state == TIState.SUCCESS:
         return "success"
-    if state in set(TerminalTIState):
+    if state in set(TerminalTIState) or state == TerminalStateNonSuccess.SERVER_TERMINATED:
         return "_terminal_"
     if state == TIState.DEFERRED:
         return "deferred"

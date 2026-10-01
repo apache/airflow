@@ -64,8 +64,11 @@ Start with what you have
      - ``HookToolset``
    * - A question that is a query, against a DBAPI database
      - ``SQLToolset``
+   * - Files on an object store that the agent should read the way a person would:
+       browse a directory, open a report, look at the first rows of a Parquet file
+     - ``ObjectStorageToolset``
    * - Files on an object store (Parquet, CSV, Avro) or a catalog-managed
-       table format such as Iceberg, rather than rows in a database
+       table format such as Iceberg, to query with SQL rather than read
      - ``DataFusionToolset``
    * - A vendor that already ships a server built for agents, whose tools you
        would otherwise re-wrap by hand
@@ -78,7 +81,7 @@ Start with what you have
    * - Reasoning that should happen on the vendor's own infrastructure
      - A subclass of ``BaseManagedAgentToolset`` that you write
 
-The hook, SQL, DataFusion, MCP, Agent Skills and managed-agent guides each have a
+The hook, SQL, object storage, DataFusion, MCP, Agent Skills and managed-agent guides each have a
 *When to choose it* section giving the case for choosing it, what it cannot do, an
 example that exists in this repository, and where its credentials and its work come
 from. :doc:`../sandbox/index` carries the same section for ``SandboxToolset``.
@@ -91,6 +94,7 @@ Toolset guides
 
     Airflow hooks as tools <hook>
     SQL databases <sql>
+    Files on object storage <object_storage>
     Files with DataFusion <datafusion>
     MCP servers <mcp>
     Agent Skills <skills>
@@ -106,13 +110,16 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Six toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
+Seven toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
 package root:
 
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`: generic
   adapter for any Airflow Hook. Guide: :doc:`hook`.
 - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`: curated
   4-tool database toolset. Guide: :doc:`sql`.
+- :class:`~airflow.providers.common.ai.toolsets.object_storage.ObjectStorageToolset`:
+  read-only access to the files under one object-storage path. Guide:
+  :doc:`object_storage`.
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset`: connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections. Guide: :doc:`mcp`.

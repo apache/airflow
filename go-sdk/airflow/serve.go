@@ -56,7 +56,7 @@ const (
 //
 // The command-line flags of the executable decide what Serve does.
 // With --airflow-metadata it prints the bundle's manifest and returns, which is how
-// airflow-go-pack reads the registered Dag and task ids.
+// airflow-go-pack reads the Dag and task ids of the registered task handlers.
 // With --comm and --logs, which the Airflow supervisor passes, it runs one task over the
 // coordinator protocol.
 //
@@ -78,6 +78,12 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 	// The flags go on their own FlagSet. On pflag.CommandLine, every program that imports this
 	// package would get them, and one that defines its own --format there would panic.
 	flags := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	// --help is output the caller asked for, so it goes to stdout. Anything else pflag prints,
+	// such as a deprecation warning for a flag the bundle defines, stays on stderr where it
+	// cannot land in the middle of the --airflow-metadata manifest.
+	flags.Usage = func() {
+		fmt.Fprintf(stdout, "Usage of %s:\n%s", flags.Name(), flags.FlagUsages())
+	}
 	printMetadata := flags.Bool(
 		"airflow-metadata",
 		false,

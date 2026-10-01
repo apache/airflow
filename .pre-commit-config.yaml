@@ -279,6 +279,25 @@ repos:
           (?x)
           ^java-sdk/gradle\.properties$|
           ^java-sdk/sdk/schema/schema\.json$
+      - id: regenerate-java-sdk-verification-metadata
+        name: Regenerate the Java SDK dependency verification metadata
+        description: "Drop trusted checksums that no Java SDK build task resolves any more"
+        entry: ./scripts/ci/prek/regenerate_java_sdk_verification_metadata.py
+        language: python
+        pass_filenames: false
+        # example/ and scala_spark_example/ are separate builds this metadata does
+        # not cover, so their build files are excluded.
+        files: >
+          (?x)
+          ^java-sdk/build\.gradle\.kts$|
+          ^java-sdk/buildSrc/.*$|
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/gradle/libs\.versions\.toml$|
+          ^java-sdk/gradle/verification-metadata\.xml$|
+          ^java-sdk/gradle/wrapper/gradle-wrapper\.properties$|
+          ^java-sdk/settings\.gradle\.kts$|
+          ^scripts/ci/prek/regenerate_java_sdk_verification_metadata\.py$|
+          ^java-sdk/(?!example/|scala_spark_example/)[^/]+/(?:build\.gradle\.kts|gradle\.properties)$
       - id: update-java-sdk-readme-matrix
         name: Update the Java SDK compatibility matrix in java-sdk/README.md and Dokka module doc
         entry: ./scripts/ci/prek/update_java_sdk_readme_matrix.py
@@ -318,6 +337,34 @@ repos:
           (?x)
           ^airflow-core/src/airflow/serialization/schema\.json$|
           ^ts-sdk/schema/dag-schema\.json$
+      - id: sync-java-sdk-dag-schema
+        name: Sync Java SDK Dag serialization schema with airflow-core
+        description: "Copy airflow-core's serialization schema when Java SDK's vendored dag-schema.json drifts"
+        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncDagSchema
+        language: system
+        pass_filenames: false
+        # Re-vendoring is a java-sdk maintainer's deliberate step after an airflow-core
+        # schema change, not something every commit should do, so this is manual only:
+        #   prek run sync-java-sdk-dag-schema --hook-stage manual
+        stages: ['manual']
+        files: ^java-sdk/sdk/schema/dag-schema\.json$
+      - id: check-go-sdk-spec-drift
+        name: Check Go SDK Dag spec structs against the serialization schema
+        description: "Regenerate go-sdk/airflow/spec.gen.go and fail when the committed file differs"
+        entry: ./scripts/ci/prek/check_go_sdk_spec_drift.py
+        # golang so prek provisions the toolchain the generators need, the way the
+        # other checks that shell out to `go` in go-sdk get theirs.
+        language: golang
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^go-sdk/airflow/spec\.gen\.go$|
+          ^go-sdk/airflow/spec\.go$|
+          ^go-sdk/internal/genspec/.*\.go$|
+          ^go-sdk/internal/genlicense/.*\.go$|
+          ^scripts/ci/prek/check_go_sdk_spec_drift\.py$
+        pass_filenames: false
+        require_serial: true
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
@@ -425,6 +472,18 @@ repos:
           ^scripts/ci/prek/upgrade_important_versions\.py$
         pass_filenames: false
         require_serial: true
+      - id: upgrade-dependency-floors
+        name: Upgrade curated dependency floors (manual)
+        entry: ./scripts/ci/prek/upgrade_dependency_floors.py
+        stages: ['manual']
+        language: python
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^scripts/ci/prek/upgrade_dependency_floors\.py$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['packaging>=25', 'requests>=2.31.0', 'rich>=13.6.0', 'tomli>=2.0.1']
   - repo: https://github.com/adamchainz/blacken-docs
     rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
@@ -556,7 +615,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 4e065481e8571d0b270c5f4e2332b74cc8342758  # frozen: nightly
+    rev: 2c1fb3ad1373b1eb5148176bb6dcd4773f2a564d  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -656,7 +715,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.16.7']
+        additional_dependencies: ['ruff==0.16.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'

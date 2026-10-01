@@ -4213,6 +4213,18 @@
           ],
           "default": null,
           "title": "Rendered Map Index"
+        },
+        "retry_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry Reason"
         }
       },
       "required": [
@@ -4366,6 +4378,38 @@
         "run_id"
       ],
       "title": "TriggerDagRun",
+      "type": "object"
+    },
+    "UpdateDagRunNote": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        },
+        "type": {
+          "const": "UpdateDagRunNote",
+          "default": "UpdateDagRunNote",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "note"
+      ],
+      "title": "UpdateDagRunNote",
       "type": "object"
     },
     "UpdateHITLDetail": {

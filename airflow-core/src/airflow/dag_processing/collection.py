@@ -50,11 +50,13 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
+from airflow.plugins_manager import get_scheduling_class_teams
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -424,6 +426,7 @@ def _update_import_errors(
                 )
                 .values(
                     filename=relative_fileloc,
+                    source_reference=relative_fileloc,
                     bundle_name=bundle_name_,
                     timestamp=utcnow(),
                     stacktrace=stacktrace,
@@ -447,6 +450,7 @@ def _update_import_errors(
         else:
             import_error = ParseImportError(
                 filename=relative_fileloc,
+                source_reference=relative_fileloc,
                 bundle_name=bundle_name_,
                 timestamp=utcnow(),
                 stacktrace=stacktrace,
@@ -471,6 +475,101 @@ def _update_import_errors(
             )
             .execution_options(synchronize_session="fetch")
         )
+
+
+def _iter_serialized_class_names(data: Any) -> Iterator[str]:
+    """
+    Yield every string in a serialized Dag, which includes every class name it records.
+
+    Timetables, partition mappers and windows are encoded as ``{"__type": <qualname>, ...}``,
+    a custom deadline reference carries ``"__class_path"``, and a task's ``weight_rule`` is
+    stored as the strategy's qualname. Yielding every string rather than reading known keys
+    means it does not matter where the encoders put a name; ordinary strings simply match
+    nothing in the plugin map.
+
+    This is what ``DagSerialization.to_dict`` returns, before it is dumped to JSON, so it
+    holds tuples as well as lists (a partition mapper config is a list of pairs), and names
+    can sit in keys as well as values. None of it is cyclic.
+    """
+    stack = [data]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            yield item
+        elif isinstance(item, dict):
+            stack.extend(item.keys())
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple, set, frozenset)):
+            stack.extend(item)
+
+
+def _reject_other_teams_plugin_classes(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+    *,
+    session: Session,
+) -> list[LazyDeserializedDAG]:
+    """
+    Drop Dags that name a scheduling class belonging to another team's plugin.
+
+    Timetables, partition mappers, windows, deadline references and priority weight
+    strategies are named by the Dag itself, with no team-aware lookup in between, so this is
+    the only thing keeping a team-scoped plugin's scheduling classes to that team.
+
+    It runs here, on the data about to be stored, because that is exactly what the scheduler
+    will resolve, and because on the Dag processor path this runs in the manager, which never
+    executes Dag code. Configuration read in the process that imported the Dag file cannot be
+    trusted: the file could have changed it.
+
+    A partition mapper a timetable picks inside ``get_partition_mapper()`` is not covered,
+    because nothing decides it until the timetable runs.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return list(dags)
+
+    # A class registered by any global plugin is available to every Dag, so only classes
+    # that every registering plugin scoped to a team can be refused.
+    restricted: dict[str, frozenset[str]] = {
+        name: frozenset(team for team in teams if team is not None)
+        for name, teams in get_scheduling_class_teams().items()
+        if None not in teams
+    }
+    if not restricted:
+        return list(dags)
+
+    accepted: list[LazyDeserializedDAG] = []
+    dag_team_name: str | None = None
+    team_looked_up = False
+    for dag in dags:
+        used = {
+            name: restricted[name] for name in _iter_serialized_class_names(dag.data) if name in restricted
+        }
+        if used and not team_looked_up:
+            dag_team_name = DagBundleModel.get_team_name(bundle_name, session=session)
+            team_looked_up = True
+        refused = {name: teams for name, teams in used.items() if dag_team_name not in teams}
+        if not refused:
+            accepted.append(dag)
+            continue
+
+        name, owning_teams = min(refused.items())
+        owners = ", ".join(sorted(owning_teams))
+        belongs_to = f"team '{dag_team_name}'" if dag_team_name else "no team"
+        log.warning(
+            "Refusing Dag that uses another team's plugin class",
+            dag_id=dag.dag_id,
+            class_name=name,
+            owning_teams=sorted(owning_teams),
+            dag_team=dag_team_name,
+        )
+        import_errors[(bundle_name, dag.relative_fileloc)] = (
+            f"Dag '{dag.dag_id}' uses {name}, which is provided by a plugin belonging to {owners}. "
+            f"This Dag belongs to {belongs_to}, so it cannot use it. Move the Dag into a bundle "
+            f"owned by {owners}, or have the plugin provide the class globally instead of for a "
+            "single team."
+        )
+    return accepted
 
 
 def update_dag_parsing_results_in_db(
@@ -511,6 +610,13 @@ def update_dag_parsing_results_in_db(
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
     """
+    accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    if len(accepted) != len(dags):
+        # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
+        rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
+        warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
+    dags = accepted
+
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback

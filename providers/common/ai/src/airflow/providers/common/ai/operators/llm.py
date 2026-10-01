@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.policies.decision import DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
@@ -154,7 +154,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's
         user id.  ``None`` (default) lets any user with the permission respond.
         The list is fixed when the review is first created.  Needs Airflow 3.1+.
-    :param decision_policy: A :class:`~airflow.providers.common.ai.utils.decision.DecisionPolicy`
+    :param decision_policy: Experimental. A
+        :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`
         saying how confident the model has to be for the operator to return its answer by
         itself (``min_confidence``) and what happens otherwise (``on_uncertain``: ``"review"``
         or ``"fail"``). Confidence comes from models that report one per output field, such as
@@ -272,27 +273,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         for notifier in self.approval_notifiers:
             if not isinstance(notifier, BaseNotifier):
                 raise TypeError(f"approval_notifiers must contain BaseNotifier instances, got {notifier!r}")
-        assigned_users: list[Any]
-        if approval_assigned_users is None:
-            assigned_users = []
-        elif isinstance(approval_assigned_users, dict):
-            assigned_users = [approval_assigned_users]
-        elif isinstance(approval_assigned_users, str) or not isinstance(approval_assigned_users, Iterable):
-            raise TypeError(
-                "approval_assigned_users must be a {'id': str, 'name': str} dict or an iterable of them, "
-                f"got {approval_assigned_users!r}"
-            )
-        else:
-            assigned_users = list(approval_assigned_users)
-        for user in assigned_users:
-            if (
-                not isinstance(user, dict)
-                or not isinstance(user.get("id"), str)
-                or not isinstance(user.get("name"), str)
-            ):
-                raise TypeError(
-                    f"approval_assigned_users entries must be {{'id': str, 'name': str}} dicts, got {user!r}"
-                )
+        assigned_users = normalize_assigned_users(approval_assigned_users, param="approval_assigned_users")
         if assigned_users and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException("approval_assigned_users needs Airflow 3.1+.")
         self.approval_assigned_users: list[HITLUser] = assigned_users

@@ -341,6 +341,10 @@ export type BulkActionResponse = {
     }>;
 };
 
+export type BulkBody_BulkDAGBody_ = {
+    actions: Array<(BulkCreateAction_BulkDAGBody_ | BulkUpdateAction_BulkDAGBody_ | BulkDeleteAction_BulkDAGBody_)>;
+};
+
 export type BulkBody_BulkDAGRunBody_ = {
     actions: Array<(BulkCreateAction_BulkDAGRunBody_ | BulkUpdateAction_BulkDAGRunBody_ | BulkDeleteAction_BulkDAGRunBody_)>;
 };
@@ -359,6 +363,18 @@ export type BulkBody_PoolBody_ = {
 
 export type BulkBody_VariableBody_ = {
     actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
+};
+
+export type BulkCreateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<BulkDAGBody>;
+    action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_BulkDAGRunBody_ = {
@@ -422,6 +438,15 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
+ * Request body for bulk update of Dags.
+ */
+export type BulkDAGBody = {
+    is_paused?: boolean | null;
+    scheduling_state?: DagSchedulingState | null;
+    dag_id: string;
+};
+
+/**
  * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
@@ -459,6 +484,18 @@ export type BulkDAGRunClearBody = {
     run_on_latest_version?: boolean | null;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
+};
+
+export type BulkDeleteAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | BulkDAGBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -557,6 +594,22 @@ export type BulkTaskInstanceBody = {
     map_index?: number | null;
     dag_id?: string | null;
     dag_run_id?: string | null;
+};
+
+export type BulkUpdateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<BulkDAGBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkUpdateAction_BulkDAGRunBody_ = {
@@ -717,6 +770,10 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -1110,6 +1167,7 @@ export type DAGSourceResponse = {
     dag_id: string;
     version_number: number | null;
     dag_display_name: string;
+    language?: string | null;
 };
 
 /**
@@ -1141,7 +1199,7 @@ export type DAGWarningCollectionResponse = {
  */
 export type DAGWarningResponse = {
     dag_id: string;
-    warning_type: DagWarningType;
+    warning_type: DagWarningType | string;
     message: string;
     timestamp: string;
     dag_display_name: string;
@@ -1609,6 +1667,7 @@ export type ImportErrorResponse = {
     import_error_id: number;
     timestamp: string;
     filename: string;
+    source_reference: string | null;
     bundle_name: string | null;
     stack_trace: string;
     /**
@@ -1639,7 +1698,7 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
-    team_name?: string | null;
+    team_names?: Array<(string)>;
     bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
@@ -1995,6 +2054,10 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -2038,6 +2101,10 @@ export type TaskInstanceResponse = {
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -2239,7 +2306,7 @@ export type TriggererInfoResponse = {
 export type TriggererInstanceInfoResponse = {
     hostname: string | null;
     latest_triggerer_heartbeat: string | null;
-    team_name: string | null;
+    team_names: Array<(string)>;
 };
 
 /**
@@ -2450,6 +2517,7 @@ export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
+    is_backfill?: boolean;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
@@ -3208,6 +3276,10 @@ export type GetAssetsUiData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     groupPrefixPattern?: string | null;
+    /**
+     * Filter assets that have events
+     */
+    hasEvents?: boolean | null;
     lastAssetEventTimestampGt?: string | null;
     lastAssetEventTimestampGte?: string | null;
     lastAssetEventTimestampLt?: string | null;
@@ -3519,6 +3591,8 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    tags?: Array<(string)>;
+    tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -3665,7 +3739,7 @@ export type ListDagWarningsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      */
     orderBy?: Array<(string)>;
-    warningType?: DagWarningType | null;
+    warningType?: DagWarningType | string | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
@@ -3780,6 +3854,12 @@ export type GetDagDetailsData = {
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
 
+export type BulkDagsData = {
+    requestBody: BulkBody_BulkDAGBody_;
+};
+
+export type BulkDagsResponse = BulkResponse;
+
 export type FavoriteDagData = {
     dagId: string;
 };
@@ -3840,6 +3920,10 @@ export type GetDagsUiData = {
      * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
+    /**
+     * Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
+     */
+    dagRunStateWithinHours?: number | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
@@ -4431,6 +4515,7 @@ export type GetHitlDetailsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
@@ -4461,7 +4546,7 @@ export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
      */
     orderBy?: Array<(string)>;
 };
@@ -4489,6 +4574,7 @@ export type GetJobsData = {
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetJobsResponse = JobCollectionResponse;
@@ -5451,6 +5537,10 @@ export type $OpenApiTs = {
                  */
                 200: NextRunAssetsResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5936,6 +6026,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: ConnectionTestResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6760,6 +6854,29 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/bulk': {
+        patch: {
+            req: BulkDagsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BulkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/favorite': {
         post: {
             req: FavoriteDagData;
@@ -7574,6 +7691,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstancesLogResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -8642,6 +8763,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
@@ -8873,6 +8998,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: PartitionedDagRunDetailResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -9119,6 +9248,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TeamCollectionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

@@ -12,14 +12,28 @@
   },
   "dagBundles": {
     "active": "활성",
-    "bundle_one": "Dag 번들",
-    "bundle_other": "Dag 번들",
     "columns": {
       "active": "활성 여부",
       "importErrors": "Dag 가져오기 오류",
       "lastRefreshed": "마지막 새로 고침",
       "name": "이름",
       "version": "버전"
+    },
+    "detail": {
+      "status": "상태"
+    },
+    "files": {
+      "columns": {
+        "file": "파일",
+        "lastParsed": "마지막 파싱 시점",
+        "parseDuration": "파싱 기간"
+      },
+      "file_one": "파일",
+      "file_other": "파일",
+      "importErrorGone": "이 가져오기 오류는 더 이상 기록되어 있지 않습니다. 재구문 분석으로 해결되었을 수 있습니다.",
+      "neverParsed": "파싱된 적 없음",
+      "showImportError_one": "오류 보기",
+      "showImportError_other": "오류 {{count}}개 보기"
     },
     "inactive": "비활성",
     "neverRefreshed": "새로 고침된 적 없음",

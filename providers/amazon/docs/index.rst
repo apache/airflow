@@ -116,8 +116,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.18.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.41.0``
-``botocore``                                ``>=1.41.0``
+``boto3``                                   ``>=1.42.79``
+``botocore``                                ``>=1.42.79``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
@@ -150,6 +150,7 @@ Dependent package                                                               
 `apache-airflow-providers-apache-hive <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive>`_            ``apache.hive``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-duckdb <https://airflow.apache.org/docs/apache-airflow-providers-duckdb>`_                      ``duckdb``
 `apache-airflow-providers-exasol <https://airflow.apache.org/docs/apache-airflow-providers-exasol>`_                      ``exasol``
 `apache-airflow-providers-ftp <https://airflow.apache.org/docs/apache-airflow-providers-ftp>`_                            ``ftp``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
@@ -194,7 +195,8 @@ Extra                 Dependencies
 ``ssh``               ``apache-airflow-providers-ssh``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``sqlalchemy``        ``sqlalchemy>=1.4.54``
+``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``
+``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
 ====================  ============================================================================================================================================================
 
 Downloading official packages

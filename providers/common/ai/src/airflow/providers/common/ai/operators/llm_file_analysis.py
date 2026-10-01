@@ -38,6 +38,11 @@ class LLMFileAnalysisOperator(LLMOperator):
     """
     Analyze files from object storage or local storage using a single LLM call.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The operator resolves ``file_path`` via
     :class:`~airflow.providers.common.compat.sdk.ObjectStoragePath`, normalizes
     supported formats into text context, and optionally attaches images/PDFs as
