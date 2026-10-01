@@ -24,20 +24,19 @@ interface Deps {
   /**
    * A point in the task graph: one task, or a set of them.
    *
-   * [Flow] is Java's spelling of Python's `>>` and `<<`, for a dependency
-   * where nothing flows but the ordering. An edge that carries a value is
-   * declared by passing the upstream's handle instead.
+   * [Flow] declares a dependency where nothing flows but the ordering. An
+   * edge that carries a value is declared by passing the upstream's handle
+   * instead.
    */
   interface Flow {
     /** The tasks at this point in the flow. */
     fun nodes(): List<TaskDef>
 
     /**
-     * Runs the tasks here before each of [next], carrying no value — Java's
-     * spelling of Python's `>>`.
+     * Runs the tasks here before each of [next], carrying no value.
      *
      * ```java
-     * loaded.before(cleaned, notified); // load >> [cleanup, notify]
+     * loaded.before(cleaned, notified); // cleanup and notify both wait for load
      * ```
      *
      * Variadic, so one call fans out, and it returns its own receiver: a
@@ -54,11 +53,10 @@ interface Deps {
     }
 
     /**
-     * Runs the tasks here after each of [previous], carrying no value —
-     * Python's `<<`.
+     * Runs the tasks here after each of [previous], carrying no value.
      *
      * ```java
-     * cleaned.after(loaded, transformed); // [load, transform] >> cleanup
+     * cleaned.after(loaded, transformed); // cleanup waits for load and transform
      * ```
      *
      * @param previous Tasks that run before the ones here.
@@ -76,7 +74,7 @@ interface Deps {
        * every edge between two sets:
        *
        * ```java
-       * Flow.of(a, b).before(c, d); // [a, b] >> [c, d]
+       * Flow.of(a, b).before(c, d); // c and d both wait for a and b
        * ```
        */
       @JvmStatic

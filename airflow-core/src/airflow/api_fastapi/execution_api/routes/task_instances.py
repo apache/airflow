@@ -52,8 +52,10 @@ from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.dag_run import patch_dag_run_note
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
@@ -128,6 +130,10 @@ tracer = trace.get_tracer(__name__)
             (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
             (status.HTTP_409_CONFLICT, "The TI is already in the requested state"),
             (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+            (
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "The serialized TaskFlow arg spec for this stub task is not valid",
+            ),
         ]
     ),
     response_model_exclude_unset=True,
@@ -911,8 +917,11 @@ def ti_skip_downstream(
     dag_id, run_id = row_result
     log.debug("Retrieved DAG and run info", dag_id=dag_id, run_id=run_id)
 
-    task_ids = [task if isinstance(task, tuple) else (task, -1) for task in tasks]
-    log.debug("Prepared task IDs for skipping", task_ids=task_ids)
+    # A bare task_id skips every TI of that task, so an already expanded mapped task
+    # (e.g. one mapped over a literal list) is skipped too, not only map_index -1.
+    task_ids = [task for task in tasks if isinstance(task, str)]
+    ti_keys = [task for task in tasks if isinstance(task, tuple)]
+    log.debug("Prepared task IDs for skipping", task_ids=task_ids, ti_keys=ti_keys)
 
     # Don't overwrite tasks that are already executing or finished.
     # See: https://github.com/apache/airflow/issues/59378
@@ -932,7 +941,7 @@ def ti_skip_downstream(
         .where(
             TI.dag_id == dag_id,
             TI.run_id == run_id,
-            tuple_(TI.task_id, TI.map_index).in_(task_ids),
+            or_(TI.task_id.in_(task_ids), tuple_(TI.task_id, TI.map_index).in_(ti_keys)),
             skippable_state_clause,
         )
         .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
@@ -962,6 +971,59 @@ def _raise_ti_not_in_live_table(task_instance_id: UUID, *, archived_in_history: 
             "message": "Task Instance not found",
         },
     )
+
+
+@ti_id_router.patch(
+    "/{task_instance_id}/dag-run-note",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the DagRun note update"),
+        ]
+    ),
+)
+def update_dag_run_note(
+    task_instance_id: UUID,
+    body: DagRunNoteUpdatePayload,
+    session: SessionDep,
+) -> None:
+    """
+    Update the note for the DagRun associated with this task instance.
+
+    An empty note removes the existing note, matching the public API. A null note is a
+    no-op so runtime callers can leave a user-authored note untouched.
+    """
+    bind_contextvars(ti_id=str(task_instance_id))
+
+    dag_run = session.scalar(
+        select(DR)
+        .join(TI, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
+        .options(joinedload(DR.dag_run_note))
+        .where(TI.id == task_instance_id)
+    )
+    if dag_run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": "Task Instance not found"},
+        )
+
+    if body.note is None:
+        return
+
+    # Runtime notes have no acting user, so they are stored unattributed. Carrying over the
+    # previous author would credit them with content they did not write, so log the drop
+    # instead of keeping it.
+    if dag_run.dag_run_note is not None and dag_run.dag_run_note.user_id is not None:
+        log.info(
+            "Replacing an attributed DagRun note from task runtime; the note becomes unattributed",
+            dag_id=dag_run.dag_id,
+            run_id=dag_run.run_id,
+            previous_user_id=dag_run.dag_run_note.user_id,
+        )
+
+    # Reuse the public API note logic so both editing paths stay consistent.
+    patch_dag_run_note(dag_run=dag_run, note=body.note, user_id=None)
 
 
 @ti_id_router.put(
@@ -1160,8 +1222,8 @@ def ti_patch_rendered_map_index(
         ]
     ),
 )
-def get_previous_successful_dagrun(
-    task_instance_id: UUID, session: SessionDep
+async def get_previous_successful_dagrun(
+    task_instance_id: UUID, session: AsyncSessionDep
 ) -> PrevSuccessfulDagRunResponse:
     """
     Get the previous successful DagRun for a TaskInstance.
@@ -1171,12 +1233,12 @@ def get_previous_successful_dagrun(
     bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Retrieving previous successful DAG run")
 
-    task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
+    task_instance = await session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance or not task_instance.logical_date:
         log.debug("No task instance or logical date found")
         return PrevSuccessfulDagRunResponse()
 
-    dag_run = session.scalar(
+    dag_run = await session.scalar(
         select(DR)
         .where(
             DR.dag_id == task_instance.dag_id,
@@ -1257,10 +1319,10 @@ def get_task_instance_count(
 
 
 @router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
-def get_previous_task_instance(
+async def get_previous_task_instance(
     dag_id: str,
     task_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
     map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
@@ -1289,7 +1351,7 @@ def get_previous_task_instance(
     if state:
         query = query.where(TI.state == state)
 
-    ti = session.scalars(query.limit(1)).first()
+    ti = (await session.scalars(query.limit(1))).first()
 
     if not ti:
         return None
@@ -1358,11 +1420,15 @@ def get_task_instance_states(
 
 
 @router.get("/breadcrumbs", status_code=status.HTTP_200_OK)
-def get_task_instance_breadcrumbs(dag_id: str, run_id: str, session: SessionDep) -> TaskBreadcrumbsResponse:
-    result = session.execute(
-        select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration)
-        .where(TI.dag_id == dag_id, TI.run_id == run_id, TI.state.in_(TerminalTIState))
-        .order_by(TI.task_id, TI.map_index)
+async def get_task_instance_breadcrumbs(
+    dag_id: str, run_id: str, session: AsyncSessionDep
+) -> TaskBreadcrumbsResponse:
+    result = (
+        await session.execute(
+            select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration)
+            .where(TI.dag_id == dag_id, TI.run_id == run_id, TI.state.in_(TerminalTIState))
+            .order_by(TI.task_id, TI.map_index)
+        )
     ).mappings()
 
     def _iter_breadcrumbs() -> Iterator[dict[str, Any]]:

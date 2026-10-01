@@ -34,7 +34,7 @@ from airflow.providers.common.ai.utils.tool_metrics import (
     calling_framework,
     record_tool_call,
 )
-from airflow.providers.common.ai.utils.toolset_base import MaskingToolset, with_masking
+from airflow.providers.common.ai.utils.toolset_base import MaskingToolset, ensure_masked
 
 from unit.common.ai.operators.test_agent import _InMemoryDurableStorage
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
@@ -119,7 +119,7 @@ class TestToolsetsCountTheirCalls:
         storage = _InMemoryDurableStorage()
         for _ in range(2):
             cached = CachingToolset(
-                wrapped=with_masking(_sql_toolset()), storage=storage, counter=DurableStepCounter()
+                wrapped=ensure_masked(_sql_toolset()), storage=storage, counter=DurableStepCounter()
             )
             ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage(), tool_call_id="c1")
 
@@ -151,7 +151,7 @@ class TestOutcomes:
     def test_a_replay_through_a_wrapper_counts_the_toolset_underneath(self, stats):
         storage = _InMemoryDurableStorage()
         for _ in range(2):
-            wrapped = with_masking(_sql_toolset().prefixed("wh"))
+            wrapped = ensure_masked(_sql_toolset().prefixed("wh"))
             cached = CachingToolset(wrapped=wrapped, storage=storage, counter=DurableStepCounter())
             ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage(), tool_call_id="c1")
 

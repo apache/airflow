@@ -28,9 +28,8 @@ import (
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
 type DagRef struct {
 	dagID string
-	// Dag and Task copy the specs they are given, so a caller cannot change a registered Dag
-	// through a spec it still holds. A slice or map field in DagSpec or TaskSpec would share its
-	// contents with the caller, so Dag and Task would have to copy that field too.
+	// Dag and Task copy the specs they are given with copySpec, so a caller cannot change a
+	// registered Dag through a spec it still holds.
 	spec DagSpec
 
 	mu         sync.Mutex
@@ -63,7 +62,7 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 	}
 	d := &DagRef{dagID: dagID}
 	if len(spec) == 1 {
-		d.spec = spec[0]
+		d.spec = copySpec(spec[0])
 	}
 	return d
 }
@@ -175,7 +174,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	}
 	d.taskIDs[taskID] = struct{}{}
 
-	task := &TaskRef{taskID: taskID, spec: spec}
+	task := &TaskRef{taskID: taskID, spec: copySpec(spec)}
 	d.tasks = append(d.tasks, task)
 	return task
 }
