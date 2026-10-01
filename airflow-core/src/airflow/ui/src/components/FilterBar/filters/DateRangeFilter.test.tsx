@@ -112,6 +112,12 @@ const changeTimeInput = (input: HTMLElement | undefined, value: string) => {
   }
 };
 
+const pressEnter = (input: HTMLElement | undefined) => {
+  if (input) {
+    fireEvent.keyDown(input, { key: "Enter" });
+  }
+};
+
 const waitForError = async (errorText: string) => {
   await waitFor(() => {
     expect(screen.getByText(errorText)).toBeInTheDocument();
@@ -155,6 +161,9 @@ describe("DateRangeFilter", () => {
     const { endDateInput } = getInputs();
 
     changeDateInput(endDateInput, "2024/01/15");
+    expect(onChange).not.toHaveBeenCalled();
+
+    pressEnter(endDateInput);
 
     await waitFor(() => {
       expect(onChange).toHaveBeenLastCalledWith({
@@ -162,6 +171,24 @@ describe("DateRangeFilter", () => {
         startDate: undefined,
       });
     });
+  });
+
+  it("keeps typed input local and does not commit on every keystroke", () => {
+    const onChange = vi.fn();
+
+    renderFilter({ ...defaultProps, onChange });
+    const { startDateInput } = getInputs();
+
+    // Committing per keystroke used to sync the URL search params, whose
+    // value was then written back into the inputs mid-typing and made the
+    // picker unusable.
+    changeDateInput(startDateInput, "2024");
+    changeDateInput(startDateInput, "2024/01");
+    changeDateInput(startDateInput, "2024/01/1");
+    changeDateInput(startDateInput, "2024/01/15");
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(startDateInput).toHaveValue("2024/01/15");
   });
 
   it("accepts a start time on the end date when the end time is empty", async () => {

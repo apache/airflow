@@ -271,26 +271,12 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       const inputValue = event.target.value;
       const inputKey = inputType === "date" ? field : (`${field}Time` as const);
 
+      // Keep the change local: committing on every keystroke updates the URL
+      // search params, and the sync effect below then rewrites the inputs from
+      // the committed value mid-typing, which makes the picker unusable.
       setEditingState((prev) => {
         const newInputs = { ...prev.inputs, [inputKey]: inputValue };
         const validationErrors = validateInputs(newInputs);
-
-        const dateStr = field === "start" ? newInputs.start : newInputs.end;
-        const timeStr = field === "start" ? newInputs.startTime : newInputs.endTime;
-
-        if (dayjs(dateStr, DATE_INPUT_FORMAT, true).isValid()) {
-          const combinedDateTime = combineDateAndTime(dateStr, timeStr, {
-            endOfDay: field === "end",
-            timezone: selectedTimezone,
-          });
-
-          if (Boolean(combinedDateTime)) {
-            onChange({
-              ...value,
-              [field === "start" ? "startDate" : "endDate"]: combinedDateTime,
-            });
-          }
-        }
 
         return {
           ...prev,
@@ -299,6 +285,30 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
         };
       });
     };
+
+  const commitEditingState = () => {
+    const { inputs } = editingState;
+
+    if (validateInputs(inputs).length > 0) {
+      return;
+    }
+
+    const nextStartDate = combineDateAndTime(inputs.start, inputs.startTime, {
+      timezone: selectedTimezone,
+    });
+    const nextEndDate = combineDateAndTime(inputs.end, inputs.endTime, {
+      endOfDay: true,
+      timezone: selectedTimezone,
+    });
+    const nextValue = {
+      endDate: nextEndDate || undefined,
+      startDate: nextStartDate || undefined,
+    };
+
+    if (nextValue.startDate !== value.startDate || nextValue.endDate !== value.endDate) {
+      onChange(nextValue);
+    }
+  };
 
   const formatDateTime = (date: dayjs.Dayjs) => {
     const dateStr = date.tz(selectedTimezone).format("MMM DD, YYYY");
@@ -337,6 +347,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
   const hasValidationErrors = editingState.validationErrors.length > 0;
 
   return {
+    commitEditingState,
     editingState,
     endDateValue,
     formatDisplayValue,
