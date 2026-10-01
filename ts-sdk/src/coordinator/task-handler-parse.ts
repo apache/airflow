@@ -23,9 +23,7 @@
 
 import type { TaskHandlerDeclaration, TaskHandlerParseRequest } from "../generated/supervisor.js";
 import type { RuntimeTaskHandlerParsingResult } from "./protocol.js";
-import { getArgNames } from "../sdk/arg-names.js";
 import { bundleTaskHandlers, type Bundle } from "../sdk/bundle.js";
-import type { TaskFunction } from "../sdk/task.js";
 
 /**
  * Declare every registered task handler, keyed by Dag id, each Dag's in
@@ -38,10 +36,7 @@ export function declareTaskHandlers(
 ): RuntimeTaskHandlerParsingResult {
   const declared: [string, TaskHandlerDeclaration[]][] = [];
   for (const [dagId, handlers] of bundleTaskHandlers(bundle)) {
-    declared.push([
-      dagId,
-      [...handlers].map(([taskId, handler]) => declareTaskHandler(taskId, handler)),
-    ]);
+    declared.push([dagId, [...handlers.keys()].map((taskId) => declareTaskHandler(taskId))]);
   }
   return {
     type: "TaskHandlerParsingResult",
@@ -52,22 +47,9 @@ export function declareTaskHandlers(
 }
 
 /**
- * Types are erased, so a handler's `withArgNames` renames are the only names
- * the SDK knows. Every other argument reaches the handler by folding, which is
- * why the list is open.
+ * Types are erased, so the SDK cannot list the params a handler takes, and the
+ * Dag processor checks only that the handler exists.
  */
-function declareTaskHandler(taskId: string, handler: TaskFunction): TaskHandlerDeclaration {
-  const names = new Set(getArgNames(handler).values());
-  return {
-    task_id: taskId,
-    binding: "named_open",
-    params: [...names].map((name) => ({
-      name,
-      value_schema: null,
-      // A name the call did not pass reads as undefined, and the task still runs.
-      required: false,
-      // A rename never falls back to folding.
-      exact_name: true,
-    })),
-  };
+function declareTaskHandler(taskId: string): TaskHandlerDeclaration {
+  return { task_id: taskId, binding: "named", params: null };
 }

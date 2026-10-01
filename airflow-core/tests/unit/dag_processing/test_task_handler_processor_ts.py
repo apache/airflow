@@ -29,11 +29,7 @@ from unittest import mock
 import pytest
 import structlog
 
-from airflow.dag_processing.processor import (
-    TaskHandlerDeclaration,
-    TaskHandlerParam,
-    TaskHandlerParsingResult,
-)
+from airflow.dag_processing.processor import TaskHandlerDeclaration, TaskHandlerParsingResult
 from airflow.dag_processing.task_handler_processor import LangSDKTaskHandlerProcessorProcess
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
@@ -107,15 +103,8 @@ def fresh_coordinator_manager() -> Iterator[None]:
     reset_coordinator_manager()
 
 
-def _declare(task_id: str, *renames: str) -> TaskHandlerDeclaration:
-    return TaskHandlerDeclaration(
-        task_id=task_id,
-        binding="named_open",
-        params=[
-            TaskHandlerParam(name=name, value_schema=None, required=False, exact_name=True)
-            for name in renames
-        ],
-    )
+def _declare(task_id: str) -> TaskHandlerDeclaration:
+    return TaskHandlerDeclaration(task_id=task_id, binding="named", params=None)
 
 
 @pytest.mark.usefixtures("fresh_coordinator_manager")
@@ -141,7 +130,7 @@ def test_a_packed_bundle_declares_its_task_handlers(mock_should_use_exec, exampl
             ],
             "typescript_taskflow_example": [
                 _declare("summarize"),
-                _declare("report", "run_label"),
+                _declare("report"),
                 _declare("build_message"),
             ],
         },

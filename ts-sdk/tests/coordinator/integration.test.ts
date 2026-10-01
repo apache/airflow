@@ -639,7 +639,7 @@ describe("coordinator runtime integration", () => {
             type: "TaskHandlerParsingResult",
             fileloc: "/bundles/etl.min.mjs",
             task_handlers: {
-              py_dag: [{ task_id: "transform", binding: "named_open", params: [] }],
+              py_dag: [{ task_id: "transform", binding: "named", params: null }],
             },
           },
         },

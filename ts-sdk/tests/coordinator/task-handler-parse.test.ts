@@ -48,39 +48,29 @@ describe("declareTaskHandlers", () => {
       fileloc: FILE,
       task_handlers: {
         etl: [
-          { task_id: "extract", binding: "named_open", params: [] },
-          { task_id: "load", binding: "named_open", params: [] },
+          { task_id: "extract", binding: "named", params: null },
+          { task_id: "load", binding: "named", params: null },
         ],
-        reports: [{ task_id: "send", binding: "named_open", params: [] }],
+        reports: [{ task_id: "send", binding: "named", params: null }],
       },
     });
     expect(Object.keys(result.task_handlers)).toEqual(["etl", "reports"]);
   });
 
-  it("declares each distinct withArgNames target as an exact, optional param", () => {
+  it("lists no params for a handler with withArgNames renames", () => {
     interface ReportArgs {
       label: string;
-      title: string;
       owner: string;
     }
     const report = withArgNames(
-      { label: "run_label", title: "run_label", owner: "team" },
+      { label: "run_label", owner: "team" },
       async ({ label }: ReportArgs) => label,
     );
 
     const result = declare(new Bundle(new TaskHandler("etl", "report", report)));
 
-    expect(result.task_handlers).toEqual({
-      etl: [
-        {
-          task_id: "report",
-          binding: "named_open",
-          params: [
-            { name: "run_label", value_schema: null, required: false, exact_name: true },
-            { name: "team", value_schema: null, required: false, exact_name: true },
-          ],
-        },
-      ],
+    expect(result.task_handlers).toStrictEqual({
+      etl: [{ task_id: "report", binding: "named", params: null }],
     });
   });
 
