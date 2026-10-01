@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 import uuid6
 from sqlalchemy import delete, insert, select
@@ -34,17 +36,32 @@ pytestmark = pytest.mark.db_test
 ARTIFACT_BUNDLE = "java-task-handlers"
 # 6000 bytes in UTF-8, over both the MySQL key limit and the Postgres btree entry limit.
 LONG_NON_ASCII_PATH = "任" * 2000
-HANDLER_PARAMS = [
-    {"name": "path", "value_schema": {"type": "string"}, "required": True, "exact_name": True},
-    {"name": None, "value_schema": None, "required": False, "exact_name": False},
-]
+TASK_HANDLERS = {
+    "etl": [
+        {
+            "task_id": "extract",
+            "binding": "positional",
+            "params": [
+                {"name": "path", "value_schema": {"type": "string"}, "required": True, "exact_name": True},
+                {"name": None, "value_schema": None, "required": False, "exact_name": False},
+            ],
+        }
+    ],
+}
 
 
 def _make_artifact(
-    *, bundle_name: str = ARTIFACT_BUNDLE, relative_fileloc: str = "etl.jar"
+    *,
+    bundle_name: str = ARTIFACT_BUNDLE,
+    relative_fileloc: str = "etl.jar",
+    task_handlers: dict[str, list[dict[str, Any]]] | None = None,
 ) -> LangSDKTaskHandlerArtifact:
     return LangSDKTaskHandlerArtifact(
-        bundle_name=bundle_name, relative_fileloc=relative_fileloc, size_bytes=1024, cache_digest="0" * 64
+        bundle_name=bundle_name,
+        relative_fileloc=relative_fileloc,
+        size_bytes=1024,
+        cache_digest="0" * 64,
+        task_handlers=TASK_HANDLERS if task_handlers is None else task_handlers,
     )
 
 
@@ -55,8 +72,6 @@ def _make_handler(*, dag_id: str, artifact: LangSDKTaskHandlerArtifact) -> LangS
         artifact_id=artifact.id,
         dag_bundle_name="testing",
         dag_relative_fileloc=f"{dag_id}.py",
-        handler_binding="positional",
-        handler_params=HANDLER_PARAMS,
     )
 
 
@@ -79,17 +94,19 @@ def test_deleting_dag_deletes_its_handlers(testing_dag_bundle, session):
     assert session.scalars(select(LangSDKTaskHandlerArtifact.id)).all() == [artifact.id]
 
 
-def test_handler_stores_its_declaration(testing_dag_bundle, session):
-    artifact = _add_dags_and_artifact("dag_a", session=session)
-    session.add(_make_handler(dag_id="dag_a", artifact=artifact))
+@pytest.mark.parametrize(
+    "task_handlers",
+    [
+        pytest.param(TASK_HANDLERS, id="handlers"),
+        pytest.param({}, id="none"),
+    ],
+)
+def test_artifact_stores_its_task_handlers(session, task_handlers):
+    session.add(_make_artifact(task_handlers=task_handlers))
     session.flush()
     session.expire_all()
 
-    stored = session.execute(
-        select(LangSDKTaskHandler.handler_binding, LangSDKTaskHandler.handler_params)
-    ).one()
-
-    assert tuple(stored) == ("positional", HANDLER_PARAMS)
+    assert session.scalar(select(LangSDKTaskHandlerArtifact.task_handlers)) == task_handlers
 
 
 def test_deleting_referenced_artifact_fails(testing_dag_bundle, session):
@@ -136,6 +153,7 @@ def test_core_insert_fills_fileloc_hashes(testing_dag_bundle, session):
             relative_fileloc="etl.jar",
             size_bytes=1024,
             cache_digest="0" * 64,
+            task_handlers={},
         )
     )
     session.execute(
@@ -145,8 +163,6 @@ def test_core_insert_fills_fileloc_hashes(testing_dag_bundle, session):
             artifact_id=artifact_id,
             dag_bundle_name="testing",
             dag_relative_fileloc="dags/etl.py",
-            handler_binding="named_or_whole",
-            handler_params=[],
         )
     )
 
@@ -187,8 +203,8 @@ def _add_handler(*, session) -> LangSDKTaskHandler:
             _add_handler,
             "dag_relative_fileloc",
             LangSDKTaskHandler.dag_relative_fileloc_hash,
-            "handler_params",
-            [],
+            "dag_bundle_name",
+            "other-bundle",
             id="handler",
         ),
     ],

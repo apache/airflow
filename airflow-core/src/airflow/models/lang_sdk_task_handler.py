@@ -56,7 +56,12 @@ def _build_fileloc_hash_default(path_key: str) -> Callable[[DefaultExecutionCont
 
 
 class LangSDKTaskHandlerArtifact(Base):
-    """A Language SDK artifact in a task handler Dag bundle, cached with its fingerprint."""
+    """
+    A Language SDK artifact in a task handler Dag bundle, cached with its fingerprint and probe answer.
+
+    ``task_handlers`` is the runtime's whole answer, ``{dag_id: [TaskHandlerDeclaration as JSON, ...]}``.
+    It is written only from a probe and together with the fingerprint, so the two always match.
+    """
 
     __tablename__ = "lang_sdk_task_handler_artifact"
 
@@ -68,6 +73,7 @@ class LangSDKTaskHandlerArtifact(Base):
     )
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     cache_digest: Mapped[str] = mapped_column(String(128), nullable=False)
+    task_handlers: Mapped[dict[str, list[dict[str, Any]]]] = mapped_column(sa.JSON(), nullable=False)
     last_probed_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     __table_args__ = (
@@ -85,7 +91,7 @@ class LangSDKTaskHandlerArtifact(Base):
 
 
 class LangSDKTaskHandler(Base):
-    """The binding of one stub task, by ``(dag_id, task_id)``, to its artifact and declared handler parameters."""
+    """The binding of one stub task, by ``(dag_id, task_id)``, to the artifact that registers its handler."""
 
     __tablename__ = "lang_sdk_task_handler"
 
@@ -97,8 +103,6 @@ class LangSDKTaskHandler(Base):
     dag_relative_fileloc_hash: Mapped[str] = mapped_column(
         String(32), nullable=False, default=_build_fileloc_hash_default("dag_relative_fileloc")
     )
-    handler_binding: Mapped[str] = mapped_column(String(20), nullable=False)
-    handler_params: Mapped[list[dict[str, Any]]] = mapped_column(sa.JSON(), nullable=False)
 
     __table_args__ = (
         ForeignKeyConstraint(
