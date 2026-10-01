@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.assets import (
     NextRunAssetEventResponse,
     NextRunAssetsResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -51,6 +52,7 @@ assets_router = AirflowRouter(tags=["Asset"])
 
 @assets_router.get(
     "/next_run_assets/{dag_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def next_run_assets(
