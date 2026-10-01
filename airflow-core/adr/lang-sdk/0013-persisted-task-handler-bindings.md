@@ -162,7 +162,7 @@ CREATE TABLE lang_sdk_task_handler_artifact (
     relative_fileloc       VARCHAR(2000) NOT NULL,   -- path within that bundle
     relative_fileloc_hash  VARCHAR(32)   NOT NULL,   -- md5 of relative_fileloc; the path is too long to index
     size_bytes             BIGINT        NOT NULL,   -- cheap fingerprint tier
-    cache_digest           VARCHAR(128)  NOT NULL,   -- content fingerprint tier; see "The fast path"
+    cache_digest           VARCHAR(128)  NULL,       -- content fingerprint tier, NULL if none is stored; see "The fast path"
     task_handlers          JSON          NOT NULL,   -- {dag_id: [TaskHandlerDeclaration, ...]}, the probe answer
     last_probed_at         TIMESTAMP     NOT NULL,
     CONSTRAINT lang_sdk_task_handler_artifact_pkey PRIMARY KEY (id),
