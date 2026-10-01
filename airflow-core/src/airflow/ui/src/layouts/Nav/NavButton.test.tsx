@@ -97,12 +97,11 @@ describe("NavButton", () => {
 
   describe("isExternal", () => {
     it("renders as an anchor link with target=_blank", () => {
-      render(
-        <NavButton icon={FiHome} isExternal title="Cloudera" to="https://example.com" />,
-        { wrapper: wrapperAt("/") },
-      );
+      render(<NavButton icon={FiHome} isExternal title="Icon Name" to="https://example.com" />, {
+        wrapper: wrapperAt("/"),
+      });
 
-      const link = screen.getByRole("link", { name: "Cloudera" });
+      const link = screen.getByRole("link", { name: "Icon Name" });
 
       expect(link).toHaveAttribute("href", "https://example.com");
       expect(link).toHaveAttribute("target", "_blank");
