@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import TYPE_CHECKING, Any
@@ -34,14 +33,16 @@ except ImportError as e:
 
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_ai.toolsets.abstract import ToolsetTool
 
+from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_RESULT_BYTES,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
     build_query_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
@@ -81,9 +82,14 @@ _RETRYABLE_QUERY_ERROR_PATTERNS = (
 )
 
 
-class DataFusionToolset(AbstractToolset[Any]):
+class DataFusionToolset(AirflowToolset):
     """
     Curated toolset that gives an LLM agent SQL access to object-storage data via Apache DataFusion.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     Provides three tools — ``list_tables``, ``get_schema``, and ``query`` —
     backed by
@@ -169,29 +175,30 @@ class DataFusionToolset(AbstractToolset[Any]):
             )
         return tools
 
-    async def call_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
         if name == "list_tables":
-            return self._list_tables()
+            return await self.run_blocking(self._list_tables)
         if name == "get_schema":
-            return self._get_schema(tool_args["table_name"])
+            return await self.run_blocking(self._get_schema, tool_args["table_name"])
         if name == "query":
-            return self._query(tool_args["sql"])
+            return await self.run_blocking(self._query, tool_args["sql"])
         raise ValueError(f"Unknown tool: {name!r}")
 
     def _list_tables(self) -> str:
         try:
             engine = self._get_engine()
             tables: list[str] = list(engine.session_context.catalog().schema().table_names())
-            return json.dumps(tables)
+            return dumps_masked(tables)
         except Exception as ex:
             log.warning("list_tables failed: %s", ex)
-            return json.dumps({"error": str(ex)})
+            return dumps_masked({"error": str(ex)})
 
     def _get_schema(self, table_name: str) -> str:
         engine = self._get_engine()
@@ -200,14 +207,14 @@ class DataFusionToolset(AbstractToolset[Any]):
         # When allow_writes is enabled, the agent may create temporary in-memory tables
         # that would not be captured there.
         if not engine.session_context.table_exist(table_name):
-            return json.dumps({"error": f"Table {table_name!r} is not available"})
+            return dumps_masked({"error": f"Table {table_name!r} is not available"})
         # Intentionally using session_context instead of engine.get_schema() —
         # the latter returns a pre-formatted string intended for other operators,
         # not a JSON-compatible format.
         # TODO: refactor engine.get_schema() to return JSON and update this accordingly
         table = engine.session_context.table(table_name)
         columns = [{"name": f.name, "type": str(f.type)} for f in table.schema()]
-        return json.dumps(columns)
+        return dumps_masked(columns)
 
     def _query(self, sql: str) -> str:
         try:
@@ -241,7 +248,7 @@ class DataFusionToolset(AbstractToolset[Any]):
                 raise ModelRetry(
                     f"error: {ex!s}, Use get_schema and list_tables tools for more details."
                 ) from ex
-            return json.dumps({"error": str(ex), "query": sql})
+            return dumps_masked({"error": str(ex), "query": sql})
 
     @staticmethod
     def _is_retryable_query_error(error: QueryExecutionException) -> bool:

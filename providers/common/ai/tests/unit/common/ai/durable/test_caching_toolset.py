@@ -23,18 +23,22 @@ import pytest
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import ModelRequestParameters
 
-from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX as P
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX as P, DurableStorageProtocol
 from airflow.providers.common.ai.durable.caching_model import CachingModel
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
 
 @pytest.fixture
 def mock_storage():
-    storage = MagicMock()
+    storage = MagicMock(spec=DurableStorageProtocol)
     storage.load_tool_result.return_value = (False, None, None)
     storage.load_model_response.return_value = (None, None)
+    storage.save_tool_result.return_value = True
+    storage.save_model_response.return_value = True
     return storage
 
 
@@ -106,6 +110,34 @@ class TestCachingToolsetCacheMiss:
 
         keys = [call[0][0] for call in mock_storage.save_tool_result.call_args_list]
         assert keys == [f"{P}tool_step_0", f"{P}tool_step_1"]
+
+    @pytest.mark.asyncio
+    async def test_skipped_write_is_recorded_by_tool_name(self, mock_toolset, mock_storage, counter):
+        """A result the backend did not store re-runs on retry, so it is not counted as cached."""
+        mock_storage.save_tool_result.side_effect = [True, False]
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        await caching.call_tool("get_schema", {}, ctx_for("c1"), MagicMock())
+        result = await caching.call_tool("run_query", {}, ctx_for("c2"), MagicMock())
+
+        assert result == "fresh result"
+        assert counter.cached_tool == 1
+        assert counter.skipped_tools == ["run_query"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="cap_structlog needs airflow._shared, which lands in Airflow 3.1"
+    )
+    async def test_skipped_write_warns_by_tool_name(self, mock_toolset, mock_storage, counter, cap_structlog):
+        """The warning names the tool on every path, not only in a successful run's summary."""
+        mock_storage.save_tool_result.side_effect = [True, False]
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        await caching.call_tool("get_schema", {}, ctx_for("c1"), MagicMock())
+        await caching.call_tool("run_query", {}, ctx_for("c2"), MagicMock())
+
+        assert {"tool": "run_query", "step": 1, "log_level": "warning"} in cap_structlog
+        assert {"tool": "get_schema", "log_level": "warning"} not in cap_structlog
 
 
 class TestCachingToolsetReplayVerification:

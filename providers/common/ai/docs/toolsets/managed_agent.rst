@@ -20,6 +20,11 @@
 Vendor-managed agents: ``BaseManagedAgentToolset``
 ==================================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Cloud vendors now run agents on your behalf: Snowflake Cortex Agents, Amazon
 Bedrock AgentCore runtimes, Azure AI Foundry hosted agents, Vertex AI Agent
 Engine. Their reasoning loops execute on the vendor's infrastructure, so they
@@ -27,8 +32,8 @@ are not something ``AgentOperator`` runs; they are something an Airflow task
 *consults*.
 
 :class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
-is the contract for exposing one of those as a tool. Each provider package
-ships its own subclass, so credentials keep flowing through that provider's
+is the contract for exposing one of those as a tool. A provider package would
+ship its own subclass, so credentials keep flowing through that provider's
 existing hook and no new connection types are needed.
 
 A subclass implements two members:

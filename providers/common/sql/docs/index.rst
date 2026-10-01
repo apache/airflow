@@ -147,7 +147,7 @@ Extra               Dependencies
 ``pandas``          ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``openlineage``     ``apache-airflow-providers-openlineage``
 ``polars``          ``polars>=1.26.0``
-``sqlalchemy``      ``sqlalchemy>=1.4.54``
+``sqlalchemy``      ``sqlalchemy>=1.4.54,!=2.1.0``
 ``amazon``          ``apache-airflow-providers-amazon``
 ``datafusion``      ``datafusion>=50.0.0,<52.0.0``
 ``pyiceberg-core``  ``pyiceberg-core>=0.8.0``

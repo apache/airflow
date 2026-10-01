@@ -41,6 +41,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
+import { TeamName } from "src/components/TeamName";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
@@ -48,7 +49,6 @@ import { useConfig } from "src/queries/useConfig.tsx";
 import { useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
-import { BackendsOrderCard } from "./BackendsOrderCard";
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
@@ -116,6 +116,9 @@ const getColumns = ({
       ? [
           {
             accessorKey: "team_name",
+            cell: ({ row: { original } }: { row: { original: VariableResponse } }) => (
+              <TeamName teamName={original.team_name} />
+            ),
             header: translate("columns.team"),
           },
         ]
@@ -203,7 +206,6 @@ export const Variables = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <BackendsOrderCard />
       <DataTable
         columns={columns}
         data={variables}

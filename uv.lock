@@ -111,6 +111,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -256,6 +257,7 @@ members = [
     "apache-airflow-providers-microsoft-mssql",
     "apache-airflow-providers-microsoft-psrp",
     "apache-airflow-providers-microsoft-winrm",
+    "apache-airflow-providers-modal",
     "apache-airflow-providers-mongo",
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-neo4j",
@@ -1124,6 +1126,7 @@ all = [
     { name = "apache-airflow-providers-microsoft-mssql" },
     { name = "apache-airflow-providers-microsoft-psrp" },
     { name = "apache-airflow-providers-microsoft-winrm" },
+    { name = "apache-airflow-providers-modal" },
     { name = "apache-airflow-providers-mongo" },
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-neo4j" },
@@ -1406,6 +1409,9 @@ microsoft-psrp = [
 ]
 microsoft-winrm = [
     { name = "apache-airflow-providers-microsoft-winrm" },
+]
+modal = [
+    { name = "apache-airflow-providers-modal" },
 ]
 mongo = [
     { name = "apache-airflow-providers-mongo" },
@@ -1777,6 +1783,8 @@ requires-dist = [
     { name = "apache-airflow-providers-microsoft-psrp", marker = "extra == 'microsoft-psrp'", editable = "providers/microsoft/psrp" },
     { name = "apache-airflow-providers-microsoft-winrm", marker = "extra == 'all'", editable = "providers/microsoft/winrm" },
     { name = "apache-airflow-providers-microsoft-winrm", marker = "extra == 'microsoft-winrm'", editable = "providers/microsoft/winrm" },
+    { name = "apache-airflow-providers-modal", marker = "extra == 'all'", editable = "providers/modal" },
+    { name = "apache-airflow-providers-modal", marker = "extra == 'modal'", editable = "providers/modal" },
     { name = "apache-airflow-providers-mongo", marker = "extra == 'all'", editable = "providers/mongo" },
     { name = "apache-airflow-providers-mongo", marker = "extra == 'mongo'", editable = "providers/mongo" },
     { name = "apache-airflow-providers-mysql", marker = "extra == 'all'", editable = "providers/mysql" },
@@ -1865,7 +1873,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.12.18" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-db2", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-db2", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "modal", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -2205,7 +2213,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.6.0" },
     { name = "rich-argparse", specifier = ">=1.0.0" },
     { name = "setproctitle", specifier = ">=1.3.3" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.50" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.50,!=2.1.0" },
     { name = "starlette", specifier = ">=1.3.1" },
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
     { name = "structlog", specifier = ">=26.1.0" },
@@ -2775,7 +2783,7 @@ requires-dist = [
     { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'", specifier = ">=1.0.3" },
     { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'", specifier = ">=1.1.5" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=8.0.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'sqlalchemy'", specifier = ">=1.4.49" },
+    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'sqlalchemy'", specifier = ">=1.4.49,!=2.1.0" },
     { name = "sqlalchemy-utils", marker = "extra == 'sqlalchemy'", specifier = ">=0.41.2" },
     { name = "swagger-plugin-for-sphinx", marker = "extra == 'docs'", specifier = ">=7.1.0,!=7.2.0" },
     { name = "tabulate", marker = "extra == 'docs'", specifier = ">=0.9.0" },
@@ -3154,6 +3162,9 @@ cncf-kubernetes = [
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
+duckdb = [
+    { name = "apache-airflow-providers-duckdb" },
+]
 exasol = [
     { name = "apache-airflow-providers-exasol" },
 ]
@@ -3216,6 +3227,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
+    { name = "apache-airflow-providers-duckdb" },
     { name = "apache-airflow-providers-exasol" },
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-google" },
@@ -3253,6 +3265,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-duckdb", marker = "extra == 'duckdb'", editable = "providers/duckdb" },
     { name = "apache-airflow-providers-exasol", marker = "extra == 'exasol'", editable = "providers/exasol" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
     { name = "apache-airflow-providers-ftp", marker = "extra == 'ftp'", editable = "providers/ftp" },
@@ -3284,11 +3297,11 @@ requires-dist = [
     { name = "redshift-connector", marker = "python_full_version >= '3.14'", specifier = ">=2.1.13" },
     { name = "s3fs", marker = "extra == 's3fs'", specifier = ">=2023.10.0" },
     { name = "sagemaker-studio", specifier = ">=1.0.25,<1.1.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
-provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "sqlalchemy"]
+provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "duckdb", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3302,6 +3315,7 @@ dev = [
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-duckdb", editable = "providers/duckdb" },
     { name = "apache-airflow-providers-exasol", editable = "providers/exasol" },
     { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
@@ -3811,7 +3825,7 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyhive", extras = ["hive-pure-sasl"], specifier = ">=0.7.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "winkerberos", marker = "sys_platform == 'win32' and extra == 'gssapi'", specifier = ">=0.7.0" },
 ]
 provides-extras = ["amazon", "microsoft-mssql", "mysql", "presto", "samba", "sqlalchemy", "vertica", "gssapi"]
@@ -3913,7 +3927,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "impyla", specifier = ">=0.22.0,<1.0" },
     { name = "kerberos", marker = "extra == 'kerberos'", specifier = ">=1.3.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["kerberos", "sqlalchemy"]
 
@@ -4669,14 +4683,14 @@ openai = [
     { name = "openai" },
     { name = "pydantic-ai-slim", extra = ["openai"] },
 ]
+opensandbox = [
+    { name = "opensandbox" },
+]
 parquet = [
     { name = "pyarrow" },
 ]
 pdf = [
     { name = "pypdf" },
-]
-opensandbox = [
-    { name = "opensandbox" },
 ]
 shields = [
     { name = "pydantic-ai-shields" },
@@ -4734,7 +4748,7 @@ requires-dist = [
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.8" },
-    { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.0" },
+    { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
     { name = "opensandbox", marker = "extra == 'opensandbox'", specifier = ">=1.1.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
@@ -5020,7 +5034,7 @@ requires-dist = [
     { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "pyiceberg-core", marker = "extra == 'pyiceberg-core'", specifier = ">=0.8.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "sqlparse", specifier = ">=0.5.1" },
 ]
 provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "amazon", "datafusion", "pyiceberg-core", "apache-iceberg"]
@@ -5536,7 +5550,7 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyexasol", specifier = ">=0.26.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["sqlalchemy"]
 
@@ -6551,7 +6565,7 @@ requires-dist = [
     { name = "jpype1", marker = "(python_full_version == '3.11.*' and platform_machine != 'arm64') or (python_full_version == '3.11.*' and sys_platform != 'darwin')", specifier = ">=1.4.1" },
     { name = "jpype1", marker = "(python_full_version == '3.12.*' and platform_machine != 'arm64') or (python_full_version == '3.12.*' and sys_platform != 'darwin')", specifier = ">=1.5.0" },
     { name = "jpype1", marker = "(python_full_version == '3.13.*' and platform_machine != 'arm64') or (python_full_version == '3.13.*' and sys_platform != 'darwin')", specifier = ">=1.5.1" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["openlineage", "sqlalchemy"]
 
@@ -6911,6 +6925,43 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
+name = "apache-airflow-providers-modal"
+version = "0.1.0"
+source = { editable = "providers/modal" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "modal" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "modal", specifier = ">=1.5.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
 name = "apache-airflow-providers-mongo"
 version = "5.5.0"
 source = { editable = "providers/mongo" }
@@ -7227,7 +7278,7 @@ requires-dist = [
     { name = "attrs", specifier = ">=22.2" },
     { name = "openlineage-integration-common", specifier = ">=1.52.0" },
     { name = "openlineage-python", specifier = ">=1.52.0" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["sqlalchemy"]
 
@@ -7638,7 +7689,7 @@ requires-dist = [
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13' and extra == 'psycopg2'", specifier = ">=2.9.10" },
     { name = "psycopg2-binary", marker = "python_full_version < '3.13' and extra == 'psycopg2'", specifier = ">=2.9.9" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["amazon", "asyncpg", "microsoft-azure", "openlineage", "pandas", "polars", "psycopg2", "sqlalchemy"]
 
@@ -7708,7 +7759,7 @@ requires-dist = [
     { name = "presto-python-client", specifier = ">=0.8.4" },
     { name = "psycopg2-binary", marker = "python_full_version < '3.13'", specifier = ">=2.9.9" },
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
 ]
 provides-extras = ["google", "sqlalchemy"]
 
@@ -8486,7 +8537,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-ssh", marker = "extra == 'ssh'", editable = "providers/ssh" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "teradatasql", specifier = ">=17.20.0.28" },
     { name = "teradatasqlalchemy", specifier = ">=17.20.0.0" },
 ]
@@ -8604,7 +8655,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "vertica-python", specifier = ">=1.3.0" },
 ]
 provides-extras = ["sqlalchemy"]
@@ -8783,7 +8834,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
     { name = "ydb", specifier = ">=3.18.8" },
     { name = "ydb-dbapi", specifier = ">=0.1.0" },
 ]

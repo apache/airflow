@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import time
+from unittest import mock
 
 import pytest
-from flask import Flask, session as builtin_flask_session
+from flask import Flask, g, session as builtin_flask_session
 
+from airflow.providers.fab.www import views
 from airflow.providers.fab.www.extensions.init_session import SESSION_LOGIN_TIME_KEY
 from airflow.providers.fab.www.views import get_token_expiration_seconds
 
@@ -65,3 +67,20 @@ def test_token_expiration_is_uncapped_for_a_session_without_a_login_stamp(app):
     }
     with app.test_request_context(), conf_vars(overrides):
         assert get_token_expiration_seconds() == JWT_EXPIRATION_TIME
+
+
+def test_redirect_sets_samesite_on_token_cookie(app):
+    with app.test_request_context():
+        user = mock.Mock()
+        user.is_authenticated = True
+        g.user = user
+        with (
+            mock.patch("airflow.providers.fab.www.views.get_auth_manager") as mock_get_auth_manager,
+            mock.patch("airflow.providers.fab.www.views.get_token_expiration_seconds", return_value=3600),
+            mock.patch("airflow.providers.fab.www.views.get_cookie_path", return_value="/"),
+        ):
+            mock_get_auth_manager.return_value.generate_jwt.return_value = "token"
+            response = views.redirect("/home")
+    set_cookie = response.headers.get("Set-Cookie")
+    assert set_cookie is not None
+    assert "samesite=lax" in set_cookie.lower()

@@ -61,7 +61,6 @@ import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
-from airflow.sdk._shared.configuration import secrets_backends
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -142,6 +141,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStateStoreResult,
     ToSupervisor,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
     _RequestFrame,
     _ResponseFrame,
@@ -167,6 +167,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_mask_secret,
     handle_put_variable,
     handle_set_xcom,
+    handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
 
@@ -2133,6 +2134,11 @@ class ActivitySubprocess(WatchedSubprocess):
         )
         return resp, {}
 
+    def _handle_update_dag_run_note(
+        self, msg: UpdateDagRunNote, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        return handle_update_dag_run_note(self.client, msg)
+
     def _handle_get_dag_run(self, msg: GetDagRun, log: FilteringBoundLogger, req_id: int) -> RequestResult:
         dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
         resp = DagRunResult.from_api_response(dr_resp)
@@ -2345,6 +2351,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(SucceedTask, _handle_finished_task),
                 register_request_method(TaskState, _handle_task_state),
                 register_request_method(TriggerDagRun, _handle_trigger_dag_run),
+                register_request_method(UpdateDagRunNote, _handle_update_dag_run_note),
                 register_request_method(ValidateInletsAndOutlets, _handle_validate_inlets_and_outlets),
             ]
         ),
@@ -2861,7 +2868,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     # 3. Fallback for unknown contexts (supervisor, etc.)
     # Only env vars + external backends from config, no MetastoreBackend, no ExecutionAPISecretsBackend
     fallback_backends = [
-        secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
+        "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
     ]
     return ensure_secrets_loaded(default_backends=fallback_backends)
 

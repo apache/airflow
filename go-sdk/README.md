@@ -161,9 +161,17 @@ An exported field binds the argument matching its own Go name, folding case and 
 tag when the names genuinely differ, as `Region` does above. Declaration order is irrelevant on both
 sides, and embedded structs contribute their fields just as they do to `encoding/json`.
 
-A field no argument matches is left at its Go zero value, like an unpassed keyword argument. The
-reverse is an error: every argument the Dag author explicitly passed must land in some field, so a
-typo'd tag fails the task instead of silently dropping the value.
+Taking **more or fewer arguments** than the Python side passes does not fail the task. The runtime
+logs a warning before the task runs and carries on, one message per direction, so a call that does
+both at once says so twice:
+
+- `Dag's call passed argument(s) the task handler does not declare`
+- `Task handler declares argument(s) the Dag's call did not pass`
+
+Name-based struct binding is what keeps a mixed-language task working while the two sides drift:
+adding a parameter to the stub, or dropping a field from the struct, is a warning rather than a
+broken Dag. A field nothing matches keeps its Go zero value. Arguments the call left at their stub
+default are not reported.
 
 A struct that is **not** the sole data parameter is decoded whole from its one positional argument
 instead, so `arg:` tags only apply to the sole-parameter form; pairing a tagged struct with other
@@ -384,6 +392,33 @@ SDK to a newer schema version:
 
 `TestSupervisorSchemaVersionMatchesSnapshot` fails when the constant and the snapshot's `api_version`
 drift, so a missed bump is caught by `go test` instead of needing a dedicated prek hook.
+
+## Regenerating the Dag and task specs
+
+`airflow.DagSpec` and `airflow.TaskSpec` in [`airflow/spec.gen.go`](./airflow/spec.gen.go) are
+generated from airflow-core's Dag serialization schema
+(`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do not edit them by hand.
+Run `just generate-specs` after changing the schema or the generator.
+
+The schema is the serialized shape rather than the authoring one, so
+[`internal/genspec/authoring.go`](./internal/genspec/authoring.go) holds the three tables that turn
+it into the authoring shape, each entry carrying the reason it exists:
+
+- **exclusions** — properties an author never sets, such as the paths the bundle fills in and the
+  template fields of a Python operator class. A property *not* excluded generates, so one added on
+  the Python side surfaces in review instead of vanishing.
+- **type overrides** — the schema types a moment in time and a duration as a number of seconds, and
+  an integral count as a JSON number.
+- **injections** — `Schedule`, which stands in for the serialized `timetable`. Injecting into the
+  schema rather than hand-writing the field keeps every field in one struct declaration, which is
+  what lets `TaskSpec` implement the sealed `TaskOption`.
+
+`trigger_rule` is typed as a plain string with no values named, so `TriggerRule` and its constants
+are hand-written in [`airflow/spec.go`](./airflow/spec.go);
+`TestTriggerRuleConstantsMatchPython` is their tripwire against Airflow's own enum.
+
+The `check-go-sdk-spec-drift` prek hook regenerates the file and fails when the committed one
+differs, so a schema change that never reached Go cannot merge.
 
 ## Architectural decisions
 

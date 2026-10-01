@@ -65,6 +65,11 @@ class SbxSandboxBackend(SandboxBackend):
     """
     Sandbox backend that runs agent commands in a Docker Sandboxes (``sbx``) microVM.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Drives the ``sbx`` CLI: ``create`` provisions a per-session microVM, ``exec``
     runs commands in it, and ``rm`` tears it down. Each sandbox is a microVM with
     its own kernel, so agent code is isolated by a hardware boundary rather than a
@@ -172,6 +177,14 @@ class SbxSandboxBackend(SandboxBackend):
             # "No requirements stated" -- see SandboxBackend.create. The toolset
             # always sends a concrete spec, so this is the direct-caller path.
             return
+        if spec.owner is not None:
+            # An owner exists so that a later task can attach to the sandbox, and a
+            # microVM on this worker cannot be reached from another task at all.
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, but an sbx sandbox lives on this worker and cannot "
+                "be attached to from another task, so recording one would promise nothing. Drop "
+                "owner, or provision the sandbox on a backend that supports attaching."
+            )
         if spec.allow_egress_to_cidrs:
             # ``sbx policy allow network`` takes hostnames. There is no per-sandbox
             # address-range rule to map this onto, so it cannot be enforced here.

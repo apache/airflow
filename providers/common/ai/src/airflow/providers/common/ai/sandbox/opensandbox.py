@@ -159,6 +159,11 @@ class OpenSandboxBackend(SandboxBackend):
     """
     Run sandbox tools through an OpenSandbox server.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     OpenSandbox supports Docker and Kubernetes runtimes behind the same API.
     Airflow workers need only network access to that API; the OpenSandbox
     deployment owns container provisioning and isolation.
@@ -320,6 +325,16 @@ class OpenSandboxBackend(SandboxBackend):
         )
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
+        if spec is not None and spec.owner is not None:
+            # An owner exists so that a later task can attach to the sandbox, and the
+            # ownership rules live in per-sandbox metadata this backend cannot read back,
+            # so recording one would promise an attach that cannot be checked.
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, but this backend keeps no per-sandbox metadata the "
+                "ownership rules could be read back from, so a sandbox created here cannot be attached "
+                "to from another task. Drop owner, or provision the sandbox on a backend that supports "
+                "attaching, such as ModalSandboxBackend."
+            )
         with _translate_opensandbox_errors("create a sandbox"):
             from opensandbox import SandboxSync
 

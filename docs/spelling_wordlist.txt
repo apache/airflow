@@ -1102,6 +1102,7 @@ midnights
 milli
 millis
 milton
+minification
 minikube
 misconfiguration
 misconfigured
@@ -1389,6 +1390,7 @@ pyproject
 pypsrp
 pyspark
 pytest
+PythonAgentTool
 pythonic
 PythonOperator
 pythonpath

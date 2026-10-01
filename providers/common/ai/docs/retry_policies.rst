@@ -133,7 +133,10 @@ When a task fails, either policy:
    ``retry_reason``, on a FAIL as well as a RETRY: ``<category>: <reasoning>``
    from ``LLMRetryPolicy``, or one line such as
    ``category=network confidence=0.91 threshold=0.60 action=retry delay=10s``
-   from ``ClassifierRetryPolicy``.
+   from ``ClassifierRetryPolicy``. From Airflow 3.4 the REST API exposes it as
+   ``state_reason`` on a task instance and on each try, and the Task Instance
+   page shows it under **Reason for state** while the task is failed or up for
+   retry.
 
 This classification call is a separate model request, made by the policy
 itself rather than by an operator -- it is not subject to an operator's
@@ -158,6 +161,11 @@ an attempt is a separate mechanism on the connection; see
 
 ClassifierRetryPolicy
 ---------------------
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 ``ClassifierRetryPolicy`` takes the retry decision away from the model. Its
 ``categories`` maps a category name to an
@@ -234,25 +242,24 @@ on them differently:
 
 .. code-block:: python
 
-    snowflake_policy = ClassifierRetryPolicy(
-        llm_conn_id="pydanticai_default",
-        categories={
-            "queued": ErrorCategory(
-                "Statement queued or a concurrency limit reached; the warehouse is busy.",
-                delay=timedelta(seconds=120),
-            ),
-            "warehouse_suspended": ErrorCategory(
-                "The warehouse is suspended and will auto-resume.", delay=timedelta(seconds=30)
-            ),
-            "token_expired": ErrorCategory(
-                "A JWT or session token expired; the token rotates on its own.", delay=timedelta(seconds=30)
-            ),
-            "schema_drift": ErrorCategory(
-                "A referenced column, table or view does not exist; a person has to fix the schema.",
-                retry=False,
-            ),
-        },
-    )
+    SNOWFLAKE_CATEGORIES = {
+        "queued": ErrorCategory(
+            "Statement queued or a concurrency limit reached; the warehouse is busy.",
+            delay=timedelta(seconds=120),
+        ),
+        "warehouse_suspended": ErrorCategory(
+            "The warehouse is suspended and will auto-resume.", delay=timedelta(seconds=30)
+        ),
+        "token_expired": ErrorCategory(
+            "A JWT or session token expired; the token rotates on its own.", delay=timedelta(seconds=30)
+        ),
+        "schema_drift": ErrorCategory(
+            "A referenced column, table or view does not exist; a person has to fix the schema.",
+            retry=False,
+        ),
+    }
+
+    snowflake_policy = ClassifierRetryPolicy(llm_conn_id="pydanticai_default", categories=SNOWFLAKE_CATEGORIES)
 
 Write descriptions as the boundary between categories: what belongs here and what
 does not. That is the whole of what the model reads about a category; the name
@@ -406,11 +413,12 @@ upper limit; zero or negative means no override, so the task's own
 ``retry_delay`` and backoff apply.
 
 ``category`` and ``reasoning`` become the ``retry_reason`` (truncated to 500
-characters), recorded on both outcomes. On a RETRY the value is cleared once the next attempt starts running;
-a FAIL is terminal, so there is no next attempt to clear it and the reason stays
-on the row. Only the model's own words are stored -- attempt counts are left to
-whatever displays the reason. Recording on a FAIL requires Airflow 3.4.0; on
-earlier versions only the RETRY outcome is recorded.
+characters), recorded on both outcomes. On a RETRY the value is cleared once
+the next attempt starts running; a FAIL is terminal, so there is no next
+attempt to clear it and the reason stays on the row. Only the model's own words
+are stored -- attempt counts are left to whatever displays the reason.
+Recording on a FAIL requires Airflow 3.4.0; on earlier versions only the RETRY
+outcome is recorded.
 
 Under ``ClassifierRetryPolicy`` it answers the category name and nothing else. It does not
 decide whether to retry, it does not choose the delay, and it does not explain
@@ -474,7 +482,7 @@ not decide the action:
     snowflake_policy = ClassifierRetryPolicy(
         llm_conn_id="pydanticai_default",
         instructions=SNOWFLAKE_HINTS,
-        categories={...},  # the same names the hints use
+        categories=SNOWFLAKE_CATEGORIES,  # the table above; the hints use the same names
         fallback_rules=[
             RetryRule(
                 exception=ConnectionError,
