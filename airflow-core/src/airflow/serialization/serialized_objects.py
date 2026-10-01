@@ -131,7 +131,9 @@ log = logging.getLogger(__name__)
 _CALLBACK_TYPES = ("execute", "failure", "success", "retry", "skipped")
 _OPERATOR_CALLBACK_FIELDS = frozenset(f"on_{x}_callback" for x in _CALLBACK_TYPES)
 _HAS_CALLBACK_FIELDS = frozenset(f"has_on_{x}_callback" for x in _CALLBACK_TYPES)
-_DAG_CALLBACK_FIELDS = frozenset({"has_on_success_callback", "has_on_failure_callback"})
+_DAG_CALLBACK_FIELDS = frozenset(
+    {"has_on_success_callback", "has_on_failure_callback", "has_on_skipped_intervals_callback"}
+)
 _OPERATOR_TIMEDELTA_FIELDS = frozenset({"retry_delay", "execution_timeout", "max_retry_delay"})
 # Fields whose value must never be serialized: the object has no serializer, so it would
 # fall back to str(obj) and leak a non-deterministic memory address (a new DagVersion every
@@ -2262,6 +2264,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "dag_display_name",
         "has_on_success_callback",
         "has_on_failure_callback",
+        "has_on_skipped_intervals_callback",
         "tags",
         # Attr properties that are nullable, or have a default that loads from config
         "description",
