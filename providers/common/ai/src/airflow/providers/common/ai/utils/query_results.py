@@ -333,8 +333,11 @@ def _summarize_schema(
     budget = max_result_bytes - _size(output)
     for col in selected[:_SCHEMA_SAMPLE_SIZE]:
         cost = _size(col) + (1 if output["sample_columns"] else 0)
+        # Skip a column too large for the remaining budget and keep going, rather than stopping:
+        # the sample is an unordered preview, so one oversized column early (a wide struct type)
+        # must not strip the preview off every column after it.
         if cost > budget:
-            break
+            continue
         budget -= cost
         output["sample_columns"].append(col)
     return _dumps(output)

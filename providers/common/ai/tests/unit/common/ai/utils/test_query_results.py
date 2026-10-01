@@ -262,6 +262,29 @@ class TestSchemaResult:
         assert "type_histogram" not in data
         assert len(data["sample_columns"]) >= 1
 
+    def test_an_oversized_column_early_in_the_window_is_skipped_not_fatal(self):
+        """A wide column at the front of the preview window is skipped, not a full stop."""
+        # One ~2 KB struct type at position 0, then narrow columns. The preview must skip the wide
+        # one and keep filling from the rest rather than coming back empty.
+        cols = [{"name": "wide", "type": "X" * 2000}] + [{"name": f"c{i}", "type": "INT"} for i in range(150)]
+        data = _schema(cols, max_columns=100, max_result_bytes=1500)
+        assert data["truncated"] is True
+        assert len(data["sample_columns"]) >= 1
+        assert all(col["name"] != "wide" for col in data["sample_columns"])
+
+    def test_the_max_columns_boundary_is_exact(self):
+        """Exactly max_columns returns the full list, and one more summarizes by count."""
+        at_limit = _schema(_cols(100), max_columns=100)
+        assert at_limit["column_count"] == 100
+        assert "columns" in at_limit
+        assert "truncated" not in at_limit
+
+        assert _schema(_cols(101), max_columns=100)["truncated_by"] == "max_columns"
+
+        # Exactly max_columns but over the byte budget is a bytes truncation, not a count one.
+        over_bytes = _schema(_cols(100), max_columns=100, max_result_bytes=500)
+        assert over_bytes["truncated_by"] == "max_result_bytes"
+
     def test_long_names_blow_the_byte_budget_despite_few_columns(self):
         cols = [{"name": "x" * 500, "type": "VARCHAR"} for _ in range(10)]
         data = _schema(cols, max_columns=100, max_result_bytes=512)
