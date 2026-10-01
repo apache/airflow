@@ -1304,7 +1304,6 @@ export type DagBundleFileResponse = {
  */
 export type DagBundleRefreshResponse = {
     bundle_name: string;
-    refresh_generation: number;
 };
 
 /**
