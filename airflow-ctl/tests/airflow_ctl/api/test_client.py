@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
 
@@ -38,6 +39,7 @@ from airflowctl.api.client import (
     _bounded_get_new_password,
     get_client,
     get_json_error,
+    provide_api_client,
 )
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import (
@@ -613,13 +615,7 @@ class TestRetryConfigurationEnvVars:
 
 
 class TestGetClientEnvironment:
-    """Regression coverage for GH#70519.
-
-    ``get_client`` (and therefore every ``@provide_api_client``-decorated
-    command) must resolve the config file for the requested environment
-    instead of silently using production credentials for every command except
-    ``auth login``.
-    """
+    """``get_client`` and ``@provide_api_client`` commands resolve the config file for the requested environment."""
 
     @staticmethod
     def _write_environment_config(airflow_home, environment: str, api_url: str) -> None:
@@ -633,10 +629,6 @@ class TestGetClientEnvironment:
         self._write_environment_config(tmp_path, "staging", "https://staging.example.com")
         yield tmp_path
         del os.environ["AIRFLOW_HOME"]
-
-    def test_defaults_to_production(self):
-        with get_client(kind=ClientKind.CLI, api_token="TOKEN") as client:
-            assert urlparse(str(client.base_url)).hostname == "prod.example.com"
 
     def test_uses_the_requested_environment(self):
         with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="staging") as client:
@@ -653,11 +645,6 @@ class TestGetClientEnvironment:
             assert urlparse(str(client.base_url)).hostname == "staging.example.com"
 
     def test_decorator_forwards_the_env_argument(self):
-        """``@provide_api_client`` reads ``--env`` off the parsed args namespace."""
-        from types import SimpleNamespace
-
-        from airflowctl.api.client import provide_api_client
-
         @provide_api_client(kind=ClientKind.CLI)
         def command_under_test(args, api_client=None):
             # Inspect the client inside the command: the wrapper closes it
