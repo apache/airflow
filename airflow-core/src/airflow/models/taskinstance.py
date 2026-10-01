@@ -75,6 +75,7 @@ from airflow._shared.observability.traces import (
     new_dagrun_trace_carrier,
     new_task_run_carrier,
 )
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -373,12 +374,59 @@ def _pin_versionless_tis_to_run_version(dag_run: DagRun, dag_version_id: UUID, s
     )
 
 
+def _discard_task_state_store(tis: Sequence[TaskInstance], *, session: Session, event: str) -> None:
+    """
+    Discard the task state store entries of each task instance.
+
+    A failure is logged and re-raised so the request fails and the session rolls back, rather than
+    reporting success while some entries survive undiscarded.
+
+    This only drops the metadata DB reference row via ``_get_db_backend()``; it does not go through
+    ``get_state_backend()``. A custom ``[workers] state_store_backend`` payload is left orphaned
+    with no reclaim path other than its own lifecycle/TTL policy, and a custom ``[state_store]
+    backend`` is not touched at all: the worker still reads and writes there, so a clear reports
+    success while the actual state survives and a later attempt can resume from it. Closing this
+    gap needs a server-side path to the configured state backend and is tracked for a future
+    change; today, this discard is only exact for the default metastore backend.
+
+    :param event: what prompted the discard, used as the log event name.
+    """
+    from airflow.state.metastore import _get_db_backend  # Avoid circular import through DagRun
+
+    backend = _get_db_backend()
+    for ti in tis:
+        scope = TaskScope(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
+        )
+        try:
+            backend.clear(scope=scope, session=session)
+        except Exception:
+            log.warning(
+                "Failed to discard task state",
+                extra={
+                    "discard_event": event,
+                    "dag_id": ti.dag_id,
+                    "run_id": ti.run_id,
+                    "task_id": ti.task_id,
+                    "map_index": ti.map_index,
+                },
+                exc_info=True,
+            )
+            raise
+    log.info("%s: %d task instances", event, len(tis))
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
+    *,
+    keep_task_state: bool = False,
 ) -> None:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -389,6 +437,7 @@ def clear_task_instances(
     DRs (QUEUED and RUNNING) because clearing the state for already
     running DR is redundant and clearing `start_date` affects DR's duration.
 
+    :param keep_task_state: Preserve task state store entries instead of discarding checkpoints.
     :param tis: a list of task instances
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
@@ -540,6 +589,8 @@ def clear_task_instances(
 
             if dr.created_dag_version_id:
                 _pin_versionless_tis_to_run_version(dr, dr.created_dag_version_id, session)
+    if not keep_task_state and tis:
+        _discard_task_state_store(tis, session=session, event="Discarded task state on clear")
     for ti in tis:
         ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()

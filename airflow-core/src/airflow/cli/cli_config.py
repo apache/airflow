@@ -209,6 +209,11 @@ ARG_PARTITION_KEY = Arg(
     ("--partition-key",),
     help="Clear all Dag runs whose partition_key matches this exact value.",
 )
+ARG_KEEP_TASK_STATE = Arg(
+    ("--keep-task-state",),
+    help="Preserve task state store entries so cleared tasks can resume from checkpoints",
+    action="store_true",
+)
 ARG_CLEAR_RUN_ID = Arg(
     ("--run-id",),
     help="Clear the Dag run with this run_id.",
@@ -1233,6 +1238,7 @@ DAGS_COMMANDS = (
             ARG_PARTITION_DATE_END,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_YES,
             ARG_VERBOSE,
         ),
@@ -1480,6 +1486,7 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
         ),

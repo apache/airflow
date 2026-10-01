@@ -469,6 +469,13 @@ class DAGRunClearBody(BaseModel):
         extra="forbid",
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Preserve task state store entries so cleared tasks can resume from their checkpoints.",
+            title="Keep Task State",
+        ),
+    ] = False
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
     only_new: Annotated[
         bool | None,
@@ -1776,6 +1783,13 @@ class BulkDAGRunClearBody(BaseModel):
         ),
     ] = None
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Preserve task state store entries so cleared tasks can resume from their checkpoints.",
+            title="Keep Task State",
+        ),
+    ] = False
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
     only_new: Annotated[
         bool | None,

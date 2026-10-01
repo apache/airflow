@@ -33,15 +33,17 @@ import yaml
 from sqlalchemy import func, select
 
 from airflow import settings
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
-from airflow.cli.commands import dag_command
+from airflow.cli.commands import dag_command, task_command
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -49,6 +51,7 @@ from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, Partit
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.state.metastore import MetastoreBackend
 from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
@@ -1358,6 +1361,43 @@ class TestCliDagsClear:
     """Tests for the `airflow dags clear` partition-range subcommand."""
 
     DAG_ID = "test_dags_clear_partitioned"
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize("command", ["dags", "tasks"])
+    @pytest.mark.parametrize("keep_task_state", [False, True])
+    def test_clear_task_state(self, parser, command, keep_task_state):
+        with create_session() as session:
+            scopes = [
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+                for ti in session.scalars(select(TaskInstance).where(TaskInstance.dag_id == self.DAG_ID))
+            ]
+            assert scopes
+            for scope in scopes:
+                MetastoreBackend().set(scope, "job_id", "app_1234", session=session)
+
+        argv = [command, "clear", self.DAG_ID, "--yes"]
+        if command == "dags":
+            argv.extend(["--run-id", "part_2026_03_10"])
+        if keep_task_state:
+            argv.append("--keep-task-state")
+        args = parser.parse_args(argv)
+        if command == "dags":
+            dag_command.dag_clear(args)
+        else:
+            task_command.task_clear(args)
+
+        with create_session() as session:
+            for scope in scopes:
+                rows = session.scalars(
+                    select(TaskStateStoreModel).where(
+                        TaskStateStoreModel.dag_id == scope.dag_id,
+                        TaskStateStoreModel.run_id == scope.run_id,
+                        TaskStateStoreModel.task_id == scope.task_id,
+                        TaskStateStoreModel.map_index == scope.map_index,
+                    )
+                ).all()
+                selected = command == "tasks" or scope.run_id == "part_2026_03_10"
+                assert bool(rows) is (keep_task_state if selected else True)
 
     @pytest.fixture
     def parser(self) -> argparse.ArgumentParser:

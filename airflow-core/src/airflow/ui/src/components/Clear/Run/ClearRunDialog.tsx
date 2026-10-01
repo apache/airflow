@@ -31,7 +31,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 
-import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
+import { useClearKeepTaskStateDefault, useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -47,16 +47,20 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const dagRunId = dagRun.dag_run_id;
   const { t: translate } = useTranslation();
 
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [note, setNote] = useState<string | null>(dagRun.note);
 
   useEffect(() => {
     if (open) {
       setNote(dagRun.note);
+      setKeepTaskState(keepTaskStateDefault);
     }
-  }, [dagRun.note, open]);
+  }, [dagRun.note, keepTaskStateDefault, open]);
 
   const handleClose = () => {
     setNote(dagRun.note);
+    setKeepTaskState(keepTaskStateDefault);
     onClose();
   };
   const [clearRunDefaultOptions] = useClearRunDefaultOptions();
@@ -123,6 +127,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 dagRunId,
                 requestBody: {
                   dry_run: false,
+                  keep_task_state: keepTaskState,
                   note: note === dagRun.note ? undefined : note,
                   only_failed: onlyFailed,
                   only_new: onlyNew,
@@ -133,6 +138,12 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
           >
             <CgRedo /> {translate("modal.confirm")}
           </Button>
+          <Checkbox
+            checked={keepTaskState}
+            onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+          >
+            {translate("dags:runAndTaskActions.options.keepTaskState")}
+          </Checkbox>
           {shouldShowBundleVersionOption ? (
             <Checkbox
               checked={runOnLatestVersionForced || runOnLatestVersion}

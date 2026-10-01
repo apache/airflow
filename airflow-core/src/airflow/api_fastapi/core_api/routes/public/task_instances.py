@@ -107,7 +107,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
-    _discard_task_state_store,
     _get_task_group_task_ids,
     _get_task_group_task_instances,
     _patch_task_group_state,
@@ -989,16 +988,10 @@ def post_clear_task_instances(
                 DagRunState.QUEUED if reset_dag_runs else False,
                 run_on_latest_version=resolved_run_on_latest,
                 prevent_running_task=body.prevent_running_task,
+                keep_task_state=body.keep_task_state,
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
-
-        # After the clear has succeeded, so a failed clear cannot take the task state with it.
-        # This is the only clear path that discards task state today; Dag-run clear and
-        # mark-as-failed/success (which clear downstream tasks) still keep it unconditionally.
-        # It is tracked through https://github.com/apache/airflow/issues/72929
-        if not body.keep_task_state:
-            _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 
         if body.note is not None:
             _patch_task_instance_note(

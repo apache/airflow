@@ -3739,7 +3739,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
         mock_clearti.assert_called_once_with(
-            [], mock.ANY, DagRunState.QUEUED, prevent_running_task=False, run_on_latest_version=False
+            [],
+            mock.ANY,
+            DagRunState.QUEUED,
+            prevent_running_task=False,
+            run_on_latest_version=False,
+            keep_task_state=False,
         )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
@@ -7579,6 +7584,19 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             )
             .values(state=TaskInstanceState.UPSTREAM_FAILED)
         )
+        for ti in session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+        ):
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
         session.commit()
 
         # Set section_1 to success — should clear downstream failed tasks
@@ -7600,6 +7618,14 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             assert ti.state != TaskInstanceState.UPSTREAM_FAILED, (
                 f"Expected {ti.task_id} to be cleared from upstream_failed, got {ti.state}"
             )
+
+        assert not session.scalars(
+            select(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == self.DAG_ID,
+                TaskStateStoreModel.run_id == self.RUN_ID,
+                TaskStateStoreModel.task_id.in_(downstream_task_ids),
+            )
+        ).all()
 
     def test_409_when_all_tis_already_in_target_state(self, test_client, session):
         """Test that 409 is returned when all TIs are already in the target state."""

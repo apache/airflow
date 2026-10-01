@@ -142,12 +142,14 @@ def perform_clear_dag_run(
     run_on_latest_version: bool | None,
     note: str | None,
     user: BaseUser,
+    keep_task_state: bool = False,
 ) -> DagRun:
     resolved_run_on_latest = resolve_run_on_latest_version(run_on_latest_version, dag_id, session)
     dag.clear(
         run_id=dag_run.run_id,
         task_ids=None,
         only_new=only_new,
+        keep_task_state=keep_task_state,
         only_failed=only_failed,
         run_on_latest_version=resolved_run_on_latest,
         session=session,

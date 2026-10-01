@@ -538,4 +538,5 @@ def task_clear(args) -> None:
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
+        keep_task_state=args.keep_task_state,
     )
