@@ -50,7 +50,7 @@ INT64 = {"type": "integer", "format": "int64"}
 DOUBLE = {"type": "number", "format": "double"}
 
 
-def _nullable(schema: dict) -> dict:
+def _make_nullable(schema: dict) -> dict:
     return {"anyOf": [schema, {"type": "null"}]}
 
 
@@ -89,7 +89,7 @@ def _go_coordinator(monkeypatch, tmp_path):
         # A bare fork, so the parse child sees this config.
         with (
             conf_vars({("sdk", "coordinators"): json.dumps(spec)}),
-            mock.patch.object(supervisor, "_should_use_exec", return_value=False),
+            mock.patch.object(supervisor, "_should_use_exec", autospec=True, return_value=False),
         ):
             yield
     finally:
@@ -122,10 +122,10 @@ def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
                 INT64,
                 DOUBLE,
                 {"type": "boolean"},
-                _nullable({"type": "array", "items": STRING}),
+                _make_nullable({"type": "array", "items": STRING}),
                 {"type": "object"},
-                _nullable({"type": "array", "items": INT64}),
-                _nullable(STRING),
+                _make_nullable({"type": "array", "items": INT64}),
+                _make_nullable(STRING),
             )
         ],
     )

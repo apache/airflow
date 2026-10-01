@@ -413,21 +413,26 @@ class TestBuildExecuteTaskCommand:
 _CACHE_DIGEST = "c" * 64
 
 
-def _metadata_with_digests(**digests: str) -> dict:
+def _make_metadata_with_digests(**digests: str) -> dict:
     return {**_make_metadata(["etl"]), "digests": digests}
 
 
 class TestReadCacheDigest:
-    def test_returns_the_stored_digest(self, tmp_path):
-        metadata = _metadata_with_digests(integrity="a" * 64, cache=_CACHE_DIGEST)
-        bundle = _build_bundle(tmp_path / "etl", metadata=metadata)
-
-        assert read_cache_digest(bundle) == _CACHE_DIGEST
-
-    def test_does_not_hash_the_binary_region(self, tmp_path):
-        # A digest mismatch is caught when the bundle is launched, not here.
-        metadata = _metadata_with_digests(cache=_CACHE_DIGEST)
-        bundle = _build_bundle(tmp_path / "etl", metadata=metadata, binary_sha256=b"\x00" * 32)
+    @pytest.mark.parametrize(
+        "bundle_kwargs",
+        [
+            pytest.param(
+                {"metadata": _make_metadata_with_digests(integrity="a" * 64, cache=_CACHE_DIGEST)},
+                id="valid-bundle",
+            ),
+            pytest.param(
+                {"metadata": _make_metadata_with_digests(cache=_CACHE_DIGEST), "binary_sha256": b"\x00" * 32},
+                id="binary-digest-mismatch-not-checked",
+            ),
+        ],
+    )
+    def test_returns_the_stored_digest(self, tmp_path, bundle_kwargs):
+        bundle = _build_bundle(tmp_path / "etl", **bundle_kwargs)
 
         assert read_cache_digest(bundle) == _CACHE_DIGEST
 
@@ -436,11 +441,11 @@ class TestReadCacheDigest:
         [
             pytest.param(lambda path: _build_bundle(path), id="no-digests"),
             pytest.param(
-                lambda path: _build_bundle(path, metadata=_metadata_with_digests(integrity="a" * 64)),
+                lambda path: _build_bundle(path, metadata=_make_metadata_with_digests(integrity="a" * 64)),
                 id="no-cache-digest",
             ),
             pytest.param(
-                lambda path: _build_bundle(path, metadata=_metadata_with_digests(cache="")),
+                lambda path: _build_bundle(path, metadata=_make_metadata_with_digests(cache="")),
                 id="empty-cache-digest",
             ),
             pytest.param(lambda path: _build_bundle(path, metadata=b"\xff\xfe"), id="undecodable-metadata"),
