@@ -46,7 +46,7 @@ dependencies = [
     "apache-airflow-core",
     "apache-airflow-devel-common",
     "testcontainers>=4.12.0",
-    "boto3>=1.42.80",
+    "boto3>=1.42.83",
 ]
 
 [tool.pytest]
