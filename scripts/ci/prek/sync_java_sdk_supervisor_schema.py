@@ -53,7 +53,7 @@ def configured_version() -> str:
     return match.group(1)
 
 
-def api_version_of(path: Path) -> str | None:
+def read_api_version(path: Path) -> str | None:
     if not path.exists():
         return None
     try:
@@ -66,7 +66,7 @@ def api_version_of(path: Path) -> str | None:
 
 def main() -> int:
     expected = configured_version()
-    if api_version_of(MONOREPO_SCHEMA_FILE) == expected:
+    if read_api_version(MONOREPO_SCHEMA_FILE) == expected:
         snapshot = MONOREPO_SCHEMA_FILE.read_bytes()
         if SCHEMA_FILE.exists() and SCHEMA_FILE.read_bytes() == snapshot:
             print(f"Supervisor Schema matches the Task SDK snapshot (api_version={expected}).")
@@ -74,7 +74,7 @@ def main() -> int:
             print(f"Refreshing Supervisor Schema from {MONOREPO_SCHEMA_FILE.relative_to(REPO_ROOT)}.")
             SCHEMA_FILE.write_bytes(snapshot)
         return 0
-    actual = api_version_of(SCHEMA_FILE)
+    actual = read_api_version(SCHEMA_FILE)
     if actual == expected:
         print(f"Supervisor Schema is up-to-date (api_version={expected}).")
         return 0
