@@ -1136,6 +1136,10 @@ components:
           type: string
           title: Sentry Integration
           default: ''
+        task_handler_artifact:
+          anyOf:
+          - $ref: '#/components/schemas/TaskHandlerArtifactRef'
+          - type: 'null'
         type:
           type: string
           const: ExecuteTask
@@ -1277,6 +1281,21 @@ components:
       - log_chunk_data
       title: PushLogsBody
       description: Incremental new log content from worker.
+    TaskHandlerArtifactRef:
+      properties:
+        bundle_info:
+          anyOf:
+          - $ref: '#/components/schemas/BundleInfo'
+          - type: 'null'
+        rel_path:
+          type: string
+          title: Rel Path
+      type: object
+      required:
+      - rel_path
+      title: TaskHandlerArtifactRef
+      description: 'The Lang-SDK artifact that implements a stub task: its Dag bundle
+        and its path in that bundle.'
     TaskInstanceDTO:
       properties:
         id:

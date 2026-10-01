@@ -24,6 +24,7 @@ from uuid import uuid4
 
 import jwt
 import pytest
+from pydantic import TypeAdapter
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
@@ -250,6 +251,59 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
     assert received.queue == "jdk-17"
     assert received.map_index == 3
     assert not hasattr(received, "pool_slots")
+
+
+class TestExecuteTaskTaskHandlerArtifact:
+    @staticmethod
+    def _workload(task_handler_artifact: workloads.TaskHandlerArtifactRef | None) -> ExecuteTask:
+        return ExecuteTask(
+            ti=TaskInstanceDTO(
+                id=uuid4(),
+                dag_version_id=uuid4(),
+                task_id="extract",
+                dag_id="etl",
+                run_id="r",
+                try_number=1,
+                map_index=-1,
+                pool_slots=1,
+                queue="jdk-17",
+                priority_weight=1,
+            ),
+            dag_rel_path=PurePosixPath("etl.py"),
+            token="token",
+            bundle_info=BundleInfo(name="dags-folder", version="v1"),
+            log_path="etl.log",
+            task_handler_artifact=task_handler_artifact,
+        )
+
+    @pytest.mark.parametrize(
+        "task_handler_artifact",
+        [
+            pytest.param(workloads.TaskHandlerArtifactRef(rel_path="etl.jar"), id="own-bundle"),
+            pytest.param(
+                workloads.TaskHandlerArtifactRef(
+                    bundle_info=BundleInfo(name="java-task-handlers"), rel_path="libs/etl.jar"
+                ),
+                id="named-bundle",
+            ),
+            pytest.param(None, id="none"),
+        ],
+    )
+    def test_round_trips_through_the_workload_union(self, task_handler_artifact):
+        workload = self._workload(task_handler_artifact)
+
+        received = TypeAdapter(workloads.All).validate_json(workload.model_dump_json())
+
+        assert isinstance(received, ExecuteTask)
+        assert received.task_handler_artifact == task_handler_artifact
+
+    def test_workload_without_the_field_names_no_artifact(self):
+        payload = self._workload(None).model_dump(mode="json")
+        del payload["task_handler_artifact"]
+
+        received = TypeAdapter(workloads.All).validate_python(payload)
+
+        assert received.task_handler_artifact is None
 
 
 class TestExecuteTaskMakeVersionData:

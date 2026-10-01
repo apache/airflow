@@ -890,7 +890,8 @@ class BaseExecutor(LoggingMixin):
         if isinstance(workload, ExecuteTask):
             from airflow.sdk.execution_time.supervisor import supervise_task
 
-            # workload.ti is a TaskInstanceDTO which duck-types as TaskInstance.
+            # workload.ti is a TaskInstanceDTO which duck-types as TaskInstance, and
+            # workload.task_handler_artifact duck-types as the Task SDK's TaskHandlerArtifactRef.
             # TODO: Create a protocol for this.
             return supervise_task(
                 ti=workload.ti,  # type: ignore[arg-type]
@@ -902,6 +903,7 @@ class BaseExecutor(LoggingMixin):
                 log_path=workload.log_path,
                 subprocess_logs_to_stdout=subprocess_logs_to_stdout,
                 sentry_integration=getattr(workload, "sentry_integration", ""),
+                task_handler_artifact=workload.task_handler_artifact,  # type: ignore[arg-type]
             )
         if isinstance(workload, ExecuteCallback):
             from airflow.sdk.execution_time.callback_supervisor import supervise_callback
