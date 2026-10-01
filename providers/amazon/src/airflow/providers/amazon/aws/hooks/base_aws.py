@@ -399,8 +399,14 @@ class BaseSessionFactory(LoggingMixin):
             )
             self.log.debug("idp_response.content= %s", idp_response.content)
             self.log.debug("xpath= %s", xpath)
-        # Extract SAML Assertion from the returned HTML / XML
-        xml = etree.fromstring(idp_response.content)
+        # Extract SAML Assertion from the returned HTML / XML. This is remote content from
+        # the IdP endpoint, so pin entity resolution and network access off rather than rely
+        # on lxml's defaults: no_network=True and load_dtd=False already match the defaults,
+        # while resolve_entities=False is the one flag that changes behaviour here. Keeping
+        # all three explicit stops a future libxml2/lxml default change from silently
+        # reintroducing external-entity resolution on IdP-controlled input.
+        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+        xml = etree.fromstring(idp_response.content, parser=parser)
         saml_assertion = xml.xpath(xpath)
         if isinstance(saml_assertion, list):
             if len(saml_assertion) == 1:
