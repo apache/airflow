@@ -26,8 +26,23 @@ Tool call logging: ``LoggingToolset``
 :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
 ``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
 in real time. ``AgentOperator`` applies it automatically (see
-``enable_tool_logging``), but you can also use it directly with any pydantic-ai
-``Agent``:
+``enable_tool_logging``) through
+:class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`.
+Applying the wrapper as a capability means logging covers the assembled
+function toolset, including tools supplied through ``toolsets=``,
+``agent_params={"tools": [...]}``, and capabilities such as factory-backed
+toolsets, nested capabilities, and MCP toolsets. Output tools such as
+``final_result`` and provider-native tools, including native MCP, are not
+covered by Airflow's real-time tool-call logging. Tools added by another
+capability through its own wrapper toolset, such as ToolSearch's
+``search_tools`` and CodeMode's ``run_code``, are also not covered.
+
+``AgentOperator`` adds ``ToolLoggingCapability`` automatically when
+``enable_tool_logging=True``. Do not also add it to ``capabilities=`` or calls
+will be logged twice. To supply your own instance, set
+``enable_tool_logging=False`` first.
+
+You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
 
 .. code-block:: python
 
@@ -38,4 +53,8 @@ in real time. ``AgentOperator`` applies it automatically (see
     logged_toolset = LoggingToolset(wrapped=sql_toolset, logger=my_logger)
 
 Each tool call produces two INFO log lines (name + timing) and optional
-DEBUG-level argument logging. Exceptions are logged and re-raised.
+DEBUG-level argument logging. Control-flow signals that let the model retry,
+report a failed tool result, defer or skip a call, or wait for approval are
+logged at INFO and re-raised. Other exceptions, including
+``SkipToolValidation`` raised by a tool body, are logged at ERROR with a
+traceback and re-raised.
