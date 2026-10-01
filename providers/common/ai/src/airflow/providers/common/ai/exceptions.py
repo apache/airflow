@@ -48,7 +48,7 @@ class UnsupportedToolDeferralError(AirflowFailException):
 
     Either the tool hands its work to an external system, or it needs approval where
     approval is not available (before Airflow 3.3, or with ``durable``,
-    ``enable_hitl_review``, ``code_mode`` or a ``SandboxToolset``). A retry would repeat
+    ``enable_hitl_review``, code mode or a ``SandboxToolset``). A retry would repeat
     the same call, so the task fails without retrying.
     """
 
