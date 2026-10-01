@@ -60,14 +60,15 @@ class AssetEventSensor(BaseSensorOperator):
 
     :param obj: The :class:`~airflow.sdk.Asset` or :class:`~airflow.sdk.AssetAlias` to wait on.
         The target is declared as an inlet. As an alternative, pass ``name``/``uri``/``alias_name``
-        directly. Target identifiers are static; event filters can be templated.
+        directly. These alternatives cannot be combined with ``obj`` or with each other, except
+        for ``name`` and ``uri`` together. Target identifiers are static; event filters can be templated.
     :param name: The asset name to fetch events for.
     :param uri: The asset uri to fetch events for.
     :param alias_name: The asset alias name to fetch events for.
     :param after: Only include events at or after this timestamp.
     :param before: Only include events at or before this timestamp.
     :param ascending: Whether events are returned in ascending timestamp order.
-    :param limit: Maximum number of events to fetch.
+    :param limit: Positive maximum number of events to fetch, before applying ``process_result``.
     :param partition_key: Filter by exact partition key match.
     :param partition_key_regexp_pattern: Filter by partition key regexp pattern.
     :param extra: Filter by key/value pairs contained in the event ``extra`` field.
@@ -115,6 +116,10 @@ class AssetEventSensor(BaseSensorOperator):
                 "AssetEventSensor requires Apache Airflow 3.4+ because the asset event filters "
                 "it relies on are only available from 3.4 onwards."
             )
+        if obj is not None and any(value is not None for value in (name, uri, alias_name)):
+            raise ValueError("`obj` cannot be combined with `name`, `uri`, or `alias_name`.")
+        if alias_name is not None and (name is not None or uri is not None):
+            raise ValueError("`alias_name` cannot be combined with `name` or `uri`.")
         self.obj: Asset | AssetAlias | AssetRef
         if obj is not None:
             if not isinstance(obj, (Asset, AssetAlias)):
@@ -130,8 +135,15 @@ class AssetEventSensor(BaseSensorOperator):
             self.obj = Asset.ref(uri=uri)
         else:
             raise ValueError("One of `obj`, `name`, `uri`, or `alias_name` must be provided.")
+        if not isinstance(expected_count, int) or isinstance(expected_count, bool):
+            raise TypeError("`expected_count` must be an integer.")
         if expected_count < 0:
             raise ValueError(f"`expected_count` must be a non-negative integer, got {expected_count}.")
+        if limit is not None:
+            if not isinstance(limit, int) or isinstance(limit, bool):
+                raise TypeError("`limit` must be an integer.")
+            if limit <= 0:
+                raise ValueError("`limit` must be positive.")
         if count_policy not in {"minimum", "exact"}:
             raise ValueError(f"`count_policy` must be 'minimum' or 'exact', got {count_policy!r}.")
         if process_result is None and limit is not None and limit < expected_count:
