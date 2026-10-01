@@ -51,6 +51,7 @@ def upgrade():
         sa.Column("relative_fileloc_hash", sa.String(length=32), nullable=False),
         sa.Column("size_bytes", sa.BigInteger(), nullable=False),
         sa.Column("cache_digest", sa.String(length=128), nullable=False),
+        sa.Column("task_handlers", sa.JSON(), nullable=False),
         sa.Column("last_probed_at", UtcDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("lang_sdk_task_handler_artifact_pkey")),
         sa.UniqueConstraint(
@@ -67,8 +68,6 @@ def upgrade():
         sa.Column("dag_bundle_name", StringID(), nullable=False),
         sa.Column("dag_relative_fileloc", sa.String(length=2000), nullable=False),
         sa.Column("dag_relative_fileloc_hash", sa.String(length=32), nullable=False),
-        sa.Column("handler_binding", sa.String(length=20), nullable=False),
-        sa.Column("handler_params", sa.JSON(), nullable=False),
         sa.PrimaryKeyConstraint("dag_id", "task_id", name=op.f("lang_sdk_task_handler_pkey")),
         sa.ForeignKeyConstraint(
             columns=("dag_id",),
