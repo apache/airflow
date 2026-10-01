@@ -78,17 +78,17 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, A
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 
 if AIRFLOW_V_3_3_PLUS:
-    # Per-tool approval parks the task in AWAITING_INPUT, which older cores do not have.
+    # Per-tool approval parks the task in AWAITING_INPUT, which older Airflow versions do not have.
     from airflow.sdk.exceptions import TaskAwaitingInput
     from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 
 try:
-    # See LLMOperator: new enough cores register declared ``output_type`` classes
+    # See LLMOperator: Newer ``apache-airflow-task-sdk`` versions register declared ``output_type`` classes
     # from a worker-side DAG walk, so the model instance flows through XCom; older
-    # cores dump to a dict instead.
+    # ``apache-airflow-task-sdk`` versions without the walk dump to a dict instead.
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
-except ImportError:  # pragma: no cover - cores before the worker-side registration walk
+except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
@@ -341,7 +341,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         attempts left behind, and whatever the rerun replays from that cache
         is free.
         On Airflow >= 3.3 the cache is kept in the AIP-103 task state store, so
-        no extra configuration is needed. On older cores it is persisted to
+        no extra configuration is needed. On older Airflow versions it is persisted to
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
         Tools are durably cached when provided via ``toolsets=`` or via a
         concrete pydantic-ai ``Toolset`` capability. Tools reaching the agent
@@ -515,7 +515,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
-        # See LLMOperator: instance flows when the core registers ``output_type``
+        # See LLMOperator: instance flows when Airflow registers ``output_type``
         # via its worker-side DAG walk; otherwise (or on opt-in) dump to a dict.
         self._serialize_model_output = serialize_output or not _CORE_WALKER
         self.toolsets = toolsets
@@ -544,8 +544,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self._run_usage: RunUsage | None = None
         self._run_usage_base: RunUsage = RunUsage()
 
-        # Checked ahead of the combination rules below. On a core older than 3.1 the core
-        # version is the real blocker, and reporting a combination error first would send the
+        # Checked ahead of the combination rules below. When Airflow is older than 3.1, its version
+        # is the real blocker, and reporting a combination error first would send the
         # user to drop an argument that was never the problem -- they would hit this anyway.
         if enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException(
@@ -931,12 +931,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
         On Airflow >= 3.3 durable steps are cached in the AIP-103 task state
         store, which handles persistence and large-value offload natively, so no
-        ``[common.ai] durable_cache_path`` is required. On older cores, fall back
+        ``[common.ai] durable_cache_path`` is required. On older Airflow versions, fall back
         to the ObjectStorage backend configured via ``durable_cache_path``.
         """
         if AIRFLOW_V_3_3_PLUS:
             # Imported lazily: NEVER_EXPIRE and the task state store accessor do
-            # not exist on cores before 3.3.
+            # not exist on Airflow versions before 3.3.
             from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
 
             return TaskStateStoreDurableStorage(context["task_state_store"])

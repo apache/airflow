@@ -22,7 +22,7 @@ Cross-attempt ``pydantic_ai.usage.RunUsage`` accounting, backed by the task stat
 ``dataclasses.fields`` rather than hard-coding the field list so a future
 pydantic-ai field is carried through automatically. This module has no
 top-level import of any Airflow >= 3.3-only symbol: it must stay importable on
-older cores, even though :class:`TaskStateStoreUsageBudget` is only
+older Airflow versions, even though :class:`TaskStateStoreUsageBudget` is only
 constructed on 3.3+ (see ``AgentOperator._build_usage_budget``).
 """
 
@@ -194,8 +194,8 @@ class TaskStateStoreUsageBudget:
     def save(self, usage: RunUsage) -> None:
         """Best-effort write; a failure here must never fail the task, only the caller's raise matters."""
         try:
-            # NEVER_EXPIRE does not exist on cores before 3.3; imported lazily here so this
-            # module keeps importing cleanly on older cores (this module's docstring).
+            # NEVER_EXPIRE does not exist on Airflow versions before 3.3; imported lazily here so this
+            # module keeps importing cleanly on older Airflow versions (this module's docstring).
             from airflow.sdk.execution_time.context import NEVER_EXPIRE
 
             record: dict[str, Any] = {

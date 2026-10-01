@@ -29,9 +29,9 @@ ACCESS_VIEW_SHIM_MODULE = "airflow.providers.common.compat.security.access_view"
 
 @pytest.mark.parametrize("member_name", ["IMPORT_ERRORS_ALL", "AUDIT_LOGS_ALL", "REPARSE_ALL"])
 def test_resolves_to_the_core_access_view_member_or_none(member_name):
-    """The shim mirrors the running core: the ``AccessView`` member on a core that
+    """The shim mirrors the running Airflow version: the ``AccessView`` member on an Airflow version that
     defines it (>= 3.4.0), otherwise ``None``. Kept version-agnostic so it holds
-    across the whole provider compatibility matrix, including cores that predate the
+    across the whole provider compatibility matrix, including Airflow versions that predate the
     member or lack ``api_fastapi`` entirely.
     """
     shim = importlib.import_module(ACCESS_VIEW_SHIM_MODULE)
@@ -47,10 +47,10 @@ def test_resolves_to_the_core_access_view_member_or_none(member_name):
 
 
 def test_is_none_on_older_core_without_the_member():
-    """On a core that predates the new ``AccessView`` members the shim resolves to ``None``."""
+    """On an Airflow version that predates the new ``AccessView`` members the shim resolves to ``None``."""
 
     class _AccessViewWithoutNewMembers:
-        """Stand-in for an older core AccessView that lacks the new members."""
+        """Stand-in for an AccessView in older Airflow versions that lacks the new members."""
 
     fake_resource_details = types.ModuleType(RESOURCE_DETAILS_MODULE)
     fake_resource_details.AccessView = _AccessViewWithoutNewMembers
