@@ -1580,6 +1580,13 @@ repos:
         pass_filenames: true
         files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
         require_serial: true
+      - id: generate-yaml-importer-schema-snapshot
+        name: Regenerate YAML DAG importer schema snapshot
+        entry: ./scripts/ci/prek/generate_yaml_importer_schema_snapshot.py
+        language: python
+        pass_filenames: false
+        files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models|parser|versions/.*)\.py$
+        require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
