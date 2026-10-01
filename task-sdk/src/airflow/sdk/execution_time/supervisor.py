@@ -137,6 +137,7 @@ from airflow.sdk.execution_time.comms import (
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
+    TaskHandlerArtifactRef,
     TaskState,
     TaskStateStoreResult,
     ToSupervisor,
@@ -1668,6 +1669,7 @@ class ActivitySubprocess(WatchedSubprocess):
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
+        task_handler_artifact: TaskHandlerArtifactRef | None = None,
     ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
@@ -1708,6 +1710,7 @@ class ActivitySubprocess(WatchedSubprocess):
             ti_context=ti_context,
             start_date=start_date,
             sentry_integration=sentry_integration,
+            task_handler_artifact=task_handler_artifact,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -2911,6 +2914,7 @@ def supervise_task(
     subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
     sentry_integration: str = "",
+    task_handler_artifact: TaskHandlerArtifactRef | None = None,
 ) -> int:
     """
     Run a single task execution to completion.
@@ -2926,6 +2930,8 @@ def supervise_task(
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :param sentry_integration: If the executor has a Sentry integration, import
         path to a callable to initialize it (empty means no integration).
+    :param task_handler_artifact: The Lang-SDK artifact that implements this stub task, or ``None``
+        when the workload names none.
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     :raises InvalidCoordinatorError: If the coordinator for the task is not
@@ -2999,6 +3005,11 @@ def supervise_task(
 
         reset_secrets_masker()
 
+        # Passed only when set, so a coordinator that overrides execute_task without **kwargs
+        # still runs tasks whose workload names no artifact.
+        artifact_kwargs: dict[str, Any] = {}
+        if task_handler_artifact is not None:
+            artifact_kwargs["task_handler_artifact"] = task_handler_artifact
         try:
             result = coordinator.execute_task(
                 what=ti,
@@ -3008,6 +3019,7 @@ def supervise_task(
                 logger=logger,
                 sentry_integration=sentry_integration,
                 subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                **artifact_kwargs,
             )
             end = time.monotonic()
             log.info(

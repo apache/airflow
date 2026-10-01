@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
 
 __all__ = [
     "BaseCoordinator",
@@ -130,12 +131,15 @@ class BaseCoordinator:
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
         subprocess_logs_to_stdout: bool,
+        task_handler_artifact: TaskHandlerArtifactRef | None = None,
         **kwargs,
     ) -> ExecutionResult:
         """
         Start task execution.
 
-        This should execute the task and return a result.
+        This should execute the task and return a result. *task_handler_artifact* is the Lang-SDK
+        artifact that implements a stub task, as the task's workload names it, or ``None`` when the
+        workload names none.
         """
         raise NotImplementedError
 
@@ -238,6 +242,7 @@ class _PythonCoordinator(BaseCoordinator):
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
         subprocess_logs_to_stdout: bool,
+        task_handler_artifact: TaskHandlerArtifactRef | None = None,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
         # TODO: Importing this at the top causes circular imports.

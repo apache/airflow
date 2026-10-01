@@ -142,8 +142,10 @@ from airflow.sdk.execution_time.comms import (
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
+    StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
+    TaskHandlerArtifactRef,
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
@@ -163,6 +165,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
+from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import (
     SERVER_TERMINATED,
     ActivitySubprocess,
@@ -269,6 +272,74 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+    def test_supervise_task_passes_the_task_handler_artifact_to_the_coordinator(self, client_with_ti_start):
+        coordinator = MagicMock(spec=BaseCoordinator)
+        coordinator.execute_task.return_value = BaseCoordinator.ExecutionResult(0, "success")
+        reference = TaskHandlerArtifactRef(rel_path="etl.jar")
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="extract",
+            dag_id="etl",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="jdk-17",
+        )
+
+        with patch.object(supervisor, "get_coordinator_manager", autospec=True) as mock_manager:
+            mock_manager.return_value.for_queue.return_value = coordinator
+            exit_code = supervise_task(
+                ti=ti,
+                bundle_info=BundleInfo(name="dags", version="v1"),
+                dag_rel_path="etl.py",
+                token="",
+                client=client_with_ti_start,
+                task_handler_artifact=reference,
+            )
+
+        assert exit_code == 0
+        mock_manager.return_value.for_queue.assert_called_once_with("jdk-17")
+        assert coordinator.execute_task.call_args.kwargs["task_handler_artifact"] is reference
+
+    def test_supervise_task_runs_a_coordinator_without_kwargs_when_no_artifact_is_named(
+        self, client_with_ti_start
+    ):
+        class _CoordinatorWithoutKwargs(BaseCoordinator):
+            def execute_task(  # type: ignore[override]
+                self,
+                *,
+                what,
+                dag_rel_path,
+                bundle_info,
+                client,
+                logger=None,
+                sentry_integration="",
+                subprocess_logs_to_stdout,
+            ):
+                return BaseCoordinator.ExecutionResult(0, "success")
+
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="extract",
+            dag_id="etl",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="jdk-17",
+        )
+
+        with patch.object(supervisor, "get_coordinator_manager", autospec=True) as mock_manager:
+            mock_manager.return_value.for_queue.return_value = _CoordinatorWithoutKwargs()
+            exit_code = supervise_task(
+                ti=ti,
+                bundle_info=BundleInfo(name="dags", version="v1"),
+                dag_rel_path="etl.py",
+                token="",
+                client=client_with_ti_start,
+            )
+
+        assert exit_code == 0
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -645,6 +716,41 @@ class TestWatchedSubprocess:
         msg = startup_calls[0].args[1]
         expected_start_date = start_date or fallback_now
         assert msg.start_date == expected_start_date
+
+    def test_startup_details_carry_the_task_handler_artifact(self, mocker, make_ti_context):
+        client = mocker.MagicMock(spec=sdk_client.Client)
+        client.task_instances.start.return_value = make_ti_context()
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.MagicMock(),
+            client=client,
+            process=mocker.Mock(pid=12345),
+        )
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        reference = TaskHandlerArtifactRef(rel_path="etl.jar")
+
+        proc._on_child_started(
+            ti=TaskInstance(
+                id=TI_ID,
+                task_id="extract",
+                dag_id="etl",
+                run_id="r",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="jdk-17",
+            ),
+            dag_rel_path="etl.py",
+            bundle_info=FAKE_BUNDLE,
+            sentry_integration="",
+            task_handler_artifact=reference,
+        )
+
+        msg = mock_send.call_args.args[1]
+        assert isinstance(msg, StartupDetails)
+        assert msg.task_handler_artifact is reference
+        assert mock_send.call_args.kwargs == {"request_id": 0}
 
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
