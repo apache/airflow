@@ -1599,16 +1599,16 @@ async def get_task_instance_count(
         conditions.append(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = await _get_group_tasks(
+        group_ti_ids = await _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
 
-        if not group_tasks:
+        if not group_ti_ids:
             # If no task group tasks found, default to checking the task group ID itself
             # This matches the behavior in _get_external_task_group_task_ids
             conditions.extend([TI.task_id == task_group_id, public_map_index_expression(TI) == -1])
         else:
-            conditions.append(TI.id.in_(ti.id for ti in group_tasks))
+            conditions.append(TI.id.in_(group_ti_ids))
 
     regional_tasks = (
         await session.execute(
@@ -1751,6 +1751,17 @@ def _has_loop_iterations(resolver: TaskCoordinateResolver, ti: TI, iterations: l
         return False
 
 
+# Hydrating full TaskInstance entities would block the API event loop on large runs.
+_TI_STATE_COLUMNS = (
+    TI.id,
+    TI.run_id,
+    TI.task_id,
+    TI.state,
+    TI.region_id,
+    public_map_index_expression(TI),
+)
+
+
 @router.get(
     "/states",
     status_code=status.HTTP_200_OK,
@@ -1776,7 +1787,7 @@ async def get_task_instance_states(
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
     coordinates = build_coordinate_filters(TI, map_index=map_index)
-    query = select(TI, public_map_index_expression(TI)).where(TI.dag_id == dag_id, *coordinates)
+    query = select(*_TI_STATE_COLUMNS).where(TI.dag_id == dag_id, *coordinates)
 
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
@@ -1790,27 +1801,29 @@ async def get_task_instance_states(
     results = (await session.execute(query)).tuples().all()
 
     if task_group_id:
-        group_tasks = await _get_group_tasks(
+        group_ti_ids = await _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
 
-        group_query = select(TI, public_map_index_expression(TI)).where(
-            TI.id.in_(ti.id for ti in group_tasks), *coordinates
-        )
+        group_query = select(*_TI_STATE_COLUMNS).where(TI.id.in_(group_ti_ids), *coordinates)
         group_results = (await session.execute(group_query)).tuples().all()
         results = [*results, *group_results] if task_ids else group_results
 
     superseded = await _find_superseded_ids_async(
         session,
         dag_id,
-        {(task.run_id, task.task_id) for task, _ in results if task.region_id != SENTINEL_REGION_ID},
+        {
+            (run_id, task_id)
+            for _, run_id, task_id, _, region_id, _ in results
+            if region_id != SENTINEL_REGION_ID
+        },
         dag_bag,
     )
-    for task, public_index in results:
-        if task.id in superseded:
+    for ti_id, run_id, task_id, state, _, public_index in results:
+        if ti_id in superseded:
             continue
-        key = task.task_id if public_index < 0 else f"{task.task_id}_{public_index}"
-        run_id_task_state_map[task.run_id][key] = task.state
+        key = task_id if public_index < 0 else f"{task_id}_{public_index}"
+        run_id_task_state_map[run_id][key] = state
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
 
@@ -1868,7 +1881,7 @@ async def _get_group_tasks(
     logical_dates=None,
     run_ids=None,
     map_index: int | None = None,
-):
+) -> Sequence[UUID]:
     # Get all tasks in the task group
     dag = await get_latest_version_of_dag_async(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
@@ -1881,10 +1894,9 @@ async def _get_group_tasks(
             },
         )
 
-    # First get all task instances to get the task_id, map_index pairs
-    group_tasks = (
+    group_ti_ids = (
         await session.scalars(
-            select(TI).where(
+            select(TI.id).where(
                 TI.dag_id == dag_id,
                 TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
                 *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
@@ -1894,7 +1906,7 @@ async def _get_group_tasks(
         )
     ).all()
 
-    return group_tasks
+    return group_ti_ids
 
 
 @ti_id_router.get(
