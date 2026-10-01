@@ -664,14 +664,10 @@ def dispose_orm(do_log: bool = True):
         AsyncSession = None
 
 
-async def dispose_async_orm() -> None:
-    """Dispose the async pool on the event loop that owns its connections."""
-    global async_engine, AsyncSession
-
+async def dispose_async_engine() -> None:
+    """Close checked-in connections on their event loop, retaining the engine and session factory."""
     if async_engine is not None:
         await async_engine.dispose()
-    async_engine = None
-    AsyncSession = None
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):

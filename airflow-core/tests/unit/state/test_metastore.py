@@ -578,13 +578,12 @@ class TestMetastoreBackendAssetScope:
 
 
 @pytest_asyncio.fixture(scope="class", loop_scope="class")
-async def dispose_async_orm():
+async def dispose_async_engine():
     yield
-    await settings.dispose_async_orm()
-    settings._configure_async_session()
+    await settings.dispose_async_engine()
 
 
-@pytest.mark.usefixtures("dispose_async_orm")
+@pytest.mark.usefixtures("dispose_async_engine")
 @pytest.mark.asyncio(loop_scope="class")
 class TestMetastoreBackendAsync:
     async def test_aset_and_aget_task_roundtrip(self, backend: MetastoreBackend, dag_run_committed: DagRun):

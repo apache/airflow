@@ -101,9 +101,7 @@ def _initialize_api_server_stats() -> None:
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
     async with AsyncExitStack() as stack:
-        stack.push_async_callback(settings.dispose_async_orm)
-        if settings.async_engine is None:
-            settings._configure_async_session()
+        stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):
                 await stack.enter_async_context(

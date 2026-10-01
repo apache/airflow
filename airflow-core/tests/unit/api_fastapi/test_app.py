@@ -70,24 +70,19 @@ def async_db_app():
 
 def test_async_connections_are_reused_and_disposed_on_the_client_loop(async_db_app):
     app, opened, closed = async_db_app
-    settings._configure_async_session()
     configured_engine = settings.async_engine
     configured_factory = settings.AsyncSession
     for count in (1, 2):
         with TestClient(app) as client:
-            if count == 1:
-                assert settings.async_engine is configured_engine
-                assert settings.AsyncSession is configured_factory
-            else:
-                assert settings.async_engine is not configured_engine
-                assert settings.AsyncSession is not configured_factory
+            assert settings.async_engine is configured_engine
+            assert settings.AsyncSession is configured_factory
             assert client.get("/").json() == 1
             assert client.get("/").json() == 1
             assert len(opened) == count
             assert len(closed) == count - 1
         assert closed == opened
-        assert settings.async_engine is None
-        assert settings.AsyncSession is None
+        assert settings.async_engine is configured_engine
+        assert settings.AsyncSession is configured_factory
     configured_engine.sync_engine.dispose()
     assert opened[0][1] is not opened[1][1]
 

@@ -27,7 +27,6 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 from fastapi.testclient import TestClient
 
-from airflow import settings
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -47,16 +46,6 @@ API_PATHS = {
 }
 
 BASE_URL = "http://testserver"
-
-
-@pytest.fixture(autouse=True)
-def isolate_async_orm(monkeypatch, pytestconfig):
-    monkeypatch.setattr(settings, "async_engine", None)
-    monkeypatch.setattr(settings, "AsyncSession", None)
-    if pytestconfig.getoption("skip_db_tests"):
-        monkeypatch.setattr(
-            settings, "_configure_async_session", mock.create_autospec(settings._configure_async_session)
-        )
 
 
 def get_api_path(request):

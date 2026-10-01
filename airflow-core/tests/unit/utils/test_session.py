@@ -68,5 +68,4 @@ class TestSession:
                 )
                 assert my_special_log_event.event == "hihi1234"
         finally:
-            await settings.dispose_async_orm()
-            settings._configure_async_session()
+            await settings.dispose_async_engine()

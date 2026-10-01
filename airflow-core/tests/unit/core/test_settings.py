@@ -598,14 +598,14 @@ class TestDisposeOrm:
         mock_close.assert_not_called()
 
 
-class TestDisposeAsyncOrm:
+class TestDisposeAsyncEngine:
     @pytest.fixture(autouse=True)
     def isolate_async_orm(self, monkeypatch):
         monkeypatch.setattr(settings, "async_engine", None)
         monkeypatch.setattr(settings, "AsyncSession", None)
 
     def test_disposal_without_an_async_engine_is_a_noop(self):
-        asyncio.run(settings.dispose_async_orm())
+        asyncio.run(settings.dispose_async_engine())
         assert settings.async_engine is None
         assert settings.AsyncSession is None
 
@@ -617,14 +617,15 @@ class TestDisposeAsyncOrm:
         sync_engine, sync_factory = settings.engine, settings.Session
 
         async def dispose():
-            await settings.dispose_async_orm()
-            await settings.dispose_async_orm()
+            await settings.dispose_async_engine()
+            await settings.dispose_async_engine()
 
         asyncio.run(dispose())
 
-        engine.dispose.assert_awaited_once_with()
-        assert settings.async_engine is None
-        assert settings.AsyncSession is None
+        assert engine.dispose.await_count == 2
+        engine.dispose.assert_awaited_with()
+        assert settings.async_engine is engine
+        assert settings.AsyncSession is factory
         assert settings.engine is sync_engine
         assert settings.Session is sync_factory
 
@@ -637,14 +638,14 @@ class TestDisposeAsyncOrm:
         engine.dispose.side_effect = error
 
         with pytest.raises(type(error)):
-            asyncio.run(settings.dispose_async_orm())
+            asyncio.run(settings.dispose_async_engine())
 
         assert settings.async_engine is engine
         assert settings.AsyncSession is factory
         engine.dispose.side_effect = None
-        asyncio.run(settings.dispose_async_orm())
-        assert settings.async_engine is None
-        assert settings.AsyncSession is None
+        asyncio.run(settings.dispose_async_engine())
+        assert settings.async_engine is engine
+        assert settings.AsyncSession is factory
 
 
 @pytest.mark.db_test
@@ -676,7 +677,7 @@ def test_async_pool_is_closed_before_process_shutdown(driver):
                 assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
                 connection = await session.connection()
                 raw = (await connection.get_raw_connection()).driver_connection
-            await settings.dispose_async_orm()
+            await settings.dispose_async_engine()
             if driver == "sqlite+aiosqlite":
                 try:
                     await raw.execute("SELECT 1")
