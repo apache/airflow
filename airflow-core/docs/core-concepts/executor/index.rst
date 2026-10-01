@@ -349,7 +349,7 @@ and is available from ``airflow.executors.workloads.types``. Executor queues and
 the task instance model and workload DTO retain their UUID-valued ``id`` fields.
 ``ExecuteTask.key`` retains its coordinate-based value for existing providers. Providers supporting older
 Airflow releases must guard use of these helpers with ``AIRFLOW_V_3_4_PLUS`` or feature detection and retain
-their older-core paths.
+their paths for older Airflow versions.
 
 The scheduler translates legacy coordinate events using UUIDs captured during submission or adoption;
 it never resolves them against the current database row. Unknown or ambiguous identities are discarded.
