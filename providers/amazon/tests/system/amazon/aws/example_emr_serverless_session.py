@@ -23,6 +23,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessDeleteApplicationOperator,
     EmrServerlessStartSessionOperator,
     EmrServerlessStopApplicationOperator,
+    EmrServerlessTerminateSessionOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, TriggerRule, chain
 
@@ -67,6 +68,15 @@ with DAG(
     )
     # [END howto_operator_emr_serverless_start_session]
 
+    # [START howto_operator_emr_serverless_terminate_session]
+    terminate_session = EmrServerlessTerminateSessionOperator(
+        task_id="terminate_session",
+        application_id=application_id,
+        session_id="{{ task_instance.xcom_pull(task_ids='start_session')['session_id'] }}",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_emr_serverless_terminate_session]
+
     stop_app = EmrServerlessStopApplicationOperator(
         task_id="stop_app",
         application_id=application_id,
@@ -87,6 +97,7 @@ with DAG(
         # TEST BODY
         start_session,
         # TEST TEARDOWN
+        terminate_session,
         stop_app,
         delete_app,
     )

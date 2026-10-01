@@ -22,8 +22,14 @@ import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
-from airflow.providers.amazon.aws.operators.emr import EmrServerlessStartSessionOperator
-from airflow.providers.amazon.aws.triggers.emr import EmrServerlessSessionTrigger
+from airflow.providers.amazon.aws.operators.emr import (
+    EmrServerlessStartSessionOperator,
+    EmrServerlessTerminateSessionOperator,
+)
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrServerlessSessionTrigger,
+    EmrServerlessTerminateSessionTrigger,
+)
 
 APP_ID = "app-123"
 SESSION_ID = "sess-abc"
@@ -132,6 +138,82 @@ class TestEmrServerlessStartSessionOperator:
     def test_execute_complete_failure_raises(self):
         op = EmrServerlessStartSessionOperator(
             task_id="start", application_id=APP_ID, execution_role_arn=ROLE
+        )
+        with pytest.raises(RuntimeError):
+            op.execute_complete({}, {"status": "failure", "session_id": SESSION_ID})
+
+
+class TestEmrServerlessTerminateSessionOperator:
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "terminate_session")
+    def test_terminate_and_wait(self, terminate_session, get_waiter, wait_mock):
+        op = EmrServerlessTerminateSessionOperator(
+            task_id="terminate",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+        )
+        result = op.execute({})
+
+        terminate_session.assert_called_once_with(application_id=APP_ID, session_id=SESSION_ID)
+        wait_mock.assert_called_once()
+        get_waiter.assert_called_once_with("serverless_session_terminated")
+        assert result == {"application_id": APP_ID, "session_id": SESSION_ID}
+
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "terminate_session")
+    def test_no_wait(self, terminate_session, get_waiter, wait_mock):
+        op = EmrServerlessTerminateSessionOperator(
+            task_id="terminate",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+            wait_for_completion=False,
+        )
+        op.execute({})
+
+        terminate_session.assert_called_once_with(application_id=APP_ID, session_id=SESSION_ID)
+        wait_mock.assert_not_called()
+        get_waiter.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "terminate_session")
+    def test_deferrable_defers(self, terminate_session, get_waiter):
+        op = EmrServerlessTerminateSessionOperator(
+            task_id="terminate",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as deferred:
+            op.execute({})
+
+        terminate_session.assert_called_once_with(application_id=APP_ID, session_id=SESSION_ID)
+        trigger = deferred.value.trigger
+        assert isinstance(trigger, EmrServerlessTerminateSessionTrigger)
+        assert trigger.return_key == "session_details"
+        assert trigger.return_value == {"application_id": APP_ID, "session_id": SESSION_ID}
+        assert trigger.region_name == REGION_NAME
+        assert trigger.verify == VERIFY
+        assert trigger.botocore_config == BOTOCORE_CONFIG
+        get_waiter.assert_not_called()
+
+    def test_execute_complete_success_uses_only_event_values(self):
+        op = EmrServerlessTerminateSessionOperator(
+            task_id="terminate", application_id="different-app", session_id="different-session"
+        )
+        session_details = {"application_id": APP_ID, "session_id": SESSION_ID}
+
+        result = op.execute_complete({}, {"status": "success", "session_details": session_details})
+
+        assert result == session_details
+
+    def test_execute_complete_failure_raises(self):
+        op = EmrServerlessTerminateSessionOperator(
+            task_id="terminate", application_id=APP_ID, session_id=SESSION_ID
         )
         with pytest.raises(RuntimeError):
             op.execute_complete({}, {"status": "failure", "session_id": SESSION_ID})

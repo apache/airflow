@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
+    EmrServerlessTerminateSessionTrigger,
     EmrStepSensorTrigger,
     EmrTerminateJobFlowTrigger,
 )
@@ -712,3 +713,38 @@ class TestEmrServerlessSessionTrigger:
             verify="/path/to/ca.pem",
             config={"retries": {"max_attempts": 7}},
         )
+
+
+class TestEmrServerlessTerminateSessionTrigger:
+    def test_serialization(self):
+        trigger = EmrServerlessTerminateSessionTrigger(
+            application_id="test_application_id",
+            session_id="test_session_id",
+            waiter_delay=10,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessTerminateSessionTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "session_id": "test_session_id",
+            "waiter_delay": 10,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+    def test_serialization_with_hook_configuration(self):
+        trigger = EmrServerlessTerminateSessionTrigger(
+            application_id="test_application_id",
+            session_id="test_session_id",
+            region_name="eu-west-1",
+            verify="/path/to/ca.pem",
+            botocore_config={"retries": {"max_attempts": 7}},
+        )
+
+        _, kwargs = trigger.serialize()
+
+        assert kwargs["region_name"] == "eu-west-1"
+        assert kwargs["verify"] == "/path/to/ca.pem"
+        assert kwargs["botocore_config"] == {"retries": {"max_attempts": 7}}

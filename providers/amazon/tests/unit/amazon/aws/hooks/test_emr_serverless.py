@@ -132,3 +132,22 @@ class TestEmrServerlessHookSession:
             with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
                 hook.start_session(application_id="app", execution_role_arn="role")
         conn_mock().start_session.assert_not_called()
+
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_terminate_session(self, conn_mock: MagicMock):
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+
+        hook.terminate_session(application_id="app", session_id="sess-1")
+
+        conn_mock().terminate_session.assert_called_once_with(applicationId="app", sessionId="sess-1")
+
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_terminate_session_gates_on_old_botocore(self, conn_mock: MagicMock):
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+        with patch(
+            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+            return_value=(1, 41, 0),
+        ):
+            with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
+                hook.terminate_session(application_id="app", session_id="sess-1")
+        conn_mock().terminate_session.assert_not_called()

@@ -49,6 +49,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
+    EmrServerlessTerminateSessionTrigger,
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
@@ -2021,4 +2022,103 @@ class EmrServerlessStartSessionOperator(AwsBaseOperator[EmrServerlessHook]):
             raise RuntimeError(f"Error starting EMR Serverless session: {validated_event}")
         session_details = validated_event["session_details"]
         self.log.info("EMR Serverless session %s started", session_details["session_id"])
+        return session_details
+
+
+class EmrServerlessTerminateSessionOperator(AwsBaseOperator[EmrServerlessHook]):
+    """
+    Terminate an EMR Serverless interactive session and wait until it is no longer active.
+
+    An application cannot be stopped while any of its sessions is still active, so sessions started
+    with :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartSessionOperator` have
+    to be terminated before
+    :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStopApplicationOperator` runs.
+    Note that ``force_stop`` on that operator only cancels job runs; it does not terminate sessions.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrServerlessTerminateSessionOperator`
+
+    :param application_id: ID of the EMR Serverless application running the session.
+    :param session_id: ID of the interactive session to terminate.
+    :param wait_for_completion: If True, wait for the session to stop being active before returning.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param waiter_max_attempts: Number of times the waiter should poll the session to check the state.
+    :param waiter_delay: Number of seconds between polling the state of the session.
+    :param deferrable: If True and ``wait_for_completion`` is enabled, the operator will wait
+        asynchronously for the session to terminate. This mode requires aiobotocore to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    """
+
+    aws_hook_class = EmrServerlessHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "application_id",
+        "session_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        application_id: str,
+        session_id: str,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.application_id = application_id
+        self.session_id = session_id
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> dict:
+        self.hook.terminate_session(application_id=self.application_id, session_id=self.session_id)
+        self.log.info("Terminating EMR Serverless session %s", self.session_id)
+
+        if self.wait_for_completion:
+            if self.deferrable:
+                self.defer(
+                    trigger=EmrServerlessTerminateSessionTrigger(
+                        application_id=self.application_id,
+                        session_id=self.session_id,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
+                    ),
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                    method_name="execute_complete",
+                )
+            else:
+                wait(
+                    waiter=self.hook.get_waiter("serverless_session_terminated"),
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    args={"applicationId": self.application_id, "sessionId": self.session_id},
+                    failure_message="EMR Serverless session failed to terminate",
+                    status_message="EMR Serverless session status is",
+                    status_args=["session.state", "session.stateDetails"],
+                )
+        return {"application_id": self.application_id, "session_id": self.session_id}
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error terminating EMR Serverless session: {validated_event}")
+        session_details = validated_event["session_details"]
+        self.log.info("EMR Serverless session %s terminated", session_details["session_id"])
         return session_details

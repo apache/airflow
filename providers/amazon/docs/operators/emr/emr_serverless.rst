@@ -176,6 +176,25 @@ Set ``deferrable=True`` to release the worker slot while the session warms up.
    :start-after: [START howto_operator_emr_serverless_start_session]
    :end-before: [END howto_operator_emr_serverless_start_session]
 
+.. _howto/operator:EmrServerlessTerminateSessionOperator:
+
+Terminate an EMR Serverless interactive session
+===============================================
+
+To terminate an EMR Serverless interactive session, use
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessTerminateSessionOperator`.
+
+An application cannot be stopped while any of its sessions is still active, so terminate the
+sessions before running
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStopApplicationOperator`. The
+``force_stop`` argument of that operator only cancels job runs, it does not terminate sessions.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_emr_serverless_session.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_terminate_session]
+   :end-before: [END howto_operator_emr_serverless_terminate_session]
+
 Reference
 ---------
 

@@ -362,6 +362,19 @@ class EmrServerlessHook(AwsBaseHook):
             params["configurationOverrides"] = configuration_overrides
         return self.conn.start_session(**params)["sessionId"]
 
+    def terminate_session(self, application_id: str, session_id: str) -> None:
+        """
+        Terminate an EMR Serverless interactive session.
+
+        An application cannot be stopped while any of its sessions is still active, so a session
+        started with :meth:`start_session` has to be terminated before the application is stopped.
+
+        :param application_id: The id of the EMR Serverless application running the session.
+        :param session_id: The id of the interactive session to terminate.
+        """
+        self._check_interactive_session_support()
+        self.conn.terminate_session(applicationId=application_id, sessionId=session_id)
+
 
 def is_connection_being_updated_exception(exception: BaseException) -> bool:
     return (

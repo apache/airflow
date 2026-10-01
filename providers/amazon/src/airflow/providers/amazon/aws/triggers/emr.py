@@ -861,3 +861,54 @@ class EmrServerlessSessionTrigger(AwsBaseWaiterTrigger):
             verify=verify,
             botocore_config=botocore_config,
         )
+
+
+class EmrServerlessTerminateSessionTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an EMR Serverless interactive session until it is no longer active.
+
+    A session that reports ``FAILED`` is also treated as a success, because an application can be
+    stopped once every one of its sessions is either ``TERMINATED`` or ``FAILED``.
+
+    :param application_id: The ID of the EMR Serverless application.
+    :param session_id: The ID of the interactive session being polled.
+    :param waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = EmrServerlessHook
+
+    def __init__(
+        self,
+        *,
+        application_id: str,
+        session_id: str,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id, "session_id": session_id},
+            waiter_name="serverless_session_terminated",
+            waiter_args={"applicationId": application_id, "sessionId": session_id},
+            failure_message="EMR Serverless session failed to terminate",
+            status_message="EMR Serverless session status is",
+            status_queries=["session.state"],
+            return_key="session_details",
+            return_value={"application_id": application_id, "session_id": session_id},
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
+        )
