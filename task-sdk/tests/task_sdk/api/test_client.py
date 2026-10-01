@@ -485,13 +485,13 @@ class TestTaskInstanceOperations:
     def test_task_instance_update_dagrun_note(self):
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/dag-run-note":
                 assert json.loads(request.read()) == {"note": "Updated from task runtime"}
-                return httpx.Response(status_code=204)
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=204)
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         response = client.task_instances.update_dagrun_note(ti_id, "Updated from task runtime")
 
