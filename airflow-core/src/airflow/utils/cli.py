@@ -44,6 +44,7 @@ from airflow.utils.platform import getuser, is_terminal_support_colors
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.sdk import DAG
     from airflow.serialization.definitions.dag import SerializedDAG
 
@@ -291,6 +292,13 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     """
     from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+    from airflow.serialization.definitions.dag import SerializedLangSDKDAG
+
+    def check_python_dag(dag: BaggedDAG) -> DAG:
+        # TODO: Support running a Lang-SDK Dag directly from the CLI.
+        if isinstance(dag, SerializedLangSDKDAG):
+            raise SystemExit(f"Dag {dag_id!r} is a native Lang-SDK Dag, which this command cannot run.")
+        return dag
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
@@ -302,7 +310,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 bundle_name=bundle.name,
             )
         if dag := dagbag.dags.get(dag_id):
-            return dag
+            return check_python_dag(dag)
 
     manager.sync_bundles_to_db()
     for bundle in manager.get_all_dag_bundles():
@@ -315,7 +323,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):
-            return dag
+            return check_python_dag(dag)
         if dag:
             break
     raise AirflowException(
