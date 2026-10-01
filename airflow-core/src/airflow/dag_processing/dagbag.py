@@ -25,7 +25,7 @@ import warnings
 from collections.abc import Iterator
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias
 
 from tabulate import tabulate
 
@@ -46,6 +46,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
 from airflow.sdk.importers import DagImportError, get_importer_registry
+from airflow.serialization.definitions.dag import SerializedLangSDKDAG
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.file import find_enclosing_file
@@ -59,6 +60,9 @@ if TYPE_CHECKING:
     from airflow.models.dagwarning import DagWarning
     from airflow.sdk.importers import AbstractDagImporter, DagDefinition, DagImportWarning, DagSourceCode
     from airflow.serialization.definitions.dag import SerializedDAG
+
+    BaggedDAG: TypeAlias = DAG | SerializedLangSDKDAG
+    """A Dag a Dag bag holds: a Python Dag, or a native Dag from a Lang-SDK runtime."""
 
 
 class FileLoadStat(NamedTuple):
@@ -194,7 +198,7 @@ class DagBag(LoggingMixin):
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
-        self.dags: dict[str, DAG] = {}
+        self.dags: dict[str, BaggedDAG] = {}
         # The freshness token of each definition when we last imported it, keyed by its fileloc
         self.file_last_changed: dict[str, str] = {}
         # Store import errors with relative file paths as keys (relative to bundle_path)
@@ -306,7 +310,7 @@ class DagBag(LoggingMixin):
 
     def _process_definition(
         self, importer: AbstractDagImporter, definition: DagDefinition, *, only_if_updated: bool
-    ) -> list[DAG]:
+    ) -> list[BaggedDAG]:
         """Import a Dag definition and bag the Dags it defines."""
         fileloc = repr(definition)
         freshness_token = definition.freshness_token
@@ -344,9 +348,11 @@ class DagBag(LoggingMixin):
                 dag.fileloc = fileloc
                 dag.relative_fileloc = self._get_relative_fileloc(fileloc)
                 dag.bundle_name = self.bundle_name
-                dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
-                _assign_default_team_pools(dag, self.bundle_name)
+                # The Dag processor does not run these on a Lang-SDK Dag, so a Dag bag does not either.
+                if not isinstance(dag, SerializedLangSDKDAG):
+                    dag.validate()
+                    _validate_executor_fields(dag, self.bundle_name)
+                    _assign_default_team_pools(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
             except AirflowClusterPolicySkipDag:
@@ -417,36 +423,41 @@ class DagBag(LoggingMixin):
                 return str(Path(filepath).relative_to(self.bundle_path))
         return filepath
 
-    def bag_dag(self, dag: DAG):
+    def bag_dag(self, dag: BaggedDAG):
         """
         Add the DAG into the bag.
+
+        A ``SerializedLangSDKDAG`` is only checked for a duplicate id.
+        ``validate_serialized_dag`` already rejected a cycle in it, and the Dag processor does not run
+        cluster policies on it either.
 
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        dag.check_cycle()
-        dag.resolve_template_files()
-        dag.last_loaded = timezone.utcnow()
+        if not isinstance(dag, SerializedLangSDKDAG):
+            dag.check_cycle()
+            dag.resolve_template_files()
+            dag.last_loaded = timezone.utcnow()
 
-        try:
-            settings.dag_policy(dag)
+            try:
+                settings.dag_policy(dag)
 
-            for task in dag.tasks:
-                if getattr(task, "end_from_trigger", False) and get_listener_manager().has_listeners:
-                    raise AirflowException(
-                        "Listeners are not supported with end_from_trigger=True for deferrable operators. "
-                        "Task %s in DAG %s has end_from_trigger=True with listeners from plugins. "
-                        "Set end_from_trigger=False to use listeners.",
-                        task.task_id,
-                        dag.dag_id,
-                    )
+                for task in dag.tasks:
+                    if getattr(task, "end_from_trigger", False) and get_listener_manager().has_listeners:
+                        raise AirflowException(
+                            "Listeners are not supported with end_from_trigger=True for deferrable operators. "
+                            "Task %s in DAG %s has end_from_trigger=True with listeners from plugins. "
+                            "Set end_from_trigger=False to use listeners.",
+                            task.task_id,
+                            dag.dag_id,
+                        )
 
-                settings.task_policy(task)
-        except (AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag):
-            raise
-        except Exception as e:
-            self.log.exception(e)
-            raise AirflowClusterPolicyError(e)
+                    settings.task_policy(task)
+            except (AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag):
+                raise
+            except Exception as e:
+                self.log.exception(e)
+                raise AirflowClusterPolicyError(e)
         from airflow.sdk.exceptions import AirflowDagCycleException
 
         try:
@@ -574,8 +585,8 @@ def sync_bag_to_db(
     """
     Save attributes about list of DAG to the DB.
 
-    Files that a Lang-SDK runtime parses are left out, with their import errors: the Dag processor
-    stores those.
+    Files that a Lang-SDK runtime parses are left out, with their Dags and import errors: the Dag
+    processor stores those.
     """
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
@@ -603,7 +614,11 @@ def sync_bag_to_db(
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
-        [LazyDeserializedDAG.from_dag(dag) for dag in dagbag.dags.values()],
+        [
+            LazyDeserializedDAG.from_dag(dag)
+            for dag in dagbag.dags.values()
+            if not isinstance(dag, SerializedLangSDKDAG)
+        ],
         import_errors,
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,

@@ -23,6 +23,8 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Final, cast
 
+import structlog
+
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.execution_time.coordinator import CoordinatorManager, get_coordinator_manager
 from airflow.sdk.importers.base import (
@@ -37,6 +39,8 @@ from airflow.sdk.importers.base import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from structlog.typing import FilteringBoundLogger
+
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
     from airflow.sdk.importers.base import DagDefinition
@@ -49,6 +53,8 @@ An importer is registered in a bundle when ``[sdk] coordinators`` has a coordina
 :attr:`~CoordinatorDagImporter.coordinator_classpath` class.
 """
 
+log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.dag_importer")
+
 
 class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
     """
@@ -59,8 +65,9 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
     ``[sdk] dag_bundle_to_coordinator`` picks for the bundle when there are several.
 
     The Dag processor does not call :meth:`import_definition`: it runs the runtime itself and stores
-    the Dags the runtime serialized. A Dag bag, such as a CLI command's, reports such a file as an
-    import error.
+    the Dags the runtime serialized. This method serves a Dag bag, such as a CLI command's, and returns
+    each Dag as a ``SerializedLangSDKDAG``, the ``SerializedDAG`` the scheduler loads. Its tasks run
+    only through the coordinator, never in Python.
 
     Subclasses set :attr:`coordinator_classpath`, :attr:`artifact_suffix` and
     :attr:`supported_extensions`, and implement :meth:`get_source_code`.
@@ -112,16 +119,30 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
     def import_definition(
         self, definition: FilesystemDagDefinition, bundle: BaseDagBundle
     ) -> DagImportResult:
-        """Report that only the Dag processor parses *definition*."""
-        return DagImportResult(
-            definition=definition,
-            errors=[
-                DagImportError(
-                    source_reference=repr(definition),
-                    message="A native Lang-SDK Dag is parsed only by the Dag processor",
-                )
-            ],
+        from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess  # noqa: SDK002
+        from airflow.serialization.serialized_objects import DagSerialization  # noqa: SDK002
+
+        source_reference = repr(definition)
+        bundle_path = bundle.path or definition.path.parent
+        relative_loc = definition.get_relative_loc(bundle_path)
+        result = DagImportResult(definition=definition)
+        parsing_result = LangSDKDagFileProcessorProcess.run(
+            path=definition.path,
+            bundle_path=bundle_path,
+            bundle_name=bundle.name,
+            dag_file_rel_path=relative_loc,
+            logger=log,
         )
+        for key, message in (parsing_result.import_errors or {}).items():
+            result.errors.append(
+                DagImportError(
+                    source_reference=source_reference,
+                    message=message if key == relative_loc else f"{key}: {message}",
+                )
+            )
+        # The runtime process validated each Dag, and moved one that fails into import_errors.
+        result.dags.extend(DagSerialization.from_dict(dag.data) for dag in parsing_result.serialized_dags)
+        return result
 
 
 def build_coordinator_dag_importers(

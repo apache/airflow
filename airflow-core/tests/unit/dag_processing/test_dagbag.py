@@ -42,6 +42,8 @@ from airflow.dag_processing.dagbag import (
     _validate_executor_fields,
     sync_bag_to_db,
 )
+from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
+from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
@@ -60,12 +62,20 @@ from airflow.sdk.importers import (
     find_file_dag_definitions,
     get_file_suffix,
 )
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from unit import cluster_policies
-from unit.dag_processing.fake_lang_sdk import fake_coordinator, write_native_file
+from unit.dag_processing.fake_lang_sdk import (
+    FakeCoordinator,
+    fake_coordinator,
+    play_runtime,
+    write_native_file,
+)
 from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
@@ -1553,19 +1563,170 @@ def clean_import_errors():
     db.clear_db_import_errors()
 
 
-@pytest.mark.usefixtures("clean_import_errors")
-def test_sync_bag_to_db_leaves_native_files_to_the_dag_processor(tmp_path, session, testing_dag_bundle):
-    write_native_file(tmp_path / "dags.native")
-    session.add(ParseImportError(bundle_name="testing", filename="dags.native", stacktrace="stored"))
-    session.commit()
+def _serialize_native_dag(dag_id: str, fileloc: str, relative_fileloc: str) -> dict:
+    with DAG(dag_id, schedule=None) as dag:
+        BaseOperator(task_id="extract")
+    data = DagSerialization.to_dict(dag)
+    data["dag"].update(fileloc=fileloc, relative_fileloc=relative_fileloc)
+    return data
 
-    with fake_coordinator():
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
-        sync_bag_to_db(dagbag, "testing", None, session=session)
 
-    assert dagbag.import_errors == {
-        "dags.native": "A native Lang-SDK Dag is parsed only by the Dag processor"
-    }
-    assert {(e.filename, e.stacktrace) for e in session.scalars(select(ParseImportError))} == {
-        ("dags.native", "stored")
-    }
+@contextlib.contextmanager
+def _native_runtime(**dag_ids_by_file: list[str]):
+    """Make the runtime of a ``.native`` file return the Dag ids given for that file's stem."""
+
+    def run(*, path, dag_file_rel_path, **kwargs):
+        dag_ids = dag_ids_by_file[Path(path).stem]
+        return DagFileParsingResult(
+            fileloc=os.fspath(path),
+            serialized_dags=[
+                LazyDeserializedDAG(data=_serialize_native_dag(dag_id, os.fspath(path), dag_file_rel_path))
+                for dag_id in dag_ids
+            ],
+        )
+
+    with fake_coordinator(), patch.object(LangSDKDagFileProcessorProcess, "run", side_effect=run):
+        yield
+
+
+class TestCoordinatorParsedFiles:
+    """A file claimed by a coordinator's Dag importer is parsed by its runtime and bagged as SerializedDAGs."""
+
+    @staticmethod
+    def _reply(*dag_ids, **result):
+        def reply(request, comms):
+            dags = []
+            for dag_id in dag_ids:
+                with DAG(dag_id, schedule=None) as dag:
+                    BaseOperator(task_id="extract")
+                data = DagSerialization.to_dict(dag)
+                data["dag"].update(fileloc=request.file, relative_fileloc="sub/dags.native")
+                dags.append(LazyDeserializedDAG(data=data))
+            return DagFileParsingResult(fileloc=request.file, serialized_dags=dags, **result)
+
+        return reply
+
+    @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    def test_native_file_is_bagged_as_serialized_dags(self, mock_parse_dag, tmp_path):
+        mock_parse_dag.side_effect = play_runtime(self._reply("native_a", "native_b"))
+        (tmp_path / "sub").mkdir()
+        native = write_native_file(tmp_path / "sub" / "dags.native")
+
+        with fake_coordinator():
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+
+        assert dagbag.import_errors == {}
+        assert sorted(dagbag.dag_ids) == ["native_a", "native_b"]
+        dag = dagbag.dags["native_a"]
+        assert isinstance(dag, SerializedDAG)
+        assert isinstance(dag.task_dict["extract"], SerializedBaseOperator)
+        assert (dag.fileloc, dag.relative_fileloc) == (os.fspath(native), "sub/dags.native")
+        assert dag.bundle_name == "testing"
+
+    @patch("airflow.settings.task_policy", cluster_policies.task_policy)
+    @patch("airflow.settings.dag_policy", cluster_policies.dag_policy)
+    @patch("airflow.dag_processing.dagbag._validate_executor_fields", autospec=True)
+    def test_native_dags_skip_the_python_dag_checks(self, mock_validate_executor_fields, tmp_path):
+        write_native_file(tmp_path / "dags.native")
+
+        with _native_runtime(dags=["native_a"]):
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+
+        assert dagbag.import_errors == {}
+        assert dagbag.dag_ids == ["native_a"]
+        mock_validate_executor_fields.assert_not_called()
+
+    def test_native_dag_with_the_id_of_a_python_dag_is_an_import_error(self, tmp_path):
+        write_native_file(tmp_path / "dags.native")
+        (tmp_path / "a_python.py").write_text(
+            "from airflow.sdk import DAG\nwith DAG('shared_id', schedule=None): pass\n"
+        )
+
+        with _native_runtime(dags=["shared_id"]):
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+
+        assert isinstance(dagbag.dags["shared_id"], DAG)
+        assert dagbag.import_errors["dags.native"].startswith("AirflowDagDuplicatedIdException: ")
+
+    def test_sync_bag_to_db_leaves_native_files_to_the_dag_processor(
+        self, tmp_path, session, testing_dag_bundle
+    ):
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
+        db.clear_db_import_errors()
+        write_native_file(tmp_path / "dags.native")
+        write_native_file(tmp_path / "broken.native")
+        (tmp_path / "a_python.py").write_text(
+            "from airflow.sdk import DAG\nwith DAG('python_dag', schedule=None): pass\n"
+        )
+        session.add(ParseImportError(bundle_name="testing", filename="dags.native", stacktrace="stored"))
+        session.commit()
+
+        with _native_runtime(dags=["native_a"], broken=[]):
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+            dagbag.import_errors["broken.native"] = "cannot start the runtime here"
+            sync_bag_to_db(dagbag, "testing", None, session=session)
+
+        assert isinstance(dagbag.dags["native_a"], SerializedDAG)
+        assert set(session.scalars(select(DagModel.dag_id))) == {"python_dag"}
+        assert {(e.filename, e.stacktrace) for e in session.scalars(select(ParseImportError))} == {
+            ("dags.native", "stored")
+        }
+
+    def test_sync_bag_to_db_keeps_a_native_dag_whose_runtime_cannot_start(
+        self, tmp_path, session, testing_dag_bundle
+    ):
+        db.clear_db_dags()
+        native = write_native_file(tmp_path / "dags.native", command_error="no runtime")
+        session.add(
+            DagModel(
+                dag_id="native_dag",
+                bundle_name="testing",
+                fileloc=os.fspath(native),
+                relative_fileloc="dags.native",
+                is_stale=False,
+            )
+        )
+        session.commit()
+
+        with fake_coordinator():
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+            sync_bag_to_db(dagbag, "testing", None, session=session)
+
+        assert dagbag.import_errors == {
+            "dags.native": "Cannot start the Lang-SDK runtime: FileNotFoundError: no runtime"
+        }
+        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "native_dag")) is False
+
+    @pytest.mark.parametrize(
+        ("spec", "reply", "message"),
+        [
+            pytest.param(
+                {},
+                lambda request, comms: None,
+                "The Lang-SDK runtime exited with code 0 without a parse result",
+                id="no-result",
+            ),
+            pytest.param(
+                {"schema_version": "1999-01-01"},
+                None,
+                "Cannot start the Lang-SDK runtime: "
+                "ValueError: Version '1999-01-01' not found in supervisor schema bundle",
+                id="cannot-start",
+            ),
+            pytest.param({}, _reply(import_errors={"main.ts": "boom"}), "main.ts: boom", id="runtime-error"),
+        ],
+    )
+    def test_runtime_failures_are_import_errors(self, tmp_path, spec, reply, message):
+        native = write_native_file(tmp_path / "dags.native", **spec)
+
+        with (
+            fake_coordinator(),
+            mock.patch.object(FakeCoordinator, "parse_dag", autospec=True, side_effect=play_runtime(reply))
+            if reply
+            else contextlib.nullcontext(),
+        ):
+            dagbag = DagBag(dag_folder=os.fspath(native), bundle_path=tmp_path, bundle_name="testing")
+
+        assert dagbag.dags == {}
+        assert dagbag.import_errors == {"dags.native": message}
