@@ -26,13 +26,14 @@ import (
 	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
-// BundleRef holds the task handlers that this executable runs for Airflow.
+// BundleRef holds the task handlers and the Dags that this executable registers for Airflow.
 // [Bundle] returns an empty one.
 type BundleRef struct {
 	// closed ends registration for everything the bundle can hold, so a kind added later
 	// is covered without a flag of its own. Serve sets it; Register reads it.
 	closed       atomic.Bool
 	taskHandlers taskHandlerMap
+	dags         dagMap
 }
 
 // Bundle returns an empty bundle. Register the task handlers on it, then call Serve as the
@@ -51,7 +52,8 @@ type BundleRef struct {
 //	}
 func Bundle() *BundleRef { return &BundleRef{} }
 
-// Registerable is what [BundleRef.Register] accepts. [TaskHandler] returns one.
+// Registerable is what [BundleRef.Register] accepts: the value [TaskHandler] returns, or the
+// [*DagRef] that [Dag] returns.
 //
 // Its only method is unexported, so a type outside this package cannot declare it.
 // A struct that embeds a Registerable still satisfies the interface, and Register panics
@@ -70,8 +72,12 @@ type Registerable interface{ registerable() }
 //
 //	bundle.Register(reports.Handlers()...)
 //
+// Add every task to a Dag before registering the Dag. [DagRef.Task] panics once the Dag is
+// registered.
+//
 // Register panics if a task handler with the same dag_id and task_id is already registered,
-// and if [BundleRef.Serve] has already been called: registration closes when serving starts.
+// if a Dag with the same dag_id is already registered, or if [BundleRef.Serve] has already
+// been called: registration closes when serving starts.
 func (b *BundleRef) Register(items ...Registerable) {
 	if b.closed.Load() {
 		panic(
@@ -81,7 +87,12 @@ func (b *BundleRef) Register(items ...Registerable) {
 	for _, item := range items {
 		switch item := item.(type) {
 		case *taskHandler:
-			b.taskHandlers.add(item.dagId, item.taskId, item.task)
+			b.taskHandlers.add(item.dagID, item.taskID, item.task)
+		case *DagRef:
+			if item == nil {
+				panic("airflow.BundleRef.Register: cannot register a nil *airflow.DagRef")
+			}
+			b.dags.add(item)
 		default:
 			// Either a nil item, or a struct from another package that embeds a Registerable.
 			panic(fmt.Sprintf("airflow.BundleRef.Register: cannot register %T", item))
@@ -103,32 +114,32 @@ var (
 	_ bundle.EnumerableBundle = (*taskHandlerMap)(nil)
 )
 
-func (m *taskHandlerMap) add(dagId, taskId string, task bundle.Task) {
+func (m *taskHandlerMap) add(dagID, taskID string, task bundle.Task) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.handlers == nil {
 		m.handlers = make(map[string]map[string]bundle.Task)
 	}
-	dagHandlers, exists := m.handlers[dagId]
+	dagHandlers, exists := m.handlers[dagID]
 	if !exists {
 		dagHandlers = make(map[string]bundle.Task)
-		m.handlers[dagId] = dagHandlers
+		m.handlers[dagID] = dagHandlers
 	}
-	if _, exists := dagHandlers[taskId]; exists {
+	if _, exists := dagHandlers[taskID]; exists {
 		panic(fmt.Sprintf(
-			"airflow.BundleRef.Register: task %q of Dag %q is already registered", taskId, dagId,
+			"airflow.BundleRef.Register: task %q of Dag %q is already registered", taskID, dagID,
 		))
 	}
-	dagHandlers[taskId] = task
-	m.order = append(m.order, bundle.TaskHandlerInfo{DagID: dagId, TaskID: taskId})
+	dagHandlers[taskID] = task
+	m.order = append(m.order, bundle.TaskHandlerInfo{DagID: dagID, TaskID: taskID})
 }
 
-func (m *taskHandlerMap) LookupTask(dagId, taskId string) (bundle.Task, bool) {
+func (m *taskHandlerMap) LookupTask(dagID, taskID string) (bundle.Task, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	task, exists := m.handlers[dagId][taskId]
+	task, exists := m.handlers[dagID][taskID]
 	return task, exists
 }
 
@@ -137,4 +148,24 @@ func (m *taskHandlerMap) ListTaskHandlers() []bundle.TaskHandlerInfo {
 	defer m.mu.RUnlock()
 
 	return slices.Clone(m.order)
+}
+
+// dagMap holds the registered Dags by dag_id.
+type dagMap struct {
+	mu   sync.Mutex
+	dags map[string]*DagRef
+}
+
+func (m *dagMap) add(dag *DagRef) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.dags[dag.dagID]; exists {
+		panic(fmt.Sprintf("airflow.BundleRef.Register: Dag %q is already registered", dag.dagID))
+	}
+	dag.markRegistered()
+	if m.dags == nil {
+		m.dags = make(map[string]*DagRef)
+	}
+	m.dags[dag.dagID] = dag
 }

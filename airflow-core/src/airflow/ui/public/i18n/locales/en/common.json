@@ -199,6 +199,7 @@
     "plugins": "Plugins",
     "security": "Security"
   },
+  "no": "No",
   "noItemsFound": "No {{modelName}} found",
   "note": {
     "add": "Add a note",
@@ -271,6 +272,10 @@
   "selected": "Selected",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Keep task state store entries by default when clearing task instances, instead of discarding them.",
+        "label": "Keep task state on clear"
+      },
       "preventRunningTask": {
         "helper": "Skip tasks that are currently running when clearing task instances.",
         "label": "Prevent clearing running tasks"
@@ -454,6 +459,11 @@
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
+    "stateReason": "Reason for state",
+    "stateReasonSummary": {
+      "failed": "Stopped on try {{tryNumber}} of {{totalTries}}",
+      "upForRetry": "Retrying after try {{tryNumber}} of {{totalTries}}"
+    },
     "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",
@@ -475,9 +485,14 @@
     "title": "Teams"
   },
   "timeRange": {
+    "anyTime": "Any time",
+    "in": "in",
+    "last7Days": "Last 7 days",
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
+    "last30Days": "Last 30 days",
     "lastHour": "Last Hour",
+    "latestRun": "Latest run",
     "pastWeek": "Past Week"
   },
   "timestamp": {
@@ -570,5 +585,6 @@
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
-  }
+  },
+  "yes": "Yes"
 }

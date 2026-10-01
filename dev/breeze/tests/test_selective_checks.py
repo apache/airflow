@@ -1130,7 +1130,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql databricks duckdb exasol ftp google http imap "
+                "microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1156,7 +1157,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "common.compat,common.messaging,common.sql,databricks,duckdb,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1202,7 +1203,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql databricks duckdb exasol ftp google http imap "
+                "microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1225,7 +1227,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "common.compat,common.messaging,common.sql,databricks,duckdb,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1595,6 +1597,41 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
             },
             id="Skip go unit and e2e tests for go-sdk ADR-only change",
+        ),
+        pytest.param(
+            ("providers/common/ai/src/airflow/providers/common/ai/toolsets/sql.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when a common.ai toolset changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/tests/unit/common/ai/tools/test_strands.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when a common.ai test changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/pyproject.toml",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when common.ai dependencies change",
+        ),
+        pytest.param(
+            ("providers/common/sql/src/airflow/providers/common/sql/hooks/sql.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when common.sql changes",
+        ),
+        pytest.param(
+            ("uv.lock",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when the lock file changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/docs/frameworks/strands.rst",),
+            {"run-agent-framework-tests": "false"},
+            id="Skip agent framework tests for a common.ai docs-only change",
+        ),
+        pytest.param(
+            ("providers/openai/src/airflow/providers/openai/hooks/openai.py",),
+            {"run-agent-framework-tests": "false"},
+            id="Skip agent framework tests when another provider changes",
         ),
         pytest.param(
             ("airflow-e2e-tests/docker/go.yml",),
@@ -2541,6 +2578,11 @@ def test_expected_output_full_tests_needed(
             },
             id="No Helm tests, No providers no lint charts, should run if "
             "only chart/providers changed in non-main but PROD image should be built",
+        ),
+        pytest.param(
+            ("providers/common/ai/src/airflow/providers/common/ai/toolsets/sql.py",),
+            {"run-agent-framework-tests": "false", "skip-providers-tests": "true"},
+            id="No agent framework tests on a release branch, which releases no providers",
         ),
         pytest.param(
             (

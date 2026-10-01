@@ -42,7 +42,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
 
@@ -56,7 +56,7 @@ from airflow.providers.common.ai.utils.decision import (
     review_reason,
     threshold_for,
 )
-from airflow.providers.common.compat.sdk import redact
+from airflow.providers.common.ai.utils.masking import mask_secrets
 
 try:
     from airflow.sdk.definitions.retry_policy import (
@@ -128,6 +128,11 @@ class ErrorClassification(BaseModel):
 class ErrorCategory:
     """
     One kind of failure a :class:`ClassifierRetryPolicy` may name, and what it does when it does.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The value of the policy's ``categories`` mapping, keyed by the category name the model
     answers with.
@@ -215,8 +220,7 @@ categories: those travel in the output schema with their descriptions, so a prom
 
 def redact_registered_secrets(message: str) -> str:
     """Mask values registered via ``mask_secret()``; the default ``redactor`` for the policies here."""
-    # redact() is typed for arbitrary containers; a str in always yields a str out.
-    return cast("str", redact(message))
+    return mask_secrets(message)
 
 
 _REDACTION_PARAMS_DOC = """
@@ -428,6 +432,11 @@ class LLMRetryPolicy(_ModelRetryPolicy):
 class ClassifierRetryPolicy(_ModelRetryPolicy):
     """
     Retry policy where the model names the kind of failure and the author's table decides.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The model's only job is to pick one of ``categories``; it reads each one's description
     from the output schema. Whether that category is retried, after how long, and how sure

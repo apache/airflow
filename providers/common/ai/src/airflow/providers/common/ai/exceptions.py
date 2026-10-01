@@ -16,11 +16,41 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException
 
 
 class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
+
+
+class ToolApprovalError(RuntimeError):
+    """
+    Raised when a run paused for tool approval cannot resume safely.
+
+    The saved transcript, or the agent's rendered toolset ids, no longer match what the
+    reviewer saw. A retry starts a fresh run.
+    """
+
+
+class ToolApprovalAlreadyRequestedError(AirflowFailException):
+    """
+    Raised when a task instance asks for a second tool approval.
+
+    Airflow keeps one approval request per task instance, across retries and clears, and a
+    second request would show the reviewer the first one's details. The task fails without
+    retrying, since a retry would ask again.
+    """
+
+
+class UnsupportedToolDeferralError(AirflowFailException):
+    """
+    Raised when an agent defers a tool call that ``AgentOperator`` cannot resolve.
+
+    Either the tool hands its work to an external system, or it needs approval where
+    approval is not available (before Airflow 3.3, or with ``durable``,
+    ``enable_hitl_review``, ``code_mode`` or a ``SandboxToolset``). A retry would repeat
+    the same call, so the task fails without retrying.
+    """
 
 
 class LLMFileAnalysisError(ValueError):

@@ -1740,6 +1740,38 @@ class TestKubernetesExecutor:
             key=key, command=[workload], queue="default", executor_config={}
         )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    def test_queue_workload_queues_execute_task(self):
+        """queue_workload must queue an ExecuteTask on every supported Airflow 3 version.
+
+        On Airflow 3.0.x ``BaseExecutor.queue_workload`` raises unconditionally and the scheduler falls back
+        to ``queue_command`` for executors without their own override, which this executor cannot process.
+        """
+        from airflow.executors.workloads import ExecuteTask
+
+        executor = self.kubernetes_executor
+        key = TaskInstanceKey("dag", "task", "run_id", 1, -1)
+        workload = mock.Mock(spec=ExecuteTask)
+        workload.ti = mock.Mock()
+        workload.ti.key = key
+
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = key
+            task_queue = executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = executor.queued_tasks
+
+        executor.queue_workload(workload, session=mock.MagicMock())
+
+        assert task_queue[key] is workload
+        if not AIRFLOW_V_3_1_PLUS:
+            from airflow.executors.base_executor import BaseExecutor
+
+            assert KubernetesExecutor.queue_workload is not BaseExecutor.queue_workload
+
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_invalid_executor_config(self, mock_get_kube_client, mock_kubernetes_job_watcher):

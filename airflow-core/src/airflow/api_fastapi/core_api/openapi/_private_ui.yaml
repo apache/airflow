@@ -209,6 +209,16 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: has_events
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter assets that have events
+          title: Has Events
+        description: Filter assets that have events
       - name: only_active
         in: query
         required: false
@@ -304,6 +314,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NextRunAssetsResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -445,6 +461,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -679,6 +701,20 @@ paths:
           description: Filter Dags that have any DagRun in the given state.
           title: Dag Run State
         description: Filter Dags that have any DagRun in the given state.
+      - name: dag_run_state_within_hours
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            maximum: 878400
+            exclusiveMinimum: 0
+          - type: 'null'
+          description: Only match DagRuns whose run_after falls within the last given
+            hours. Ignored unless dag_run_state is set.
+          title: Dag Run State Within Hours
+        description: Only match DagRuns whose run_after falls within the last given
+          hours. Ignored unless dag_run_state is set.
       - name: bundle_name
         in: query
         required: false
@@ -2336,6 +2372,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TeamCollectionResponse'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
@@ -2851,6 +2893,10 @@ components:
         count:
           type: integer
           title: Count
+        is_backfill:
+          type: boolean
+          title: Is Backfill
+          default: false
       type: object
       required:
       - date
@@ -4841,6 +4887,15 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id
