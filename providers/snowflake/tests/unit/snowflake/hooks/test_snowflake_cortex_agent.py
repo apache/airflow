@@ -35,6 +35,15 @@ DATABASE = "TEST/DATABASE"
 SCHEMA = "TEST?SCHEMA"
 AGENT_NAME = "TEST#AGENT"
 
+USER = "test-user"
+PRIVATE_KEY = mock.sentinel.private_key
+KEYPAIR_TOKEN = "test-keypair-token"
+
+KEYPAIR_CONN_PARAMS = {
+    "account": ACCOUNT,
+    "user": USER,
+}
+
 ENCODED_DATABASE = "TEST%2FDATABASE"
 ENCODED_SCHEMA = "TEST%3FSCHEMA"
 ENCODED_AGENT_NAME = "TEST%23AGENT"
@@ -175,6 +184,7 @@ class TestSnowflakeCortexAgentHook:
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
                 "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
             },
             json={
                 "messages": [
@@ -312,20 +322,105 @@ class TestSnowflakeCortexAgentHook:
                 messages=[],
             )
 
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
-    def test_get_access_token_raises_when_token_missing(
+    def test_get_auth_headers_uses_oauth(
         self,
         mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
     ):
-        mock_conn_params.return_value = {}
+        mock_conn_params.return_value = CONN_PARAMS
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        assert hook._get_auth_headers() == {
+            "Authorization": f"Bearer {ACCESS_TOKEN}",
+            "Content-Type": "application/json",
+            "X-Snowflake-Authorization-Token-Type": "OAUTH",
+        }
+
+        mock_get_private_key.assert_not_called()
+        mock_jwt_generator.assert_not_called()
+
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_auth_headers_uses_keypair_jwt(
+        self,
+        mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
+    ):
+        mock_conn_params.return_value = KEYPAIR_CONN_PARAMS
+        mock_get_private_key.return_value = PRIVATE_KEY
+        mock_jwt_generator.return_value.get_token.return_value = KEYPAIR_TOKEN
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        assert hook._get_auth_headers() == {
+            "Authorization": f"Bearer {KEYPAIR_TOKEN}",
+            "Content-Type": "application/json",
+            "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+        }
+
+        mock_get_private_key.assert_called_once_with()
+        mock_jwt_generator.assert_called_once_with(
+            account=ACCOUNT,
+            user=USER,
+            private_key=PRIVATE_KEY,
+        )
+        mock_jwt_generator.return_value.get_token.assert_called_once_with()
+
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_auth_headers_raises_when_credentials_missing(
+        self,
+        mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
+    ):
+        mock_conn_params.return_value = KEYPAIR_CONN_PARAMS
+        mock_get_private_key.return_value = None
 
         hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
 
         with pytest.raises(
             ValueError,
-            match="access token",
+            match="Snowflake connection must provide either OAuth credentials or an account, user, and private key for key-pair authentication.",
         ):
-            hook._get_access_token()
+            hook._get_auth_headers()
+
+        mock_jwt_generator.assert_not_called()
+
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_auth_headers_raises_when_jwt_generation_fails(
+        self,
+        mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
+    ):
+        mock_conn_params.return_value = KEYPAIR_CONN_PARAMS
+        mock_get_private_key.return_value = PRIVATE_KEY
+        mock_jwt_generator.return_value.get_token.return_value = None
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(
+            RuntimeError,
+            match="Failed to generate a Snowflake key-pair JWT",
+        ):
+            hook._get_auth_headers()
+
+        mock_jwt_generator.assert_called_once_with(
+            account=ACCOUNT,
+            user=USER,
+            private_key=PRIVATE_KEY,
+        )
 
     @pytest.mark.parametrize(
         ("response", "expected"),
@@ -422,6 +517,7 @@ class TestSnowflakeCortexAgentHook:
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
                 "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
             },
             json=None,
             params=None,
@@ -471,6 +567,7 @@ class TestSnowflakeCortexAgentHook:
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
                 "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
             },
             json=None,
             params={
@@ -532,6 +629,7 @@ class TestSnowflakeCortexAgentHook:
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
                 "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
             },
             json=None,
             params={"ifExists": expected},

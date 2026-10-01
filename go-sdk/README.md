@@ -391,7 +391,10 @@ SDK to a newer schema version:
 2. Run `just generate-models`.
 
 `TestSupervisorSchemaVersionMatchesSnapshot` fails when the constant and the snapshot's `api_version`
-drift, so a missed bump is caught by `go test` instead of needing a dedicated prek hook.
+drift, so a missed bump is caught by `go test`. A snapshot can also grow a field without the
+`api_version` moving, which leaves the models behind with nothing failing — msgpack drops a field the
+struct does not declare — so the `check-go-sdk-generated-drift` prek hook regenerates them and fails
+when the committed files differ.
 
 ## Regenerating the Dag and task specs
 
@@ -417,7 +420,7 @@ it into the authoring shape, each entry carrying the reason it exists:
 are hand-written in [`airflow/spec.go`](./airflow/spec.go);
 `TestTriggerRuleConstantsMatchPython` is their tripwire against Airflow's own enum.
 
-The `check-go-sdk-spec-drift` prek hook regenerates the file and fails when the committed one
+The `check-go-sdk-generated-drift` prek hook regenerates the file and fails when the committed one
 differs, so a schema change that never reached Go cannot merge.
 
 ## Architectural decisions

@@ -50,6 +50,8 @@ from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
 
+from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
+
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.settings import ModelSettings
@@ -65,8 +67,10 @@ _VOLATILE_MESSAGE_KEYS = ("timestamp", "run_id", "conversation_id")
 # fingerprint: changing them should not invalidate a cached response, and some
 # (``timeout`` can be an ``httpx.Timeout``) are not JSON-serializable, which
 # would otherwise force the whole fingerprint to ``None`` and silently disable
-# replay verification for every step.
-_TRANSPORT_ONLY_SETTINGS = frozenset({"timeout"})
+# replay verification for every step. Prompt cache settings only decide what the
+# provider keeps for the next request, so ``cache_prompt`` can change between
+# attempts without re-running the steps the previous one completed.
+_TRANSPORT_ONLY_SETTINGS = frozenset({"timeout"}) | PROMPT_CACHE_SETTING_NAMES
 
 
 def _content_settings(model_settings: ModelSettings | None) -> dict[str, Any] | None:

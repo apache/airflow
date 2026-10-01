@@ -421,6 +421,7 @@ export class AssetService {
      * @param data.groupPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.dagIds
+     * @param data.hasEvents Filter assets that have events
      * @param data.onlyActive
      * @param data.lastAssetEventTimestampGte
      * @param data.lastAssetEventTimestampGt
@@ -445,6 +446,7 @@ export class AssetService {
                 group_pattern: data.groupPattern,
                 group_prefix_pattern: data.groupPrefixPattern,
                 dag_ids: data.dagIds,
+                has_events: data.hasEvents,
                 only_active: data.onlyActive,
                 last_asset_event_timestamp_gte: data.lastAssetEventTimestampGte,
                 last_asset_event_timestamp_gt: data.lastAssetEventTimestampGt,
@@ -1190,6 +1192,8 @@ export class DagRunService {
      * @param data.dagVersion
      * @param data.bundleVersion
      * @param data.teams
+     * @param data.tags
+     * @param data.tagsMatchMode
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
@@ -1246,6 +1250,8 @@ export class DagRunService {
                 dag_version: data.dagVersion,
                 bundle_version: data.bundleVersion,
                 teams: data.teams,
+                tags: data.tags,
+                tags_match_mode: data.tagsMatchMode,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
                 run_id_prefix_pattern: data.runIdPrefixPattern,
@@ -2174,6 +2180,7 @@ export class DagService {
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.dagRunState Filter Dags that have any DagRun in the given state.
+     * @param data.dagRunStateWithinHours Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
      * @param data.bundleName
      * @param data.bundleVersion
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
@@ -2208,6 +2215,7 @@ export class DagService {
                 has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 dag_run_state: data.dagRunState,
+                dag_run_state_within_hours: data.dagRunStateWithinHours,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
                 order_by: data.orderBy,

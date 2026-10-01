@@ -90,6 +90,9 @@ Parameters
     A prefix for the tool names, needed when the agent has another toolset with the same
     tool names: a second ``ObjectStorageToolset``, or a ``SandboxToolset``, which has a
     ``read_file`` of its own.
+``max_retries``
+    How many times the model may correct a call with invalid arguments. A failed read does
+    not count. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
 When to choose it
 -----------------

@@ -75,9 +75,20 @@ class CachingToolset(WrapperToolset[Any]):
         # Grab step index BEFORE any await -- ensures deterministic ordering
         # even when multiple tool calls run concurrently via asyncio.gather.
         step = self.counter.next_step()
+
+        # The toolset a tool came from may declare that a completed call must not be served from
+        # cache, because the call acted on a system Airflow cannot observe (a managed agent, for
+        # instance). ``tool.toolset`` survives every pydantic-ai wrapper, so the check is per tool
+        # and one such toolset inside a combined one does not stop its siblings from replaying.
+        # The step still counts so later steps keep their keys.
+        if not getattr(_innermost(tool.toolset), "replayable", True):
+            log.debug("Durable: toolset is not replayable; running the tool", step=step, tool=name)
+            if self.replay_usage is not None:
+                self.replay_usage.record_live_tool_call(step)
+            return await self.wrapped.call_tool(name, tool_args, ctx, tool)
+
         key = build_tool_step_key(step)
         fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id)
-
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)
         if found:
             if cached_fingerprint == fingerprint:

@@ -17,7 +17,9 @@
 
 package airflow
 
-// TaskOption is an option to [DagRef.Task]. [TaskSpec] is one.
+// TaskOption is an option to [DagRef.Task]. There are two kinds: a [TaskSpec] sets the
+// attributes of the task that DagRef.Task adds, and [Inputs] passes the results of other tasks
+// to that task.
 //
 // Its only method is unexported, so a type outside this package cannot declare it.
 // A struct that embeds a TaskSpec or a TaskOption still satisfies the interface, and Task
@@ -25,9 +27,10 @@ package airflow
 type TaskOption interface{ applyTask(*taskConfig) }
 
 type taskConfig struct {
-	// specs keeps every TaskSpec passed to DagRef.Task, so that Task can reject a second one
-	// instead of merging the two.
-	specs []TaskSpec
+	// specs and inputs keep every TaskSpec and every Inputs passed to DagRef.Task, so that Task
+	// can reject a second TaskSpec or a second Inputs instead of merging it into the first.
+	specs  []TaskSpec
+	inputs [][]*TaskRef
 }
 
 func (s TaskSpec) applyTask(c *taskConfig) { c.specs = append(c.specs, s) }

@@ -14,26 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""DAG Importers - pluggable mechanism for importing DAGs from different file formats."""
-
-from __future__ import annotations
-
-from airflow.dag_processing.importers.base import (
-    AbstractDagImporter,
-    DagImporterRegistry,
-    DagImportError,
-    DagImportResult,
-    DagImportWarning,
-    get_importer_registry,
-)
-from airflow.dag_processing.importers.python_importer import PythonDagImporter
-
-__all__ = [
-    "AbstractDagImporter",
-    "DagImportError",
-    "DagImporterRegistry",
-    "DagImportResult",
-    "DagImportWarning",
-    "PythonDagImporter",
-    "get_importer_registry",
-]

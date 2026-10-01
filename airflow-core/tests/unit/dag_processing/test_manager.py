@@ -72,6 +72,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG as SdkDAG
+from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -2089,6 +2090,30 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag1").is_stale is False
         # and the DAG from test_dag2.py is deactivated
         assert session.get(DagModel, "test_dag2").is_stale is True
+
+    @mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True)
+    def test_persist_parsing_result_passes_parsed_definitions_and_source_codes(self, mock_update):
+        source_codes = {"/bundle/dags.zip/a.py": DagSourceCode(source_code="src", language="python")}
+        parsing_result = DagFileParsingResult(
+            fileloc="/bundle/dags.zip",
+            serialized_dags=[],
+            parsed_definitions=["dags.zip/a.py"],
+            dag_source_codes=source_codes,
+        )
+
+        DagFileProcessorManager(max_runs=1).persist_parsing_result(
+            bundle_name="testing",
+            bundle_version=None,
+            version_data=None,
+            parsing_result=parsing_result,
+            run_duration=1.0,
+            relative_fileloc="dags.zip",
+            session=mock.sentinel.session,
+        )
+
+        kwargs = mock_update.call_args.kwargs
+        assert kwargs["files_parsed"] == {("testing", "dags.zip"), ("testing", "dags.zip/a.py")}
+        assert kwargs["dag_source_codes"] == source_codes
 
     @pytest.mark.parametrize(
         ("rel_filelocs", "expected_return", "expected_dag1_stale", "expected_dag2_stale"),
