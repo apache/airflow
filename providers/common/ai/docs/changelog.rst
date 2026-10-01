@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+.. note::
+  On Airflow >= 3.3, ``AgentOperator``'s ``usage_limits`` counts usage across every
+  attempt of the task instance combined -- initial run, every retry, and every HITL
+  regeneration add to one running total (including the implicit ``request_limit=50``
+  default), instead of each attempt starting fresh. Scale each limit by ``retries + 1``,
+  or set ``usage_limits=None``, to keep the old per-attempt headroom. On every Airflow
+  version, a regeneration shares its count with the run before it only when
+  ``usage_limits`` is set. A step replayed with ``durable=True`` no longer counts toward
+  ``usage_limits`` or the ``usage`` XCom, on any Airflow version. The ``usage`` XCom is
+  now also pushed on a failed attempt, reporting that attempt's own usage (not the
+  cross-attempt total). On Airflow < 3.3, or when ``usage_limits`` is ``None``, each
+  attempt is checked and counted on its own, unchanged. See :ref:`the cross-attempt usage
+  budget <agent-usage-budget>`.
+
 0.10.0
 ......
 
@@ -95,7 +109,7 @@ Features
 * ``Add a deferrable batch execution mode to common.ai (#72938)``
 * ``Add a Modal backend for the sandbox toolset (#72910)``
 * ``Add support for TypeSafe Jev classifier models (#73363)``
-* ``Add branch_descriptions to LLMBranchOperator so the model reads what each branch means (#73367)``
+* ``Add branches to LLMBranchOperator so the model reads what each branch means (#73367, #73368)``
 * ``Add connection-driven provider failover for common.ai LLM calls (#72156)``
 * ``Support assigned reviewers in LLM approval reviews (#72157)``
 * ``Stamp Airflow run identity onto agent runs and traces (#73275)``

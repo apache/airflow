@@ -160,3 +160,12 @@ class TestByteBudget:
     def test_empty_result_is_not_reported_as_truncated(self):
         data = _build(["id", "name"], [])
         assert data == {"columns": ["id", "name"], "rows": [], "row_count": 0}
+
+
+@pytest.mark.enable_redact
+def test_a_secret_that_json_escapes_is_masked_in_the_rows(register_secret):
+    secret = register_secret('db-pa"ss-91c3')
+
+    result = _build(["user", "password"], [["admin", secret]])
+
+    assert result["rows"] == [["admin", "***"]]

@@ -17,13 +17,13 @@
 
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
-    "trove-classifiers==2026.6.1.19",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
@@ -226,7 +226,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-docker>=3.14.1"
 ]
 "duckdb" = [
-    "apache-airflow-providers-duckdb>=0.1.0"
+    "apache-airflow-providers-duckdb>=0.2.0"
 ]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
@@ -299,6 +299,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "microsoft.winrm" = [
     "apache-airflow-providers-microsoft-winrm>=3.6.1"
+]
+"modal" = [
+    "apache-airflow-providers-modal>=0.1.0"
 ]
 "mongo" = [
     "apache-airflow-providers-mongo>=4.2.2"
@@ -465,7 +468,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-duckdb>=0.1.0",
+    "apache-airflow-providers-duckdb>=0.2.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
@@ -490,6 +493,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
     "apache-airflow-providers-microsoft-winrm>=3.6.1",
+    "apache-airflow-providers-modal>=0.1.0",
     "apache-airflow-providers-mongo>=4.2.2",
     "apache-airflow-providers-mysql>=5.7.2",
     "apache-airflow-providers-neo4j>=3.8.0",
@@ -583,7 +587,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.12.13",
+    "uv>=0.12.18",
 ]
 
 [project.urls]
@@ -1253,6 +1257,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/psrp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/src",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/src",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mysql/src",
@@ -1556,6 +1562,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1667,6 +1674,7 @@ airbyte-api = "1.x breaks provider tests (#69081)"
 mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
 anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
 azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
+azure-datalake-store = "1.x removed lib.auth used by AzureDataLakeHook (#73795)"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1756,6 +1764,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1927,6 +1936,7 @@ apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
 apache-airflow-providers-microsoft-winrm = { workspace = true }
+apache-airflow-providers-modal = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
@@ -2072,6 +2082,7 @@ members = [
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",
     "providers/microsoft/winrm",
+    "providers/modal",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",

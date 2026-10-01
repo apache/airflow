@@ -24,6 +24,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from common_prek_utils import AIRFLOW_ROOT_PATH
@@ -48,6 +49,20 @@ SUPPORTED_VERSIONS = (
 )
 
 
+# The README pins the latest stable release in the Requirements table header and in the
+# ``pip install`` examples; these are not covered by the generated table, so they are rewritten
+# here to keep a release PR that only edits SUPPORTED_VERSIONS from leaving them stale.
+STABLE_VERSION_HEADER_PATTERN = re.compile(r"Stable version \((?P<version>[^)]*)\)(?P<padding> *)")
+STABLE_VERSION_PIN_PATTERNS = (
+    re.compile(r"(?P<prefix>pip install 'apache-airflow(?:\[[^\]]*\])?==)[^']*(?P<suffix>')"),
+    re.compile(r"(?P<prefix>/apache/airflow/constraints-)[0-9][^/]*(?P<suffix>/constraints-)"),
+)
+
+
+def get_stable_version() -> str:
+    return SUPPORTED_VERSIONS[0][1]
+
+
 def replace_text_between(file: Path, start: str, end: str, replacement_text: str):
     original_text = file.read_text()
     leading_text = original_text.split(start)[0]
@@ -55,7 +70,26 @@ def replace_text_between(file: Path, start: str, end: str, replacement_text: str
     file.write_text(leading_text + start + replacement_text + end + trailing_text)
 
 
+def update_stable_version_in_readme(text: str, stable_version: str) -> str:
+    def replace_header(match: re.Match) -> str:
+        # Keep the markdown table cell width unchanged whenever the padding allows it.
+        width = len(match.group(0))
+        header = f"Stable version ({stable_version})"
+        return header + " " * max(width - len(header), 1 if match.group("padding") else 0)
+
+    if not STABLE_VERSION_HEADER_PATTERN.search(text):
+        raise RuntimeError(f"Pattern {STABLE_VERSION_HEADER_PATTERN.pattern!r} not found in README.md")
+    text = STABLE_VERSION_HEADER_PATTERN.sub(replace_header, text)
+    for pattern in STABLE_VERSION_PIN_PATTERNS:
+        if not pattern.search(text):
+            raise RuntimeError(f"Pattern {pattern.pattern!r} not found in README.md")
+        text = pattern.sub(rf"\g<prefix>{stable_version}\g<suffix>", text)
+    return text
+
+
 if __name__ == "__main__":
+    readme = AIRFLOW_ROOT_PATH / "README.md"
+    readme.write_text(update_stable_version_in_readme(readme.read_text(), get_stable_version()))
     replace_text_between(
         file=AIRFLOW_ROOT_PATH / "README.md",
         start="<!-- Beginning of auto-generated table -->\n",

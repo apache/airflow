@@ -1989,6 +1989,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -2619,6 +2625,25 @@ paths:
           items:
             type: string
           title: Teams
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: order_by
         in: query
         required: false
@@ -3805,6 +3830,9 @@ paths:
         schema:
           anyOf:
           - $ref: '#/components/schemas/DagWarningType'
+          - type: string
+            maxLength: 50
+            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
           - type: 'null'
           title: Warning Type
       - name: limit
@@ -5256,13 +5284,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            filename, bundle_name, stacktrace, import_error_id`'
+            filename, source_reference, bundle_name, stacktrace, import_error_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, timestamp, filename,
-          bundle_name, stacktrace, import_error_id`'
+          source_reference, bundle_name, stacktrace, import_error_id`'
       - name: filename_pattern
         in: query
         required: false
@@ -5349,14 +5377,6 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: is_alive
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Is Alive
       - name: start_date_gte
         in: query
         required: false
@@ -5503,6 +5523,22 @@ paths:
           - type: string
           - type: 'null'
           title: Executor Class
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
+      - name: is_alive
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Alive
       responses:
         '200':
           description: Successful Response
@@ -10186,6 +10222,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '409':
           content:
             application/json:
@@ -10334,6 +10376,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -11081,6 +11129,14 @@ paths:
           items:
             type: string
           title: State
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: response_received
         in: query
         required: false
@@ -13009,6 +13065,13 @@ components:
           type: boolean
           title: Prevent Running Task
           default: false
+        keep_task_state:
+          type: boolean
+          title: Keep Task State
+          description: Keep the task state store entries of the cleared task instances
+            so the next attempt resumes from them. By default they are discarded,
+            so the task starts over.
+          default: false
         note:
           anyOf:
           - type: string
@@ -14283,6 +14346,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Language
       type: object
       required:
       - content
@@ -14345,7 +14413,12 @@ components:
           type: string
           title: Dag Id
         warning_type:
-          $ref: '#/components/schemas/DagWarningType'
+          anyOf:
+          - $ref: '#/components/schemas/DagWarningType'
+          - type: string
+            maxLength: 50
+            pattern: ^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$
+          title: Warning Type
         message:
           type: string
           title: Message
@@ -15450,6 +15523,11 @@ components:
         filename:
           type: string
           title: Filename
+        source_reference:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Reference
         bundle_name:
           anyOf:
           - type: string
@@ -15469,6 +15547,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - source_reference
       - bundle_name
       - stack_trace
       - file_token
@@ -16476,6 +16555,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - task_id
@@ -16659,6 +16747,15 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id

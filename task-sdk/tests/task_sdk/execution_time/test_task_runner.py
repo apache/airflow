@@ -64,6 +64,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow.sdk._shared.secrets_masker import _secrets_masker
 from airflow.sdk._shared.state import AssetScope, TaskFailureKind, TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -154,6 +155,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     TICount,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
     VariableResult,
     XComResult,
@@ -180,7 +182,6 @@ from airflow.sdk.execution_time.task_runner import (
     _run_execute_callable,
     _serialize_outlet_events,
     _xcom_push,
-    detail_span,
     finalize,
     get_startup_details,
     parse,
@@ -787,6 +788,70 @@ def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
     assert finished[0].parent is None
 
 
+# The trace and parent ids from the W3C Trace Context specification's traceparent example; the trailing
+# flags byte is 00, "not sampled".
+UNSAMPLED_TRACE_ID = 0x4BF92F3577B34DA6A3CE929D0E0E4736
+UNSAMPLED_CARRIER = {"traceparent": f"00-{UNSAMPLED_TRACE_ID:032x}-00f067aa0ba902b7-00"}
+
+
+def _make_startup_with_carrier(make_ti_context, carrier: dict[str, str]) -> StartupDetails:
+    return StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+            context_carrier=carrier,
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+
+def test_with_no_tracer_provider_an_unsampled_parent_is_not_made_current(make_ti_context):
+    """A span the task code starts under its own provider must not inherit "not sampled"."""
+    task_code_exporter = InMemorySpanExporter()
+    task_code_provider = TracerProvider()
+    task_code_provider.add_span_processor(SimpleSpanProcessor(task_code_exporter))
+
+    with (
+        mock.patch("airflow.sdk.execution_time.task_runner.tracer", trace.NoOpTracer()),
+        mock.patch.object(trace, "get_tracer_provider", return_value=trace.ProxyTracerProvider()),
+        _make_task_span(_make_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
+    ):
+        current = trace.get_current_span().get_span_context()
+        with task_code_provider.get_tracer("agent_framework").start_as_current_span("agent run"):
+            pass
+
+    assert not current.is_valid
+    recorded = task_code_exporter.get_finished_spans()
+    assert [span.name for span in recorded] == ["agent run"]
+    assert recorded[0].parent is None
+
+
+def test_with_a_tracer_provider_installed_the_dag_runs_sampling_decision_holds(make_ti_context):
+    """Core tracing or auto-instrumentation installed a provider: the run was sampled out, so stay out."""
+    installed = TracerProvider()
+    task_code_exporter = InMemorySpanExporter()
+    installed.add_span_processor(SimpleSpanProcessor(task_code_exporter))
+
+    with (
+        mock.patch("airflow.sdk.execution_time.task_runner.tracer", installed.get_tracer("airflow")),
+        mock.patch.object(trace, "get_tracer_provider", return_value=installed),
+        _make_task_span(_make_startup_with_carrier(make_ti_context, UNSAMPLED_CARRIER)),
+    ):
+        with installed.get_tracer("agent_framework").start_as_current_span("agent run"):
+            pass
+
+    assert task_code_exporter.get_finished_spans() == ()
+
+
 def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     """Check that the bundle path is added to sys.path, so Dags can import shared modules."""
     tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
@@ -835,56 +900,6 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         ti = parse(what, mock.Mock())
 
     assert ti.task.dag.dag_id == "dag_name"
-
-
-def test_verify_bundle_access_raises_when_not_accessible(tmp_path: Path, make_ti_context):
-    """Test that _verify_bundle_access raises AirflowException when bundle path is not accessible."""
-    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
-
-    # Create a directory that exists
-    bundle_path = tmp_path / "test_bundle"
-    bundle_path.mkdir()
-
-    # Create a mock bundle instance
-    mock_bundle = mock.Mock()
-    mock_bundle.path = bundle_path
-    mock_bundle.name = "test-bundle"
-
-    # Mock os.access to simulate permission denied (avoids root user issues in CI)
-    with patch("airflow.sdk.execution_time.task_runner.os.access", return_value=False):
-        with pytest.raises(AirflowException) as exc_info:
-            _verify_bundle_access(mock_bundle, mock.Mock())
-
-        assert "not accessible" in str(exc_info.value)
-        assert "test-bundle" in str(exc_info.value)
-
-
-def test_verify_bundle_access_succeeds_when_readable(tmp_path: Path, make_ti_context):
-    """Test that _verify_bundle_access succeeds when bundle path is accessible."""
-    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
-
-    # Create a directory with read permissions
-    bundle_path = tmp_path / "accessible_bundle"
-    bundle_path.mkdir()
-
-    mock_bundle = mock.Mock()
-    mock_bundle.path = bundle_path
-    mock_bundle.name = "test-bundle"
-
-    # Should not raise
-    _verify_bundle_access(mock_bundle, mock.Mock())
-
-
-def test_verify_bundle_access_skips_nonexistent_path(tmp_path: Path):
-    """Test that _verify_bundle_access does nothing when bundle path doesn't exist."""
-    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
-
-    mock_bundle = mock.Mock()
-    mock_bundle.path = tmp_path / "nonexistent"
-    mock_bundle.name = "test-bundle"
-
-    # Should not raise - nonexistent paths are handled by initialize()
-    _verify_bundle_access(mock_bundle, mock.Mock())
 
 
 @pytest.mark.parametrize("use_queues", [False, True])
@@ -1272,6 +1287,29 @@ def test_retry_policy_retry_exhausted_reason_is_truncated(create_runtime_ti, moc
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
     assert msg.retry_reason == "z" * 500
+
+
+@pytest.mark.enable_redact
+def test_retry_policy_reason_is_redacted_in_the_worker(create_runtime_ti, mock_supervisor_comms):
+    """The reason is masked where mask_secret() registered the value, not in the API server."""
+    _secrets_masker().add_mask("hunter2", None)
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("403 Forbidden: token hunter2 expired")
+
+    class _EchoPolicy(RetryPolicy):
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            return RetryDecision(action=RetryAction.FAIL, reason=f"auth: {exception}")
+
+    task = _AlwaysFails(task_id="redacted_reason", retries=2, retry_policy=_EchoPolicy())
+    ti = create_runtime_ti(task=task)
+
+    state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.retry_reason == "auth: 403 Forbidden: token *** expired"
 
 
 def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_supervisor_comms):
@@ -3378,6 +3416,25 @@ class TestRuntimeTaskInstance:
         assert dr.dag_id == "test_dag"
         assert dr.run_id == "prev_run"
         assert dr.state == "success"
+
+    def test_update_dagrun_note(self, create_runtime_ti, mock_supervisor_comms):
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task)
+
+        runtime_ti.update_dagrun_note("Updated from task runtime")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=UpdateDagRunNote(ti_id=runtime_ti.id, note="Updated from task runtime")
+        )
+
+    def test_update_dagrun_note_none_skips_request(self, create_runtime_ti, mock_supervisor_comms):
+        """A null note is a server-side no-op, so don't spend a round-trip on it."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task)
+
+        runtime_ti.update_dagrun_note(None)
+
+        mock_supervisor_comms.send.assert_not_called()
 
     def test_get_previous_dagrun_with_state(self, create_runtime_ti, mock_supervisor_comms):
         """Test that get_previous_dagrun sends the correct request with state filter."""
@@ -6243,120 +6300,6 @@ class TestTaskInstanceMetrics:
             backend.incr.assert_any_call(ti_metric, tags={**stats_tags, **failure_tags})
 
 
-class TestDetailSpan:
-    """Tests for the detail_span decorator / context manager."""
-
-    @pytest.fixture(autouse=True)
-    def _sampled_carrier_provider(self):
-        """Make new_dagrun_trace_carrier produce a SAMPLED carrier.
-
-        new_dagrun_trace_carrier consults the global tracer provider's sampler to
-        decide the carrier's SAMPLED flag. In the test process the global provider
-        is a no-op ProxyTracerProvider (no sampler) -> unsampled carrier, which
-        would make the parent span (and its detail children) non-recording. Patch
-        the lookup to a real SDK provider whose default sampler
-        (parentbased_always_on) samples the root, mirroring "otel on" in production.
-        """
-        provider = TracerProvider()
-        with mock.patch(
-            "airflow._shared.observability.traces.trace.get_tracer_provider",
-            return_value=provider,
-        ):
-            yield
-
-    def test_level_1_no_child_span_as_context_manager(self):
-        """At detail level 1, entering detail_span should not create a real recorded span."""
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
-        t = provider.get_tracer("test")
-        carrier = new_dagrun_trace_carrier(task_span_detail_level=1)
-        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
-
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
-            with t.start_as_current_span("parent", context=parent_ctx):
-                with detail_span("child") as span:
-                    assert span is trace.INVALID_SPAN
-
-        # Only the "parent" span should be recorded; no "child".
-        names = [s.name for s in exporter.get_finished_spans()]
-        assert "child" not in names
-
-    def test_level_2_creates_child_span_as_context_manager(self):
-        """At detail level 2, detail_span should create a real recorded child span."""
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
-        t = provider.get_tracer("test")
-        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
-        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
-
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
-            with t.start_as_current_span("parent", context=parent_ctx):
-                with detail_span("child"):
-                    pass
-
-        names = [s.name for s in exporter.get_finished_spans()]
-        assert "child" in names
-
-    def test_decorator_at_level_1_does_not_create_span(self):
-        """@detail_span at level 1 should not produce a recorded span."""
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
-        t = provider.get_tracer("test")
-        carrier = new_dagrun_trace_carrier(task_span_detail_level=1)
-        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
-
-        @detail_span("decorated")
-        def my_func():
-            return 42
-
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
-            with t.start_as_current_span("parent", context=parent_ctx):
-                result = my_func()
-
-        assert result == 42
-        names = [s.name for s in exporter.get_finished_spans()]
-        assert "decorated" not in names
-
-    def test_decorator_at_level_2_creates_span_and_preserves_return_value(self):
-        """@detail_span at level 2 creates a span and the wrapped function's return value is preserved."""
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
-        t = provider.get_tracer("test")
-        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
-        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
-
-        @detail_span("decorated")
-        def my_func(x):
-            return x * 2
-
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
-            with t.start_as_current_span("parent", context=parent_ctx):
-                result = my_func(7)
-
-        assert result == 14
-        names = [s.name for s in exporter.get_finished_spans()]
-        assert "decorated" in names
-
-    def test_exception_in_context_manager_propagates(self):
-        """Exceptions inside `with detail_span(...)` propagate normally."""
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
-        t = provider.get_tracer("test")
-        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
-        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
-
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
-            with t.start_as_current_span("parent", context=parent_ctx):
-                with pytest.raises(ValueError, match="boom"):
-                    with detail_span("child"):
-                        raise ValueError("boom")
-
-
 class TestRunExecuteCallable:
     """Tests for ``_run_execute_callable``.
 
@@ -6438,7 +6381,7 @@ class TestRunExecuteCallable:
 
         task = self._make_task()
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+        with mock.patch("airflow.sdk.execution_time.tracing.tracer", t):
             with t.start_as_current_span("parent", context=parent_ctx):
                 result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
 
@@ -6466,7 +6409,7 @@ class TestRunExecuteCallable:
             with t.start_as_current_span("operator_child"):
                 return "ok"
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+        with mock.patch("airflow.sdk.execution_time.tracing.tracer", t):
             with t.start_as_current_span("parent", context=parent_ctx):
                 result = _run_execute_callable(context={}, execute=execute, task=task)
 
@@ -6485,7 +6428,7 @@ class TestRunExecuteCallable:
 
         task = self._make_task()
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+        with mock.patch("airflow.sdk.execution_time.tracing.tracer", t):
             with t.start_as_current_span("parent", context=parent_ctx):
                 result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
 

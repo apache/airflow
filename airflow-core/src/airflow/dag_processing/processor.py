@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, register_request_method
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.importers import DagSourceCode  # noqa: TC001
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -127,6 +128,10 @@ class DagFileParsingResult(BaseModel):
     serialized_dags: list[LazyDeserializedDAG]
     warnings: list | None = None
     import_errors: dict[str, str] | None = None
+    parsed_definitions: list[str] = Field(default_factory=list)
+    """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
+    dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
+    """Source code of the parsed Dags, keyed by Dag fileloc."""
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
@@ -253,7 +258,15 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
+        warnings=[
+            *stability_check_result.get_formatted_warnings(bag.dag_ids),
+            *(
+                {"dag_id": w.dag_id, "warning_type": w.warning_type, "message": w.message}
+                for w in bag.dag_warnings
+            ),
+        ],
+        parsed_definitions=bag.parsed_definitions,
+        dag_source_codes=bag.dag_source_codes,
     )
     return result
 

@@ -93,6 +93,9 @@ Agents & tools
      - Connecting an agent to an MCP server through an Airflow connection.
    * - :doc:`hitl_review`
      - Adding a human-in-the-loop review gate to agent output.
+   * - :doc:`tool_approval`
+     - Pausing an agent before a tool call a person must approve
+       (`example_agent_tool_approval.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_agent_tool_approval.py>`__).
    * - :doc:`use_cases/research_agent_with_review`
      - A LangChain ReAct agent that decides its own tool calls, composed with ``LLMOperator`` for
        report formatting and AIP-90 HITL review

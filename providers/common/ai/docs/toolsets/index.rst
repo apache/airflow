@@ -64,8 +64,11 @@ Start with what you have
      - ``HookToolset``
    * - A question that is a query, against a DBAPI database
      - ``SQLToolset``
+   * - Files on an object store that the agent should read the way a person would:
+       browse a directory, open a report, look at the first rows of a Parquet file
+     - ``ObjectStorageToolset``
    * - Files on an object store (Parquet, CSV, Avro) or a catalog-managed
-       table format such as Iceberg, rather than rows in a database
+       table format such as Iceberg, to query with SQL rather than read
      - ``DataFusionToolset``
    * - A vendor that already ships a server built for agents, whose tools you
        would otherwise re-wrap by hand
@@ -76,9 +79,9 @@ Start with what you have
    * - Work that means running code the model wrote, not calling a tool you chose
      - ``SandboxToolset``
    * - Reasoning that should happen on the vendor's own infrastructure
-     - A subclass of ``BaseManagedAgentToolset`` that you write
+     - ``ManagedAgentToolset`` over a vendor hook that implements the managed-agent contract
 
-The hook, SQL, DataFusion, MCP, Agent Skills and managed-agent guides each have a
+The hook, SQL, object storage, DataFusion, MCP, Agent Skills and managed-agent guides each have a
 *When to choose it* section giving the case for choosing it, what it cannot do, an
 example that exists in this repository, and where its credentials and its work come
 from. :doc:`../sandbox/index` carries the same section for ``SandboxToolset``.
@@ -91,6 +94,7 @@ Toolset guides
 
     Airflow hooks as tools <hook>
     SQL databases <sql>
+    Files on object storage <object_storage>
     Files with DataFusion <datafusion>
     MCP servers <mcp>
     Agent Skills <skills>
@@ -113,19 +117,22 @@ package root:
   adapter for any Airflow Hook. Guide: :doc:`hook`.
 - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`: curated
   4-tool database toolset. Guide: :doc:`sql`.
+- :class:`~airflow.providers.common.ai.toolsets.object_storage.ObjectStorageToolset`:
+  read-only access to the files under one object-storage path. Guide:
+  :doc:`object_storage`.
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset`: connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections. Guide: :doc:`mcp`.
 - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`: give
   the agent a shell and a filesystem inside an isolated sandbox, off the
   Airflow worker. Guide: :doc:`../sandbox/index`.
-- :class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`:
-  base class that provider packages subclass to expose a **vendor-managed
-  agent**, one whose reasoning loop runs on a cloud provider's infrastructure.
-  Guide: :doc:`managed_agent`.
-- :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`:
-  composes several interchangeable managed agents behind a single tool.
-  See :ref:`managed-agent-toolsets`.
+- :class:`~airflow.providers.common.ai.toolsets.managed_agent.ManagedAgentToolset`:
+  expose a **vendor-managed agent**, one whose reasoning loop runs on a cloud
+  provider's infrastructure, as a single tool. Takes any
+  :class:`~airflow.providers.common.ai.managed_agents.base.ManagedAgentClient`,
+  which the Amazon and Google providers produce from their hooks and which
+  :class:`~airflow.providers.common.ai.managed_agents.failover.FailoverManagedAgentClient`
+  composes across clouds. Guide: :doc:`managed_agent`.
 
 Three more toolsets (:doc:`datafusion`, :doc:`logging`, :doc:`skills`) are not
 re-exported from the package root, so import each of them from its own submodule::
@@ -184,16 +191,17 @@ making on purpose rather than inheriting.
        for ``sbx``; ambient Modal token on the worker for Modal
      - A microVM on the worker host (``sbx``), or Modal's infrastructure off
        the worker (Modal)
-   * - ``BaseManagedAgentToolset``
-     - Undefined by the base class; the subclass decides
+   * - ``ManagedAgentToolset``
+     - The vendor hook's own connection
      - The vendor's infrastructure
 
 Two rows are worth pausing on. ``SandboxToolset`` deliberately takes no Airflow
 credential; that is the whole point of it, and it substitutes a backend-level
-boundary, on the host or at the vendor, for the connection-level one. ``BaseManagedAgentToolset`` does not
-substitute anything; it simply leaves the question to whoever writes the
-subclass. Neither is a defect, but in both cases the access decision has moved
-somewhere Airflow cannot see it, and somebody has to make that decision again in
+boundary, on the host or at the vendor, for the connection-level one. ``ManagedAgentToolset``
+authenticates through the vendor hook's connection, but what the remote agent may
+touch is governed on the vendor's side. Neither is a defect, but in both cases the
+access decision has moved somewhere Airflow cannot see it, and somebody has to make
+that decision again in
 the new place. The :ref:`defense-layer table <toolset-defense-layers>` is the
 right companion when you do.
 
@@ -208,12 +216,54 @@ each build their own tool definitions and set ``sequential=True`` on them, which
 pydantic-ai treats as a barrier: the tool runs alone, tools the model emitted
 before it finish first, and tools emitted after it start only once it returns.
 A slow call on any of those four therefore holds up the rest of that step, not
-just its own toolset. ``BaseManagedAgentToolset`` sets ``sequential=False``
+just its own toolset. ``ManagedAgentToolset`` sets ``sequential=False``
 deliberately, because the wait it introduces is remote. ``MCPToolset`` and
 ``AgentSkillsToolset`` define no tools of their own: they pass through whatever
 the upstream toolset declares, so the setting is not theirs to make. Do not read
 this as a reason to choose one route over another; read it as something to expect
 from all four.
+
+.. _toolset-retry-budget:
+
+How often the model may correct a failed call
+---------------------------------------------
+
+When the model calls a tool with arguments that fail its schema, or the tool asks the
+model to try again (``ModelRetry``), the error goes back to the model so it can correct
+the call. What counts differs by toolset:
+
+- ``SQLToolset`` and ``DataFusionToolset`` turn every query error into ``ModelRetry``,
+  so a misspelled column and a dropped connection both count.
+- ``HookToolset`` counts invalid arguments and a call that tries to change a pinned
+  argument. An exception from the hook itself fails the run straight away.
+- ``ObjectStorageToolset`` counts invalid arguments only. A path that does not exist or
+  cannot be read goes back to the model as a failed result without using the budget;
+  bound repeated failed reads with ``usage_limits``.
+
+These toolsets allow as many corrections as the agent's tool retry budget, pydantic-ai's
+``retries`` (one by default), the same way pydantic-ai's own toolsets do. Pass
+``max_retries`` to a toolset to give its tools a budget of their own. Once the budget is
+used up the run fails, and Airflow's task retries take over.
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="revenue_agent",
+        prompt="What was last week's revenue?",
+        llm_conn_id="pydanticai_default",
+        toolsets=[SQLToolset(db_conn_id="warehouse")],
+        agent_params={"retries": {"tools": 3}},
+    )
+
+An integer ``retries`` sets both the tool budget and the output-validation budget; a
+dict such as ``{"tools": 3}`` or ``{"output": 3}`` raises only one of them. These toolsets
+used to allow exactly one correction whatever ``retries`` said, so an agent that sets
+``retries`` now applies it to them too: ``retries=0`` fails the run on the first bad
+query, and a large integer ``retries`` meant for output validation also lets a failing
+database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
+behaviour. Outside a pydantic-ai agent (the LangChain, Strands and Google ADK bridges)
+there is no agent budget, so each tool gets one correction unless its toolset sets
+``max_retries``.
 
 Layering
 --------
@@ -273,7 +323,7 @@ This provider does not treat either as the default. The rule of thumb in
 :doc:`../index` is the dividing line: if Airflow should *run* the AI step, and the
 model should stay swappable, use ``common.ai``; if the Dag *submits work to* a
 vendor-managed service and waits for the result, use that vendor's provider,
-and ``BaseManagedAgentToolset`` exists for the case where you want the second
+and ``ManagedAgentToolset`` exists for the case where you want the second
 behaviour from inside an agent that is otherwise doing the first.
 
 See also

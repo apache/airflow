@@ -32,7 +32,7 @@ approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
 Human-in-the-loop review needs Airflow 3.1+, whether ``require_approval`` or a
-``decision_policy`` with ``on_uncertain="review"`` opens it. On an older core the
+``decision_policy`` with ``on_uncertain="review"`` opens it. On an older Airflow version the
 operator raises ``AirflowOptionalProviderFeatureException`` when it is constructed, so the Dag file
 fails to import, and with it every Dag defined in that file. A dynamically mapped
 task (``.expand()``) is only constructed when it runs, so there the same error
@@ -84,6 +84,11 @@ list does not take effect.
 
 Reviewing uncertain output
 --------------------------
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 A classifier model such as TypeSafe's reports a confidence for every field
 of a structured output, in ``provider_details`` on the model response. It is a

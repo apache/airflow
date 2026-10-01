@@ -768,7 +768,7 @@ class TasksOperations(BaseOperations):
         """Clear task instances of a Dag; with dry_run (the default) only previews the affected task instances."""
         self.response = self.client.post(
             f"dags/{dag_id}/clearTaskInstances",
-            json=clear_task_instances.model_dump(mode="json", exclude_none=True),
+            json=clear_task_instances.model_dump(mode="json", exclude_defaults=True),
         )
         return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
 

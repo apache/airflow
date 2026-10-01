@@ -31,7 +31,6 @@ from airflow.providers.common.ai.toolsets.datafusion import (
     _RETRYABLE_QUERY_ERROR_PATTERNS,
     DataFusionToolset,
 )
-from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.sql.config import DataSourceConfig
 
 
@@ -139,6 +138,19 @@ class TestDataFusionToolsetListTables:
         )
         tables = json.loads(result)
         assert set(tables) == {"sales", "orders"}
+
+    @pytest.mark.enable_redact
+    def test_an_error_carrying_a_secret_that_json_escapes_is_masked(self, register_secret):
+        secret = register_secret('s3-se"cret-91c3')
+        ts = DataFusionToolset([_make_mock_datasource_config()])
+        ts._engine = _make_mock_engine()
+        ts._engine.session_context.catalog.side_effect = RuntimeError(f"object store auth failed: {secret}")
+
+        result = asyncio.run(
+            ts.call_tool("list_tables", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
+        )
+
+        assert json.loads(result) == {"error": "object store auth failed: ***"}
 
 
 class TestDataFusionToolsetGetSchema:
@@ -251,7 +263,7 @@ class TestDataFusionToolsetQuery:
                     tool=MagicMock(spec=ToolsetTool),
                 )
             )
-        assert isinstance(exc_info.value.__cause__, SQLSafetyError)
+        assert "Only read-only SELECT-family queries are allowed" in exc_info.value.message
 
     def test_allows_create_table_when_writes_enabled(self):
         cfg = _make_mock_datasource_config()
