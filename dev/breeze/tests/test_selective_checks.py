@@ -3641,6 +3641,18 @@ def test_testable_providers_integrations_gated_by_affected_provider():
     assert "mongo" not in result
     assert "ydb" not in result
 
+def test_opensearch_provider_integration_triggered_by_affected_provider():
+    """Verify that changes to the OpenSearch provider trigger its integration test."""
+    selective_checks = SelectiveChecks(
+        files=("providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
+    )
+    result = selective_checks.testable_providers_integrations
+    assert "opensearch" in result
+    assert "cassandra" not in result
+
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
     """ibm.mq and ibm.db2 declare `excluded-platforms: [linux/arm64]`, so they must be

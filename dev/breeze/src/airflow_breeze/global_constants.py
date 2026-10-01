@@ -89,6 +89,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "cassandra",
     "drill",
     "elasticsearch",
+    "opensearch",
     "tinkerpop",
     "kafka",
     "localstack",
@@ -120,6 +121,7 @@ TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
     "cassandra": "apache.cassandra",
     "drill": "apache.drill",
     "elasticsearch": "elasticsearch",
+    "opensearch": "opensearch",
     "tinkerpop": "apache.tinkerpop",
     "kafka": "apache.kafka",
     "localstack": "amazon",
@@ -137,7 +139,7 @@ OTEL_INTEGRATION = "otel"
 OPENLINEAGE_INTEGRATION = "openlineage"
 OPENSEARCH_INTEGRATION = "opensearch"
 OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, KEYCLOAK_INTEGRATION]
-OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION, OPENSEARCH_INTEGRATION]
+OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_CORE_INTEGRATIONS = sorted(
     [
