@@ -27,6 +27,8 @@ from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.execution_time.coordinator import CoordinatorManager, get_coordinator_manager
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
+    DagImportError,
+    DagImportResult,
     FilesystemDagDefinition,
     find_file_dag_definitions,
     get_importer_registry,
@@ -56,8 +58,12 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
     needs one: the only coordinator of :attr:`coordinator_classpath`'s class, or the one
     ``[sdk] dag_bundle_to_coordinator`` picks for the bundle when there are several.
 
+    The Dag processor does not call :meth:`import_definition`: it runs the runtime itself and stores
+    the Dags the runtime serialized. A Dag bag, such as a CLI command's, reports such a file as an
+    import error.
+
     Subclasses set :attr:`coordinator_classpath`, :attr:`artifact_suffix` and
-    :attr:`supported_extensions`, and implement :meth:`import_definition` and :meth:`get_source_code`.
+    :attr:`supported_extensions`, and implement :meth:`get_source_code`.
     """
 
     coordinator_classpath: ClassVar[str]
@@ -102,6 +108,20 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
                 definition, safe_mode
             ):
                 yield definition
+
+    def import_definition(
+        self, definition: FilesystemDagDefinition, bundle: BaseDagBundle
+    ) -> DagImportResult:
+        """Report that only the Dag processor parses *definition*."""
+        return DagImportResult(
+            definition=definition,
+            errors=[
+                DagImportError(
+                    source_reference=repr(definition),
+                    message="A native Lang-SDK Dag is parsed only by the Dag processor",
+                )
+            ],
+        )
 
 
 def build_coordinator_dag_importers(

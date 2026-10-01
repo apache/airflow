@@ -46,6 +46,7 @@ from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.errors import ParseImportError
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk import DAG, BaseOperator
@@ -64,6 +65,7 @@ from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from unit import cluster_policies
+from unit.dag_processing.fake_lang_sdk import fake_coordinator, write_native_file
 from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
@@ -1542,3 +1544,21 @@ class TestBundlePathSysPath:
 
         assert str(tmp_path) not in dag.description
         assert sys.path == syspath_before
+
+
+def test_sync_bag_to_db_leaves_native_files_to_the_dag_processor(tmp_path, session, testing_dag_bundle):
+    db.clear_db_import_errors()
+    write_native_file(tmp_path / "dags.native")
+    session.add(ParseImportError(bundle_name="testing", filename="dags.native", stacktrace="stored"))
+    session.commit()
+
+    with fake_coordinator():
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+        sync_bag_to_db(dagbag, "testing", None, session=session)
+
+    assert dagbag.import_errors == {
+        "dags.native": "A native Lang-SDK Dag is parsed only by the Dag processor"
+    }
+    assert {(e.filename, e.stacktrace) for e in session.scalars(select(ParseImportError))} == {
+        ("dags.native", "stored")
+    }
