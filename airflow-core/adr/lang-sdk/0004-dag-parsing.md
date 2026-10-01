@@ -216,9 +216,11 @@ The language runtime must produce a `DagFileParsingResult` that matches Python A
 | `start_date` | float (epoch) | if set | Unwrapped from `__type`/`__var` |
 | `end_date` | float (epoch) | if set | Unwrapped from `__type`/`__var` |
 | `tags` | list | if non-empty | Unwrapped from `__type`/`__var` |
-| `catchup` | bool | if `true` | |
-| `max_active_tasks` | int | if non-default | |
-| `max_active_runs` | int | if non-default | |
+| `catchup` | bool | if set | Airflow fills an unset field from its config |
+| `max_active_tasks` | int | if set | Airflow fills an unset field from its config |
+| `max_active_runs` | int | if set | Airflow fills an unset field from its config |
+| `max_consecutive_failed_dag_runs` | int | if set | Airflow fills an unset field from its config |
+| `disable_bundle_versioning` | bool | if set | Airflow fills an unset field from its config |
 
 **Timetable encoding:**
 

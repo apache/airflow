@@ -5202,3 +5202,63 @@ class TestValidateSerializedDag:
 
         with pytest.raises(DeserializationError, match="^Dag 'checked_dag' has a cycle through task 'load'$"):
             DagSerialization.validate_serialized_dag(data)
+
+
+class TestFillConfigDefaults:
+    CONFIG = {
+        ("core", "max_active_tasks_per_dag"): "7",
+        ("core", "max_active_runs_per_dag"): "3",
+        ("core", "max_consecutive_failed_dag_runs_per_dag"): "5",
+        ("scheduler", "catchup_by_default"): "True",
+        ("dag_processor", "disable_bundle_versioning"): "True",
+    }
+    FIELDS = (
+        "max_active_tasks",
+        "max_active_runs",
+        "max_consecutive_failed_dag_runs",
+        "catchup",
+        "disable_bundle_versioning",
+    )
+
+    @staticmethod
+    def _serialize() -> dict:
+        return DagSerialization.to_dict(DAG(dag_id="native_dag", schedule=None))
+
+    @conf_vars(CONFIG)
+    def test_fills_an_unset_setting_from_the_config(self):
+        data = self._serialize()
+        for field in self.FIELDS:
+            del data["dag"][field]
+
+        DagSerialization.fill_config_defaults(data)
+
+        assert {field: data["dag"][field] for field in self.FIELDS} == {
+            "max_active_tasks": 7,
+            "max_active_runs": 3,
+            "max_consecutive_failed_dag_runs": 5,
+            "catchup": True,
+            "disable_bundle_versioning": True,
+        }
+
+    @conf_vars(CONFIG)
+    def test_keeps_a_setting_the_dag_sets(self):
+        data = self._serialize()
+        data["dag"].update(
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            catchup=False,
+            disable_bundle_versioning=False,
+        )
+        before = copy.deepcopy(data)
+
+        DagSerialization.fill_config_defaults(data)
+
+        assert data == before
+
+    def test_leaves_a_payload_without_a_dag_to_validation(self):
+        data = {"__version": 3}
+
+        DagSerialization.fill_config_defaults(data)
+
+        assert data == {"__version": 3}
