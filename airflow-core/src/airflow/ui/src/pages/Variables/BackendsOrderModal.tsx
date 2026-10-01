@@ -20,11 +20,9 @@ import { Heading, Text, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuSettings } from "react-icons/lu";
 
-import { useConfigServiceGetBackendsOrderValue } from "openapi/queries";
-
 import { Dialog } from "src/system-components";
 
-import { ErrorAlert } from "src/components/ErrorAlert";
+import { useConfig } from "src/queries/useConfig";
 
 type BackendsOrderModalProps = {
   readonly onClose: () => void;
@@ -33,10 +31,7 @@ type BackendsOrderModalProps = {
 
 export const BackendsOrderModal = ({ onClose, open }: BackendsOrderModalProps) => {
   const { t: translate } = useTranslation("admin");
-  const { data, error, isLoading } = useConfigServiceGetBackendsOrderValue(undefined, undefined, {
-    enabled: open,
-  });
-  const backendsOrder = data?.sections[0]?.options[0]?.value ?? "";
+  const backendsOrder = useConfig("backends_order") as string | undefined;
 
   const onOpenChange = () => {
     onClose();
@@ -53,9 +48,8 @@ export const BackendsOrderModal = ({ onClose, open }: BackendsOrderModalProps) =
           <Dialog.CloseTrigger />
         </Dialog.Header>
         <Dialog.Body>
-          {Boolean(error) ? <ErrorAlert error={error} /> : null}
           <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
-            {isLoading ? translate("variables.loading") : backendsOrder}
+            {backendsOrder ?? translate("variables.loading")}
           </Text>
         </Dialog.Body>
       </Dialog.Content>

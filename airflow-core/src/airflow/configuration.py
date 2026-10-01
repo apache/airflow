@@ -725,7 +725,12 @@ def ensure_secrets_loaded(
 
     # Check if we are loading the backends for worker too by checking if the default_backends is equal
     # to DEFAULT_SECRETS_SEARCH_PATH.
-    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+    secrets_backend_list = globals().get("secrets_backend_list")
+    if (
+        secrets_backend_list is None
+        or len(secrets_backend_list) == 2
+        or default_backends != DEFAULT_SECRETS_SEARCH_PATH
+    ):
         return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 
@@ -818,5 +823,12 @@ else:
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 
 conf: AirflowConfigParser = initialize_config()
-secrets_backend_list = initialize_secrets_backends()
 conf.validate()
+
+
+def __getattr__(name: str):
+    if name == "secrets_backend_list":
+        val = initialize_secrets_backends()
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -9880,10 +9880,14 @@ export const $ConfigResponse = {
                 }
             ],
             title: 'Rerun With Latest Version'
+        },
+        backends_order: {
+            type: 'string',
+            title: 'Backends Order'
         }
     },
     type: 'object',
-    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team', 'backends_order'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow import configuration
 from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, Variable
@@ -237,6 +238,23 @@ class TestConnectionsFromSecrets:
                     ]
                 )
             assert exc_info.value.args[0] == exc_msg
+
+    def test_secrets_backend_list_lazy_initialization(self):
+        assert "secrets_backend_list" not in configuration.__dict__
+        try:
+            with conf_vars({("secrets", "backends_order"): "environment_variable,metastor"}):
+                assert configuration.conf.get("secrets", "backends_order") == "environment_variable,metastor"
+                with pytest.raises(AirflowConfigException):
+                    _ = configuration.secrets_backend_list
+
+            backends = configuration.secrets_backend_list
+            assert "secrets_backend_list" in configuration.__dict__
+            assert len(backends) == 2
+
+            with pytest.raises(AttributeError):
+                _ = configuration.non_existent_attribute
+        finally:
+            configuration.__dict__.pop("secrets_backend_list", None)
 
 
 @pytest.mark.db_test
