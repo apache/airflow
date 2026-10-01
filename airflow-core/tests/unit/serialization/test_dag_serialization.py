@@ -1713,6 +1713,33 @@ class TestStringifiedDAGs:
         serialized_op = OperatorSerialization.deserialize_operator(blob)
         assert serialized_op.downstream_task_ids == {"foo"}
 
+    def test_operator_upgrade_preserves_definition_metadata(self):
+        encoded_op = {
+            "task_id": "extract",
+            "_downstream_task_ids": ["load"],
+            "downstream_task_ids": [],
+            "on_failure_callback": False,
+            "has_on_failure_callback": True,
+            "python_callable_name": "process",
+            "label": "Extract data",
+        }
+        original = copy.deepcopy(encoded_op)
+        upgraded = {
+            "task_id": "extract",
+            "downstream_task_ids": ["load"],
+            "has_on_failure_callback": False,
+            "python_callable_name": "process",
+            "label": "Extract data",
+        }
+
+        assert OperatorSerialization._upgrade_encoded_operator(encoded_op) == upgraded
+        assert OperatorSerialization._preprocess_encoded_operator(encoded_op) == {
+            "task_id": "extract",
+            "downstream_task_ids": ["load"],
+            "has_on_failure_callback": False,
+        }
+        assert encoded_op == original
+
     def test_task_resources(self):
         """
         Test task resources serialization/deserialization.

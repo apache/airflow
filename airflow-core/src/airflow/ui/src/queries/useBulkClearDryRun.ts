@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
+
+import { useQueries } from "@tanstack/react-query";
 
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";

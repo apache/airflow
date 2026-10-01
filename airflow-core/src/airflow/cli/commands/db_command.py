@@ -174,10 +174,18 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
+        try:
+            parse_version(args.from_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
         from_revision = _get_version_revision(args.from_version, revision_heads_map=revision_heads_map)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
     if args.to_version:
+        try:
+            parse_version(args.to_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.to_version!r} supplied as `--to-version`.")
         to_revision = _get_version_revision(args.to_version, revision_heads_map=revision_heads_map)
         if not to_revision:
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
@@ -340,7 +348,7 @@ def check(args):
     retry_delay: int = args.retry_delay
 
     def _warn_remaining_retries(retrystate: RetryCallState):
-        remain = retries - retrystate.attempt_number
+        remain = retries - retrystate.attempt_number + 1
         log.warning("%d retries remain. Will retry in %d seconds", remain, retry_delay)
 
     for attempt in Retrying(

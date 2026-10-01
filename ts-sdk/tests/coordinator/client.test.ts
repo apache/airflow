@@ -21,6 +21,7 @@ import { describe, it, expect } from "vitest";
 import { ConnectionNotFoundError } from "../../src/sdk/client.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
+import type { TaskClient } from "../../src/sdk/client.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 function fakeComm(frames: { body: unknown; error?: unknown }[]): CommChannel {
@@ -41,6 +42,18 @@ const FAKE_CTX: TaskContext = {
 
 function client(frames: { body: unknown; error?: unknown }[]) {
   return createCoordinatorClient(fakeComm(frames), FAKE_CTX);
+}
+
+/** Captures the request bodies sent, answering each one with `reply`. */
+function recordingClient(reply: unknown = null) {
+  const sent: Record<string, unknown>[] = [];
+  const comm = {
+    request: async (body: Record<string, unknown>) => {
+      sent.push(body);
+      return { body: reply };
+    },
+  } as unknown as CommChannel;
+  return { client: createCoordinatorClient(comm, FAKE_CTX), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -83,10 +96,88 @@ describe("getVariableOrThrow", () => {
   });
 });
 
+describe("setVariable", () => {
+  it("sends the description the caller gave", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.setVariable("threshold", "42", "rows above this take the slow path");
+
+    expect(sent[0]).toEqual({
+      type: "PutVariable",
+      key: "threshold",
+      value: "42",
+      description: "rows above this take the slow path",
+    });
+  });
+
+  it("sends description as null when the caller gives none", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.setVariable("threshold", "42");
+
+    expect(sent[0]).toEqual({
+      type: "PutVariable",
+      key: "threshold",
+      value: "42",
+      description: null,
+    });
+  });
+});
+
+describe("deleteVariable", () => {
+  it("sends DeleteVariable and resolves on the supervisor's OKResponse", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.deleteVariable("threshold")).resolves.toBeUndefined();
+
+    expect(sent[0]).toEqual({ type: "DeleteVariable", key: "threshold" });
+  });
+});
+
+describe("writes do not read a supervisor 404 as absence", () => {
+  it.each([
+    ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],
+    ["deleteVariable", "DeleteVariable", (c: TaskClient) => c.deleteVariable("k")],
+    ["setXCom", "SetXCom", (c: TaskClient) => c.setXCom({ key: "k", value: 1 })],
+  ])("%s rejects", async (_name, op, call) => {
+    const c = client([
+      { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },
+    ]);
+    await expect(call(c)).rejects.toThrow(`${op} failed: API_SERVER_ERROR`);
+  });
+});
+
 describe("getXCom not-found contract", () => {
   it("returns null for the exact XCOM_NOT_FOUND code", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
     expect(await c.getXCom({ key: "k" })).toBeNull();
+  });
+});
+
+describe("getXComEntry", () => {
+  // `getXCom` answers null for an absent row and a stored null alike, which is
+  // the friendlier shape for handler code but cannot drive a decision between
+  // the two. Argument binding needs both: an upstream that pushed no output
+  // fails the task, while one that pushed null binds null.
+  it("reports an absent row as not found", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: false, value: null });
+  });
+
+  it("reports a stored null as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: null } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: null });
+  });
+
+  it("reports a stored value as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: { orders: 12 } } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: { orders: 12 } });
+  });
+
+  it("is what getXCom reads, so both see one round-trip", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: false } }]);
+    // `false` also pins that getXCom's `?? null` does not flatten a falsy value.
+    expect(await c.getXCom({ key: "k" })).toBe(false);
   });
 });
 
@@ -160,7 +251,7 @@ describe("client is bound to TaskContext", () => {
           : { body: null };
       },
     } as unknown as CommChannel;
-    // ctx with a real map index — to prove -1 from opts wins over a
+    // ctx with a real map index, to prove -1 from opts wins over a
     // mapped ctx value (caller is explicitly asking "the non-mapped row").
     const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
     const c = createCoordinatorClient(recordingComm, mappedCtx);

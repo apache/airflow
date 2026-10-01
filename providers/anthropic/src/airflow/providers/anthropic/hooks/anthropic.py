@@ -20,10 +20,11 @@ import logging
 import time
 from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, cast
 
 from anthropic import (
     Anthropic,
@@ -31,6 +32,11 @@ from anthropic import (
     AnthropicBedrock,
     AnthropicFoundry,
     AnthropicVertex,
+    AsyncAnthropic,
+    AsyncAnthropicAWS,
+    AsyncAnthropicBedrock,
+    AsyncAnthropicFoundry,
+    AsyncAnthropicVertex,
     BadRequestError,
     IdentityTokenFile,
     WorkloadIdentityCredentials,
@@ -45,12 +51,13 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicSessionBudgetExceeded,
     AnthropicTriggerEventError,
 )
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowSkipException, BaseHook
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
     from anthropic.types import Message
     from anthropic.types.beta import (
@@ -65,6 +72,7 @@ if TYPE_CHECKING:
     from anthropic.types.messages import MessageBatch, MessageBatchIndividualResponse
     from anthropic.types.messages.batch_create_params import Request
 
+
 #: Default model used when an operator or hook caller does not specify one.
 #: Prefer configuring the model on the connection so it can be updated without
 #: a provider release when this model ID is retired.
@@ -77,6 +85,29 @@ DEFAULT_MODEL = "claude-opus-4-8"
 FIRST_PARTY_PLATFORMS = frozenset({"anthropic", "aws"})
 
 AnthropicClient = Anthropic | AnthropicBedrock | AnthropicVertex | AnthropicAWS | AnthropicFoundry
+AsyncAnthropicClient = (
+    AsyncAnthropic | AsyncAnthropicBedrock | AsyncAnthropicVertex | AsyncAnthropicAWS | AsyncAnthropicFoundry
+)
+
+_ClientT = TypeVar("_ClientT")
+
+
+@dataclass(frozen=True)
+class _ClientFactories(Generic[_ClientT]):
+    """
+    The client class to build for each platform.
+
+    :meth:`AnthropicHook.get_conn` and :meth:`AnthropicHook.get_async_conn` pass the sync and
+    async SDK classes through the same builder, so the two clients read the connection the
+    same way and cannot drift.
+    """
+
+    anthropic: Callable[..., _ClientT]
+    bedrock: Callable[..., _ClientT]
+    vertex: Callable[..., _ClientT]
+    aws: Callable[..., _ClientT]
+    foundry: Callable[..., _ClientT]
+
 
 #: Consecutive failed polls tolerated in the synchronous wait helpers before giving up
 #: (transient errors). Mirrors the deferrable triggers' tolerance so a single blip does
@@ -295,7 +326,8 @@ class AnthropicHook(BaseHook):
     - ``platform``: one of ``anthropic`` (default), ``bedrock``, ``vertex``, ``aws``, ``foundry``.
     - ``model``: default model id used when an operator/hook call omits ``model`` (lets you
       change the model without editing Dags); falls back to :data:`DEFAULT_MODEL`.
-    - ``aws_region``: region for the ``bedrock`` and ``aws`` platforms.
+    - ``aws_region``: region for the ``bedrock`` and ``aws`` platforms. Required unless the
+      worker resolves one from ``AWS_REGION`` / ``AWS_DEFAULT_REGION`` or its AWS profile.
     - ``project_id`` / ``region``: project and region for the ``vertex`` platform.
     - ``resource``: Azure resource name for the ``foundry`` platform.
     - ``anthropic_client_kwargs``: extra keyword arguments forwarded to the client
@@ -303,11 +335,14 @@ class AnthropicHook(BaseHook):
     - ``workload_identity``: configure `Workload Identity Federation
       <https://platform.claude.com/docs/en/manage-claude/workload-identity-federation>`__
       (keyless OIDC auth) with ``identity_token_file``, ``federation_rule_id``,
-      ``organization_id``, ``service_account_id`` and optional ``workspace_id`` / ``scope``.
+      ``organization_id`` and optional ``service_account_id``, ``workspace_id`` / ``scope``.
 
     When the ``anthropic`` platform has no API Key and no ``workload_identity`` block, the
     client is built with no static credential so the SDK resolves them from the environment
     — supporting env-driven Workload Identity Federation and ``ant`` profiles.
+
+    :meth:`get_conn` returns the synchronous client. Async callers, such as an agent loop or a
+    trigger, ``await`` :meth:`get_async_conn` for its async twin, built from the same connection.
 
     .. seealso:: https://docs.claude.com/en/api/client-sdks
 
@@ -342,24 +377,43 @@ class AnthropicHook(BaseHook):
         """Return the Anthropic client for the configured platform."""
         return self.get_conn()
 
-    def get_conn(self) -> AnthropicClient:
-        """Build and return the Anthropic client for the configured platform."""
+    def _build_aws_client(
+        self,
+        factory: Callable[..., _ClientT],
+        aws_region: str | None,
+        client_kwargs: dict[str, Any],
+    ) -> _ClientT:
+        try:
+            return factory(aws_region=aws_region, **client_kwargs)
+        except ValueError as exc:
+            # anthropic 1.x dropped the implicit us-east-1 fallback, so an unset region now
+            # fails at client construction. Point at the connection rather than the SDK.
+            if aws_region:
+                raise
+            raise AnthropicError(
+                f"No AWS region configured for the {self.platform!r} platform. Set 'aws_region' in the "
+                f"extra of connection {self.conn_id!r}, or set AWS_REGION / AWS_DEFAULT_REGION (or a "
+                "region on the AWS profile) on the worker or triggerer."
+            ) from exc
+
+    def _build_client(self, factories: _ClientFactories[_ClientT]) -> _ClientT:
+        """Build the client for the connection's platform from the given sync or async classes."""
         conn = self._connection
         extras = conn.extra_dejson
         client_kwargs = dict(extras.get("anthropic_client_kwargs", {}))
         platform = self.platform
         self.log.debug("Building Anthropic client for platform %r (conn_id=%s)", platform, self.conn_id)
         if platform == "bedrock":
-            return AnthropicBedrock(aws_region=extras.get("aws_region"), **client_kwargs)
+            return self._build_aws_client(factories.bedrock, extras.get("aws_region"), client_kwargs)
         if platform == "vertex":
-            return AnthropicVertex(
+            return factories.vertex(
                 project_id=extras.get("project_id"), region=extras.get("region"), **client_kwargs
             )
         if platform == "aws":
-            return AnthropicAWS(aws_region=extras.get("aws_region"), **client_kwargs)
+            return self._build_aws_client(factories.aws, extras.get("aws_region"), client_kwargs)
         if platform == "foundry":
             api_key = client_kwargs.pop("api_key", None) or conn.password
-            return AnthropicFoundry(api_key=api_key, resource=extras.get("resource"), **client_kwargs)
+            return factories.foundry(api_key=api_key, resource=extras.get("resource"), **client_kwargs)
         if platform != "anthropic":
             raise AnthropicError(
                 f"Unknown Anthropic platform {platform!r}. "
@@ -368,16 +422,55 @@ class AnthropicHook(BaseHook):
         base_url = client_kwargs.pop("base_url", None) or conn.host or None
         wif = extras.get("workload_identity")
         if wif:
-            return Anthropic(
+            # The async client takes the same credential: the SDK runs a synchronous
+            # provider's token exchange in a worker thread, off the event loop.
+            return factories.anthropic(
                 credentials=self._workload_identity_credentials(wif), base_url=base_url, **client_kwargs
             )
         api_key = client_kwargs.pop("api_key", None) or conn.password
         if api_key:
-            return Anthropic(api_key=api_key, base_url=base_url, **client_kwargs)
+            return factories.anthropic(api_key=api_key, base_url=base_url, **client_kwargs)
         # No static key and no explicit federation config: let the SDK resolve credentials
         # from the environment, which supports env-driven Workload Identity Federation
         # (ANTHROPIC_FEDERATION_RULE_ID etc.) and ``ant`` profiles.
-        return Anthropic(base_url=base_url, **client_kwargs)
+        return factories.anthropic(base_url=base_url, **client_kwargs)
+
+    def get_conn(self) -> AnthropicClient:
+        """Build and return the Anthropic client for the configured platform."""
+        factories: _ClientFactories[AnthropicClient] = _ClientFactories(
+            anthropic=Anthropic,
+            bedrock=AnthropicBedrock,
+            vertex=AnthropicVertex,
+            aws=AnthropicAWS,
+            foundry=AnthropicFoundry,
+        )
+        return self._build_client(factories)
+
+    async def get_async_conn(self) -> AsyncAnthropicClient:
+        """
+        Build and return the async Anthropic client for the configured platform.
+
+        Reads the same connection fields as :meth:`get_conn` through the same builder, and
+        returns the async twin of the client it would build: ``AsyncAnthropic``,
+        ``AsyncAnthropicBedrock``, ``AsyncAnthropicVertex``, ``AsyncAnthropicAWS`` or
+        ``AsyncAnthropicFoundry``. The connection is looked up without blocking the event
+        loop, so a trigger can call this directly.
+
+        Each call builds a new client. Close it when done, with ``async with`` or
+        ``await client.close()``, to release its HTTP connections.
+        """
+        if "_connection" not in self.__dict__:
+            # Fills the cached property, so later reads of ``platform`` and ``default_model``
+            # use this connection instead of a second, blocking lookup.
+            self._connection = await get_async_connection(self.conn_id, hook=self)
+        factories: _ClientFactories[AsyncAnthropicClient] = _ClientFactories(
+            anthropic=AsyncAnthropic,
+            bedrock=AsyncAnthropicBedrock,
+            vertex=AsyncAnthropicVertex,
+            aws=AsyncAnthropicAWS,
+            foundry=AsyncAnthropicFoundry,
+        )
+        return self._build_client(factories)
 
     @staticmethod
     def _workload_identity_credentials(wif: dict[str, Any]) -> WorkloadIdentityCredentials:
@@ -388,12 +481,24 @@ class AnthropicHook(BaseHook):
         Anthropic access token. See
         https://platform.claude.com/docs/en/manage-claude/workload-identity-federation.
         """
+        required_fields = (
+            "identity_token_file",
+            "federation_rule_id",
+            "organization_id",
+        )
+        missing_fields = [field for field in required_fields if not wif.get(field)]
+        if missing_fields:
+            raise AnthropicError(
+                "The workload_identity configuration is missing or has empty required fields: "
+                f"{', '.join(missing_fields)}."
+            )
         kwargs: dict[str, Any] = {
             "identity_token_provider": IdentityTokenFile(wif["identity_token_file"]),
             "federation_rule_id": wif["federation_rule_id"],
             "organization_id": wif["organization_id"],
-            "service_account_id": wif["service_account_id"],
         }
+        if wif.get("service_account_id"):
+            kwargs["service_account_id"] = wif["service_account_id"]
         if wif.get("workspace_id"):
             kwargs["workspace_id"] = wif["workspace_id"]
         if wif.get("scope"):

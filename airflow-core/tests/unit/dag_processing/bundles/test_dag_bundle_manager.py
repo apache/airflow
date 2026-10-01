@@ -29,7 +29,12 @@ import pytest
 from sqlalchemy import func, select, update
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _guess_best_bundle_for_fileloc
+from airflow.dag_processing.bundles.manager import (
+    DagBundlesManager,
+    _get_configured_bundle_team_names,
+    _guess_best_bundle_for_fileloc,
+    _load_bundle_config_snapshot,
+)
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -141,6 +146,40 @@ OTHER_BUNDLE_CONFIG = [
     }
 ]
 
+TEAM_BUNDLE_CONFIG = [
+    {
+        "name": "team-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        "kwargs": {"refresh_interval": 1},
+        "team_name": "team-a",
+    },
+    {
+        "name": "unscoped-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        "kwargs": {"refresh_interval": 1},
+    },
+]
+
+
+@pytest.mark.parametrize("load_examples", ["False", "True"])
+def test_get_configured_bundle_team_names(load_examples):
+    with conf_vars(
+        {
+            ("core", "load_examples"): load_examples,
+            ("core", "multi_team"): "True",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
+        }
+    ):
+        assert _get_configured_bundle_team_names() == {
+            "team-bundle": "team-a",
+            "unscoped-bundle": None,
+        }
+
+
+@conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
+def test_get_configured_bundle_team_names_without_config():
+    assert _get_configured_bundle_team_names() == {}
+
 
 def test_get_bundle():
     """Test that get_bundle builds and returns a bundle."""
@@ -167,6 +206,55 @@ def test_get_bundle():
     assert bundle.version is None
 
 
+@pytest.fixture(autouse=True)
+def _clear_bundle_config_snapshot_cache():
+    _load_bundle_config_snapshot.cache_clear()
+    yield
+    _load_bundle_config_snapshot.cache_clear()
+
+
+def _bundle_config_env(config) -> dict[str, str]:
+    return {
+        "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
+        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(config),
+    }
+
+
+def test_is_bundle_configured():
+    """is_bundle_configured reports membership without constructing the bundle."""
+    with patch.dict(os.environ, _bundle_config_env(BASIC_BUNDLE_CONFIG)):
+        assert DagBundlesManager.is_bundle_configured("my-test-bundle") is True
+        assert DagBundlesManager.is_bundle_configured("bundle-that-doesn't-exist") is False
+
+
+def test_is_bundle_configured_does_not_import_bundle_class():
+    """A validly-named bundle whose class is unimportable is still reported as configured.
+
+    The check reads names only; the class is imported lazily at materialization,
+    so an unimportable classpath must not make a coordinator fail at construction.
+    """
+    config = [{"name": "artifacts", "classpath": "does.not.exist.Bundle", "kwargs": {}}]
+    with patch.dict(os.environ, _bundle_config_env(config)):
+        assert DagBundlesManager.is_bundle_configured("artifacts") is True
+
+
+def test_is_bundle_configured_empty_config():
+    with patch.dict(os.environ, _bundle_config_env([])):
+        assert DagBundlesManager.is_bundle_configured("anything") is False
+
+
+def test_is_bundle_configured_sees_implicitly_added_bundles():
+    """Bundles parse_config adds implicitly are configured for the name check too."""
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__LOAD_EXAMPLES": "True",
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG),
+        },
+    ):
+        assert DagBundlesManager.is_bundle_configured("example_dags") is True
+
+
 @pytest.fixture
 def clear_db():
     clear_db_dag_bundles()
@@ -183,9 +271,7 @@ def test_sync_bundles_to_db(clear_db, session):
         ).all()
 
     # Initial add
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
@@ -210,9 +296,7 @@ def test_sync_bundles_to_db(clear_db, session):
     assert session.scalar(select(func.count(ParseImportError.id))) == 0
 
     # Re-enable one that reappears in config
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [
@@ -260,16 +344,12 @@ def test_sync_bundles_to_db_partial_config_does_not_disable_other_bundles(clear_
         ).all()
 
     # Processor A: only knows "my-test-bundle".
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
         DagBundlesManager().sync_bundles_to_db(deactivate_missing=False)
     assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
 
     # Processor B: only knows "other-test-bundle". It must not touch A's bundle.
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(OTHER_BUNDLE_CONFIG)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(OTHER_BUNDLE_CONFIG)}):
         DagBundlesManager().sync_bundles_to_db(deactivate_missing=False)
     assert _get_bundle_names_and_active() == [
         ("my-test-bundle", True),
@@ -277,9 +357,7 @@ def test_sync_bundles_to_db_partial_config_does_not_disable_other_bundles(clear_
     ]
 
     # Processor A runs again: still must not disable B's bundle.
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
         DagBundlesManager().sync_bundles_to_db(deactivate_missing=False)
     assert _get_bundle_names_and_active() == [
         ("my-test-bundle", True),
@@ -369,17 +447,16 @@ def test_bundle_model_render_url(clear_db, session):
 
         url = bundle_model.render_url(version="main")
         assert url == "https://github.com/example/repo/tree/main/dags"
-        url = bundle_model.render_url()
-        assert url == "https://github.com/example/repo/tree/None/dags"
+        # With no version there is nothing to interpolate, and rendering anyway would put the
+        # literal string "None" in the url.
+        assert bundle_model.render_url() is None
 
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_template_params_update_on_sync(clear_db, session):
     """Test that template parameters are updated when bundle configuration changes."""
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(TEMPLATE_BUNDLE_CONFIG)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(TEMPLATE_BUNDLE_CONFIG)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
 
@@ -402,9 +479,7 @@ def test_template_params_update_on_sync(clear_db, session):
         }
     ]
 
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(updated_config)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(updated_config)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
 
@@ -421,9 +496,7 @@ def test_template_params_update_on_sync(clear_db, session):
 def test_template_update_on_sync(clear_db, session):
     """Test that templates are updated when bundle configuration changes."""
     # First, sync with initial template
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(TEMPLATE_BUNDLE_CONFIG)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(TEMPLATE_BUNDLE_CONFIG)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
 
@@ -446,9 +519,7 @@ def test_template_update_on_sync(clear_db, session):
         }
     ]
 
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(updated_config)}
-    ):
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(updated_config)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
 

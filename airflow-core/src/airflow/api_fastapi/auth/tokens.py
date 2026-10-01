@@ -279,7 +279,8 @@ class JWTValidator:
     )
     # By default, we just validate these
     required_claims: frozenset[str] = frozenset({"exp", "iat", "nbf"})
-    audience: str | Sequence[str]
+    # ``None`` is passed straight to ``jwt.decode`` and accepts only tokens without an ``aud`` claim.
+    audience: str | Sequence[str] | None
     algorithm: list[str] = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_algorithm", fallback="GUESS"), converter=_to_list
     )

@@ -26,6 +26,8 @@ from confluent_kafka.admin import AdminClient
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
 
+from tests_common.test_utils.config import conf_vars
+
 log = logging.getLogger(__name__)
 
 
@@ -61,6 +63,7 @@ class TestProducerHook:
         mock_client.return_value = mock_client_spec
         assert self.hook.get_producer() == self.hook.get_conn
 
+    @conf_vars({("apache_kafka", "callback_allowlist"): "json.dumps"})
     @patch("airflow.providers.apache.kafka.hooks.produce.Producer")
     def test_connection_callback_resolved_from_dotted_path(self, mock_producer, create_connection_without_db):
         # A dotted-path ``oauth_cb`` on the connection extras is resolved to the callable

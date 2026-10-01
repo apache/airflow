@@ -23,8 +23,10 @@ import { useTranslation } from "react-i18next";
 
 import { useConfigServiceGetConfig } from "openapi/queries";
 import type { ConfigOption } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useDocumentTitle } from "src/utils";
 
 type ConfigColums = {

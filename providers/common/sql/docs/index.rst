@@ -79,7 +79,7 @@ apache-airflow-providers-common-sql package
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 2.1.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -147,7 +147,7 @@ Extra               Dependencies
 ``pandas``          ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``openlineage``     ``apache-airflow-providers-openlineage``
 ``polars``          ``polars>=1.26.0``
-``sqlalchemy``      ``sqlalchemy>=1.4.54``
+``sqlalchemy``      ``sqlalchemy>=1.4.54,!=2.1.0``
 ``amazon``          ``apache-airflow-providers-amazon``
 ``datafusion``      ``datafusion>=50.0.0,<52.0.0``
 ``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
@@ -160,5 +160,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-sql 2.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-sql 2.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-sql 2.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-sql 2.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-2.2.0-py3-none-any.whl.sha512>`__)

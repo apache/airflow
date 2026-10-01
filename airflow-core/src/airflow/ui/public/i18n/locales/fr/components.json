@@ -8,15 +8,21 @@
     "backwards": "Exécuter à rebours",
     "dateRange": "Plage de dates",
     "errorStartDateBeforeEndDate": "La date de début doit être antérieure à la date de fin",
+    "exceptionReason": {
+      "alreadyExists": "Existe déjà",
+      "inFlight": "En cours",
+      "unknown": "Inconnu"
+    },
     "maxRuns": "Nombre maximum d'exécutions actives",
     "missingAndErroredRuns": "Exécutions manquantes et en erreur",
     "missingRuns": "Exécutions manquantes",
+    "notCreatedReason": "Raison de non-création",
     "overrideExistingParams": "Remplacer les paramètres sur les exécutions existantes",
     "permissionDenied": "Échec de l'exécution à blanc : l'utilisateur n'a pas l'autorisation de créer des rattrapages.",
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
     "scheduleNotBackfillable": "La planification de ce Dag ne prend pas en charge les rattrapages",
-    "schedulerPriorityHint": "Les exécutions de Dag de rattrapage sont ordonnées après les exécutions de Dag hors rattrapage à chaque cycle du planificateur. Les exécutions de rattrapage peuvent rester en file plus longtemps si d'autres exécutions hors rattrapage sont présentes.",
+    "schedulerPriorityHint": "Les exécutions de Dag de rattrapage sont ordonnées après les exécutions de Dag hors rattrapage à chaque cycle du scheduler. Les exécutions de rattrapage peuvent rester en file plus longtemps si d'autres exécutions hors rattrapage sont présentes.",
     "selectDescription": "Exécuter ce Dag pour une plage de dates",
     "selectLabel": "Rattrapage",
     "title": "Lancer un rattrapage",
@@ -30,7 +36,8 @@
     "validation": {
       "datesRequired": "Les dates de début et de fin de l'intervalle de données doivent être renseignées.",
       "startBeforeEnd": "La date de début de l'intervalle de données doit être antérieure ou égale à la date de fin."
-    }
+    },
+    "viewSlots": "Voir les slots pour le rattrapage n°{{id}}"
   },
   "banner": {
     "backfillInProgress": "Rattrapage en cours",
@@ -122,6 +129,10 @@
     "location": "ligne {{line}} dans {{name}}"
   },
   "reparseDag": "Analyser le Dag",
+  "slowestTaskInstances": {
+    "empty": "Aucune instance de tâche terminée dans cette période",
+    "title": "Instances de tâche les plus lentes"
+  },
   "sortedAscending": "tri croissant",
   "sortedDescending": "tri décroissant",
   "sortedUnsorted": "non trié",

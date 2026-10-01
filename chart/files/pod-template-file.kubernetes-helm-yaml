@@ -163,7 +163,7 @@ spec:
           readOnly: true
         - name: kerberos-ccache
           mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
-          readOnly: true
+          readOnly: {{ .Values.workers.kubernetes.readonlyKerberosCache }}
         {{- end }}
     {{- if .Values.workers.kubernetes.kerberosSidecar.enabled }}
     - name: worker-kerberos

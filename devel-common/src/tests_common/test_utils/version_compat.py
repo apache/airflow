@@ -53,7 +53,7 @@ if AIRFLOW_V_3_1_PLUS:
     XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:
     from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef] # noqa: TID251
     from airflow.utils.decorators import remove_task_decorator  # type: ignore[no-redef]
     from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef]

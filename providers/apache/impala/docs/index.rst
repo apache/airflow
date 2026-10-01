@@ -124,12 +124,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-apache-impala[kerberos]
 
 
-==============  ======================
+==============  ==============================
 Extra           Dependencies
-==============  ======================
+==============  ==============================
 ``kerberos``    ``kerberos>=1.3.0``
-``sqlalchemy``  ``sqlalchemy>=1.4.54``
-==============  ======================
+``sqlalchemy``  ``sqlalchemy>=1.4.54,!=2.1.0``
+==============  ==============================
 
 Downloading official packages
 -----------------------------

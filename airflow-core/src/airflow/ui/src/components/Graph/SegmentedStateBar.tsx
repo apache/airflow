@@ -19,6 +19,7 @@
 import { Box, Flex } from "@chakra-ui/react";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+
 import { sortStateEntries } from "src/utils";
 
 type Props = {

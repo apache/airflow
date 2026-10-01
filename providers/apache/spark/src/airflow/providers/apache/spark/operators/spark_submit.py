@@ -37,21 +37,33 @@ try:
 except ImportError:
     kube_client = None  # type: ignore[assignment]
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
-    # Airflow 2 compat.
-    # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it
-    # behave as before
+    # ResumableJobMixin only exists on Airflow 3.3+; this provider still targets older
+    # versions. Drop this fallback once the provider's minimum Airflow version is >=3.3.
     class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow 2 stub — no task_state_store, always submits fresh."""
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
 
         external_id_key: str = "remote_job_id"
 
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            # Accept durable so the kwarg doesn't leak to BaseOperator; crash recovery is a no-op here.
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             super().__init__(**kwargs)
-            self.durable = durable
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -326,6 +338,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     :param durable: When ``True`` (the default), the external job ID is persisted to task state
         store before polling begins so that a worker crash and retry reconnects to the existing job
         instead of submitting a fresh one. Set to ``False`` to always submit a new job on retry.
+        Requires Airflow 3.3 or newer; below that, ``durable`` has no effect -- setting it
+        explicitly only emits a warning.
+    :param reconnect_on_retry: deprecated, use ``durable`` instead.
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -405,13 +420,15 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     ) -> None:
         if reconnect_on_retry is not None:
             warnings.warn(
-                "reconnect_on_retry is renamed to durable.",
+                "`reconnect_on_retry` is deprecated and will be removed once this provider's "
+                "minimum supported Airflow version reaches 3.3. Use `durable` instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            kwargs.setdefault("durable", reconnect_on_retry)
+            if durable is None:
+                durable = reconnect_on_retry
         # Named here (not left to **kwargs) so default_args={"durable": ...} reaches it on every
-        # supported Airflow version; applied after reconnect_on_retry so an explicit durable wins.
+        # supported Airflow version.
         if durable is not None:
             kwargs["durable"] = durable
         super().__init__(**kwargs)

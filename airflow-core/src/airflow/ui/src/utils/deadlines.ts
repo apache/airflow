@@ -19,6 +19,7 @@
 import type { TFunction } from "i18next";
 
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
 import { humanizeSeconds } from "src/utils/datetimeUtils";
 
 // The API sends a null interval when the alert has no fixed number of seconds — a variable
@@ -28,6 +29,7 @@ import { humanizeSeconds } from "src/utils/datetimeUtils";
 export const translateCompletionRule = (
   translate: TFunction,
   alert: DeadlineAlertResponse | undefined,
+  locale?: string,
 ): string | undefined => {
   if (alert === undefined) {
     return undefined;
@@ -36,7 +38,7 @@ export const translateCompletionRule = (
   const reference = translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
     defaultValue: alert.reference_type,
   });
-  const interval = humanizeSeconds(alert.interval);
+  const interval = humanizeSeconds(alert.interval, locale);
 
   return interval === undefined
     ? translate("deadlineAlerts.completionRuleDynamic", { reference })

@@ -241,7 +241,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 "catalog": self.catalog,
                 "session_configuration": session_config or None,
                 "http_headers": self.http_headers,
-                "_user_agent_entry": self.user_agent_value,
+                "user_agent_entry": self.user_agent_value,
                 **self._get_extra_config(),
                 **self.additional_params,
             }

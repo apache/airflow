@@ -78,6 +78,7 @@ for SDK users. Go SDK's ``airflow-go-pack`` is a good example.
     #!/usr/bin/env python3
 
     import hashlib
+    import pathlib
     import shutil
     import struct
 

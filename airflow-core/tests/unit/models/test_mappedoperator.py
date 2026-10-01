@@ -30,7 +30,6 @@ from sqlalchemy import delete, select
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
@@ -38,7 +37,11 @@ from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mapping import (
+    expand_mapped_task,
+    expand_mapped_task_instances,
+    push_mapped_length,
+)
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
@@ -112,16 +115,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 
     dr = dag_maker.create_dagrun()
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
+    push_mapped_length(dr.get_task_instance(task1.task_id, session=session), literal, session=session)
 
     if num_existing_tis:
         # Remove the map_index=-1 TI when we're creating other TIs
@@ -147,7 +141,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
+    expand_mapped_task_instances(mapped_deser, dr.run_id, session=session)
 
     indices = session.execute(
         select(TaskInstance.map_index, TaskInstance.state)
@@ -176,16 +170,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     dr = dag_maker.create_dagrun()
     mapped_deser = dag.task_dict[mapped.task_id]
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
+    push_mapped_length(dr.get_task_instance(task1.task_id, session=session), literal, session=session)
     dag_version = DagVersion.get_latest_version(dr.dag_id)
     for index in range(2):
         # Give the existing TIs a state to make sure we don't change them
@@ -211,7 +196,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     # Make sure we have the faulty state in the database
     assert indices == [(-1, None), (0, "success"), (1, "success")]
 
-    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
+    expand_mapped_task_instances(mapped_deser, dr.run_id, session=session)
 
     indices = session.execute(
         select(TaskInstance.map_index, TaskInstance.state)
@@ -278,16 +263,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 
     dr = dag_maker.create_dagrun()
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
+    push_mapped_length(dr.get_task_instance(task1.task_id, session=session), literal, session=session)
 
     if num_existing_tis:
         # Remove the map_index=-1 TI when we're creating other TIs
@@ -312,7 +288,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, session=session)
+    expand_mapped_task_instances(dag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     indices = session.execute(
         select(TaskInstance.map_index, TaskInstance.state)
@@ -349,20 +325,11 @@ def test_map_product_expansion(dag_maker, session):
 
     dr = dag_maker.create_dagrun()
     for fn in (emit_numbers, emit_letters):
-        session.add(
-            TaskMap(
-                dag_id=dr.dag_id,
-                task_id=fn.__name__,
-                run_id=dr.run_id,
-                map_index=-1,
-                length=len(fn.function()),
-                keys=None,
-            )
-        )
+        push_mapped_length(dr.get_task_instance(fn.__name__, session=session), fn.function(), session=session)
 
     session.flush()
     show_task = dag.get_task("show")
-    mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dr.run_id, session=session)
+    mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dr.run_id, session=session)
     assert max_map_index + 1 == len(mapped_tis) == 6
 
 

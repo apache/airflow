@@ -5,10 +5,10 @@ This product includes software developed at The Apache Software
 Foundation (http://www.apache.org/).
 
 =======================================================================
-moment|2.30.1:
+moment|2.31.0:
 -----
 MIT
-Copyright (c) JS Foundation and other contributors
+Copyright (c) OpenJS Foundation and other contributors
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -31,10 +31,10 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
-https://github.com/moment/moment.git
+github:moment/moment
 
 
-moment-timezone|0.6.3:
+moment-timezone|0.6.4:
 -----
 MIT
 The MIT License (MIT)

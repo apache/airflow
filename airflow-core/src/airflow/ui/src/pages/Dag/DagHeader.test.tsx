@@ -22,6 +22,7 @@ import { setupServer, type SetupServer } from "msw/node";
 import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
+
 import { handlers } from "src/mocks/handlers";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
 import { Wrapper } from "src/utils/Wrapper";

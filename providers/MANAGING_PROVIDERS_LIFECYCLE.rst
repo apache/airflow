@@ -270,7 +270,7 @@ your provider:
 
     connection-types:
       - hook-class-name: airflow.providers.<PROVIDER>.hooks.<PROVIDER>.NewProviderHook
-      - connection-type: provider-connection-type
+        connection-type: provider_connection_type
 
 
 Building documentation locally

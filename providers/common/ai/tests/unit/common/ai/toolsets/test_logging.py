@@ -20,6 +20,9 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic_ai import RunContext
+from pydantic_ai.exceptions import ApprovalRequired
+from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
@@ -90,6 +93,21 @@ class TestLoggingToolset:
 
         assert any("Tool bad_tool failed after" in r.message for r in caplog.records)
         assert any("::endgroup::" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_a_call_waiting_for_approval_is_not_logged_as_a_failure(
+        self, logging_toolset, wrapped_toolset, caplog
+    ):
+        wrapped_toolset.call_tool = AsyncMock(spec=AbstractToolset.call_tool, side_effect=ApprovalRequired())
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(ApprovalRequired):
+                await logging_toolset.call_tool(
+                    "refund", {}, MagicMock(spec=RunContext), MagicMock(spec=ToolsetTool)
+                )
+
+        assert any("Tool refund is waiting to be approved" in r.message for r in caplog.records)
+        assert not any(r.levelno >= logging.ERROR for r in caplog.records)
 
     @pytest.mark.asyncio
     async def test_delegates_get_tools(self, logging_toolset, wrapped_toolset):

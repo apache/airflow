@@ -8,11 +8,14 @@
       "received": "Просмотрено"
     }
   },
+  "requiredAction_few": "Необходимых действия",
+  "requiredAction_many": "Необходимых действий",
   "requiredAction_one": "Необходимое действие",
   "requiredAction_other": "Необходимые действия",
-  "requiredActionCount_few": "Необходимые действия ({{count}})",
+  "requiredActionCount_few": "Необходимых действия ({{count}})",
+  "requiredActionCount_many": "Необходимых действий ({{count}})",
   "requiredActionCount_one": "Необходимое действие ({{count}})",
-  "requiredActionCount_other": "Необходимые действия ({{count}})",
+  "requiredActionCount_other": "Необходимых действий ({{count}})",
   "requiredActionState": "Состояние необходимого действия",
   "response": {
     "created": "Ответ создан ",
@@ -24,6 +27,20 @@
     "responded_by_user_name": "Ответил (Имя пользователя)",
     "success": "Ответ {{taskId}} успешен",
     "title": "Экземпляр задачи для человека - {{taskId}}"
+  },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Выберите необходимое действие, чтобы увидеть детали"
+    },
+    "list": {
+      "completedRequiredActions": "Выполненные необходимые действия ({{count}})",
+      "loadError": "Не удалось загрузить необходимые действия",
+      "loadingActions": "Загрузка необходимых действий...",
+      "pendingRequiredActions": "Ожидающие необходимые действия ({{count}})"
+    },
+    "openReviewDrawer": "Открыть панель проверки",
+    "pageLimitHint": "Здесь показаны только первые несколько действий. Используйте «$t(review.viewAll)», чтобы увидеть все.",
+    "viewAll": "Просмотреть все необходимые действия"
   },
   "state": {
     "approvalReceived": "Одобрение получено",

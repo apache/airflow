@@ -44,7 +44,7 @@ class RevokedToken(Base):
     # Track last cleanup time to avoid running cleanup on every request
     _last_cleanup_time: ClassVar[float] = 0.0
 
-    jti: Mapped[str] = mapped_column(String(32), primary_key=True)
+    jti: Mapped[str] = mapped_column(String(255), primary_key=True)
     exp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, index=True)
 
     @classmethod

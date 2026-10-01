@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import pytest
-from check_excluded_provider_markers import _check_dependency
+from check_excluded_provider_markers import _check_dependency, _get_excluded_providers
 
 
 def _excluded(python=None, machines=None):
@@ -115,3 +115,20 @@ class TestCheckDependencyPlatform:
             'apache-airflow-providers-ibm-mq>=0.1.0; python_version !="3.14" and platform_machine !="aarch64"'
         )
         assert _check_dependency(dep, excluded) == []
+
+
+@pytest.fixture(scope="module")
+def excluded():
+    return _get_excluded_providers()
+
+
+class TestExcludedPlatformDerivation:
+    """``platform.machine()`` reports ``aarch64`` on Linux and ``arm64`` on macOS, so each
+    excluded platform must contribute only its own machine spelling. A provider that merely
+    lacks a Linux ARM build has to stay installable on Apple Silicon."""
+
+    def test_linux_arm_exclusion_leaves_apple_silicon_installable(self, excluded):
+        assert excluded["apache-airflow-providers-ibm-db2"]["machines"] == ["aarch64"]
+
+    def test_listing_both_arm_platforms_excludes_both_machines(self, excluded):
+        assert excluded["apache-airflow-providers-ibm-mq"]["machines"] == ["aarch64", "arm64"]

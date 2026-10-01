@@ -59,6 +59,8 @@ export type {
   XComResult,
   ConnectionResult,
   GetVariable,
+  PutVariable,
+  DeleteVariable,
   GetXCom,
   SetXCom,
   GetConnection,

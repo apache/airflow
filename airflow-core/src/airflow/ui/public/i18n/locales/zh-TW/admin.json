@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "區段"
-    }
+    },
+    "config_one": "設定",
+    "config_other": "設定"
   },
   "connections": {
     "add": "新增連線",
@@ -35,7 +37,7 @@
       "connectionTypeRequired": "連線類型是必填的",
       "extraFields": "額外欄位",
       "extraFieldsJson": "額外欄位 JSON",
-      "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow Providers 套件。",
+      "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow 整合套件。",
       "helperTextForRedactedFields": "已遮蔽的欄位 ('***') 若未修改，將保持不變。",
       "selectConnectionType": "選擇連線類型",
       "standardFields": "標準欄位"
@@ -95,7 +97,9 @@
       "dagProcessorJob": "Dag 處理器工作",
       "schedulerJob": "排程器工作",
       "triggererJob": "觸發者工作"
-    }
+    },
+    "job_one": "工作",
+    "job_other": "工作"
   },
   "plugins": {
     "columns": {
@@ -103,6 +107,8 @@
     },
     "importError_one": "外掛匯入錯誤",
     "importError_other": "外掛匯入錯誤",
+    "plugin_one": "外掛",
+    "plugin_other": "外掛",
     "searchPlaceholder": "搜尋檔案"
   },
   "pools": {
@@ -136,7 +142,9 @@
     "columns": {
       "packageName": "套件名稱",
       "version": "版本"
-    }
+    },
+    "provider_one": "整合套件",
+    "provider_other": "整合套件"
   },
   "variables": {
     "add": "新增變數",

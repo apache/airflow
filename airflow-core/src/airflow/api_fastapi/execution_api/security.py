@@ -70,14 +70,15 @@ Why ``ExecutionAPIRoute`` is needed:
 from typing import Any, get_args
 
 import structlog
-from fastapi import Depends, HTTPException, Request, status
+import svcs
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBearer, SecurityScopes
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.deps import DepContainer
 
@@ -196,11 +197,24 @@ async def require_auth(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token subject does not match connection test ID",
             )
+    elif "cb:self" in security_scopes.scopes:
+        cb_self_id = str(request.path_params["callback_id"])
+        if str(token.id) != cb_self_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token subject does not match callback ID",
+            )
 
     return token
 
 
 CurrentTIToken: TIToken = Depends(require_auth)
+
+
+def issue_execution_token(services: svcs.Container, response: Response, sub: str) -> None:
+    """Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header."""
+    generator: JWTGenerator = services.get(JWTGenerator)
+    response.headers["Refreshed-API-Token"] = generator.generate(extras={"sub": sub, "scope": "execution"})
 
 
 class ExecutionAPIRoute(APIRoute):

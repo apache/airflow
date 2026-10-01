@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from urllib.parse import urlparse
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
+
+if TYPE_CHECKING:
+    from airflow.plugins_manager import FastAPIAppDict, ReactAppDict
 
 _PLUGIN_PREFIX = "/hitl-review"
 
@@ -79,8 +82,8 @@ if AIRFLOW_V_3_1_PLUS:
         HumanFeedbackRequest,
         SessionStatus,
     )
+    from airflow.sdk import TaskInstanceState
     from airflow.utils.session import create_session
-    from airflow.utils.state import TaskInstanceState
 
     def _get_session():
         with create_session(scoped=False) as session:
@@ -508,8 +511,8 @@ class HITLReviewPlugin(AirflowPlugin):
     """Register the HITL Review REST API + chat UI on the Airflow API server."""
 
     name = "hitl_review"
-    fastapi_apps: list[dict[str, Any]] = []
-    react_apps: list[dict[str, str]] = []
+    fastapi_apps: list[FastAPIAppDict] = []
+    react_apps: list[ReactAppDict] = []
     if AIRFLOW_V_3_1_PLUS:
         fastapi_apps = [
             {

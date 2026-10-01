@@ -24,6 +24,7 @@ import {
   MdCompress,
   MdExpand,
   MdOutlineFileDownload,
+  MdOutlineLabel,
   MdOutlineOpenInFull,
   MdSettings,
   MdWrapText,
@@ -31,9 +32,11 @@ import {
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { IconButton, Menu, Select, LazyClipboard } from "src/system-components";
+
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { IconButton, Menu, Select } from "src/components/ui";
-import { LazyClipboard } from "src/components/ui/LazyClipboard";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
@@ -47,12 +50,14 @@ export type TaskLogHeaderProps = {
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly search: LogSearchInputProps;
+  readonly showLogLevel: boolean;
   readonly showSource: boolean;
   readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
+  readonly toggleLogLevel: () => void;
   readonly toggleSource: () => void;
   readonly toggleTimestamp: () => void;
   readonly toggleWrap: () => void;
@@ -67,12 +72,14 @@ export const TaskLogHeader = ({
   isFullscreen = false,
   onSelectTryNumber,
   search,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceOptions,
   taskInstance,
   toggleExpanded,
   toggleFullscreen,
+  toggleLogLevel,
   toggleSource,
   toggleTimestamp,
   toggleWrap,
@@ -214,6 +221,10 @@ export const TaskLogHeader = ({
               <Menu.Item data-testid="log-settings-timestamp" onClick={toggleTimestamp} value="timestamp">
                 <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}
                 <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item data-testid="log-settings-log-level" onClick={toggleLogLevel} value="log-level">
+                <MdOutlineLabel /> {showLogLevel ? translate("logLevel.hide") : translate("logLevel.show")}
+                <Menu.ItemCommand>{translate("logLevel.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
               <Menu.Item data-testid="log-settings-expand" onClick={toggleExpanded} value="expand">
                 {expanded ? (

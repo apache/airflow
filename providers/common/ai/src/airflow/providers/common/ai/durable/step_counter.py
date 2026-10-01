@@ -35,6 +35,10 @@ class DurableStepCounter:
         self.replayed_tool: int = 0
         self.cached_model: int = 0
         self.cached_tool: int = 0
+        # Steps that ran live but whose cache write the backend refused. They
+        # re-run on retry, so they must not count as cached.
+        self.skipped_model: int = 0
+        self.skipped_tools: list[str] = []
 
     def next_step(self) -> int:
         """Return the current step and advance the counter."""

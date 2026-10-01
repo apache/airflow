@@ -191,6 +191,7 @@ def get_airflow_connection(
     api_version: APIVersion | str | None = APIVersion.v1.value,
     authority: str | None = None,
     disable_instance_discovery: bool = False,
+    allowed_hosts: str | None = None,
 ):
     from airflow.models import Connection
 
@@ -202,6 +203,9 @@ def get_airflow_connection(
         "authority": authority,
         "disable_instance_discovery": disable_instance_discovery,
     }
+
+    if allowed_hosts:
+        extra["allowed_hosts"] = allowed_hosts
 
     if azure_tenant_id:
         extra["tenantId"] = azure_tenant_id
@@ -266,8 +270,8 @@ def patch_hook(side_effect: Callable = get_airflow_connection):
 
 
 @contextmanager
-def patch_hook_and_request_adapter(response):
-    with patch_hook() as hook_mocks:
+def patch_hook_and_request_adapter(response, side_effect: Callable = get_airflow_connection):
+    with patch_hook(side_effect=side_effect) as hook_mocks:
         with patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response:
             if isinstance(response, Exception):
                 mock_get_http_response.side_effect = response

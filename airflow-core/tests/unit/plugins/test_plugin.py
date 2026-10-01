@@ -67,7 +67,13 @@ except ImportError as e:
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # This is the class you derive to create a plugin
-from airflow.plugins_manager import AirflowPlugin
+from airflow.plugins_manager import (
+    AirflowPlugin,
+    ExternalViewDict,
+    FastAPIAppDict,
+    FastAPIRootMiddlewareDict,
+    ReactAppDict,
+)
 from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.timetables.interval import CronDataIntervalTimetable
 
@@ -107,7 +113,7 @@ else:
 app = FastAPI()
 
 
-app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
+app_with_metadata: FastAPIAppDict = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
 
 class DummyMiddleware(BaseHTTPMiddleware):
@@ -115,23 +121,27 @@ class DummyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-middleware_with_metadata = {
+middleware_with_metadata: FastAPIRootMiddlewareDict = {
     "middleware": DummyMiddleware,
     "args": [],
     "kwargs": {},
     "name": "Name of the Middleware",
 }
 
-external_view_with_metadata = {
+external_view_with_metadata: ExternalViewDict = {
     "name": "Test IFrame Airflow Docs",
     "href": "https://airflow.apache.org/",
     "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
     "url_route": "test_iframe_plugin",
-    "destination": "nav",
+    "destination": "dag",
     "category": "browse",
+    "applies_to": {
+        "dag_tags": ["ml", "production"],
+        "dag_ids": ["example_dag"],
+    },
 }
 
-react_app_with_metadata = {
+react_app_with_metadata: ReactAppDict = {
     "name": "Test React App",
     "bundle_url": "https://example.com/test-plugin-bundle.js",
     "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
@@ -203,4 +213,4 @@ external_view_with_invalid_destination = {
 
 class AirflowTestPluginInvalid(AirflowPlugin):
     name = "test_plugin_invalid"
-    external_views = [external_view_with_invalid_destination]
+    external_views = [external_view_with_invalid_destination]  # type: ignore[list-item]  # Deliberate bad destination — exercises the /plugins runtime validation

@@ -18,8 +18,23 @@
 Changelog
 =========
 
+0.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse Akeyless secret ids that address another team's namespace (#72646)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump common-compat lower bound for akeyless, hashicorp and smtp (#72503)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+
 0.3.0
------
+.....
 
 Features
 ~~~~~~~~
@@ -37,7 +52,7 @@ Doc-only
 
 
 0.2.0
------
+.....
 
 .. note::
     The Akeyless connection field ``jwt`` has been renamed to ``jwt_token`` so the credential
@@ -54,7 +69,7 @@ Breaking changes
    * ``Prepare providers release 2026-05-05 (#66424)``
 
 0.1.0
------
+.....
 
 Initial release.
 

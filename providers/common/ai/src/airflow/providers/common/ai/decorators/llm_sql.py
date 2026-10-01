@@ -112,6 +112,11 @@ def llm_sql_task(
     """
     Wrap a function that returns a natural language prompt into an LLM SQL task.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The function body constructs the prompt (can use Airflow context, XCom, etc.).
     The decorator handles: LLM connection, schema introspection, SQL generation,
     and safety validation.

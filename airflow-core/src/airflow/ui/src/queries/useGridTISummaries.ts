@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { focusManager, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+
+import { focusManager, useQueryClient } from "@tanstack/react-query";
 
 import {
   useDagRunServiceGetDagRunsKey,
@@ -26,6 +27,7 @@ import {
 } from "openapi/queries";
 import type { GridTISummaries, TaskInstanceState } from "openapi/requests";
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const GRID_MUTATION_WATCHED_KEYS = new Set([

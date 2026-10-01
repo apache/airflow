@@ -30,6 +30,10 @@ datasource_config_local = DataSourceConfig(
     conn_id="", table_name="users_data", uri="file:///path/to/", format="parquet"
 )
 
+datasource_config_gcs = DataSourceConfig(
+    conn_id="google_cloud_default", table_name="users_data", uri="gs://bucket/path/", format="parquet"
+)
+
 datasource_config_iceberg = DataSourceConfig(
     conn_id="iceberg_default",
     table_name="users_data",
@@ -71,6 +75,15 @@ with DAG(
     )
 
     # [END howto_analytics_operator_with_s3]
+
+    # [START howto_analytics_operator_with_gcs]
+    analytics_with_gcs = AnalyticsOperator(
+        task_id="analytics_with_gcs",
+        datasource_configs=[datasource_config_gcs],
+        queries=["SELECT * FROM users_data", "SELECT count(*) FROM users_data"],
+    )
+    analytics_with_s3 >> analytics_with_gcs
+    # [END howto_analytics_operator_with_gcs]
 
     # [START howto_analytics_operator_with_local]
     analytics_with_local = AnalyticsOperator(

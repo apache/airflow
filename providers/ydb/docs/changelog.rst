@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make SQLAlchemy an optional dependency (#72373)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 2.5.3
 .....
 

@@ -26,7 +26,7 @@ permissions:
 jobs:
   get-pr-info:
     name: "Get PR information"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       branches: ${{ steps.pr-info.outputs.branches }}
       commit-sha: ${{ github.sha }}

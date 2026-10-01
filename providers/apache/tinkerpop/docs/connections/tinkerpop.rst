@@ -27,7 +27,7 @@ The Gremlin connection type enables integrations with Gremlin Server.
 Authenticating to Gremlin
 ---------------------------
 
-Authenticate to Gremlin using the `Germlin python client default authentication
+Authenticate to Gremlin using the `Gremlin python client default authentication
 <https://tinkerpop.apache.org/docs/current/reference/#gremlin-python-configuration>`_.
 
 Default Connection IDs

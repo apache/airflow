@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import urllib.parse
 from uuid import uuid4
 
@@ -30,13 +31,13 @@ from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.dagrun import DagRun
-from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -230,6 +231,10 @@ class TestXComsGetEndpoint:
             pytest.param(slice(1, None, None), id="1:"),
             pytest.param(slice(2, None, -1), id="2::-1"),
             pytest.param(slice(1, 2, None), id="1:2"),
+            pytest.param(slice(2, 1, None), id="2:1"),
+            pytest.param(slice(1, -1, -1), id="1:-1:-1"),
+            pytest.param(slice(-1, -2, None), id="-1:-2"),
+            pytest.param(slice(-3, -1, -1), id="-3:-1:-1"),
             pytest.param(slice(2, 1, -1), id="2:1:-1"),
             pytest.param(slice(1, -1, None), id="1:-1"),
             pytest.param(slice(2, -2, -1), id="2:-2:-1"),
@@ -328,6 +333,81 @@ class TestXComsGetEndpoint:
 
         assert set(response.json()) == set(expected_xcoms)
 
+    @pytest.mark.parametrize("offset", [0, 2, -1])
+    def test_xcom_get_by_index_query_is_bounded(self, client, dag_maker, session, offset):
+        """Reading one item of a mapped XCom must ask the database for one row, not every row after ``offset``."""
+        xcom_values = ["f", "o", "o", "b"]
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=xcom_values)
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        for ti in dag_run.task_instances:
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value=xcom_values[ti.map_index],
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    map_index=ti.map_index,
+                )
+            )
+        session.commit()
+
+        with capture_orm_selects("xcom") as statements:
+            response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1/item/{offset}")
+
+        assert response.status_code == 200
+        assert response.json() == xcom_values[offset]
+        assert statements, "expected the endpoint to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"XCom lookup is not bounded to one row: {sql}"
+
+    @pytest.mark.parametrize(
+        "query_string",
+        [
+            pytest.param("", id="map_index"),
+            pytest.param("?include_prior_dates=true", id="include_prior_dates"),
+            pytest.param("?offset=0", id="offset"),
+        ],
+    )
+    def test_xcom_get_query_is_bounded(self, client, dag_maker, session, query_string):
+        """Reading one XCom value must ask the database for one row, however many rows match the filters."""
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="task")
+
+        for run_id, logical_date, value in [
+            ("earlier_run", "2024-01-01T00:00:00Z", "earlier_value"),
+            ("later_run", "2024-01-02T00:00:00Z", "later_value"),
+        ]:
+            dag_run = dag_maker.create_dagrun(run_id=run_id, logical_date=timezone.parse(logical_date))
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value=value,
+                    dag_run_id=dag_run.id,
+                    run_id=run_id,
+                    task_id="task",
+                    dag_id="dag",
+                )
+            )
+        session.commit()
+
+        with capture_orm_selects("xcom") as statements:
+            response = client.get(f"/execution/xcoms/dag/later_run/task/xcom_1{query_string}")
+
+        assert response.status_code == 200
+        assert response.json() == {"key": "xcom_1", "value": "later_value"}
+        assert statements, "expected the endpoint to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"XCom lookup is not bounded to one row: {sql}"
+
 
 class TestXComsSetEndpoint:
     @pytest.mark.parametrize(
@@ -368,10 +448,7 @@ class TestXComsSetEndpoint:
             )
         ).first()
         assert xcom.value == expected_value
-        task_map = session.scalars(
-            select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
-        ).one_or_none()
-        assert task_map is None, "Should not be mapped"
+        assert xcom.mapped_length is None, "Should not be mapped"
 
     @pytest.mark.parametrize(
         ("orig_value", "ser_value", "deser_value"),
@@ -444,7 +521,7 @@ class TestXComsSetEndpoint:
         value = serialize("value1")
 
         response = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{XCOM_RETURN_KEY}",
             params={"map_index": -1, "mapped_length": 3},
             json=value,
         )
@@ -456,20 +533,41 @@ class TestXComsSetEndpoint:
             select(XComModel).where(
                 XComModel.task_id == ti.task_id,
                 XComModel.dag_id == ti.dag_id,
-                XComModel.key == "xcom_1",
+                XComModel.key == XCOM_RETURN_KEY,
                 XComModel.map_index == -1,
             )
         ).first()
         assert xcom.value == "value1"
-        task_map = session.scalars(
-            select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
-        ).one_or_none()
-        assert task_map is not None, "Should be mapped"
-        assert task_map.dag_id == "dag"
-        assert task_map.run_id == "test"
-        assert task_map.task_id == "op1"
-        assert task_map.map_index == -1
-        assert task_map.length == 3
+        assert xcom.dag_id == "dag"
+        assert xcom.run_id == "test"
+        assert xcom.task_id == "op1"
+        assert xcom.map_index == -1
+        assert xcom.mapped_length == 3
+
+    def test_xcom_set_mapped_rejects_non_return_value_key(self, client, create_task_instance, session):
+        """Only the return value expands a downstream, so a length under any other key is refused."""
+        ti = create_task_instance()
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            params={"map_index": -1, "mapped_length": 3},
+            json=serialize("value1"),
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"]["reason"] == "invalid_mapped_length_key"
+
+        assert (
+            session.scalars(
+                select(XComModel).where(
+                    XComModel.task_id == ti.task_id,
+                    XComModel.dag_id == ti.dag_id,
+                    XComModel.key == "xcom_1",
+                )
+            ).one_or_none()
+            is None
+        )
 
     @pytest.mark.parametrize(
         ("length", "expected_status"),
@@ -490,17 +588,23 @@ class TestXComsSetEndpoint:
         session.commit()
 
         response = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{XCOM_RETURN_KEY}",
             json='"valid json"',
             params={"mapped_length": length},
         )
         assert response.status_code == expected_status
 
+        xcom = session.scalars(
+            select(XComModel).where(
+                XComModel.task_id == ti.task_id,
+                XComModel.dag_id == ti.dag_id,
+                XComModel.key == XCOM_RETURN_KEY,
+            )
+        ).one_or_none()
         if expected_status < 400:
-            task_map = session.scalars(
-                select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
-            ).one_or_none()
-            assert task_map.length == length
+            assert xcom.mapped_length == length
+        else:
+            assert xcom is None, "Nothing should be written when the length is rejected"
 
     @pytest.mark.usefixtures("access_denied")
     def test_xcom_access_denied(self, client, caplog):

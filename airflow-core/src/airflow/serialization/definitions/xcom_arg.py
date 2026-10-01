@@ -154,7 +154,6 @@ def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Ses
 @get_task_map_length.register
 def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int | None:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskmap import TaskMap
     from airflow.models.xcom import XComModel
     from airflow.serialization.definitions.mappedoperator import is_mapped
 
@@ -177,21 +176,26 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
         )
         if unfinished_ti_exists:
             return None  # Not all of the expanded tis are done yet.
-        query = select(func.count(XComModel.map_index)).where(
+        return session.scalar(
+            select(func.count(XComModel.map_index)).where(
+                XComModel.dag_id == dag_id,
+                XComModel.run_id == run_id,
+                XComModel.task_id == task_id,
+                XComModel.map_index >= 0,
+                XComModel.key == XCOM_RETURN_KEY,
+            )
+        )
+
+    # Not xcom_arg.key: the SDK records the length of the whole return value, never per key.
+    return session.scalar(
+        select(XComModel.mapped_length).where(
             XComModel.dag_id == dag_id,
             XComModel.run_id == run_id,
             XComModel.task_id == task_id,
-            XComModel.map_index >= 0,
+            XComModel.map_index == -1,
             XComModel.key == XCOM_RETURN_KEY,
         )
-    else:
-        query = select(TaskMap.length).where(
-            TaskMap.dag_id == dag_id,
-            TaskMap.run_id == run_id,
-            TaskMap.task_id == task_id,
-            TaskMap.map_index < 0,
-        )
-    return session.scalar(query)
+    )
 
 
 @get_task_map_length.register

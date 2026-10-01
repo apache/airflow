@@ -39,11 +39,18 @@ def get_bundle() -> VersionBundle:
 
     from airflow.sdk.execution_time.schema.versions.v2026_10_30 import (
         AddArgBindingsToSupervisorTIRunContext,
+        AddDagDefinitionsToDagFileParsingResult,
+        AddRetryReasonToTaskState,
     )
 
     return VersionBundle(
         HeadVersion(),
-        Version("2026-10-30", AddArgBindingsToSupervisorTIRunContext),
+        Version(
+            "2026-10-30",
+            AddArgBindingsToSupervisorTIRunContext,
+            AddRetryReasonToTaskState,
+            AddDagDefinitionsToDagFileParsingResult,
+        ),
         Version("2026-06-16"),
     )
 

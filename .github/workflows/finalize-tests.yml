@@ -154,10 +154,14 @@ jobs:
         run: >
           breeze release-management constraints-version-check
           --python "${MATRIX_PYTHON_VERSION}"
-          --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" --explain-why
+          --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" "${EXPLAIN_WHY_FLAG}"
         env:
           MATRIX_PYTHON_VERSION: "${{ matrix.python-version }}"
           MATRIX_CONSTRAINTS_MODE: "${{ matrix.constraints-mode }}"
+          # Explaining an outdated package resolves its dependency tree; on Python 3.10 more and more
+          # dependencies have dropped support, so there is far more to explain and the job takes much
+          # longer. Not worth it weeks before 3.10 support is dropped - remove this along with 3.10.
+          EXPLAIN_WHY_FLAG: ${{ matrix.python-version == '3.10' && '--no-explain-why' || '--explain-why' }}
           VERBOSE: "false"
 
   push-buildx-cache-to-github-registry:

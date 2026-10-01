@@ -7,10 +7,20 @@
     "backwards": "反向执行",
     "dateRange": "日期范围",
     "errorStartDateBeforeEndDate": "开始日期必须早于结束日期。",
+    "exceptionReason": {
+      "alreadyExists": "已存在",
+      "inFlight": "执行中",
+      "unknown": "未知"
+    },
     "maxRuns": "活跃执行数上限",
     "missingAndErroredRuns": "遗漏和错误的执行",
     "missingRuns": "遗漏的执行",
+    "notCreatedReason": "未创建原因",
     "overrideExistingParams": "覆盖现有执行的参数",
+    "partitionRange": "分区范围",
+    "partitionsAffected_one": "将回填 1 个分区：",
+    "partitionsAffected_other": "将回填 {{count}} 个分区：",
+    "partitionsNone": "没有符合所选范围的分区。",
     "permissionDenied": "预演失败：用户没有权限创建回填作业。",
     "reprocessBehavior": "重新处理行为",
     "run": "执行回填",
@@ -29,7 +39,8 @@
     "validation": {
       "datesRequired": "必须提供数据区间的开始与结束日期。",
       "startBeforeEnd": "数据区间起始日期必须早于或等于结束日期。"
-    }
+    },
+    "viewSlots": "查看回填 #{{id}} 的槽位"
   },
   "banner": {
     "backfillInProgress": "回填正在进行中",
@@ -44,7 +55,7 @@
   "configForm": {
     "advancedOptions": "高级选项",
     "configJson": "配置 JSON",
-    "invalidJson": "无效的 JSON 格式: {{errorMessage}}"
+    "invalidJson": "无效的 JSON 格式：{{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 个错误",
@@ -60,11 +71,12 @@
     }
   },
   "durationChart": {
-    "duration": "持续时间 (秒)",
+    "duration": "持续时间（秒）",
     "lastDagRun_one": "最近 1 次 Dag 执行",
     "lastDagRun_other": "最近 {{count}} 次 Dag 执行",
     "lastTaskInstance_one": "最近 1 次任务实例",
     "lastTaskInstance_other": "最近 {{count}} 次任务实例",
+    "medianTotalDuration": "总计：{{duration}}",
     "queuedDuration": "排队等候时间",
     "runAfter": "最早可执行时间",
     "runDuration": "执行持续时间"
@@ -98,6 +110,10 @@
     "taskGroup": "任务分组",
     "zoomToTask": "缩放至选定任务"
   },
+  "jsonPreview": {
+    "items_one": "1 项",
+    "items_other": "{{count}} 项"
+  },
   "limitedList": "+ 其他 {{count}} 项",
   "limitedList.allItems": "所有 {{count}} 项：",
   "limitedList.allTags_one": "所有标签 (1)",
@@ -111,7 +127,15 @@
     "file": "文件",
     "location": "第 {{line}} 行，位于 {{name}}"
   },
+  "passwordToggle": {
+    "hide": "隐藏",
+    "show": "显示"
+  },
   "reparseDag": "重新解析 Dag",
+  "slowestTaskInstances": {
+    "empty": "此范围内没有已完成的任务实例",
+    "title": "耗时最长的任务实例"
+  },
   "sortedAscending": "递增排序",
   "sortedDescending": "递减排序",
   "sortedUnsorted": "未排序",
@@ -136,6 +160,7 @@
     "loading": "正在加载 Dag 信息...",
     "loadingFailed": "加载 Dag 信息失败，请重试。",
     "manualRunDenied": "此 Dag 不允许手动执行",
+    "partitionKeyHelp": "选填，仅适用于分区 Dag",
     "runIdHelp": "选填 - 若未提供将会自动生成",
     "selectDescription": "触发此 Dag 单次执行",
     "selectLabel": "单次执行",

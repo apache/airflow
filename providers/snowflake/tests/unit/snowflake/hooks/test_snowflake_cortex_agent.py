@@ -22,6 +22,7 @@ import pytest
 import requests
 
 from airflow.providers.snowflake.hooks.snowflake_cortex_agent import (
+    JsonResponse,
     SnowflakeCortexAgentHook,
 )
 
@@ -30,9 +31,22 @@ HOOK_PATH = f"{MODULE_PATH}.SnowflakeCortexAgentHook"
 
 ACCOUNT = "test-account"
 ACCESS_TOKEN = "test-token"
-DATABASE = "TEST_DATABASE"
-SCHEMA = "TEST_SCHEMA"
-AGENT_NAME = "TEST_AGENT"
+DATABASE = "TEST/DATABASE"
+SCHEMA = "TEST?SCHEMA"
+AGENT_NAME = "TEST#AGENT"
+
+USER = "test-user"
+PRIVATE_KEY = mock.sentinel.private_key
+KEYPAIR_TOKEN = "test-keypair-token"
+
+KEYPAIR_CONN_PARAMS = {
+    "account": ACCOUNT,
+    "user": USER,
+}
+
+ENCODED_DATABASE = "TEST%2FDATABASE"
+ENCODED_SCHEMA = "TEST%3FSCHEMA"
+ENCODED_AGENT_NAME = "TEST%23AGENT"
 
 CONN_PARAMS = {
     "account": ACCOUNT,
@@ -49,11 +63,11 @@ REQUEST_TIMEOUT = 600
 def create_response(
     status_code: int = 200,
     *,
-    json_body: dict | None = None,
+    json_body: JsonResponse | None = None,
 ):
     response = mock.MagicMock()
     response.status_code = status_code
-    response.json.return_value = json_body or {}
+    response.json.return_value = {} if json_body is None else json_body
 
     if status_code >= 400:
         response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
@@ -64,6 +78,64 @@ def create_response(
 
 
 class TestSnowflakeCortexAgentHook:
+    @pytest.mark.parametrize(
+        ("method_name", "method_kwargs", "json_body", "expected_error"),
+        [
+            pytest.param(
+                "describe_agent",
+                {
+                    "database": DATABASE,
+                    "schema": SCHEMA,
+                    "agent_name": AGENT_NAME,
+                },
+                [{"name": AGENT_NAME}],
+                "Expected dict response, got list",
+                id="describe_agent_expected_dict_got_list",
+            ),
+            pytest.param(
+                "list_agents",
+                {
+                    "database": DATABASE,
+                    "schema": SCHEMA,
+                },
+                {"name": AGENT_NAME},
+                r"Expected list\[dict\] response, got dict",
+                id="list_agents_expected_list_got_dict",
+            ),
+            pytest.param(
+                "list_agents",
+                {
+                    "database": DATABASE,
+                    "schema": SCHEMA,
+                },
+                [{"name": AGENT_NAME}, 1],
+                r"Expected list\[dict\] response, got list containing non-dict elements",
+                id="list_agents_contains_non_dict_element",
+            ),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.requests.request")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}._get_static_conn_params", new_callable=mock.PropertyMock)
+    def test_agent_methods_raise_for_unexpected_response_shape(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+        method_name,
+        method_kwargs,
+        json_body,
+        expected_error,
+    ):
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_request.return_value = create_response(json_body=json_body)
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(TypeError, match=expected_error):
+            getattr(hook, method_name)(**method_kwargs)
+
     @mock.patch(f"{MODULE_PATH}.requests.request")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(
@@ -105,13 +177,14 @@ class TestSnowflakeCortexAgentHook:
             method="POST",
             url=(
                 f"https://{ACCOUNT}.snowflakecomputing.com"
-                f"/api/v2/databases/{DATABASE}"
-                f"/schemas/{SCHEMA}"
-                f"/agents/{AGENT_NAME}:run"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
+                f"/agents/{ENCODED_AGENT_NAME}:run"
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
                 "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
             },
             json={
                 "messages": [
@@ -127,6 +200,7 @@ class TestSnowflakeCortexAgentHook:
                 ],
                 "stream": False,
             },
+            params=None,
             timeout=REQUEST_TIMEOUT,
         )
 
@@ -248,20 +322,105 @@ class TestSnowflakeCortexAgentHook:
                 messages=[],
             )
 
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
-    def test_get_access_token_raises_when_token_missing(
+    def test_get_auth_headers_uses_oauth(
         self,
         mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
     ):
-        mock_conn_params.return_value = {}
+        mock_conn_params.return_value = CONN_PARAMS
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        assert hook._get_auth_headers() == {
+            "Authorization": f"Bearer {ACCESS_TOKEN}",
+            "Content-Type": "application/json",
+            "X-Snowflake-Authorization-Token-Type": "OAUTH",
+        }
+
+        mock_get_private_key.assert_not_called()
+        mock_jwt_generator.assert_not_called()
+
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_auth_headers_uses_keypair_jwt(
+        self,
+        mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
+    ):
+        mock_conn_params.return_value = KEYPAIR_CONN_PARAMS
+        mock_get_private_key.return_value = PRIVATE_KEY
+        mock_jwt_generator.return_value.get_token.return_value = KEYPAIR_TOKEN
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        assert hook._get_auth_headers() == {
+            "Authorization": f"Bearer {KEYPAIR_TOKEN}",
+            "Content-Type": "application/json",
+            "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+        }
+
+        mock_get_private_key.assert_called_once_with()
+        mock_jwt_generator.assert_called_once_with(
+            account=ACCOUNT,
+            user=USER,
+            private_key=PRIVATE_KEY,
+        )
+        mock_jwt_generator.return_value.get_token.assert_called_once_with()
+
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_auth_headers_raises_when_credentials_missing(
+        self,
+        mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
+    ):
+        mock_conn_params.return_value = KEYPAIR_CONN_PARAMS
+        mock_get_private_key.return_value = None
 
         hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
 
         with pytest.raises(
             ValueError,
-            match="access token",
+            match="Snowflake connection must provide either OAuth credentials or an account, user, and private key for key-pair authentication.",
         ):
-            hook._get_access_token()
+            hook._get_auth_headers()
+
+        mock_jwt_generator.assert_not_called()
+
+    @mock.patch(f"{MODULE_PATH}.JWTGenerator")
+    @mock.patch(f"{HOOK_PATH}.get_private_key")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_auth_headers_raises_when_jwt_generation_fails(
+        self,
+        mock_conn_params,
+        mock_get_private_key,
+        mock_jwt_generator,
+    ):
+        mock_conn_params.return_value = KEYPAIR_CONN_PARAMS
+        mock_get_private_key.return_value = PRIVATE_KEY
+        mock_jwt_generator.return_value.get_token.return_value = None
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(
+            RuntimeError,
+            match="Failed to generate a Snowflake key-pair JWT",
+        ):
+            hook._get_auth_headers()
+
+        mock_jwt_generator.assert_called_once_with(
+            account=ACCOUNT,
+            user=USER,
+            private_key=PRIVATE_KEY,
+        )
 
     @pytest.mark.parametrize(
         ("response", "expected"),
@@ -316,3 +475,176 @@ class TestSnowflakeCortexAgentHook:
         expected,
     ):
         assert SnowflakeCortexAgentHook.get_text_response(response) == expected
+
+    @mock.patch(f"{MODULE_PATH}.requests.request")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_describe_agent(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+    ):
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_request.return_value = create_response(
+            json_body={"name": AGENT_NAME},
+        )
+
+        hook = SnowflakeCortexAgentHook(
+            snowflake_conn_id="mock_conn_id",
+        )
+
+        result = hook.describe_agent(
+            database=DATABASE,
+            schema=SCHEMA,
+            agent_name=AGENT_NAME,
+        )
+
+        assert result == {"name": AGENT_NAME}
+
+        mock_request.assert_called_once_with(
+            method="GET",
+            url=(
+                f"https://{ACCOUNT}.snowflakecomputing.com"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
+                f"/agents/{ENCODED_AGENT_NAME}"
+            ),
+            headers={
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
+            },
+            json=None,
+            params=None,
+            timeout=REQUEST_TIMEOUT,
+        )
+
+    @mock.patch(f"{MODULE_PATH}.requests.request")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_list_agents(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+    ):
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_request.return_value = create_response(
+            json_body=[{"name": AGENT_NAME}],
+        )
+
+        hook = SnowflakeCortexAgentHook(
+            snowflake_conn_id="mock_conn_id",
+        )
+
+        result = hook.list_agents(
+            database=DATABASE,
+            schema=SCHEMA,
+            like="AIRFLOW%",
+            from_name="AIRFLOW_TEST",
+            show_limit=10,
+        )
+
+        assert result == [{"name": AGENT_NAME}]
+
+        mock_request.assert_called_once_with(
+            method="GET",
+            url=(
+                f"https://{ACCOUNT}.snowflakecomputing.com"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
+                f"/agents"
+            ),
+            headers={
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
+            },
+            json=None,
+            params={
+                "like": "AIRFLOW%",
+                "fromName": "AIRFLOW_TEST",
+                "showLimit": 10,
+            },
+            timeout=REQUEST_TIMEOUT,
+        )
+
+    @pytest.mark.parametrize(
+        ("if_exists", "expected"),
+        [
+            pytest.param(True, "true", id="if_exists"),
+            pytest.param(False, "false", id="error_if_missing"),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.requests.request")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_delete_agent(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+        if_exists,
+        expected,
+    ):
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_request.return_value = create_response(
+            json_body={"status": "deleted"},
+        )
+
+        hook = SnowflakeCortexAgentHook(
+            snowflake_conn_id="mock_conn_id",
+        )
+
+        result = hook.delete_agent(
+            database=DATABASE,
+            schema=SCHEMA,
+            agent_name=AGENT_NAME,
+            if_exists=if_exists,
+        )
+
+        assert result == {"status": "deleted"}
+
+        mock_request.assert_called_once_with(
+            method="DELETE",
+            url=(
+                f"https://{ACCOUNT}.snowflakecomputing.com"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
+                f"/agents/{ENCODED_AGENT_NAME}"
+            ),
+            headers={
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
+            },
+            json=None,
+            params={"ifExists": expected},
+            timeout=REQUEST_TIMEOUT,
+        )
+
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_base_url_rejects_account_outside_charset(self, mock_static_conn_params):
+        """``account`` is interpolated into the base URL, so it may not carry URL punctuation."""
+        mock_static_conn_params.return_value = {"account": "acct.example.com/x"}
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            hook._get_base_url()

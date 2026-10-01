@@ -29,6 +29,7 @@
 // preserving cross-references between schema definitions.
 
 import { compile } from "json-schema-to-typescript";
+import console from "node:console";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -69,6 +69,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 log = logging.getLogger(__name__)
@@ -470,6 +471,12 @@ def clear_db_logs():
 @_retry_db
 def clear_db_jobs():
     with create_session() as session:
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.models.team import JobTeam
+
+            # SQLite does not enforce the ON DELETE CASCADE, and it reuses job ids, so leftover
+            # job_team rows would silently re-attach to the next job created.
+            session.execute(delete(JobTeam))
         session.execute(delete(Job))
 
 

@@ -27,6 +27,8 @@ draining machinery in this module rather than re-implementing it.
 
 from __future__ import annotations
 
+import contextlib
+import enum
 import ipaddress
 import itertools
 import os
@@ -41,18 +43,24 @@ import attrs
 import psutil
 import structlog
 
+from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.configuration import conf
+from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
 if TYPE_CHECKING:
+    import pathlib
     from collections.abc import Sequence
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -371,6 +379,45 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         return code
 
 
+def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+    """
+    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
+
+    A bundle resolved without a version points at the bundle's shared, mutable
+    checkout: another task refreshing the same bundle resets it underneath a running
+    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
+    lock is a no-op. Re-resolving at the version current now yields a private
+    ``versions/<version>`` tree that the lock does cover.
+
+    Bundles that do not track versions have nothing to pin and keep their single path.
+    """
+    bundle = initialize_ti_bundle(target)
+    if bundle.version is not None:
+        return bundle
+
+    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
+    if version is None:
+        return bundle
+    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
+    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
+
+
+class _ArtifactSource(enum.Enum):
+    """How a subprocess coordinator locates the compiled task artifacts."""
+
+    EXPLICIT_ROOT = enum.auto()
+    """An explicit filesystem root (``jars_root`` / ``executables_root`` / ``bundles_root``)."""
+    NAMED_BUNDLE = enum.auto()
+    """``dag_bundle_name`` names a configured Dag bundle; its version current at task start is used."""
+    TASK_BUNDLE = enum.auto()
+    """
+    Neither is set: artifacts are *co-located* with the Python stub Dag.
+
+    The task's own bundle is scanned, so the compiled artifacts ship in the same
+    bundle, at the same version, as the Dag that delegates to them.
+    """
+
+
 @attrs.define(kw_only=True)
 class SubprocessCoordinator(BaseCoordinator):
     """
@@ -385,22 +432,128 @@ class SubprocessCoordinator(BaseCoordinator):
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
         seconds.
+    :param dag_bundle_name: Locate artifacts through a configured Dag bundle rather
+        than an explicit root. Mutually exclusive with the subclass's explicit root;
+        if neither is set, the task's own bundle is used. A named bundle resolves to
+        the version current when the task starts; the task's own bundle uses the
+        run's version. Either way the resolved version is pinned for the whole task.
     """
 
     task_startup_timeout: float = 10.0
+    dag_bundle_name: str | None = None
+
+    _artifact_source: _ArtifactSource = attrs.field(init=False)
+    # The subclass's explicit root, recorded at construction so the base can
+    # resolve roots without knowing the subclass field name.
+    _configured_roots: list[pathlib.Path] = attrs.field(init=False, factory=list)
+    _active_scan_roots: tuple[pathlib.Path, ...] | None = attrs.field(init=False, default=None)
+
+    @property
+    def _explicit_artifact_roots(self) -> tuple[str, Sequence[pathlib.Path]]:
+        """
+        The subclass's explicit-root kwarg name and its configured value.
+
+        The name is only used in error messages. An empty value — the default, for a
+        subclass that does not override this — selects task-bundle mode rather than
+        failing at execute time.
+        """
+        return "root", ()
+
+    def __attrs_post_init__(self) -> None:
+        self._classify_artifact_source()
+
+    def _classify_artifact_source(self) -> None:
+        """
+        Classify and validate how this coordinator locates artifacts (construction time).
+
+        Rejects setting both an explicit root and ``dag_bundle_name``, fails fast
+        when ``dag_bundle_name`` names a bundle that is not configured, and records
+        the resulting :class:`_ArtifactSource` and explicit root.
+        """
+        root_kwarg, configured = self._explicit_artifact_roots
+        if configured and self.dag_bundle_name is not None:
+            raise ValueError(
+                f"Set at most one of {root_kwarg!r} or 'dag_bundle_name': {root_kwarg!r} for an "
+                f"explicit path, 'dag_bundle_name' for a configured Dag bundle, or leave both "
+                f"unset to scan the task's own bundle."
+            )
+        if configured:
+            source = _ArtifactSource.EXPLICIT_ROOT
+            self._configured_roots = list(configured)
+        elif self.dag_bundle_name is not None:
+            source = _ArtifactSource.NAMED_BUNDLE
+            if not DagBundlesManager.is_bundle_configured(self.dag_bundle_name):
+                raise ValueError(
+                    f"Coordinator 'dag_bundle_name' references unconfigured Dag bundle "
+                    f"{self.dag_bundle_name!r}."
+                )
+        else:
+            source = _ArtifactSource.TASK_BUNDLE
+
+        self._artifact_source = source
+        log.debug(
+            "Coordinator artifact source selected",
+            mode=source.name,
+            dag_bundle_name=self.dag_bundle_name,
+            configured_roots=[str(root) for root in self._configured_roots],
+        )
+
+    def _init_root_source(
+        self, bundle_info: BundleInfo, logger: FilteringBoundLogger
+    ) -> tuple[list[pathlib.Path], BaseDagBundle | None]:
+        """
+        Resolve the directories to scan for artifacts, dispatched on the classified mode.
+
+        Returns ``(roots, bundle)``: an explicit root yields no bundle (``None``);
+        a Dag-bundle mode returns the materialized path and the resolved bundle so
+        :meth:`execute_task` can hold a version lock over it. *logger* is the task
+        logger, so materialization failures surface in the task log.
+        """
+        if self._artifact_source is _ArtifactSource.EXPLICIT_ROOT:
+            return self._configured_roots, None
+
+        if self._artifact_source is _ArtifactSource.NAMED_BUNDLE:
+            # NAMED_BUNDLE implies dag_bundle_name is set.
+            target = BundleInfo(name=cast("str", self.dag_bundle_name))
+        else:
+            target = bundle_info
+
+        bundle = _initialize_pinned_bundle(target, logger)
+        path = bundle.path
+        if not path.exists():
+            raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
+        return [path], bundle
+
+    def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
+        """Return the artifact roots resolved for the active task."""
+        if self._active_scan_roots is None:
+            raise RuntimeError("_get_scan_roots requires an active task; call it during execute_task.")
+        return self._active_scan_roots
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
-        Returns a ``(command, subprocess_schema_version)`` pair. *command*
-        MUST NOT include the ``--comm`` / ``--logs`` flags — those are
-        appended by :class:`_PopenActivitySubprocess` once the listening
-        sockets have been bound. A ``None`` schema version disables schema
-        migration; messages are then exchanged at the runtime's native wire
-        format.
+        Subclasses can retrieve the directories to scan for artifacts with
+        :meth:`_get_scan_roots`.
+        Returns a ``(command, subprocess_schema_version)`` pair. *command* MUST
+        NOT include the ``--comm`` / ``--logs`` flags — those are appended by
+        :class:`_PopenActivitySubprocess` once the listening sockets have been
+        bound. A ``None`` schema version disables schema migration; messages are
+        then exchanged at the runtime's native wire format.
         """
         raise NotImplementedError
+
+    @contextlib.contextmanager
+    def _set_scan_roots(self, roots: Sequence[pathlib.Path]):
+        """Expose *roots* to the command builder for the duration of the task."""
+        if self._active_scan_roots is not None:
+            raise RuntimeError("SubprocessCoordinator.execute_task is not re-entrant.")
+        self._active_scan_roots = tuple(roots)
+        try:
+            yield
+        finally:
+            self._active_scan_roots = None
 
     def execute_task(
         self,
@@ -414,18 +567,32 @@ class SubprocessCoordinator(BaseCoordinator):
         subprocess_logs_to_stdout: bool,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
-        command, subprocess_schema_version = self._build_execute_task_command(what=what)
-        process = _PopenActivitySubprocess.start(
-            what=what,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            client=client,
-            logger=logger,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-            command=command,
-            subprocess_schema_version=subprocess_schema_version,
-            startup_timeout=self.task_startup_timeout,
-        )
-        exit_code = process.wait()
-        return self.ExecutionResult(exit_code, process.final_state)
+        task_logger = logger or log
+        with contextlib.ExitStack() as stack:
+            roots, resolved_bundle = self._init_root_source(bundle_info, task_logger)
+            if resolved_bundle is not None:
+                # Hold the version lock across start()/wait() so bundle cleanup
+                # cannot rmtree a version this task is still reading from,
+                # mirroring task_runner.main() for the Python task path.
+                stack.enter_context(
+                    BundleVersionLock(
+                        bundle_name=resolved_bundle.name,
+                        bundle_version=resolved_bundle.version,
+                    )
+                )
+            stack.enter_context(self._set_scan_roots(roots))
+            command, subprocess_schema_version = self._build_execute_task_command(what=what)
+            process = _PopenActivitySubprocess.start(
+                what=what,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
+                client=client,
+                logger=logger,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=sentry_integration,
+                command=command,
+                subprocess_schema_version=subprocess_schema_version,
+                startup_timeout=self.task_startup_timeout,
+            )
+            exit_code = process.wait()
+            return self.ExecutionResult(exit_code, process.final_state)

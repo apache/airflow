@@ -4,10 +4,11 @@
     "Connections": "连接",
     "Plugins": "插件",
     "Pools": "资源池",
-    "Providers": "Providers",
+    "Providers": "整合套件",
     "Variables": "变量"
   },
   "allOperators": "全部操作器",
+  "allTeams": "全部团队",
   "appearance": {
     "appearance": "外观",
     "darkMode": "深色模式",
@@ -23,8 +24,10 @@
   },
   "backfill_one": "回填",
   "backfill_other": "回填",
+  "breadcrumb": "面包屑导航",
   "browse": {
     "auditLog": "审计日志",
+    "dagBundles": "Dag 套件包",
     "deadlines": "截止期限",
     "jobs": "作业",
     "requiredActions": "待响应的任务实例",
@@ -38,6 +41,7 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
+    "activeRuns": "活跃执行数",
     "catchup": "自动回填",
     "dagRunTimeout": "Dag 执行超时",
     "defaultArgs": "默认参数",
@@ -57,7 +61,8 @@
     "owner": "拥有者",
     "params": "参数",
     "schedule": "调度",
-    "tags": "标签"
+    "tags": "标签",
+    "team": "团队"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -72,6 +77,7 @@
     "expectedDuration": "预计耗时",
     "lastSchedulingDecision": "最后调度决策",
     "mappedPartitionKey": "映射分区键",
+    "partitionDate": "分区日期",
     "partitionKey": "分区键",
     "queuedAt": "开始排队时间",
     "runAfter": "最早可执行时间",
@@ -83,9 +89,8 @@
   "dagRun_one": "Dag 执行",
   "dagRun_other": "Dag 执行",
   "dagRunId": "Dag 执行 ID",
+  "dagRunState": "Dag 执行状态",
   "dagWarnings": "Dag 警告 / 错误",
-  "defaultToGraphView": "默认使用图形视图",
-  "defaultToGridView": "默认使用网格视图",
   "delete": "删除",
   "diff": "差异对比",
   "diffCompareWith": "比较对象",
@@ -119,6 +124,8 @@
       "title": "拒绝访问"
     }
   },
+  "event_one": "事件",
+  "event_other": "事件",
   "expand": {
     "collapse": "收起",
     "expand": "展开",
@@ -134,18 +141,30 @@
   },
   "filter": "筛选",
   "filters": {
+    "addFilter": "添加筛选条件",
+    "completedAt": "完成时间",
+    "date": "日期",
     "durationFrom": "持续时间起始",
     "durationTo": "持续时间结束",
     "endTime": "结束时间",
     "logicalDateFrom": "逻辑日期起始",
     "logicalDateTo": "逻辑结束日期",
+    "maxActiveRunsFrom": "活跃执行数上限起始值",
+    "maxActiveRunsTo": "活跃执行数上限结束值",
+    "removeFilter": "移除筛选条件",
     "runAfterFrom": "执行时间起始",
     "runAfterTo": "执行时间结束",
     "searchAsset": "搜索资源",
     "selectDateRange": "选择日期范围",
-    "startTime": "开始时间"
+    "selectDateTime": "选择日期和时间",
+    "startTime": "开始时间",
+    "time": "时间"
+  },
+  "fullscreen": {
+    "tooltip": "按下 {{hotkey}} 进入全屏"
   },
   "generateToken": "生成令牌",
+  "includedIn": "包含于",
   "key": "键",
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
@@ -166,6 +185,7 @@
     "assets": "资源",
     "browse": "浏览",
     "dags": "Dags",
+    "dashboard": "仪表盘",
     "docs": "文档",
     "home": "首页",
     "legacyFabViews": "旧版视图",
@@ -176,17 +196,41 @@
   "note": {
     "add": "添加笔记",
     "dagRun": "Dag 执行笔记",
+    "edit": "编辑笔记",
     "label": "笔记",
     "placeholder": "添加笔记...",
-    "taskInstance": "任务实例笔记"
+    "preview": "预览",
+    "taskInstance": "任务实例笔记",
+    "write": "编写"
   },
+  "overallStatus": "整体状态",
+  "partition_one": "分区",
+  "partition_other": "分区",
   "partitionedDagRun_one": "分区 Dag 执行",
   "partitionedDagRun_other": "分区 Dag 执行",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "接收到的资源事件"
   },
-  "pendingDagRun_one": "{{count}} 个待执行 Dag 执行",
+  "pause": "暂停",
+  "pendingDagRun_one": "1 个待执行 Dag 执行",
   "pendingDagRun_other": "{{count}} 个待执行 Dag 执行",
+  "presetFilters": {
+    "deleteTitle": "删除预设筛选条件",
+    "deleteWarning": "预设筛选条件仅保存在此浏览器中。",
+    "duplicate": "已有预设筛选条件 \"{{name}}\" 保存了相同的设置。",
+    "empty": "暂无预设筛选条件",
+    "info": {
+      "default": "将预设筛选条件设为默认后，在未应用筛选条件的情况下进入此页面时，将自动应用该预设。",
+      "save": "为当前筛选条件和排序设置命名并保存为预设，便于随时切换使用。",
+      "storage": "预设筛选条件保存在此浏览器中。"
+    },
+    "namePlaceholder": "预设筛选条件名称",
+    "nothingToSave": "没有可保存的内容。请先应用筛选条件或排序，再保存预设。",
+    "save": "保存",
+    "setDefault": "设为默认",
+    "title": "预设筛选条件",
+    "unsetDefault": "取消默认"
+  },
   "reset": "重置",
   "runId": "执行 ID",
   "runTypes": {
@@ -218,8 +262,103 @@
   },
   "selectLanguage": "选择语言",
   "selected": "已选择",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "清除任务实例时跳过正在执行的任务。",
+        "label": "防止清除正在执行的任务"
+      },
+      "runSelection": {
+        "helper": "清除 Dag 执行时默认选中的选项。",
+        "label": "清除执行的默认选项"
+      },
+      "taskSelection": {
+        "helper": "清除任务实例时默认选中的选项。",
+        "label": "清除任务的默认选项"
+      },
+      "title": "清除"
+    },
+    "description": "这些偏好设置仅保存在此浏览器中，并适用于整个应用。",
+    "general": {
+      "landingPage": {
+        "helper": "打开 Airflow 时显示的页面。",
+        "label": "起始页面",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "仪表盘"
+        }
+      },
+      "title": "通用"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "未单独设置布局方向的 Dag 和资源图表所使用的方向。",
+        "label": "默认图表方向"
+      },
+      "title": "图表"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "标记任务实例状态时默认选中的选项。",
+        "label": "标记状态的默认选项"
+      },
+      "title": "标记状态"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "打开任务实例时首先显示的选项卡。指向特定选项卡的链接仍会打开该选项卡。",
+        "label": "默认任务实例选项卡"
+      },
+      "title": "任务实例"
+    },
+    "title": "设置"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "代码",
+      "dagView": "Dag 视图",
+      "filters": "筛选",
+      "global": "全局",
+      "logs": "日志",
+      "navigation": "导航",
+      "runActions": "执行与任务操作",
+      "search": "搜索"
+    },
+    "descriptions": {
+      "clearRun": "清除 $t(dagRun_one)",
+      "clearTaskInstance": "清除 $t(taskInstance_one)",
+      "downloadLogs": "下载日志",
+      "focusFilterSearch": "聚焦筛选搜索框",
+      "focusLogSearch": "搜索日志",
+      "focusSearch": "聚焦搜索框",
+      "markRunFailed": "将 $t(dagRun_one) 标记为失败",
+      "markRunSuccess": "将 $t(dagRun_one) 标记为成功",
+      "markTaskFailed": "将 $t(task_one) 标记为失败",
+      "markTaskGroupFailed": "将 $t(taskGroup_one) 标记为失败",
+      "markTaskGroupSuccess": "将 $t(taskGroup_one) 标记为成功",
+      "markTaskSuccess": "将 $t(task_one) 标记为成功",
+      "navigateTasks": "浏览 $t(task_other)",
+      "openGraphFilters": "打开图表筛选器",
+      "scrollBottom": "滚动到最下方",
+      "scrollTop": "滚动到最上方",
+      "searchDags": "搜索 $t(dag_other)",
+      "showHelp": "显示$t(shortcuts.title)",
+      "toggleExpand": "展开或收起所有分组",
+      "toggleFullscreen": "切换全屏",
+      "toggleGraphGrid": "切换图形与网格视图",
+      "toggleSource": "切换来源显示",
+      "toggleTaskGroup": "展开或收起$t(taskGroup_one)",
+      "toggleTimestamp": "切换时间戳显示",
+      "toggleWrap": "切换$t(wrap.wrap)"
+    },
+    "empty": "此页面没有可用的键盘快捷键。",
+    "title": "键盘快捷键"
+  },
   "showDetailsPanel": "显示详细信息",
   "signedInAs": "当前登录身份",
+  "slot": "槽位",
+  "slot_one": "槽位",
+  "slot_other": "槽位",
   "source": {
     "hide": "隐藏来源",
     "hotkey": "s",
@@ -248,6 +387,7 @@
     "up_for_retry": "等待重试",
     "upstream_failed": "上游任务失败"
   },
+  "switchDag": "切换 $t(dag_one)",
   "table": {
     "completedAt": "完成时间",
     "createdAt": "创建时间",
@@ -257,7 +397,10 @@
     "filterReset_other": "重置筛选",
     "from": "开始时间",
     "maxActiveRuns": "最大活跃执行数",
+    "noResultsFound": "找不到结果",
     "noTagsFound": "找不到标签",
+    "noTeamsFound": "找不到团队",
+    "ownerPlaceholder": "按拥有者筛选",
     "tagMode": {
       "all": "全部",
       "any": "任何"
@@ -267,10 +410,13 @@
     "updatedAt": "更新时间"
   },
   "task": {
+    "dependsOnPast": "依赖上次执行",
     "documentation": "任务文档",
     "lastInstance": "最后实例",
     "operator": "任务操作器",
-    "triggerRule": "触发规则"
+    "retries": "重试次数",
+    "triggerRule": "触发规则",
+    "waitForDownstream": "等待下游任务"
   },
   "task_one": "任务",
   "task_other": "任务",
@@ -281,10 +427,12 @@
   "taskGroup_other": "任务分组",
   "taskId": "任务 ID",
   "taskInstance": {
+    "additionalAttributes": "任务实例附加属性",
     "dagVersion": "Dag 版本",
     "executor": "执行器",
     "executorConfig": "执行器配置",
     "hostname": "主机名称",
+    "id": "ID",
     "maxTries": "最大尝试次数",
     "pid": "PID",
     "pool": "资源池",
@@ -294,11 +442,13 @@
     "queuedWhen": "开始排队时间",
     "renderedMapIndex": "已渲染映射索引",
     "scheduledWhen": "开始调度时间",
+    "trigger": "触发器",
     "triggerer": {
       "assigned": "指派的触发器",
       "class": "触发器类别",
       "createdAt": "触发器创建时间",
       "id": "触发器 ID",
+      "job": "触发器作业",
       "latestHeartbeat": "最新触发器心跳时间",
       "title": "触发器信息"
     },
@@ -306,6 +456,12 @@
   },
   "taskInstance_one": "任务实例",
   "taskInstance_other": "任务实例",
+  "teams": {
+    "more_one": "及其他 1 个团队",
+    "more_other": "及其他 {{count}} 个团队",
+    "none": "无团队",
+    "title": "团队"
+  },
   "timeRange": {
     "last12Hours": "最近 12 小时",
     "last24Hours": "最近 24 小时",
@@ -390,6 +546,7 @@
   "total": "总计 {{state}}",
   "triggered": "已触发",
   "tryNumber": "尝试次数",
+  "unpause": "取消暂停",
   "user": "用户",
   "validation": {
     "mustBeAtLeast": "不能小于 {{min}}。",

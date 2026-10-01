@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "Όλοι οι τύποι Εκτελέσεων",
     "allStates": "Όλες οι καταστάσεις",
-    "anyRunState": "Οποιαδήποτε εκτέλεση",
     "favorite": {
       "all": "Όλα",
       "favorite": "Αγαπημένο",
       "unfavorite": "Μη αγαπημένα"
     },
-    "lastRunState": "Τελευταία εκτέλεση",
     "paused": {
       "active": "Ενεργό",
       "all": "Όλα",

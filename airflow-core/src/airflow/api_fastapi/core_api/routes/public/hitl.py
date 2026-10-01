@@ -43,7 +43,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIStateFilter,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     datetime_range_filter_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import (
@@ -169,20 +171,21 @@ def update_hitl_detail(
     # Execution API park transition, so a human response racing the worker's park cannot deadlock.
     # Locking the TI also serializes respond-vs-clear (the clear path locks the TI, not the HITL row).
     locked_ti = (
-        session.get(TI, task_instance.id, with_for_update={"of": TI})
+        session.get(TI, task_instance.id, with_for_update={"of": TI}, populate_existing=True)
         if isinstance(task_instance, TI)
         else None
     )
     # Lock the hitl_detail row (FOR UPDATE OF hitl_detail). of= scopes the lock to hitl_detail, which
     # eager-joins task_instance (lazy="joined"); a bare with_for_update() would emit FOR UPDATE against
-    # the nullable side of that outer join, which Postgres rejects. The joinedloaded relationship object
-    # reused below is the same identity-mapped row, now locked for this transaction.
-    session.execute(
+    # the nullable side of that outer join, which Postgres rejects. populate_existing re-reads the
+    # joinedloaded row under the lock, so assignees and options are validated against the request committed
+    # by a concurrent upsert from the re-run, not the snapshot taken before locking.
+    hitl_detail_model = session.scalars(
         select(HITLDetailModel)
         .where(HITLDetailModel.ti_id == task_instance.id)
         .with_for_update(of=HITLDetailModel)
-    )
-    hitl_detail_model = task_instance.hitl_detail
+        .execution_options(populate_existing=True)
+    ).one()
     if hitl_detail_model.response_received:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -223,10 +226,10 @@ def update_hitl_detail(
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
         )
 
-    hitl_detail_model.responded_by = hitl_user
+    hitl_detail_model.responded_by = dict(hitl_user)
     hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
-    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+    hitl_detail_model.params_input = dict(update_hitl_detail_payload.params_input)
     session.add(hitl_detail_model)
 
     # Event-driven resume: if the task is parked waiting for this input, transition it directly,
@@ -344,6 +347,7 @@ def get_hitl_details(
     task_id_prefix_pattern: QueryHITLDetailTaskIdPrefixPatternSearch,
     map_index: QueryHITLDetailMapIndexFilter,
     ti_state: QueryTIStateFilter,
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(TI.dag_id))],
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
     responded_by_user_id: QueryHITLDetailRespondedUserIdFilter,
@@ -383,6 +387,7 @@ def get_hitl_details(
             task_id_prefix_pattern,
             map_index,
             ti_state,
+            teams,
             # hitl detail related filter
             response_received,
             responded_by_user_id,

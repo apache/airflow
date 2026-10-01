@@ -19,6 +19,8 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.10.1
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Qdrant tests."
     ports:
       - "6333:6333"

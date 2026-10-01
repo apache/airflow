@@ -68,10 +68,7 @@ VALUE_SETS: list[dict] = [
     {"executor": "CeleryKubernetesExecutor"},
     {"executor": "LocalExecutor"},
     {"executor": "LocalKubernetesExecutor"},
-    {
-        "executor": "CeleryExecutor",
-        "workers": {"keda": {"enabled": True}},
-    },
+    {"executor": "CeleryExecutor", "workers": {"celery": {"keda": {"enabled": True}}}},
     {"pgbouncer": {"enabled": True}},
     {
         "dags": {"persistence": {"enabled": True}},
@@ -91,7 +88,7 @@ VALUE_SETS: list[dict] = [
         "executor": "CeleryExecutor",
     },
     {
-        "workers": {"hpa": {"enabled": True}},
+        "workers": {"celery": {"hpa": {"enabled": True}}},
         "webserver": {
             "hpa": {"enabled": True},
             "podDisruptionBudget": {"enabled": True},

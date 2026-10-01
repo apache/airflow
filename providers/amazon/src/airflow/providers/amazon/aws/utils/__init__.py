@@ -36,12 +36,13 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# AWS briefly rejects a delete call with ResourceInUseException while the target resource is still
-# settling from a prior operation (e.g. EKS finalizing a nodegroup removal before the cluster can be
-# deleted). Retry with exponential backoff (1s, 2s, 4s, ... capped at RESOURCE_IN_USE_RETRY_MAX_WAIT
-# per wait) until RESOURCE_IN_USE_RETRY_TIMEOUT elapses, then give up and re-raise. This rides out the
-# settling window without hanging a genuinely wedged resource for long.
-RESOURCE_IN_USE_RETRY_TIMEOUT = 300
+# AWS rejects a delete call with ResourceInUseException while the target resource is still settling
+# from a prior operation (e.g. EKS finalizing a nodegroup removal before the cluster can be deleted).
+# Retry with exponential backoff (1s, 2s, 4s, ... capped at RESOURCE_IN_USE_RETRY_MAX_WAIT per wait)
+# until RESOURCE_IN_USE_RETRY_TIMEOUT elapses, then give up and re-raise. The window has to cover an
+# EKS cluster reporting "an update in progress" for over ten minutes after a Fargate profile became
+# ACTIVE, which is not observable through DescribeCluster (the cluster still reports ACTIVE).
+RESOURCE_IN_USE_RETRY_TIMEOUT = 900
 RESOURCE_IN_USE_RETRY_MAX_WAIT = 60
 
 

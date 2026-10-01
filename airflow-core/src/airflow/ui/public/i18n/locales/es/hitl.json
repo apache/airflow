@@ -8,10 +8,8 @@
       "received": "Revisadas"
     }
   },
-  "requiredAction_many": "Acciones Requeridas",
   "requiredAction_one": "Acción Requerida",
   "requiredAction_other": "Acciones Requeridas",
-  "requiredActionCount_many": "Acciones Requeridas ({{count}})",
   "requiredActionCount_one": "Acción Requerida ({{count}})",
   "requiredActionCount_other": "Acciones Requeridas ({{count}})",
   "requiredActionState": "Estado de Acción Requerida",
@@ -22,7 +20,7 @@
     "optionsLabel": "Opciones",
     "received": "Respuesta recibida en ",
     "respond": "Responder",
-    "responded_by_user_name": "Respondido por (Nombre de usuario)",
+    "responded_by_user_name": "Respondido por (Nombre de Usuario)",
     "success": "Respuesta de {{taskId}} exitosa",
     "title": "Instancia de Tarea Humana - {{taskId}}"
   },
@@ -41,14 +39,14 @@
     "viewAll": "Ver todas las acciones requeridas"
   },
   "state": {
-    "approvalReceived": "Aprobación recibida",
-    "approvalRequired": "Aprobación requerida",
-    "choiceReceived": "Elección recibida",
-    "choiceRequired": "Elección requerida",
-    "noResponseReceived": "No se recibió respuesta",
-    "rejectionReceived": "Rechazo recibido",
-    "responseReceived": "Respuesta recibida",
-    "responseRequired": "Respuesta requerida"
+    "approvalReceived": "Aprobación Recibida",
+    "approvalRequired": "Aprobación Requerida",
+    "choiceReceived": "Elección Recibida",
+    "choiceRequired": "Elección Requerida",
+    "noResponseReceived": "Respuesta No Recibida",
+    "rejectionReceived": "Rechazo Recibido",
+    "responseReceived": "Respuesta Recibida",
+    "responseRequired": "Respuesta Requerida"
   },
   "subject": "Asunto"
 }

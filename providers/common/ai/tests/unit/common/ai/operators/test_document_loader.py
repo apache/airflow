@@ -23,50 +23,73 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
+from airflow.sdk import DAG
 
 
 class TestDocumentLoaderInit:
     def test_template_fields_render_source_path_and_metadata(self):
-        """
-        Behavioral check that the templated fields actually get rendered.
-        Replaces the previous tautological assertion that just round-tripped
-        the class attribute.
-        """
+        """The templated fields are substituted by render_template_fields, not merely listed."""
         op = DocumentLoaderOperator(
             task_id="test",
             source_path="/data/{{ ds }}/*.pdf",
-            file_type="{{ var.value.preferred_ext }}",
+            file_type="{{ params.preferred_ext }}",
             metadata_fields={"run_id": "{{ run_id }}"},
         )
-        # Make sure each one is in template_fields so render_template_fields
-        # would substitute them.
-        assert "source_path" in op.template_fields
-        assert "file_type" in op.template_fields
-        assert "file_extensions" in op.template_fields
-        assert "parser" in op.template_fields
-        assert "metadata_fields" in op.template_fields
+
+        op.render_template_fields(
+            context={"ds": "2026-01-01", "run_id": "manual__1", "params": {"preferred_ext": ".pdf"}}
+        )
+
+        assert op.source_path == "/data/2026-01-01/*.pdf"
+        assert op.file_type == ".pdf"
+        assert op.metadata_fields == {"run_id": "manual__1"}
         # source_bytes intentionally not templated -- Jinja stringifies bytes
         # to their repr, which would break binary parsing.
         assert "source_bytes" not in op.template_fields
 
     def test_both_sources_raises(self):
-        op = DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
+        # source_path/source_bytes provision is a constructor-time check now.
         with pytest.raises(ValueError, match="not both"):
-            op.execute(context={})
+            DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
 
     def test_neither_source_raises(self):
-        op = DocumentLoaderOperator(task_id="test")
         with pytest.raises(ValueError, match="Provide exactly one"):
+            DocumentLoaderOperator(task_id="test")
+
+    def test_source_bytes_without_file_type_raises_at_construction(self):
+        # Whether file_type was supplied at all is knowable without rendering, so it is a
+        # Dag-parse-time error like the source_path/source_bytes pair above it.
+        with pytest.raises(ValueError, match="'file_type' is required"):
+            DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
+
+    def test_empty_bytes_without_file_type_raises_at_construction(self):
+        with pytest.raises(ValueError, match="'file_type' is required"):
+            DocumentLoaderOperator(task_id="test", source_bytes=b"")
+
+    def test_source_path_rendering_to_none_raises(self):
+        """A supplied source_path that renders to None raises ValueError, not TypeError.
+
+        Driven through real templating rather than by assigning the attribute, so the test
+        fails if the field ever stops being rendered.
+        """
+        with DAG(dag_id="native", schedule=None, render_template_as_native_obj=True):
+            op = DocumentLoaderOperator(task_id="test", source_path="{{ none }}")
+
+        op.render_template_fields(context={})
+        assert op.source_path is None
+
+        with pytest.raises(ValueError, match="'source_path' was supplied but rendered to None"):
             op.execute(context={})
 
-    def test_source_bytes_without_file_type_raises(self):
-        op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
-        with pytest.raises(ValueError, match="file_type"):
-            op.execute(context={})
+    def test_file_type_rendering_to_none_raises(self):
+        """file_type passes the __init__ guard when supplied, then renders away to None."""
+        with DAG(dag_id="native", schedule=None, render_template_as_native_obj=True):
+            op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello", file_type="{{ none }}")
 
-    def test_empty_bytes_without_file_type_raises(self):
-        op = DocumentLoaderOperator(task_id="test", source_bytes=b"")
-        with pytest.raises(ValueError, match="file_type"):
+        op.render_template_fields(context={})
+        assert op.file_type is None
+
+        with pytest.raises(ValueError, match="'file_type' was supplied but rendered to None"):
             op.execute(context={})
 
 
@@ -190,6 +213,73 @@ class TestJsonParser:
         result = op.execute(context=MagicMock())
 
         assert len(result) == 2
+
+
+class TestJsonLinesParser:
+    def test_one_document_per_non_empty_line(self, tmp_path):
+        f = tmp_path / "items.jsonl"
+        f.write_text('{"title": "First"}\n\n[1, 2]\n', encoding="utf-8")
+
+        op = DocumentLoaderOperator(task_id="test", source_path=str(f))
+        result = op.execute(context=MagicMock())
+
+        assert len(result) == 2
+        assert result[0]["text"] == "title: First"
+        assert result[1]["text"] == "[1, 2]"
+        assert [doc["metadata"]["item_index"] for doc in result] == [0, 1]
+
+    def test_source_bytes_uses_json_text_field(self):
+        raw = b'{"body": "First", "source": "a"}\n{"body": "Second", "source": "b"}\n'
+        op = DocumentLoaderOperator(
+            task_id="test",
+            source_bytes=raw,
+            file_type=".jsonl",
+            json_text_field="body",
+        )
+        result = op.execute(context=MagicMock())
+
+        assert [doc["text"] for doc in result] == ["First", "Second"]
+        assert [doc["metadata"]["source"] for doc in result] == ["a", "b"]
+
+    def test_invalid_json_line(self):
+        raw = b'{"valid": true}\n\n{"invalid": }\n'
+        op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".jsonl")
+
+        with pytest.raises(
+            ValueError, match=r"Failed to parse <bytes:\.jsonl>: invalid JSON on line 3, column 13"
+        ):
+            op.execute(context=MagicMock())
+
+    def test_invalid_json_line_in_file_names_source(self, tmp_path):
+        f = tmp_path / "invalid.jsonl"
+        f.write_text('{"valid": true}\n{"invalid": }\n', encoding="utf-8")
+        op = DocumentLoaderOperator(task_id="test", source_path=str(f))
+
+        with pytest.raises(ValueError, match=r"invalid JSON on line 2, column 13") as exc_info:
+            op.execute(context=MagicMock())
+
+        assert str(f) in str(exc_info.value)
+
+    def test_line_separator_inside_string_is_not_a_record_break(self):
+        # U+2028 is a legal unescaped character inside a JSON string, but str.splitlines()
+        # breaks on it, which would tear this record in two and shift every later line number.
+        raw = '{"a": "x\u2028y"}\n{"b": 1}\n'.encode()
+        op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".jsonl")
+
+        result = op.execute(context=MagicMock())
+
+        assert len(result) == 2
+        assert result[0]["text"] == "a: x\u2028y"
+        assert result[1]["text"] == "b: 1"
+
+    def test_directory_recognizes_jsonl_extension(self, tmp_path):
+        (tmp_path / "items.jsonl").write_text('{"name": "kept"}\n', encoding="utf-8")
+
+        op = DocumentLoaderOperator(task_id="test", source_path=str(tmp_path))
+        result = op.execute(context=MagicMock())
+
+        assert len(result) == 1
+        assert result[0]["text"] == "name: kept"
 
 
 def _make_mock_pypdf_module(mock_reader):

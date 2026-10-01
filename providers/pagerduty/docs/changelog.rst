@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+5.2.7
+.....
+
+.. note::
+    The minimum required version of the ``pagerduty`` SDK is now ``7.0.0``, which replaced
+    ``httpx`` with ``httpx2``. Deployments pinning an older SDK must upgrade it alongside this
+    provider. The provider's own hooks and notifier are unchanged.
+
+Misc
+~~~~
+
+* ``Require ''pagerduty'' SDK 7.0.0 or newer (#72111)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Bump aiohttp regarding dependabot warning (#67978)``
+
 5.2.6
 .....
 

@@ -20,6 +20,7 @@ import { Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
+
 import { HITLResponseForm } from "src/pages/HITLTaskInstances/HITLResponseForm.tsx";
 
 import { HITLReviewDetailSummary } from "./HITLReviewDetailSummary.tsx";

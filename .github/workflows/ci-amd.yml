@@ -130,6 +130,7 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
+      run-agent-framework-tests: ${{ steps.selective-checks.outputs.run-agent-framework-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
@@ -238,7 +239,7 @@ jobs:
   print-platform:
     name: "Platform: AMD"
     needs: [build-info]
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     steps:
       - name: "Print architecture"
         run: "echo '## Architecture: AMD' >> $GITHUB_STEP_SUMMARY"
@@ -387,7 +388,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
       - name: "MyPy checks for providers"
@@ -429,7 +429,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
       - name: "Migration round-trip check"
@@ -600,6 +599,7 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
+      job-timeout-minutes: 80
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1044,7 +1044,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Java
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1139,6 +1139,23 @@ jobs:
       test-timeout: 20
     if: needs.build-info.outputs.run-airflow-ctl-tests == 'true'
 
+  tests-agent-frameworks:
+    name: "Agent framework tests"
+    uses: ./.github/workflows/agent-framework-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+    # Not a dependency of finalize-tests: on a canary run the frameworks' own pins win, and a
+    # breaking framework release should not stop finalize-tests from pushing the image cache.
+    if: needs.build-info.outputs.run-agent-framework-tests == 'true'
+
   finalize-tests:
     name: Finalize tests
     permissions:
@@ -1198,12 +1215,13 @@ jobs:
     needs:
       - build-info
       - finalize-tests
+      - tests-agent-frameworks
     if: >-
       always() &&
       !cancelled() &&
       github.event_name == 'schedule' &&
       github.run_attempt == 1
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

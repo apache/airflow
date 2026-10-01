@@ -20,8 +20,11 @@ import { Box, Table } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import { SqlParserProvider } from "src/components/SqlParserProvider";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+
 import { useColorMode } from "src/context/colorMode";
 import { detectLanguage } from "src/utils/detectLanguage";
 import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
@@ -61,10 +64,22 @@ const RenderedTemplatesContent = () => {
                           opacity: 1,
                         },
                       }}
+                      position="relative"
                     >
                       <Box borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
                         <SyntaxHighlighter
+                          // The prism theme hard-codes `white-space: pre` on the code tag, which
+                          // silently defeats `wrapLongLines` unless we override it here.
+                          codeTagProps={{ style: { whiteSpace: "pre-wrap", wordBreak: "break-word" } }}
                           language={language}
+                          lineNumberStyle={{ minWidth: "2.5em" }}
+                          // Combining `wrapLongLines` with `showLineNumbers` makes the library lay
+                          // each line out as a flex container, so every highlighted token becomes a
+                          // block-level flex item and copied text breaks after each one. The hanging
+                          // indent keeps wrapped lines clear of the gutter (2.5em number + 1em pad).
+                          lineProps={{
+                            style: { display: "block", paddingLeft: "3.5em", textIndent: "-3.5em" },
+                          }}
                           PreTag="pre"
                           showLineNumbers
                           style={style}
@@ -75,11 +90,10 @@ const RenderedTemplatesContent = () => {
                       </Box>
                       <ClipboardRoot
                         className="copy-button"
-                        float="right"
-                        marginTop="-3.5rem"
                         opacity={0}
-                        position="sticky"
+                        position="absolute"
                         right={4}
+                        top={6}
                         transition="opacity 0.2s ease-in-out"
                         value={renderedValue}
                       >

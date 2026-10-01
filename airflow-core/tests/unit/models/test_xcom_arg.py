@@ -18,9 +18,12 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.models.expandinput import NotFullyPopulated
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.serialization.definitions.notset import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -221,3 +224,45 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
         dag_maker.run_ti(task_id=ti.task_id, map_index=ti.map_index, dag_run=dr, session=session)
 
     assert results == expected_results
+
+
+def test_mapped_length_dies_with_the_pushed_value(dag_maker, session):
+    """Purging the producer's XCom must take its mapped length with it.
+
+    The retry-time purge is issued worker-side so custom XCom backends are purged too; it
+    deletes XCom rows only. With the length on the row, a downstream expanding while the
+    producer retries correctly sees "not ready" instead of a length for a value that is gone.
+    """
+    with dag_maker(session=session, serialized=True) as dag:
+
+        @dag.task
+        def emit():
+            return [1, 2, 3]
+
+        @dag.task
+        def consume(value): ...
+
+        consume.expand(value=emit())
+
+    dr = dag_maker.create_dagrun()
+    dag_maker.run_ti(task_id="emit", dag_run=dr, session=session)
+    session.commit()
+
+    consume_task = dag_maker.serialized_dag.get_task("consume")
+    assert get_mapped_ti_count(consume_task, dr.run_id, session=session) == 3
+
+    XComModel.clear(dag_id=dr.dag_id, task_id="emit", run_id=dr.run_id, map_index=-1, session=session)
+
+    with pytest.raises(NotFullyPopulated):
+        get_mapped_ti_count(consume_task, dr.run_id, session=session)
+
+    XComModel.set(
+        key=XCOM_RETURN_KEY,
+        value=[1, 2],
+        dag_id=dr.dag_id,
+        task_id="emit",
+        run_id=dr.run_id,
+        mapped_length=2,
+        session=session,
+    )
+    assert get_mapped_ti_count(consume_task, dr.run_id, session=session) == 2

@@ -118,7 +118,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         # fix mypy typing
         self.base_container_name: str
-        self.container_logs: list[str]
 
         if self.base_container_name != self.BASE_CONTAINER_NAME:
             self.log.warning(

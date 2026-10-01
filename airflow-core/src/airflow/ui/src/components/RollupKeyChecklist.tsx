@@ -19,7 +19,7 @@
 import { Button, HStack, Text, VStack } from "@chakra-ui/react";
 import { FiCheck, FiMinus } from "react-icons/fi";
 
-import { Popover } from "src/components/ui";
+import { Popover } from "src/system-components";
 
 type ChecklistProps = {
   readonly receivedKeys: ReadonlyArray<string>;

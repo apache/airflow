@@ -69,7 +69,13 @@ class SFTPToWasbOperator(BaseOperator):
         useful if the target container may not exist yet. Defaults to False.
     """
 
-    template_fields: Sequence[str] = ("sftp_source_path", "container_name", "blob_prefix")
+    template_fields: Sequence[str] = (
+        "sftp_source_path",
+        "container_name",
+        "blob_prefix",
+        "sftp_conn_id",
+        "wasb_conn_id",
+    )
 
     def __init__(
         self,

@@ -28,14 +28,29 @@
   "group": "그룹",
   "health": {
     "dagProcessor": "Dag 프로세서",
+    "degraded": "기능 저하",
+    "degradedHint": {
+      "dagProcessor": "설정된 일부 Dag 번들을 파싱하는 Dag 프로세서가 없습니다.",
+      "triggerer": "일부 팀에는 연기된 태스크를 실행하는 트리거러가 없습니다."
+    },
+    "down": "미가동",
     "health": "상태",
     "healthy": "정상",
+    "instances": {
+      "bundles": "번들",
+      "hostname": "호스트",
+      "team": "팀",
+      "title_one": "{{title}} — {{status}} (인스턴스 {{count}}개)",
+      "title_other": "{{title}} — {{status}} (인스턴스 {{count}}개)",
+      "unknownHostname": "알 수 없는 호스트"
+    },
     "lastHeartbeat": "마지막 Heartbeat",
     "metaDatabase": "메타데이터베이스",
     "scheduler": "스케줄러",
     "status": "상태",
     "triggerer": "트리거러",
-    "unhealthy": "비정상"
+    "unhealthy": "비정상",
+    "unknownStatus": "알 수 없음"
   },
   "history": "기록",
   "importErrors": {

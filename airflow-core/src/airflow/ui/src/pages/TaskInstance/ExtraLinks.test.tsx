@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import * as queries from "openapi/queries";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { ExtraLinks } from "./ExtraLinks";

@@ -379,8 +379,8 @@ def _get_providers_class_registry(
                         .replace("/", ".")
                     ),
                     class_extras={
-                        "provider_name": lambda **kwargs: provider_yaml_content["package-name"],
-                        "provider_version": lambda **kwargs: provider_yaml_content["versions"][0],
+                        "provider_name": lambda pyc=provider_yaml_content, **kwargs: pyc["package-name"],
+                        "provider_version": lambda pyc=provider_yaml_content, **kwargs: pyc["versions"][0],
                         **(class_extras or {}),
                     },
                 )

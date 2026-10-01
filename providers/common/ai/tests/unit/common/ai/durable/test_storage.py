@@ -192,6 +192,15 @@ class TestSaveLoadToolResult:
         assert found is False
 
 
+class TestSaveReturnsWhetherWritten:
+    def test_written_entries_return_true(self, storage, sample_response):
+        assert storage.save_model_response("model_step_0", sample_response, fingerprint="fp") is True
+        assert storage.save_tool_result("tool_step_1", {"rows": [1]}, fingerprint="fp") is True
+
+    def test_non_serializable_tool_result_returns_false(self, storage):
+        assert storage.save_tool_result("tool_step_0", object(), fingerprint="fp") is False
+
+
 class TestMalformedEntries:
     def test_empty_data_list_degrades_to_miss(self, storage):
         """A torn entry whose data list is empty loads as a miss, not an IndexError."""

@@ -905,7 +905,7 @@ FUTURE_CONTENT = "from __future__ import annotations"
     type=click.Choice(ALLOWED_CONSTRAINTS_MODE),
     default=ALLOWED_CONSTRAINTS_MODE[0],
     show_envvar=True,
-    envvar="AIRFLOW_CONSTRAINTS_MODE",
+    envvar="PROVIDERS_CONSTRAINTS_MODE",
     help="Providers constraints mode.",
 )
 @click.option(

@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren, ReactNode } from "react";
+
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { PropsWithChildren, ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -206,7 +207,7 @@ describe("TaskTrySelect", () => {
     await expectTries([1, 2, 3, 4]);
   });
 
-  it("uses a real current try but not retry or null placeholders", async () => {
+  it("uses the current try state including pending retries and cleared tries", async () => {
     const queryClient = createQueryClient();
     const params = {
       dagId: DAG_ID,
@@ -242,7 +243,7 @@ describe("TaskTrySelect", () => {
         taskInstance={buildTaskInstance("mapped_task", 2, { mapIndex: 1, state: "up_for_retry" })}
       />,
     );
-    expectTryState(2, "failed");
+    expectTryState(2, "up_for_retry");
 
     rerender(
       <TaskTrySelect
@@ -251,7 +252,7 @@ describe("TaskTrySelect", () => {
         taskInstance={buildTaskInstance("mapped_task", 2, { mapIndex: 1, state: null })}
       />,
     );
-    expectTryState(2, "failed");
+    expect(screen.getByTestId("log-attempt-select-button-2").querySelector("[data-state]")).toBeNull();
 
     fireEvent.click(screen.getByTestId("log-attempt-select-button-1"));
     expect(onSelectTryNumber).toHaveBeenCalledOnce();

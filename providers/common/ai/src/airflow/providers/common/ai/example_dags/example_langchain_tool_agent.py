@@ -85,7 +85,7 @@ from airflow.sdk import Param
 # ---------------------------------------------------------------------------
 
 LLM_CONN_ID = "langchain_default"
-LLM_MODEL = os.environ.get("LLM_MODEL", "openai:gpt-4o")
+LLM_MODEL = os.environ.get("LLM_MODEL", "openai:gpt-5")
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "openai:text-embedding-3-small")
 
 DOCS_PATH = os.environ.get("DOCS_PATH", "/opt/airflow/data/rag_documents")

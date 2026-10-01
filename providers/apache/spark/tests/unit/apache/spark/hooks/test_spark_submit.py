@@ -1631,7 +1631,7 @@ class TestSparkSubmitHook:
         succeeded_pod = V1Pod(status=V1PodStatus(phase="Succeeded"))
         mock_client.read_namespaced_pod.side_effect = [running_pod, succeeded_pod]
 
-        with patch.object(hook, "_run_post_submit_commands"):
+        with patch.object(hook, "_run_post_submit_commands"), patch("time.sleep"):
             hook._poll_k8s_driver_via_api()
 
         assert mock_client.delete_namespaced_pod.call_args.args[:2] == ("spark-app-abc-driver", "mynamespace")

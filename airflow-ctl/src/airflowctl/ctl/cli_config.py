@@ -30,7 +30,7 @@ import sys
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
-from functools import partial
+from functools import cached_property, partial
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -104,6 +104,17 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "[red]Client error, [/red] "
                 "Please check the command and its parameters. "
                 "If you need help, run the command with --help."
+            )
+        sys.exit(1)
+    # Must stay below ``ServerResponseError``, which subclasses it. Responses the client could not
+    # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
+    # as the bare httpx error.
+    except httpx.HTTPStatusError as e:
+        rich.print(f"[red]Server response error: {e}[/red]")
+        if e.response.is_redirect:
+            rich.print(
+                "[red]The server answered with a redirect, which airflowctl does not follow. "
+                "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
             )
         sys.exit(1)
 
@@ -483,7 +494,7 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
-    output_command_list: list[str]
+    auth_environment_command_list: list[str]
     exclude_operation_names: list[str]
     exclude_method_names: list[str]
     help_texts: dict[str, dict[str, str]]
@@ -500,8 +511,7 @@ class CommandFactory:
         # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
-        # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = [
+        self.auth_environment_command_list = [
             "list",
             "get",
             "create",
@@ -510,6 +520,7 @@ class CommandFactory:
             "trigger",
             "add",
             "edit",
+            "set",
             "clear",
         ]
         # Datamodels whose generated bool flags follow the datamodel field defaults instead of
@@ -641,7 +652,7 @@ class CommandFactory:
             "bool": bool,
             "str": str,
             "bytes": bytes,
-            "list": list,
+            "list": string_list_type,
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
@@ -709,8 +720,8 @@ class CommandFactory:
         """Create Arg for non-primitive type Pydantic."""
         parameter_type_map = getattr(generated_datamodels, parameter_type)
         commands = []
-        if parameter_type_map not in self.datamodels_extended_map.keys():
-            self.datamodels_extended_map[parameter_type] = []
+        # Rebuilt per visit: datamodels are shared across operations, so appending would duplicate fields.
+        self.datamodels_extended_map[parameter_type] = []
         for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
@@ -785,8 +796,11 @@ class CommandFactory:
                             )
                         )
 
-            if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
-                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
+            args.append(ARG_OUTPUT)
+            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
+            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
+            if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
+                args.append(ARG_AUTH_ENVIRONMENT)
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
@@ -958,9 +972,15 @@ class CommandFactory:
                 )
             )
 
-    @property
+    @cached_property
     def group_commands(self) -> list[CLICommand]:
-        """List of GroupCommands generated for airflowctl."""
+        """
+        List of GroupCommands generated for airflowctl.
+
+        Cached because the builders below append to ``self.operations`` /
+        ``self.commands_map`` / ``self.group_commands_list``: recomputing would
+        duplicate every group and subcommand instead of replacing them.
+        """
         self._inspect_operations()
         self._create_args_map_from_operation()
         self._create_func_map_from_operation()
@@ -1122,6 +1142,15 @@ DAG_COMMANDS = (
             ARG_DAG_CLEAR_ONLY_FAILED,
             ARG_DAG_CLEAR_ONLY_RUNNING,
             ARG_DAG_CLEAR_YES,
+        ),
+    ),
+    ActionCommand(
+        name="drain",
+        help="Drain a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.drain"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
         ),
     ),
     ActionCommand(

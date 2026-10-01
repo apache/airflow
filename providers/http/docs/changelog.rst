@@ -27,6 +27,49 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SRV DNS record support to HTTP Operator (#70960)``
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve DELETE request bodies in HttpAsyncHook (#72720)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add warning for HttpOperator deferrable with non-idempotent methods (#69748)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HttpOperator deferrable pagination returning only the last page (#72388)``
+* ``Keep HttpEventTrigger asset watchers polling after a failed request (#72376)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Add unit tests for HTTP provider exceptions (#69231)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
+   * ``Remove stale type-ignore TODO in HTTP hook run_with_advanced_retry (#67685)``
+
 6.0.5
 .....
 

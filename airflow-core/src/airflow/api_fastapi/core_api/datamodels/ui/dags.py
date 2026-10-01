@@ -30,6 +30,7 @@ class DAGWithLatestDagRunsResponse(DAGResponse):
 
     asset_expression: MaybeAssetExpression
     latest_dag_runs: list[DAGRunLightResponse]
+    has_unfinished_runs: bool
     pending_actions: list[HITLDetail]
     is_favorite: bool
     team_name: str | None = None

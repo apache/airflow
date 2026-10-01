@@ -829,6 +829,43 @@ class TestPodTemplateFile:
             "allowPrivilegeEscalation": False
         }
 
+    def test_pod_security_context_disable_defaults(self):
+        docs = render_chart(
+            values={"securityContexts": {"disableDefaults": True}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) is None
+
+    def test_container_security_context_disable_defaults(self):
+        docs = render_chart(
+            values={"securityContexts": {"disableDefaults": True}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContexts": {"disableDefaults": True, "pod": {"runAsUser": 10}}},
+            {
+                "securityContexts": {"disableDefaults": True},
+                "workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            },
+        ],
+    )
+    def test_pod_security_context_set_overrides_disable_defaults(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
     def test_should_add_gid_to_the_pod_template(self):
         docs = render_chart(
             values={"gid": 1},
@@ -1453,6 +1490,30 @@ class TestPodTemplateFile:
 
         assert initContainers["name"] == "kerberos-init"
         assert initContainers["args"] == ["kerberos", "-o"]
+
+    @pytest.mark.parametrize("readonly_cache", [False, True])
+    def test_kerberos_readonly_cache(self, readonly_cache: bool):
+        docs = render_chart(
+            name="test-release",
+            values={
+                "workers": {
+                    "kubernetes": {
+                        "readonlyKerberosCache": readonly_cache,
+                    },
+                },
+                "kerberos": {"enabled": True},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert (
+            jmespath.search(
+                "spec.containers[?name=='base'].volumeMounts | [] | [?name=='kerberos-ccache'] | [0].readOnly",
+                docs[0],
+            )
+            == readonly_cache
+        )
 
     @pytest.mark.parametrize(
         ("workers_values", "expected"),

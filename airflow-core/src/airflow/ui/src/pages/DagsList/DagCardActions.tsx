@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
@@ -26,7 +27,13 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 export const DagCardActions = ({ dag }: { readonly dag: DAGWithLatestDagRunsResponse }) => (
   <>
     <NeedsReviewBadge pendingActions={dag.pending_actions} />
-    <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+    <TogglePause
+      dagDisplayName={dag.dag_display_name}
+      dagId={dag.dag_id}
+      hasUnfinishedRuns={dag.has_unfinished_runs}
+      isPaused={dag.is_paused}
+      schedulingState={dag.scheduling_state}
+    />
     <TriggerDAGButton
       allowedRunTypes={dag.allowed_run_types}
       dagDisplayName={dag.dag_display_name}

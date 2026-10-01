@@ -28,14 +28,29 @@
   "group": "Group",
   "health": {
     "dagProcessor": "Dag Processor",
+    "degraded": "Degraded",
+    "degradedHint": {
+      "dagProcessor": "Some configured Dag bundles have no Dag processor parsing them.",
+      "triggerer": "Some teams have no triggerer running deferred tasks for them."
+    },
+    "down": "Down",
     "health": "Health",
     "healthy": "Healthy",
+    "instances": {
+      "bundles": "Bundles",
+      "hostname": "Host",
+      "team": "Team",
+      "title_one": "{{title}} — {{status}} ({{count}} instance)",
+      "title_other": "{{title}} — {{status}} ({{count}} instances)",
+      "unknownHostname": "Unknown host"
+    },
     "lastHeartbeat": "Last Heartbeat",
     "metaDatabase": "MetaDatabase",
     "scheduler": "Scheduler",
     "status": "Status",
     "triggerer": "Triggerer",
-    "unhealthy": "Unhealthy"
+    "unhealthy": "Unhealthy",
+    "unknownStatus": "Unknown"
   },
   "history": "History",
   "importErrors": {

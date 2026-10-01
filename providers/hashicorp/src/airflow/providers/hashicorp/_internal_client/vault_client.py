@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from functools import cached_property
+from typing import TypeVar
 
 import hvac
 from hvac.api.auth_methods import Kubernetes
-from hvac.exceptions import InvalidPath, VaultError
+from hvac.exceptions import Forbidden, InvalidPath, VaultError
 from requests import Response, Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -30,6 +32,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_KV_ENGINE_VERSION = 2
+
+T = TypeVar("T")
 
 
 VALID_KV_VERSIONS: list[int] = [1, 2]
@@ -204,15 +208,42 @@ class _VaultClient(LoggingMixin):
     @property
     def client(self):
         """
-        Checks that it is still authenticated to Vault and invalidates the cache if this is not the case.
+        Return the client, authenticating on first use.
+
+        The token is not validated here. Vault answers 403 for an expired token and for a path the
+        token may not read, so a probe before every request costs a round trip that cannot tell the
+        two apart. Callers go through :meth:`_run_with_reauth`, which authenticates again and retries
+        once when Vault rejects the token.
 
         :return: Vault Client
         """
-        if not self._client.is_authenticated():
-            # Invalidate the cache:
-            # https://github.com/pydanny/cached-property#invalidating-the-cache
-            self.__dict__.pop("_client", None)
         return self._client
+
+    def _invalidate_client(self) -> None:
+        """Drop the cached client so that the next access authenticates again."""
+        self.__dict__.pop("_client", None)
+
+    def _run_with_reauth(self, operation: Callable[[hvac.Client], T]) -> T:
+        """
+        Run a Vault request, authenticating again and retrying it once if the token is rejected.
+
+        Only ``Forbidden`` is treated as a rejected token. ``InvalidPath`` means the secret is
+        absent and callers turn it into ``None``, and ``InvalidRequest`` covers request-level
+        failures conflicting on a write. Neither is fixed by authenticating again, so both are
+        left to propagate to the caller that knows what they mean.
+
+        :param operation: Callable issuing a single request against the client it is given.
+        :return: Whatever ``operation`` returns.
+        """
+        try:
+            return operation(self.client)
+        except Forbidden:
+            self.log.debug("Vault rejected the token. Authenticating again and retrying once.")
+            self._invalidate_client()
+            try:
+                return operation(self.client)
+            except Forbidden as retry_error:
+                raise VaultError("Vault Authentication Error!") from retry_error
 
     @cached_property
     def _client(self) -> hvac.Client:
@@ -268,9 +299,12 @@ class _VaultClient(LoggingMixin):
         else:
             raise VaultError(f"Authentication type '{self.auth_type}' not supported")
 
-        if _client.is_authenticated():
-            return _client
-        raise VaultError("Vault Authentication Error!")
+        # The login response above already carries the token, so asking Vault to confirm it would be
+        # a wasted round trip. Only the free half of hvac's is_authenticated() is kept, catching an
+        # auth method that never produced a token before the first request goes out.
+        if not _client.token:
+            raise VaultError("Vault Authentication Error!")
+        return _client
 
     def _auth_userpass(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
@@ -495,13 +529,17 @@ class _VaultClient(LoggingMixin):
             if self.kv_engine_version == 1:
                 if secret_version:
                     raise VaultError("Secret version can only be used with version 2 of the KV engine")
-                response = self.client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
+                response = self._run_with_reauth(
+                    lambda client: client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
+                )
             else:
-                response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path,
-                    mount_point=mount_point,
-                    version=secret_version,
-                    raise_on_deleted_version=True,
+                response = self._run_with_reauth(
+                    lambda client: client.secrets.kv.v2.read_secret_version(
+                        path=secret_path,
+                        mount_point=mount_point,
+                        version=secret_version,
+                        raise_on_deleted_version=True,
+                    )
                 )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
@@ -525,7 +563,11 @@ class _VaultClient(LoggingMixin):
         mount_point = None
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
-            return self.client.secrets.kv.v2.read_secret_metadata(path=secret_path, mount_point=mount_point)
+            return self._run_with_reauth(
+                lambda client: client.secrets.kv.v2.read_secret_metadata(
+                    path=secret_path, mount_point=mount_point
+                )
+            )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
             return None
@@ -549,11 +591,13 @@ class _VaultClient(LoggingMixin):
         mount_point = None
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
-            return self.client.secrets.kv.v2.read_secret_version(
-                path=secret_path,
-                mount_point=mount_point,
-                version=secret_version,
-                raise_on_deleted_version=True,
+            return self._run_with_reauth(
+                lambda client: client.secrets.kv.v2.read_secret_version(
+                    path=secret_path,
+                    mount_point=mount_point,
+                    version=secret_version,
+                    raise_on_deleted_version=True,
+                )
             )
         except InvalidPath:
             self.log.debug(
@@ -591,11 +635,15 @@ class _VaultClient(LoggingMixin):
             raise VaultError("The cas parameter is only valid for version 2")
         mount_point, secret_path = self._parse_secret_path(secret_path)
         if self.kv_engine_version == 1:
-            response = self.client.secrets.kv.v1.create_or_update_secret(
-                path=secret_path, secret=secret, mount_point=mount_point, method=method
+            response = self._run_with_reauth(
+                lambda client: client.secrets.kv.v1.create_or_update_secret(
+                    path=secret_path, secret=secret, mount_point=mount_point, method=method
+                )
             )
         else:
-            response = self.client.secrets.kv.v2.create_or_update_secret(
-                path=secret_path, secret=secret, mount_point=mount_point, cas=cas
+            response = self._run_with_reauth(
+                lambda client: client.secrets.kv.v2.create_or_update_secret(
+                    path=secret_path, secret=secret, mount_point=mount_point, cas=cas
+                )
             )
         return response

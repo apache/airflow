@@ -21,6 +21,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { AssetEvent } from "./AssetEvent";

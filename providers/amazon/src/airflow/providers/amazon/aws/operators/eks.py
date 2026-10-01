@@ -359,6 +359,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                 trigger=EksCreateClusterTrigger(
                     cluster_name=self.cluster_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -411,6 +413,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     force_delete_compute=False,
                 ),
@@ -445,6 +449,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                         region_name=self.region_name,
                     ),
                     method_name="execute_complete",
@@ -456,6 +462,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                         nodegroup_name=self.nodegroup_name,
                         cluster_name=self.cluster_name,
                         aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                         region_name=self.region_name,
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
@@ -600,6 +608,8 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -714,6 +724,8 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,
@@ -805,6 +817,8 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     force_delete_compute=self.force_delete_compute,
                 ),
@@ -872,7 +886,9 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "success":
+        # EksDeleteClusterTrigger yields status "deleted" when the cluster is gone.
+        # Also accept "success" so a future transition to the usual event keeps working.
+        if validated_event["status"] in ("deleted", "success"):
             self.log.info("Cluster deleted successfully.")
 
 
@@ -946,6 +962,8 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1038,6 +1056,8 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,

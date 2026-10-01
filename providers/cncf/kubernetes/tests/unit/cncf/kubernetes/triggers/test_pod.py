@@ -23,15 +23,18 @@ import datetime
 import logging
 import time
 from asyncio import Future
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
+from sqlalchemy.orm.session import Session
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
@@ -978,8 +981,6 @@ class TestKubernetesPodTrigger:
         # response is missing the expected (composite) key, so callers
         # like ``safe_to_cancel`` keep the same behaviour they had before
         # the lookup was fixed.
-        from airflow.exceptions import AirflowException
-
         run_id = "manual__2026-05-21T00:00:00+00:00"
         # Response has the run_id but not the (``map_group.task_a``, ``2``)
         # entry -- e.g. supervisor has not observed the TI yet.
@@ -996,8 +997,41 @@ class TestKubernetesPodTrigger:
             dag_id="my_dag", task_id="map_group.task_a", run_id=run_id, map_index=2
         )
 
-        with pytest.raises(AirflowException, match="TaskInstance with dag_id"):
+        with pytest.raises(AirflowException) as exc_info:
             await trigger.get_task_state()
+
+        assert str(exc_info.value) == (
+            "TaskInstance with dag_id: my_dag, task_id: map_group.task_a, "
+            f"run_id: {run_id} and map_index: 2 is not found"
+        )
+
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_0_PLUS,
+        reason="get_task_instance reads the metadata DB on Airflow 2.x only",
+    )
+    def test_get_task_instance_reports_identifiers_when_row_missing(self):
+        run_id = "manual__2026-05-21T00:00:00+00:00"
+        session = mock.MagicMock(spec=Session)
+        session.scalar.return_value = None
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+        )
+        trigger.task_instance = SimpleNamespace(
+            dag_id="my_dag", task_id="my_task", run_id=run_id, map_index=-1
+        )
+
+        with pytest.raises(AirflowException) as exc_info:
+            trigger.get_task_instance(session=session)
+
+        assert str(exc_info.value) == (
+            "TaskInstance with dag_id: my_dag, task_id: my_task, "
+            f"run_id: {run_id} and map_index: -1 is not found"
+        )
 
     @pytest.mark.skipif(
         AIRFLOW_V_3_3_PLUS,

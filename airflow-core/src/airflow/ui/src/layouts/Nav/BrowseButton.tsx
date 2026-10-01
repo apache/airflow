@@ -21,7 +21,9 @@ import { FiGlobe } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { MenuItem } from "openapi/requests/types.gen";
-import { Menu } from "src/components/ui";
+
+import { Menu } from "src/system-components";
+
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
@@ -32,6 +34,12 @@ const links = [
     href: "/events",
     key: "auditLog",
     title: "Audit Log",
+  },
+  {
+    href: "/dag_bundles",
+    key: "dagBundles",
+    // Must stay byte-identical to MenuItem.DAG_BUNDLES: the filter below matches on this string.
+    title: "Dag Bundles",
   },
   {
     href: "/deadlines",
@@ -62,7 +70,7 @@ export const BrowseButton = ({
   readonly authorizedMenuItems: Array<MenuItem>;
   readonly externalViews: Array<NavItemResponse>;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const authorizedLinks = links.filter(({ title }) => authorizedMenuItems.includes(title as MenuItem));
   const menuItems = authorizedLinks.map((link) => (
     <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>

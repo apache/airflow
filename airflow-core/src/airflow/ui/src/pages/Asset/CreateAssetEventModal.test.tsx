@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import { QueryClient } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { AssetEventResponse, AssetResponse, DAGDetailsResponse } from "openapi/requests/types.gen";
+
+import type * as Ui from "src/system-components";
+
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
-import type * as Ui from "src/components/ui";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { CreateAssetEventModal } from "./CreateAssetEventModal";
@@ -41,25 +45,29 @@ const materializeSubmitParams = vi.hoisted<DagRunTriggerParams>(() => ({
   partitionKey: undefined,
 }));
 
-vi.mock("src/components/ui", async (importOriginal) => {
+vi.mock("src/system-components", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
-  // Must stay inside the factory: vitest hoists vi.mock above module scope, so an outer-scope
-  // component cannot be referenced here.
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const DialogPart = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>;
 
   return {
     ...actual,
-    Dialog: {
-      ...actual.Dialog,
-      Body: DialogPart,
-      CloseTrigger: () => undefined,
-      Content: DialogPart,
-      Footer: DialogPart,
-      Header: DialogPart,
-      Root: ({ children, open }: { readonly children?: ReactNode; readonly open?: boolean }) =>
-        open ? <div>{children}</div> : undefined,
-    },
+    Modal: ({
+      children,
+      footerActions,
+      open,
+      title,
+    }: {
+      readonly children?: ReactNode;
+      readonly footerActions?: ReactNode;
+      readonly open?: boolean;
+      readonly title?: ReactNode;
+    }) =>
+      open ? (
+        <div>
+          {title}
+          {children}
+          {footerActions}
+        </div>
+      ) : undefined,
   };
 });
 

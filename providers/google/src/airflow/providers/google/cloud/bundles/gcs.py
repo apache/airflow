@@ -154,7 +154,7 @@ class GCSDagBundle(BaseDagBundle):
             # _view_url_template attribute. Should be removed when we drop support for Airflow 3.0
             return self._view_url_template
         # https://console.cloud.google.com/storage/browser/<bucket-name>/<prefix>
-        url = f"https://console.cloud.google.com/storage/browser/{self.bucket_name}"
+        url = f"https://console.cloud.{GoogleBaseHook.get_high_value_cookie_domain()}/storage/browser/{self.bucket_name}"
         if self.prefix:
             url += f"/{self.prefix}"
 

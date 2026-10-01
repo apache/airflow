@@ -201,7 +201,7 @@ class Trigger(Base):
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
-        return cls(classpath=classpath, kwargs=kwargs)
+        return cls(classpath=classpath, kwargs=kwargs, queue=trigger.queue)
 
     @classmethod
     @provide_session
@@ -367,6 +367,15 @@ class Trigger(Base):
                 query = query.filter(cls.team_name.is_(None))
 
         return list(session.scalars(query).all())
+
+    @classmethod
+    @provide_session
+    def fetch_assignments(
+        cls, ids: Iterable[int], *, session: Session = NEW_SESSION
+    ) -> dict[int, int | None]:
+        """Map each of ``ids`` that still has a trigger row to its current ``triggerer_id``."""
+        rows = session.execute(select(cls.id, cls.triggerer_id).where(cls.id.in_(ids)))
+        return {trigger_id: triggerer_id for trigger_id, triggerer_id in rows}
 
     @classmethod
     @provide_session

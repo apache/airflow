@@ -96,7 +96,7 @@ class _LLMBranchDecoratedOperator(DecoratedOperator, LLMBranchOperator):
             self.prompt,
             decorator_name="@task.llm_branch",
             feature_name="require_approval",
-            feature_enabled=self.require_approval,
+            feature_enabled=self._may_review,
         )
 
         self.render_template_fields(context)

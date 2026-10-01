@@ -25,7 +25,7 @@ import httpx
 import pytest
 
 from airflowctl.api.client import ClientKind
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, DAGResponse
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, DAGResponse, DagSchedulingState
 from airflowctl.api.operations import DagRunOperations, ServerResponseError, TasksOperations
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
@@ -82,6 +82,40 @@ class TestDagCommands:
         dag_id=dag_id,
         dag_display_name=dag_display_name,
         is_paused=True,
+        last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        fileloc="fileloc",
+        relative_fileloc="relative_fileloc",
+        description="description",
+        timetable_summary="timetable_summary",
+        timetable_description="timetable_description",
+        timetable_partitioned=False,
+        timetable_periodic=True,
+        tags=[],
+        max_active_tasks=1,
+        max_active_runs=1,
+        max_consecutive_failed_dag_runs=1,
+        has_task_concurrency_limits=True,
+        has_import_errors=True,
+        next_dagrun_logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        owners=["apache-airflow"],
+        is_backfillable=True,
+        file_token="file_token",
+        bundle_name="bundle_name",
+        is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
+    )
+
+    dag_response_draining = DAGResponse(
+        dag_id=dag_id,
+        dag_display_name=dag_display_name,
+        is_paused=False,
+        scheduling_state=DagSchedulingState.DRAINING,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
         fileloc="fileloc",
@@ -217,6 +251,32 @@ class TestDagCommands:
         with pytest.raises(SystemExit):
             dag_command.unpause(
                 self.parser.parse_args(["dags", "unpause", self.dag_id]),
+                api_client=api_client,
+            )
+
+    def test_drain_dag(self, api_client_maker, monkeypatch):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json=self.dag_response_draining.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        dag_response_dict = dag_command.drain(
+            self.parser.parse_args(["dags", "drain", self.dag_id]),
+            api_client=api_client,
+        )
+        assert dag_response_dict["scheduling_state"] == DagSchedulingState.DRAINING
+
+    def test_drain_fail(self, api_client_maker, monkeypatch):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.drain(
+                self.parser.parse_args(["dags", "drain", self.dag_id]),
                 api_client=api_client,
             )
 

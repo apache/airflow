@@ -35,7 +35,9 @@
     :caption: Guides
 
     Connection types <connections/index>
+    Email backend <email-backend>
     Message queues <message-queues/index>
+    Notifications <notifications/index>
     Operators <operators/index>
     Transfers <transfer/index>
     Filesystems <filesystems/index>
@@ -84,7 +86,7 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 14.1.0
+Release: 15.2.0
 
 Provider package
 ----------------
@@ -111,26 +113,26 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``adlfs``                                   ``>=2023.10.0``
 ``aiohttp``                                 ``>=3.14.0``
-``azure-batch``                             ``<15.0.0,>=8.0.0``
+``azure-batch``                             ``>=15.0.0``
 ``azure-ai-projects``                       ``>=2.2.0``
-``azure-cosmos``                            ``>=4.6.0``
-``azure-mgmt-cosmosdb``                     ``>=3.0.0``
-``azure-datalake-store``                    ``>=0.0.45``
-``azure-identity``                          ``>=1.3.1``
-``azure-keyvault-secrets``                  ``>=4.1.0``
+``azure-cosmos``                            ``>=4.15.0``
+``azure-mgmt-cosmosdb``                     ``>=9.9.0``
+``azure-datalake-store``                    ``>=0.0.45,<1``
+``azure-identity``                          ``>=1.25.3``
+``azure-keyvault-secrets``                  ``>=4.10.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
-``azure-mgmt-resource``                     ``>=2.2.0``
-``azure-storage-blob``                      ``>=12.26.0``
-``azure-mgmt-storage``                      ``>=16.0.0``
-``azure-storage-file-share``                ``>=12.7.0``
-``azure-servicebus``                        ``>=7.12.1``
-``azure-synapse-spark``                     ``>=0.2.0``
-``azure-synapse-artifacts``                 ``>=0.17.0``
-``azure-storage-file-datalake``             ``>=12.9.1``
+``azure-mgmt-resource``                     ``>=25.0.0``
+``azure-storage-blob``                      ``>=12.28.0``
+``azure-mgmt-storage``                      ``>=24.0.1``
+``azure-storage-file-share``                ``>=12.24.0``
+``azure-servicebus``                        ``>=7.14.3``
+``azure-synapse-spark``                     ``>=0.7.0``
+``azure-synapse-artifacts``                 ``>=0.22.0``
+``azure-storage-file-datalake``             ``>=12.23.0``
 ``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=10.0.0``
-``azure-mgmt-containerregistry``            ``>=8.0.0``
-``azure-mgmt-compute``                      ``>=33.0.0``
+``azure-mgmt-containerregistry``            ``>=15.0.0``
+``azure-mgmt-compute``                      ``>=37.2.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``
@@ -194,5 +196,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 14.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 14.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 15.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 15.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.2.0-py3-none-any.whl.sha512>`__)

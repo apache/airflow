@@ -42,7 +42,7 @@ in the Airflow UI. This is useful for integrating external applications or custo
 In this object reference, the list of dictionaries with the view name, href (templatable), destination and
 optional parameters like the icon and url_route are passed on.
 
-Using react_apps  in Airflow plugin, allows to register custom React applications that can be rendered
+Using react_apps in Airflow plugin, allows to register custom React applications that can be rendered
 in the Airflow UI. This is useful for integrating custom React components or applications into the Airflow UI.
 In this object reference, the list of dictionaries with the app name, bundle_url (where to load the js assets, templatable), destination and
 optional parameters like the icon and url_route are passed on.

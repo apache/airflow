@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
 
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -42,6 +44,7 @@ def trigger():
         poke_interval=TEST_POLL_INTERVAL,
         gcp_conn_id=TEST_GCP_CONN_ID,
         impersonation_chain=None,
+        return_immediately=True,
     )
 
 
@@ -74,7 +77,33 @@ class TestPubsubPullTrigger:
             "poke_interval": TEST_POLL_INTERVAL,
             "gcp_conn_id": TEST_GCP_CONN_ID,
             "impersonation_chain": None,
+            "return_immediately": True,
         }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
+    async def test_async_pubsub_pull_trigger_passes_return_immediately_false(self, mock_pull):
+        """Test that return_immediately is passed to the hook."""
+        mock_pull.return_value = generate_messages(1)
+        trigger = PubsubPullTrigger(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            ack_messages=False,
+            poke_interval=TEST_POLL_INTERVAL,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=None,
+            return_immediately=False,
+        )
+
+        await trigger.run().asend(None)
+
+        mock_pull.assert_called_once_with(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            return_immediately=False,
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
@@ -88,6 +117,7 @@ class TestPubsubPullTrigger:
             poke_interval=TEST_POLL_INTERVAL,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=None,
+            return_immediately=True,
         )
 
         expected_event = TriggerEvent(
@@ -122,6 +152,7 @@ class TestPubsubPullTrigger:
             poke_interval=TEST_POLL_INTERVAL,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=None,
+            return_immediately=True,
         )
         async_hook_actual = trigger.hook
 
@@ -146,6 +177,7 @@ class TestPubsubPullTrigger:
             poke_interval=TEST_POLL_INTERVAL,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=None,
+            return_immediately=True,
         )
 
         with pytest.raises(GoogleAPICallError, match="Connection error"):
@@ -168,7 +200,41 @@ class TestPubsubPullTrigger:
             poke_interval=TEST_POLL_INTERVAL,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=None,
+            return_immediately=True,
         )
 
         with pytest.raises(GoogleAPICallError, match="Acknowledgement failed"):
             await trigger.run().asend(None)
+
+    def test_pubsub_pull_trigger_deprecation_warning(self):
+        test_subscription = "projects/test_project_id/subscriptions/watcher-subscription"
+        with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately") as record:
+            trigger = PubsubPullTrigger(
+                project_id=PROJECT_ID,
+                subscription=test_subscription,
+                max_messages=MAX_MESSAGES,
+                ack_messages=ACK_MESSAGES,
+                poke_interval=TEST_POLL_INTERVAL,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=None,
+            )
+        assert trigger.return_immediately is True
+        # This path is reached from providers/common/messaging's MessageQueueTrigger.serialize(),
+        # so the warning must name the subscription -- stacklevel=2 otherwise points at that
+        # unrelated provider's file, leaving the reader no way to tell which watcher to fix.
+        assert test_subscription in str(record[0].message)
+
+    @pytest.mark.parametrize("return_immediately", [True, False])
+    def test_pubsub_pull_trigger_no_deprecation_warning_when_explicit(self, return_immediately):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            PubsubPullTrigger(
+                project_id=PROJECT_ID,
+                subscription="subscription",
+                max_messages=MAX_MESSAGES,
+                ack_messages=ACK_MESSAGES,
+                poke_interval=TEST_POLL_INTERVAL,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=None,
+                return_immediately=return_immediately,
+            )

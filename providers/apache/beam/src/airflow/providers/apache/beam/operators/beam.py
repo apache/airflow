@@ -82,6 +82,9 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     dataflow_config: DataflowConfiguration
     gcp_conn_id: str
     dataflow_support_impersonation: bool = True
+    # Beam Java reads --serviceAccount, but the Python and Go SDKs read --service_account_email.
+    # Java and Go reject any flag they do not define, so each operator sends only the name its SDK reads.
+    dataflow_service_account_option: str = "serviceAccount"
 
     def __init__(self):
         if not GOOGLE_PROVIDER:
@@ -129,7 +132,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         if job_name_key is not None:
             pipeline_options[job_name_key] = job_name
         if self.dataflow_config.service_account:
-            pipeline_options["serviceAccount"] = self.dataflow_config.service_account
+            pipeline_options[self.dataflow_service_account_option] = self.dataflow_config.service_account
         if self.dataflow_support_impersonation and self.dataflow_config.impersonation_chain:
             if isinstance(self.dataflow_config.impersonation_chain, list):
                 pipeline_options["impersonateServiceAccount"] = ",".join(
@@ -186,6 +189,8 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
     :param dataflow_config: Dataflow's configuration, used when runner type is set to DataflowRunner,
         (optional) defaults to None.
     """
+
+    template_fields: Sequence[str] = ("gcp_conn_id",)
 
     def __init__(
         self,
@@ -348,9 +353,11 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER else ()
+    dataflow_service_account_option = "service_account_email"
 
     def __init__(
         self,
@@ -473,6 +480,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                 "project_id": self.dataflow_config.project_id,
                 "location": location,
                 "gcp_conn_id": self.gcp_conn_id,
+                "poll_sleep": self.dataflow_config.poll_sleep,
+                "impersonation_chain": self.dataflow_config.impersonation_chain,
             }
             trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
 
@@ -544,6 +553,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     ui_color = "#0273d4"
@@ -667,6 +677,8 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                         "project_id": self.dataflow_config.project_id,
                         "location": self.dataflow_config.location,
                         "gcp_conn_id": self.gcp_conn_id,
+                        "poll_sleep": self.dataflow_config.poll_sleep,
+                        "impersonation_chain": self.dataflow_config.impersonation_chain,
                     }
                     trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
 
@@ -749,9 +761,11 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
+        "gcp_conn_id",
     ]
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER else ()
+    dataflow_service_account_option = "service_account_email"
 
     def __init__(
         self,

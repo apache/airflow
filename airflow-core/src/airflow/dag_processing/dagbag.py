@@ -22,8 +22,8 @@ import os
 import sys
 import textwrap
 import warnings
-from collections.abc import Generator
-from datetime import datetime, timedelta
+from collections.abc import Iterator
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -32,7 +32,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.dag_processing.importers import get_importer_registry
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
@@ -44,9 +44,10 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
+from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.utils.file import correct_maybe_zipped
+from airflow.utils.file import correct_maybe_zipped, find_enclosing_file
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -55,25 +56,7 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.models.dagwarning import DagWarning
-
-
-@contextlib.contextmanager
-def _capture_with_reraise() -> Generator[list[warnings.WarningMessage], None, None]:
-    """Capture warnings in context and re-raise it on exit from the context manager."""
-    captured_warnings = []
-    try:
-        with warnings.catch_warnings(record=True) as captured_warnings:
-            yield captured_warnings
-    finally:
-        if captured_warnings:
-            for cw in captured_warnings:
-                warnings.warn_explicit(
-                    message=cw.message,
-                    category=cw.category,
-                    filename=cw.filename,
-                    lineno=cw.lineno,
-                    source=cw.source,
-                )
+    from airflow.sdk.importers import AbstractDagImporter, DagDefinition, DagImportWarning, DagSourceCode
 
 
 class FileLoadStat(NamedTuple):
@@ -224,16 +207,24 @@ class DagBag(LoggingMixin):
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags: dict[str, DAG] = {}
-        # the file's last modified timestamp when we last read it
-        self.file_last_changed: dict[str, datetime] = {}
+        # The freshness token of each definition when we last imported it, keyed by its fileloc
+        self.file_last_changed: dict[str, str] = {}
         # Store import errors with relative file paths as keys (relative to bundle_path)
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
-        self.has_logged = False
+        self._import_warnings: dict[str, list[DagImportWarning]] = {}
+        # The source code of each definition that produced Dags, keyed by its fileloc
+        self.dag_source_codes: dict[str, DagSourceCode] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
 
         self.known_pools = known_pools
+        self._importer_registry = get_importer_registry(bundle_name)
+        # Importers only read the bundle's name and path, so a bag built without a bundle
+        # hands them its Dag folder instead.
+        self._bundle = LocalDagBundle(
+            name=bundle_name or "dags-folder", path=os.fspath(bundle_path or dag_folder)
+        )
 
         self.dagbag_import_error_tracebacks = conf.getboolean("core", "dagbag_import_error_tracebacks")
         self.dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
@@ -299,74 +290,74 @@ class DagBag(LoggingMixin):
         """Process a DAG file and return found DAGs."""
         if filepath is None or not os.path.isfile(filepath):
             return []
+        return [
+            dag
+            for importer, definition in self._find_definitions(Path(filepath), safe_mode=safe_mode)
+            for dag in self._process_definition(importer, definition, only_if_updated=only_if_updated)
+        ]
 
-        try:
-            file_last_changed_on_disk = datetime.fromtimestamp(os.path.getmtime(filepath))
-            if (
-                only_if_updated
-                and filepath in self.file_last_changed
-                and file_last_changed_on_disk == self.file_last_changed[filepath]
-            ):
-                return []
-        except Exception as e:
-            self.log.exception(e)
+    def _find_definitions(
+        self, path: Path, *, safe_mode: bool
+    ) -> Iterator[tuple[AbstractDagImporter, DagDefinition]]:
+        """
+        Discover the Dag definitions at ``path`` with the importer that should import each.
+
+        ``path`` may be a directory, a file, or a definition nested in a file (a zip member);
+        discovery is scoped to the directory or the enclosing file, and narrowed to the
+        definition itself in the nested case. Discovery errors are recorded as import errors.
+        """
+        scope = path if path.is_dir() else find_enclosing_file(path)
+        if scope is None:
+            return
+        scoped_bundle = LocalDagBundle(name=self._bundle.name, path=os.fspath(scope))
+        for importer, item in self._importer_registry.list_dag_definitions(
+            scoped_bundle, safe_mode=safe_mode
+        ):
+            if isinstance(item, DagImportError):
+                self._record_import_error(item, root=scope)
+            elif scope == path or Path(repr(item)) == path:
+                yield importer, item
+
+    def _process_definition(
+        self, importer: AbstractDagImporter, definition: DagDefinition, *, only_if_updated: bool
+    ) -> list[DAG]:
+        """Import a Dag definition and bag the Dags it defines."""
+        fileloc = repr(definition)
+        freshness_token = definition.freshness_token
+        if only_if_updated and self.file_last_changed.get(fileloc) == freshness_token:
             return []
 
-        self.captured_warnings.pop(filepath, None)
+        self.captured_warnings.pop(fileloc, None)
+        self._import_warnings.pop(fileloc, None)
+        self.dag_source_codes.pop(fileloc, None)
+        result = importer.import_definition(definition, self._bundle)
 
-        registry = get_importer_registry()
-        importer = registry.get_importer(filepath)
-
-        if importer is None:
-            self.log.debug("No importer found for file: %s", filepath)
-            return []
-
-        result = importer.import_file(
-            file_path=filepath,
-            bundle_path=self.bundle_path,
-            bundle_name=self.bundle_name,
-            safe_mode=safe_mode,
-        )
-
-        if result.skipped_files:
-            for skipped in result.skipped_files:
-                if not self.has_logged:
-                    self.has_logged = True
-                    self.log.info("File %s assumed to contain no DAGs. Skipping.", skipped)
-
-        if result.errors:
-            for error in result.errors:
-                # Use the relative file path from error (importer provides relative paths)
-                # Fall back to converting filepath to relative if error.file_path is not set
-                error_path = error.file_path if error.file_path else self._get_relative_fileloc(filepath)
-                error_msg = error.stacktrace if error.stacktrace else error.message
-                self.import_errors[error_path] = error_msg
-                self.log.error("Error loading DAG from %s: %s", error_path, error.message)
+        for error in result.errors:
+            self._record_import_error(error, root=self._bundle.path)
 
         if result.warnings:
-            formatted_warnings = [
-                f"{w.file_path}:{w.line_number}: {w.warning_type}: {w.message}" for w in result.warnings
-            ]
-            self.captured_warnings[filepath] = tuple(formatted_warnings)
+            self._import_warnings[fileloc] = result.warnings
+            self.captured_warnings[fileloc] = tuple(
+                f"{w.source_reference}:{w.line_number}: {w.warning_type}: {w.message}"
+                for w in result.warnings
+            )
             # Re-emit warnings so they can be handled by Python's warning system
             for w in result.warnings:
                 warnings.warn_explicit(
                     message=w.message,
                     category=UserWarning,
-                    filename=w.file_path,
+                    filename=w.source_reference,
                     lineno=w.line_number or 0,
                 )
 
         bagged_dags = []
         for dag in result.dags:
             try:
-                if dag.fileloc is None:
-                    dag.fileloc = filepath
-
-                # Add the bundle_name to the Dag
+                # Importers are not required to set these, and ``DAG.fileloc`` otherwise
+                # defaults to the file that constructed the Dag (the importer's own module).
+                dag.fileloc = fileloc
+                dag.relative_fileloc = self._get_relative_fileloc(fileloc)
                 dag.bundle_name = self.bundle_name
-
-                # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
                 _validate_executor_fields(dag, self.bundle_name)
                 _assign_default_team_pools(dag, self.bundle_name)
@@ -375,51 +366,69 @@ class DagBag(LoggingMixin):
             except AirflowClusterPolicySkipDag:
                 self.log.debug("DAG %s skipped by cluster policy", dag.dag_id)
             except Exception as e:
-                self.log.exception("Error bagging DAG from %s", filepath)
-                relative_path = self._get_relative_fileloc(filepath)
-                self.import_errors[relative_path] = f"{type(e).__name__}: {e}"
+                self.log.exception("Error bagging DAG from %s", fileloc)
+                self.import_errors[self._get_relative_fileloc(fileloc)] = f"{type(e).__name__}: {e}"
 
-        self.file_last_changed[filepath] = file_last_changed_on_disk
+        self.file_last_changed[fileloc] = freshness_token
+        if bagged_dags:
+            try:
+                self.dag_source_codes[fileloc] = importer.get_source_code(definition)
+            except Exception:
+                self.log.exception("Failed to read source code of %s", fileloc)
         return bagged_dags
+
+    def _record_import_error(self, error: DagImportError, *, root: Path) -> None:
+        # Importers report a source either absolutely or relative to the bundle they were given.
+        fileloc = self._get_relative_fileloc(os.fspath(root / error.source_reference))
+        self.import_errors[fileloc] = error.stacktrace or error.message
+        self.log.error("Error loading DAG from %s: %s", fileloc, error.message)
+
+    @property
+    def parsed_definitions(self) -> list[str]:
+        """Locations of the Dag definitions imported into this bag, relative to the bundle."""
+        return [self._get_relative_fileloc(fileloc) for fileloc in self.file_last_changed]
 
     @property
     def dag_warnings(self) -> set[DagWarning]:
         """Get the set of DagWarnings for the bagged dags."""
         from airflow.models.dagwarning import DagWarning, DagWarningType
 
+        dag_warnings: set[DagWarning] = set()
+        for dag in self.dags.values():
+            for import_warning in self._import_warnings.get(dag.fileloc, ()):
+                # Only importer-namespaced types (``yaml:deprecated_field``) are Dag warnings;
+                # Python warning categories stay in ``captured_warnings``.
+                with contextlib.suppress(ValueError):
+                    dag_warnings.add(
+                        DagWarning(dag.dag_id, import_warning.warning_type, import_warning.message)
+                    )
+
         # None means this feature is not enabled. Empty set means we don't know about any pools at all!
         if self.known_pools is None:
-            return set()
+            return dag_warnings
 
-        def get_pools(dag) -> dict[str, set[str]]:
-            return {dag.dag_id: {task.pool for task in dag.tasks}}
-
-        pool_dict: dict[str, set[str]] = {}
         for dag in self.dags.values():
-            pool_dict.update(get_pools(dag))
-
-        warnings: set[DagWarning] = set()
-        for dag_id, dag_pools in pool_dict.items():
-            nonexistent_pools = dag_pools - self.known_pools
+            nonexistent_pools = {task.pool for task in dag.tasks} - self.known_pools
             if nonexistent_pools:
-                warnings.add(
+                dag_warnings.add(
                     DagWarning(
-                        dag_id,
+                        dag.dag_id,
                         DagWarningType.NONEXISTENT_POOL,
-                        f"Dag '{dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}",
+                        f"Dag '{dag.dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}",
                     )
                 )
-        return warnings
+        return dag_warnings
 
     def _get_relative_fileloc(self, filepath: str) -> str:
         """
         Get the relative file location for a given filepath.
 
         :param filepath: Absolute path to the file
-        :return: Relative path from bundle_path, or original filepath if no bundle_path
+        :return: Relative path from bundle_path, or original filepath if not under bundle_path
         """
         if self.bundle_path:
-            return str(Path(filepath).relative_to(self.bundle_path))
+            with contextlib.suppress(ValueError):
+                return str(Path(filepath).relative_to(self.bundle_path))
         return filepath
 
     def bag_dag(self, dag: DAG):
@@ -492,23 +501,18 @@ class DagBag(LoggingMixin):
         # Used to store stats around DagBag processing
         stats = []
 
-        # Ensure dag_folder is a str -- it may have been a pathlib.Path
-        dag_folder = correct_maybe_zipped(str(dag_folder))
-
-        registry = get_importer_registry()
-        files_to_parse = registry.list_dag_files(dag_folder, safe_mode=safe_mode)
-
-        for filepath in files_to_parse:
+        for importer, definition in self._find_definitions(Path(dag_folder), safe_mode=safe_mode):
+            fileloc = repr(definition)
             try:
                 file_parse_start_dttm = timezone.utcnow()
-                found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
+                found_dags = self._process_definition(importer, definition, only_if_updated=only_if_updated)
 
                 file_parse_end_dttm = timezone.utcnow()
                 try:
-                    relative_file = Path(filepath).relative_to(Path(self.dag_folder)).as_posix()
+                    relative_file = Path(fileloc).relative_to(Path(self.dag_folder)).as_posix()
                 except ValueError:
-                    # filepath is not under dag_folder (e.g., example DAGs from a different location)
-                    relative_file = Path(filepath).as_posix()
+                    # fileloc is not under dag_folder (e.g., example DAGs from a different location)
+                    relative_file = Path(fileloc).as_posix()
                 stats.append(
                     FileLoadStat(
                         file=relative_file,
@@ -516,7 +520,7 @@ class DagBag(LoggingMixin):
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
-                        warning_num=len(self.captured_warnings.get(filepath, [])),
+                        warning_num=len(self.captured_warnings.get(fileloc, [])),
                         bundle_path=self.bundle_path,
                         bundle_name=self.bundle_name,
                     )
@@ -587,13 +591,14 @@ def sync_bag_to_db(
     import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
 
     # Build the set of all files that were parsed and include files with import errors
-    # in case they are not in file_last_changed
+    # in case they are not in parsed_definitions
     files_parsed = set(import_errors)
     if dagbag.bundle_path:
-        files_parsed.update(
-            (bundle_name, dagbag._get_relative_fileloc(abs_filepath))
-            for abs_filepath in dagbag.file_last_changed
-        )
+        for rel_path in dagbag.parsed_definitions:
+            files_parsed.add((bundle_name, rel_path))
+            # A definition nested in an archive also clears the archive's own discovery errors.
+            if enclosing_file := find_enclosing_file(Path(dagbag.bundle_path, rel_path)):
+                files_parsed.add((bundle_name, dagbag._get_relative_fileloc(os.fspath(enclosing_file))))
 
     update_dag_parsing_results_in_db(
         bundle_name,
@@ -605,4 +610,5 @@ def sync_bag_to_db(
         session=session,
         version_data=version_data,
         files_parsed=files_parsed,
+        dag_source_codes=dagbag.dag_source_codes,
     )

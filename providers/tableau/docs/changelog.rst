@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+5.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+5.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Skip Tableau refresh/task run on 409093 resource conflict (#69382)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 5.6.0
 .....
 

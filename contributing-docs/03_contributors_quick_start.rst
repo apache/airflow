@@ -113,21 +113,30 @@ Docker Community Edition
 
 Colima
 ------
-If you use Colima as your container runtimes engine, please follow the next steps:
+If you use Colima as your container runtime, prefer Docker contexts / ``DOCKER_HOST`` over
+symlinking sockets into ``/var/run`` (that can break Docker Desktop or other engines).
 
-1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow its instructions
+1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ if your
+   Colima install does not already provide it, and follow its instructions.
 
-2. Link the Colima socket to the default socket path. Note that this may break other Docker servers
-
-.. code-block:: bash
-
-  sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
-
-3. Change docker context to use default
+2. Start Colima and select its Docker context (Colima creates a ``colima`` context for the
+   default profile):
 
 .. code-block:: bash
 
-  docker context use default
+  colima start
+  docker context use colima
+  docker info
+
+3. Optionally set ``DOCKER_HOST`` (or pass ``breeze --docker-host``) so tools pick Colima
+   even when another context is current:
+
+.. code-block:: bash
+
+  export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
+
+If you previously symlinked Colima into ``/var/run/docker.sock``, remove that symlink when
+you switch back to Docker Desktop or another engine.
 
 Docker Compose
 --------------
@@ -414,9 +423,10 @@ see in CI in your local environment.
    ``uv`` is the recommended general-purpose Python development environment for Airflow.
 
 2. Run ``./scripts/tools/setup_breeze`` in your checked-out repository. This installs a small shim
-   at ``~/.local/bin/breeze`` that runs Breeze via ``uvx`` from the current git worktree's
-   ``dev/breeze`` folder, so each worktree (including ephemeral ones used by coding agents) gets
-   its own Breeze tied to that worktree's sources. See
+   at ``~/.local/bin/breeze`` that runs Breeze via ``uv run --locked`` from the current git
+   worktree's ``dev/breeze`` folder, so each worktree (including ephemeral ones used by coding
+   agents) gets its own Breeze, tied to that worktree's sources and to the dependency versions
+   pinned in ``dev/breeze/uv.lock``. See
    `ADR 0017 <../dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md>`_ for the
    rationale.
 

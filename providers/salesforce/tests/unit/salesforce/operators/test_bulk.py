@@ -39,7 +39,12 @@ class TestSalesforceBulkOperator:
             object_name="Account",
             payload=[],
         )
-        assert operator.template_fields == ("object_name", "payload", "external_id_field")
+        assert operator.template_fields == (
+            "object_name",
+            "payload",
+            "external_id_field",
+            "salesforce_conn_id",
+        )
 
     @pytest.mark.db_test
     def test_template_rendering(self, create_task_instance_of_operator):

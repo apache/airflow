@@ -640,7 +640,7 @@ class DAG:
             return
         from airflow.sdk.api.datamodels._generated import DagRunType
 
-        if isinstance(self.timetable, AssetTriggeredTimetable):
+        if self.timetable.asset_triggered:
             if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
                 raise ValueError(
                     "allowed_run_types must include ASSET_TRIGGERED when the Dag is scheduled by assets"
@@ -1368,7 +1368,7 @@ class DAG:
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date or run_after,
+                start_date=timezone.coerce_datetime(timezone.utcnow()),
                 logical_date=logical_date,
                 data_interval=data_interval,
                 run_after=run_after,
@@ -1403,8 +1403,8 @@ class DAG:
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
-                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                        s.try_number += 1
+                    if s.try_number == 0:
+                        s.try_number = 1
                     s.state = TaskInstanceState.SCHEDULED
                     s.scheduled_dttm = timezone.utcnow()
                 session.commit()

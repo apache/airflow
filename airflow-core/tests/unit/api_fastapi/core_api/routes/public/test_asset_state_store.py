@@ -367,7 +367,7 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
 
 class TestRoutesNeverCallCustomBackend(TestAssetStateEndpoint):
-    """Tests to validate that core API routes must use MetastoreStateBackend directly."""
+    """Tests to validate that core API routes must use MetastoreBackend directly."""
 
     @pytest.mark.parametrize(
         ("method", "path_suffix", "kwargs"),

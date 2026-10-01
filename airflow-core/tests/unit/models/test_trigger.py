@@ -122,6 +122,23 @@ def test_fetch_trigger_ids_with_non_task_associations(session):
     assert results == {asset_trigger.id, callback_trigger.id}
 
 
+def test_fetch_assignments_maps_surviving_rows_to_their_triggerer(session):
+    owned = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
+    owned.triggerer_id = 42
+    unassigned = Trigger(classpath="airflow.triggers.testing.SuccessTrigger2", kwargs={})
+    deleted = Trigger(classpath="airflow.triggers.testing.SuccessTrigger3", kwargs={})
+    session.add_all([owned, unassigned, deleted])
+    session.commit()
+    deleted_id = deleted.id
+    session.delete(deleted)
+    session.commit()
+
+    assignments = Trigger.fetch_assignments({owned.id, unassigned.id, deleted_id, deleted_id + 1000})
+
+    assert assignments == {owned.id: 42, unassigned.id: None}
+    assert Trigger.fetch_assignments(set()) == {}
+
+
 def test_clean_unused(session, dag_maker):
     """
     Tests that unused triggers (those with no task instances referencing them)
@@ -496,9 +513,12 @@ def test_submit_event_task_end_failed_respects_retries(
         assert len(tih) == 1
         assert ti.id != old_ti_id
         assert tih[0].task_instance_id == old_ti_id
+        assert tih[0].try_number == 1
+        assert ti.try_number == 2
     else:
         assert tih == []
         assert ti.id == old_ti_id
+        assert ti.try_number == 1
 
 
 @pytest.fixture
@@ -1105,6 +1125,24 @@ def test_serialize_sensitive_kwargs():
     assert isinstance(trigger_row.encrypted_kwargs, str)
     assert "value1" not in trigger_row.encrypted_kwargs
     assert "value2" not in trigger_row.encrypted_kwargs
+
+
+def test_from_object_reads_queue_from_trigger():
+    """A ``queue`` attribute on the trigger object is carried onto the persisted row."""
+    trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
+    trigger_instance.queue = "custom-queue"
+
+    trigger_row: Trigger = Trigger.from_object(trigger_instance)
+
+    assert trigger_row.queue == "custom-queue"
+
+
+def test_from_object_defaults_queue_to_none_when_not_set_on_trigger():
+    trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
+
+    trigger_row: Trigger = Trigger.from_object(trigger_instance)
+
+    assert trigger_row.queue is None
 
 
 def test_kwargs_not_encrypted():

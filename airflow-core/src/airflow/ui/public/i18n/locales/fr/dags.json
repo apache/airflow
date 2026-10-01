@@ -10,19 +10,19 @@
   "filters": {
     "allRunTypes": "Tous les types de Run",
     "allStates": "Tous les états",
-    "anyRunState": "N'importe quel Run",
     "favorite": {
       "all": "Tous",
       "favorite": "Favoris",
       "unfavorite": "Non favoris"
     },
-    "lastRunState": "Dernier Run",
+    "noTimetableTypesFound": "Aucun type de calendrier trouvé",
     "paused": {
       "active": "Actif",
       "all": "Tous",
       "paused": "En pause"
     },
-    "runIdPatternFilter": "Rechercher des exécutions de Dag"
+    "runIdPatternFilter": "Rechercher des exécutions de Dag",
+    "timetableType": "Type de calendrier"
   },
   "ownerLink": "Lien du propriétaire pour {{owner}}",
   "runAndTaskActions": {

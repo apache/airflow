@@ -589,6 +589,39 @@ class TestDataFusionHook:
         )
 
     @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(HTTPError("Retrieving a pipeline state failed with code 404"), id="404"),
+            pytest.param(KeyError("status"), id="missing-status"),
+        ],
+    )
+    @mock.patch(HOOK_STR.format("time.sleep"))
+    @mock.patch(HOOK_STR.format("DataFusionHook.get_pipeline_workflow"))
+    def test_wait_for_pipeline_state_keeps_polling_until_pipeline_is_visible(
+        self, mock_get_pipeline_workflow, mock_sleep, error, hook
+    ):
+        """A run that is not visible in the system yet must not fail the task."""
+        mock_get_pipeline_workflow.side_effect = [error, {"status": "COMPLETED"}]
+
+        hook.wait_for_pipeline_state(
+            pipeline_name=PIPELINE_NAME, pipeline_id=PIPELINE_ID, instance_url=INSTANCE_URL
+        )
+
+        assert mock_get_pipeline_workflow.call_count == 2
+
+    @mock.patch(HOOK_STR.format("time.sleep"))
+    @mock.patch(HOOK_STR.format("DataFusionHook.get_pipeline_workflow"))
+    def test_wait_for_pipeline_state_raises_on_failure_state(
+        self, mock_get_pipeline_workflow, mock_sleep, hook
+    ):
+        mock_get_pipeline_workflow.return_value = {"status": "FAILED"}
+
+        with pytest.raises(ValueError, match=r"Pipeline shrubberyPipeline state FAILED is not one of"):
+            hook.wait_for_pipeline_state(
+                pipeline_name=PIPELINE_NAME, pipeline_id=PIPELINE_ID, instance_url=INSTANCE_URL
+            )
+
+    @pytest.mark.parametrize(
         ("pipeline_type", "expected_program_type"),
         [
             (DataFusionPipelineType.BATCH, "workflows"),

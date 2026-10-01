@@ -25,11 +25,13 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus, urlencode
 
 import jaydebeapi
-from sqlalchemy.engine import URL
 
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import URL
+
     from airflow.providers.common.compat.sdk import Connection
 
 
@@ -150,6 +152,14 @@ class JdbcHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to use this feature. "
+                "Please install it with: pip install 'apache-airflow-providers-jdbc[sqlalchemy]'"
+            ) from err
+
         conn = self.connection
         sqlalchemy_query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(sqlalchemy_query, dict):

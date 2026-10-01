@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from enum import Enum
 from functools import cached_property, lru_cache
@@ -35,12 +35,13 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
+from airflow.models.team import JobTeam
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 
 class JobState(str, Enum):
@@ -101,6 +102,7 @@ class Job(Base, LoggingMixin):
     executor_class: Mapped[str | None] = mapped_column(String(500))
     hostname: Mapped[str | None] = mapped_column(String(500))
     unixname: Mapped[str | None] = mapped_column(String(1000))
+    bundle_names: Mapped[list[str] | None] = mapped_column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -132,6 +134,21 @@ class Job(Base, LoggingMixin):
 
     Only makes sense for SchedulerJob.
     """
+
+    job_teams = relationship(
+        "JobTeam",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    @property
+    def team_names(self) -> list[str]:
+        """Names of the teams whose workloads this job serves, empty when it is not team-scoped."""
+        return sorted(job_team.team_name for job_team in self.job_teams)
+
+    @team_names.setter
+    def team_names(self, names: Iterable[str]) -> None:
+        self.job_teams = [JobTeam(team_name=name) for name in dict.fromkeys(names)]
 
     def __init__(self, heartrate=None, **kwargs):
         # Save init parameters as DB fields

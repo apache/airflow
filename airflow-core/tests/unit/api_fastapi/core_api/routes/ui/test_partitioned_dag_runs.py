@@ -301,6 +301,33 @@ class TestGetPartitionedDagRuns:
         dag_ids = {r["dag_id"] for r in body["partitioned_dag_runs"]}
         assert "restricted_dag" not in dag_ids
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={"other_dag"},
+    )
+    def test_dag_id_filter_does_not_disclose_unreadable_dag_existence(
+        self, _, test_client, dag_maker, session
+    ):
+        """
+        An unreadable-but-existing Dag must not be distinguishable from a nonexistent
+        Dag via the ``dag_id`` filter: both return 404. Without the scoping, the
+        readable-dags row filter drops the APDR rows, ``total_entries`` collapses to
+        0, and the DagModel probe still finds the Dag — returning 200-empty and
+        giving the caller an oracle for Dag ids outside their permitted set.
+        """
+        schedule = PartitionedAssetTimetable(assets=Asset(uri="s3://bucket/a", name="a"))
+        with dag_maker(dag_id="restricted_dag", schedule=schedule, serialized=True):
+            EmptyOperator(task_id="t")
+        dag_maker.sync_dagbag_to_db()
+        # An APDR row exists but the readable-dags filter drops it — this is the
+        # branch where the pre-fix DagModel probe leaked existence.
+        session.add(AssetPartitionDagRun(target_dag_id="restricted_dag", partition_key="2024-06-01"))
+        session.commit()
+
+        existing_unreadable = test_client.get("/partitioned_dag_runs?dag_id=restricted_dag")
+        nonexistent = test_client.get("/partitioned_dag_runs?dag_id=no_such_dag")
+        assert existing_unreadable.status_code == nonexistent.status_code == 404
+
     def test_duplicate_events_count_as_one(self, test_client, dag_maker, session):
         """Multiple log entries for the same asset count as 1 received, not N."""
         asset_def = Asset(uri="s3://bucket/dup0", name="dup0")

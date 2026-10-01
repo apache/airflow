@@ -27,7 +27,6 @@ import structlog
 
 from airflow.api_fastapi.common.parameters import state_priority
 from airflow.api_fastapi.core_api.services.ui.task_group import get_task_group_children_getter
-from airflow.models.taskmap import TaskMap
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
@@ -142,8 +141,8 @@ def _get_aggs_for_node(summary: GridNodeAgg) -> dict[str, Any]:
 
 
 def _find_aggregates(
-    node: SerializedTaskGroup | SerializedBaseOperator | TaskMap,
-    parent_node: SerializedTaskGroup | SerializedBaseOperator | TaskMap | None,
+    node: SerializedTaskGroup | SerializedBaseOperator,
+    parent_node: SerializedTaskGroup | SerializedBaseOperator | None,
     ti_details: Mapping[str, GridNodeAgg],
     group_dict: dict[str | None, SerializedTaskGroup] | None = None,
 ) -> Iterable[tuple[dict[str, Any], GridNodeAgg]]:

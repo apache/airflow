@@ -175,6 +175,9 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                     db_cluster_id=self.cluster_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
+                    region_name=self.region_name,
+                    botocore_config=self.botocore_config,
+                    verify=self.verify,
                 ),
                 method_name="execute_complete",
             )
@@ -302,6 +305,9 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                     db_cluster_id=self.cluster_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
+                    region_name=self.region_name,
+                    botocore_config=self.botocore_config,
+                    verify=self.verify,
                 ),
                 method_name="execute_complete",
             )

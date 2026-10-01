@@ -143,17 +143,20 @@ class Server(
    */
   suspend fun serveAsync(bundle: Bundle) =
     coroutineScope {
+      bundle.finalizeRegistration()
       val deferral = CompletableDeferred<Unit>()
 
       launch {
         try {
-          aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
-            logger.debug("Connected comm", mapOf("addr" to comm))
-            CoordinatorComm(
-              socket.openReadChannel(),
-              socket.openWriteChannel(autoFlush = true),
-            ).use { coordinator ->
-              dispatchTask(bundle, coordinator)
+          SelectorManager(Dispatchers.IO).use { selector ->
+            aSocket(selector).tcp().connect(comm).use { socket ->
+              logger.debug("Connected comm", mapOf("addr" to comm))
+              CoordinatorComm(
+                socket.openReadChannel(),
+                socket.openWriteChannel(autoFlush = true),
+              ).use { coordinator ->
+                dispatchTask(bundle, coordinator)
+              }
             }
           }
         } finally {
@@ -161,10 +164,12 @@ class Server(
         }
       }
       launch {
-        aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(logs).use { socket ->
-          logger.debug("Connected logs", mapOf("addr" to logs))
-          LogSender.configure(socket.openWriteChannel(autoFlush = true))
-          deferral.await()
+        SelectorManager(Dispatchers.IO).use { selector ->
+          aSocket(selector).tcp().connect(logs).use { socket ->
+            logger.debug("Connected logs", mapOf("addr" to logs))
+            LogSender.configure(socket.openWriteChannel(autoFlush = true))
+            deferral.await()
+          }
         }
       }
     }

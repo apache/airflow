@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from datetime import timedelta
 from unittest import mock
@@ -28,6 +29,7 @@ import pytest
 from sqlalchemy import delete, func, select, update
 
 import airflow.example_dags as example_dags_module
+import airflow.models.serialized_dag as serialized_dag_module
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
@@ -105,6 +107,9 @@ class TestSerializedDagModel:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
+        # The module reads the config once at import time, so conf_vars alone leaves the already
+        # bound constant untouched and the compressed branch never runs.
+        monkeypatch.setattr(serialized_dag_module, "_COMPRESS_SERIALIZED_DAGS", request.param)
         with conf_vars({("core", "compress_serialized_dags"): str(request.param)}):
             yield
         db.clear_db_serialized_dags()
@@ -1171,6 +1176,108 @@ class TestSerializedDagModel:
         old_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
         assert old_alert is not None
 
+    def test_write_dag_hashes_the_dag_once_when_inserting(self, testing_dag_bundle, session):
+        """The hash computed for change detection is reused for the new row rather than recomputed."""
+        dag_id = "test_hash_once_insert"
+        dag = DAG(dag_id=dag_id)
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        # Task instances on the current version force write_dag to insert a new row.
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        EmptyOperator(task_id="task2", dag=dag)
+        with mock.patch.object(SDM, "hash", wraps=SDM.hash) as hash_spy:
+            SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        assert hash_spy.call_count == 1
+        assert session.scalar(select(func.count()).where(SDM.dag_id == dag_id)) == 2
+        # Expunge so ``data`` is read back from the row rather than the cache ``__init__`` populated.
+        session.expunge_all()
+        serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        assert serdag.dag_hash == SDM.hash(serdag.data)
+
+    def test_write_dag_hashes_the_dag_once_when_updating_in_place(self, testing_dag_bundle, session):
+        """The in-place UPDATE branch reuses the hash too."""
+        dag_id = "test_hash_once_update"
+        dag = DAG(dag_id=dag_id)
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+        original_hash = session.scalar(select(SDM.dag_hash).where(SDM.dag_id == dag_id))
+
+        # No task instances exist for the current version, so a changed Dag updates the row in place.
+        EmptyOperator(task_id="task2", dag=dag)
+        with mock.patch.object(SDM, "hash", wraps=SDM.hash) as hash_spy:
+            SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        assert hash_spy.call_count == 1
+        assert session.scalar(select(func.count()).where(SDM.dag_id == dag_id)) == 1
+        # Expunge so ``data`` is read back from the row rather than the cache ``__init__`` populated.
+        session.expunge_all()
+        serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        # Without this the test would also pass if write_dag had done nothing at all: one hash is
+        # computed for change detection either way and an unwritten row is trivially consistent.
+        assert serdag.dag_hash != original_hash
+        assert serdag.dag_hash == SDM.hash(serdag.data)
+
+    def test_deadline_uuid_regeneration_keeps_hash_consistent(self, testing_dag_bundle, session):
+        """Regenerated deadline UUIDs rewrite dag.data, so the stored hash must describe the rewrite."""
+        dag_id = "test_hash_deadline_regenerated"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        # Task instances on the current version force write_dag down the INSERT branch, where the
+        # reused deadline UUIDs are regenerated after the change-detection hash was computed.
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        session.expunge_all()
+        original = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        original_deadlines = list(original.data["dag"]["deadline"])
+
+        # Non-deadline edit, so the deadline definitions still match and their UUIDs are reused.
+        EmptyOperator(task_id="task2", dag=dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        # Expunge so ``data`` is read back from the row rather than the cache ``__init__`` populated.
+        session.expunge_all()
+        serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        # Proves the reuse branch actually ran: it swaps the reused UUIDs for fresh ones after the
+        # change-detection hash was taken. Without this the hash assertion holds vacuously when
+        # write_dag does nothing.
+        assert serdag.data["dag"]["deadline"] != original_deadlines
+        assert serdag.dag_hash == SDM.hash(serdag.data)
+
     def test_non_deadline_edit_preserves_alert_in_update_branch(self, testing_dag_bundle, session):
         """UPDATE branch (no task instances): existing deadline_alert stays linked after non-deadline edit."""
         dag_id = "test_deadline_update_branch"
@@ -1234,3 +1341,99 @@ class TestSerializedDagModel:
         alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
         assert alert is not None
         assert alert.id == orig_alert.id
+
+    def test_write_dag_with_deadline_passes_schema_validation(self, testing_dag_bundle, session):
+        """The persisted serialized Dag for a deadline-bearing Dag must satisfy the JSON schema.
+
+        write_dag stores ``data["dag"]["deadline"]`` as a list of UUID strings referencing
+        deadline_alert rows, so the schema has to accept that persisted form and not only the
+        list-of-dicts form produced before the dict->UUID rewrite.
+        """
+        dag_id = "test_deadline_schema_valid"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        result = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        persisted_deadline = result.data["dag"]["deadline"]
+        assert isinstance(persisted_deadline, list)
+        assert persisted_deadline
+        assert all(isinstance(ref, str) for ref in persisted_deadline)
+
+        # Must not raise: the stored UUID-reference form has to satisfy the serialized Dag schema.
+        DagSerialization.validate_schema(result.data)
+
+    def test_write_dag_does_not_mutate_caller_deadline_data(self, testing_dag_bundle, session):
+        """write_dag must not rewrite the caller's LazyDeserializedDAG deadline in place.
+
+        The dict->UUID replacement in ``_generate_deadline_uuids`` has to happen on a copy so a
+        LazyDeserializedDAG the caller still references keeps its original list-of-dicts deadline.
+        """
+        dag_id = "test_deadline_no_mutation"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        # Change the interval so write_dag regenerates UUIDs (the dict->UUID rewrite path)
+        # rather than reusing the existing ones.
+        dag.deadline = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=10),
+            callback=AsyncCallback(empty_callback_for_deadline),
+        )
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        original_deadline = copy.deepcopy(lazy_dag.data["dag"]["deadline"])
+        assert original_deadline
+        assert all(isinstance(item, dict) for item in original_deadline)
+
+        SDM.write_dag(lazy_dag, bundle_name="testing", session=session)
+        session.commit()
+
+        assert lazy_dag.data["dag"]["deadline"] == original_deadline
+
+    def test_sync_dag_to_db_returns_db_normalized_deadline_ids(self, testing_dag_bundle, session):
+        """sync_dag_to_db must return a SerializedDAG with the DB-normalized deadline UUIDs. Verify that the UUIDs returned by sync_dag_to_db match the persisted deadline_alert rows in the DB."""
+        dag_id = "test_sync_dag_to_db_deadline_ids"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        latest_serdag = session.scalar(
+            select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc())
+        )
+        assert latest_serdag is not None
+
+        persisted_alerts = session.scalars(select(DAM).where(DAM.serialized_dag_id == latest_serdag.id)).all()
+
+        persisted_uuids = {str(alert.id) for alert in persisted_alerts}
+        returned_uuids = scheduler_dag.deadline or []
+
+        assert returned_uuids
+        assert all(isinstance(ref, str) for ref in returned_uuids)
+        assert len(returned_uuids) == len(set(returned_uuids))
+        assert set(returned_uuids) == persisted_uuids

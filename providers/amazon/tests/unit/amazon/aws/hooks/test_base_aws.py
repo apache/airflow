@@ -1197,6 +1197,8 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
     for env_key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN"):
         # Delete aws credentials environment variables
         monkeypatch.delenv(env_key, raising=False)
+    # On an EC2 host the credential chain would otherwise reach the instance role via IMDS
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
 
     hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
     with pytest.raises(NoCredentialsError) as credential_error:

@@ -16,20 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+
+import { useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { t: translate } = useTranslation();
+  const { formatElapsed } = useDurationFormat();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
@@ -46,27 +49,31 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
       ? [
           {
             label: translate("duration"),
-            value: getDuration(taskInstance.min_start_date, taskInstance.max_end_date),
+            value: formatElapsed(taskInstance.min_start_date, taskInstance.max_end_date),
           },
         ]
       : []),
   ];
 
   return (
-    <Box>
-      <HeaderCard
-        actions={
-          <>
-            <ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled />
-            <MarkTaskGroupAsButton groupTaskInstance={taskInstance} isHotkeyEnabled />
-          </>
-        }
-        icon={<AiOutlineGroup />}
-        state={taskInstance.state}
-        stats={stats}
-        subTitle={<Time datetime={taskInstance.min_start_date} />}
-        title={taskInstance.task_display_name}
-      />
-    </Box>
+    <HeaderCard
+      actions={
+        <>
+          <ClearTaskInstanceButton
+            bg="bg"
+            groupTaskInstance={taskInstance}
+            isHotkeyEnabled
+            variant="outline"
+          />
+          <MarkTaskGroupAsButton bg="bg" groupTaskInstance={taskInstance} isHotkeyEnabled variant="outline" />
+        </>
+      }
+      icon={<AiOutlineGroup />}
+      state={taskInstance.state}
+      stats={stats}
+      subTitle={<Time datetime={taskInstance.min_start_date} />}
+      title={taskInstance.task_display_name}
+      type="taskGroup"
+    />
   );
 };

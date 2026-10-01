@@ -54,8 +54,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     1. JWT Token generated from ``private_key_file`` or ``private_key_content``. Other inputs can be
        defined in the connection or hook instantiation.
-    2. OAuth Token generated from the ``refresh_token``, ``client_id`` and ``client_secret`` specified
-       in the connection.
+    2. OAuth access token, fetched the same way as in ``SnowflakeHook``. The ``refresh_token`` and
+       ``client_credentials`` grants use the connection ``login`` and ``password`` as the OAuth client
+       ID and client secret. With ``azure_conn_id``, the token comes from that Azure connection instead.
     3. PAT (Programmatic Access Token): set ``authenticator`` to ``programmatic_access_token`` in the
        connection extras and put the PAT value in the connection ``password`` field.
 
@@ -231,14 +232,11 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """Form auth headers based on OAuth token, PAT, or JWT token from private key."""
         conn_config = self._get_conn_params()
 
-        # Use OAuth if refresh_token and client_id and client_secret are provided
-        if all(
-            [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
-        ):
-            oauth_token = self.get_oauth_token(conn_config=conn_config)
+        # _get_conn_params() already fetched the OAuth access token for any grant type or azure_conn_id.
+        if conn_config.get("authenticator") == "oauth":
             return {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {oauth_token}",
+                "Authorization": f"Bearer {conn_config['token']}",
                 "Accept": "application/json",
                 "User-Agent": "snowflakeSQLAPI/1.0",
                 "X-Snowflake-Authorization-Token-Type": "OAUTH",

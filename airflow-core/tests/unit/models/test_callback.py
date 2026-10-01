@@ -117,6 +117,15 @@ class TestCallback:
             "dag_id": TEST_DAG_ID,
         }
 
+    def test_get_metric_info_includes_queue(self):
+        """``queue`` is stored in ``self.data`` for a queued AsyncCallback, so it flows into metric tags."""
+        queued_callback = AsyncCallback(async_callback, kwargs=TEST_CALLBACK_KWARGS, queue="custom-queue")
+        callback = TriggererCallback(queued_callback, prefix="deadline_alerts", dag_id=TEST_DAG_ID)
+
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS, "0")
+
+        assert metric_info["tags"]["queue"] == "custom-queue"
+
     def test_get_metric_info_dict_values_are_stringified(self):
         """
         Regression for ``TypeError: unhashable type: 'dict'`` raised by OpenTelemetry's
@@ -185,7 +194,16 @@ class TestTriggererCallback:
         assert isinstance(callback.trigger, Trigger)
         assert callback.trigger.kwargs["callback_path"] == TEST_ASYNC_CALLBACK.path
         assert callback.trigger.kwargs["callback_kwargs"] == TEST_ASYNC_CALLBACK.kwargs
+        assert callback.trigger.queue is None
         assert callback.state == CallbackState.QUEUED
+
+    def test_queue_populates_trigger_queue(self, session):
+        queued_callback = AsyncCallback(async_callback, kwargs=TEST_CALLBACK_KWARGS, queue="custom-queue")
+        callback = TriggererCallback(queued_callback)
+
+        callback.queue(session=session)
+
+        assert callback.trigger.queue == "custom-queue"
 
     @staticmethod
     def _queue_callback(session, *, has_bundle, has_team):

@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import dayjs from "dayjs";
@@ -55,7 +57,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-const TestWrapper = ({ children }: { readonly children: React.ReactNode }) => {
+const TestWrapper = ({ children }: { readonly children: ReactNode }) => {
   const timezoneContextValue = {
     availableTimezones: ["UTC", "America/New_York"],
     selectedTimezone: "UTC",
@@ -144,6 +146,33 @@ describe("DateRangeFilter", () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it("includes the whole end date when its time is empty", async () => {
+    const onChange = vi.fn();
+
+    renderFilter({ ...defaultProps, onChange });
+    const { endDateInput } = getInputs();
+
+    changeDateInput(endDateInput, "2024/01/15");
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenLastCalledWith({
+        endDate: "2024-01-15T23:59:59.999Z",
+        startDate: undefined,
+      });
+    });
+  });
+
+  it("accepts a start time on the end date when the end time is empty", async () => {
+    renderFilter();
+    const { endDateInput, startDateInput, startTimeInput } = getInputs();
+
+    changeDateInput(startDateInput, "2024/01/15");
+    changeTimeInput(startTimeInput, "10:00");
+    changeDateInput(endDateInput, "2024/01/15");
+
+    await waitForNoError("Start date/time must be before end date/time");
   });
 
   describe("Input Validation", () => {

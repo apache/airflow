@@ -37,6 +37,7 @@ class TestLlamaIndexHookInit:
         assert hook.llm_conn_id == "llamaindex_default"
         assert hook.embed_conn_id == "llamaindex_default"
         assert hook.embed_model is None
+        assert hook.embedding_kwargs == {}
         assert hook.llm_model is None
 
     def test_embed_conn_falls_back_to_llm_conn(self):
@@ -130,6 +131,77 @@ class TestGetEmbeddingModel:
 
     @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")
+    def test_dispatches_with_embedding_kwargs(self, mock_get_conn, mock_cls, caplog):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        mock_cls.model_fields = {"api_key": None, "dimensions": None, "timeout": None}
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"api_key": "from-kwargs", "dimensions": 128, "timeout": 30},
+        )
+
+        hook.get_embedding_model()
+
+        mock_cls.assert_called_once_with(
+            model="text-embedding-3-small",
+            api_key="sk-test",
+            dimensions=128,
+            timeout=30,
+        )
+        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
+        assert not any(
+            message.startswith("OpenAIEmbedding ignores unsupported embedding_kwargs")
+            for message in caplog.messages
+        )
+
+    @pytest.mark.parametrize(
+        ("embedding_kwarg", "expect_warning"),
+        [
+            ("http_client", False),
+            ("embeddings_cache", False),
+            ("dimension", True),
+            ("kwargs", True),
+        ],
+    )
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_warns_about_unsupported_embedding_kwargs(
+        self, mock_get_conn, caplog, embedding_kwarg, expect_warning
+    ):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={embedding_kwarg: None},
+        )
+
+        hook.get_embedding_model()
+
+        warning = f"OpenAIEmbedding ignores unsupported embedding_kwargs: ['{embedding_kwarg}']"
+        assert (warning in caplog.messages) is expect_warning
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_embedding_kwargs_overrides_model_name(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"model_name": "custom-value"},
+        )
+
+        embedding_model = hook.get_embedding_model()
+
+        assert embedding_model.model_name == "custom-value"
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_model_in_embedding_kwargs_raises(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"model": "other-model"},
+        )
+
+        with pytest.raises(TypeError, match="multiple values.*model"):
+            hook.get_embedding_model()
+
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @patch.object(LlamaIndexHook, "get_connection")
     def test_resolves_model_from_extra(self, mock_get_conn, mock_cls):
         mock_get_conn.return_value = _conn(
             password="sk-test", extra={"embed_model": "text-embedding-3-large"}
@@ -168,3 +240,38 @@ class TestGetLlm:
 
         with pytest.raises(ValueError, match="No llm model identifier set"):
             hook.get_llm()
+
+
+class TestConnectionTest:
+    @patch("llama_index.llms.openai.OpenAI")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_successful_connection(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"llm_model": "gpt-4o"})
+
+        hook = LlamaIndexHook()
+        success, message = hook.test_connection()
+
+        assert success is True
+        assert message == "Model resolved successfully."
+
+    @patch("llama_index.llms.openai.OpenAI")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_failed_connection(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"llm_model": "gpt-4o"})
+        mock_cls.side_effect = ValueError("Invalid API key")
+
+        hook = LlamaIndexHook()
+        success, message = hook.test_connection()
+
+        assert success is False
+        assert "Invalid API key" in message
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_failed_connection_no_model(self, mock_get_conn):
+        mock_get_conn.return_value = _conn()
+
+        hook = LlamaIndexHook()
+        success, message = hook.test_connection()
+
+        assert success is False
+        assert "No llm model identifier set" in message

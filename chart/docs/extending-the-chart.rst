@@ -28,7 +28,7 @@ You can extend the official Airflow chart by applying the following steps.
 Create your custom Helm Chart
 -----------------------------
 
-First, you will need to create you own chart directory. You can do it by running the following command:
+First, you will need to create your own chart directory. You can do it by running the following command:
 
 .. code-block:: bash
 

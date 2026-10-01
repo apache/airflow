@@ -17,6 +17,8 @@
  * under the License.
  */
 
+const { collectExternalServices } = require("./src/_data/providerExternalServices");
+
 module.exports = function(eleventyConfig) {
   // Copy static assets
   eleventyConfig.addPassthroughCopy("src/assets");
@@ -119,6 +121,14 @@ module.exports = function(eleventyConfig) {
     const match = types.find((t) => t.id === typeId);
     if (match && match.icon) return match.icon;
     return typeId.charAt(0).toUpperCase();
+  });
+
+  // Flattens a provider's per-connection external services into one deduped
+  // list, so the /providers/ filter box can match them the way the pagefind
+  // index already does.
+  eleventyConfig.addFilter("externalServices", (provider) => {
+    if (!provider || typeof provider !== "object") return [];
+    return collectExternalServices(provider);
   });
 
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);

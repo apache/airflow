@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the provider's optional extras in the docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
+   * ``Prepare providers release 2026-05-19 (#67137)``
+   * ``Prepare providers release 2026-05-05 (#66424)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 4.5.2
 .....
 
