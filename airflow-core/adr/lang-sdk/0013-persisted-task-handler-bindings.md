@@ -305,9 +305,7 @@ For `task_handler_bindings`, `None` and `[]` mean different things, and the diff
 `persist_parsing_result` already uses ([`persist_parsing_result`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/manager.py#L1361-L1364)).
 Without it, a transient parse failure would silently wipe every binding the file owns.
 
-On a fast-path skip the child **re-emits the bindings it was given**, unchanged. It does not omit
-them. Request and result carrying the same information makes that a copy rather than a special
-"keep these" signal the reconcile could get wrong.
+A candidate the fast path skips is answered from its recorded `task_handlers`, so the child resolves and validates every stub task of the file on every parse, and a list always holds all of the file's bindings. There is no separate "keep these" signal for the reconcile to get wrong.
 
 **Scheduler → worker.** `ExecuteTask` and `StartupDetails` each gain one optional reference. The
 artifact bundle is a second, independent bundle, so it needs its own `BundleInfo`.
@@ -381,15 +379,19 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │      not a silent Python fallback at execution time
         │
         ├─4─ per coordinator: list candidates in its bundle
-        │      Go   → files carrying the AFBNDL01 trailer magic
-        │      Java → *.jar with a Main-Class manifest attribute
-        │      TS   → *.min.mjs with a valid //# airflowBundle= layout header
+        │      Go   → files carrying the AFBNDL01 trailer magic, whatever
+        │             their executable bit (one without it is rejected)
+        │      Java → *.jar whose manifest carries Airflow-Cache-Digest
+        │             (dependency JARs may declare Main-Class too)
+        │      TS   → *.min.mjs whose first line starts with //# airflowBundle=
+        │             (one with an invalid layout line is rejected)
         │      walk order is deterministic, so conflicts reproduce
         │
         ├─5─ FAST PATH, per candidate  (see "The fast path")
-        │      size + cache_digest match known_artifacts, and the candidate
-        │      set is unchanged  ──▶ skip the launch, echo the bindings
-        │      anything differs   ──▶ probe
+        │      size + stored cache_digest equal a known artifact's
+        │                          ──▶ skip the launch, use its task_handlers
+        │      anything else, or no stored digest  ──▶ probe
+        │      rejected by the listing             ──▶ import error, no probe
         │
         ├─6─ PROBE, per differing candidate — one subprocess
         │      LangSDKTaskHandlerProcessorProcess.start(
@@ -400,17 +402,19 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │        ◀─SDKTaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
         │        Get* from the runtime is relayed up ToManager unchanged
         │
-        ├─7─ VALIDATE per dag_id, unioned across coordinators
+        ├─7─ VALIDATE per dag_id, against the recorded and the fresh answers,
+        │    unioned across coordinators
         │      task_id sets must match exactly
-        │      arg_bindings[*]         ↔ handler_params[*], per the declaration's binding:
+        │      arg_bindings[*]         ↔ declaration.params[*], per its binding:
         │                                 by position, or by folded or exact name
-        │      arg_bindings[*].schema  ↔ handler_params[*].value_schema,
+        │      arg_bindings[*].schema  ↔ declaration.params[*].value_schema,
         │                                 compared only where neither is null
         │      two candidates claiming one (dag_id, task_id) → import error
         │                                                      naming both paths
         │
         └─8─ on success → task_handler_bindings=[…]
              on mismatch → import_errors[etl.py]=…  AND  bindings=None
+             either way  → probed_artifacts=[every fresh answer]
         │
         ├── DagFileParsingResult(serialized_dags=[…], import_errors={…},
         ▼                        task_handler_bindings=[…] | [] | None,
@@ -533,32 +537,24 @@ stored digest, so one cannot substitute for the other.
 
 Validation is expensive (one subprocess per candidate) and a file is re-parsed every
 `[dag_processor] min_file_process_interval` seconds, 30 by default. Re-probing unchanged artifacts
-every 30 seconds forever is not acceptable, so the probe is skipped when nothing relevant changed.
+every 30 seconds forever is not acceptable, so a candidate is not probed while its recorded answer still holds.
 
-Two tiers, cheapest first:
+The probe asks for every handler and the answer depends only on the artifact, so the answer recorded with a fingerprint holds for every Dag file that later sees that fingerprint, whichever file probed it. Each candidate is decided on its own, cheapest check first:
 
 ```
 for each candidate in the coordinator's bundle:
-    stat(candidate).st_size  ≠  known.size_bytes   →  PROBE
-    read stored cache_digest ≠  known.cache_digest →  PROBE
-    otherwise                                      →  SKIP, echo the binding
+    rejected by the listing (unusable artifact)          →  REPORT, never probe
+    no known artifact at (bundle, relative path)         →  PROBE
+    stat(candidate).st_size  ≠  known.size_bytes         →  PROBE
+    stored cache_digest missing, or ≠ known.cache_digest →  PROBE
+    otherwise                                            →  SKIP, use known.task_handlers
 ```
 
-`mtime` is deliberately absent. It is reset by an object-store download and by container rebuilds, so
-it produces churn without adding certainty; size plus digest is sufficient, with size acting only as
-a free pre-filter.
+`mtime` is deliberately absent. It is reset by an object-store download and by container rebuilds, so it produces churn without adding certainty. Size plus digest is sufficient: the stored digest is read, not recomputed, so an artifact edited in place without a repack keeps it, and the free size check catches most such edits. Execution's integrity check stays the safety net.
 
-Two conditions beyond the per-file comparison:
+**A new artifact is probed by the first file that lists it.** It has no recorded answer yet. Its answer lists every Dag it registers, so a collision on `(dag_id, task_id)` with any file's Dag is found when that file is next validated, even when another file probed the artifact first.
 
-**The candidate set must be unchanged.** A newly deployed artifact has no known fingerprint, so a set
-that differs from `known_artifacts` forces a probe. Without this, an added artifact that collides on
-`(dag_id, task_id)` would never be detected, and the conflict rule above would be unenforceable.
-
-**The Python side is re-validated regardless.** The skip avoids the *subprocess*, not the comparison.
-`handler_params` is stored precisely so a changed `.py` (a stub task that gained an argument) is
-compared against the cached declaration in process. Skipping the comparison as well would cache a
-verdict for a signature that no longer exists, and ship the mismatch to a worker as a runtime
-argument error instead of catching it as an import error.
+**The Python side is re-validated regardless.** The skip avoids the *subprocess*, not the comparison. The recorded `task_handlers` are kept precisely so a changed `.py` (a stub task that gained an argument) is compared against the cached declaration in process. Skipping the comparison as well would cache a verdict for a signature that no longer exists, and ship the mismatch to a worker as a runtime argument error instead of catching it as an import error.
 
 ### Failure handling
 
@@ -595,9 +591,7 @@ definition whose author can act) naming both artifact paths, since the fix is in
   ([`_calculate_classpath`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L85-L87)), so all handlers in a bundle
   share one dependency graph. Isolating conflicting dependency versions requires a second bundle, a
   second coordinator instance, and a second queue. This needs documenting.
-- Steady-state parsing costs no subprocesses. A cold start (empty tables, or a bundle whose
-  candidate set changed) costs one subprocess per changed candidate per coordinator, shared across
-  all Dag files in that parsing loop through `known_artifacts`.
+- Steady-state parsing costs no subprocesses. A new or changed artifact costs one subprocess for each Dag file parsed before its answer is recorded, at most the children the manager starts in one loop iteration, and none after that. A Dag that fails validation does not cause a probe on every parse, since the answers it was checked against stay recorded, and an artifact that stores no cache digest is probed on every parse.
 - No `DagVersion` coupling. An artifact rebuild does not bump a Dag's version, and a Dag edit does
   not invalidate an artifact fingerprint.
 - Mixed-language stays Python-primary. A Lang-SDK runtime cannot declare stub tasks, and a native Dag
