@@ -95,4 +95,27 @@ class BundleDigestTest {
     assertNotEquals(first, digest(mainClass = "com.example.Other"))
     assertNotEquals(first, digest(fatJar = false))
   }
+
+  @Test
+  @DisplayName("Should change when a classpath directory's content changes")
+  fun changesWithClasspathDirectoryContent() {
+    val included = classesDir("included", classes)
+    val first = digest(classpath = listOf(included))
+
+    included.resolve("com/example/Handler.class").writeText("HANDLER")
+
+    assertNotEquals(first, digest(classpath = listOf(included)))
+  }
+
+  @Test
+  @DisplayName("Should change when a non-zip classpath file's content changes")
+  fun changesWithNonZipClasspathFileContent() {
+    val native = tmp.resolve("lib/native.so").apply { parentFile.mkdirs() }
+    native.writeText("native")
+    val first = digest(classpath = listOf(native))
+
+    native.writeText("NATIVE")
+
+    assertNotEquals(first, digest(classpath = listOf(native)))
+  }
 }
