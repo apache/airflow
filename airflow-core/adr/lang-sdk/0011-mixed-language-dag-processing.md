@@ -90,7 +90,7 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         ├── _serialize_dags(bag)  →  is_stub tasks carry arg_bindings (ADR-0007)
         │
         │  ┌─────────────────────────────────────────────────────────────────────┐
-        │  │  Step 1: Collect the dag_ids to ask about — every Dag in this       │
+        │  │  Step 1: Collect the Dags to validate — every Dag in this           │
         │  │          file with at least one is_stub task    →  ["etl"]          │
         │  └─────────────────────────────────────────────────────────────────────┘
         │
@@ -123,7 +123,7 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  │    └── BundleScanner.scanBundles(roots)                             │
         │  │          → "etl" → ResolvedBundle(analytics.jar, mainClass, ...)    │
         │  │                                                                     │
-        │  │  Group the dag_ids by (coordinator, artifact) — one group, one      │
+        │  │  Group the stub tasks by (coordinator, artifact) — one group, one   │
         │  │  process, one request                                               │
         │  └─────────────────────────────────────────────────────────────────────┘
         │
@@ -138,12 +138,11 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  │    ├── in the child: _build_parse_task_handler_command()            │
         │  │    │                 coordinator.parse_task_handler() — spawn JVM   │
         │  │    │                                                                │
-        │  │    │   ──TaskHandlerParseRequest(file=analytics.jar,                │
-        │  │    │                             dag_ids=["etl"])─────▶ JVM         │
+        │  │    │   ──TaskHandlerParseRequest(file=analytics.jar)─────▶ JVM      │
         │  │    │                            (ToSDKTaskHandlerProcessor)         │
         │  │    │                                                                │
-        │  │    │      JVM answers from its own TaskHandler registrations        │
-        │  │    │      whose dagId is one of the requested ids                   │
+        │  │    │      JVM answers with every TaskHandler registration           │
+        │  │    │      in the artifact, or {} when there is none                 │
         │  │    │                                                                │
         │  │    │   ◀─TaskHandlerParsingResult(task_handlers={                   │
         │  │    │        "etl": [extract, transform, load]})─────── JVM          │
@@ -176,8 +175,8 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
 ```
 
 The parse owns validation, not an importer. `PythonDagImporter` returns `airflow.sdk.DAG` objects and knows nothing about coordinators or queues, so `@task.stub` keeps working for
-any importer that can produce a Dag carrying stub tasks. `_parse_file` is also the only place where the whole file's Dags are visible at once, which is what lets one request cover
-every `dag_id` that resolved to the same artifact ([ADR-0012](0012-lang-sdk-parse-protocol.md)).
+any importer that can produce a Dag carrying stub tasks. `_parse_file` is also the only place where the whole file's Dags are visible at once, which is what lets one request per
+artifact serve every Dag in the file whose stubs resolved to it ([ADR-0012](0012-lang-sdk-parse-protocol.md)).
 
 Resolution goes through the coordinator registry, not the filesystem, so the Python Dag and the Lang-SDK artifact **do not need to be in the same DagBundle**. Nothing here needs an
 `airflow.sdk.DAG` round-trip either — validation compares against the Dag the Python parser already built. Appendix B states exactly what is compared.
@@ -187,7 +186,7 @@ Resolution goes through the coordinator registry, not the filesystem, so the Pyt
 | Caller                                     | Coordinator call                                     | What comes back                          | Action                                           |
 |--------------------------------------------|------------------------------------------------------|------------------------------------------|--------------------------------------------------|
 | `_parse_file` → `PythonDagImporter`        | — (the Python file is parsed in process)             | its own parsed Dags                      | PERSIST                                          |
-| `_parse_file`, per (coordinator, artifact) | `parse_task_handler`, scoped to that group's dag_ids | `TaskHandlerParsingResult`               | VALIDATE only — not a Dag, so nothing to persist |
+| `_parse_file`, per (coordinator, artifact) | `parse_task_handler`, for every handler it registers | `TaskHandlerParsingResult`               | VALIDATE only — not a Dag, so nothing to persist |
 | `_parse_file` → `JavaDagImporter`          | `parse_dag`                                          | `DagFileParsingResult`, native Dags only | PERSIST                                          |
 
 There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — and nothing reading a `DagImporter`'s results — ever sees one.
@@ -235,7 +234,8 @@ with one `bundle.serve()`. One artifact can hold both, so neither the file nor t
 
 ### Appendix B — What is compared
 
-Handler declarations from every process spawned in Step 4 are unioned per `dag_id` before comparison, since one Dag's stubs can target several queues.
+Handler declarations from every process spawned in Step 4 are unioned per `dag_id` before comparison, since one Dag's stubs can target several queues. Each reply covers
+every Dag its artifact registers handlers for; only the parsed file's Dags are compared.
 
 - `task_id` sets must match exactly. A missing or extra handler is an error.
 - `arg_bindings` against `params` as each declaration's `binding` says: by position for `positional`, by name for `named`, `named_or_whole` and `named_open`, compared

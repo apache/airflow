@@ -26,8 +26,8 @@ Proposed
 ## Context
 
 The Dag processor asks a Lang-SDK runtime two different questions. "Which Dags does this artifact define?" is answered over the messages [ADR-0004](0004-dag-parsing.md) already
-defines. "Which task handlers does this artifact register for a `dag_id` Python already owns?" has no answer in those messages, because a `TaskHandler` registration carries no Dag
-([ADR-0011](0011-mixed-language-dag-processing.md)).
+defines. "Which task handlers does this artifact register, each for a `dag_id` Python already owns?" has no answer in those messages, because a `TaskHandler` registration carries
+no Dag ([ADR-0011](0011-mixed-language-dag-processing.md)).
 
 This ADR defines the request that carries the second question, the subprocess classes that carry both, and the two parse-side entry points on the coordinator.
 
@@ -82,7 +82,6 @@ relay is only type-safe because both hops speak the same pair, which is the reas
 ```
 class TaskHandlerParseRequest:
     file: str                          # the artifact resolved for this coordinator
-    dag_ids: list[str]                 # every Dag in the parsed file with stub tasks that resolved here
     bundle_path: Path
     bundle_name: str
     type: Literal["TaskHandlerParseRequest"]
@@ -106,9 +105,10 @@ class TaskHandlerParam:
     exact_name: bool = False           # match as spelled, not case-insensitively with underscores ignored
 ```
 
-One request carries every `dag_id` that resolved to the same artifact under the same coordinator, so a file whose stubs all target one runtime costs one process. A `dag_id` the
-artifact registers nothing for is **omitted** from `task_handlers` rather than returned empty: the key set is not required to match `dag_ids`, because it is the union across
-coordinators that has to cover the stubs ([ADR-0011](0011-mixed-language-dag-processing.md)).
+The request names no Dags. The runtime answers with every task handler the artifact registers, keyed by `dag_id`, and with `{}` when it registers none. The answer must depend only
+on the artifact, never on the request, so the Dag processor can cache it per artifact ([ADR-0013](0013-persisted-task-handler-bindings.md)). One request per (coordinator, artifact)
+pair serves every Dag in the parsed file whose stubs resolved there, so a file whose stubs all target one runtime costs one process. The key set is not required to match the file's
+Dags: it can hold other files' Dags, and it is the union across coordinators that has to cover the stubs ([ADR-0011](0011-mixed-language-dag-processing.md)).
 
 `value_schema` reuses the `ArgValueSchema` definition `arg_bindings` already carries ([ADR-0007](0007-taskflow-across-language-boundary.md)), so both sides of a comparison are the
 same type. Two properties matter to validation: the field is nullable on both sides, and each declaration names its binding mode. Appendix B says what that forces.
