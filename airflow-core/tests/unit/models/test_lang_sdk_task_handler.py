@@ -60,7 +60,7 @@ def _make_handler(*, dag_id: str, artifact: LangSDKTaskHandlerArtifact) -> LangS
     )
 
 
-def _add_dags_and_artifact(session, *dag_ids: str) -> LangSDKTaskHandlerArtifact:
+def _add_dags_and_artifact(*dag_ids: str, session) -> LangSDKTaskHandlerArtifact:
     session.add_all(DagModel(dag_id=dag_id, bundle_name="testing") for dag_id in dag_ids)
     artifact = _make_artifact()
     session.add(artifact)
@@ -69,7 +69,7 @@ def _add_dags_and_artifact(session, *dag_ids: str) -> LangSDKTaskHandlerArtifact
 
 
 def test_deleting_dag_deletes_its_handlers(testing_dag_bundle, session):
-    artifact = _add_dags_and_artifact(session, "dag_a", "dag_b")
+    artifact = _add_dags_and_artifact("dag_a", "dag_b", session=session)
     session.add_all(_make_handler(dag_id=dag_id, artifact=artifact) for dag_id in ("dag_a", "dag_b"))
     session.flush()
 
@@ -80,7 +80,7 @@ def test_deleting_dag_deletes_its_handlers(testing_dag_bundle, session):
 
 
 def test_handler_stores_its_declaration(testing_dag_bundle, session):
-    artifact = _add_dags_and_artifact(session, "dag_a")
+    artifact = _add_dags_and_artifact("dag_a", session=session)
     session.add(_make_handler(dag_id="dag_a", artifact=artifact))
     session.flush()
     session.expire_all()
@@ -93,7 +93,7 @@ def test_handler_stores_its_declaration(testing_dag_bundle, session):
 
 
 def test_deleting_referenced_artifact_fails(testing_dag_bundle, session):
-    artifact = _add_dags_and_artifact(session, "dag_a")
+    artifact = _add_dags_and_artifact("dag_a", session=session)
     session.add(_make_handler(dag_id="dag_a", artifact=artifact))
     session.flush()
 
@@ -158,15 +158,15 @@ def test_core_insert_fills_fileloc_hashes(testing_dag_bundle, session):
     )
 
 
-def _add_artifact(session) -> LangSDKTaskHandlerArtifact:
+def _add_artifact(*, session) -> LangSDKTaskHandlerArtifact:
     artifact = _make_artifact()
     session.add(artifact)
     session.flush()
     return artifact
 
 
-def _add_handler(session) -> LangSDKTaskHandler:
-    handler = _make_handler(dag_id="dag_a", artifact=_add_dags_and_artifact(session, "dag_a"))
+def _add_handler(*, session) -> LangSDKTaskHandler:
+    handler = _make_handler(dag_id="dag_a", artifact=_add_dags_and_artifact("dag_a", session=session))
     session.add(handler)
     session.flush()
     return handler
@@ -196,7 +196,7 @@ def _add_handler(session) -> LangSDKTaskHandler:
 def test_fileloc_hash_follows_orm_updates(
     testing_dag_bundle, session, add_row, path_attr, hash_column, other_attr, other_value
 ):
-    row = add_row(session)
+    row = add_row(session=session)
     original_path = getattr(row, path_attr)
 
     setattr(row, other_attr, other_value)
