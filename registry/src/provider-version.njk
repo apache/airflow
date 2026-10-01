@@ -39,6 +39,18 @@ eleventyComputed:
   {% set sourceUrl = pv.provider.source_url %}
 {% endif %}
 
+{% set externalServiceRows = [] %}
+{% for conn in conns %}
+  {% if conn.external_services and conn.external_services.length > 0 %}
+    {% set externalServiceRows = (externalServiceRows.push({sourceType: "Connection", name: conn.conn_type or conn.connection_type, services: conn.external_services}), externalServiceRows) %}
+  {% endif %}
+{% endfor %}
+{% for entry in toolsetServices %}
+  {% if entry.services and entry.services.length > 0 %}
+    {% set externalServiceRows = (externalServiceRows.push({sourceType: "Toolset", name: entry.module, services: entry.services}), externalServiceRows) %}
+  {% endif %}
+{% endfor %}
+
 {% set totalModules = 0 %}
 {% for t in types %}{% set totalModules = totalModules + (moduleCounts[t.id] or 0) %}{% endfor %}
 
@@ -259,30 +271,6 @@ eleventyComputed:
         </button>
         {% endfor %}
       </div>
-      {% set hasExternalServices = false %}
-      {% for conn in conns %}
-        {% if conn.external_services and conn.external_services.length > 0 %}{% set hasExternalServices = true %}{% endif %}
-      {% endfor %}
-      {% if hasExternalServices %}
-      <table class="conn-external-services-table">
-        <thead>
-          <tr class="conn-external-services-header">
-            <th>Connection type</th>
-            <th>External services (examples)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for conn in conns %}
-          {% if conn.external_services and conn.external_services.length > 0 %}
-          <tr class="conn-external-services-row">
-            <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
-            <td class="conn-external-services-list">{{ conn.external_services | join(", ") }}</td>
-          </tr>
-          {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
       <div class="conn-builder-panel" id="conn-builder-panel" hidden>
         <div class="conn-builder-header">
           <span class="conn-builder-title" id="conn-builder-title"></span>
@@ -336,26 +324,28 @@ eleventyComputed:
   </section>
   {% endif %}
 
-  {% if toolsetServices.length > 0 %}
-  <section class="toolset-services-card card">
+  {% if externalServiceRows.length > 0 %}
+  <section class="external-services-card card">
     <h3>
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
       </svg>
-      Toolsets ({{ toolsetServices.length }})
+      External Services ({{ externalServiceRows.length }})
     </h3>
-    <table class="conn-external-services-table">
+    <table class="external-services-table">
       <thead>
-        <tr class="conn-external-services-header">
-          <th>Toolset module</th>
+        <tr class="external-services-header">
+          <th>Source type</th>
+          <th>Name</th>
           <th>External services (examples)</th>
         </tr>
       </thead>
       <tbody>
-        {% for entry in toolsetServices %}
-        <tr class="conn-external-services-row">
-          <td><code>{{ entry.module }}</code></td>
-          <td class="conn-external-services-list">{{ entry.services | join(", ") }}</td>
+        {% for row in externalServiceRows %}
+        <tr class="external-services-row">
+          <td class="external-services-type">{{ row.sourceType }}</td>
+          <td class="external-services-name"><code>{{ row.name }}</code></td>
+          <td class="external-services-list">{{ row.services | join(", ") }}</td>
         </tr>
         {% endfor %}
       </tbody>
