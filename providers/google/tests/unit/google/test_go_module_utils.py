@@ -69,5 +69,5 @@ class TestExecuteInSubprocess:
 
         _execute_in_subprocess(["go", "version"])
 
-        assert "first line" in caplog
-        assert "second line" in caplog
+        assert "first line" in caplog.messages
+        assert "second line" in caplog.messages
