@@ -23,6 +23,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
@@ -35,7 +37,7 @@ type DagRef struct {
 	mu         sync.Mutex
 	registered bool
 	tasks      []*TaskRef
-	taskIDs    map[string]struct{}
+	tasksByID  map[string]*TaskRef
 }
 
 // Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
@@ -69,16 +71,26 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 
 func (*DagRef) registerable() {}
 
-// TaskRef is a task that [DagRef.Task] added to a Dag.
+// TaskRef is a task that [DagRef.Task] added to a Dag. Pass it to [Inputs] to give its result
+// to a task that DagRef.Task adds later.
 type TaskRef struct {
+	dag    *DagRef
 	taskID string
 	spec   TaskSpec
+	// resultType is the type of the result that the task function returns with its error. It is
+	// nil when the function returns only an error.
+	resultType reflect.Type
+	// inputs holds the tasks that Inputs passed, in the order of the parameters they fill. Each
+	// of them is an upstream task of this one.
+	inputs []*TaskRef
+	task   bundle.Task
 }
 
 // Task adds a task that runs fn to the Dag and returns the new task.
 //
 // fn takes a [Context] first and returns either error or (result, error), like a function
-// passed to [TaskHandler].
+// passed to [TaskHandler]. The parameters after the Context take the results of the tasks
+// passed to [Inputs], in order.
 //
 // The task_id is the name of fn, spelled exactly as it is in Go. dag.Task(extractRows) adds the
 // task extractRows, and dag.Task(svc.Extract), which passes a method value, adds the task
@@ -100,7 +112,8 @@ type TaskRef struct {
 //   - fn is not a valid task function
 //   - fn has no name that Task can read and no TaskSpec sets a TaskID
 //   - an option is nil or is not one that package airflow defines
-//   - opts holds more than one TaskSpec
+//   - opts holds more than one TaskSpec or more than one Inputs
+//   - the tasks passed to Inputs do not match the parameters of fn after the Context
 //   - the Dag already has a task with the same task_id
 //   - the Dag is already registered
 func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
@@ -114,7 +127,8 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 			d.dagID,
 		))
 	}
-	if _, err := newTaskFunction(fn); err != nil {
+	wrapped, err := newTaskFunction(fn, bundle.NewPositionalTaskFunction)
+	if err != nil {
 		panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: %v", d.dagID, err))
 	}
 	var cfg taskConfig
@@ -128,7 +142,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 					"airflow.DagRef.Task: Dag %q: opts[%d] is a nil *airflow.TaskSpec", d.dagID, i,
 				))
 			}
-		case TaskSpec:
+		case TaskSpec, inputs:
 		default:
 			// Only a struct that embeds a TaskSpec or a TaskOption gets here.
 			panic(fmt.Sprintf(
@@ -162,19 +176,33 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 			))
 		}
 	}
-	if _, exists := d.taskIDs[taskID]; exists {
+	if _, exists := d.tasksByID[taskID]; exists {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: Dag %q already has a task %q; "+
 				"set another task_id with airflow.TaskSpec{TaskID: ...}",
 			d.dagID, taskID,
 		))
 	}
-	if d.taskIDs == nil {
-		d.taskIDs = make(map[string]struct{})
+	fnType := reflect.TypeOf(fn)
+	upstreams := d.checkInputs(taskID, fnType, cfg.inputs)
+	// newTaskFunction has checked that fn returns either error or (result, error).
+	var resultType reflect.Type
+	if fnType.NumOut() == 2 {
+		resultType = fnType.Out(0)
 	}
-	d.taskIDs[taskID] = struct{}{}
 
-	task := &TaskRef{taskID: taskID, spec: copySpec(spec)}
+	task := &TaskRef{
+		dag:        d,
+		taskID:     taskID,
+		spec:       copySpec(spec),
+		resultType: resultType,
+		inputs:     upstreams,
+		task:       wrapped,
+	}
+	if d.tasksByID == nil {
+		d.tasksByID = make(map[string]*TaskRef)
+	}
+	d.tasksByID[taskID] = task
 	d.tasks = append(d.tasks, task)
 	return task
 }
