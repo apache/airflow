@@ -89,6 +89,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.sdk.importers import DagSourceCode
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -1288,6 +1289,22 @@ class TestExecuteDagCallbacks:
 
         with pytest.raises(ValueError, match="DAG 'missing_dag' not found in DagBag"):
             _execute_dag_callbacks(dagbag, request, log)
+
+    def test_execute_dag_callbacks_native_dag(self, tmp_path):
+        dagbag = DagBag(dag_folder=tmp_path)
+        native_dag = DAG("native_dag", schedule=None)
+        dagbag.dags["native_dag"] = DagSerialization.from_dict(DagSerialization.to_dict(native_dag))
+        request = DagCallbackRequest(
+            filepath="dags.native",
+            dag_id="native_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+        )
+
+        with pytest.raises(ValueError, match="DAG 'native_dag' is a native Lang-SDK Dag"):
+            _execute_dag_callbacks(dagbag, request, structlog.get_logger())
 
     @pytest.mark.parametrize(
         ("xcom_operation", "expected_message_type", "expected_message", "mock_response"),

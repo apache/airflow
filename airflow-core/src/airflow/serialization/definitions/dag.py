@@ -24,7 +24,7 @@ import itertools
 import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, TypedDict, cast, overload
+from typing import TYPE_CHECKING, TypeAlias, TypedDict, cast, overload
 
 import attrs
 import structlog
@@ -150,6 +150,8 @@ class SerializedDAG:
 
     # Only on serialized dag.
     last_loaded: datetime.datetime = attrs.field(init=False)
+    fileloc: str = attrs.field(init=False)
+    relative_fileloc: str | None = attrs.field(init=False)
     # Determine the relative fileloc based only on the serialize dag.
     _processor_dags_folder: str = attrs.field(init=False)
 
@@ -1417,6 +1419,10 @@ class SerializedDAG:
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
         return empty
+
+
+SerializedLangSDKDAG: TypeAlias = SerializedDAG
+"""A Dag that a Lang-SDK runtime parsed and serialized, as a Dag bag holds it."""
 
 
 @provide_session
