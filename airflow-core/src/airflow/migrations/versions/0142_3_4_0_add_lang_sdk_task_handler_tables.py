@@ -50,7 +50,7 @@ def upgrade():
         sa.Column("relative_fileloc", sa.String(length=2000), nullable=False),
         sa.Column("relative_fileloc_hash", sa.String(length=32), nullable=False),
         sa.Column("size_bytes", sa.BigInteger(), nullable=False),
-        sa.Column("cache_digest", sa.String(length=128), nullable=False),
+        sa.Column("cache_digest", sa.String(length=128), nullable=True),
         sa.Column("task_handlers", sa.JSON(), nullable=False),
         sa.Column("last_probed_at", UtcDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("lang_sdk_task_handler_artifact_pkey")),
