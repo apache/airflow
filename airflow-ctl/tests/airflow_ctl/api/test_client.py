@@ -23,8 +23,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from urllib.parse import urlparse
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
 
 import httpx
 import pytest
