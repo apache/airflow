@@ -24,7 +24,6 @@ from unittest import mock
 
 import pytest
 import time_machine
-from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 
 from airflow import plugins_manager
@@ -43,7 +42,6 @@ from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, Param, result, task
-from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
@@ -2565,24 +2563,17 @@ class TestBulkClearDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.post(
-                "/dags/~/clearDagRuns",
-                json={
-                    "dry_run": False,
-                    "dag_runs": [
-                        {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                    ],
-                },
-            )
+        response = test_client.post(
+            "/dags/~/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [
+                    {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                    {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                ],
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         # The batched auth check rejects the whole request, so the authorized Dag's run is not cleared either.
@@ -4414,16 +4405,6 @@ class TestResolveRunOnLatestVersion:
 
 
 class TestWaitDagRun:
-    # The way we init async engine does not work well with FastAPI app init.
-    # Creating the engine implicitly creates an event loop, which Airflow does
-    # once for the entire process; creating the FastAPI app also does, but our
-    # test setup does it once for each test. I don't know how to properly fix
-    # this without rewriting how Airflow does db; re-configuring the db for each
-    # test at least makes the tests run correctly.
-    @pytest.fixture(autouse=True)
-    def reconfigure_async_db_engine(self):
-        _configure_async_session()
-
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
@@ -4913,28 +4894,21 @@ class TestBulkDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "delete",
-                            "entities": [
-                                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                                {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                            {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         session.expire_all()
