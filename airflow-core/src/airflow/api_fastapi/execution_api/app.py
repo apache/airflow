@@ -458,7 +458,7 @@ class InProcessExecutionAPI:
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
         thread.start()
 
-        middleware = ASGIMiddleware(_serving_supervisor_request(self.app), loop=loop)
+        middleware = ASGIMiddleware(_serving_supervisor_request(self.app), loop=loop)  # type: ignore[arg-type]
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
