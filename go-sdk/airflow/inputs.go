@@ -107,6 +107,12 @@ func (d *DagRef) checkInputs(taskID string, fnType reflect.Type, given [][]*Task
 		param := i + 1
 		paramType := fnType.In(param)
 		switch {
+		case upstream.triggerDagRun != nil:
+			panic(fmt.Sprintf(
+				"airflow.DagRef.Task: task %q of Dag %q takes parameter %d from task %q, "+
+					"but that task comes from airflow.TriggerDagRun and returns no result",
+				taskID, d.dagID, param, upstream.taskID,
+			))
 		case upstream.resultType == nil:
 			panic(fmt.Sprintf(
 				"airflow.DagRef.Task: task %q of Dag %q takes parameter %d from task %q, "+
