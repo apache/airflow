@@ -56,6 +56,37 @@ describe("AssetsList columns", () => {
 });
 
 describe("AssetsList filtering", () => {
+  it.each(["true", "false"])("preserves has_events=%s when removing Dag ID", async (hasEvents) => {
+    const requests: Array<{ dagIds: Array<string>; hasEvents: string | null }> = [];
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        const params = new URL(request.url).searchParams;
+
+        requests.push({ dagIds: params.getAll("dag_ids"), hasEvents: params.get("has_events") });
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={[`/assets?dag_id=consumer_dag&has_events=${hasEvents}`]} />);
+
+    await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: ["consumer_dag"], hasEvents }));
+
+    const dagIdPill = await screen.findByTestId("dag_id-pill");
+
+    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+
+    await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents }));
+    expect(screen.getByTestId("has_events-pill")).toBeInTheDocument();
+
+    fireEvent.click(
+      within(screen.getByTestId("has_events-pill")).getByRole("button", { name: /Remove .* filter/u }),
+    );
+
+    await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents: null }));
+  });
+
   it.each([
     { expectedLabel: "yes", hasEvents: "true" },
     { expectedLabel: "no", hasEvents: "false" },
