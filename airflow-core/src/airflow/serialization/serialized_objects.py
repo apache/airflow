@@ -46,6 +46,7 @@ from airflow._shared.dagnode.cycle import detect_cycle
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
 from airflow.models.connection import Connection
 from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
@@ -2132,6 +2133,35 @@ class DagSerialization(BaseSerialization):
 
         # Pass client_defaults directly to deserialize_dag
         return cls.deserialize_dag(serialized_obj["dag"], client_defaults)
+
+    @classmethod
+    def fill_config_defaults(cls, serialized_obj: dict[str, Any]) -> None:
+        """
+        Fill in the Dag settings a serialized Dag leaves unset from the Airflow config, as a Python Dag does.
+
+        A Lang-SDK runtime cannot read the Airflow config, so it leaves ``max_active_tasks``,
+        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup`` and
+        ``disable_bundle_versioning`` out unless the Dag sets them. A value the Dag sets is kept.
+        *serialized_obj* is changed in place.
+        """
+        dag = serialized_obj.get("dag")
+        if not isinstance(dag, dict):
+            # validate_serialized_dag rejects it.
+            return
+        for key, get, section, option in (
+            ("max_active_tasks", conf.getint, "core", "max_active_tasks_per_dag"),
+            ("max_active_runs", conf.getint, "core", "max_active_runs_per_dag"),
+            (
+                "max_consecutive_failed_dag_runs",
+                conf.getint,
+                "core",
+                "max_consecutive_failed_dag_runs_per_dag",
+            ),
+            ("catchup", conf.getboolean, "scheduler", "catchup_by_default"),
+            ("disable_bundle_versioning", conf.getboolean, "dag_processor", "disable_bundle_versioning"),
+        ):
+            if key not in dag:
+                dag[key] = get(section, option)
 
     @classmethod
     def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> None:
