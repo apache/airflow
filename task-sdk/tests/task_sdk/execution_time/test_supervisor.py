@@ -4501,8 +4501,9 @@ class TestInProcessTestSupervisor:
 class TestInProcessSupervisorCommsAcrossThreads:
     """
     dag.test() serves a task's requests in the task's own process. Several threads of the task (the
-    items of an iterated task) may send at once: each gets its own answer, and only the thread serving
-    a request stops seeing the comms, so the others keep making SDK calls.
+    items of an iterated task) may send at once and each gets its own answer. While a request is
+    served, every thread serving it stops seeing the comms, including the in-process API server's own
+    threads, and the comms are back once it is answered.
     """
 
     @staticmethod
@@ -4546,33 +4547,41 @@ class TestInProcessSupervisorCommsAcrossThreads:
 
         assert answers == {n: f"answer-to-request-{n}" for n in range(8)}
 
-    def test_only_the_serving_thread_stops_seeing_the_comms(self):
+    def test_threads_serving_a_request_do_not_see_the_comms(self):
+        """
+        The in-process API server answers on its own threads (its event loop, a worker thread for a
+        sync route). A route that reads models.Variable there must act as the server side: seeing the
+        comms, it would send a request of its own and wait for the lock the sender holds, for ever.
+        """
         import threading
 
         from airflow.sdk.execution_time import task_runner
 
-        serving, release = threading.Event(), threading.Event()
         seen: dict[str, object] = {}
 
         def serve(msg):
-            seen["serving thread"] = task_runner.supervisor_comms()
-            serving.set()
-            release.wait(5)
+            def route():
+                seen["server thread"] = task_runner.supervisor_comms()
+
+            worker = threading.Thread(target=route)
+            worker.start()
+            worker.join(5)
             return "done"
 
         comms = self._comms(serve)
         with patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True):
-            sender = threading.Thread(target=comms.send, args=("request",))
-            sender.start()
-            assert serving.wait(5)
-            # Another thread of the task, while the request is being served: the module attribute is
-            # still there, which is what `from task_runner import SUPERVISOR_COMMS` needs.
-            seen["other thread"] = task_runner.supervisor_comms()
+            threading.Thread(target=comms.send, args=("request",)).start()
+            for _ in range(500):
+                if "server thread" in seen:
+                    break
+                sleep(0.01)
+            sleep(0.05)
+            # Once answered, the task sees its comms again, and the module attribute never went away,
+            # which is what `from task_runner import SUPERVISOR_COMMS` needs.
+            seen["after"] = task_runner.supervisor_comms()
             seen["attribute"] = hasattr(task_runner, "SUPERVISOR_COMMS")
-            release.set()
-            sender.join(5)
 
-        assert seen == {"serving thread": None, "other thread": comms, "attribute": True}
+        assert seen == {"server thread": None, "after": comms, "attribute": True}
 
     def test_serving_supervisor_request_restores_the_previous_state(self):
         from airflow.sdk.execution_time import task_runner
