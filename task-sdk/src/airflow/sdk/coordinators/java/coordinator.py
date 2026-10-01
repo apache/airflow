@@ -19,11 +19,13 @@
 
 from __future__ import annotations
 
+import lzma
 import os
 import pathlib
 import re
 import stat
 import zipfile
+import zlib
 from typing import TYPE_CHECKING
 
 import attrs
@@ -31,6 +33,7 @@ import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import validate_schema_version
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -115,21 +118,33 @@ def _parse_manifest(data: bytes) -> dict[str, str]:
 class _JarMetadata:
     main_class: str | None
     schema_version: str | None
+    cache_digest: str | None = None
 
     @classmethod
     def from_jar(cls, path: pathlib.Path) -> Self | None:
         try:
             with zipfile.ZipFile(path) as zf:
-                try:
-                    manifest_info = zf.getinfo("META-INF/MANIFEST.MF")
-                except KeyError:
-                    log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
-                    return None
-                manifest = _parse_manifest(zf.read(manifest_info))
-            return cls(manifest.get("main-class"), manifest.get("airflow-supervisor-schema-version"))
+                metadata = cls.from_zip(zf)
         except zipfile.BadZipFile:
             log.exception("Cannot read JAR; ignored", path=path)
             return None
+        if metadata is None:
+            log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
+        return metadata
+
+    @classmethod
+    def from_zip(cls, zf: zipfile.ZipFile) -> Self | None:
+        """Read the manifest of the open JAR *zf*; ``None`` when it has none."""
+        try:
+            manifest_info = zf.getinfo("META-INF/MANIFEST.MF")
+        except KeyError:
+            return None
+        manifest = _parse_manifest(zf.read(manifest_info))
+        return cls(
+            main_class=manifest.get("main-class"),
+            schema_version=manifest.get("airflow-supervisor-schema-version"),
+            cache_digest=manifest.get("airflow-cache-digest") or None,
+        )
 
 
 @attrs.define
@@ -214,7 +229,10 @@ class JavaCoordinator(SubprocessCoordinator):
 
     To report the task handlers a JAR registers, the coordinator runs that JAR's
     own Main-Class with the whole bundle on the classpath. *main_class* applies
-    to task execution only.
+    to task execution only. The Dag processor only asks JARs whose manifest
+    carries *Airflow-Cache-Digest*, which the Gradle plugin writes, and asks one
+    again only when its size or digest changes. A dependency JAR replaced
+    without rebuilding the bundle therefore goes unnoticed.
 
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java
@@ -254,3 +272,34 @@ class JavaCoordinator(SubprocessCoordinator):
 
     def _build_java_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
         return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
+
+    def _read_task_handler_candidate(
+        self, path: pathlib.Path, *, rel_path: str
+    ) -> TaskHandlerCandidate | None:
+        if path.suffix != ".jar":
+            return None
+        try:
+            with open(path, "rb") as f:
+                size_bytes = os.fstat(f.fileno()).st_size
+                with zipfile.ZipFile(f) as zf:
+                    metadata = _JarMetadata.from_zip(zf)
+        except (
+            OSError,
+            EOFError,
+            RuntimeError,  # an encrypted manifest
+            NotImplementedError,  # a compression method zipfile cannot read
+            zipfile.BadZipFile,
+            zlib.error,
+            lzma.LZMAError,
+        ) as exc:
+            log.debug("Cannot read JAR; not listed", path=path, error=str(exc))
+            return None
+        # Dependency JARs can declare Main-Class too; only the Gradle plugin's digest marks a handler JAR.
+        if metadata is None or metadata.cache_digest is None:
+            return None
+        error = None
+        if not metadata.main_class:
+            error = f"{rel_path} has an Airflow-Cache-Digest manifest attribute but no Main-Class"
+        return TaskHandlerCandidate(
+            rel_path=rel_path, size_bytes=size_bytes, cache_digest=metadata.cache_digest, error=error
+        )
