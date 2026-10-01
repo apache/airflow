@@ -115,14 +115,14 @@ def java_coordinator() -> Iterator[None]:
         # The parse child is a bare fork even on macOS, so it sees this config.
         with (
             conf_vars({("sdk", "coordinators"): json.dumps(spec)}),
-            mock.patch.object(supervisor, "_should_use_exec", return_value=False),
+            mock.patch.object(supervisor, "_should_use_exec", autospec=True, return_value=False),
         ):
             yield
     finally:
         reset_coordinator_manager()
 
 
-def _nullable(schema: dict) -> dict:
+def _make_nullable(schema: dict) -> dict:
     return {"anyOf": [schema, {"type": "null"}]}
 
 
@@ -133,7 +133,7 @@ DOUBLE = {"type": "number", "format": "double"}
 STRING = {"type": "string"}
 
 
-def _positional(task_id: str, *params: tuple[str, dict]) -> TaskHandlerDeclaration:
+def _declare_positional(task_id: str, *params: tuple[str, dict]) -> TaskHandlerDeclaration:
     return TaskHandlerDeclaration(
         task_id=task_id,
         binding="positional",
@@ -141,7 +141,7 @@ def _positional(task_id: str, *params: tuple[str, dict]) -> TaskHandlerDeclarati
     )
 
 
-def _named(task_id: str, *params: tuple[str, dict, bool]) -> TaskHandlerDeclaration:
+def _declare_named(task_id: str, *params: tuple[str, dict, bool]) -> TaskHandlerDeclaration:
     return TaskHandlerDeclaration(
         task_id=task_id,
         binding="named",
@@ -176,29 +176,33 @@ def test_a_built_bundle_declares_its_task_handlers(example_bundle):
         fileloc=os.fspath(jar),
         task_handlers={
             "java_xcom_casting_example": [
-                _named("produce_number"),
-                _positional("widen_to_long", ("value", INT64)),
-                _positional("widen_to_double", ("value", DOUBLE)),
-                _named("produce_nothing"),
-                _positional("consume_nullable", ("value", _nullable(INT32))),
-                _named("produce_fraction"),
-                _positional("consume_float", ("value", FLOAT)),
-                _positional(
+                _declare_named("produce_number"),
+                _declare_positional("widen_to_long", ("value", INT64)),
+                _declare_positional("widen_to_double", ("value", DOUBLE)),
+                _declare_named("produce_nothing"),
+                _declare_positional("consume_nullable", ("value", _make_nullable(INT32))),
+                _declare_named("produce_fraction"),
+                _declare_positional("consume_float", ("value", FLOAT)),
+                _declare_positional(
                     "consume_double_list",
-                    ("values", _nullable({"type": "array", "items": _nullable(DOUBLE)})),
+                    ("values", _make_nullable({"type": "array", "items": _make_nullable(DOUBLE)})),
                 ),
             ],
             "java_interface_example": [
-                _named("extract"),
-                _named("transform", ("extracted", INT64, False)),
-                _named("summarize", ("region_code", _nullable(STRING), True), ("transformed", INT64, False)),
+                _declare_named("extract"),
+                _declare_named("transform", ("extracted", INT64, False)),
+                _declare_named(
+                    "summarize", ("region_code", _make_nullable(STRING), True), ("transformed", INT64, False)
+                ),
             ],
             "java_annotation_example": [
-                _named("extract"),
-                _positional("transform", ("extracted", INT64)),
-                _positional("load", ("transformed", INT64)),
-                _named("report", ("runLabel", _nullable(STRING), False), ("transformed", INT64, False)),
-                _named("concurrent"),
+                _declare_named("extract"),
+                _declare_positional("transform", ("extracted", INT64)),
+                _declare_positional("load", ("transformed", INT64)),
+                _declare_named(
+                    "report", ("runLabel", _make_nullable(STRING), False), ("transformed", INT64, False)
+                ),
+                _declare_named("concurrent"),
             ],
         },
     )
