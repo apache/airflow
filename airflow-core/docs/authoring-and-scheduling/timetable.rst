@@ -29,7 +29,7 @@ internally converted to always use a timetable.
 If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
 to worry about writing a custom timetable because Airflow has default timetables that handle those cases.
 But for more complicated scheduling requirements,
-you can create your own timetable class and pass that to the Dags ``schedule`` argument.
+you can create your own timetable class and pass that to the Dag's ``schedule`` argument.
 
 Some examples of when custom timetable implementations are useful:
 
@@ -48,7 +48,7 @@ Some examples of when custom timetable implementations are useful:
 
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
-Airflow allows you to write custom timetables in plugins and used by
+Airflow allows you to write custom timetables in plugins and use them in
 Dags. You can find an example demonstrating a custom timetable in the
 :doc:`/howto/timetable` how-to guide.
 
@@ -275,7 +275,10 @@ AssetOrTimeSchedule
 
 Combining conditional asset expressions with time-based schedules enhances scheduling flexibility.
 
-The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of Dags based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
+Asset-aware timetables let you combine a time-based schedule with an asset expression:
+
+* ``AssetOrTimeSchedule`` schedules Dag runs both on the timetable and whenever the assets update. It creates traditional scheduled runs and asset-triggered runs independently.
+* ``AssetAndTimeSchedule`` keeps the Dag on a time-based timetable but only creates a scheduled run after all referenced assets are ready. When the run is created, the asset events are consumed so the next scheduled run waits for the next set of updates. No asset-triggered runs are created.
 
 This feature is particularly useful in scenarios where a Dag needs to run on asset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
 
@@ -283,8 +286,7 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
 
 .. code-block:: python
 
-    from airflow.timetables.assets import AssetOrTimeSchedule
-    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.sdk import AssetOrTimeSchedule, CronTriggerTimetable
 
 
     @dag(
@@ -294,6 +296,23 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
         ...,
     )
     def example_dag():
+        pass
+
+Here's an example of a Dag using ``AssetAndTimeSchedule`` to require both the time-based schedule and fresh assets before a run is created:
+
+.. code-block:: python
+
+    from airflow.sdk import AssetAndTimeSchedule, CronTriggerTimetable
+
+
+    @dag(
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),
+            assets=(dag1_asset & dag2_asset),
+        ),
+    )
+    def example_gated_dag():
+        # Dag tasks go here
         pass
 
 
@@ -409,7 +428,7 @@ data interval that they cover, depending on 3 arguments: ``schedule``, ``start_d
      - ``True``
      - * 00:00 - 00:30
        * 00:30 - 01:00
-     - Same behavior than using the timedelta object.
+     - Same behavior as using the timedelta object.
 
    * - ``*/30 * * * *``
      - ``year-02-01``
@@ -434,7 +453,7 @@ data interval that they cover, depending on 3 arguments: ``schedule``, ``start_d
      - ``True``
      - * 00:00 - 00:30
        * 00:30 - 01:00
-     - Same behavior than using the cron expression.
+     - Same behavior as using the cron expression.
 
    * - ``datetime.timedelta(minutes=30)``
      - ``year-02-01``

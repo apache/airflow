@@ -51,10 +51,14 @@ as follows:
     protocol not available
     Error 1 returned
 
-Try adding ``--builder=default`` to your command. For example:
+If autodetection picked a stale Docker Desktop context, point Breeze at a working socket
+with ``--docker-host`` (or set ``DOCKER_HOST``), or force a known context / Buildx builder
+with ``--builder``. For example:
 
 .. code-block:: bash
 
+    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.10 --backend mysql --mysql-version 8.0
+    # or:
     breeze --builder=default --python 3.10 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
@@ -397,6 +401,20 @@ in ``--from-ref`` and ``--to-ref`` flags.
 
 .. note::
 
+    Python bytecode (``.pyc``) compiled from the mounted sources inside the container is written
+    to the ``airflow-pycache-volume`` docker volume (``PYTHONPYCACHEPREFIX``) rather than next to
+    the sources, so it never shows up in your checkout but survives between ``breeze shell`` and
+    ``breeze start-airflow`` runs. This noticeably speeds up every ``airflow`` command and component
+    start-up, especially on macOS where reading sources through the bind mount is slow.
+    The cache is safe to share across Python versions: ``.pyc`` file names keep the
+    interpreter tag (``foo.cpython-310.pyc`` vs ``foo.cpython-312.pyc``), so bytecode is
+    never reused across versions. It is shared across worktrees, though -- sources always
+    mount at ``/opt/airflow`` and freshness is checked by source mtime and size, so
+    alternating between worktrees keeps invalidating the other one's entries.
+    Run ``breeze down --cleanup-pycache`` to wipe the volume.
+
+.. note::
+
     You cannot change Python version for static checks that are run within Breeze containers.
     The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
     The main reason is to keep consistency in the results of static checks and to make sure that
@@ -700,19 +718,37 @@ After returning to the host shell, stop the remaining Docker Compose services:
 
    breeze down
 
-``breeze down`` discovers every running docker compose project that breeze knows
-about — ``breeze shell``, ``breeze testing``, ``breeze build-docs``, ``breeze db``,
-release-management, registry, ``breeze run``, and prek-hook compose projects — by
-reading the ``com.docker.compose.project`` label that compose sets on every container
-it creates. Each matching project is brought down with ``--remove-orphans`` and
-``--volumes`` (unless ``--preserve-volumes`` is passed). A running
-``breeze start-airflow`` container must exit first; otherwise it continues to use
-the project's forwarded ports, network, and volumes.
+In a linked Git worktree, Breeze defaults to the project name ``breeze-<worktree directory name>``.
+The directory name is lowercased, and characters other than letters, digits, underscores, and
+hyphens are replaced with hyphens. The main checkout defaults to ``breeze``. Use ``--project-name``
+to override this default; worktrees with the same normalized directory name share a default project name.
 
-If you have an unrelated docker compose project running on the host that does not
-match any breeze prefix, it is left alone by default. Pass ``--all-projects`` to
-also bring those down. To restrict the cleanup to a single named project (useful
-in CI steps), pass ``--project-name <name>``.
+Before Docker-backed commands run, Breeze removes labelled resources belonging to deleted worktrees.
+This includes running containers and leftover named volumes, even when no containers remain.
+Help and commands that do not use Docker do not trigger cleanup.
+
+Please note that automatic cleanup is best-effort: disappearing or busy resources produce a warning without
+aborting the command. Remaining resources are retried on the next Docker-backed command.
+Explicit ``breeze down`` reports Docker failures as errors.
+
+``breeze down`` removes containers, networks, and volumes for Breeze projects with no worktree path
+and for projects belonging to the current checkout.
+It also removes Breeze-owned resources whose absolute worktree path no longer exists,
+including running containers. Paths are checked on the machine running Breeze, so this
+stale-worktree detection assumes a local Docker daemon.
+
+Pass ``--all-worktrees`` to include other checkouts and every project with the ``org.apache.airflow.breeze=true``
+ownership label. Projects predating the Breeze labels are included when their name is ``breeze``
+or starts with ``breeze-``, preserving the legacy cleanup behavior.
+Use ``--project-name <name>`` to restrict removal to one exact Compose project; this also
+disables stale-worktree cleanup for other projects and cannot be combined with ``--all-worktrees``.
+
+Discovery includes volumes and networks even when no containers remain. Resources are removed
+directly through Docker, so deleted worktrees do not need their Compose files restored.
+``--preserve-volumes`` keeps named and anonymous volumes, including those from deleted worktrees.
+Shared MyPy and bytecode caches remain controlled by their explicit cleanup flags.
+Unlike ``breeze cleanup``, ``down`` does not delete local source files, environments, images,
+or build caches unless an explicit cache-cleanup flag is passed.
 
 These are all available flags of ``down`` command:
 

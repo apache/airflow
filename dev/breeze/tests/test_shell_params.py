@@ -17,15 +17,79 @@
 
 from __future__ import annotations
 
+import os
 from unittest.mock import patch
 
+import click
 import pytest
+import yaml
+from click.testing import CliRunner
 from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.commands.common_options import option_project_name
+from airflow_breeze.global_constants import MOUNT_SELECTED, PYCACHE_PREFIX_IN_CONTAINER
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.path_utils import (
+    SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
+)
 
 console = Console(width=400, color_system="standard")
+
+
+@pytest.mark.parametrize("linked_worktree", [False, True])
+@pytest.mark.parametrize("explicit_project", [None, "foobar", "breeze"])
+def test_worktree_project_default_and_override(tmp_path, linked_worktree, explicit_project):
+    root = tmp_path / "My Worktree"
+    with (
+        patch("airflow_breeze.utils.path_utils.AIRFLOW_ROOT_PATH", root),
+        patch(
+            "airflow_breeze.utils.path_utils.get_main_git_dir_for_worktree",
+            autospec=True,
+            return_value=tmp_path / ".git" if linked_worktree else None,
+        ),
+    ):
+        params = ShellParams(**({"project_name": explicit_project} if explicit_project else {}))
+        sqlite_file = params.get_backend_compose_files("sqlite")[0].name
+
+        @click.command()
+        @option_project_name
+        def command(project_name):
+            click.echo(project_name)
+
+        result = CliRunner().invoke(
+            command,
+            ["--project-name", explicit_project] if explicit_project else [],
+            env={"PROJECT_NAME": None},
+        )
+    assert params.project_name == (
+        explicit_project or ("breeze-my-worktree" if linked_worktree else "breeze")
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == params.project_name
+    assert sqlite_file == (
+        "backend-sqlite-no-volume.yml" if explicit_project == "foobar" else "backend-sqlite.yml"
+    )
+
+
+@pytest.mark.parametrize("linked_worktree", [False, True])
+def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, linked_worktree):
+    monkeypatch.setenv("BREEZE_WORKTREE_PATH", "/another/checkout")
+    with (
+        patch("airflow_breeze.params.shell_params.AIRFLOW_ROOT_PATH", tmp_path),
+        patch(
+            "airflow_breeze.params.shell_params.get_main_git_dir_for_worktree",
+            autospec=True,
+            return_value=tmp_path / ".git" if linked_worktree else None,
+        ),
+    ):
+        env = ShellParams().env_variables_for_docker_commands
+
+    assert env["BREEZE_WORKTREE_PATH"] == (str(tmp_path.resolve()) if linked_worktree else "")
 
 
 @pytest.mark.parametrize(
@@ -202,6 +266,24 @@ console = Console(width=400, color_system="standard")
             {"POSTGRES_DRIVER": "psycopg"},
             id="POSTGRES_DRIVER stays psycopg when installing from a GitHub branch",
         ),
+        pytest.param(
+            {},
+            {"backend": "postgres", "postgres_version": "17"},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
+            id="POSTGRES_DATA_VOLUME_PATH is the data directory up to Postgres 17",
+        ),
+        pytest.param(
+            {},
+            {"backend": "postgres", "postgres_version": "18"},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql"},
+            id="POSTGRES_DATA_VOLUME_PATH is its parent from Postgres 18",
+        ),
+        pytest.param(
+            {},
+            {"backend": "none", "postgres_version": ""},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
+            id="POSTGRES_DATA_VOLUME_PATH ignores the empty version of non-postgres backends",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(
@@ -229,3 +311,84 @@ def test_shell_params_to_env_var_conversion(
                 console.print(env_vars)
                 error = True
         assert not error, "Some values are not as expected."
+
+
+def test_generated_env_files_do_not_change_when_pythonwarnings_is_set(tmp_path, monkeypatch):
+    docker_env_path = tmp_path / "_generated_docker.env"
+    compose_env_path = tmp_path / "_generated_docker_compose.env"
+    with (
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_ENV_PATH", docker_env_path),
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_COMPOSE_ENV_PATH", compose_env_path),
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_LOCK_PATH", tmp_path / "_generated.lock"),
+    ):
+        monkeypatch.delenv("PYTHONWARNINGS", raising=False)
+        _ = ShellParams().env_variables_for_docker_commands
+        docker_env = docker_env_path.read_text()
+        compose_env = compose_env_path.read_text()
+        monkeypatch.setenv("PYTHONWARNINGS", "default")
+        _ = ShellParams().env_variables_for_docker_commands
+        assert docker_env_path.read_text() == docker_env
+        assert compose_env_path.read_text() == compose_env
+
+
+def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
+    base_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH.read_text())
+    assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]
+
+
+def test_postgres_data_volume_is_mounted_at_the_image_volume_path():
+    backend_compose_file = yaml.safe_load(
+        (SCRIPTS_CI_DOCKER_COMPOSE_PATH / "backend-postgres.yml").read_text()
+    )
+    assert (
+        "postgres-data-volume:${POSTGRES_DATA_VOLUME_PATH:-/var/lib/postgresql/data}"
+        in backend_compose_file["services"]["postgres"]["volumes"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("include_pycache_volume", "expected_prefix", "expected_dont_write"),
+    [(True, PYCACHE_PREFIX_IN_CONTAINER, ""), (False, "", "true")],
+)
+def test_bytecode_cache_is_enabled_only_together_with_its_volume(
+    include_pycache_volume: bool, expected_prefix: str, expected_dont_write: str
+):
+    env_vars = ShellParams(include_pycache_volume=include_pycache_volume).env_variables_for_docker_commands
+    assert env_vars["PYTHONPYCACHEPREFIX"] == expected_prefix
+    assert env_vars["PYTHONDONTWRITEBYTECODE"] == expected_dont_write
+
+
+@pytest.mark.parametrize(("include_pycache_volume", "expected_count"), [(True, 1), (False, 0)])
+def test_pycache_volume_compose_file_is_included_only_when_requested(
+    include_pycache_volume: bool, expected_count: int
+):
+    compose_files = ShellParams(include_pycache_volume=include_pycache_volume).compose_file.split(os.pathsep)
+    assert compose_files.count(str(SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH)) == expected_count
+
+
+def test_include_mypy_volume_adds_mypy_compose_file():
+    compose_files = ShellParams(include_mypy_volume=True).compose_file.split(":")
+    assert str(SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml") in compose_files
+
+
+@pytest.mark.parametrize(("force_lowest_dependencies", "expected_count"), [(True, 0), (False, 1)])
+def test_uv_lock_is_not_mounted_for_lowest_dependencies(force_lowest_dependencies: bool, expected_count: int):
+    """The lowest-direct ``uv sync`` rewrites uv.lock, so its mount is dropped for that run."""
+    compose_files = ShellParams(
+        mount_sources=MOUNT_SELECTED, force_lowest_dependencies=force_lowest_dependencies
+    ).compose_file.split(os.pathsep)
+    assert compose_files.count(str(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH)) == expected_count
+
+
+def test_uv_lock_is_mounted_only_by_its_own_compose_file():
+    """Guards the split: a stray uv.lock bind in local.yml would defeat the skip above."""
+    local_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH.read_text())
+    # local.yml mixes named volumes (plain "source:target" strings) with bind mappings.
+    local_volumes = local_compose_file["services"]["airflow"]["volumes"]
+    targets = [volume["target"] if isinstance(volume, dict) else volume for volume in local_volumes]
+    assert not any("uv.lock" in target for target in targets)
+
+    uv_lock_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH.read_text())
+    assert uv_lock_compose_file["services"]["airflow"]["volumes"] == [
+        {"type": "bind", "source": "../../../uv.lock", "target": "/opt/airflow/uv.lock"}
+    ]

@@ -18,6 +18,7 @@
  */
 import { HStack } from "@chakra-ui/react";
 import type { AxiosError } from "axios";
+import type { ReactNode } from "react";
 
 import type { HttpExceptionResponse, HttpValidationError } from "openapi/requests/types.gen";
 
@@ -37,7 +38,7 @@ export const ErrorAlert = ({ error: err }: Props) => {
   const statusCode = response?.status;
   const statusText = response?.statusText ?? message;
   const detail = response?.data.detail;
-  let detailMessage: React.ReactNode;
+  let detailMessage: ReactNode;
 
   if (typeof detail === "string") {
     detailMessage = detail;

@@ -20,7 +20,8 @@ import { Button, Flex, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DagRunAssetReference, DagRunState } from "openapi/requests/types.gen";
-import { Popover, RouterLink } from "src/components/ui";
+
+import { Popover, RouterLink } from "src/system-components";
 
 import { StateBadge } from "../StateBadge";
 
@@ -35,7 +36,7 @@ const DagRunGroup = ({
   readonly dagRuns: Array<DagRunAssetReference>;
   readonly prefix: string;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return dagRuns.length === 1 ? (
     <Flex flexWrap="wrap" gap={1}>

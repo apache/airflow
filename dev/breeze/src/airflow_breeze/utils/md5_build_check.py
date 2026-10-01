@@ -78,6 +78,19 @@ def check_md5_sum_for_file(file_to_check: str, md5sum_cache_dir: Path, update: b
     return is_modified
 
 
+def calculate_ci_sources_hash() -> str:
+    """
+    Calculates aggregated hash of all the files that trigger CI image rebuild when changed.
+
+    Only relative paths and file contents are hashed, so the result is stable across
+    checkouts/worktrees of the same sources.
+    """
+    hash_md5 = hashlib.md5()
+    for file in FILES_FOR_REBUILD_CHECK:
+        hash_md5.update(f"{file}:{generate_md5(AIRFLOW_ROOT_PATH / file)}\n".encode())
+    return hash_md5.hexdigest()
+
+
 def calculate_md5_checksum_for_files(
     md5sum_cache_dir: Path, update: bool = False, skip_provider_dependencies_check: bool = False
 ) -> tuple[list[str], list[str]]:

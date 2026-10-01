@@ -22,7 +22,8 @@ import { LuFileWarning } from "react-icons/lu";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDag, useImportErrorServiceGetImportErrors } from "openapi/queries";
-import { DagImportErrorModal } from "src/pages/Dag/DagImportErrorModal";
+
+import { DagImportErrorModal } from "./DagImportErrorModal";
 
 export const DagDeactivatedBanner = () => {
   const { t: translate } = useTranslation(["dag", "dashboard"]);

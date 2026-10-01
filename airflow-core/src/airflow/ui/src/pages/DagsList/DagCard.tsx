@@ -20,10 +20,14 @@ import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/rea
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, Tooltip } from "src/system-components";
+
 import DagRunInfo from "src/components/DagRunInfo";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { Stat } from "src/components/Stat";
 import { TeamName } from "src/components/TeamName";
-import { RouterLink, Tooltip } from "src/components/ui";
+
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -115,7 +119,9 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
         </GridItem>
         <GridItem gridColumn={3} gridRow={1}>
           <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
-            {!dag.is_paused && Boolean(dag.next_dagrun_run_after) ? (
+            {dag.is_paused ? undefined : dag.scheduling_state === "draining" ? (
+              <DrainingBadge />
+            ) : Boolean(dag.next_dagrun_run_after) ? (
               <DagRunInfo
                 logicalDate={dag.next_dagrun_logical_date}
                 runAfter={dag.next_dagrun_run_after as string}

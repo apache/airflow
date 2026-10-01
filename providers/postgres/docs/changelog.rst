@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow keeping PostgresHook SQLAlchemy engines on psycopg2 (#72000)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix grammar in the dialects documentation (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Prepare providers release 2026-09-22``
+
+7.0.2
+.....
+
+Misc
+~~~~
+
+* ``Add type annotations to sql hooks (#70815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 7.0.1
 .....
 

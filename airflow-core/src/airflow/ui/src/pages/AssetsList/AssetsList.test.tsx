@@ -17,10 +17,23 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { delay, http, HttpResponse } from "msw";
+import { setupServer, type SetupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { handlers } from "src/mocks/handlers";
 import { AppWrapper } from "src/utils/AppWrapper";
+
+let server: SetupServer;
+
+beforeAll(() => {
+  server = setupServer(...handlers);
+  server.listen({ onUnhandledRequest: "bypass" });
+});
+
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 // The assets mock handler (see src/mocks/handlers/assets.ts) returns a single asset
 // with one consuming task, one alias and one watcher.
@@ -39,5 +52,56 @@ describe("AssetsList columns", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "1 alias" })).toBeInTheDocument());
 
     expect(screen.getByRole("button", { name: "1 watcher" })).toBeInTheDocument();
+  });
+});
+
+describe("AssetsList filtering", () => {
+  it.each([
+    { expectedLabel: "yes", hasEvents: "true" },
+    { expectedLabel: "no", hasEvents: "false" },
+    { expectedLabel: undefined, hasEvents: null },
+  ])("restores has_events=$hasEvents from the URL", async ({ expectedLabel, hasEvents }) => {
+    let requestedHasEvents: string | null | undefined;
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        requestedHasEvents = new URL(request.url).searchParams.get("has_events");
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    const initialUrl = hasEvents === null ? "/assets" : `/assets?has_events=${hasEvents}`;
+
+    render(<AppWrapper initialEntries={[initialUrl]} />);
+
+    await waitFor(() => expect(requestedHasEvents).toBe(hasEvents));
+
+    if (expectedLabel === undefined) {
+      expect(screen.queryByTestId("has_events-pill")).not.toBeInTheDocument();
+    } else {
+      expect(screen.getByTestId("has_events-pill")).toHaveTextContent(`filters.hasEvents: ${expectedLabel}`);
+    }
+  });
+
+  it("keeps the listed assets on screen while a filter change is still loading", async () => {
+    render(<AppWrapper initialEntries={["/assets"]} />);
+
+    await waitFor(() => expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument());
+
+    server.use(
+      http.get("/ui/assets", async () => {
+        await delay("infinite");
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    fireEvent.change(screen.getByTestId("search-dags"), { target: { value: "plain" } });
+
+    await waitFor(() => expect(screen.getByRole("progressbar")).toBeVisible());
+
+    expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
   });
 });

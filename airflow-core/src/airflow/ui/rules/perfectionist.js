@@ -60,6 +60,14 @@ export const perfectionistRules = /** @type {const} @satisfies {FlatConfig.Confi
      */
     [`${perfectionistNamespace}/sort-enums`]: ERROR,
 
+    /*
+     * `sort-imports` is intentionally left off: import order is owned by
+     * `@trivago/prettier-plugin-sort-imports` (see `importOrder` in
+     * `.prettierrc`). The prek hook runs `eslint --fix` before
+     * `prettier --write`, so enabling it here would let Prettier overwrite
+     * ESLint's ordering and leave `pnpm lint` failing with no possible fix.
+     */
+
     /**
      * Enforce sorted TypeScript interface properties.
      *

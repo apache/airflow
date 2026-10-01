@@ -20,18 +20,24 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
 
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
+  useDefaultLandingPage,
+  useDefaultTaskInstanceTab,
   useMarkTaskInstanceDefaultOptions,
 } from "./useUserSettings";
 
@@ -124,6 +130,79 @@ describe("useClearPreventRunningTaskDefault", () => {
 
     expect(result.current[0]).toBe(false);
     expect(JSON.parse(localStorage.getItem(CLEAR_PREVENT_RUNNING_TASK_KEY) ?? "true")).toBe(false);
+  });
+});
+
+describe("useClearKeepTaskStateDefault", () => {
+  it("defaults to false", () => {
+    const { result } = renderHook(() => useClearKeepTaskStateDefault());
+
+    expect(result.current[0]).toBe(false);
+  });
+
+  it("persists a new value", () => {
+    const { result } = renderHook(() => useClearKeepTaskStateDefault());
+
+    act(() => {
+      result.current[1](true);
+    });
+
+    expect(result.current[0]).toBe(true);
+    expect(JSON.parse(localStorage.getItem(CLEAR_KEEP_TASK_STATE_KEY) ?? "false")).toBe(true);
+  });
+});
+
+describe("useDefaultTaskInstanceTab", () => {
+  it("defaults to logs when nothing is stored", () => {
+    const { result } = renderHook(() => useDefaultTaskInstanceTab());
+
+    expect(result.current[0]).toBe("logs");
+  });
+
+  it("reads an existing stored tab", () => {
+    localStorage.setItem(DEFAULT_TASK_INSTANCE_TAB_KEY, JSON.stringify("details"));
+
+    const { result } = renderHook(() => useDefaultTaskInstanceTab());
+
+    expect(result.current[0]).toBe("details");
+  });
+
+  it("persists a new tab to localStorage", () => {
+    const { result } = renderHook(() => useDefaultTaskInstanceTab());
+
+    act(() => {
+      result.current[1]("xcom");
+    });
+
+    expect(result.current[0]).toBe("xcom");
+    expect(JSON.parse(localStorage.getItem(DEFAULT_TASK_INSTANCE_TAB_KEY) ?? '""')).toBe("xcom");
+  });
+});
+
+describe("useDefaultLandingPage", () => {
+  it("defaults to dashboard when nothing is stored", () => {
+    const { result } = renderHook(() => useDefaultLandingPage());
+
+    expect(result.current[0]).toBe("dashboard");
+  });
+
+  it("reads an existing stored landing page", () => {
+    localStorage.setItem(DEFAULT_LANDING_PAGE_KEY, JSON.stringify("dags"));
+
+    const { result } = renderHook(() => useDefaultLandingPage());
+
+    expect(result.current[0]).toBe("dags");
+  });
+
+  it("persists a new landing page to localStorage", () => {
+    const { result } = renderHook(() => useDefaultLandingPage());
+
+    act(() => {
+      result.current[1]("dags");
+    });
+
+    expect(result.current[0]).toBe("dags");
+    expect(JSON.parse(localStorage.getItem(DEFAULT_LANDING_PAGE_KEY) ?? '""')).toBe("dags");
   });
 });
 

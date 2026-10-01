@@ -15,12 +15,19 @@
       "favorite": "Favorisierte",
       "unfavorite": "Nicht favorisierte"
     },
+    "favoriteState": "Favorisierter Zustand",
+    "favoriteStatePlaceholder": "Favorisierten Zustand auswählen…",
+    "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
     },
-    "runIdPatternFilter": "Dag Läufe suchen"
+    "pausedPlaceholder": "Pausierten Zustand auswählen…",
+    "pausedState": "Pausierter Zustand",
+    "requiresHitlAction": "Erfordert HITL-Aktion",
+    "runIdPatternFilter": "Dag Läufe suchen",
+    "timetableType": "Zeitplantyp"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
@@ -68,13 +75,39 @@
       "downstream": "Nachfolgende",
       "existingTasks": "Bestehende Tasks bereinigen",
       "future": "Zukünftige",
+      "keepTaskState": "Aufgabenstatus beim Neuversuch beibehalten",
       "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
       "past": "Vergangene",
       "preventRunningTasks": "Zurücksetzen von laufenden Tasks verhindern",
       "queueNew": "Neue Tasks einplanen",
       "runOnLatestVersion": "Mit neuester Bündel-Version ausführen",
+      "runOnLatestVersionForced": "Verwendet immer die neueste Version — es gibt keine frühere Version, zu der zurückgekehrt werden kann",
       "upstream": "Vorangegangene"
     }
+  },
+  "runStateCounts": {
+    "label": "Laufstatus",
+    "loading": "Laufstatuszahlen werden geladen",
+    "tooltip": "{{state}}: {{formattedCount}} – klicken, um Läufe zu filtern"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Abbrechen auslaufen lassen",
+    "drain": "Auslaufen dann pausieren",
+    "drainPrompt": "Dieses Dag hat Läufe aktiv. Auslaufen lässt diese beenden bevor das Dag pausiert. Pausieren stoppt Planung sofort ohne auf Ergebnisse zu warten.",
+    "pauseNow": "Jetzt pausieren",
+    "pauseSelected": "Pausieren / Auslaufen"
+  },
+  "schedulingBanner": {
+    "message": "Dieses Dag läuft aus. Es wird pausieren sobald aktive Läufe komplett sind."
+  },
+  "schedulingState": {
+    "active": "Akttiv",
+    "draining": "Auslaufend",
+    "drainingBadgeTooltip": "Dieses Dag pausiert sobald alle Läufe komplett sind.",
+    "drainingTooltip": "Auslaufen {{dagDisplayName}} — pausiert wenn Dag Läufe komplett sind. Klicken zum Forstsetzen.",
+    "label": "Planunggstatus",
+    "paused": "Pausiert",
+    "placeholder": "Auswahl des Planungszustands…"
   },
   "search": {
     "advanced": "Erweiterte Suche",
@@ -88,9 +121,9 @@
       "asc": "Sortiert nach Anzeigename (A-Z)",
       "desc": "Sortiert nach Anzeigename (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sortiert nach letztem Startdatum (Erster-Letzter)",
-      "desc": "Sortiert nach letztem Startdatum (Letzter-Erster)"
+    "lastRunAfter": {
+      "asc": "Nach spätestem Gelaufen-nach Zeitstempel sortieren (frühester–spätester)",
+      "desc": "Nach spätestem Gelaufen-nach Zeitstempel sortieren (spätester–frühester)"
     },
     "lastRunState": {
       "asc": "Sortiert nach dem Status des letzten Laufes (A-Z)",

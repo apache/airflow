@@ -16,20 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
+
+import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { taskInstanceKey } from "src/components/ActionAccordion/columns";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import Time from "src/components/Time";
-import { Checkbox, Dialog } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearTaskInstanceDefaultOptions,
 } from "src/hooks/useUserSettings";
@@ -83,6 +87,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
@@ -90,6 +95,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
@@ -100,8 +106,18 @@ const ClearTaskInstanceDialog = (props: Props) => {
     }
   }, [openDialog, taskInstance?.note]);
 
+  // Separate from the note effect above: this must only reset on open, not on every
+  // note refetch, or a background note change while the dialog is open silently
+  // discards the user's checked box.
+  useEffect(() => {
+    if (openDialog) {
+      setKeepTaskState(keepTaskStateDefault);
+    }
+  }, [openDialog, keepTaskStateDefault]);
+
   const onCloseDialog = () => {
     setNote(taskInstance?.note ?? null);
+    setKeepTaskState(keepTaskStateDefault);
     closeDialog();
   };
 
@@ -110,12 +126,18 @@ const ClearTaskInstanceDialog = (props: Props) => {
     dagId,
   });
 
-  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
-    latestBundleVersion: dagDetails?.bundle_version,
-    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-    selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
-    selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId }, undefined, {
+    enabled: openDialog,
   });
+
+  const { dagVersionsDiffer, runOnLatestVersionForced, shouldShowRunOnLatestOption } =
+    getRunOnLatestVersionState({
+      latestBundleVersion: dagDetails?.bundle_version,
+      latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+      selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
+      selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+      selectedVersionMissing: dagRun?.dag_versions.length === 0,
+    });
 
   // dagVersionsDiffer becomes the fallback so the historical "auto-check when versions
   // differ" heuristic still applies when neither DAG-level nor global config is set.
@@ -192,102 +214,106 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   return (
     <>
-      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false}>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">
-                <strong>
-                  {allMapped
-                    ? translate("dags:runAndTaskActions.clearAllMapped.title")
-                    : translate("dags:runAndTaskActions.clear.title", {
-                        type: translate("taskInstance_one"),
-                      })}
-                  :
-                </strong>{" "}
-                {allMapped ? (
-                  taskId
-                ) : (
-                  <>
-                    {taskInstance?.task_display_name} <Time datetime={taskInstance?.start_date} />
-                  </>
-                )}
-              </Heading>
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body width="full">
-            <Flex justifyContent="center">
-              <SegmentedControl
-                defaultValues={clearTaskInstanceDefaultOptions}
-                multiple
-                onChange={setSelectedOptions}
-                options={[
-                  {
-                    disabled: allMapped || taskInstance?.logical_date === null,
-                    label: translate("dags:runAndTaskActions.options.past"),
-                    value: "past",
-                  },
-                  {
-                    disabled: allMapped || taskInstance?.logical_date === null,
-                    label: translate("dags:runAndTaskActions.options.future"),
-                    value: "future",
-                  },
-                  {
-                    label: translate("dags:runAndTaskActions.options.upstream"),
-                    value: "upstream",
-                  },
-                  {
-                    label: translate("dags:runAndTaskActions.options.downstream"),
-                    value: "downstream",
-                  },
-                  {
-                    label: translate("dags:runAndTaskActions.options.onlyFailed"),
-                    value: "onlyFailed",
-                  },
-                ]}
-              />
-            </Flex>
-            <ActionAccordion
-              affectedTasks={affectedTasks}
-              note={note}
-              selection={{ excludedKeys, onToggle: toggleTask }}
-              setNote={setNote}
-            />
-            <Flex
-              {...(shouldShowRunOnLatestOption ? { alignItems: "center" } : {})}
-              gap={3}
-              justifyContent={shouldShowRunOnLatestOption ? "space-between" : "end"}
-              mt={3}
+      <Modal
+        footerActions={
+          <>
+            <Button
+              disabled={affectedTasks.total_entries === 0 || checkedTaskIds?.length === 0}
+              loading={isPending}
+              onClick={onOpen}
             >
-              {shouldShowRunOnLatestOption ? (
-                <Checkbox
-                  checked={runOnLatestVersion}
-                  onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-                >
-                  {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-                </Checkbox>
-              ) : undefined}
+              <CgRedo /> {translate("modal.confirm")}
+            </Button>
+            <Checkbox
+              checked={keepTaskState}
+              onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+              style={{ marginRight: "auto" }}
+            >
+              {translate("dags:runAndTaskActions.options.keepTaskState")}
+            </Checkbox>
+            <Checkbox
+              checked={preventRunningTask}
+              onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+            </Checkbox>
+            {shouldShowRunOnLatestOption ? (
               <Checkbox
-                checked={preventRunningTask}
-                onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
-                style={{ marginRight: "auto" }}
+                checked={runOnLatestVersionForced || runOnLatestVersion}
+                disabled={runOnLatestVersionForced}
+                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                title={
+                  runOnLatestVersionForced
+                    ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                    : undefined
+                }
               >
-                {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>
-              <Button
-                disabled={affectedTasks.total_entries === 0 || checkedTaskIds?.length === 0}
-                loading={isPending}
-                onClick={onOpen}
-              >
-                <CgRedo /> {translate("modal.confirm")}
-              </Button>
-            </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+            ) : undefined}
+          </>
+        }
+        lazyMount
+        onOpenChange={onCloseDialog}
+        open={openDialog ? !open : false}
+        title={
+          <>
+            <strong>
+              {allMapped
+                ? translate("dags:runAndTaskActions.clearAllMapped.title")
+                : translate("dags:runAndTaskActions.clear.title", {
+                    type: translate("taskInstance_one"),
+                  })}
+              :
+            </strong>{" "}
+            {allMapped ? (
+              taskId
+            ) : (
+              <>
+                {taskInstance?.task_display_name} <Time datetime={taskInstance?.start_date} />
+              </>
+            )}
+          </>
+        }
+      >
+        <Flex justifyContent="center">
+          <SegmentedControl
+            defaultValues={clearTaskInstanceDefaultOptions}
+            multiple
+            onChange={setSelectedOptions}
+            options={[
+              {
+                disabled: allMapped || taskInstance?.logical_date === null,
+                label: translate("dags:runAndTaskActions.options.past"),
+                value: "past",
+              },
+              {
+                disabled: allMapped || taskInstance?.logical_date === null,
+                label: translate("dags:runAndTaskActions.options.future"),
+                value: "future",
+              },
+              {
+                label: translate("dags:runAndTaskActions.options.upstream"),
+                value: "upstream",
+              },
+              {
+                label: translate("dags:runAndTaskActions.options.downstream"),
+                value: "downstream",
+              },
+              {
+                label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                value: "onlyFailed",
+              },
+            ]}
+          />
+        </Flex>
+        <ActionAccordion
+          affectedTasks={affectedTasks}
+          note={note}
+          selection={{ excludedKeys, onToggle: toggleTask }}
+          setNote={setNote}
+        />
+      </Modal>
       {open ? (
         <ClearTaskInstanceConfirmationDialog
           dagDetails={{
@@ -335,6 +361,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                     only_failed: onlyFailed,
                     run_on_latest_version: runOnLatestVersion,
                     task_ids: taskIds,
+                    ...(keepTaskState ? { keep_task_state: true } : {}),
                     ...(preventRunningTask ? { prevent_running_task: true } : {}),
                   },
                 });
@@ -357,6 +384,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
                 task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
+                ...(keepTaskState ? { keep_task_state: true } : {}),
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });

@@ -222,7 +222,14 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook, data_file):
     assert "hook" not in operator.__dict__  # Cached property has not been accessed as part of construction.
 
 
-def test_init_spark_kubernetes_operator(data_file):
+@pytest.mark.parametrize(
+    ("container_logs", "expected_container_logs"),
+    [
+        pytest.param(None, "spark-kubernetes-driver", id="default"),
+        pytest.param(["sidecar"], ["spark-kubernetes-driver"], id="requested"),
+    ],
+)
+def test_init_spark_kubernetes_operator(data_file, container_logs, expected_container_logs):
     operator = SparkKubernetesOperator(
         task_id="task_id",
         application_file=data_file("spark/application_test.yaml").as_posix(),
@@ -231,10 +238,11 @@ def test_init_spark_kubernetes_operator(data_file):
         cluster_context="cluster_context",
         config_file="config_file",
         base_container_name="base",
+        container_logs=container_logs,
         get_logs=True,
     )
     assert operator.base_container_name == "spark-kubernetes-driver"
-    assert operator.container_logs == ["spark-kubernetes-driver"]
+    assert operator.container_logs == expected_container_logs
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")

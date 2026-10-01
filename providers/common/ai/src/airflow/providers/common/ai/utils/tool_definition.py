@@ -24,6 +24,8 @@ from typing import Any, Literal
 from pydantic_ai.tools import ToolDefinition
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
+
 # ``ToolDefinition.return_schema`` is newer than the provider's pydantic-ai
 # floor. Detect it once so callers can include the kwarg only when supported,
 # rather than raising ``TypeError`` on older installs.
@@ -43,6 +45,24 @@ def return_schema_kwargs(schema: dict[str, Any]) -> dict[str, Any]:
     if _SUPPORTS_RETURN_SCHEMA:
         return {"return_schema": schema}
     return {}
+
+
+def serialize_for_llm(value: Any) -> str:
+    """
+    Convert a Python return value to a string suitable for an LLM, with registered secrets masked.
+
+    :param value: The tool's return value.
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, str):
+        return mask_secrets(value)
+    try:
+        return dumps_masked(value)
+    except (TypeError, ValueError):
+        # Masked before str(), which escapes backslashes and quotes inside the strings it
+        # renders, so a secret containing either would no longer match once rendered.
+        return mask_secrets(str(mask_secrets(value)))
 
 
 _SUPPORTS_METADATA = any(f.name == "metadata" for f in dataclasses.fields(ToolDefinition))

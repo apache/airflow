@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import uuid
@@ -32,12 +33,14 @@ import structlog
 from airflow.sdk import DAG, Label, TaskGroup, task as task_decorator
 from airflow.sdk._shared.secrets_masker import _secrets_masker, mask_secret
 from airflow.sdk.bases.operator import (
+    BaseAsyncOperator,
     BaseOperator,
     BaseOperatorMeta,
     ExecutorSafeguard,
     chain,
     chain_linear,
     cross_downstream,
+    event_loop,
 )
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
@@ -1137,3 +1140,171 @@ def test_partial_default_args():
     assert op.arg2 == "b"
     assert op.arg3 == 3
     assert op.queue == "THIS"
+
+
+@pytest.fixture(params=["asyncio.Runner", "fallback"])
+def event_loop_runner(request, monkeypatch):
+    """
+    Run a test against both ways ``event_loop()`` can own its loop.
+
+    ``asyncio.Runner`` exists from Python 3.11; the fallback replicates it for Python 3.10 and is
+    exercised on every Python by hiding ``asyncio.Runner`` for the test.
+    """
+    if request.param == "fallback":
+        monkeypatch.delattr(asyncio, "Runner", raising=False)
+    elif not hasattr(asyncio, "Runner"):
+        pytest.skip("asyncio.Runner needs Python 3.11+")
+    return request.param
+
+
+@pytest.fixture
+def fresh_process_loop_state():
+    """
+    Mimic a freshly started task-runner process: no loop set and ``set_event_loop()`` never called.
+
+    In that state ``asyncio.get_event_loop()`` emits ``DeprecationWarning: There is no current event
+    loop`` when it has to create a loop (Python 3.12+) or raises (Python 3.14+).
+    """
+    with warnings.catch_warnings():
+        # The policy API is deprecated on Python 3.14; it is still the only way to reset this state.
+        warnings.simplefilter("ignore", DeprecationWarning)
+        previous = asyncio.get_event_loop_policy()
+        asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+        try:
+            yield
+        finally:
+            asyncio.set_event_loop_policy(previous)
+
+
+def _deprecation_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
+    return [str(w.message) for w in caught if issubclass(w.category, DeprecationWarning)]
+
+
+@pytest.mark.usefixtures("event_loop_runner")
+class TestBaseAsyncOperator:
+    class AsyncOperator(BaseAsyncOperator):
+        async def aexecute(self, context):
+            await asyncio.sleep(0)
+            return "done"
+
+    def test_is_async(self):
+        assert self.AsyncOperator(task_id="async_op").is_async is True
+
+    def test_execute_requires_aexecute(self):
+        with pytest.raises(NotImplementedError):
+            BaseAsyncOperator(task_id="async_op").execute({})
+
+    @pytest.mark.usefixtures("fresh_process_loop_state")
+    @pytest.mark.parametrize("execution_timeout", [None, timedelta(seconds=5)], ids=["no-timeout", "timeout"])
+    def test_execute_runs_aexecute_without_deprecation_warning(self, execution_timeout):
+        op = self.AsyncOperator(task_id="async_op", execution_timeout=execution_timeout)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            assert op.execute({}) == "done"
+
+        assert _deprecation_warnings(caught) == []
+        # The loop execute() ran on is closed and not left behind as the thread's current loop.
+        with pytest.raises(RuntimeError):
+            asyncio.get_event_loop()
+
+    def test_execute_enforces_execution_timeout(self):
+        class SlowOperator(BaseAsyncOperator):
+            async def aexecute(self, context):
+                await asyncio.sleep(60)
+
+        op = SlowOperator(task_id="slow_op", execution_timeout=timedelta(milliseconds=50))
+
+        with pytest.raises(asyncio.TimeoutError):
+            op.execute({})
+
+
+@pytest.mark.usefixtures("event_loop_runner")
+class TestEventLoop:
+    """``event_loop()`` hands synchronous code a loop it owns, through ``asyncio.Runner`` where Python has it."""
+
+    @pytest.mark.usefixtures("fresh_process_loop_state")
+    def test_creates_and_closes_own_loop_without_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with event_loop() as loop:
+                assert not loop.is_closed()
+                assert loop.run_until_complete(asyncio.sleep(0, result="ran")) == "ran"
+
+        assert _deprecation_warnings(caught) == []
+        assert loop.is_closed()
+        # Nothing is left behind as the thread's current loop.
+        with pytest.raises(RuntimeError):
+            asyncio.get_event_loop()
+
+    @pytest.mark.usefixtures("fresh_process_loop_state")
+    def test_second_use_after_cleanup_still_works(self):
+        with event_loop() as first:
+            pass
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with event_loop() as second:
+                assert second.run_until_complete(asyncio.sleep(0, result="ran")) == "ran"
+
+        assert _deprecation_warnings(caught) == []
+        assert first.is_closed()
+        assert second.is_closed()
+
+    def test_loop_outlives_run_until_complete_calls(self):
+        """Unlike ``asyncio.run()``, work scheduled in one run is still there for the next."""
+        with event_loop() as loop:
+            release = asyncio.Event()
+
+            async def wait_for_release():
+                await release.wait()
+                return "released"
+
+            pending = loop.create_task(wait_for_release())
+            assert loop.run_until_complete(asyncio.sleep(0, result="first run")) == "first run"
+            assert not pending.done()
+
+            release.set()
+            assert loop.run_until_complete(pending) == "released"
+
+    def test_pending_tasks_are_cancelled_on_exit(self):
+        cleaned_up = False
+
+        async def never_finishes():
+            nonlocal cleaned_up
+            try:
+                await asyncio.sleep(3600)
+            except asyncio.CancelledError:
+                cleaned_up = True
+                raise
+
+        with event_loop() as loop:
+            pending = loop.create_task(never_finishes())
+            # Let the task start so cancellation reaches its body.
+            loop.run_until_complete(asyncio.sleep(0))
+
+        assert pending.cancelled()
+        assert cleaned_up
+        assert loop.is_closed()
+
+    def test_leaves_loop_already_set_open_but_does_not_reuse_it(self):
+        existing = asyncio.new_event_loop()
+        asyncio.set_event_loop(existing)
+        try:
+            with event_loop() as loop:
+                assert loop is not existing
+                assert loop.run_until_complete(asyncio.sleep(0, result="ran")) == "ran"
+            assert loop.is_closed()
+            assert not existing.is_closed()
+        finally:
+            existing.close()
+            asyncio.set_event_loop(None)
+
+    @pytest.mark.asyncio
+    async def test_refuses_running_loop(self):
+        running = asyncio.get_running_loop()
+
+        with pytest.raises(RuntimeError, match="running event loop"):
+            with event_loop():
+                pass
+
+        assert not running.is_closed()

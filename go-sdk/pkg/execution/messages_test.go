@@ -225,7 +225,7 @@ func TestDecodeConnectionResult(t *testing.T) {
 // TestConnectionResultNullableCredentials covers the shapes login / password
 // can take on the wire: absent, explicit nil, explicit "", and a real value.
 // Empty-string and absent must be distinguishable so URI building in
-// sdk.Connection picks the same branch the HTTP-backed SDK would.
+// sdk.Connection preserves the distinction from an omitted credential.
 func TestConnectionResultNullableCredentials(t *testing.T) {
 	empty := ""
 	user := "user"
@@ -492,7 +492,7 @@ func TestPeekBodyType(t *testing.T) {
 	assert.Equal(t, "", peekBodyType(msgpack.RawMessage{0xc0})) // msgpack nil
 }
 
-func TestApiErrorFromFrame(t *testing.T) {
+func TestAPIErrorFromFrame(t *testing.T) {
 	t.Run("error element of 3-tuple", func(t *testing.T) {
 		f := IncomingFrame{
 			Body: marshalBody(t, map[string]any{"type": "ConnectionResult"}),
@@ -536,7 +536,7 @@ func TestApiErrorFromFrame(t *testing.T) {
 
 	t.Run("off-contract detail still recovers the error code", func(t *testing.T) {
 		// detail is a string instead of the schema's object|null; the typed
-		// error code must survive so translateApiError maps it correctly.
+		// error code must survive so translateAPIError maps it correctly.
 		f := IncomingFrame{
 			Err: marshalBody(
 				t,

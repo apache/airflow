@@ -24,19 +24,18 @@ import pytest
 import requests
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSensorTimeout, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSensorTimeout, TaskDeferred, timezone
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import PokeReturnValue
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
 
-DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = "unit_test_dag"
 
@@ -258,6 +257,16 @@ class TestHttpSensor:
         )
         with pytest.raises(AirflowException, match="500:Internal Server Error"):
             task.execute(context={})
+
+    def test_http_conn_id_is_templated(self):
+        sensor = HttpSensor(
+            task_id="test_http_sensor",
+            endpoint="/health",
+            http_conn_id="{{ conn_id }}",
+        )
+        assert "http_conn_id" in sensor.template_fields
+        sensor.render_template_fields({"conn_id": "http_staging"})
+        assert sensor.http_conn_id == "http_staging"
 
 
 class FakeSession:

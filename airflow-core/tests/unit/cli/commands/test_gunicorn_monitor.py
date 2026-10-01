@@ -23,6 +23,8 @@ from unittest import mock
 import pytest
 from gunicorn.config import Config
 
+NOT_SET = object()
+
 
 class TestAirflowArbiter:
     """Tests for the AirflowArbiter class."""
@@ -440,9 +442,36 @@ class TestCreateGunicornApp:
             assert options["keyfile"] == "/path/to/key.pem"
             assert options["ca_certs"] == "/path/to/ca.crt"
             assert options["cert_reqs"] == 1
+            assert "ciphers" not in options
 
-    def test_create_app_with_proxy_headers(self):
-        """Test creating an app with proxy headers enabled."""
+    @pytest.mark.parametrize(
+        ("ssl_ciphers", "expected"),
+        [
+            pytest.param("ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES256-GCM-SHA384", id="explicit list"),
+            pytest.param("", None, id="empty string keeps python default"),
+            pytest.param(None, None, id="unset keeps python default"),
+        ],
+    )
+    def test_create_app_with_ssl_ciphers(self, ssl_ciphers, expected):
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8443,
+                num_workers=4,
+                worker_timeout=120,
+                ssl_cert="/path/to/cert.pem",
+                ssl_key="/path/to/key.pem",
+                ssl_ciphers=ssl_ciphers,
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert options.get("ciphers") == expected
+
+    def test_create_app_with_ssl_ciphers_without_cert_is_ignored(self):
+        """Ciphers only apply to an SSL listener, so they must not leak into a plain-HTTP config."""
         from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
 
         with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
@@ -451,12 +480,62 @@ class TestCreateGunicornApp:
                 port=8080,
                 num_workers=4,
                 worker_timeout=120,
-                proxy_headers=True,
+                ssl_ciphers="ECDHE-RSA-AES256-GCM-SHA384",
             )
 
             options = mock_app_class.call_args[0][0]
 
-            assert options["forwarded_allow_ips"] == "*"
+            assert "ciphers" not in options
+
+    @pytest.mark.parametrize(
+        ("proxy_headers", "forwarded_allow_ips", "expected_trusted"),
+        [
+            pytest.param(True, "10.0.0.1", NOT_SET, id="enabled defers to FORWARDED_ALLOW_IPS"),
+            pytest.param(False, None, "", id="disabled trusts nobody"),
+        ],
+    )
+    def test_create_app_proxy_header_trust(
+        self, monkeypatch, proxy_headers, forwarded_allow_ips, expected_trusted
+    ):
+        """An operator who set FORWARDED_ALLOW_IPS gets it honoured instead of overridden."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        if forwarded_allow_ips is None:
+            monkeypatch.delenv("FORWARDED_ALLOW_IPS", raising=False)
+        else:
+            monkeypatch.setenv("FORWARDED_ALLOW_IPS", forwarded_allow_ips)
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8080,
+                num_workers=4,
+                worker_timeout=120,
+                proxy_headers=proxy_headers,
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert options.get("forwarded_allow_ips", NOT_SET) == expected_trusted
+
+    def test_create_app_proxy_headers_without_forwarded_allow_ips_is_deprecated(self, monkeypatch):
+        """Trusting every client stays the default for now, but is on its way out."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+        from airflow.exceptions import RemovedInAirflow4Warning
+
+        monkeypatch.delenv("FORWARDED_ALLOW_IPS", raising=False)
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            with pytest.warns(RemovedInAirflow4Warning, match="FORWARDED_ALLOW_IPS"):
+                create_gunicorn_app(
+                    host="0.0.0.0",
+                    port=8080,
+                    num_workers=4,
+                    worker_timeout=120,
+                    proxy_headers=True,
+                )
+
+            assert mock_app_class.call_args[0][0]["forwarded_allow_ips"] == "*"
 
     def test_create_app_never_sets_accesslog(self):
         """accesslog is never set; HttpAccessLogMiddleware handles HTTP access logging."""

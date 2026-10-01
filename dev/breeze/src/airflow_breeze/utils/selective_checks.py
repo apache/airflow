@@ -122,6 +122,7 @@ class FileGroupForCi(Enum):
     KUBERNETES_FILES = auto()
     TASK_SDK_FILES = auto()
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
+    AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
     TS_SDK_FILES = auto()
@@ -245,6 +246,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.JAVA_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
+            r"^airflow-e2e-tests/java-test-bundle/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
@@ -276,7 +278,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
-            r"^ts-sdk/(?!.*\.md$).*",
+            # API documentation entry points and Markdown do not affect runtime e2e tests.
+            r"^ts-sdk/(?!api-docs/)(?!.*\.md$).*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/ts_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
@@ -366,6 +369,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-ctl/docs",
             r"^airflow-ctl/src/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+            r"^dev/mypy/docs/",
+            r"^dev/mypy/src/.*\.py$",
+            r"^dev/mypy/RELEASE_NOTES\.rst$",
+            r"^dev/mypy/pyproject\.toml$",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.rst",
@@ -476,6 +483,16 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES: [
             r"^task-sdk-integration-tests/.*\.py$",
         ],
+        FileGroupForCi.AGENT_FRAMEWORK_FILES: [
+            # The framework adapters sit on the framework-neutral tools, which sit on the toolsets,
+            # so any code change in the provider can break them, and so can a change to common.sql,
+            # which the SQL toolset uses, or to the locked versions the job holds the framework to.
+            # The job's own script and workflow are ENVIRONMENT_FILES, which run everything.
+            r"^providers/common/ai/(src|tests)/.*\.py$",
+            r"^providers/common/ai/pyproject\.toml$",
+            r"^providers/common/sql/src/.*\.py$",
+            r"^uv\.lock$",
+        ],
         FileGroupForCi.GO_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or tests, but
             # everything else (go.mod, go.sum, build config) must trigger the unit tests.
@@ -486,20 +503,23 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^java-sdk/(?!.*\.md$).*",
         ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
-            # TypeDoc renders the reference from the SDK sources, and the landing page is
-            # authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md` counts here. tsconfig.json
-            # and package.json are included too: docs/tsconfig.json `extends` the former, and
-            # the latter pins the `@msgpack/msgpack` version the checked program depends on.
+            # TypeDoc renders the reference from the SDK sources and category entry points,
+            # and the landing page is authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md`
+            # counts here. tsconfig.json and package.json are included too: docs/tsconfig.json
+            # `extends` the former, and the latter pins the `@msgpack/msgpack` version the
+            # checked program depends on.
+            r"^ts-sdk/api-docs/.*",
             r"^ts-sdk/docs/.*",
             r"^ts-sdk/src/.*",
             r"^ts-sdk/tsconfig\.json$",
             r"^ts-sdk/package\.json$",
         ],
         FileGroupForCi.TS_SDK_FILES: [
-            # `.md` excluded — doc-only edits do not affect the generated supervisor schema.
-            # `ts-sdk/docs/package.json` and its lock file excluded too — they pin the docs
-            # toolchain's own dependencies and do not affect the SDK build.
-            r"^ts-sdk/(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
+            # Documentation entry points and `.md` files do not affect the generated
+            # supervisor schema. `ts-sdk/docs/package.json` and its lock file are excluded
+            # too — they pin the docs toolchain's own dependencies and do not affect the SDK
+            # build.
+            r"^ts-sdk/(?!api-docs/)(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1137,6 +1157,13 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def run_agent_framework_tests(self) -> bool:
+        # Providers are released from main only, as for skip_providers_tests.
+        if self._default_branch != "main":
+            return False
+        return self._should_be_run(FileGroupForCi.AGENT_FRAMEWORK_FILES)
+
+    @cached_property
     def run_go_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
 
@@ -1666,6 +1693,8 @@ class SelectiveChecks:
             packages.append("task-sdk")
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
+        if any(file.startswith("dev/mypy/") for file in self._files):
+            packages.append("apache-airflow-mypy")
         if providers_affected:
             suspended = set(get_suspended_provider_ids())
             for provider in providers_affected:
@@ -1718,6 +1747,10 @@ class SelectiveChecks:
             # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that (intermittently failing) download.
             prek_hooks_to_skip.add("ktlint")
+            # Rewriting the verification metadata resolves the entire Java SDK dependency graph
+            # from Maven Central. Skip it when no java-sdk files changed so unrelated PRs do not
+            # depend on that resolution.
+            prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
             # diffs it. Schema-only changes deliberately do not trigger it: regenerating the

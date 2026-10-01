@@ -97,7 +97,7 @@ class _LLMDecoratedOperator(DecoratedOperator, LLMOperator):
             self.prompt,
             decorator_name="@task.llm",
             feature_name="require_approval",
-            feature_enabled=self.require_approval,
+            feature_enabled=self._may_review,
         )
 
         self.render_template_fields(context)

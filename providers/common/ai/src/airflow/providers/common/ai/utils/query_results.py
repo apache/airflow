@@ -31,9 +31,10 @@ cost is re-paid on every subsequent request. Two things here keep that bounded:
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import Any
+
+from airflow.providers.common.ai.utils.masking import dumps_masked
 
 # A policy default, not a limit imposed by any storage, protocol, or model layer:
 # roughly 16k tokens at 4 characters per token. Large enough that ordinary queries are
@@ -45,7 +46,7 @@ DEFAULT_MAX_RESULT_BYTES = 65_536
 # the separators: escaping one CJK character to \uXXXX costs six bytes instead of three,
 # so an ASCII-escaped result is charged several times over against the budget and
 # truncated that much earlier than an equivalent English one.
-_DUMP_KWARGS: dict[str, Any] = {"default": str, "separators": (",", ":"), "ensure_ascii": False}
+_DUMP_KWARGS: dict[str, Any] = {"separators": (",", ":"), "ensure_ascii": False}
 
 #: Description for the ``query`` tool. States the columnar shape, since the model has
 #: to align each row's values to ``columns`` positionally, and the truncation contract,
@@ -61,7 +62,7 @@ QUERY_TOOL_DESCRIPTION = (
 
 
 def _dumps(payload: Any) -> str:
-    return json.dumps(payload, **_DUMP_KWARGS)
+    return dumps_masked(payload, **_DUMP_KWARGS)
 
 
 def _size(payload: Any) -> int:

@@ -209,6 +209,16 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: has_events
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter assets that have events
+          title: Has Events
+        description: Filter assets that have events
       - name: only_active
         in: query
         required: false
@@ -304,6 +314,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NextRunAssetsResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -403,6 +419,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -439,6 +461,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -635,6 +663,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: scheduling_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagSchedulingState'
+          - type: 'null'
+          title: Scheduling State
       - name: has_import_errors
         in: query
         required: false
@@ -665,6 +701,20 @@ paths:
           description: Filter Dags that have any DagRun in the given state.
           title: Dag Run State
         description: Filter Dags that have any DagRun in the given state.
+      - name: dag_run_state_within_hours
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            maximum: 878400
+            exclusiveMinimum: 0
+          - type: 'null'
+          description: Only match DagRuns whose run_after falls within the last given
+            hours. Ignored unless dag_run_state is set.
+          title: Dag Run State Within Hours
+        description: Only match DagRuns whose run_after falls within the last given
+          hours. Ignored unless dag_run_state is set.
       - name: bundle_name
         in: query
         required: false
@@ -1142,6 +1192,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Last Updated At Lt
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       responses:
         '200':
           description: Successful Response
@@ -1342,6 +1400,190 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: from_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Gte
+      - name: from_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Gt
+      - name: from_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Lte
+      - name: from_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Lt
+      - name: to_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Gte
+      - name: to_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Gt
+      - name: to_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Lte
+      - name: to_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Lt
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
+      - name: completed_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Gte
+      - name: completed_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Gt
+      - name: completed_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Lte
+      - name: completed_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Lt
+      - name: max_active_runs_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Gte
+      - name: max_active_runs_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Gt
+      - name: max_active_runs_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Lte
+      - name: max_active_runs_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Lt
+      - name: reprocess_behavior
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReprocessBehavior'
+          - type: 'null'
+          title: Reprocess Behavior
       - name: order_by
         in: query
         required: false
@@ -2130,6 +2372,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TeamCollectionResponse'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
@@ -2244,10 +2492,14 @@ components:
     AssetExpressionAssetInfo:
       properties:
         uri:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Uri
         name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Name
         group:
           type: string
@@ -2257,6 +2509,10 @@ components:
           - type: integer
           - type: 'null'
           title: Id
+        hidden:
+          type: boolean
+          title: Hidden
+          default: false
       type: object
       required:
       - uri
@@ -2275,7 +2531,16 @@ components:
         optional so a row persisted before id-enrichment (or migrated from the pre-3.0
         dataset format)
 
-        degrades gracefully instead of failing response validation.'
+        degrades gracefully instead of failing response validation.
+
+
+        A leaf the caller is not authorized to read is served with ``hidden`` set
+        and ``uri``, ``name``
+
+        and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``),
+        so the shape of the
+
+        schedule stays visible without revealing which asset it waits on.'
     AssetExpressionRef:
       properties:
         asset_ref:
@@ -2628,6 +2893,10 @@ components:
         count:
           type: integer
           title: Count
+        is_backfill:
+          type: boolean
+          title: Is Backfill
+          default: false
       type: object
       required:
       - date
@@ -2892,6 +3161,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+        scheduling_state:
+          $ref: '#/components/schemas/DagSchedulingState'
+          default: active
         is_stale:
           type: boolean
           title: Is Stale
@@ -3026,6 +3298,9 @@ components:
             $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
+        has_unfinished_runs:
+          type: boolean
+          title: Has Unfinished Runs
         pending_actions:
           items:
             $ref: '#/components/schemas/HITLDetail'
@@ -3081,6 +3356,7 @@ components:
       - owners
       - asset_expression
       - latest_dag_runs
+      - has_unfinished_runs
       - pending_actions
       - is_favorite
       - is_backfillable
@@ -3154,6 +3430,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -3162,6 +3443,14 @@ components:
       - updated_at
       title: DagScheduleAssetReference
       description: Dag schedule reference serializer for assets.
+    DagSchedulingState:
+      type: string
+      enum:
+      - active
+      - draining
+      - paused
+      title: DagSchedulingState
+      description: States controlling whether a Dag can create and schedule work.
     DagTagResponse:
       properties:
         name:
@@ -3363,6 +3652,11 @@ components:
           - type: string
           - type: 'null'
           title: Alert Name
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id
@@ -3859,6 +4153,18 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        team_names:
+          items:
+            type: string
+          type: array
+          title: Team Names
+        bundle_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Bundle Names
         dag_display_name:
           anyOf:
           - type: string
@@ -3955,6 +4261,7 @@ components:
       - Config
       - Connections
       - Dags
+      - Dag Bundles
       - Deadlines
       - Docs
       - Jobs
@@ -4576,6 +4883,15 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id
@@ -4712,6 +5028,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:

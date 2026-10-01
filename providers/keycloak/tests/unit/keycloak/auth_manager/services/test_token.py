@@ -19,12 +19,15 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import fastapi
+import jwt
 import pytest
 from keycloak import KeycloakAuthenticationError
+from keycloak.exceptions import KeycloakGetError
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.services.token import (
     create_client_credentials_token,
+    create_jwt_federated_token,
     create_token_for,
 )
 
@@ -55,9 +58,13 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
         mock_auth_manager = Mock()
         mock_get_auth_manager.return_value = mock_auth_manager
-        mock_auth_manager.generate_jwt.return_value = self.token
+        mock_auth_manager.generate_api_jwt.return_value = self.token
 
         assert create_token_for(username=self.test_username, password=self.test_password) == self.token
+        # API tokens must be minted with the Keycloak JWTs in their claims, since a
+        # header-authenticated client sends no cookies to supply them.
+        mock_auth_manager.generate_api_jwt.assert_called_once()
+        mock_auth_manager.generate_jwt.assert_not_called()
         mock_keycloak_client.token.assert_called_once_with(self.test_username, self.test_password)
         mock_keycloak_client.userinfo.assert_called_once_with(self.test_access_token)
 
@@ -83,6 +90,7 @@ class TestTokenService:
     @conf_vars(
         {
             ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "test_client",
         }
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
@@ -103,7 +111,7 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
         mock_auth_manager = Mock()
         mock_get_auth_manager.return_value = mock_auth_manager
-        mock_auth_manager.generate_jwt.return_value = self.token
+        mock_auth_manager.generate_api_jwt.return_value = self.token
 
         result = create_client_credentials_token(client_id=test_client_id, client_secret=test_client_secret)
 
@@ -117,6 +125,7 @@ class TestTokenService:
     @conf_vars(
         {
             ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "invalid_client",
         }
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
@@ -133,3 +142,213 @@ class TestTokenService:
 
         assert exc_info.value.status_code == 403
         assert "Client credentials authentication failed" in exc_info.value.detail
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_client_credentials_rejects_other_client(self, mock_get_keycloak_client):
+        """Only the client Airflow is configured with may exchange credentials for a token."""
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_client_credentials_token(
+                client_id="some_other_realm_client", client_secret="its_own_valid_secret"
+            )
+
+        assert exc_info.value.status_code == 403
+        # No exchange is attempted: the credentials are never sent to Keycloak, so the
+        # endpoint cannot be used to test whether another client's secret is valid.
+        mock_get_keycloak_client.assert_not_called()
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_client_credentials_rejection_is_indistinguishable(self, mock_get_keycloak_client):
+        """A wrong client id and a wrong secret must not be tellable apart."""
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.token.side_effect = KeycloakAuthenticationError()
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as wrong_secret:
+            create_client_credentials_token(client_id="airflow", client_secret="wrong")
+        with pytest.raises(fastapi.exceptions.HTTPException) as wrong_client:
+            create_client_credentials_token(client_id="other", client_secret="wrong")
+
+        assert wrong_secret.value.status_code == wrong_client.value.status_code
+        assert wrong_secret.value.detail == wrong_client.value.detail
+
+
+class TestCreateJwtFederatedToken:
+    token = "token"
+    test_assertion = "assertion"
+    test_access_token = "assertion"
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+            ("keycloak_auth_manager", "jwt_federated_client_ids"): "team-platform-admin-sa, other-sa",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token(
+        self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client, mock_get_auth_manager
+    ):
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
+        mock_jwt_decode.return_value = {
+            "sub": "service-account-sub",
+            "azp": "team-platform-admin-sa",
+            "aud": ["airflow"],
+        }
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.userinfo.return_value = {
+            "sub": "service-account-sub",
+            "preferred_username": "service-account-team-platform-admin-sa",
+        }
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        mock_auth_manager = Mock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.generate_api_jwt.return_value = self.token
+
+        result = create_jwt_federated_token(assertion=self.test_assertion)
+
+        assert result == self.token
+        mock_jwt_decode.assert_called_once_with(
+            self.test_assertion,
+            "fake-key",
+            algorithms=["RS256"],
+            audience="airflow",
+            issuer="https://keycloak.example.com/realms/airflow",
+        )
+        mock_keycloak_client.userinfo.assert_called_once_with(self.test_assertion)
+        mock_auth_manager.generate_api_jwt.assert_called_once()
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+            ("keycloak_auth_manager", "jwt_federated_client_ids"): "team-platform-admin-sa",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_invalid_signature(
+        self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client
+    ):
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
+        mock_jwt_decode.side_effect = jwt.InvalidSignatureError()
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_jwt_federated_token(assertion=self.test_assertion)
+
+        assert exc_info.value.status_code == 403
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+            ("keycloak_auth_manager", "jwt_federated_client_ids"): "other-sa",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_client_not_allowlisted(
+        self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client
+    ):
+        """A validly-signed token for an un-allow-listed client must still be rejected."""
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
+        mock_jwt_decode.return_value = {
+            "sub": "service-account-sub",
+            "azp": "team-platform-admin-sa",
+            "aud": ["airflow"],
+        }
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_jwt_federated_token(assertion=self.test_assertion)
+
+        assert exc_info.value.status_code == 403
+        # No userinfo call is made once the client is rejected.
+        mock_get_keycloak_client.assert_not_called()
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_allowlist_unset_fails_closed(
+        self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client
+    ):
+        """An unconfigured jwt_federated_client_ids denies every caller, not just none."""
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
+        mock_jwt_decode.return_value = {
+            "sub": "service-account-sub",
+            "azp": "team-platform-admin-sa",
+            "aud": ["airflow"],
+        }
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_jwt_federated_token(assertion=self.test_assertion)
+
+        assert exc_info.value.status_code == 403
+        mock_get_keycloak_client.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "userinfo_error",
+        [
+            KeycloakAuthenticationError(),
+            KeycloakGetError(response_code=403, response_body=b""),
+        ],
+    )
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+            ("keycloak_auth_manager", "jwt_federated_client_ids"): "team-platform-admin-sa",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_userinfo_rejected(
+        self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client, userinfo_error
+    ):
+        """A Keycloak userinfo rejection returns a generic invalid-assertion response."""
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
+        mock_jwt_decode.return_value = {
+            "sub": "service-account-sub",
+            "azp": "team-platform-admin-sa",
+            "aud": ["airflow"],
+        }
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.userinfo.side_effect = userinfo_error
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_jwt_federated_token(assertion=self.test_assertion)
+
+        assert exc_info.value.status_code == 403

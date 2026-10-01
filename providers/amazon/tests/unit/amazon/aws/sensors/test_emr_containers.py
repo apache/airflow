@@ -78,6 +78,21 @@ class TestEmrContainerSensor:
         assert "EMR Containers sensor failed" in str(ctx.value)
         assert "CANCEL_PENDING" in str(ctx.value)
 
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=(None,))
+    def test_poke_unknown_state(self, mock_check_query_status):
+        """An unknown state must not be reported as a successful job run.
+
+        ``EmrContainerHook.check_query_status`` swallows a generic ``ClientError``
+        and returns ``None``, which ``poll_query_status`` passes straight through
+        once ``max_polling_attempts`` is reached.
+        """
+        assert not self.sensor.poke(None)
+
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("SOME_FUTURE_STATE",))
+    def test_poke_unrecognised_state(self, mock_check_query_status):
+        """A state added by AWS later must not be reported as a successful job run."""
+        assert not self.sensor.poke(None)
+
     @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor.poke")
     def test_sensor_defer(self, mock_poke):
         self.sensor.deferrable = True

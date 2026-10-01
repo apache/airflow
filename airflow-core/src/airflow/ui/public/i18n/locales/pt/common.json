@@ -43,6 +43,7 @@
   "dag_other": "Dags",
   "dag_zero": "Nenhum Dag",
   "dagDetails": {
+    "activeRuns": "Execuções Ativas",
     "catchup": "Catchup",
     "dagRunTimeout": "Tempo Limite da Execução do Dag",
     "defaultArgs": "Argumentos Padrão",

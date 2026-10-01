@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import (
@@ -33,6 +34,11 @@ if TYPE_CHECKING:
 class LlamaIndexHook(BaseHook):
     """
     Bridge an Airflow connection to LlamaIndex chat and embedding models.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The hook resolves credentials (API key, optional API base URL) from the
     Airflow connection and returns native LlamaIndex objects ready to pass
@@ -58,13 +64,28 @@ class LlamaIndexHook(BaseHook):
         to LlamaIndex constructors so concurrent tasks in the same worker
         don't race on shared state.
 
+    .. note::
+
+        ``get_llm()`` and ``get_embedding_model()`` return LlamaIndex's
+        ``OpenAI`` / ``OpenAIEmbedding`` classes, which validate ``model=``
+        client-side against LlamaIndex's OpenAI-only model-name allowlists
+        before any request is sent. Pointing **host** at an Ollama or vLLM
+        endpoint does not add support for those backends: their model names
+        (e.g. ``llama3.2``) are never in the OpenAI allowlist, so the call
+        still fails on the model name, not on connectivity.
+        ``get_embedding_model()`` raises immediately at construction;
+        ``get_llm()`` defers the error until the first call that reads
+        ``.metadata`` (``.chat()`` / ``.complete()``).
+
     Connection fields:
 
     * **password**: API key passed as ``api_key=``.
-    * **host**: Optional base URL passed as ``api_base=`` (custom endpoints,
-      Ollama, vLLM).
+    * **host**: Optional base URL passed as ``api_base=``. Only useful for
+      an OpenAI-compatible proxy that accepts OpenAI's exact model names
+      (e.g. an internal gateway) -- not Ollama or vLLM, whose model
+      catalogs are rejected regardless of ``host`` (see note above).
     * **extra** JSON: ``{"embed_model": "text-embedding-3-small",
-      "llm_model": "gpt-4o"}`` -- default model identifiers stored on the
+      "llm_model": "gpt-5"}`` -- default model identifiers stored on the
       connection.
 
     :param llm_conn_id: Airflow connection ID for the LLM provider. Falls
@@ -75,9 +96,14 @@ class LlamaIndexHook(BaseHook):
     :param embed_model: Embedding model name (e.g.
         ``"text-embedding-3-small"``). Overrides ``extra["embed_model"]``
         on the connection.
-    :param llm_model: LLM model name (e.g. ``"gpt-4o"``). Overrides
+    :param llm_model: LLM model name (e.g. ``"gpt-5"``). Overrides
         ``extra["llm_model"]`` on the connection. Required when calling
         :meth:`get_llm`.
+    :param embedding_kwargs: Additional keyword arguments to pass to the embedding
+        model constructor without filtering. Connection ``api_key`` and ``api_base``
+        values take precedence at the top level, but nested options supported by the
+        underlying library can override hook-provided request values, including
+        credentials, the model, and the input. Only pass trusted values.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -91,6 +117,8 @@ class LlamaIndexHook(BaseHook):
         embed_conn_id: str | None = None,
         embed_model: str | None = None,
         llm_model: str | None = None,
+        *,
+        embedding_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -99,6 +127,7 @@ class LlamaIndexHook(BaseHook):
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
         self.embed_model = embed_model
+        self.embedding_kwargs = embedding_kwargs or {}
         self.llm_model = llm_model
 
     @staticmethod
@@ -108,8 +137,8 @@ class LlamaIndexHook(BaseHook):
             "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key"},
             "placeholders": {
-                "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
+                "host": "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)",
+                "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}',
             },
         }
 
@@ -164,7 +193,21 @@ class LlamaIndexHook(BaseHook):
             extra_key="embed_model",
             kind="embedding",
         )
-        return OpenAIEmbedding(model=model_id, **self._connection_kwargs(conn))
+        connection_kwargs = self._connection_kwargs(conn)
+        overridden_keys = sorted(self.embedding_kwargs.keys() & connection_kwargs.keys())
+        if overridden_keys:
+            self.log.warning("Connection parameters override embedding_kwargs values: %s", overridden_keys)
+        kwargs = {**self.embedding_kwargs, **connection_kwargs}
+        supported_kwargs = {
+            name
+            for name, parameter in inspect.signature(OpenAIEmbedding.__init__).parameters.items()
+            if name != "self"
+            and parameter.kind not in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}
+        } | set(OpenAIEmbedding.model_fields)
+        unsupported_keys = sorted(self.embedding_kwargs.keys() - supported_kwargs)
+        if unsupported_keys:
+            self.log.warning("OpenAIEmbedding ignores unsupported embedding_kwargs: %s", unsupported_keys)
+        return OpenAIEmbedding(model=model_id, **kwargs)
 
     def get_llm(self) -> LLM:
         """
@@ -187,3 +230,18 @@ class LlamaIndexHook(BaseHook):
             kind="llm",
         )
         return OpenAI(model=model_id, **self._connection_kwargs(conn))
+
+    def test_connection(self) -> tuple[bool, str]:
+        """
+        Test connection by resolving the LLM.
+
+        Validates that the model identifier is valid and the provider can be
+        instantiated with the supplied credentials. Does NOT make an LLM API
+        call -- that would be expensive and fail for reasons unrelated to
+        connectivity (quotas, billing, rate limits).
+        """
+        try:
+            self.get_llm()
+            return True, "Model resolved successfully."
+        except Exception as e:
+            return False, str(e)

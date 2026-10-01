@@ -22,7 +22,7 @@ import logging
 import os
 import textwrap
 import time
-from datetime import datetime as dt, timedelta, timezone
+from datetime import datetime as dt, timedelta, timezone as std_timezone
 from pathlib import Path
 from unittest import mock
 from unittest.mock import ANY, call
@@ -43,8 +43,8 @@ from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
     CloudwatchTaskHandler,
 )
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import State
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
@@ -55,7 +55,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 
 def get_time_str(time_in_milliseconds):
-    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=timezone.utc)
+    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=std_timezone.utc)
     return dt_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -316,7 +316,7 @@ class TestCloudRemoteLogIO:
         dag_dir = self.local_log_location / "dag_id=a"
         assert dag_dir.exists()
 
-    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_log_message(self):
         # Use a context instead of a decorator on the test method because we need access to self to
         # get the path from the setup method.
@@ -345,7 +345,7 @@ class TestCloudRemoteLogIO:
                 '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
 
-    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_log_message_after_handler_closed_by_dictconfig(self):
         # configure_logging() ends in logging.config.dictConfig(), whose
         # _clearExistingHandlers closes every handler in logging._handlerList,
@@ -411,7 +411,7 @@ class TestCloudwatchTaskHandler:
                 f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
             )
 
-        date = datetime(2020, 1, 1)
+        date = timezone.datetime(2020, 1, 1)
         dag_id = "dag_for_testing_cloudwatch_task_handler"
         task_id = "task_for_testing_cloudwatch_log_handler"
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
@@ -479,7 +479,7 @@ class TestCloudwatchTaskHandler:
 
     # TODO: Remove when we stop testing for 2.11 compatibility
     @conf_vars({("core", "use_historical_filename_templates"): "True"})
-    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_read(self, monkeypatch):
         # Confirmed via AWS Support call:
         # CloudWatch events must be ordered chronologically otherwise
@@ -552,8 +552,8 @@ class TestCloudwatchTaskHandler:
         [
             (None, None),
             (
-                datetime(2020, 1, 2),
-                datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30)),
+                timezone.datetime(2020, 1, 2),
+                datetime_to_epoch_utc_ms(timezone.datetime(2020, 1, 2) + timedelta(seconds=30)),
             ),
         ],
     )
@@ -634,7 +634,7 @@ class TestCloudwatchTaskHandler:
                 args=None,
                 exc_info=None,
                 msg={
-                    "datetime": datetime(2023, 1, 1),
+                    "datetime": timezone.datetime(2023, 1, 1),
                     "customObject": ToSerialize(),
                 },
             )

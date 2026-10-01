@@ -18,6 +18,7 @@
  */
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+
 import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 import { BasePage } from "./BasePage";
@@ -36,6 +37,12 @@ export class ConfigurationPage extends BasePage {
     this.table = page.getByTestId("table-list");
     this.rows = this.table.locator(DATA_ROWS).filter({
       has: page.locator("td"),
+    });
+  }
+
+  public getRowByKey(key: string): Locator {
+    return this.rows.filter({
+      has: this.page.getByTestId("table-cell-key").filter({ hasText: new RegExp(`^${key}$`) }),
     });
   }
 

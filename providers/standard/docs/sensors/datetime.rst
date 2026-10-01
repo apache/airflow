@@ -55,7 +55,7 @@ Time will be evaluated against ``data_interval_end`` if present for the Dag run,
 DayOfWeekSensor
 ===============
 
-Use the :class:`~airflow.sensors.weekday.DayOfWeekSensor` to sense for day of week.
+Use the :class:`~airflow.providers.standard.sensors.weekday.DayOfWeekSensor` to sense for day of week.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python

@@ -177,7 +177,7 @@ Running manually via Pytest outside of the Airflow codebase
 
 2. Airflow API server
 
-  In case you want to run tests agasint an Airflow Executor, you will need to have the Airflow API server available.
+  In case you want to run tests against an Airflow Executor, you will need to have the Airflow API server available.
 
   NOTE: You have to make sure that the API server is sharing certain configuration as the test environment. This is
   particularly important so that the Airflow Task SDK may be able to communicate to the API Server.
