@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
@@ -32,57 +32,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.providers.common.compat.sdk import Context
-
-
-def _count_satisfied(count: int, expected_count: int) -> bool:
-    """
-    Return whether the number of (processed) asset events satisfies the expectation.
-
-    ``expected_count == -1`` means "at least one" (``count >= 1``); any other value
-    requires an exact match (``count == expected_count``).
-    """
-    if expected_count == -1:
-        return count >= 1
-    return count == expected_count
-
-
-def _fetch_asset_events(
-    *,
-    name: str | None,
-    uri: str | None,
-    alias_name: str | None,
-    after: datetime | str | None,
-    before: datetime | str | None,
-    ascending: bool,
-    limit: int | None,
-    partition_key: str | None,
-    partition_key_regexp_pattern: str | None,
-    extra: dict[str, str] | None,
-) -> list[Any]:
-    """
-    Fetch asset events matching the given filters.
-
-    This uses the Task SDK :class:`InletEventsAccessor`, which lazily fetches events from
-    the supervisor, so it can only run where the execution API is available (i.e. on a worker).
-    """
-    from airflow.sdk.execution_time.context import InletEventsAccessor
-
-    accessor = InletEventsAccessor(asset_name=name, asset_uri=uri, alias_name=alias_name)
-    if after is not None:
-        accessor.after(after if isinstance(after, str) else after.isoformat())
-    if before is not None:
-        accessor.before(before if isinstance(before, str) else before.isoformat())
-    accessor.ascending(ascending)
-    if limit is not None:
-        accessor.limit(limit)
-    if partition_key is not None:
-        accessor.partition_key(partition_key)
-    if partition_key_regexp_pattern is not None:
-        accessor.partition_key_regexp_pattern(partition_key_regexp_pattern)
-    if extra:
-        for key, value in extra.items():
-            accessor.extra(key, value)
-    return list(accessor)
+    from airflow.sdk.definitions.asset import AssetRef
 
 
 def _serialize_events(events: list[Any]) -> list[Any]:
@@ -108,8 +58,9 @@ class AssetEventSensor(BaseSensorOperator):
     This sensor requires Apache Airflow 3.4+ because the ``partition_key``,
     ``partition_key_regexp_pattern`` and ``extra`` asset-event filters are only available there.
 
-    :param asset: The :class:`~airflow.sdk.Asset` or :class:`~airflow.sdk.AssetAlias` to wait on.
-        As an alternative, pass ``name``/``uri``/``alias_name`` directly.
+    :param obj: The :class:`~airflow.sdk.Asset` or :class:`~airflow.sdk.AssetAlias` to wait on.
+        The target is declared as an inlet. As an alternative, pass ``name``/``uri``/``alias_name``
+        directly. Target identifiers are static; event filters can be templated.
     :param name: The asset name to fetch events for.
     :param uri: The asset uri to fetch events for.
     :param alias_name: The asset alias name to fetch events for.
@@ -120,10 +71,10 @@ class AssetEventSensor(BaseSensorOperator):
     :param partition_key: Filter by exact partition key match.
     :param partition_key_regexp_pattern: Filter by partition key regexp pattern.
     :param extra: Filter by key/value pairs contained in the event ``extra`` field.
-    :param expected_count: The number of events required to succeed. ``-1`` (the default) means
-        "at least one" (``count >= 1``); ``0`` means "exactly zero"; any other positive value
-        requires an exact match. Note that if ``limit`` is set below an exact ``expected_count``
-        the condition can never be satisfied (the sensor will wait until it times out).
+    :param expected_count: The non-negative number of processed events required to succeed.
+        Defaults to one. If ``process_result`` is omitted, ``limit`` must not be smaller.
+    :param count_policy: ``"minimum"`` (the default) waits for at least ``expected_count`` events;
+        ``"exact"`` requires exactly that number. To check for no events, use ``"exact"`` and zero.
     :param process_result: A callable (or a dotted import path to one) applied to the fetched
         events before the count check, to transform, deduplicate or filter them. It receives the
         list of asset events and must return a list. It runs on every poke, so it should be
@@ -132,9 +83,6 @@ class AssetEventSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        "name",
-        "uri",
-        "alias_name",
         "partition_key",
         "partition_key_regexp_pattern",
         "extra",
@@ -145,7 +93,7 @@ class AssetEventSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        asset: Asset | AssetAlias | None = None,
+        obj: Asset | AssetAlias | None = None,
         name: str | None = None,
         uri: str | None = None,
         alias_name: str | None = None,
@@ -156,7 +104,8 @@ class AssetEventSensor(BaseSensorOperator):
         partition_key: str | None = None,
         partition_key_regexp_pattern: str | None = None,
         extra: dict[str, str] | None = None,
-        expected_count: int = -1,
+        expected_count: int = 1,
+        count_policy: Literal["minimum", "exact"] = "minimum",
         process_result: Callable[[list[Any]], list[Any]] | str | None = None,
         **kwargs,
     ) -> None:
@@ -166,24 +115,32 @@ class AssetEventSensor(BaseSensorOperator):
                 "AssetEventSensor requires Apache Airflow 3.4+ because the asset event filters "
                 "it relies on are only available from 3.4 onwards."
             )
-        if asset is not None:
-            if isinstance(asset, AssetAlias):
-                alias_name = asset.name
-            elif isinstance(asset, Asset):
-                name = asset.name
-                uri = asset.uri
-            else:
-                raise TypeError(f"`asset` must be an Asset or AssetAlias, got {type(asset).__name__}")
-        if name is None and uri is None and alias_name is None:
-            raise ValueError("One of `asset`, `name`, `uri`, or `alias_name` must be provided.")
-        if expected_count < -1:
+        self.obj: Asset | AssetAlias | AssetRef
+        if obj is not None:
+            if not isinstance(obj, (Asset, AssetAlias)):
+                raise TypeError(f"`obj` must be an Asset or AssetAlias, got {type(obj).__name__}")
+            self.obj = obj
+        elif alias_name is not None:
+            self.obj = AssetAlias(alias_name)
+        elif name is not None and uri is not None:
+            self.obj = Asset(name=name, uri=uri)
+        elif name is not None:
+            self.obj = Asset.ref(name=name)
+        elif uri is not None:
+            self.obj = Asset.ref(uri=uri)
+        else:
+            raise ValueError("One of `obj`, `name`, `uri`, or `alias_name` must be provided.")
+        if expected_count < 0:
+            raise ValueError(f"`expected_count` must be a non-negative integer, got {expected_count}.")
+        if count_policy not in {"minimum", "exact"}:
+            raise ValueError(f"`count_policy` must be 'minimum' or 'exact', got {count_policy!r}.")
+        if process_result is None and limit is not None and limit < expected_count:
             raise ValueError(
-                f"`expected_count` must be -1 (at least one) or a non-negative integer, got {expected_count}."
+                "`limit` must be at least `expected_count` when `process_result` is not provided."
             )
+        if self.obj not in self.inlets:
+            self.inlets.append(self.obj)
 
-        self.name = name
-        self.uri = uri
-        self.alias_name = alias_name
         self.after = after
         self.before = before
         self.ascending = ascending
@@ -192,6 +149,7 @@ class AssetEventSensor(BaseSensorOperator):
         self.partition_key_regexp_pattern = partition_key_regexp_pattern
         self.extra = extra
         self.expected_count = expected_count
+        self.count_policy = count_policy
         self.process_result = process_result
 
     def _apply_process_result(self, events: list[Any]) -> list[Any]:
@@ -201,25 +159,31 @@ class AssetEventSensor(BaseSensorOperator):
         return func(events)
 
     def poke(self, context: Context) -> PokeReturnValue:
-        events = _fetch_asset_events(
-            name=self.name,
-            uri=self.uri,
-            alias_name=self.alias_name,
-            after=self.after,
-            before=self.before,
-            ascending=self.ascending,
-            limit=self.limit,
-            partition_key=self.partition_key,
-            partition_key_regexp_pattern=self.partition_key_regexp_pattern,
-            extra=self.extra,
-        )
-        processed = self._apply_process_result(events)
+        accessor = context["inlet_events"][self.obj]
+        if self.after is not None:
+            accessor.after(self.after if isinstance(self.after, str) else self.after.isoformat())
+        if self.before is not None:
+            accessor.before(self.before if isinstance(self.before, str) else self.before.isoformat())
+        accessor.ascending(self.ascending)
+        if self.limit is not None:
+            accessor.limit(self.limit)
+        if self.partition_key is not None:
+            accessor.partition_key(self.partition_key)
+        if self.partition_key_regexp_pattern is not None:
+            accessor.partition_key_regexp_pattern(self.partition_key_regexp_pattern)
+        if self.extra:
+            for key, value in self.extra.items():
+                accessor.extra(key, value)
+        processed = self._apply_process_result(list(accessor))
         count = len(processed)
-        done = _count_satisfied(count, self.expected_count)
+        done = (
+            count >= self.expected_count if self.count_policy == "minimum" else count == self.expected_count
+        )
         self.log.info(
-            "Found %d matching asset events (expected %s): %s",
+            "Found %d matching asset events (expected %s, policy %s): %s",
             count,
             self.expected_count,
+            self.count_policy,
             "condition met" if done else "still waiting",
         )
         return PokeReturnValue(is_done=done, xcom_value=_serialize_events(processed) if done else None)
