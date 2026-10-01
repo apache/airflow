@@ -1125,6 +1125,13 @@ class TestDagBag:
         self.validate_dags(test_dag, found_dags, dagbag, should_be_found=False)
         assert file_path in dagbag.import_errors
 
+    def test_process_file_nested_definition(self, tmp_path, test_zip_path):
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), collect_dags=False)
+
+        found_dags = dagbag.process_file(os.path.join(test_zip_path, "test_zip.py"))
+
+        assert sorted(dag.dag_id for dag in found_dags) == ["test_zip_autoregister", "test_zip_dag"]
+
     def test_process_file_with_none(self, tmp_path):
         """
         test that process_file can handle Nones

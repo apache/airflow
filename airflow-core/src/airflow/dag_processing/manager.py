@@ -505,11 +505,17 @@ class DagFileProcessorManager(LoggingMixin):
             # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
             # This is especially relevant for Dag files that generate Dags in a dynamic manner.
             rel_path = Path(dag.relative_fileloc)
-            file_info = DagFileInfo(rel_path=rel_path, bundle_name=dag.bundle_name)
-            if file_info not in last_parsed:
-                # Zip-packaged dags are keyed by the archive path, not the inner file, so try the parent as well
-                file_info = DagFileInfo(rel_path=rel_path.parent, bundle_name=dag.bundle_name)
-            if last_finish_time := last_parsed.get(file_info, None):
+            # A Dag nested in a container (``archive.zip/sub/dag.py``) is parsed under the container.
+            last_finish_time = next(
+                (
+                    last_parsed[file_info]
+                    for candidate in (rel_path, *rel_path.parents)
+                    if (file_info := DagFileInfo(rel_path=candidate, bundle_name=dag.bundle_name))
+                    in last_parsed
+                ),
+                None,
+            )
+            if last_finish_time:
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
                     self.log.info(
                         "Deactivating stale DAG %s. Not parsed for %s seconds (last parsed: %s).",
