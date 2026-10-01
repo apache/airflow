@@ -121,7 +121,7 @@ internal class ArgValuesTest {
     val def = TaskDef("consumer", NoopArgTask::class.java)
     dag.addTask(def)
     def.inputs += inputs
-    return contextWithoutTaskDef().copy(taskDef = def)
+    return contextWithoutTaskDef().also { it.taskDef = def }
   }
 
   private fun contextWithoutTaskDef(): Context =

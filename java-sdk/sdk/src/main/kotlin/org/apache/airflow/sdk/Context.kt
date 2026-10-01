@@ -123,9 +123,10 @@ data class TaskInstance(
 data class Context(
   @JvmField val dagRun: DagRun,
   @JvmField val ti: TaskInstance,
-  /** Registration of the executing task; resolves wired data inputs. */
-  internal val taskDef: TaskDef? = null,
 ) {
+  /** Registration of the executing task; resolves wired data inputs. */
+  internal var taskDef: TaskDef? = null
+
   internal companion object {
     fun from(
       request: StartupDetails,
@@ -146,7 +147,6 @@ data class Context(
             )
           },
         ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },
-        taskDef = taskDef,
-      )
+      ).also { it.taskDef = taskDef }
   }
 }

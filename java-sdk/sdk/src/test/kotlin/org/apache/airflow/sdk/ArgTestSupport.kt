@@ -107,5 +107,5 @@ internal fun contextWiredWith(inputs: List<Arg<*>>): Context {
   val def = TaskDef("t", NoopTask::class.java)
   DagDef("d").addTask(def)
   def.inputs += inputs
-  return taskContext().copy(taskDef = def)
+  return taskContext().also { it.taskDef = def }
 }

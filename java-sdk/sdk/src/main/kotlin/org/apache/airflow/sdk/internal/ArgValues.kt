@@ -94,7 +94,7 @@ object ArgValues {
     // is well defined because a TaskInput is a task's only data parameter.
     wiredInputs(context, client)?.let { wired ->
       warnWiredArity(client, type, wired.size)
-      return type.cast(decode(resolveWired(wired[0], client), type))
+      return type.cast(decode(resolveWiredAll(wired.take(1), client).single(), type))
         ?: throw missingInput(wired[0], type.simpleName)
     }
     val input = newInput(type)
@@ -269,15 +269,6 @@ object ArgValues {
           "Input '$target' requires an XCom from task '${input.def.id}', but none was pushed.",
         )
       is LiteralArg<*> -> MissingXComException("Input '$target' is wired to a null literal, so there is nothing to bind.")
-    }
-
-  private fun resolveWired(
-    input: Arg<*>,
-    client: Client,
-  ): Any? =
-    when (input) {
-      is TaskRef<*> -> client.getXCom(taskId = input.def.id)
-      is LiteralArg<*> -> input.value
     }
 
   /**
