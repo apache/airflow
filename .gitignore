@@ -151,6 +151,10 @@ ENV/
 # the .claude/* rule above only covers the repo root.
 **/.claude/.cc-writes/
 
+# Per-developer agent instructions.
+CLAUDE.local.md
+AGENTS.local.md
+
 # Kiro
 .kiro/
 
