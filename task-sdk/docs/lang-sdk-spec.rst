@@ -181,6 +181,7 @@ The Dag processor starts the same process to check a Python Dag's ``@task.stub``
    5  exit
 
 No ``fn`` runs: the answer comes from the registrations alone. It must depend only on the artifact,
-never on the request. A declaration states how the stub task's arguments bind to the handler's
-parameters and which values each parameter accepts. An artifact that registers no ``TaskHandler``
-answers with an empty mapping.
+never on the request. A declaration states whether the stub task's arguments bind to the handler's
+parameters by position or by name, and which values each parameter accepts. An SDK that cannot list
+a handler's parameters sends ``null`` for them, and then only the handler's presence is checked. An
+artifact that registers no ``TaskHandler`` answers with an empty mapping.

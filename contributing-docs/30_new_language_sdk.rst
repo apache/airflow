@@ -308,18 +308,26 @@ depend only on the artifact, never on the request.
 * ``task_handlers`` maps each Dag id the artifact registers handlers for to
   their declarations, in registration order.
 * Each ``TaskHandlerDeclaration`` states in ``binding`` how stub-task arguments
-  bind to its ``params``: ``positional``, ``named`` (by name in any order,
-  ignoring case and underscores unless a param sets ``exact_name``),
-  ``named_or_whole`` (as ``named``, except that when there is exactly one
-  argument and it matches no param, it is decoded as the whole value), or
-  ``named_open`` (as ``named``, but only the listed names are checked).
+  bind to its ``params``:
+
+  * ``positional``: by position. An argument count or value type the handler
+    cannot take makes the Dag fail to import.
+  * ``named``: by name in any order, ignoring case and underscores unless a
+    param sets ``exact_name``. An argument or param that matches nothing is
+    logged as a warning and the task still runs, so the runtime must accept
+    both. When no param matches and exactly one argument was passed, it may be
+    the whole value and is not warned about, unless ``params`` is empty, a
+    param sets ``exact_name``, or the argument cannot be an object. A value
+    type a param does not accept makes the Dag fail to import.
+
+* ``params`` lists the handler's parameters in order, ``[]`` when it has none,
+  or is ``null`` when the SDK cannot list them. Then only the handler's
+  presence is checked.
 * Each ``TaskHandlerParam`` has a ``name`` (``null`` when the SDK has no name
-  for a positional parameter), ``required`` (the handler has no default for it),
-  and a ``value_schema``: the JSON Schema of the values it accepts, in the
-  vocabulary ``@task.stub`` uses for Python annotations, or ``null`` when the SDK
-  cannot state one.
-* An empty ``params`` list or ``task_handlers`` mapping is sent empty, never as
-  ``null``.
+  for a positional parameter) and a ``value_schema``: the JSON Schema of the
+  values it accepts, in the vocabulary ``@task.stub`` uses for Python
+  annotations, or ``null`` when the SDK cannot state one.
+* An empty ``task_handlers`` mapping is sent empty, never as ``null``.
 
 ``go-sdk/pkg/execution`` is a reference implementation.
 
