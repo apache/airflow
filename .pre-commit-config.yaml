@@ -348,21 +348,23 @@ repos:
         #   prek run sync-java-sdk-dag-schema --hook-stage manual
         stages: ['manual']
         files: ^java-sdk/sdk/schema/dag-schema\.json$
-      - id: check-go-sdk-spec-drift
-        name: Check Go SDK Dag spec structs against the serialization schema
-        description: "Regenerate go-sdk/airflow/spec.gen.go and fail when the committed file differs"
-        entry: ./scripts/ci/prek/check_go_sdk_spec_drift.py
+      - id: check-go-sdk-generated-drift
+        name: Check Go SDK generated files against the schemas they generate from
+        description: "Regenerate the Dag specs and the coordinator-protocol models, and fail when a committed file differs"
+        entry: ./scripts/ci/prek/check_go_sdk_generated_drift.py
         # golang so prek provisions the toolchain the generators need, the way the
         # other checks that shell out to `go` in go-sdk get theirs.
         language: golang
         files: >
           (?x)
           ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
           ^go-sdk/airflow/spec\.gen\.go$|
           ^go-sdk/airflow/spec\.go$|
           ^go-sdk/internal/genspec/.*\.go$|
           ^go-sdk/internal/genlicense/.*\.go$|
-          ^scripts/ci/prek/check_go_sdk_spec_drift\.py$
+          ^go-sdk/pkg/execution/genmodels/.*\.go$|
+          ^scripts/ci/prek/check_go_sdk_generated_drift\.py$
         pass_filenames: false
         require_serial: true
       # check-ts-sdk-serialization-conformance in ts-sdk/ covers the SDK's own files; this runs the same
