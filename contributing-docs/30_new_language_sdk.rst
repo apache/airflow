@@ -300,13 +300,13 @@ gap.
 Answering ``TaskHandlerParseRequest``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The request names Dag ids. The SDK sends back one ``TaskHandlerParsingResult``,
-waits for the supervisor's response to it, and exits. No user code runs; the
-answer comes from the SDK's own task handler registrations.
+The SDK sends back one ``TaskHandlerParsingResult``, waits for the supervisor's
+response to it, and exits. No user code runs; the answer comes from the SDK's
+own task handler registrations. It MUST declare every registered handler and
+depend only on the artifact, never on the request.
 
-* ``task_handlers`` maps each requested Dag id to the declarations of its
-  handlers, in registration order. A requested Dag with no handler is left out
-  rather than mapped to an empty list.
+* ``task_handlers`` maps each Dag id the artifact registers handlers for to
+  their declarations, in registration order.
 * Each ``TaskHandlerDeclaration`` states in ``binding`` how stub-task arguments
   bind to its ``params``: ``positional``, ``named`` (by name in any order,
   ignoring case and underscores unless a param sets ``exact_name``),

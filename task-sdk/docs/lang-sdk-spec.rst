@@ -175,11 +175,12 @@ The Dag processor starts the same process to check a Python Dag's ``@task.stub``
 .. code-block:: text
 
    1  process start
-   2  receive TaskHandlerParseRequest, which names dag_ids
-   3  declare each registered TaskHandler whose dagId is one of them, in registration order
+   2  receive TaskHandlerParseRequest
+   3  declare every registered TaskHandler, keyed by dagId, in registration order
    4  send one TaskHandlerParsingResult, and wait for the supervisor's reply to it
    5  exit
 
-No ``fn`` runs: the answer comes from the registrations alone. A declaration states how the stub
-task's arguments bind to the handler's parameters and which values each parameter accepts. A
-requested ``dag_id`` with no ``TaskHandler`` is left out of the result rather than listed empty.
+No ``fn`` runs: the answer comes from the registrations alone. It must depend only on the artifact,
+never on the request. A declaration states how the stub task's arguments bind to the handler's
+parameters and which values each parameter accepts. An artifact that registers no ``TaskHandler``
+answers with an empty mapping.
