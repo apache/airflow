@@ -602,7 +602,6 @@ export type Required = boolean;
 export type ExactName = boolean;
 export type Params2 = TaskHandlerParam[];
 export type File1 = string;
-export type DagIds = string[];
 export type BundlePath1 = string;
 export type BundleName5 = string;
 export type Type77 = "TaskHandlerParseRequest";
@@ -1867,14 +1866,13 @@ export interface TaskHandlerParam {
 /**
  * Request for Task Handler Parsing.
  *
- * Asks a Lang-SDK runtime which task handlers an artifact registers for the given Dags.
+ * Asks a Lang-SDK runtime for every task handler an artifact registers.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "TaskHandlerParseRequest".
  */
 export interface TaskHandlerParseRequest {
   file: File1;
-  dag_ids: DagIds;
   bundle_path: BundlePath1;
   bundle_name: BundleName5;
   type?: Type77;
@@ -1882,7 +1880,9 @@ export interface TaskHandlerParseRequest {
 /**
  * Result of Task Handler Parsing.
  *
- * The task handlers a Lang-SDK artifact registers, keyed by Dag id.
+ * Every task handler a Lang-SDK artifact registers, keyed by Dag id.
+ *
+ * The answer depends only on the artifact, never on the request.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "TaskHandlerParsingResult".
