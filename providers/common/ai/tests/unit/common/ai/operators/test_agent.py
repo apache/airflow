@@ -105,7 +105,7 @@ except ImportError:
 
 requires_typed_xcom = pytest.mark.skipif(
     not _CORE_WALKER,
-    reason="Requires a core with the worker-side deserialization-class walk.",
+    reason="Requires an ``apache-airflow-task-sdk`` version with the worker-side deserialization-class walk.",
 )
 
 
@@ -164,7 +164,7 @@ def _make_task_state_store_accessor():
 
     ``TaskStateStoreAccessor`` doesn't exist below Airflow 3.3; several callers of this
     helper exercise ``execute()`` paths (e.g. ``usage_limits`` forwarding) that don't
-    depend on the task state store at all on those cores -- ``_build_usage_budget``
+    depend on the task state store at all on those Airflow versions -- ``_build_usage_budget``
     returns ``None`` before ever touching ``context["task_state_store"]``. Falling back
     to a plain method-name spec keeps this helper importable there too, instead of
     forcing every caller to skip on Airflow version for a dependency they don't have.
@@ -1495,7 +1495,7 @@ class TestAgentOperatorDurable:
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store backend requires Airflow >= 3.3")
     def test_build_durable_storage_uses_task_state_store_on_3_3(self):
         """On Airflow >= 3.3 the cache lives in the task state store -- no durable_cache_path needed."""
-        # Imported inside the test: this module runs on all cores, but both symbols
+        # Imported inside the test: this module runs on all supported Airflow versions, but both symbols
         # (and ``NEVER_EXPIRE``, pulled in by ``task_state_store``) only exist on 3.3+.
         from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
         from airflow.sdk.execution_time.context import TaskStateStoreAccessor
@@ -1979,11 +1979,11 @@ class TestAgentOperatorHITLArgumentChecks:
     )
     @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_1_PLUS", False)
     def test_version_gate_reported_before_combination_errors(self, conflicting_kwargs):
-        """On a core older than 3.1 the core version is the blocker, so it is what is reported.
+        """When Airflow is older than 3.1, its version is the blocker, so it is what is reported.
 
         Dropping the conflicting argument would not make the operator work there, so reporting
         the combination error first sends the user to the wrong knob. This ordering is also why
-        the combination tests above carry a 3.1 skipif: on an older core they raise this instead.
+        the combination tests above carry a 3.1 skipif: on an older Airflow version they raise this instead.
         """
         with pytest.raises(AirflowOptionalProviderFeatureException, match="Airflow 3.1"):
             AgentOperator(

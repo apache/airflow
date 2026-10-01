@@ -62,7 +62,7 @@ package each extra installs.
 Features gated on the Airflow version
 -------------------------------------
 
-The provider runs on Airflow 2.11, but some features need a newer core:
+The provider runs on Airflow 2.11, but some features need a newer Airflow version:
 
 .. list-table::
    :header-rows: 1
@@ -74,7 +74,7 @@ The provider runs on Airflow 2.11, but some features need a newer core:
      - Airflow 3.0
    * - :doc:`Approval gates <approval_gates>` and :doc:`HITL review <hitl_review>`
      - Airflow 3.1
-   * - The **Model** field in the connection form; on older cores put the model in
+   * - The **Model** field in the connection form; on older Airflow versions put the model in
        **Extra**, for example ``{"model": "openai:gpt-5"}``
      - Airflow 3.2
    * - :doc:`Retry policies <retry_policies>`
@@ -82,11 +82,11 @@ The provider runs on Airflow 2.11, but some features need a newer core:
    * - :doc:`Durable execution <durable_execution>` without configuring
        ``[common.ai] durable_cache_path`` (the task state store)
      - Airflow 3.3
-   * - :doc:`Tool approval <tool_approval>` that pauses the task; on older cores a tool
+   * - :doc:`Tool approval <tool_approval>` that pauses the task; on older Airflow versions a tool
        marked for approval fails the task
      - Airflow 3.3
    * - A :doc:`structured output <structured_output>` reaching downstream tasks as the
-       Pydantic model; on older cores it arrives as a ``dict``
+       Pydantic model; on older Airflow versions it arrives as a ``dict``
      - Airflow 3.3
 
 Airflow 2.11

@@ -423,7 +423,7 @@ Parameters
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results. On retry, cached steps are replayed instead of re-executing
   expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
-  configuration needed); on older cores it requires the ``[common.ai]
+  configuration needed); on older Airflow versions it requires the ``[common.ai]
   durable_cache_path`` config option to be set. Default ``False``. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so

@@ -36,7 +36,7 @@ except ImportError:
 
 requires_typed_xcom = pytest.mark.skipif(
     not _CORE_WALKER,
-    reason="Requires a core with the worker-side deserialization-class walk.",
+    reason="Requires an ``apache-airflow-task-sdk`` version with the worker-side deserialization-class walk.",
 )
 
 

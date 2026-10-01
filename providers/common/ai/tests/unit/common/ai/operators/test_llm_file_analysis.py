@@ -32,9 +32,9 @@ from airflow.providers.common.compat.sdk import TaskDeferred
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer to
     # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
-    # against whichever pause signal the running core uses.
+    # against whichever pause signal the running Airflow version uses.
     from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
@@ -46,7 +46,7 @@ except ImportError:
 
 requires_typed_xcom = pytest.mark.skipif(
     not _CORE_WALKER,
-    reason="Requires a core with the worker-side deserialization-class walk.",
+    reason="Requires an ``apache-airflow-task-sdk`` version with the worker-side deserialization-class walk.",
 )
 
 
