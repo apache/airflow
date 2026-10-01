@@ -609,7 +609,6 @@ class DagBundleRefreshResponse(BaseModel):
     """
 
     bundle_name: Annotated[str, Field(title="Bundle Name")]
-    refresh_generation: Annotated[int, Field(title="Refresh Generation")]
 
 
 class DagBundleResponse(BaseModel):

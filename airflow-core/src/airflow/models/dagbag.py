@@ -296,7 +296,7 @@ def generate_md5_hash(context):
 
 
 class DagPriorityParsingRequest(Base):
-    """Model to store the dag parsing requests that will be prioritized when parsing files."""
+    """Model to store priority parsing requests for a Dag file or an entire bundle."""
 
     __tablename__ = "dag_priority_parsing_request"
 
@@ -308,13 +308,13 @@ class DagPriorityParsingRequest(Base):
     )
 
     bundle_name: Mapped[str] = mapped_column(StringID(), nullable=False)
-    # The location of the file containing the DAG object
+    # None targets the entire bundle; otherwise this is the location of the file containing the Dag object.
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    relative_fileloc: Mapped[str] = mapped_column(String(2000), nullable=False)
+    relative_fileloc: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
-    def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
+    def __init__(self, bundle_name: str, relative_fileloc: str | None) -> None:
         super().__init__()
         self.bundle_name = bundle_name
         self.relative_fileloc = relative_fileloc

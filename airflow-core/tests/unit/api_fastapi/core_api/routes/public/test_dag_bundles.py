@@ -29,6 +29,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 from airflow.models import DagModel, Log
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.team import Team, dag_bundle_team_association_table
@@ -38,6 +39,7 @@ from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
+    clear_db_dag_parsing_requests,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_logs,
@@ -951,11 +953,13 @@ class TestGetDagBundleFiles:
 
 class TestRefreshDagBundle:
     def setup_method(self):
+        clear_db_dag_parsing_requests()
         clear_db_dags()
         clear_db_dag_bundles()
         clear_db_logs()
 
     def teardown_method(self):
+        clear_db_dag_parsing_requests()
         clear_db_dags()
         clear_db_dag_bundles()
         clear_db_logs()
@@ -971,23 +975,19 @@ class TestRefreshDagBundle:
         session.commit()
         auth_manager.is_authorized_dag.return_value = True
 
-        first_response = test_client.post("/dagBundles/global-bundle/refresh")
-        second_response = test_client.post("/dagBundles/global-bundle/refresh")
+        response = test_client.post("/dagBundles/global-bundle/refresh")
 
-        assert first_response.status_code == 202
-        assert first_response.json() == {
-            "bundle_name": "global-bundle",
-            "refresh_generation": 1,
-        }
-        assert second_response.status_code == 202
-        assert second_response.json()["refresh_generation"] == 2
+        assert response.status_code == 202
+        assert response.json() == {"bundle_name": "global-bundle"}
         auth_manager.is_authorized_dag.assert_called_with(
             method="PUT",
             details=DagDetails(id=None, team_name=None),
             user=mock.ANY,
         )
-        session.expire_all()
-        assert session.get(DagBundleModel, "global-bundle").refresh_generation == 2
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
+        assert len(parsing_requests) == 1
+        assert parsing_requests[0].bundle_name == "global-bundle"
+        assert parsing_requests[0].relative_fileloc is None
         _check_last_log(session, dag_id=None, event="refresh_dag_bundle", logical_date=None)
 
     @conf_vars({("core", "multi_team"): "True"})
@@ -1001,7 +1001,7 @@ class TestRefreshDagBundle:
         response = test_client.post("/dagBundles/team-bundle/refresh")
 
         assert response.status_code == 202
-        assert response.json()["refresh_generation"] == 1
+        assert response.json() == {"bundle_name": "team-bundle"}
         auth_manager.is_authorized_dag.assert_called_once_with(
             method="PUT",
             details=DagDetails(id=None, team_name=testing_team.name),
@@ -1021,8 +1021,7 @@ class TestRefreshDagBundle:
         response = test_client.post("/dagBundles/team-bundle/refresh")
 
         assert response.status_code == 403
-        session.expire_all()
-        assert session.get(DagBundleModel, "team-bundle").refresh_generation == 0
+        assert session.scalars(select(DagPriorityParsingRequest)).all() == []
 
     @pytest.mark.parametrize("active", [True, False])
     def test_unknown_or_inactive_bundle_returns_not_found(self, active, auth_manager, session, test_client):
@@ -1038,6 +1037,7 @@ class TestRefreshDagBundle:
 
         assert response.status_code == 404
         auth_manager.is_authorized_dag.assert_not_called()
+        assert session.scalars(select(DagPriorityParsingRequest)).all() == []
 
     def test_refresh_requires_authentication(self, session, unauthenticated_test_client):
         session.add(DagBundleModel(name="global-bundle"))
@@ -1046,3 +1046,4 @@ class TestRefreshDagBundle:
         response = unauthenticated_test_client.post("/dagBundles/global-bundle/refresh")
 
         assert response.status_code == 401
+        assert session.scalars(select(DagPriorityParsingRequest)).all() == []

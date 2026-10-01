@@ -4828,14 +4828,10 @@ export const $DagBundleRefreshResponse = {
         bundle_name: {
             type: 'string',
             title: 'Bundle Name'
-        },
-        refresh_generation: {
-            type: 'integer',
-            title: 'Refresh Generation'
         }
     },
     type: 'object',
-    required: ['bundle_name', 'refresh_generation'],
+    required: ['bundle_name'],
     title: 'DagBundleRefreshResponse',
     description: 'Response acknowledging a Dag bundle refresh request.'
 } as const;

@@ -3591,7 +3591,7 @@ paths:
       tags:
       - Dag Bundle
       summary: Refresh Dag Bundle
-      description: Request that every Dag processor refresh a bundle.
+      description: Request an asynchronous Dag bundle refresh.
       operationId: refresh_dag_bundle
       security:
       - OAuth2PasswordBearer: []
@@ -14629,13 +14629,9 @@ components:
         bundle_name:
           type: string
           title: Bundle Name
-        refresh_generation:
-          type: integer
-          title: Refresh Generation
       type: object
       required:
       - bundle_name
-      - refresh_generation
       title: DagBundleRefreshResponse
       description: Response acknowledging a Dag bundle refresh request.
     DagBundleResponse:

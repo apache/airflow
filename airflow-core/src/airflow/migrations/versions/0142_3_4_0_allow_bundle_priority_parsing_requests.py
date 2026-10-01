@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Add refresh generation to Dag bundle.
+Allow bundle priority parsing requests.
 
 Revision ID: a4f3c8d19e72
 Revises: 90e4d18ccadf
@@ -29,6 +29,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import disable_sqlite_fkeys
+
 # revision identifiers, used by Alembic.
 revision = "a4f3c8d19e72"
 down_revision = "90e4d18ccadf"
@@ -38,20 +40,23 @@ airflow_version = "3.4.0"
 
 
 def upgrade():
-    """Add the Dag bundle refresh generation."""
-    from airflow.migrations.utils import disable_sqlite_fkeys
-
+    """Allow priority parsing requests to target an entire Dag bundle."""
     with disable_sqlite_fkeys(op):
-        with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-            batch_op.add_column(
-                sa.Column("refresh_generation", sa.BigInteger(), nullable=False, server_default="0")
+        with op.batch_alter_table("dag_priority_parsing_request", schema=None) as batch_op:
+            batch_op.alter_column(
+                "relative_fileloc",
+                existing_type=sa.String(length=2000),
+                nullable=True,
             )
 
 
 def downgrade():
-    """Remove the Dag bundle refresh generation."""
-    from airflow.migrations.utils import disable_sqlite_fkeys
-
+    """Require priority parsing requests to target a Dag file."""
     with disable_sqlite_fkeys(op):
-        with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-            batch_op.drop_column("refresh_generation")
+        op.execute("DELETE FROM dag_priority_parsing_request WHERE relative_fileloc IS NULL")
+        with op.batch_alter_table("dag_priority_parsing_request", schema=None) as batch_op:
+            batch_op.alter_column(
+                "relative_fileloc",
+                existing_type=sa.String(length=2000),
+                nullable=False,
+            )

@@ -2460,7 +2460,7 @@ export const useDagRunServiceClearDagRunPartitions = <TData = Common.DagRunServi
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.clearDagRunPartitions({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Refresh Dag Bundle
-* Request that every Dag processor refresh a bundle.
+* Request an asynchronous Dag bundle refresh.
 * @param data The data for the request.
 * @param data.bundleName
 * @returns DagBundleRefreshResponse Successful Response

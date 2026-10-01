@@ -111,7 +111,6 @@ class BundleState(NamedTuple):
 
     last_refreshed: datetime | None
     version: str | None
-    refresh_generation: int = 0
 
 
 @attrs.define
@@ -259,7 +258,6 @@ class DagFileProcessorManager(LoggingMixin):
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
-    _bundle_refresh_generations: dict[str, int] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
@@ -665,14 +663,12 @@ class DagFileProcessorManager(LoggingMixin):
         bundle: BaseDagBundle,
         elapsed_time_since_refresh: float,
         current_version_matches_db: bool,
-        current_refresh_generation_matches_db: bool,
         previously_seen: bool,
     ) -> bool:
         """Return ``True`` when a Dag bundle refresh should be skipped."""
         return (
             elapsed_time_since_refresh < bundle.refresh_interval
             and current_version_matches_db
-            and current_refresh_generation_matches_db
             and previously_seen
             and bundle.name not in self._force_refresh_bundles
         )
@@ -687,11 +683,16 @@ class DagFileProcessorManager(LoggingMixin):
         )
         for request in requests:
             bundle = bundles[request.bundle_name]
-            files.append(
-                DagFileInfo(
-                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
+            if request.relative_fileloc is None:
+                self.request_bundle_refresh(bundle.name)
+            else:
+                files.append(
+                    DagFileInfo(
+                        rel_path=Path(request.relative_fileloc),
+                        bundle_name=bundle.name,
+                        bundle_path=bundle.path,
+                    )
                 )
-            )
             session.delete(request)
         return files
 
@@ -813,17 +814,13 @@ class DagFileProcessorManager(LoggingMixin):
         Returns ``None`` if the bundle has no database record.
         """
         row = session.execute(
-            select(
-                DagBundleModel.last_refreshed, DagBundleModel.version, DagBundleModel.refresh_generation
-            ).where(DagBundleModel.name == bundle_name)
+            select(DagBundleModel.last_refreshed, DagBundleModel.version).where(
+                DagBundleModel.name == bundle_name
+            )
         ).one_or_none()
         if row is None:
             return None
-        return BundleState(
-            last_refreshed=row.last_refreshed,
-            version=row.version,
-            refresh_generation=row.refresh_generation,
-        )
+        return BundleState(last_refreshed=row.last_refreshed, version=row.version)
 
     @provide_session
     def update_bundle_state(
@@ -904,14 +901,10 @@ class DagFileProcessorManager(LoggingMixin):
                 current_version_matches_db = True
 
             previously_seen = bundle.name in self._bundle_versions
-            current_refresh_generation_matches_db = (
-                self._bundle_refresh_generations.get(bundle.name) == bundle_state.refresh_generation
-            )
             if self.should_skip_refresh(
                 bundle=bundle,
                 elapsed_time_since_refresh=elapsed_time_since_refresh,
                 current_version_matches_db=current_version_matches_db,
-                current_refresh_generation_matches_db=current_refresh_generation_matches_db,
                 previously_seen=previously_seen,
             ):
                 self.log.debug("Not time to refresh bundle %s", bundle.name)
@@ -945,8 +938,6 @@ class DagFileProcessorManager(LoggingMixin):
                         self.update_bundle_state(bundle.name, last_refreshed=now, version=None)
                     except Exception:
                         self.log.exception("Error persisting state for bundle %s", bundle.name)
-                    else:
-                        self._bundle_refresh_generations[bundle.name] = bundle_state.refresh_generation
                     continue
 
                 self.log.info("Version changed for %s, new version: %s", bundle.name, version_after_refresh)
@@ -963,7 +954,6 @@ class DagFileProcessorManager(LoggingMixin):
             else:
                 self._bundle_versions[bundle.name] = version_after_refresh
                 self._bundle_version_data[bundle.name] = version_data_after_refresh
-                self._bundle_refresh_generations[bundle.name] = bundle_state.refresh_generation
 
             found_files = {
                 DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)

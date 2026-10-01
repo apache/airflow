@@ -1676,7 +1676,7 @@ export class DagBundleService {
     
     /**
      * Refresh Dag Bundle
-     * Request that every Dag processor refresh a bundle.
+     * Request an asynchronous Dag bundle refresh.
      * @param data The data for the request.
      * @param data.bundleName
      * @returns DagBundleRefreshResponse Successful Response
