@@ -89,8 +89,8 @@ The provider runs on Airflow 2.11, but some features need a newer core:
        Pydantic model; on older cores it arrives as a ``dict``
      - Airflow 3.3
 
-Airflow 2
----------
+Airflow 2.11
+------------
 
 On Airflow 2.11 the operators, decorators, hooks and toolsets run as they do on Airflow
 3.0, apart from the table above. Three things differ from an Airflow 3 install:

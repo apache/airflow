@@ -135,7 +135,7 @@ def build_run_identity_attributes(ti: Any) -> dict[str, Any]:
     return attributes
 
 
-def task_instance_run_key(ti: Any) -> str:
+def make_task_instance_run_key(ti: Any) -> str:
     """
     Return a per-attempt key for ``ti``: its id on Airflow 3, a composite on Airflow 2.
 

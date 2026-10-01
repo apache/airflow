@@ -47,8 +47,8 @@ from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentR
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
+    make_task_instance_run_key,
     stamp_identity_on_agent_spans,
-    task_instance_run_key,
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import (
@@ -999,7 +999,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             return
         ti = context["task_instance"]
         try:
-            ti.xcom_push(key="run_id", value=task_instance_run_key(ti))
+            ti.xcom_push(key="run_id", value=make_task_instance_run_key(ti))
         except Exception:
             self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
         if attempt_usage is not None:
@@ -1113,7 +1113,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # each retry; dag/run/task/map/try on Airflow 2) is a unique, reverse-resolvable
         # join key. It lands on result.run_id, the run's messages, and the
         # ``gen_ai.agent.call.id`` span attribute.
-        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": task_instance_run_key(ti)}
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": make_task_instance_run_key(ti)}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history

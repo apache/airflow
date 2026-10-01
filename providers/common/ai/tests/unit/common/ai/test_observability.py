@@ -173,13 +173,13 @@ class TestTaskInstanceRunKey:
     def test_uses_the_task_instance_id_when_it_has_one(self):
         ti = SimpleNamespace(id="0199-uuid", dag_id="d", task_id="t", run_id="r", try_number=2, map_index=3)
 
-        assert observability.task_instance_run_key(ti) == "0199-uuid"
+        assert observability.make_task_instance_run_key(ti) == "0199-uuid"
 
     def test_builds_a_per_attempt_key_without_an_id(self):
         """Airflow 2 task instances have no ``id`` column."""
         ti = SimpleNamespace(dag_id="d", task_id="t", run_id="r", try_number=2, map_index=3)
 
-        assert observability.task_instance_run_key(ti) == "d/r/t/3/2"
+        assert observability.make_task_instance_run_key(ti) == "d/r/t/3/2"
 
 
 class TestStampIdentityOnAgentSpans:

@@ -27,7 +27,7 @@ pytestmark = pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="The stand-in is only
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.providers.common.compat._set_during_execution import SET_DURING_EXECUTION
     from airflow.serialization.helpers import serialize_template_field
-    from airflow.utils.types import ArgNotSet
+    from airflow.utils.types import ArgNotSet  # type: ignore[attr-defined]  # Airflow 2 only
 
 
 def test_compat_sdk_hands_out_the_stand_in():
