@@ -25,6 +25,14 @@ AssetEventSensor
 Use the :class:`~airflow.providers.standard.sensors.asset.AssetEventSensor` to wait for
 asset events matching a set of filters to reach an expected count.
 
+Use this sensor when an already-running Dag needs an asset between tasks. For example, a
+daily consumer can run its preparation tasks immediately, then wait for another Dag to
+produce the partition for its own data interval. Moving that dependency to an asset schedule
+would change when the entire Dag starts and the data interval used by the consumer.
+
+The sensor declares its target as an inlet, so the dependency is visible in asset lineage
+without changing the Dag's schedule. It reads events through ``context["inlet_events"]``.
+
 .. note::
 
     This sensor requires **Apache Airflow 3.4+**, because the ``partition_key``,
@@ -34,9 +42,11 @@ asset events matching a set of filters to reach an expected count.
 Basic usage
 -----------
 
-Point the sensor at an :class:`~airflow.sdk.Asset` (or :class:`~airflow.sdk.AssetAlias`, or the raw
-``name`` / ``uri`` / ``alias_name``). By default the sensor succeeds once **at least one** matching
-event exists.
+Pass an :class:`~airflow.sdk.Asset` or :class:`~airflow.sdk.AssetAlias` as ``obj``, or use the raw
+``name`` / ``uri`` / ``alias_name`` arguments. A name-only or URI-only target is an asset reference
+and must resolve to an existing asset when the task context is created. Target identifiers are
+static so Airflow can record the inlet; use templated event filters to select a run's events.
+By default the sensor succeeds once **at least one** matching event exists.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
@@ -49,9 +59,18 @@ Filtering events and expected count
 
 Events can be narrowed with ``after`` / ``before`` (time range), ``ascending`` / ``limit``
 (ordering and cap), ``partition_key`` / ``partition_key_regexp_pattern`` and ``extra`` (key/value
-pairs contained in the event ``extra`` field). Use ``expected_count`` to control how many
-(processed) events are required to succeed: ``-1`` (the default) means "at least one", ``0`` means
-"exactly zero", and any other positive value requires an exact match.
+pairs contained in the event ``extra`` field). Prefer a partition key for the event's partition
+identity; ``extra`` can further filter metadata, such as a validation status.
+
+Use ``expected_count`` and ``count_policy`` to control how many processed events are required:
+
+* ``count_policy="minimum"`` (the default) succeeds at or above ``expected_count``, which defaults to one.
+* ``count_policy="exact"`` succeeds only at ``expected_count``. Use this policy with zero to check
+  that no matching events exist. An exact count can be missed if several events arrive between pokes.
+
+Counts must be non-negative. With the minimum policy, zero always satisfies the count condition.
+If no ``process_result`` callback is provided, a ``limit`` below ``expected_count`` is rejected
+at construction instead of waiting until the sensor times out.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python

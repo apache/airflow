@@ -14,19 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Tests for :class:`AssetEventSensor`.
-
-Most tests are database-backed (``db_test``): they create real ``AssetEvent`` rows and exercise the
-whole fetch path (real ``InletEventsAccessor`` -> DB-backed ``SUPERVISOR_COMMS`` -> real
-execution-API SQL), rather than patching ``_fetch_asset_events``. The DB harness lives in the
-``conftest.py`` one directory up (``db_supervisor_comms`` / ``asset_event_rows`` fixtures).
-"""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from unittest.mock import call
 
 import pytest
 
@@ -35,80 +27,119 @@ from airflow.providers.standard.sensors.asset import AssetEventSensor
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
 
-pytestmark = pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="AssetEventSensor requires Airflow 3.4+")
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+    from airflow.sdk.execution_time.comms import (
+        AssetEventsResult,
+        AssetResult,
+        GetAssetByName,
+        GetAssetByUri,
+        GetAssetEventByAsset,
+        GetAssetEventByAssetAlias,
+    )
+    from airflow.sdk.execution_time.context import InletEventsAccessors
 
-FETCH_PATH = "airflow.providers.standard.sensors.asset._fetch_asset_events"
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="AssetEventSensor requires Airflow 3.4+")
 
 ASSET_NAME = "my_asset"
 ASSET_URI = "s3://bucket/key"
 ALIAS_NAME = "my_alias"
 
 
-def _ts(day: int) -> datetime:
+def _get_timestamp(day: int) -> datetime:
     return datetime(2024, 1, day, tzinfo=timezone.utc)
 
 
+def _get_context(sensor: AssetEventSensor) -> dict[str, Any]:
+    return {"inlet_events": InletEventsAccessors(sensor.inlets)}
+
+
 def only_us_partitions(events: list[Any]) -> list[Any]:
-    """Keep only events whose partition key targets the ``us`` region."""
     return [event for event in events if (event.partition_key or "").startswith("us|")]
 
 
 def dedup_by_partition_key(events: list[Any]) -> list[Any]:
-    """Keep the first event seen for each distinct partition key (order preserved)."""
     seen: set[str | None] = set()
-    out: list[Any] = []
+    result = []
     for event in events:
-        if event.partition_key in seen:
-            continue
-        seen.add(event.partition_key)
-        out.append(event)
-    return out
+        if event.partition_key not in seen:
+            seen.add(event.partition_key)
+            result.append(event)
+    return result
 
 
-def _partition_keys(result: Any) -> list[str | None]:
-    """Extract partition keys from a poke result's (serialized) xcom value."""
-    assert isinstance(result, PokeReturnValue)
-    return [event["partition_key"] for event in (result.xcom_value or [])]
+@pytest.fixture
+def asset():
+    return Asset(name=ASSET_NAME, uri=ASSET_URI)
+
+
+@pytest.fixture
+def events_response():
+    partition_keys = ["us|2024-01-01", "us|2024-01-02", "eu|2024-01-01", "us|2024-01-01", None]
+    return AssetEventsResult(
+        asset_events=[
+            AssetEventResponse(
+                id=index,
+                timestamp=_get_timestamp(index),
+                partition_key=key,
+                extra={"region": key.split("|")[0]} if key else {},
+                asset=AssetResponse(name=ASSET_NAME, uri=ASSET_URI, group="asset", extra={}),
+                created_dagruns=[],
+                source_dag_id="producer",
+                source_task_id="emit",
+                source_run_id="run_1",
+                source_map_index=-1,
+            )
+            for index, key in enumerate(partition_keys, start=1)
+        ]
+    )
 
 
 class TestInit:
-    """Pure construction/validation logic (no DB access)."""
-
     def test_requires_a_target(self):
-        with pytest.raises(ValueError, match="One of `asset`, `name`, `uri`, or `alias_name`"):
+        with pytest.raises(ValueError, match="obj.*name.*uri.*alias_name"):
             AssetEventSensor(task_id="s")
 
-    def test_target_from_asset(self):
-        sensor = AssetEventSensor(task_id="s", asset=Asset(name="my_asset", uri="s3://bucket/key"))
-        assert sensor.name == "my_asset"
-        assert sensor.uri == "s3://bucket/key"
-        assert sensor.alias_name is None
+    @pytest.mark.parametrize("use_alias", [False, True])
+    def test_declares_target_as_inlet(self, asset, use_alias):
+        obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
+        sensor = AssetEventSensor(task_id="s", obj=obj)
+        assert sensor.obj == obj
+        assert sensor.inlets == [obj]
 
-    def test_target_from_asset_alias(self):
-        sensor = AssetEventSensor(task_id="s", asset=AssetAlias(name="my_alias"))
-        assert sensor.alias_name == "my_alias"
-        assert sensor.name is None
-        assert sensor.uri is None
+    @pytest.mark.parametrize("include_target", [False, True])
+    def test_preserves_existing_inlets_without_duplicates(self, asset, include_target):
+        other_asset = Asset("s3://bucket/other")
+        inlets = [other_asset, asset] if include_target else [other_asset]
+        original_inlets = inlets.copy()
+        sensor = AssetEventSensor(task_id="s", obj=asset, inlets=inlets)
+        assert sensor.inlets == [other_asset, asset]
+        assert inlets == original_inlets
 
     def test_target_rejects_bad_type(self):
-        with pytest.raises(TypeError, match="must be an Asset or AssetAlias"):
-            AssetEventSensor(task_id="s", asset=object())  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match="Asset.*AssetAlias"):
+            AssetEventSensor(task_id="s", obj=object())
 
-    def test_rejects_invalid_expected_count(self):
+    def test_rejects_negative_expected_count(self, asset):
         with pytest.raises(ValueError, match="expected_count"):
-            AssetEventSensor(task_id="s", name=ASSET_NAME, expected_count=-2)
+            AssetEventSensor(task_id="s", obj=asset, expected_count=-1)
 
-    def test_requires_airflow_3_4(self, mocker):
-        # The version guard is dead code in CI (the module is skipped below 3.4), so patch the flag.
+    def test_rejects_invalid_count_policy(self, asset):
+        with pytest.raises(ValueError, match="count_policy"):
+            AssetEventSensor(task_id="s", obj=asset, count_policy="unknown")
+
+    @pytest.mark.parametrize("count_policy", ["minimum", "exact"])
+    def test_rejects_limit_below_expected_count_without_processing(self, asset, count_policy):
+        with pytest.raises(ValueError, match="limit"):
+            AssetEventSensor(task_id="s", obj=asset, limit=1, expected_count=3, count_policy=count_policy)
+
+    def test_requires_airflow_3_4(self, mocker, asset):
         mocker.patch("airflow.providers.standard.sensors.asset.AIRFLOW_V_3_4_PLUS", False)
         with pytest.raises(RuntimeError, match="requires Apache Airflow 3.4"):
-            AssetEventSensor(task_id="s", name=ASSET_NAME)
+            AssetEventSensor(task_id="s", obj=asset)
 
     def test_template_fields(self):
-        assert set(AssetEventSensor.template_fields) >= {
-            "name",
-            "uri",
-            "alias_name",
+        assert set(AssetEventSensor.template_fields) == {
             "partition_key",
             "partition_key_regexp_pattern",
             "extra",
@@ -116,194 +147,220 @@ class TestInit:
             "before",
         }
 
+    def test_renders_filters_without_changing_lineage(self, asset):
+        sensor = AssetEventSensor(
+            task_id="s",
+            obj=asset,
+            partition_key="{{ ds }}",
+            partition_key_regexp_pattern="{{ params.region }}.*",
+            extra={"region": "{{ params.region }}"},
+            after="{{ ds }}T00:00:00+00:00",
+            before="{{ ds }}T23:59:59+00:00",
+        )
+        sensor.render_template_fields({"ds": "2024-01-01", "params": {"region": "us"}})
+        assert sensor.partition_key == "2024-01-01"
+        assert sensor.partition_key_regexp_pattern == "us.*"
+        assert sensor.extra == {"region": "us"}
+        assert sensor.after == "2024-01-01T00:00:00+00:00"
+        assert sensor.before == "2024-01-01T23:59:59+00:00"
+        assert sensor.obj == asset
+        assert sensor.inlets == [asset]
 
-@pytest.mark.db_test
+
 class TestPoke:
-    """poke() against real ``AssetEvent`` rows (no patching of the fetch)."""
-
-    def test_returns_all_events(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME)  # expected_count=-1 (at least one)
-        result = sensor.poke({})
+    def test_returns_serialized_events(self, asset, events_response, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = events_response
+        sensor = AssetEventSensor(task_id="s", obj=asset)
+        result = sensor.poke(_get_context(sensor))
+        assert isinstance(result, PokeReturnValue)
         assert bool(result) is True
-        assert _partition_keys(result) == [
-            "us|2024-01-01",
-            "us|2024-01-02",
-            "eu|2024-01-01",
-            "us|2024-01-01",
-            None,
-        ]
-
-    def test_no_match_is_not_done(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(task_id="s", name="does_not_exist")
-        result = sensor.poke({})
-        assert bool(result) is False
-        assert result.xcom_value is None
-
-    def test_exact_partition_key_filter(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME, partition_key="us|2024-01-01")
-        assert _partition_keys(sensor.poke({})) == ["us|2024-01-01", "us|2024-01-01"]
-
-    def test_extra_filter(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME, extra={"region": "eu"})
-        assert _partition_keys(sensor.poke({})) == ["eu|2024-01-01"]
-
-    def test_time_range_limit_and_descending(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, after=_ts(2), before=_ts(4), ascending=False, limit=2
+        assert result.xcom_value == [event.model_dump(mode="json") for event in events_response.asset_events]
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI)
         )
-        # events in [day2, day4] are ids 2,3,4; descending -> 4,3; limited to 2
-        assert _partition_keys(sensor.poke({})) == ["us|2024-01-01", "eu|2024-01-01"]
 
-    @pytest.mark.parametrize(("expected_count", "done"), [(5, True), (4, False), (1, False)])
-    def test_exact_expected_count(self, asset_event_rows, db_supervisor_comms, expected_count, done):
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME, expected_count=expected_count)
-        assert bool(sensor.poke({})) is done
-
-    def test_by_uri(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(task_id="s", uri=ASSET_URI)
-        assert len(sensor.poke({}).xcom_value) == 5
-
-    def test_by_alias(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(task_id="s", asset=AssetAlias(name=ALIAS_NAME))
-        assert len(sensor.poke({}).xcom_value) == 5
-
-    def test_expected_count_zero_matches_none(self, asset_event_rows, db_supervisor_comms):
-        # expected_count=0 means "exactly zero events"; a filter matching nothing satisfies it.
+    @pytest.mark.parametrize(
+        ("count_policy", "expected_count", "actual_count", "done"),
+        [
+            ("minimum", 1, 0, False),
+            ("minimum", 1, 1, True),
+            ("minimum", 3, 2, False),
+            ("minimum", 3, 3, True),
+            ("minimum", 3, 5, True),
+            ("minimum", 0, 0, True),
+            ("exact", 0, 0, True),
+            ("exact", 0, 1, False),
+            ("exact", 3, 2, False),
+            ("exact", 3, 3, True),
+            ("exact", 3, 5, False),
+        ],
+    )
+    def test_count_policy(
+        self, asset, events_response, mock_supervisor_comms, count_policy, expected_count, actual_count, done
+    ):
+        events = events_response.asset_events[:actual_count]
+        mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=events)
         sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, partition_key="does-not-exist", expected_count=0
+            task_id="s", obj=asset, count_policy=count_policy, expected_count=expected_count
         )
-        result = sensor.poke({})
-        assert bool(result) is True
-        assert result.xcom_value == []
+        result = sensor.poke(_get_context(sensor))
+        assert bool(result) is done
+        assert result.xcom_value == ([event.model_dump(mode="json") for event in events] if done else None)
 
-    def test_limit_below_exact_expected_count_never_satisfied(self, asset_event_rows, db_supervisor_comms):
-        # limit caps the DB result below the exact expected_count, so the condition can never be met.
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME, limit=1, expected_count=3)
-        assert bool(sensor.poke({})) is False
-
-    def test_combined_filters(self, asset_event_rows, db_supervisor_comms):
-        # partition_key AND extra AND time-range together, resolved by real SQL -> only id=1.
+    @pytest.mark.parametrize("use_alias", [False, True])
+    @pytest.mark.parametrize("string_bounds", [False, True])
+    def test_forwards_all_filters(self, asset, mock_supervisor_comms, use_alias, string_bounds):
+        mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
+        obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
         sensor = AssetEventSensor(
             task_id="s",
-            name=ASSET_NAME,
-            partition_key="us|2024-01-01",
-            extra={"region": "us"},
-            after=_ts(1),
-            before=_ts(1),
-        )
-        assert _partition_keys(sensor.poke({})) == ["us|2024-01-01"]
-
-    def test_string_datetime_bounds(self, asset_event_rows, db_supervisor_comms):
-        # after/before accept ISO strings (coerced to datetime by the comms message model).
-        sensor = AssetEventSensor(
-            task_id="s",
-            name=ASSET_NAME,
-            after="2024-01-02T00:00:00+00:00",
-            before="2024-01-03T00:00:00+00:00",
-        )
-        assert _partition_keys(sensor.poke({})) == ["us|2024-01-02", "eu|2024-01-01"]
-
-
-@pytest.mark.db_test
-class TestProcessResult:
-    """process_result (filter / dedup) applied to real DB events before the count check."""
-
-    def test_filters_out_events(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, process_result=only_us_partitions, expected_count=3
-        )
-        result = sensor.poke({})
-        assert bool(result) is True
-        assert _partition_keys(result) == ["us|2024-01-01", "us|2024-01-02", "us|2024-01-01"]
-
-    def test_dedup(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, process_result=dedup_by_partition_key, expected_count=4
-        )
-        result = sensor.poke({})
-        assert bool(result) is True
-        assert _partition_keys(result) == ["us|2024-01-01", "us|2024-01-02", "eu|2024-01-01", None]
-
-    def test_by_import_path(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(
-            task_id="s",
-            name=ASSET_NAME,
-            process_result=f"{__name__}.only_us_partitions",
-            expected_count=3,
-        )
-        assert bool(sensor.poke({})) is True
-
-    def test_reduces_below_expected(self, asset_event_rows, db_supervisor_comms):
-        # only 3 "us" events remain after filtering, so an exact expectation of 5 is not met
-        sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, process_result=only_us_partitions, expected_count=5
-        )
-        assert bool(sensor.poke({})) is False
-
-    def test_returns_empty_list_not_done(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME, process_result=lambda events: [])
-        result = sensor.poke({})  # expected_count=-1 -> "at least one" -> not satisfied by []
-        assert bool(result) is False
-        assert result.xcom_value is None
-
-    def test_returns_empty_list_with_expected_zero(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, process_result=lambda events: [], expected_count=0
-        )
-        result = sensor.poke({})
-        assert bool(result) is True
-        assert result.xcom_value == []
-
-    def test_returns_more_events_than_fetched(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, process_result=lambda events: events + events, expected_count=10
-        )
-        result = sensor.poke({})
-        assert bool(result) is True
-        assert len(result.xcom_value) == 10
-
-    def test_exception_propagates(self, asset_event_rows, db_supervisor_comms):
-        def boom(events):
-            raise RuntimeError("process_result exploded")
-
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME, process_result=boom)
-        with pytest.raises(RuntimeError, match="process_result exploded"):
-            sensor.poke({})
-
-
-class TestFilterForwarding:
-    """The regexp filter cannot run on SQLite, so verify filter forwarding with a mock.
-
-    This is the one place we still patch the fetch: it lets us assert that *all* filters (including
-    ``partition_key_regexp_pattern``) reach the fetch layer without executing a regexp query that
-    the local SQLite backend does not support.
-    """
-
-    def test_forwards_all_filters_to_fetch(self, mocker):
-        fetch = mocker.patch(FETCH_PATH, return_value=[])
-        sensor = AssetEventSensor(
-            task_id="s",
-            name=ASSET_NAME,
-            uri=ASSET_URI,
-            after=_ts(1),
-            before=_ts(9),
+            obj=obj,
+            after=_get_timestamp(1).isoformat() if string_bounds else _get_timestamp(1),
+            before=_get_timestamp(9).isoformat() if string_bounds else _get_timestamp(9),
             ascending=False,
             limit=7,
             partition_key="us|2024-01-01",
             partition_key_regexp_pattern="us.*",
-            extra={"region": "us"},
-            expected_count=3,
+            extra={"region": "us", "status": "validated"},
         )
-        sensor.poke({})
-        assert fetch.call_args.kwargs == {
-            "name": ASSET_NAME,
-            "uri": ASSET_URI,
-            "alias_name": None,
-            "after": _ts(1),
-            "before": _ts(9),
+        sensor.poke(_get_context(sensor))
+        filters = {
+            "after": _get_timestamp(1),
+            "before": _get_timestamp(9),
             "ascending": False,
             "limit": 7,
             "partition_key": "us|2024-01-01",
             "partition_key_regexp_pattern": "us.*",
-            "extra": {"region": "us"},
+            "extra": {"region": "us", "status": "validated"},
         }
+        message = (
+            GetAssetEventByAssetAlias(alias_name=ALIAS_NAME, **filters)
+            if use_alias
+            else GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, **filters)
+        )
+        mock_supervisor_comms.send.assert_called_once_with(message)
+
+    @pytest.mark.parametrize("selector", ["name", "uri"])
+    def test_resolves_asset_reference(self, selector, events_response, mock_supervisor_comms):
+        target = {"name": ASSET_NAME} if selector == "name" else {"uri": ASSET_URI}
+        sensor = AssetEventSensor(task_id="s", **target)
+        assert sensor.obj == Asset.ref(**target)
+        assert sensor.inlets == [sensor.obj]
+        mock_supervisor_comms.send.side_effect = [
+            AssetResult(name=ASSET_NAME, uri=ASSET_URI, group="asset", extra={}),
+            events_response,
+        ]
+        assert bool(sensor.poke(_get_context(sensor))) is True
+        resolution = GetAssetByName(name=ASSET_NAME) if selector == "name" else GetAssetByUri(uri=ASSET_URI)
+        query = GetAssetEventByAsset(
+            name=ASSET_NAME if selector == "name" else None,
+            uri=ASSET_URI if selector == "uri" else None,
+        )
+        assert mock_supervisor_comms.send.call_args_list == [call(resolution), call(query)]
+
+    @pytest.mark.parametrize("use_alias", [False, True])
+    def test_raw_target(self, asset, events_response, mock_supervisor_comms, use_alias):
+        target = {"alias_name": ALIAS_NAME} if use_alias else {"name": ASSET_NAME, "uri": ASSET_URI}
+        sensor = AssetEventSensor(task_id="s", **target)
+        expected_obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
+        assert sensor.obj == expected_obj
+        assert sensor.inlets == [expected_obj]
+        mock_supervisor_comms.send.return_value = events_response
+        assert bool(sensor.poke(_get_context(sensor))) is True
+        query = (
+            GetAssetEventByAssetAlias(alias_name=ALIAS_NAME)
+            if use_alias
+            else GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI)
+        )
+        mock_supervisor_comms.send.assert_called_once_with(query)
+
+    def test_fetches_fresh_events_on_every_poke(self, asset, events_response, mock_supervisor_comms):
+        mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[]), events_response]
+        sensor = AssetEventSensor(task_id="s", obj=asset)
+        context = _get_context(sensor)
+        assert bool(sensor.poke(context)) is False
+        assert bool(sensor.poke(context)) is True
+        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI)
+        assert mock_supervisor_comms.send.call_args_list == [call(query), call(query)]
+
+    def test_execute_returns_xcom_payload(self, asset, events_response, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = events_response
+        sensor = AssetEventSensor(task_id="s", obj=asset)
+        result = sensor.execute(_get_context(sensor))
+        assert result == [event.model_dump(mode="json") for event in events_response.asset_events]
+
+
+class TestProcessResult:
+    @pytest.mark.parametrize(
+        ("process_result", "expected_count", "expected_ids", "done"),
+        [
+            (only_us_partitions, 3, [1, 2, 4], True),
+            (f"{__name__}.only_us_partitions", 3, [1, 2, 4], True),
+            (dedup_by_partition_key, 4, [1, 2, 3, 5], True),
+            (only_us_partitions, 5, None, False),
+            (lambda events: [], 1, None, False),
+            (lambda events: [], 0, [], True),
+        ],
+    )
+    def test_processes_events_before_counting(
+        self,
+        asset,
+        events_response,
+        mock_supervisor_comms,
+        process_result,
+        expected_count,
+        expected_ids,
+        done,
+    ):
+        mock_supervisor_comms.send.return_value = events_response
+        sensor = AssetEventSensor(
+            task_id="s",
+            obj=asset,
+            process_result=process_result,
+            expected_count=expected_count,
+            count_policy="exact",
+        )
+        result = sensor.poke(_get_context(sensor))
+        assert bool(result) is done
+        if done:
+            assert [event["id"] for event in result.xcom_value] == expected_ids
+        else:
+            assert result.xcom_value is None
+
+    def test_processing_can_expand_limited_results(self, asset, events_response, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetEventsResult(
+            asset_events=events_response.asset_events[:1]
+        )
+        sensor = AssetEventSensor(
+            task_id="s",
+            obj=asset,
+            limit=1,
+            expected_count=2,
+            count_policy="exact",
+            process_result=lambda events: events + events,
+        )
+        result = sensor.poke(_get_context(sensor))
+        assert bool(result) is True
+        assert [event["id"] for event in result.xcom_value] == [1, 1]
+
+    def test_processing_can_return_json_values(self, asset, events_response, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = events_response
+        sensor = AssetEventSensor(
+            task_id="s",
+            obj=asset,
+            process_result=lambda events: [{"partition": event.partition_key} for event in events],
+        )
+        result = sensor.poke(_get_context(sensor))
+        assert bool(result) is True
+        assert result.xcom_value == [
+            {"partition": event.partition_key} for event in events_response.asset_events
+        ]
+
+    def test_exception_propagates(self, asset, events_response, mock_supervisor_comms):
+        def boom(events):
+            raise RuntimeError("process_result exploded")
+
+        mock_supervisor_comms.send.return_value = events_response
+        sensor = AssetEventSensor(task_id="s", obj=asset, process_result=boom)
+        with pytest.raises(RuntimeError, match="process_result exploded"):
+            sensor.poke(_get_context(sensor))
