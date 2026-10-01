@@ -36,6 +36,7 @@ from airflow.sdk.coordinators._bundle_metadata import (
     parse_metadata_mapping,
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -261,12 +262,21 @@ def read_cache_digest(path: pathlib.Path) -> str | None:
             footer = _Footer.read(f, path, os.fstat(f.fileno()).st_size)
             if footer is None:
                 return None
-            f.seek(footer.metadata_start)
-            metadata_bytes = f.read(footer.metadata_len)
-        metadata = parse_metadata_mapping(metadata_bytes, source="bundle metadata")
+            return _read_stored_cache_digest(f, footer)
     except (OSError, ValueError) as exc:
         log.debug("Cannot read the bundle's cache digest", path=str(path), error=str(exc))
         return None
+
+
+def _read_stored_cache_digest(f: BinaryIO, footer: _Footer) -> str | None:
+    """
+    Return ``digests.cache`` from the metadata region of the open bundle *f*, or ``None`` if it has none.
+
+    :raises OSError: when the metadata region cannot be read.
+    :raises ValueError: when the metadata cannot be decoded.
+    """
+    f.seek(footer.metadata_start)
+    metadata = parse_metadata_mapping(f.read(footer.metadata_len), source="bundle metadata")
     digests = metadata.get("digests")
     if not isinstance(digests, dict):
         return None
@@ -371,8 +381,9 @@ class ExecutableCoordinator(SubprocessCoordinator):
     :param task_handler_bundle_name: Name of the Dag bundle holding the
         executable bundles a Python stub Dag delegates task execution to. It must
         be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
-        the task's own Dag bundle is used. Only files with the executable bit set
-        are considered.
+        the task's own Dag bundle is used. A task only runs files with the
+        executable bit set; the Dag processor reports a bundle without it instead
+        of running it.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
@@ -391,3 +402,37 @@ class ExecutableCoordinator(SubprocessCoordinator):
             )
         # Absolute, as for a task, so exec never searches PATH for it.
         return [os.fspath(path.resolve())], extract_supervisor_schema_version(metadata)
+
+    def _read_task_handler_candidate(
+        self, path: pathlib.Path, *, rel_path: str
+    ) -> TaskHandlerCandidate | None:
+        try:
+            f = open(path, "rb")
+        except OSError:
+            return None
+        with f:
+            try:
+                size_bytes = os.fstat(f.fileno()).st_size
+                footer = _Footer.read(f, path, size_bytes)
+            except OSError:
+                return None
+            except ValueError as exc:
+                # The magic matched, so the file is a bundle, just not one this runtime can run.
+                return TaskHandlerCandidate(
+                    rel_path=rel_path, size_bytes=size_bytes, cache_digest=None, error=str(exc)
+                )
+            if footer is None:
+                return None
+            try:
+                cache_digest = _read_stored_cache_digest(f, footer)
+            except (OSError, ValueError):
+                cache_digest = None
+        error = None
+        if not os.access(path, os.X_OK):
+            error = (
+                f"{rel_path} is not executable. Use a Dag bundle that keeps the executable bit; "
+                "object-store Dag bundles such as S3DagBundle drop it."
+            )
+        return TaskHandlerCandidate(
+            rel_path=rel_path, size_bytes=size_bytes, cache_digest=cache_digest, error=error
+        )

@@ -41,7 +41,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     _digest_cache,
     read_cache_digest,
 )
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerCandidate
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
 from tests_common.test_utils.config import conf_vars
@@ -497,6 +497,68 @@ class TestBuildParseTaskHandlerCommand:
 
         with pytest.raises(ValueError, match="supervisor_schema_version"):
             ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+
+def _list_candidates(bundle_path: Path) -> list[TaskHandlerCandidate]:
+    return ExecutableCoordinator().list_task_handler_candidates(bundle_path)
+
+
+class TestListTaskHandlerCandidates:
+    def test_lists_trailer_files_whatever_their_executable_bit(self, tmp_path):
+        metadata = _make_metadata_with_digests(cache=_CACHE_DIGEST)
+        for team in ("team-a", "team-b"):
+            (tmp_path / team).mkdir()
+        runnable = _build_bundle(tmp_path / "team-a" / "pipeline", metadata=metadata)
+        downloaded = _build_bundle(tmp_path / "team-b" / "pipeline", metadata=metadata)
+        downloaded.chmod(0o644)
+        _make_executable(tmp_path / "run.sh")
+        (tmp_path / "README.md").write_text("not a bundle")
+
+        assert _list_candidates(tmp_path) == [
+            TaskHandlerCandidate(
+                rel_path="team-a/pipeline", size_bytes=runnable.stat().st_size, cache_digest=_CACHE_DIGEST
+            ),
+            TaskHandlerCandidate(
+                rel_path="team-b/pipeline",
+                size_bytes=downloaded.stat().st_size,
+                cache_digest=_CACHE_DIGEST,
+                error=(
+                    "team-b/pipeline is not executable. Use a Dag bundle that keeps the executable bit; "
+                    "object-store Dag bundles such as S3DagBundle drop it."
+                ),
+            ),
+        ]
+
+    @pytest.mark.parametrize(
+        ("bundle_kwargs", "cache_digest"),
+        [
+            pytest.param(
+                {"metadata": _make_metadata_with_digests(cache=_CACHE_DIGEST)}, _CACHE_DIGEST, id="stored"
+            ),
+            pytest.param(
+                {"metadata": _make_metadata_with_digests(cache=_CACHE_DIGEST), "binary_sha256": b"\x00" * 32},
+                _CACHE_DIGEST,
+                id="binary-digest-mismatch-not-checked",
+            ),
+            pytest.param({}, None, id="no-digests"),
+            pytest.param({"metadata": b"\xff\xfe"}, None, id="undecodable-metadata"),
+        ],
+    )
+    def test_reads_the_stored_cache_digest(self, tmp_path, bundle_kwargs, cache_digest):
+        bundle = _build_bundle(tmp_path / "etl", **bundle_kwargs)
+
+        assert _list_candidates(tmp_path) == [
+            TaskHandlerCandidate(rel_path="etl", size_bytes=bundle.stat().st_size, cache_digest=cache_digest)
+        ]
+
+    def test_lists_a_bundle_it_cannot_run_with_its_trailer_error(self, tmp_path):
+        _build_bundle(tmp_path / "etl", footer_ver=2)
+
+        [candidate] = _list_candidates(tmp_path)
+
+        assert candidate.cache_digest is None
+        assert candidate.error is not None
+        assert "Unsupported bundle footer_ver=2" in candidate.error
 
 
 @pytest.fixture
