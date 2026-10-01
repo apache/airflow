@@ -238,7 +238,6 @@ func TestDeclareUntaggedStruct(t *testing.T) {
 func TestDeclareContextOnly(t *testing.T) {
 	decl := declare(t, func(actx contexttest.Context) error { return nil })
 
-	// A nil slice would go out as null, which the Dag processor rejects.
 	assert.Equal(t, genmodels.TaskHandlerDeclaration{
 		TaskID:  "task",
 		Binding: genmodels.TaskHandlerDeclarationBindingPositional,

@@ -71,6 +71,5 @@ func TestDeclareTaskHandlersMatchingNothing(t *testing.T) {
 		DagIds: []string{"etl"},
 	})
 
-	// A nil map would go out as null, which the Dag processor rejects.
 	assert.Equal(t, genmodels.TaskHandlers{}, result.TaskHandlers)
 }

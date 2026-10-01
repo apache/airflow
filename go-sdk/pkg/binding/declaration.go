@@ -36,7 +36,8 @@ func (p *Plan) Declare(taskID string) genmodels.TaskHandlerDeclaration {
 	decl := genmodels.TaskHandlerDeclaration{
 		TaskID:  taskID,
 		Binding: genmodels.TaskHandlerDeclarationBindingPositional,
-		Params:  []genmodels.TaskHandlerParam{},
+		// A nil slice would go out as null, which the Dag processor rejects.
+		Params: []genmodels.TaskHandlerParam{},
 	}
 	for _, plan := range p.params {
 		switch plan.kind {

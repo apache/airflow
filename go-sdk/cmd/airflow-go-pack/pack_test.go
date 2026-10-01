@@ -614,10 +614,6 @@ func TestTargetPlatform(t *testing.T) {
 	})
 }
 
-// When the --output parent directory does not exist, the packer must create it
-// instead of failing with an opaque temp-file error.
-// The manifest's digests must describe the copy the trailer is computed from,
-// not the input executable, which can change while packing.
 func TestWriteBundle_RendersMetadataFromTheStagedCopy(t *testing.T) {
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "input-bin")
@@ -638,6 +634,8 @@ func TestWriteBundle_RendersMetadataFromTheStagedCopy(t *testing.T) {
 	assert.Equal(t, []byte("binary-bytes"), stagedBytes)
 }
 
+// When the --output parent directory does not exist, the packer must create it
+// instead of failing with an opaque temp-file error.
 func TestWriteBundle_CreatesMissingOutputDir(t *testing.T) {
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "input-bin")
