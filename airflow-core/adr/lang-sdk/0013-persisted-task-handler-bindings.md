@@ -259,14 +259,13 @@ class SDKTaskHandlerParsingResult(BaseModel):  # runtime -> parent, on ToManager
 
 class TaskHandlerDeclaration(BaseModel):
     task_id: str
-    binding: Literal["positional", "named", "named_or_whole", "named_open"]  # how arguments bind to params
-    params: list[TaskHandlerParam]  # ordered; the order matters only for "positional"
+    binding: Literal["positional", "named"]  # how arguments bind to params
+    params: list[TaskHandlerParam] | None  # ordered; None: the runtime cannot list them
 
 
 class TaskHandlerParam(BaseModel):
     name: str | None  # None: the runtime has no name for this positional parameter
     value_schema: JSONSchema | None = None
-    required: bool  # the handler declares no default
     exact_name: bool = False  # match as spelled, not case-insensitively with underscores ignored
 ```
 

@@ -95,13 +95,12 @@ class TaskHandlerParsingResult:
 
 class TaskHandlerDeclaration:
     task_id: str
-    binding: Literal["positional", "named", "named_or_whole", "named_open"]   # how stub-task arguments bind to params
-    params: list[TaskHandlerParam]     # ordered; the order matters only for "positional"
+    binding: Literal["positional", "named"]   # how stub-task arguments bind to params
+    params: list[TaskHandlerParam] | None     # ordered; the order matters only for "positional". None: the runtime cannot list them
 
 class TaskHandlerParam:
     name: str | None                   # None: the runtime has no name for this positional parameter
     value_schema: ArgValueSchema | None = None
-    required: bool                     # the handler declares no default
     exact_name: bool = False           # match as spelled, not case-insensitively with underscores ignored
 ```
 
@@ -218,12 +217,15 @@ and falls back to name-and-arity otherwise. A strict comparison would turn every
 The stub side always has names and positions: `LiteralArgBinding` and `XComArgBinding` are each documented as "one positional stub-task argument". The handler side binds the way
 its runtime does, so each declaration names its `binding` and the check follows it:
 
-- `positional`: by position. Names are informative only, and absent where the runtime has none (Go flat params). Java's `TaskArgs` binds this way although it has names.
-- `named`: by name in any order, case-insensitively with underscores ignored unless `exact_name` is set (Go `arg:` tags, explicit Java names). A Go struct with `arg:` tags and
-  Java's `TaskInput` bind this way.
-- `named_or_whole`: as `named`, except that when there is exactly one argument and it matches no parameter, it is decoded as the whole value. An untagged Go struct binds this way.
-- `named_open`: as `named`, but `params` need not list every parameter the handler takes. Only the listed names are checked, and an argument that none of them names is not a
-  mismatch. TypeScript binds this way: its types are erased, so a handler knows only its explicit `withArgNames` renames.
+- `positional`: by position. Names are informative only, and absent where the runtime has none (Go flat params). Java's `TaskArgs` binds this way although it has names. An
+  argument count that matches `params` neither with every argument nor after dropping the defaulted ones, or a value type a parameter does not accept, is an import error.
+- `named`: by name in any order, case-insensitively with underscores ignored unless `exact_name` is set (Go `arg:` tags, explicit Java names). A Go struct, tagged or untagged,
+  and Java's `TaskInput` bind this way. An argument no parameter takes, or a parameter no argument fills, is logged as a warning, and the task still runs: the runtimes allow
+  both, and an unfilled field keeps its default. When no parameter matches and exactly one argument was passed, it may be the whole value and is not warned about, unless no
+  parameter is declared, a parameter sets `exact_name` (a Go `arg:` tag), or the argument cannot be an object. A value type a parameter does not accept is an import error.
+
+`params` is `None` when the runtime cannot list a handler's parameters, and then only the handler's presence is checked. TypeScript declares `named` with `params: None`: its
+types are erased, so a handler cannot list what it takes.
 
 A declaration carries no class, method, or source location. [ADR-0006](0006-no-lang-sdk-source-display.md) rules out Lang-SDK source display, and putting it on the wire would
 invite a consumer to render it. It carries no `dag_id` either — the `task_handlers` key supplies it, so a declaration cannot disagree with the bucket it arrived in.

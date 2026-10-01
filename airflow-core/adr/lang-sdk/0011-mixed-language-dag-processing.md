@@ -163,6 +163,7 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  │  task_id                       ↔   task_id     (sets must match)    │
         │  │  arg_bindings[*]               ↔   params[*]   (per binding)        │
         │  │        by position, or by folded or exact name                      │
+        │  │        unmatched by name → a warning, not an error                  │
         │  │  arg_bindings[*].value_schema  ↔   params[*].value_schema           │
         │  │        compared only where neither side is null                     │
         │  │                                                                     │
@@ -197,8 +198,9 @@ There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — a
 - No importer knows about coordinators. `PythonDagImporter` is unchanged by this ADR; the stub-to-handler comparison sits in `_parse_file`, above every importer.
 - A mixed-language `dag_id` never appears in Dag processing results. No `Dag` registration exists for a `dag_id` a Python file already owns, so everything downstream sees exactly
   one record per `dag_id`, with no flag to interpret.
-- Stub/implementation mismatches — missing handler, extra handler, an argument that does not bind under the declaration's `binding`, incompatible schema — surface as import errors
-  against the Python file at parse time, alongside the errors the parse already reports. An unannotated stub argument is checked only for how it binds, by position or by name.
+- Stub/implementation mismatches — missing handler, extra handler, a `positional` argument count that does not match, incompatible schema — surface as import errors against
+  the Python file at parse time, alongside the errors the parse already reports. A `named` argument or parameter that matches nothing is only logged as a warning, because the
+  runtime runs the task anyway. An unannotated stub argument is checked only for how it binds, by position or by name.
 - The Python Dag and Lang-SDK artifact can live in different DagBundles.
 - A single Dag can have stubs targeting different queues, some Java, some Go. Each resolves to its own coordinator instance, and validation unions their declarations per `dag_id`
   before comparing task ids.
@@ -238,10 +240,12 @@ Handler declarations from every process spawned in Step 4 are unioned per `dag_i
 every Dag its artifact registers handlers for; only the parsed file's Dags are compared.
 
 - `task_id` sets must match exactly. A missing or extra handler is an error.
-- `arg_bindings` against `params` as each declaration's `binding` says: by position for `positional`, by name for `named`, `named_or_whole` and `named_open`, compared
-  case-insensitively with underscores ignored unless `exact_name` is set. Under `named_open` only the listed names are checked ([ADR-0012](0012-lang-sdk-parse-protocol.md) Appendix B).
+- `arg_bindings` against `params` as each declaration's `binding` says: by position for `positional`, by name for `named`, compared case-insensitively with underscores ignored
+  unless `exact_name` is set. A `positional` count mismatch is an error. Under `named`, an argument or parameter that matches nothing is only logged as a warning, and a lone
+  unmatched argument, which may be the whole value, is not ([ADR-0012](0012-lang-sdk-parse-protocol.md) Appendix B). When `params` is `None`, only the handler's presence is
+  checked.
 - `arg_bindings[*].value_schema` against `params[*].value_schema`, compared only where neither side is null. An unannotated `@task.stub` parameter produces `null` today, so a
   strict comparison would make every untyped stub argument a parse error.
 
-Any mismatch is reported against the Python file, which is the definition the author can act on, and travels back on `DagFileParsingResult.import_errors` with everything else the
+Every error is reported against the Python file, which is the definition the author can act on, and travels back on `DagFileParsingResult.import_errors` with everything else the
 parse found.
