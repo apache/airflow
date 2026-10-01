@@ -23,7 +23,7 @@
 // The first inbound frame on the comm socket selects what the runtime does. A
 // StartupDetails message drives multi-round task execution. A
 // TaskHandlerParseRequest from the Dag processor gets one TaskHandlerParsingResult
-// that declares the task handlers registered for the requested Dags.
+// that declares every registered task handler.
 //
 // See go-sdk/adr/0003-coordinator-protocol-msgpack-ipc.md.
 package execution
@@ -172,7 +172,7 @@ func Serve(b bundle.Registry, commAddr, logsAddr string) error {
 		logger.Debug("Task execution complete")
 
 	case *genmodels.TaskHandlerParseRequest:
-		logger.Debug("Task handler parse mode", "dag_ids", msg.DagIds)
+		logger.Debug("Task handler parse mode", "file", msg.File)
 		result := declareTaskHandlers(b, msg)
 		sendCtx, cancel := context.WithTimeout(ctx, terminalSendTimeout)
 		defer cancel()

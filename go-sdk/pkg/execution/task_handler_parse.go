@@ -22,23 +22,15 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
-// declareTaskHandlers answers a TaskHandlerParseRequest with the declarations of the task
-// handlers registered for the requested Dags, each Dag's in registration order. A requested
-// Dag with no handler is left out rather than mapped to an empty list.
+// declareTaskHandlers answers a TaskHandlerParseRequest with the declarations of every
+// registered task handler, keyed by Dag id, each Dag's in registration order.
 func declareTaskHandlers(
 	b bundle.Registry,
 	req *genmodels.TaskHandlerParseRequest,
 ) genmodels.TaskHandlerParsingResult {
-	requested := make(map[string]bool, len(req.DagIds))
-	for _, dagID := range req.DagIds {
-		requested[dagID] = true
-	}
 	// A nil map would go out as null, which the Dag processor rejects.
 	handlers := genmodels.TaskHandlers{}
 	for _, info := range b.ListTaskHandlers() {
-		if !requested[info.DagID] {
-			continue
-		}
 		// Declare only what a task run could find.
 		task, ok := b.LookupTask(info.DagID, info.TaskID)
 		if !ok {

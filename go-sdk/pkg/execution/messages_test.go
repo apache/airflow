@@ -466,7 +466,6 @@ func TestDecodeIncomingBodyDispatch(t *testing.T) {
 		raw := marshalBody(t, map[string]any{
 			"type":        "TaskHandlerParseRequest",
 			"file":        "/bundles/go/etl",
-			"dag_ids":     []string{"etl"},
 			"bundle_path": "/bundles/go",
 			"bundle_name": "go",
 		})
@@ -475,14 +474,13 @@ func TestDecodeIncomingBodyDispatch(t *testing.T) {
 		assert.Equal(t, &genmodels.TaskHandlerParseRequest{
 			Type:       "TaskHandlerParseRequest",
 			File:       "/bundles/go/etl",
-			DagIds:     []string{"etl"},
 			BundlePath: "/bundles/go",
 			BundleName: "go",
 		}, result)
 	})
 
 	t.Run("malformed TaskHandlerParseRequest", func(t *testing.T) {
-		raw := marshalBody(t, map[string]any{"type": "TaskHandlerParseRequest", "dag_ids": "etl"})
+		raw := marshalBody(t, map[string]any{"type": "TaskHandlerParseRequest", "file": 42})
 		_, err := decodeIncomingBody(raw)
 		assert.ErrorContains(t, err, "decoding TaskHandlerParseRequest")
 	})

@@ -37,10 +37,10 @@ func TestDeclareTaskHandlers(t *testing.T) {
 	// Listed, but a task run could not find it.
 	registry.order = append(registry.order, bundle.TaskHandlerInfo{DagID: "etl", TaskID: "ghost"})
 
-	result := declareTaskHandlers(registry, &genmodels.TaskHandlerParseRequest{
-		File:   "/bundles/go/etl",
-		DagIds: []string{"etl", "missing"},
-	})
+	result := declareTaskHandlers(
+		registry,
+		&genmodels.TaskHandlerParseRequest{File: "/bundles/go/etl"},
+	)
 
 	assert.Equal(t, genmodels.TaskHandlerParsingResult{
 		Fileloc: "/bundles/go/etl",
@@ -59,17 +59,19 @@ func TestDeclareTaskHandlers(t *testing.T) {
 					Params:  []genmodels.TaskHandlerParam{},
 				},
 			},
+			"report": {
+				{
+					TaskID:  "render",
+					Binding: genmodels.TaskHandlerDeclarationBindingPositional,
+					Params:  []genmodels.TaskHandlerParam{},
+				},
+			},
 		},
 	}, result)
 }
 
-func TestDeclareTaskHandlersMatchingNothing(t *testing.T) {
-	registry := newHandlerRegistry()
-	registry.add("report", "render", simpleTask)
-
-	result := declareTaskHandlers(registry, &genmodels.TaskHandlerParseRequest{
-		DagIds: []string{"etl"},
-	})
+func TestDeclareTaskHandlersWithoutHandlers(t *testing.T) {
+	result := declareTaskHandlers(newHandlerRegistry(), &genmodels.TaskHandlerParseRequest{})
 
 	assert.Equal(t, genmodels.TaskHandlers{}, result.TaskHandlers)
 }

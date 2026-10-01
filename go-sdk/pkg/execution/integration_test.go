@@ -946,7 +946,6 @@ func startTaskHandlerParse(t *testing.T) (net.Conn, IncomingFrame, chan error) {
 	payload, err := encodeRequest(0, map[string]any{
 		"type":        "TaskHandlerParseRequest",
 		"file":        "/bundles/go/etl",
-		"dag_ids":     []string{"etl", "missing"},
 		"bundle_path": "/bundles/go",
 		"bundle_name": "go",
 	})

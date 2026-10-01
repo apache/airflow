@@ -103,12 +103,16 @@ def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
         bundle_path=go_bundle.parent,
         bundle_name="go-task-handlers",
         artifact_rel_path=go_bundle.name,
-        dag_ids=["simple_dag", "taskflow_binding_dag", "not_registered"],
         logger=structlog.get_logger(),
     )
 
     assert result.import_errors is None
-    assert set(result.task_handlers) == {"simple_dag", "taskflow_binding_dag"}
+    assert set(result.task_handlers) == {
+        "simple_dag",
+        "concurrent_xcom_dag",
+        "taskflow_binding_dag",
+        "variable_write_dag",
+    }
     assert [d.task_id for d in result.task_handlers["simple_dag"]] == ["extract", "transform", "load"]
 
     declarations = {d.task_id: d for d in result.task_handlers["taskflow_binding_dag"]}
