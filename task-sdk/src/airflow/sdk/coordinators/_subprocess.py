@@ -61,6 +61,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -460,6 +461,14 @@ class SubprocessCoordinator(BaseCoordinator):
             raise ValueError(
                 f"Coordinator 'dag_bundle_name' references unconfigured Dag bundle {self.dag_bundle_name!r}."
             )
+
+    @classmethod
+    def get_dag_importer_class(cls) -> type[CoordinatorDagImporter] | None:
+        return None
+
+    def get_dag_importer(self) -> CoordinatorDagImporter | None:
+        importer_cls = self.get_dag_importer_class()
+        return None if importer_cls is None else importer_cls(coordinator=self)
 
     @classmethod
     def get_parsed_bundles(cls, kwargs: Mapping[str, Any]) -> frozenset[str] | None:

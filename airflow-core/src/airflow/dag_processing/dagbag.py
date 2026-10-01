@@ -33,6 +33,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.local import LocalDagBundle
+from airflow.dag_processing.importer_routing import get_claiming_coordinator
 from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
@@ -585,16 +586,30 @@ def sync_bag_to_db(
     version_data: dict[str, Any] | None = None,
     session: Session = NEW_SESSION,
 ) -> None:
-    """Save attributes about list of DAG to the DB."""
+    """
+    Save attributes about list of DAG to the DB.
+
+    Files that a Lang-SDK runtime parses are left out, with their import errors: the Dag processor
+    stores those.
+    """
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
-    import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+    def is_parsed_by_runtime(rel_path: str) -> bool:
+        return get_claiming_coordinator(Path(dagbag.bundle_path or "", rel_path), bundle_name) is not None
+
+    import_errors = {
+        (bundle_name, rel_path): error
+        for rel_path, error in dagbag.import_errors.items()
+        if not is_parsed_by_runtime(rel_path)
+    }
 
     # Build the set of all files that were parsed and include files with import errors
     # in case they are not in parsed_definitions
     files_parsed = set(import_errors)
     if dagbag.bundle_path:
         for rel_path in dagbag.parsed_definitions:
+            if is_parsed_by_runtime(rel_path):
+                continue
             files_parsed.add((bundle_name, rel_path))
             # A definition nested in an archive also clears the archive's own discovery errors.
             if enclosing_file := find_enclosing_file(Path(dagbag.bundle_path, rel_path)):
