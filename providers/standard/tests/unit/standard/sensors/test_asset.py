@@ -120,9 +120,47 @@ class TestInit:
         with pytest.raises(TypeError, match="Asset.*AssetAlias"):
             AssetEventSensor(task_id="s", obj=object())
 
+    @pytest.mark.parametrize(
+        "target",
+        [
+            {"name": ASSET_NAME},
+            {"uri": ASSET_URI},
+            {"name": ASSET_NAME, "uri": ASSET_URI},
+            {"alias_name": ALIAS_NAME},
+        ],
+    )
+    @pytest.mark.parametrize("use_alias", [False, True])
+    def test_rejects_obj_with_raw_selector(self, asset, target, use_alias):
+        obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
+        with pytest.raises(ValueError, match="obj"):
+            AssetEventSensor(task_id="s", obj=obj, **target)
+
+    @pytest.mark.parametrize(
+        "target",
+        [{"name": ASSET_NAME}, {"uri": ASSET_URI}, {"name": ASSET_NAME, "uri": ASSET_URI}],
+    )
+    def test_rejects_alias_with_asset_selector(self, target):
+        with pytest.raises(ValueError, match="alias_name"):
+            AssetEventSensor(task_id="s", alias_name=ALIAS_NAME, **target)
+
+    @pytest.mark.parametrize("expected_count", [1.5, "1", True, None])
+    def test_rejects_noninteger_expected_count(self, asset, expected_count):
+        with pytest.raises(TypeError, match="expected_count"):
+            AssetEventSensor(task_id="s", obj=asset, expected_count=expected_count)
+
     def test_rejects_negative_expected_count(self, asset):
         with pytest.raises(ValueError, match="expected_count"):
             AssetEventSensor(task_id="s", obj=asset, expected_count=-1)
+
+    @pytest.mark.parametrize("limit", [0.5, "1", True])
+    def test_rejects_noninteger_limit(self, asset, limit):
+        with pytest.raises(TypeError, match="limit"):
+            AssetEventSensor(task_id="s", obj=asset, limit=limit)
+
+    @pytest.mark.parametrize("limit", [0, -1])
+    def test_rejects_nonpositive_limit(self, asset, limit):
+        with pytest.raises(ValueError, match="limit"):
+            AssetEventSensor(task_id="s", obj=asset, limit=limit, expected_count=0)
 
     def test_rejects_invalid_count_policy(self, asset):
         with pytest.raises(ValueError, match="count_policy"):
@@ -342,6 +380,32 @@ class TestProcessResult:
         result = sensor.poke(_get_context(sensor))
         assert bool(result) is True
         assert [event["id"] for event in result.xcom_value] == [1, 1]
+
+    def test_processing_receives_only_limited_results(
+        self, asset, events_response, mock_supervisor_comms, mocker
+    ):
+        mock_supervisor_comms.send.return_value = AssetEventsResult(
+            asset_events=[events_response.asset_events[2]]
+        )
+        process_result = mocker.create_autospec(only_us_partitions, side_effect=only_us_partitions)
+        sensor = AssetEventSensor(
+            task_id="s",
+            obj=asset,
+            after=_get_timestamp(3),
+            ascending=True,
+            limit=1,
+            process_result=process_result,
+        )
+        result = sensor.poke(_get_context(sensor))
+        assert bool(result) is False
+        assert result.xcom_value is None
+        process_result.assert_called_once()
+        assert [event.id for event in process_result.call_args.args[0]] == [3]
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(
+                name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(3), ascending=True, limit=1
+            )
+        )
 
     def test_processing_can_return_json_values(self, asset, events_response, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = events_response
