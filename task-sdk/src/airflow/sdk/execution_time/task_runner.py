@@ -1037,6 +1037,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         load_op_links=False,
         bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
+        # The Dag processor has already validated executors; the worker may not have them all configured.
+        validate_executors=False,
     )
     dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
