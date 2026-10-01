@@ -27,6 +27,8 @@
     "pausedState": "일시 중지 상태",
     "requiresHitlAction": "필수 작업",
     "runIdPatternFilter": "Dag 실행 검색",
+    "runState": "실행 상태",
+    "runStatePlaceholder": "실행 상태 선택…",
     "timetableType": "타임테이블 유형"
   },
   "ownerLink": "{{owner}}의 소유자 링크",
@@ -75,6 +77,7 @@
       "downstream": "다운스트림",
       "existingTasks": "기존 태스크 지우기",
       "future": "미래",
+      "keepTaskState": "태스크 상태 유지 후 재개",
       "onlyFailed": "실패한 태스크만 지우기",
       "past": "과거",
       "preventRunningTasks": "실행 중인 태스크 재실행 방지",
@@ -93,7 +96,8 @@
     "cancelDrain": "실행 완료 대기 취소",
     "drain": "완료 후 일시 중지",
     "drainPrompt": "이 Dag에는 진행 중인 Dag 실행이 있습니다. 완료 후 일시 중지를 선택하면 진행 중인 실행이 모두 끝난 뒤 Dag가 일시 중지됩니다. 지금 일시 중지를 선택하면 완료를 기다리지 않고 스케줄링을 즉시 중단합니다.",
-    "pauseNow": "지금 일시 중지"
+    "pauseNow": "지금 일시 중지",
+    "pauseSelected": "일시 중지 / 완료 후 일시 중지"
   },
   "schedulingBanner": {
     "message": "이 Dag은 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다."
