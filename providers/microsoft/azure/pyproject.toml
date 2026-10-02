@@ -88,7 +88,12 @@ dependencies = [
     "azure-mgmt-containerinstance>=10.1.0",
     "msgraph-core>=1.3.3",
     "msgraphfs>=0.3.0",
-    "microsoft-kiota-http>=1.9.4,<2.0.0",
+    # microsoft-kiota-http 1.13+ passes request options in request.extensions, which msgraph-core
+    # 1.5.1 ignores: its AsyncGraphTransport then skips the whole middleware chain (no redirects,
+    # no retries). Remove the <1.13.0 cap once a msgraph-core release reads request.extensions;
+    # tracked at https://github.com/apache/airflow/issues/74089
+    # and https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/1128
+    "microsoft-kiota-http>=1.9.4,<1.13.0",
     "microsoft-kiota-serialization-json>=1.9.4",
     "microsoft-kiota-serialization-text>=1.9.4",
     "microsoft-kiota-abstractions>=1.9.4,<2.0.0",
