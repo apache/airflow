@@ -27,7 +27,7 @@ import os
 import sys
 import warnings
 import weakref
-from collections import abc, defaultdict, deque
+from collections import abc
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
@@ -41,6 +41,7 @@ from dateutil.relativedelta import relativedelta
 
 from airflow import settings
 from airflow.sdk import TaskInstanceState, TriggerRule, XComArg
+from airflow.sdk._shared.dagnode.cycle import detect_cycle
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
@@ -1142,40 +1143,12 @@ class DAG:
 
         :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
-        # default of int is 0 which corresponds to CYCLE_NEW
-        CYCLE_NEW = 0
-        CYCLE_IN_PROGRESS = 1
-        CYCLE_DONE = 2
-
-        visited: dict[str, int] = defaultdict(int)
-        path_stack: deque[str] = deque()
         task_dict = self.task_dict
-
-        def _check_adjacent_tasks(task_id, current_task):
-            """Return first untraversed child task, else None if all tasks traversed."""
-            for adjacent_task in current_task.get_direct_relative_ids():
-                if visited[adjacent_task] == CYCLE_IN_PROGRESS:
-                    msg = f"Cycle detected in Dag: {self.dag_id}. Faulty task: {task_id}"
-                    raise AirflowDagCycleException(msg)
-                if visited[adjacent_task] == CYCLE_NEW:
-                    return adjacent_task
-            return None
-
-        for dag_task_id in self.task_dict.keys():
-            if visited[dag_task_id] == CYCLE_DONE:
-                continue
-            path_stack.append(dag_task_id)
-            while path_stack:
-                current_task_id = path_stack[-1]
-                if visited[current_task_id] == CYCLE_NEW:
-                    visited[current_task_id] = CYCLE_IN_PROGRESS
-                task = task_dict[current_task_id]
-                child_to_check = _check_adjacent_tasks(current_task_id, task)
-                if not child_to_check:
-                    visited[current_task_id] = CYCLE_DONE
-                    path_stack.pop()
-                else:
-                    path_stack.append(child_to_check)
+        faulty_task_id = detect_cycle(task_dict, lambda tid: task_dict[tid].get_direct_relative_ids())
+        if faulty_task_id is not None:
+            raise AirflowDagCycleException(
+                f"Cycle detected in Dag: {self.dag_id}. Faulty task: {faulty_task_id}"
+            )
 
     def cli(self):
         """Exposes a CLI specific to this Dag."""
