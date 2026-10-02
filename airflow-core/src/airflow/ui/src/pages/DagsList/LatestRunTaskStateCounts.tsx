@@ -76,7 +76,11 @@ export const LatestRunTaskStateCounts = ({ compact = false, dagId, entry, isLoad
   // cards doesn't mount hundreds of tooltip state machines (same pattern as DagRunStateCounts).
   return (
     <Tooltip.Root>
-      <HStack data-testid={`latest-run-task-state-counts-${dagId}`} gap={gap} wrap="wrap">
+      <HStack
+        data-testid={`latest-run-task-state-counts-${dagId}`}
+        gap={gap}
+        wrap={compact ? "nowrap" : "wrap"}
+      >
         {stateEntries.map(([state, count]) => {
           // Task instances without a state are keyed "no_status"; the task list
           // filters them with the "none" value and StateBadge renders them as null.
