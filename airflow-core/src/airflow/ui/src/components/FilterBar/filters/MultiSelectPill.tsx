@@ -178,7 +178,12 @@ export const MultiSelectPill = ({
             />
           </Box>
           {showAdvancedToggle ? (
-            <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} variant="addon" />
+            <AdvancedSearchToggle
+              enabled={advanced.enabled}
+              onToggle={advanced.onToggle}
+              roundedRight={!showMatchMode}
+              variant="addon"
+            />
           ) : undefined}
           {showMatchMode ? <MatchModeToggle mode={mode} onModeChange={setMode} /> : undefined}
         </Box>
