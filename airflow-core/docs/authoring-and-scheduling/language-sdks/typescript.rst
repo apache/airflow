@@ -359,6 +359,34 @@ there. Set it once on the Dag and each task inherits it:
 ``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
 ``queue_to_coordinator`` entry that sends that queue to the coordinator.
 
+Conditional branching
+~~~~~~~~~~~~~~~~~~~~~
+
+``dag.if`` takes a handler that returns a boolean, and names the task each outcome runs:
+
+.. code-block:: typescript
+
+    async function hasRows({ rows }: { rows: number }): Promise<boolean> {
+      return rows > 0;
+    }
+
+    const gate = dag.if(hasRows, { rows: extracted });
+    gate.then(loaded).else(reportedEmpty);
+
+``dag.if`` declares the condition as a task: its id is the function's name unless a string before
+the inputs sets it, as in ``dag.if(hasRows, "has_rows", { rows: extracted })``. The compiler checks
+that the handler returns a boolean. ``else`` is optional: a one-sided condition skips its own branch
+when the condition fails and follows nothing. The condition is also a node, so ``notified.after(gate)``
+orders a task after it.
+
+A guarded task takes no argument for the control edge, because a condition's boolean decides whether
+the task runs rather than what it runs on. Read a value from the condition with
+``getClient().getXCom``.
+
+The side not taken is skipped when the run reaches it, and stays skipped if you clear it later. Only
+the branches named here are skipped, so a task that several branches converge on still runs — unlike
+Python's ``@task.branch``, which skips every immediate downstream it did not follow.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
