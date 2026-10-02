@@ -92,25 +92,15 @@ class NativeDagImporter(CustomBundleNonExtensionImporter):
 
 
 class NativeCoordinator(BaseCoordinator):
-    def __init__(self, *, bundles: list[str] | None = None):
-        self.bundles = bundles
-
-    @classmethod
-    def get_dag_importer_class(cls) -> type[NativeDagImporter]:
-        return NativeDagImporter
+    def __init__(self, *, dag_bundle_name: str | None = None):
+        self.dag_bundle_name = dag_bundle_name
 
     def get_dag_importer(self) -> NativeDagImporter:
         return NativeDagImporter()
 
-    @classmethod
-    def get_parsed_bundles(cls, kwargs) -> frozenset[str]:
-        return frozenset(kwargs.get("bundles") or ["test_bundle"])
-
 
 class NoImporterCoordinator(BaseCoordinator):
-    @classmethod
-    def get_parsed_bundles(cls, kwargs) -> None:
-        return None
+    pass
 
 
 def _coordinators(**kwargs_by_key: dict) -> dict[tuple[str, str], str]:
@@ -674,7 +664,7 @@ class TestCoordinatorDagImporters:
 
     @pytest.mark.parametrize("bundle_name", [None, "other_bundle"])
     def test_skips_coordinators_that_do_not_serve_the_bundle(self, bundle_name):
-        with conf_vars(_coordinators(native={})):
+        with conf_vars(_coordinators(native={"dag_bundle_name": "test_bundle"})):
             registry = DagImporterRegistry.from_config(bundle_name)
 
         assert registry.get_importer("dag.native") is None
