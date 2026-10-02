@@ -137,7 +137,7 @@
     "empty": "Keine abgeschlossenen Task Instanzen in diesem Bereich",
     "title": "Langsamste Task Instanzen"
   },
-  "sortMultiColumnHint": "Mit Großschreibtaste Klicken für Sortieren nach mehreren Spalten",
+  "sortMultiColumnHint": "Mit Großschreibtaste klicken um mehrere Spalten zur Sortierung zu verwenden",
   "sortedAscending": "aufsteigend sortiert",
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
