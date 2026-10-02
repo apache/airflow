@@ -503,12 +503,11 @@ The code is minified because an integrity digest is only worth taking over an ar
 read or edit in place. Function names are kept through minification, since a task id defaults to its
 handler's name. The ``/*! */`` license banners of bundled dependencies are kept.
 
-Because the shipped code is not the code anyone wrote, the packer also embeds each Dag-defining source
-file verbatim in its own ``/*# airflowSource:<path> ... #*/`` block comment, verified by its own digest,
-so Airflow has something readable to display for each Dag. Each native Dag's file is embedded — the file
-its ``new Dag(...)`` constructor ran in — so a bundle that declares its Dags across several files gets one
-source region per file, mapped to their ``dag_id`` by the ``dag_source_paths`` field in the manifest. Files
-that only supply utilities or types are not embedded.
+Because the shipped code is not the code anyone wrote, the packer also embeds source files verbatim, each in
+its own ``/*# airflowSource:<path> ... #*/`` block comment verified by its own digest: the entry module, and
+each native Dag's file (the file its ``new Dag(...)`` constructor ran in). The ``dag_source_paths`` field in
+the manifest maps each ``dag_id`` to its file. Files that only supply utilities or types are not embedded.
+The Code view currently shows the embedded entry module for each Dag in the bundle.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
@@ -567,9 +566,9 @@ configuration. It parses only files that end in ``.min.mjs`` and start with the 
 writes. A bundle that fails its integrity check, or whose Dags cannot be serialized or fail validation,
 such as a cycle drawn with ``before`` and ``after``, is reported as an import error.
 
-The Code view shows the bundle's entry module for each of its Dags, as ``airflow-ts-pack`` embeds it
-(see :ref:`typescript-sdk/build`). If the source cannot be read from the bundle, the view shows a short
-notice instead.
+The Code view currently shows the bundle's entry module for each of its Dags, as ``airflow-ts-pack``
+embeds it (see :ref:`typescript-sdk/build`). If the source cannot be read from the bundle, the view shows a
+short notice instead.
 
 A bundle that only registers ``TaskHandler`` objects is parsed too when it sits in a served Dag bundle,
 since its metadata does not say whether it declares Dags. Each parse then launches ``node`` once and
