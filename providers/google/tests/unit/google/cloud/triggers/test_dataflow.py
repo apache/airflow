@@ -145,6 +145,7 @@ def test_dataflow_batch_job():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("trigger_class", [TemplateJobStartTrigger, DataflowStartYamlJobTrigger])
+@pytest.mark.parametrize("project_id", [PROJECT_ID, None], ids=["explicit-project", "connection-project"])
 @pytest.mark.parametrize(
     ("drain_pipeline", "requested_state"),
     [(False, DataflowJobStatus.JOB_STATE_CANCELLED), (True, DataflowJobStatus.JOB_STATE_DRAINED)],
@@ -159,12 +160,13 @@ def test_dataflow_batch_job():
     autospec=True,
     return_value=(None, PROJECT_ID),
 )
-async def test_on_kill_requests_stop_using_connection_project_without_waiting(
+async def test_on_kill_requests_stop_without_waiting(
     mock_credentials,
     mock_connection,
     mock_get_conn,
     mock_wait_for_states,
     trigger_class,
+    project_id,
     drain_pipeline,
     requested_state,
 ):
@@ -177,7 +179,7 @@ async def test_on_kill_requests_stop_using_connection_project_without_waiting(
         "type": DataflowJobType.JOB_TYPE_STREAMING,
     }
     trigger = trigger_class(
-        project_id=None,
+        project_id=project_id,
         job_id=JOB_ID,
         location=LOCATION,
         gcp_conn_id=GCP_CONN_ID,
