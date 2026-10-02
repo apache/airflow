@@ -23,7 +23,7 @@ import os
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal, cast
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -591,8 +591,12 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
-    client: Client
-    """The HTTP client to use for communication with the API server."""
+    client: Client | None = None
+    """
+    The HTTP client that answers the child's requests to the API server.
+
+    Without one, as in a Dag bag, each such request gets an error.
+    """
 
     bundle_name: str
     dag_file_rel_path: str
@@ -626,27 +630,44 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         self.parsing_result = msg
         return None, {}
 
+    _client_request_types: ClassVar[tuple[type[BaseModel], ...]] = (
+        DeleteVariable,
+        GetConnection,
+        GetPrevSuccessfulDagRun,
+        GetPreviousDagRun,
+        GetPreviousTI,
+        GetTICount,
+        GetTaskStates,
+        GetVariable,
+        GetVariableKeys,
+        GetXCom,
+        GetXComCount,
+        GetXComSequenceItem,
+        GetXComSequenceSlice,
+        PutVariable,
+    )
+
     # Each subclass builds its own ``_request_handlers``, typed with itself, from these.
     _common_request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]] = {
-        **WatchedSubprocess._get_shared_request_handlers(
-            DeleteVariable,
-            GetConnection,
-            GetPrevSuccessfulDagRun,
-            GetPreviousDagRun,
-            GetPreviousTI,
-            GetTICount,
-            GetTaskStates,
-            GetVariable,
-            GetVariableKeys,
-            GetXCom,
-            GetXComCount,
-            GetXComSequenceItem,
-            GetXComSequenceSlice,
-            MaskSecret,
-            PutVariable,
+        # _handle_request answers the client requests itself when there is no client.
+        **cast(
+            "dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]",
+            WatchedSubprocess._get_shared_request_handlers(*_client_request_types, MaskSecret),
         ),
         **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
     }
+
+    def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        if self.client is None and isinstance(msg, self._client_request_types):
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(
+                    detail={"message": f"{type(msg).__name__} is answered only in the Dag processor"}
+                ),
+            )
+            return
+        super()._handle_request(msg, log, req_id)
 
     def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         log.error("Unhandled request", msg=msg)
