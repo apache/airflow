@@ -656,8 +656,7 @@ Otherwise, with several Java coordinators, its JARs fail to parse.
 * Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
-* The Code view shows the source file the Gradle plugin packs into the JAR: the main class by
-  default, or the file set with ``airflowBundle { dagSource = file("...") }``.
+* The Code view shows the source of the JAR's main class, which the Gradle plugin packs into the JAR.
 * Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
 * ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
   ``airflow dags test``, ``tasks test``, ``tasks render`` and ``tasks list`` refuse a native Java
@@ -930,16 +929,10 @@ The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it i
 :class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans that Dag bundle recursively and builds the
 classpath automatically.
 
-The plugin also packs the source file of ``mainClass`` into the bundle JAR, so the Airflow UI can show
-the source of a native Java Dag (see :ref:`java-sdk/native-dag-parsing`). Set ``dagSource`` in
-``airflowBundle`` to pack another file instead:
-
-.. code-block:: groovy
-
-    airflowBundle {
-        mainClass = "com.example.Main"
-        dagSource = file("src/main/java/com/example/MyDag.java")
-    }
+The plugin also packs the source file of ``mainClass``, and of each class that declares a Dag in Java,
+into the bundle JAR, so the Airflow UI can show the source of a native Java Dag (see
+:ref:`java-sdk/native-dag-parsing`). To find those classes, the plugin runs ``mainClass`` once at build
+time. If that run fails, the build logs a warning and packs only the ``mainClass`` source.
 
 .. note::
 
@@ -1114,8 +1107,12 @@ directory into the Dag bundle named by ``task_handler_bundle_name``.
   Unlike the Gradle plugin, Maven has no equivalent of the ``verifyBundleMainClass`` validation step.
   A wrong ``<mainClass>`` value will not be caught until runtime.
 
-To show the source of a native Java Dag in the Airflow UI, pack the source file into the bundle JAR and
-name its entry with the ``Airflow-Java-SDK-Dag-Code`` manifest attribute:
+To show the source of a native Java Dag in the Airflow UI, pack the main class's source file under
+``META-INF/airflow/sources/`` with an index that names it, ``src/main/resources/META-INF/airflow/sources.json``:
+
+.. code-block:: json
+
+    {"entrypoint_path": "com/example/Main.java"}
 
 .. code-block:: xml
 
@@ -1128,13 +1125,13 @@ name its entry with the ``Airflow-Java-SDK-Dag-Code`` manifest attribute:
             <resource>
                 <directory>src/main/java/com/example</directory>
                 <includes><include>Main.java</include></includes>
-                <targetPath>META-INF/airflow/dag-code/com/example</targetPath>
+                <targetPath>META-INF/airflow/sources/com/example</targetPath>
             </resource>
         </resources>
     </build>
 
-Then add ``<Airflow-Java-SDK-Dag-Code>META-INF/airflow/dag-code/com/example/Main.java</Airflow-Java-SDK-Dag-Code>``
-to the ``manifestEntries`` of ``maven-shade-plugin`` or ``maven-jar-plugin`` shown above.
+Then add ``<Airflow-Java-SDK-Sources>META-INF/airflow/sources.json</Airflow-Java-SDK-Sources>`` to the
+``manifestEntries`` of ``maven-shade-plugin`` or ``maven-jar-plugin`` shown above.
 
 .. _java-sdk/coordinator-config:
 

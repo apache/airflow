@@ -19,23 +19,25 @@
 
 from __future__ import annotations
 
+import json
 import zipfile
-from typing import TYPE_CHECKING, ClassVar, Final
+from typing import TYPE_CHECKING, Any, ClassVar, Final
 
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
-from airflow.sdk.coordinators.java._jar_manifest import DAG_CODE, MAIN_CLASS, read_main_attributes
+from airflow.sdk.coordinators.java._jar_manifest import MAIN_CLASS, SOURCES, read_main_attributes
 from airflow.sdk.importers.base import DagSourceCode
 
 if TYPE_CHECKING:
     from airflow.sdk.coordinators.java.coordinator import JavaCoordinator
     from airflow.sdk.importers.base import DagDefinition
 
+_SOURCES_DIR: Final = "META-INF/airflow/sources/"
 _MAX_SOURCE_BYTES: Final = 1024 * 1024
 _NO_SOURCE: Final = (
-    "// This JAR embeds no Dag source. Build it with the Airflow Java SDK Gradle plugin, or set\n"
-    "// airflowBundle.dagSource, to show the source here.\n"
+    "// This JAR embeds no Dag source. Build it with the Airflow Java SDK Gradle plugin to show the\n"
+    "// source here.\n"
 )
-_SOURCE_TOO_LARGE: Final = "// The Dag source this JAR embeds is over 1 MiB, so it is not shown.\n"
+_SOURCE_TOO_LARGE: Final = "// This Dag source file is over 1 MiB, so it is not shown.\n"
 
 
 class JavaDagImporter(CoordinatorDagImporter):
@@ -67,9 +69,10 @@ class JavaDagImporter(CoordinatorDagImporter):
         return not self.coordinator.main_class or main_class == self.coordinator.main_class
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
-        """Return the Dag source the JAR embeds, or a placeholder when it embeds none."""
+        """Return the entrypoint source the JAR embeds, or a notice when it embeds none."""
         with definition.as_file() as path, zipfile.ZipFile(path) as zf:
-            if (info := _find_source_entry(zf)) is None:
+            info = _find_source_entry(zf)
+            if info is None:
                 return DagSourceCode(source_code=_NO_SOURCE, language="java")
             if info.file_size > _MAX_SOURCE_BYTES:
                 return DagSourceCode(source_code=_SOURCE_TOO_LARGE, language="java")
@@ -77,10 +80,38 @@ class JavaDagImporter(CoordinatorDagImporter):
         return DagSourceCode(source_code=source or _NO_SOURCE, language="java")
 
 
-def _find_source_entry(zf: zipfile.ZipFile) -> zipfile.ZipInfo | None:
-    if not (entry := (read_main_attributes(zf) or {}).get(DAG_CODE)):
+def _find_source_entry(zf: zipfile.ZipFile, dag_id: str | None = None) -> zipfile.ZipInfo | None:
+    """
+    Return the JAR entry of the source embedded for *dag_id*, or ``None`` when there is none.
+
+    The Gradle plugin packs each Dag's source file once, maps every Java-declared Dag to its file in
+    ``dag_source_paths``, and always packs the entrypoint (the ``Main-Class`` source). A Dag that is
+    not mapped, or no *dag_id*, falls back to the entrypoint.
+    """
+    index = _read_source_index(zf)
+    paths = index.get("dag_source_paths")
+    source_path = paths.get(dag_id) if dag_id is not None and isinstance(paths, dict) else None
+    if not isinstance(source_path, str):
+        source_path = index.get("entrypoint_path")
+    if not isinstance(source_path, str):
         return None
     try:
-        return zf.getinfo(entry)
+        return zf.getinfo(_SOURCES_DIR + source_path)
     except KeyError:
         return None
+
+
+def _read_source_index(zf: zipfile.ZipFile) -> dict[str, Any]:
+    if not (entry := (read_main_attributes(zf) or {}).get(SOURCES)):
+        return {}
+    try:
+        info = zf.getinfo(entry)
+    except KeyError:
+        return {}
+    if info.file_size > _MAX_SOURCE_BYTES:
+        return {}
+    try:
+        index = json.loads(zf.read(info))
+    except ValueError:
+        return {}
+    return index if isinstance(index, dict) else {}

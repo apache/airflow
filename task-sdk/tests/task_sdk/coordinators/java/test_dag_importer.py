@@ -25,7 +25,7 @@ import pytest
 from task_sdk.coordinators.java._jar_test_utils import SCHEMA_VERSION, make_jar
 
 from airflow.sdk.coordinators.java import JavaCoordinator
-from airflow.sdk.coordinators.java._dag_importer import JavaDagImporter
+from airflow.sdk.coordinators.java._dag_importer import JavaDagImporter, _find_source_entry
 from airflow.sdk.importers import FilesystemDagDefinition, get_importer_registry, reset_importer_registry
 
 from tests_common.test_utils.config import conf_vars
@@ -35,7 +35,9 @@ if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Coordinator is only compatible with Airflow >= 3.3.0", allow_module_level=True)
 
 MAIN_CLASS = "com.example.Dags"
-SOURCE_ENTRY = "META-INF/airflow/dag-code/com/example/Dags.java"
+SOURCES_INDEX = "META-INF/airflow/sources.json"
+ENTRYPOINT = "com/example/Dags.java"
+REPORTS = "com/example/dags/Reports.kt"
 LONG_MAIN_CLASS = "org.apache.airflow.example.nativedag.generated.VeryLongNativeDagBundleBuilder"
 
 
@@ -112,15 +114,29 @@ class TestJavaDagImporter:
         assert [d.path for d in listed] == [app]
 
 
+def _sources(index, files):
+    """JAR entries for a source index and the files it packs."""
+    raw_index = index if isinstance(index, str) else json.dumps(index)
+    return {SOURCES_INDEX: raw_index, **{f"META-INF/airflow/sources/{p}": c for p, c in files.items()}}
+
+
 class TestGetSourceCode:
-    def _jar(self, tmp_path, *, attributes=None, entries=None):
-        attributes = {"Main-Class": MAIN_CLASS, **(attributes or {})}
+    def _jar(self, tmp_path, *, index=None, files=None, attributes=None):
+        attributes = {
+            "Main-Class": MAIN_CLASS,
+            "Airflow-Java-SDK-Sources": SOURCES_INDEX,
+            **(attributes or {}),
+        }
+        entries = _sources(index, files or {}) if index is not None else {}
         return make_jar(tmp_path / "app.jar", attributes=attributes, entries=entries)
 
-    def test_returns_the_embedded_source(self, tmp_path):
+    def test_returns_the_entrypoint_source(self, tmp_path):
         source = "public class Dags {}\n"
         jar = self._jar(
-            tmp_path, attributes={"Airflow-Java-SDK-Dag-Code": SOURCE_ENTRY}, entries={SOURCE_ENTRY: source}
+            tmp_path,
+            index={"entrypoint_path": ENTRYPOINT, "dag_source_paths": {"reports": REPORTS}},
+            files={ENTRYPOINT: source, REPORTS: "class Reports"},
+            attributes={"Main-Class": LONG_MAIN_CLASS},
         )
         assert b"\r\n " in zipfile.ZipFile(jar).read("META-INF/MANIFEST.MF")
 
@@ -129,15 +145,42 @@ class TestGetSourceCode:
         assert (result.source_code, result.language) == (source, "java")
 
     @pytest.mark.parametrize(
-        ("attributes", "entries"),
+        ("dag_id", "expected"),
         [
-            pytest.param({}, {SOURCE_ENTRY: "class Dags {}"}, id="no-attribute"),
-            pytest.param({"Airflow-Java-SDK-Dag-Code": SOURCE_ENTRY}, {}, id="no-entry"),
-            pytest.param({"Airflow-Java-SDK-Dag-Code": SOURCE_ENTRY}, {SOURCE_ENTRY: ""}, id="empty-entry"),
+            pytest.param("reports", REPORTS, id="mapped"),
+            pytest.param("orders", ENTRYPOINT, id="unmapped"),
+            pytest.param(None, ENTRYPOINT, id="no-dag-id"),
         ],
     )
-    def test_placeholder_when_no_source_is_embedded(self, tmp_path, attributes, entries):
-        jar = self._jar(tmp_path, attributes=attributes, entries=entries)
+    def test_maps_a_dag_to_its_file_with_the_entrypoint_as_fallback(self, tmp_path, dag_id, expected):
+        jar = self._jar(
+            tmp_path,
+            index={"entrypoint_path": ENTRYPOINT, "dag_source_paths": {"reports": REPORTS}},
+            files={ENTRYPOINT: "class Dags", REPORTS: "class Reports"},
+        )
+
+        with zipfile.ZipFile(jar) as zf:
+            assert _find_source_entry(zf, dag_id).filename == f"META-INF/airflow/sources/{expected}"
+
+    @pytest.mark.parametrize(
+        ("attributes", "index", "files"),
+        [
+            pytest.param(
+                {"Airflow-Java-SDK-Sources": ""},
+                {"entrypoint_path": ENTRYPOINT},
+                {ENTRYPOINT: "x"},
+                id="no-attribute",
+            ),
+            pytest.param({}, None, {}, id="no-index"),
+            pytest.param({}, "{not json", {}, id="bad-index"),
+            pytest.param({}, ["not", "an", "object"], {}, id="index-not-an-object"),
+            pytest.param({}, {"dag_source_paths": {}}, {}, id="no-entrypoint"),
+            pytest.param({}, {"entrypoint_path": ENTRYPOINT}, {}, id="no-entry"),
+            pytest.param({}, {"entrypoint_path": ENTRYPOINT}, {ENTRYPOINT: ""}, id="empty-entry"),
+        ],
+    )
+    def test_placeholder_when_no_source_is_embedded(self, tmp_path, attributes, index, files):
+        jar = self._jar(tmp_path, index=index, files=files, attributes=attributes)
 
         result = _importer().get_source_code(_definition(jar))
 
@@ -145,28 +188,24 @@ class TestGetSourceCode:
         assert result.language == "java"
 
     def test_placeholder_for_a_jar_without_manifest(self, tmp_path):
-        jar = make_jar(tmp_path / "lib.jar", entries={SOURCE_ENTRY: "class Dags {}"})
+        jar = make_jar(
+            tmp_path / "lib.jar", entries=_sources({"entrypoint_path": ENTRYPOINT}, {ENTRYPOINT: "x"})
+        )
 
         assert "embeds no Dag source" in _importer().get_source_code(_definition(jar)).source_code
 
-    def test_placeholder_when_the_source_is_too_large(self, tmp_path):
-        jar = self._jar(
-            tmp_path, attributes={"Airflow-Java-SDK-Dag-Code": SOURCE_ENTRY}, entries={SOURCE_ENTRY: "x" * 9}
-        )
+    def test_placeholder_when_the_source_file_is_too_large(self, tmp_path):
+        jar = self._jar(tmp_path, index={"entrypoint_path": ENTRYPOINT}, files={ENTRYPOINT: "x" * 200})
 
-        with patch("airflow.sdk.coordinators.java._dag_importer._MAX_SOURCE_BYTES", 8):
+        with patch("airflow.sdk.coordinators.java._dag_importer._MAX_SOURCE_BYTES", 100):
             result = _importer().get_source_code(_definition(jar))
 
         assert "is not shown" in result.source_code
 
     def test_replaces_invalid_utf8(self, tmp_path):
-        jar = self._jar(
-            tmp_path,
-            attributes={"Airflow-Java-SDK-Dag-Code": SOURCE_ENTRY},
-            entries={SOURCE_ENTRY: b"a\xffb"},
-        )
+        jar = self._jar(tmp_path, index={"entrypoint_path": ENTRYPOINT}, files={ENTRYPOINT: b"a\xffb"})
 
-        assert _importer().get_source_code(_definition(jar)).source_code == "a�b"
+        assert _importer().get_source_code(_definition(jar)).source_code == "a\ufffdb"
 
     def test_bad_zip_raises(self, tmp_path):
         jar = tmp_path / "broken.jar"

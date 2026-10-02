@@ -24,7 +24,7 @@ from task_sdk.coordinators.java._jar_test_utils import make_jar, write_manifest
 
 from airflow.sdk.coordinators.java._jar_manifest import parse_main_attributes, read_main_attributes
 
-LONG_VALUE = "META-INF/airflow/dag-code/org/apache/airflow/example/nativedag/InterfaceExample.java"
+LONG_VALUE = "org.apache.airflow.example.nativedag.generated.VeryLongNativeDagBundleBuilderMainClass"
 
 
 class TestParseMainAttributes:
@@ -37,12 +37,12 @@ class TestParseMainAttributes:
     @pytest.mark.parametrize("newline", [b"\r\n", b"\n"], ids=["crlf", "lf"])
     def test_unfolds_a_value_folded_once_and_twice(self, newline):
         twice = "com.example." + "x" * 150
-        data = write_manifest({"Airflow-Java-SDK-Dag-Code": LONG_VALUE, "Main-Class": twice}, newline=newline)
+        data = write_manifest({"Airflow-Java-SDK-Sources": LONG_VALUE, "Main-Class": twice}, newline=newline)
         assert data.count(newline + b" ") == 3
 
         attributes = parse_main_attributes(data)
 
-        assert attributes["airflow-java-sdk-dag-code"] == LONG_VALUE
+        assert attributes["airflow-java-sdk-sources"] == LONG_VALUE
         assert attributes["main-class"] == twice
 
     def test_decodes_a_character_the_fold_splits(self):
