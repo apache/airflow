@@ -683,11 +683,16 @@ class DagFileProcessorManager(LoggingMixin):
         )
         for request in requests:
             bundle = bundles[request.bundle_name]
-            files.append(
-                DagFileInfo(
-                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
+            if request.relative_fileloc is None:
+                self.request_bundle_refresh(bundle.name)
+            else:
+                files.append(
+                    DagFileInfo(
+                        rel_path=Path(request.relative_fileloc),
+                        bundle_name=bundle.name,
+                        bundle_path=bundle.path,
+                    )
                 )
-            )
             session.delete(request)
         return files
 

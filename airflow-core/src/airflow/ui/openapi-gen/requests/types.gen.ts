@@ -1280,6 +1280,13 @@ export type DagBundleFileResponse = {
 };
 
 /**
+ * Response acknowledging a Dag bundle refresh request.
+ */
+export type DagBundleRefreshResponse = {
+    bundle_name: string;
+};
+
+/**
  * Dag bundle serializer for responses.
  */
 export type DagBundleResponse = {
@@ -3707,6 +3714,12 @@ export type GetDagBundleFilesData = {
 };
 
 export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
+
+export type RefreshDagBundleData = {
+    bundleName: string;
+};
+
+export type RefreshDagBundleResponse = DagBundleRefreshResponse;
 
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
@@ -6529,6 +6542,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DagBundleFileCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles/{bundle_name}/refresh': {
+        post: {
+            req: RefreshDagBundleData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: DagBundleRefreshResponse;
                 /**
                  * Unauthorized
                  */

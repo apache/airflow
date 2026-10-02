@@ -4823,6 +4823,19 @@ export const $DagBundleFileResponse = {
     description: 'A file in a Dag bundle, as the Dag processor last saw it.'
 } as const;
 
+export const $DagBundleRefreshResponse = {
+    properties: {
+        bundle_name: {
+            type: 'string',
+            title: 'Bundle Name'
+        }
+    },
+    type: 'object',
+    required: ['bundle_name'],
+    title: 'DagBundleRefreshResponse',
+    description: 'Response acknowledging a Dag bundle refresh request.'
+} as const;
+
 export const $DagBundleResponse = {
     properties: {
         name: {

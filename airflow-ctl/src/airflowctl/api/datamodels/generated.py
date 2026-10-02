@@ -603,6 +603,14 @@ class DagBundleFileResponse(BaseModel):
     ]
 
 
+class DagBundleRefreshResponse(BaseModel):
+    """
+    Response acknowledging a Dag bundle refresh request.
+    """
+
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+
+
 class DagBundleResponse(BaseModel):
     """
     Dag bundle serializer for responses.
