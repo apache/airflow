@@ -53,7 +53,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -215,7 +215,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
   {
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
-      original.conf && Object.keys(original.conf).length > 0 ? (
+      hasDagRunConfig(original.conf) ? (
         <RenderedJsonField collapsed={!open} content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),

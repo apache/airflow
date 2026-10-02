@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { describe, it, expect } from "vitest";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { getMetaKey } from "./getMetaKey";
-export { hasDagRunConfig } from "./hasDagRunConfig";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { hasDagRunConfig } from "./hasDagRunConfig";
+
+describe("hasDagRunConfig", () => {
+  it.each([
+    { description: "undefined", expected: false, input: undefined },
+    { description: "null", expected: false, input: null },
+    { description: "an empty object", expected: false, input: {} },
+    { description: "a non-empty object", expected: true, input: { country: "FR" } },
+    { description: "an object with several keys", expected: true, input: { batch: 42, env: "prod" } },
+  ])("returns $expected for $description", ({ expected, input }) => {
+    expect(hasDagRunConfig(input)).toBe(expected);
+  });
+});
