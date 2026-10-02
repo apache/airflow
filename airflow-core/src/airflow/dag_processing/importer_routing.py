@@ -21,24 +21,14 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter  # noqa: SDK001
-from airflow.sdk.importers import DagImporterRegistry, get_importer_registry  # noqa: SDK001
+from airflow.sdk.coordinators._dag_importer import find_claiming_coordinator
 
 if TYPE_CHECKING:
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator  # noqa: SDK001
 
 log = logging.getLogger(__name__)
-
-
-def _get_registry(bundle_name: str | None) -> DagImporterRegistry | None:
-    try:
-        return get_importer_registry(bundle_name)
-    except Exception:
-        log.exception("Cannot build the Dag importer registry for bundle %s", bundle_name)
-        return None
 
 
 def get_claiming_coordinator(
@@ -47,13 +37,11 @@ def get_claiming_coordinator(
     """
     Return the coordinator whose runtime parses ``path``, or ``None`` when a Python child parses it.
 
-    A runtime parses the file when its importer is a coordinator's Dag importer.
+    A runtime parses the file when its importer is a coordinator's Dag importer. When the bundle's
+    importers cannot be loaded, the error is logged and a Python child parses the file.
     """
-    if (registry := _get_registry(bundle_name)) is None:
-        return None
     try:
-        importer = registry.get_importer(Path(path))
+        return find_claiming_coordinator(path, bundle_name)
     except Exception:
-        log.exception("Cannot load the Dag importer for %s", path)
+        log.exception("Cannot load the Dag importer for %s in bundle %s", path, bundle_name)
         return None
-    return importer.coordinator if isinstance(importer, CoordinatorDagImporter) else None
