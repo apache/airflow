@@ -28,7 +28,12 @@ import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.coordinators.node._bundle_reader import read_bundle
+from airflow.sdk.coordinators.node._bundle_reader import (
+    _LAYOUT_COMMENT_PREFIX,
+    _read_cache_digest,
+    read_bundle,
+)
+from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -129,3 +134,29 @@ class NodeCoordinator(SubprocessCoordinator):
     def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         metadata = read_bundle(path)
         return [self.node_executable, os.fspath(path)], metadata.supervisor_schema_version
+
+    def _read_task_handler_candidate(
+        self, path: pathlib.Path, *, rel_path: str
+    ) -> TaskHandlerCandidate | None:
+        if not _is_bundle(path):
+            return None
+        try:
+            with path.open("rb") as bundle_file:
+                size_bytes = os.fstat(bundle_file.fileno()).st_size
+                # Any minified module may end in .min.mjs; only the layout marker makes it a bundle.
+                if bundle_file.read(len(_LAYOUT_COMMENT_PREFIX)) != _LAYOUT_COMMENT_PREFIX:
+                    return None
+                bundle_file.seek(0)
+                try:
+                    cache_digest = _read_cache_digest(bundle_file, path=path)
+                except ValueError as exc:
+                    # The marker matched, so the file is a bundle, just not one this runtime can read.
+                    return TaskHandlerCandidate(
+                        rel_path=rel_path,
+                        size_bytes=size_bytes,
+                        cache_digest=None,
+                        error=f"{rel_path}: {exc}",
+                    )
+        except OSError:
+            return None
+        return TaskHandlerCandidate(rel_path=rel_path, size_bytes=size_bytes, cache_digest=cache_digest)

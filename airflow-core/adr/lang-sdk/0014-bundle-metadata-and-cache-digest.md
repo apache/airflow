@@ -88,8 +88,8 @@ No `dag_id` appears anywhere in it, and no `task_id`.
 Candidate *detection* is unaffected and still requires executing nothing — it is exactly the "this is
 an Airflow Lang-SDK artifact" marker doing its job: the `AFBNDL01` trailer magic for Go
 ([`Magic`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L57)), the `.min.mjs` suffix plus a valid layout header for
-TypeScript ([`BUNDLE_SUFFIX`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/coordinator.py#L43)), a `Main-Class` attribute
-for Java.
+TypeScript ([`BUNDLE_SUFFIX`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/coordinator.py#L43)), an `Airflow-Cache-Digest` manifest attribute
+for Java (dependency JARs in the same bundle may declare `Main-Class` too).
 
 The entrypoint source region stays, for display.
 

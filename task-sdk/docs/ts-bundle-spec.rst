@@ -94,6 +94,12 @@ that rewrite the bundle invalidate the offsets or digests.
 Unlike the metadata range, the source range's length is declared rather than derivable from a newline, so a reader
 pins it by checking that the prescribed opener and closer sit exactly where the declared range implies.
 
+The bundle's cache digest is the lowercase hexadecimal SHA-256 of the whole layout line, from the ``//#`` marker
+through its newline, which is what ``head -n1 bundle.min.mjs | sha256sum`` prints. The line records the digest of
+every region, so the cache digest changes whenever any region changes and stays the same across packs of identical
+inputs. The Dag processor reads it to tell whether a bundle changed since it last asked the bundle for its task
+handlers. It is read, not verified, so it does not prove the bundle is intact.
+
 Source
 ------
 

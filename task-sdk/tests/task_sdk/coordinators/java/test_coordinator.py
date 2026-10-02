@@ -18,11 +18,13 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import pathlib
 import re
 import socket
+import struct
 import subprocess
 import zipfile
 from unittest.mock import MagicMock, patch
@@ -38,7 +40,7 @@ from airflow.sdk.coordinators.java.coordinator import (
     _parse_manifest,
     _walk_jars,
 )
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerCandidate
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
 from tests_common.test_utils.config import conf_vars
@@ -66,6 +68,7 @@ def _make_jar(
     *,
     main_class: str | None = "com.example.Main",
     schema_version: str | None = None,
+    cache_digest: str | None = None,
 ) -> pathlib.Path:
     """Write a minimal JAR with (optionally) a Main-Class manifest entry."""
     lines = ["Manifest-Version: 1.0"]
@@ -73,6 +76,8 @@ def _make_jar(
         lines.append(f"Main-Class: {main_class}")
     if schema_version:
         lines.append(f"Airflow-Supervisor-Schema-Version: {schema_version}")
+    if cache_digest:
+        lines.append(f"Airflow-Cache-Digest: {cache_digest}")
     manifest = "\n".join(lines) + "\n\n"
     with zipfile.ZipFile(path, "w") as zf:
         zf.writestr("META-INF/MANIFEST.MF", manifest)
@@ -346,6 +351,81 @@ class TestJavaCoordinatorParseTaskHandlerCommand:
             pytest.raises(ValueError, match=f"is not an executable JAR: {reason}$"),
         ):
             coordinator._build_parse_task_handler_command(path=path)
+
+
+_CACHE_DIGEST = "c" * 64
+
+
+def _flag_encrypted(jar: bytearray) -> None:
+    jar[jar.index(b"PK\x01\x02") + 8] |= 0x01
+
+
+def _set_unknown_compression(jar: bytearray) -> None:
+    struct.pack_into("<H", jar, jar.index(b"PK\x01\x02") + 10, 99)
+
+
+def _corrupt_lzma_stream(jar: bytearray) -> None:
+    header = jar.index(b"PK\x03\x04")
+    name_length, extra_length = struct.unpack_from("<HH", jar, header + 26)
+    # Past the 4-byte LZMA header and 5 bytes of properties.
+    start = header + 30 + name_length + extra_length + 9
+    jar[start : start + 6] = bytes(byte ^ 0xFF for byte in jar[start : start + 6])
+
+
+class TestListTaskHandlerCandidates:
+    def test_lists_only_jars_that_carry_a_cache_digest(self, tmp_path):
+        handlers = _make_jar(tmp_path / "handlers.jar", cache_digest=_CACHE_DIGEST)
+        (tmp_path / "lib").mkdir()
+        _make_jar(tmp_path / "lib" / "commons-cli.jar", main_class="org.apache.commons.cli.Main")
+        _make_jar(tmp_path / "lib" / "airflow-sdk.jar", main_class=None, schema_version="2026-06-16")
+        with zipfile.ZipFile(tmp_path / "lib" / "no-manifest.jar", "w") as zf:
+            zf.writestr("com/example/App.class", b"")
+        (tmp_path / "lib" / "broken.jar").write_text("not a zip")
+        _make_jar(tmp_path / "handlers.zip", cache_digest=_CACHE_DIGEST)
+
+        assert JavaCoordinator().list_task_handler_candidates(tmp_path) == [
+            TaskHandlerCandidate(
+                rel_path="handlers.jar", size_bytes=handlers.stat().st_size, cache_digest=_CACHE_DIGEST
+            )
+        ]
+
+    def test_reports_a_jar_with_a_cache_digest_but_no_main_class(self, tmp_path):
+        jar = _make_jar(tmp_path / "handlers.jar", main_class=None, cache_digest=_CACHE_DIGEST)
+
+        assert JavaCoordinator().list_task_handler_candidates(tmp_path) == [
+            TaskHandlerCandidate(
+                rel_path="handlers.jar",
+                size_bytes=jar.stat().st_size,
+                cache_digest=_CACHE_DIGEST,
+                error="handlers.jar has an Airflow-Cache-Digest manifest attribute but no Main-Class",
+            )
+        ]
+
+    @pytest.mark.parametrize(
+        ("compression", "damage"),
+        [
+            pytest.param(zipfile.ZIP_STORED, _flag_encrypted, id="encrypted"),
+            pytest.param(zipfile.ZIP_STORED, _set_unknown_compression, id="unsupported-compression"),
+            pytest.param(zipfile.ZIP_LZMA, _corrupt_lzma_stream, id="corrupt-lzma"),
+        ],
+    )
+    def test_skips_a_jar_whose_manifest_cannot_be_read(self, tmp_path, compression, damage):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", compression=compression) as zf:
+            zf.writestr(
+                "META-INF/MANIFEST.MF",
+                f"Manifest-Version: 1.0\nMain-Class: com.example.Main\nAirflow-Cache-Digest: {_CACHE_DIGEST}\n\n",
+            )
+        unreadable = bytearray(buffer.getvalue())
+        damage(unreadable)
+        (tmp_path / "unreadable.jar").write_bytes(unreadable)
+        handlers = _make_jar(tmp_path / "handlers.jar", cache_digest=_CACHE_DIGEST)
+
+        assert JavaCoordinator().list_task_handler_candidates(tmp_path) == [
+            TaskHandlerCandidate(
+                rel_path="handlers.jar", size_bytes=handlers.stat().st_size, cache_digest=_CACHE_DIGEST
+            )
+        ]
 
 
 @pytest.fixture

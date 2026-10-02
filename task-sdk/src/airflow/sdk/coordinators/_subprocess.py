@@ -47,6 +47,7 @@ import structlog
 from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.configuration import conf
+from airflow.sdk.coordinators._bundle_metadata import walk_files
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -459,7 +461,8 @@ class SubprocessCoordinator(BaseCoordinator):
     failure — is handled here.
 
     A subclass that also reports its artifacts' task handlers implements
-    :meth:`_build_parse_task_handler_command`.
+    :meth:`_build_parse_task_handler_command`, and :meth:`_read_task_handler_candidate`
+    to tell its artifacts apart from the other files of a Dag bundle.
 
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
@@ -589,6 +592,38 @@ class SubprocessCoordinator(BaseCoordinator):
             yield
         finally:
             self._active_scan_roots = None
+
+    def list_task_handler_candidates(self, bundle_path: pathlib.Path) -> list[TaskHandlerCandidate]:
+        if type(self)._read_task_handler_candidate is SubprocessCoordinator._read_task_handler_candidate:
+            raise NotImplementedError(f"{type(self).__name__} does not list task handler artifacts")
+        candidates = []
+        listed: set[tuple[int, int]] = set()
+        for path in walk_files([bundle_path], match=lambda _: True):
+            try:
+                file_info = path.stat()
+            except OSError:
+                continue
+            # A file reached through symlinks is listed once, under the first path walked.
+            if (identity := (file_info.st_dev, file_info.st_ino)) in listed:
+                continue
+            rel_path = path.relative_to(bundle_path).as_posix()
+            if (candidate := self._read_task_handler_candidate(path, rel_path=rel_path)) is not None:
+                listed.add(identity)
+                candidates.append(candidate)
+        return candidates
+
+    def _read_task_handler_candidate(
+        self, path: pathlib.Path, *, rel_path: str
+    ) -> TaskHandlerCandidate | None:
+        """
+        Return *path* as a candidate if it is one of this coordinator's artifacts, else ``None``.
+
+        :meth:`list_task_handler_candidates` calls this once per regular file in the Dag bundle, in walk
+        order, with *rel_path* the file's POSIX path in the bundle, and skips a file already listed under
+        another path. Read only what identifies the artifact and its stored cache digest, never hash it,
+        and take the size from the file that was read.
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not list task handler artifacts")
 
     def execute_task(
         self,

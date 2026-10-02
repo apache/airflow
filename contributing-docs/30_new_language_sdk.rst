@@ -138,15 +138,46 @@ its runtime for one artifact:
 
     def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]: ...
 
-*path* is the artifact the Dag processor picked, so the method does not search
-for one. The returned pair follows the rules of ``_build_execute_task_command``:
-no ``--comm`` or ``--logs`` flags, and the schema version the runtime
-understands. The runtime then answers as described in
-`Answering TaskHandlerParseRequest`_.
+*path* is the artifact the Dag processor picked among the candidates of the next
+section, so the method does not search for one. The returned pair follows the
+rules of ``_build_execute_task_command``: no ``--comm`` or ``--logs`` flags, and
+the schema version the runtime understands. The runtime then answers as
+described in `Answering TaskHandlerParseRequest`_.
 
 The default raises ``NotImplementedError``, so a coordinator that does not
 implement it cannot be probed. ``ExecutableCoordinator`` implements it for
 executable bundles.
+
+SubprocessCoordinator: implementing ``_read_task_handler_candidate``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Dag processor finds the artifacts to ask by walking the coordinator's Dag
+bundle in a stable order. It calls this method once for every regular file,
+except one it already listed under another path through a symlink, and keeps
+the candidates it returns:
+
+.. code-block:: python
+
+    def _read_task_handler_candidate(
+        self, path: pathlib.Path, *, rel_path: str
+    ) -> TaskHandlerCandidate | None: ...
+
+Return ``None`` for a file that is not one of your artifacts, such as a
+dependency your runtime loads. For an artifact, return a
+:class:`~airflow.sdk.execution_time.coordinator.TaskHandlerCandidate` with
+*rel_path*, the size of the file you read, and the cache digest the artifact
+stores (``None`` when it stores none). The method runs for every file on every
+parse, so read the stored digest instead of hashing the artifact. The Dag
+processor asks an artifact again when its size or digest changes, so the digest
+must change whenever the task handlers the artifact registers can change. A
+digest longer than 128 characters counts as none, so the artifact is then asked
+on every parse.
+
+Set ``error`` on an artifact of yours that cannot be asked, for example a file
+that is not executable. The Dag processor reports it and does not run it.
+
+The default raises ``NotImplementedError``, so a coordinator that does not
+implement it cannot be probed.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
