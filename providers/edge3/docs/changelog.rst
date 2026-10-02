@@ -49,6 +49,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix scheduler crash on restart with queued or running Edge tasks (#73832)``
 * ``Fix airflow edge list-workers always showing null concurrency (#72959)``
 
 Misc
