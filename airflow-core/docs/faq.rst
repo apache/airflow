@@ -417,8 +417,17 @@ configuration option:
 Additionally, you can catch these issues earlier in your development workflow by using the
 `AIR304 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
 dynamic values in Dag and Task constructors as part of static linting. See
-:ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules. 
-Alternatively, you can use the airflow dags stability CLI command to detect non-deterministic DAG serialization.
+:ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
+
+For a runtime check that can catch cases outside the static rules, parse and serialize your Dags
+repeatedly with the ``airflow dags stability`` command::
+
+    airflow dags stability [DAG_FOLDER]
+
+The command compares the same hashes Airflow uses to create Dag versions and prints a unified diff for
+each unstable Dag. Use ``--dag-id`` to select one Dag, ``--num-parses`` to run more than the default two
+parsing passes, and ``--fail-fast`` to stop after the first failing pass. Import errors, serialization
+errors, inconsistent Dag discovery, and an empty selection also cause the command to exit unsuccessfully.
 
 .. _faq:duplicate-dag-id-warning:
 

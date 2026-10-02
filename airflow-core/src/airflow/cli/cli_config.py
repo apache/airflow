@@ -129,6 +129,18 @@ def positive_int(*, allow_zero):
     return _check
 
 
+def parse_int_at_least_two(value):
+    """Parse an integer that is at least two."""
+    try:
+        value = int(value)
+    except ValueError:
+        pass
+    else:
+        if value >= 2:
+            return value
+    raise argparse.ArgumentTypeError(f"invalid integer value of at least 2: {value!r}")
+
+
 def string_list_type(val):
     """Parse comma-separated list and returns list of string (strips whitespace)."""
     return [x.strip() for x in val.split(",")]
@@ -284,10 +296,20 @@ ARG_DAG_FOLDER = Arg(
     nargs="?",
     help="Path to the Dag folder or file to parse. Defaults to the configured Dags folder.",
 )
+ARG_STABILITY_CHECK_DAG_ID = Arg(
+    ("-d", "--dag-id"),
+    help="Dag ID to check. Checks every discovered Dag by default.",
+)
 ARG_STABILITY_CHECK_FAIL_FAST = Arg(
     ("--fail-fast",),
     action="store_true",
-    help="Stop after the first unstable Dag is detected.",
+    help="Stop after the first parsing pass with an import, serialization, discovery, or stability failure.",
+)
+ARG_STABILITY_CHECK_NUM_PARSES = Arg(
+    ("--num-parses",),
+    default=2,
+    type=parse_int_at_least_two,
+    help="Number of times to parse and serialize the Dags. Must be at least 2. Default: 2.",
 )
 
 # list_dag_runs
@@ -1269,13 +1291,15 @@ DAGS_COMMANDS = (
         name="stability",
         help="Check that serialized Dags are stable across repeated parses to prevent dag_version inflation",
         description=(
-            "Parse Dags twice, serialize each parsed Dag, compare Airflow's serialized Dag "
-            "hashes, and report a unified diff for Dags whose serialized output changes."
+            "Parse Dags repeatedly, serialize each parsed Dag, compare Airflow's serialized Dag "
+            "hashes, and report a unified diff for Dags whose serialized output changes. The "
+            "check also fails on import errors, serialization errors, and inconsistent Dag discovery."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_stability_check"),
         args=(
             ARG_DAG_FOLDER,
-            ARG_DAG_ID_OPT,
+            ARG_STABILITY_CHECK_DAG_ID,
+            ARG_STABILITY_CHECK_NUM_PARSES,
             ARG_STABILITY_CHECK_FAIL_FAST,
             ARG_VERBOSE,
         ),

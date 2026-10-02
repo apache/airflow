@@ -1288,10 +1288,13 @@ class TestCliDags:
 
         with stdout_capture as temp_stdout:
             dag_command.dag_stability_check(
-                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path)])
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path), "--num-parses", "3"])
             )
 
-        assert "Dag stability check passed for 1 Dag(s)." in temp_stdout.getvalue()
+        assert (
+            "Dag stability check passed: 1 Dag produced stable serialized output across 3 parsing passes."
+            in temp_stdout.getvalue()
+        )
 
     def test_stability_check_fails_for_unstable_dag(self, tmp_path, stdout_capture):
         dag_file = tmp_path / "unstable_dag.py"
@@ -1316,18 +1319,28 @@ class TestCliDags:
 
         with pytest.raises(SystemExit) as exit_info, stdout_capture as temp_stdout:
             dag_command.dag_stability_check(
-                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path)])
+                self.parser.parse_args(
+                    [
+                        "dags",
+                        "stability",
+                        os.fspath(tmp_path),
+                        "--num-parses",
+                        "3",
+                        "--fail-fast",
+                    ]
+                )
             )
 
         assert exit_info.value.code == 1
         out = temp_stdout.getvalue()
         assert "Dag stability check failed." in out
-        assert "unstable_dag:" in out
-        assert "--- parse 1: unstable_dag" in out
-        assert "+++ parse 2: unstable_dag" in out
+        assert "Dag 'unstable_dag' changed between parsing passes 1 and 2" in out
+        assert "--- unstable_dag (parse 1)" in out
+        assert "+++ unstable_dag (parse 2)" in out
         assert "unstable_task_" in out
+        assert "across 2 of 3 requested parsing passes" in out
 
-    def test_stability_check_fails_for_missing_dag_id(self, tmp_path):
+    def test_stability_check_fails_for_missing_dag_id(self, tmp_path, stdout_capture):
         dag_file = tmp_path / "stable_dag.py"
         dag_file.write_text(
             textwrap.dedent(
@@ -1336,7 +1349,7 @@ class TestCliDags:
 
                 from airflow.sdk import DAG
 
-                DAG(
+                dag = DAG(
                     dag_id="stable_dag",
                     schedule=None,
                     start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
@@ -1345,12 +1358,100 @@ class TestCliDags:
             )
         )
 
-        with pytest.raises(SystemExit, match="Dag 'missing_dag' was not found."):
+        with pytest.raises(SystemExit) as exit_info, stdout_capture as temp_stdout:
             dag_command.dag_stability_check(
-                self.parser.parse_args(
-                    ["dags", "stability", os.fspath(tmp_path), "--dag-id", "missing_dag"]
-                )
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path), "--dag-id", "missing_dag"])
             )
+
+        assert exit_info.value.code == 1
+        assert "Dag 'missing_dag' was not found in any parsing pass." in temp_stdout.getvalue()
+
+    def test_stability_check_fails_when_no_dags_are_found(self, tmp_path, stdout_capture):
+        with pytest.raises(SystemExit) as exit_info, stdout_capture as temp_stdout:
+            dag_command.dag_stability_check(
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path)])
+            )
+
+        assert exit_info.value.code == 1
+        assert "No Dags were found in any parsing pass." in temp_stdout.getvalue()
+
+    def test_stability_check_fails_for_import_error(self, tmp_path, stdout_capture):
+        dag_file = tmp_path / "broken_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                from airflow.sdk import DAG
+
+                raise RuntimeError("broken Dag file")
+                """
+            )
+        )
+
+        with pytest.raises(SystemExit) as exit_info, stdout_capture as temp_stdout:
+            dag_command.dag_stability_check(
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path)])
+            )
+
+        assert exit_info.value.code == 1
+        out = temp_stdout.getvalue()
+        assert "Import errors in parsing pass 1:" in out
+        assert "RuntimeError: broken Dag file" in out
+
+    @mock.patch.object(
+        dag_command,
+        "_serialize_dag_for_stability_check",
+        autospec=True,
+        side_effect=ValueError("cannot serialize"),
+    )
+    def test_stability_check_fails_for_serialization_error(
+        self, _mock_serialize_dag, tmp_path, stdout_capture
+    ):
+        dag_file = tmp_path / "stable_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                import pendulum
+
+                from airflow.sdk import DAG
+
+                dag = DAG(
+                    dag_id="stable_dag",
+                    schedule=None,
+                    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+                )
+                """
+            )
+        )
+
+        with pytest.raises(SystemExit) as exit_info, stdout_capture as temp_stdout:
+            dag_command.dag_stability_check(
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path)])
+            )
+
+        assert exit_info.value.code == 1
+        assert "Parse 1, Dag 'stable_dag': ValueError: cannot serialize" in temp_stdout.getvalue()
+
+    @mock.patch.object(dag_command, "_parse_dags_for_stability_check", autospec=True)
+    def test_stability_check_fails_when_dag_disappears(self, mock_parse_dags, stdout_capture):
+        dag = DAG(dag_id="conditional_dag", schedule=None)
+        first_dagbag = MagicMock(spec=DagBag, dags={dag.dag_id: dag}, import_errors={})
+        second_dagbag = MagicMock(spec=DagBag, dags={}, import_errors={})
+        mock_parse_dags.side_effect = [first_dagbag, second_dagbag]
+
+        with pytest.raises(SystemExit) as exit_info, stdout_capture as temp_stdout:
+            dag_command.dag_stability_check(self.parser.parse_args(["dags", "stability"]))
+
+        assert exit_info.value.code == 1
+        out = temp_stdout.getvalue()
+        assert "Dags were not discovered in every parsing pass:" in out
+        assert "conditional_dag: found in [1]; missing from [2]" in out
+
+    @pytest.mark.parametrize("num_parses", ["1", "invalid"])
+    def test_stability_check_rejects_invalid_num_parses(self, num_parses):
+        with pytest.raises(SystemExit) as exit_info:
+            self.parser.parse_args(["dags", "stability", "--num-parses", num_parses])
+
+        assert exit_info.value.code == 2
 
 class TestCliDagsReserialize:
     parser = cli_parser.get_parser()
