@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import selectors
@@ -98,6 +99,29 @@ def _get_task_ids(result: TaskHandlerParsingResult) -> list[str]:
 def _get_open_fds() -> set[int]:
     # Without /proc, as on macOS, this is empty, so the fd leak checks pass trivially.
     return {int(fd) for fd in os.listdir("/proc/self/fd")} if os.path.isdir("/proc/self/fd") else set()
+
+
+# A runtime that exits once a child has left its process group; the child keeps the runtime's
+# stdout and stderr open and writes its pid to argv[1].
+_LEAVE_A_CHILD_OUTSIDE_THE_GROUP = """
+import os, sys, time
+read_fd, write_fd = os.pipe()
+if os.fork():
+    os.read(read_fd, 1)
+    os._exit(0)
+os.setsid()
+with open(sys.argv[1], "w") as f:
+    f.write(str(os.getpid()))
+os.write(write_fd, b"x")
+time.sleep(30)
+"""
+
+
+def _is_running(pid: int) -> bool:
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
 
 
 @pytest.fixture(autouse=True)
@@ -399,6 +423,43 @@ class TestLangSDKTaskHandlerProcessorProcess:
         assert proc._exit_code == -signal.SIGKILL
         assert "The Lang-SDK runtime did not exit after its parse result; killing it" in cap_structlog
 
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=5)
+    def test_what_the_runtime_leaves_in_its_process_group_is_killed_when_it_exits(
+        self, mock_timeout, parse, tmp_path
+    ):
+        pid_file = tmp_path / "leftover.pid"
+
+        proc = parse(argv=["/bin/sh", "-c", f"sleep 30 & echo $! > {pid_file}; exit 0"])
+
+        leftover = int(pid_file.read_text())
+        try:
+            assert proc.parsing_result.import_errors == {
+                "etl.artifact": "The Lang-SDK runtime exited with code 0 without a parse result"
+            }
+            # A poll: the leftover is not a child to wait for, and time_machine cannot reach another process.
+            deadline = time.monotonic() + 10
+            while _is_running(leftover):
+                assert time.monotonic() < deadline, "the runtime's leftover process is still running"
+                time.sleep(0.05)
+        finally:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(leftover, signal.SIGKILL)
+
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    def test_the_import_timeout_holds_after_the_runtime_exits(self, mock_timeout, parse, tmp_path):
+        pid_file = tmp_path / "leftover.pid"
+
+        try:
+            proc = parse(argv=[sys.executable, "-c", _LEAVE_A_CHILD_OUTSIDE_THE_GROUP, os.fspath(pid_file)])
+        finally:
+            if pid_file.exists():
+                os.kill(int(pid_file.read_text()), signal.SIGKILL)
+
+        assert proc.parsing_result.import_errors == {
+            "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s"
+        }
+        assert proc._exit_code == 0
+
     @pytest.mark.parametrize(
         ("policy", "error"),
         [
@@ -653,25 +714,6 @@ class TestRun:
         assert result.import_errors == {
             "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s"
         }
-
-    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
-    @patch.object(
-        LangSDKTaskHandlerProcessorProcess,
-        "close",
-        autospec=True,
-        side_effect=LangSDKTaskHandlerProcessorProcess.close,
-    )
-    def test_the_import_timeout_holds_after_the_runtime_exits(self, mock_close, mock_timeout, tmp_path):
-        # The runtime exits, and the process it leaves behind keeps its output open.
-        result = _run(tmp_path, argv=["/bin/sh", "-c", "sleep 30 & exit 0"])
-        [proc] = [c.args[0] for c in mock_close.call_args_list]
-        os.killpg(proc.pid, signal.SIGKILL)
-
-        assert result.import_errors == {
-            "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s"
-        }
-        assert proc._exit_code == 0
-        assert not proc._open_sockets
 
     @pytest.mark.execution_timeout(30)
     @conf_vars({("dag_processor", "dag_file_processor_timeout"): "1"})

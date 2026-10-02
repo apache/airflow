@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import os
 import selectors
@@ -29,6 +30,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, cast, get_a
 
 import attrs
 import msgspec
+import psutil
 from pydantic import BaseModel, Field, TypeAdapter
 from uuid6 import uuid7
 
@@ -180,7 +182,8 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
     runtime. The runtime connects back to two listeners this process owns and answers the
     ``TaskHandlerParseRequest`` itself, so the request is sent once it has connected. A failed start,
     a missing result, an invalid frame or message, or a timeout is an import error on the result,
-    keyed by the artifact's path in its Dag bundle.
+    keyed by the artifact's path in its Dag bundle. Processes the runtime leaves in its process group
+    are killed when it exits.
 
     The runtime's requests are answered with :attr:`client`. Without one, as in a Dag-parsing child,
     they are relayed up the supervisor channel of the process this runs in, or get an error when there
@@ -310,11 +313,12 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
             proc = cls.start(id=uuid7(), selector=selector, logger=logger, **start_kwargs)
             try:
                 while not proc.is_ready:
-                    timeout = proc._import_timeout if proc._schema_version_reported else processor_timeout
-                    if timeout is not None and time.monotonic() - proc.start_time > timeout:
-                        # Unlike is_ready, this does not wait for an exited runtime's leftover processes,
-                        # which can hold its sockets open. close() closes them.
-                        proc._time_out(timeout)
+                    # is_ready applies the import timeout once the parse child has reported it.
+                    if (
+                        not proc._schema_version_reported
+                        and time.monotonic() - proc.start_time > processor_timeout
+                    ):
+                        proc._time_out(processor_timeout)
                         break
                     proc._service_subprocess(max_wait_time=0.1)
             except BaseException:
@@ -540,6 +544,14 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
         if self._check_subprocess_exit() is None:
             return False
         self._close_listeners()
+        if (
+            self._open_sockets
+            and self._import_timeout is not None
+            and time.monotonic() - self.start_time > self._import_timeout
+        ):
+            # A process the runtime left outside its process group holds these open.
+            self._time_out(self._import_timeout)
+            self.cleanup_sockets_after_kill()
         if not super().is_ready:
             return False
         if self.parsing_result is None:
@@ -554,6 +566,23 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
                 f"The Lang-SDK runtime did not parse {self._parse_request.file} within {timeout}s"
             )
         self._kill_runtime()
+
+    def _check_subprocess_exit(
+        self, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ) -> int | None:
+        if self._exit_code is None and self._is_runtime_exited():
+            # Until the exited runtime is reaped below, its pid, and so its process group id, cannot be
+            # reused, so this reaches only the processes it left behind.
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(self.pid, signal.SIGKILL)
+        return super()._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
+
+    def _is_runtime_exited(self) -> bool:
+        """Return whether the runtime has exited and is not reaped yet."""
+        try:
+            return psutil.Process(self.pid).status() == psutil.STATUS_ZOMBIE
+        except psutil.Error:
+            return False
 
     def _kill_runtime(self) -> None:
         """Kill the runtime and wait for it, without servicing its sockets, whose handler may have failed."""
