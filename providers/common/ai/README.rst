@@ -103,7 +103,7 @@ Extra            Dependencies
 ``langchain``    ``langchain>=1.0.0``
 ``llamaindex``   ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.14.5``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.8``
 ``pdf``          ``pypdf>=4.0.0``
-``docx``         ``python-docx>=1.0.0``
+``docx``         ``python-docx>=1.1.2``
 ``git``          ``apache-airflow-providers-git``
 ===============  =======================================================================================================================================
 

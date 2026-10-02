@@ -4764,7 +4764,7 @@ requires-dist = [
     { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=2.33.0" },
     { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'", specifier = ">=2.33.0" },
     { name = "pypdf", marker = "extra == 'pdf'", specifier = ">=4.0.0" },
-    { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.1.0" },
+    { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.1.2" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
 ]
@@ -4789,7 +4789,7 @@ dev = [
     { name = "opensandbox", specifier = ">=1.1.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.33.0" },
-    { name = "python-docx", specifier = ">=1.1.0" },
+    { name = "python-docx", specifier = ">=1.1.2" },
     { name = "sqlglot", specifier = ">=30.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]

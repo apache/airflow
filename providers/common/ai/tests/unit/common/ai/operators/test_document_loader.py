@@ -456,6 +456,11 @@ class TestDocxParser:
                 "| line1 line2 | b |",
                 id="cell-line-break-stays-on-row",
             ),
+            pytest.param(
+                ([["0", "0"], ["x", "x"]],),
+                "| 0 | 0 |\n| x | x |",
+                id="equal-adjacent-unmerged-cells-kept",
+            ),
         ],
     )
     def test_docx_tables(self, blocks, expected):
@@ -471,6 +476,50 @@ class TestDocxParser:
         assert _load_docx_text(_get_docx_bytes(doc)) == (
             "| Title | Note |\n| a | Shared | c |\n| d | Shared | f |"
         )
+
+    def test_docx_grid_before_and_after_keep_columns(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=3, cols=3)
+        _fill_docx_table(table, [["Product", "Revenue", "Cost"], ["", "100", "80"], ["Widget", "5", ""]])
+        starts_late, ends_early = table.rows[1]._tr, table.rows[2]._tr
+        starts_late.remove(starts_late.tc_lst[0])
+        starts_late.get_or_add_trPr().get_or_add_gridBefore().val = 1
+        ends_early.remove(ends_early.tc_lst[-1])
+        ends_early.get_or_add_trPr().get_or_add_gridAfter().val = 1
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == (
+            "| Product | Revenue | Cost |\n|  | 100 | 80 |\n| Widget | 5 |  |"
+        )
+
+    def test_docx_unreadable_table_skipped_with_warning(self, caplog):
+        doc = _create_docx()
+        doc.add_paragraph("Before")
+        unreadable = doc.add_table(rows=2, cols=2)
+        # A vMerge continuation in the first row has no cell above it to continue.
+        unreadable.rows[0]._tr.tc_lst[0].get_or_add_tcPr().get_or_add_vMerge()
+        doc.add_paragraph("After")
+        _fill_docx_table(doc.add_table(rows=1, cols=2), [["Name", "Qty"]])
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\nAfter\n\n| Name | Qty |"
+        assert {
+            "event": "Skipping a table in <bytes:.docx> that python-docx could not read: "
+            "ValueError('no tr above topmost tr in w:tbl')",
+            "log_level": "warning",
+        } in caplog
+
+    @patch.object(
+        DocumentLoaderOperator,
+        "_get_docx_table_rows",
+        autospec=True,
+        side_effect=RecursionError("maximum recursion depth exceeded"),
+    )
+    def test_docx_table_too_deep_to_read_skipped_with_warning(self, mock_get_rows, caplog):
+        assert _load_docx_text(_build_docx_bytes("Before", [["a", "b"]], "After")) == "Before\n\nAfter"
+        assert {
+            "event": "Skipping a table in <bytes:.docx> that python-docx could not read: "
+            "RecursionError('maximum recursion depth exceeded')",
+            "log_level": "warning",
+        } in caplog
 
     def test_docx_nested_table_flattened_into_its_cell(self):
         doc = _create_docx()
