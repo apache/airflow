@@ -121,7 +121,7 @@ def initialize(
 def _self_configure() -> Callable[[], StatsLogger | NoStatsLogger]:
     """
     Lazily build this module copy's own factory from its own distribution's configuration.
-    
+
     This file is symlinked into several distributions (``airflow._shared...``,
     ``airflow.sdk._shared...``), and each copy has its own globals. Each copy configures
     itself on first use from ``<root>.configuration`` and
