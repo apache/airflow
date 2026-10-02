@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import Any, Protocol
 
 import structlog
@@ -25,6 +26,7 @@ import structlog
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
+    GetXComByKeys,
     GetXComSequenceSlice,
     SetXCom,
     XComResult,
@@ -33,6 +35,9 @@ from airflow.sdk.execution_time.comms import (
 
 # Lightweight wrapper for XCom values
 _XComValueWrapper = collections.namedtuple("_XComValueWrapper", "value")
+
+# Wraps a raw API value the way ``XCom.deserialize_value`` expects it; see ``LazyXComSequence``.
+_XComWrapper = collections.namedtuple("_XComWrapper", "value")
 
 log = structlog.get_logger(logger_name="task")
 
@@ -280,6 +285,45 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         return msg
+
+    @classmethod
+    def get_by_keys(
+        cls,
+        *,
+        keys: list[str],
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+    ) -> list[Any]:
+        """
+        Retrieve several XCom values of one task instance by key, in one round trip.
+
+        The values come back in the order of ``keys``, ``None`` for a key that has no XCom. This is
+        what :class:`XComIterable` iterates and slices with, since its values live under distinct
+        keys (``return_value_<index>``) of the same task instance.
+
+        :param keys: The XCom keys to read.
+        :param dag_id: Dag ID to pull the XComs from.
+        :param task_id: Task ID to pull the XComs from.
+        :param run_id: Dag run ID for the task.
+        :param map_index: Map index of the task instance. *None* (default) reads the XComs of a
+            non-mapped task, which has map index ``-1``.
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = SUPERVISOR_COMMS.send(
+            GetXComByKeys(
+                keys=keys,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=-1 if map_index is None else map_index,
+            ),
+        )
+        if not isinstance(msg, XComSequenceSliceResult):
+            raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
+        return [cls.deserialize_value(_XComWrapper(value)) for value in msg.root]
 
     @classmethod
     def get_one(
@@ -564,3 +608,153 @@ class BaseXCom:
                 map_index=map_index,
             ),
         )
+
+
+def _normalize_index(index: int, length: int) -> int:
+    """Map a sequence index, negative ones included, onto a position in ``[0, length)``."""
+    if index < 0:
+        index += length
+    if not (0 <= index < length):
+        raise IndexError(index)
+    return index
+
+
+class XComIterable(Sequence):
+    """
+    An iterable that lazily fetches XCom values one by one instead of loading all at once.
+
+    This is a read-only :class:`collections.abc.Sequence` over the ``return_value_<index>`` XComs an
+    iterated task pushed, one per index: the values are written by the producing task's runner as
+    each sub-task finishes (see ``IterableOperator.axcom_push``), and the iterable only ever reads
+    them. Nothing on this class mutates the underlying XComs.
+
+    Indexing follows the usual sequence rules, negative indices included: ``result[-1]`` is the last
+    value. Iterations that were skipped pushed nothing and are left out, as the XComs of skipped
+    mapped task instances are: ``length`` counts every input item, ``skipped`` lists the indices
+    that produced no value, and positions in the sequence run over the others only.
+
+    A single index is one XCom read; iterating or slicing fetches all the values wanted with one
+    ``GetXComByKeys`` request, since the values live under distinct keys that the slice endpoint for
+    a mapped task's XComs cannot address.
+    """
+
+    def __init__(
+        self,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        length: int | None = None,
+        skipped: Sequence[int] = (),
+    ):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.length = length or 0
+        self.skipped: list[int] = sorted(skipped)
+
+    def _index_of(self, position: int) -> int:
+        """Map ``position`` in the sequence to its input index, stepping over the skipped indices."""
+        index = _normalize_index(position, len(self))
+        for skipped_index in self.skipped:
+            if skipped_index > index:
+                break
+            index += 1
+        return index
+
+    def __iter__(self) -> Iterator[Any]:
+        """Fetch every value with one request."""
+        return iter(self._get_by_keys(range(len(self))))
+
+    def __len__(self) -> int:
+        return self.length - len(self.skipped)
+
+    async def alen(self) -> int:
+        """Async twin of ``len(self)``, for readers on the event loop that take a length before each read."""
+        return len(self)
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        """Allow direct indexing so this works like a sequence."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if isinstance(key, slice):
+            return self._get_by_keys(range(*key.indices(len(self))))
+
+        return XCom.get_one(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(key)}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    def _get_by_keys(self, positions: range) -> list[Any]:
+        """Read the values at ``positions`` with one ``XCom.get_by_keys`` call; nothing for an empty range."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if not positions:
+            return []
+        return XCom.get_by_keys(
+            keys=[f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(position)}" for position in positions],
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    async def aget(self, index: int) -> Any:
+        """
+        Async counterpart of ``self[index]``: fetch one value through ``XCom.aget_one``.
+
+        Use it, or ``async for``, from code running on an event loop that has other SDK calls in
+        flight (an iterated task consuming this iterable as its input): a synchronous read there
+        would block the loop thread on the supervisor channel and deadlock with them.
+        """
+        from airflow.sdk.execution_time.xcom import XCom
+
+        return await XCom.aget_one(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(index)}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return _AsyncXComIterator(self)
+
+    def serialize(self) -> dict:
+        """Ensure the object is JSON serializable."""
+        return {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "length": self.length,
+            "skipped": self.skipped,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return XComIterable(**data)
+
+
+class _AsyncXComIterator:
+    """Async iterator for XComIterable, one ``aget`` per position in order."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._index >= await self._iterable.alen():
+            raise StopAsyncIteration
+
+        value = await self._iterable.aget(self._index)
+        self._index += 1
+        return value
