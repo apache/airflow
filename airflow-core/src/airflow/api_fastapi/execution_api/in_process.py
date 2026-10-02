@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import threading
 import weakref
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, nullcontext
 from functools import cached_property
 from typing import TYPE_CHECKING, cast
 
@@ -94,13 +95,24 @@ def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None)
 
 
 class _RequestScopedServerContextApp:
-    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+    """
+    Wrap an ASGI app so in-process requests behave like server-side API handling.
+
+    The flags are set in the request's context, which the event loop task and the worker threads of
+    sync routes inherit, so the task's other threads keep their comms meanwhile:
+    ``force_server_context`` for airflow-core (``models.Variable``, ``models.Connection``), and the
+    Task SDK's ``serving_supervisor_request`` for its own readers (mask forwarding, the secrets
+    backend choice).
+    """
 
     def __init__(self, app: FastAPI) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        with force_server_context():
+        task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
+        # No task runs in this process, or a Task SDK from before the flag: nothing to hide from.
+        serving_supervisor_request = getattr(task_runner, "serving_supervisor_request", nullcontext)
+        with force_server_context(), serving_supervisor_request():
             await self.app(scope, receive, send)
 
 
