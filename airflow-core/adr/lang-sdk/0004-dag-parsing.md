@@ -178,7 +178,7 @@ Airflow Supervisor                    Bridge              Language Runtime
 
 ### DagFileParsingResult Format
 
-The language runtime must produce a `DagFileParsingResult` that matches Python Airflow's DagSerialization format exactly. The Airflow scheduler deserializes this into its internal model — any divergence causes parsing failures.
+The language runtime must produce a `DagFileParsingResult` that matches Python Airflow's DagSerialization format exactly, except that it may omit the config-backed Dag fields marked in the table below, which Airflow fills in from its config before it loads the Dag. The Airflow scheduler deserializes this into its internal model — any divergence causes parsing failures.
 
 **Envelope:**
 
@@ -406,7 +406,7 @@ uv run validation/serialization/compare.py \
     validation/serialization/serialized_java.json
 ```
 
-Both share test cases defined in `test_dags.yaml`, ensuring the Java SDK produces byte-identical output to Python's `DagSerialization.serialize_dag()` for the same inputs.
+Both share test cases defined in `test_dags.yaml`, ensuring the Java SDK produces byte-identical output to Python's `DagSerialization.serialize_dag()` for the same inputs, apart from the config-backed Dag fields it may omit, which Airflow fills in before it loads the Dag.
 
 ## Consequences
 
