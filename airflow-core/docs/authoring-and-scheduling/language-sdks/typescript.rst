@@ -526,11 +526,13 @@ Deploying
 ~~~~~~~~~
 
 Copy or mount the bundle into the Dag bundle the coordinator scans: the one named by ``dag_bundle_name``,
-or the task's own Dag bundle. :class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag
-bundle recursively and launches the first integrity-verified ``*.min.mjs`` bundle whose metadata declares the
-task instance's Dag. The artifact's name does not matter beyond that suffix, so one Dag bundle can hold several
-bundles and a Dag is routed to whichever declares it. If multiple bundles declare the same Dag, the first in
-sorted path order wins.
+or the task's own Dag bundle. For a task of a Python stub Dag,
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag bundle recursively and launches the
+first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task instance's Dag. The artifact's
+name does not matter beyond that suffix, so one Dag bundle can hold several bundles and a Dag is routed to
+whichever declares it. If multiple bundles declare the same Dag, the first in sorted path order wins.
+A task of a native TypeScript Dag runs the bundle its Dag was parsed from, see
+:ref:`typescript-sdk/native-parsing`.
 
 .. _typescript-sdk/native-parsing:
 
@@ -539,8 +541,7 @@ Parsing native Dags
 
 A Dag declared in TypeScript ships in its packed bundle, so the bundle goes into a Dag bundle,
 next to any Python Dag files. A Node coordinator parses the ``*.min.mjs`` bundles of the Dag bundles it
-serves: every Dag bundle, or only the one ``dag_bundle_name`` names.
-The same entry runs the tasks:
+serves: every Dag bundle, or only the one ``dag_bundle_name`` names:
 
 .. code-block:: ini
 
@@ -552,6 +553,9 @@ The same entry runs the tasks:
       }
     }
     queue_to_coordinator = {"typescript": "ts"}
+
+A task of a native Dag runs the bundle file its Dag was parsed from. A task of a Python stub Dag runs the
+first bundle, in sorted path order, that declares its Dag.
 
 At most one Node coordinator can serve a Dag bundle. If you configure more than one, give each a different
 ``dag_bundle_name``, otherwise Airflow fails to load ``[sdk] coordinators``.
