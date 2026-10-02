@@ -712,9 +712,6 @@ def _create_backfill(
 
         first_info = dagrun_info_list[0]
         try:
-            if drain_dag:
-                # After the backfill row's commit, so the drain commits or rolls back with the runs.
-                DagModel.start_drain(dag_id, session=session)
             if first_info.partition_key:
                 _create_runs_partitioned(
                     backfill=backfill,
@@ -730,6 +727,8 @@ def _create_backfill(
                     run_on_latest_version=run_on_latest_version,
                     session=session,
                 )
+            if drain_dag:
+                DagModel.start_drain(dag_id, session=session)
         except OperationalError as e:
             if is_lock_not_available_error(e):
                 # Lock error: clean up the orphan so the user can retry. The

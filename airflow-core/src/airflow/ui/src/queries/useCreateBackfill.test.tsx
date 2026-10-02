@@ -61,19 +61,19 @@ describe("useCreateBackfill", () => {
     } as unknown as ReturnType<typeof useBackfillServiceCreateBackfill>);
   });
 
-  it("sends the drain choice as drain_dag", () => {
+  it.each([true, false])("sends the drain choice as drain_dag=%s", (drainDag) => {
     const { result } = renderHook(() => useCreateBackfill({ onSuccessConfirm: vi.fn() }), {
       wrapper: Wrapper,
     });
 
-    result.current.createBackfill(buildRequest(true));
+    result.current.createBackfill(buildRequest(drainDag));
 
     expect(mutate).toHaveBeenCalledWith({
-      requestBody: expect.objectContaining({ drain_dag: true }) as unknown,
+      requestBody: expect.objectContaining({ drain_dag: drainDag }) as unknown,
     });
   });
 
-  it.each([true, false])("refreshes the Dag's scheduling state only when drain_dag=%s", async (drainDag) => {
+  it.each([true, false])("sets Dag-state refresh to %s according to drain_dag", async (drainDag) => {
     const invalidateSpy = vi.spyOn(QueryClient.prototype, "invalidateQueries").mockResolvedValue();
 
     renderHook(() => useCreateBackfill({ onSuccessConfirm: vi.fn() }), { wrapper: Wrapper });

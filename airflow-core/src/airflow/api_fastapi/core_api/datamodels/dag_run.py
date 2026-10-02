@@ -238,9 +238,10 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     bundle_version: str | None = None
     drain_dag: bool = Field(
         default=False,
-        description="Drain the Dag together with this run. Draining changes the whole Dag: every "
-        "unfinished run proceeds, so runs held by a paused Dag start or resume, no scheduled runs are "
-        "created, and the Dag pauses once they finish. Requires the same permission as pausing the Dag.",
+        description="Drain the Dag together with this run. Draining changes the whole Dag: unfinished "
+        "runs can start or resume except those held by paused backfills. No scheduled runs are created, "
+        "and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining "
+        "to complete. Requires the same permission as pausing the Dag.",
     )
 
     @model_validator(mode="after")

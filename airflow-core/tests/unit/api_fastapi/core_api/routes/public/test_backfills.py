@@ -494,8 +494,12 @@ class TestCreateBackfill(TestBackfillEndpoint):
             select(func.count()).select_from(DagRun).where(DagRun.backfill_id == response.json()["id"])
         )
 
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_status"),
+        [({"drain_dag": True}, 403), ({"drain_dag": False}, 200), ({}, 200)],
+    )
     def test_create_backfill_with_drain_dag_requires_dag_edit_access(
-        self, session, dag_maker, test_client, deny_dag_edit_access
+        self, session, dag_maker, test_client, deny_dag_edit_access, request_fields, expected_status
     ):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
             EmptyOperator(task_id="mytask")
@@ -508,20 +512,22 @@ class TestCreateBackfill(TestBackfillEndpoint):
                 "dag_id": dag.dag_id,
                 "from_date": to_iso(pendulum.parse("2024-01-01")),
                 "to_date": to_iso(pendulum.parse("2024-01-03")),
-                "drain_dag": True,
+                **request_fields,
             },
         )
 
-        assert response.status_code == 403
+        assert response.status_code == expected_status
         session.expire_all()
         assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.PAUSED
-        assert session.scalar(select(func.count()).select_from(Backfill)) == 0
-        assert (
-            mock.call(
-                mock.ANY, method="PUT", access_entity=None, details=DagDetails(id=dag.dag_id), user=mock.ANY
+        if expected_status == 403:
+            assert response.json()["detail"] == f"Draining requires permission to edit Dag: {dag.dag_id}"
+            assert session.scalar(select(func.count()).select_from(Backfill)) == 0
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=dag.dag_id), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
             )
-            in deny_dag_edit_access.call_args_list
-        )
+        else:
+            assert session.scalar(select(func.count()).select_from(Backfill)) == 1
 
     @mock.patch(
         "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",

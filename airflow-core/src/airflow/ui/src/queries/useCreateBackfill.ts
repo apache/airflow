@@ -34,7 +34,6 @@ import { toaster } from "src/system-components";
 
 export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
-  const [error, setError] = useState<unknown>(undefined);
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("components");
 
@@ -61,11 +60,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
     onSuccessConfirm();
   };
 
-  const onError = (_error: unknown) => {
-    setError(_error);
-  };
-
-  const { isPending, mutate } = useBackfillServiceCreateBackfill({ onError, onSuccess });
+  const { error, isPending, mutate, reset: resetError } = useBackfillServiceCreateBackfill({ onSuccess });
 
   const createBackfill = (data: CreateBackfillData) => {
     if (data.requestBody.from_date === "" || data.requestBody.to_date === "") {
@@ -110,5 +105,5 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
     });
   };
 
-  return { createBackfill, dateValidationError, error, isPending };
+  return { createBackfill, dateValidationError, error, isPending, resetError };
 };

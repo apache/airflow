@@ -18,12 +18,14 @@
  */
 import type { ReactNode } from "react";
 
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
+import { CancelablePromise } from "openapi/requests/core/CancelablePromise";
+import { DagService } from "openapi/requests/services.gen";
 import type {
   AssetEventResponse,
   AssetResponse,
@@ -83,10 +85,26 @@ vi.mock("src/components/JsonEditor", () => ({
 }));
 
 vi.mock("src/components/TriggerDag/TriggerDAGForm", () => ({
-  default: ({ onSubmitTrigger }: { readonly onSubmitTrigger: (params: DagRunTriggerParams) => void }) => (
-    <button onClick={() => onSubmitTrigger(materializeSubmitParams)} type="button">
-      submit materialize
-    </button>
+  default: ({
+    disabled,
+    isPaused,
+    onPausedDagActionChange,
+    onSubmitTrigger,
+  }: {
+    readonly disabled?: boolean;
+    readonly isPaused: boolean;
+    readonly onPausedDagActionChange?: () => void;
+    readonly onSubmitTrigger: (params: DagRunTriggerParams) => void;
+  }) => (
+    <>
+      <span>{`paused=${String(isPaused)}`}</span>
+      <button onClick={onPausedDagActionChange} type="button">
+        Keep paused
+      </button>
+      <button disabled={disabled} onClick={() => onSubmitTrigger(materializeSubmitParams)} type="button">
+        submit materialize
+      </button>
+    </>
   ),
 }));
 
@@ -129,6 +147,7 @@ const asset = {
 
 const createAssetEvent = vi.fn();
 const materializeAsset = vi.fn();
+const resetMaterializeError = vi.fn();
 
 const noUpstreamDependencies = {
   data: { edges: [], nodes: [] },
@@ -161,11 +180,81 @@ describe("CreateAssetEventModal", () => {
       error: undefined,
       isPending: false,
       mutate: materializeAsset,
+      reset: resetMaterializeError,
     } as unknown as ReturnType<typeof useAssetServiceMaterializeAsset>);
     vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(noUpstreamDependencies);
     vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
       data: undefined,
     } as ReturnType<typeof useDagServiceGetDagDetails>);
+  });
+
+  it.each([true, false])(
+    "waits for fresh materialization Dag state (cached paused=%s)",
+    async (cachedPaused) => {
+      const actual = await vi.importActual<typeof OpenapiQueries>("openapi/queries");
+
+      vi.mocked(useDagServiceGetDagDetails).mockImplementation(actual.useDagServiceGetDagDetails);
+      vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+      let resolveDag: ((value: DAGDetailsResponse) => void) | undefined;
+      const getDag = vi.spyOn(DagService, "getDagDetails").mockReturnValue(
+        new CancelablePromise((resolve) => {
+          resolveDag = resolve;
+        }),
+      );
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+      });
+
+      queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: "upstream_dag" }), {
+        ...upstreamDag,
+        is_paused: cachedPaused,
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <CreateAssetEventModal asset={asset} onClose={vi.fn()} open />
+        </QueryClientProvider>,
+        { wrapper: Wrapper },
+      );
+      fireEvent.click(screen.getByText("createEvent.materialize.label"));
+      expect(screen.getByText("submit materialize")).toBeDisabled();
+      fireEvent.click(screen.getByText("submit materialize"));
+      expect(materializeAsset).not.toHaveBeenCalled();
+      act(() => {
+        resolveDag?.({ ...upstreamDag, is_paused: !cachedPaused });
+      });
+      await waitFor(() => expect(screen.getByText("submit materialize")).toBeEnabled());
+      expect(screen.getByText(`paused=${String(!cachedPaused)}`)).toBeInTheDocument();
+      getDag.mockRestore();
+    },
+  );
+
+  it("blocks materialization after the Dag refresh fails", () => {
+    vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+      data: upstreamDag,
+      isError: true,
+      isFetching: false,
+    } as ReturnType<typeof useDagServiceGetDagDetails>);
+    render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+    fireEvent.click(screen.getByText("createEvent.materialize.label"));
+    expect(screen.getByText("submit materialize")).toBeDisabled();
+  });
+
+  it("resets a materialization error when the paused Dag choice changes", () => {
+    vi.mocked(useAssetServiceMaterializeAsset).mockReturnValue({
+      error: { status: 403 },
+      isPending: false,
+      mutate: materializeAsset,
+      reset: resetMaterializeError,
+    } as unknown as ReturnType<typeof useAssetServiceMaterializeAsset>);
+    vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+      data: { ...upstreamDag, is_paused: true },
+    } as ReturnType<typeof useDagServiceGetDagDetails>);
+    render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+    fireEvent.click(screen.getByText("createEvent.materialize.label"));
+    fireEvent.click(screen.getByText("Keep paused"));
+    expect(resetMaterializeError).toHaveBeenCalledOnce();
   });
 
   it("renders the manual partition key field as a plain text Input, not the JSON editor", () => {

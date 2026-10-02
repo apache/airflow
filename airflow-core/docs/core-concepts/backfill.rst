@@ -94,6 +94,7 @@ For UI, follow the following steps:
      including the backfill's, start or resume without creating scheduled ones, and pauses the Dag again once
      they finish (see :ref:`concepts:dag-pausing`); **Keep paused** leaves the backfill runs queued until the
      Dag is unpaused. Both **Unpause** and **Drain** show how many unfinished Dag runs will start or resume.
+     Paused backfills remain paused under all three choices.
 
 .. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)

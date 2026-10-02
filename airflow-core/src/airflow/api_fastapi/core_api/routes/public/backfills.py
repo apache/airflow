@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Annotated, NoReturn
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
 from sqlalchemy import select, update
@@ -26,6 +26,8 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -48,11 +50,10 @@ from airflow.api_fastapi.core_api.security import (
     BACKFILL_NOT_FOUND,
     GetUserDep,
     requires_access_backfill,
-    requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
-from airflow.models import DagRun
+from airflow.models import DagModel, DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
@@ -294,7 +295,6 @@ def create_backfill(
     backfill_request: BackfillPostBody,
     user: GetUserDep,
     session: SessionDep,
-    request: Request,
 ) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
@@ -304,8 +304,18 @@ def create_backfill(
         session,
         fallback=True,
     )
-    if backfill_request.drain_dag:
-        requires_access_dag(method="PUT", param_dag_id=backfill_request.dag_id)(request, user)
+    if backfill_request.drain_dag and not get_auth_manager().is_authorized_dag(
+        method="PUT",
+        details=DagDetails(
+            id=backfill_request.dag_id,
+            team_name=DagModel.get_team_name(backfill_request.dag_id, session=session),
+        ),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"Draining requires permission to edit Dag: {backfill_request.dag_id}",
+        )
     try:
         backfill_obj = _create_backfill(
             dag_id=backfill_request.dag_id,

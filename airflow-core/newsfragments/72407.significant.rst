@@ -10,9 +10,11 @@ After outstanding Dag runs finish, the Dag automatically transitions to
 
 Manual runs, backfills and asset materializations on a paused Dag can drain
 the Dag instead of unpausing it: choose **Drain** in the UI, or set
-``drain_dag`` in the REST API request. Draining lets every unfinished run of
-the Dag start or resume, not only the new one, creates no scheduled runs, and
-pauses the Dag again once they finish.
+``drain_dag`` in the REST API request. Draining lets unfinished runs of
+the Dag start or resume, except those held by paused backfills, creates no
+scheduled runs, and pauses the Dag again once all unfinished runs finish.
+Paused backfills remain paused and must be resumed for their runs to finish
+and draining to complete.
 
 The UI, REST API, and ``airflowctl`` expose the ``active``, ``draining``, and
 ``paused`` scheduling states, and the Dags list can pause, drain, or unpause

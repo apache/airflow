@@ -132,14 +132,14 @@
   },
   "pausedDag": {
     "drain": "Drain",
-    "drainDescription": "Unfinished runs continue, but no scheduled runs are created. The Dag pauses again once they finish.",
+    "drainDescription": "Unfinished runs continue, but no scheduled runs are created. Paused backfills stay paused. The Dag pauses again once all unfinished runs finish.",
     "keepPaused": "Keep paused",
     "keepPausedDescription": "New and unfinished runs wait until the Dag is unpaused.",
     "title": "Dag is paused",
     "unfinishedRunsWillRun_one": "1 unfinished Dag run will start or resume.",
     "unfinishedRunsWillRun_other": "{{count}} unfinished Dag runs will start or resume.",
     "unpause": "Unpause",
-    "unpauseDescription": "The Dag becomes active: unfinished runs continue and the schedule resumes."
+    "unpauseDescription": "The Dag becomes active: unfinished runs continue and the schedule resumes. Paused backfills stay paused."
   },
   "reparseDag": "Reparse Dag",
   "slowestTaskInstances": {

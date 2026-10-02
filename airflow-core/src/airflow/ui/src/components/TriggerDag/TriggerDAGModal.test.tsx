@@ -18,11 +18,15 @@
  */
 import type { ReactNode } from "react";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type * as OpenapiQueries from "openapi/queries";
+import { UseDagServiceGetDagKeyFn } from "openapi/queries";
+import { CancelablePromise } from "openapi/requests/core/CancelablePromise";
+import { BackfillService, DagRunService, DagService } from "openapi/requests/services.gen";
+import type { DAGResponse, TriggerDagRunResponse } from "openapi/requests/types.gen";
 
 import type * as Ui from "src/system-components";
 
@@ -40,43 +44,195 @@ vi.mock("src/system-components", async (importOriginal) => {
   };
 });
 
-vi.mock("./TriggerDAGForm", () => ({
-  default: ({ isPaused }: { readonly isPaused: boolean }) => <div>{`form isPaused=${String(isPaused)}`}</div>,
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: { language: "en" },
+    // eslint-disable-next-line id-length
+    t: (key: string) => key,
+  }),
 }));
-
-vi.mock("src/queries/useTrigger", () => ({
-  useTrigger: () => ({ error: undefined, isPending: false, triggerDagRun: vi.fn() }),
+vi.mock("src/queries/useDagParams", () => ({
+  useDagParams: () => ({ paramsDict: {} }),
 }));
-
-vi.mock("openapi/queries", async (importOriginal) => {
-  const actual = await importOriginal<typeof OpenapiQueries>();
-
-  return { ...actual, useDagServiceGetDag: vi.fn() };
-});
-
-const { useDagServiceGetDag } = await import("openapi/queries");
+vi.mock("src/queries/useParamStore", () => ({
+  useParamStore: () => ({ conf: "{}", initialParamDict: {}, setConf: vi.fn(), setInitialParamDict: vi.fn() }),
+}));
+vi.mock("../ConfigForm", () => ({ default: () => <div /> }));
+vi.mock("../DateTimeInput", () => ({
+  DateTimeInput: ({ value }: { readonly value?: string }) => (
+    <input aria-label="Logical Date" readOnly value={value} />
+  ),
+}));
+vi.mock("../DagActions/RunBackfillForm", () => ({
+  default: ({ disabled }: { readonly disabled?: boolean }) => (
+    <button disabled={disabled} type="button">
+      submit backfill
+    </button>
+  ),
+}));
 
 const DAG_ID = "paused_dag";
+const dag = {
+  dag_id: DAG_ID,
+  is_backfillable: true,
+  is_paused: true,
+  timetable_partitioned: false,
+  timetable_summary: null,
+} as DAGResponse;
+
+const renderModal = (queryClient: QueryClient, onClose = vi.fn()) =>
+  render(
+    <QueryClientProvider client={queryClient}>
+      <TriggerDAGModal dagDisplayName={DAG_ID} dagId={DAG_ID} onClose={onClose} open />
+    </QueryClientProvider>,
+    { wrapper: Wrapper },
+  );
+
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { mutations: { retry: false }, queries: { retry: false, staleTime: 5 * 60 * 1000 } },
+  });
 
 describe("TriggerDAGModal", () => {
   beforeEach(() => {
-    vi.mocked(useDagServiceGetDag).mockReturnValue({
-      data: { dag_id: DAG_ID, is_backfillable: false, is_paused: true, timetable_summary: null },
-      isError: false,
-      isLoading: false,
-    } as unknown as ReturnType<typeof useDagServiceGetDag>);
+    vi.spyOn(DagService, "getDag").mockResolvedValue(dag);
+    vi.spyOn(BackfillService, "listBackfillsUi").mockResolvedValue({ backfills: [], total_entries: 0 });
+    vi.spyOn(DagRunService, "getDagRuns").mockResolvedValue({ dag_runs: [], total_entries: 0 });
+    vi.spyOn(DagRunService, "triggerDagRun").mockResolvedValue({
+      dag_id: DAG_ID,
+      dag_run_id: "manual__run",
+    } as TriggerDagRunResponse);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("passes the paused state it fetches on open to the form", async () => {
+    renderModal(createQueryClient());
+    expect(await screen.findByText("pausedDag.title")).toBeVisible();
+    expect(DagService.getDag).toHaveBeenCalledWith({ dagId: DAG_ID });
   });
 
-  it("passes the paused state it fetches on open to the form", () => {
-    render(<TriggerDAGModal dagDisplayName={DAG_ID} dagId={DAG_ID} onClose={vi.fn()} open />, {
-      wrapper: Wrapper,
-    });
+  it.each([false, true])(
+    "blocks submission until the cached paused=%s state is refreshed",
+    async (cachedPaused) => {
+      let resolveDag: ((value: DAGResponse) => void) | undefined;
 
-    expect(screen.getByText("form isPaused=true")).toBeInTheDocument();
-    expect(useDagServiceGetDag).toHaveBeenCalledWith(
-      { dagId: DAG_ID },
-      undefined,
-      expect.objectContaining({ enabled: true, staleTime: 0 }),
+      vi.mocked(DagService.getDag).mockReturnValue(
+        new CancelablePromise((resolve) => {
+          resolveDag = resolve;
+        }),
+      );
+      const queryClient = createQueryClient();
+
+      queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), {
+        ...dag,
+        is_paused: cachedPaused,
+      });
+      renderModal(queryClient);
+      const logicalDate = screen.getByLabelText("Logical Date");
+      const submit = screen.getByTestId("trigger-dag-submit");
+
+      if (cachedPaused) {
+        fireEvent.click(screen.getByText("pausedDag.drain"));
+      }
+      expect(submit).toBeDisabled();
+      fireEvent.click(submit);
+      expect(DagRunService.triggerDagRun).not.toHaveBeenCalled();
+
+      act(() => {
+        resolveDag?.({ ...dag, is_paused: !cachedPaused });
+      });
+      await waitFor(() => expect(submit).toBeEnabled());
+      expect(screen.getByLabelText("Logical Date")).toBe(logicalDate);
+      if (!cachedPaused) {
+        fireEvent.click(screen.getByText("pausedDag.drain"));
+        await waitFor(() => expect(screen.getByRole("radio", { name: "pausedDag.drain" })).toBeChecked());
+      }
+      fireEvent.click(submit);
+      await waitFor(() =>
+        expect(DagRunService.triggerDagRun).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requestBody: expect.objectContaining({ drain_dag: !cachedPaused }) as unknown,
+          }),
+        ),
+      );
+    },
+  );
+
+  it("also blocks backfill submission while refreshing the Dag", async () => {
+    let resolveDag: ((value: DAGResponse) => void) | undefined;
+
+    vi.mocked(DagService.getDag).mockReturnValue(
+      new CancelablePromise((resolve) => {
+        resolveDag = resolve;
+      }),
+    );
+    const queryClient = createQueryClient();
+
+    queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), dag);
+    renderModal(queryClient);
+    fireEvent.click(screen.getByText("backfill.selectLabel"));
+    expect(await screen.findByText("submit backfill")).toBeDisabled();
+    act(() => {
+      resolveDag?.(dag);
+    });
+    await waitFor(() => expect(screen.getByText("submit backfill")).toBeEnabled());
+  });
+
+  it("does not allow a cached Dag to be submitted after its refresh fails", async () => {
+    vi.mocked(DagService.getDag).mockRejectedValue(new Error("Unavailable"));
+    const queryClient = createQueryClient();
+
+    queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), dag);
+    renderModal(queryClient);
+    expect(await screen.findByText("triggerDag.loadingFailed")).toBeVisible();
+    expect(screen.queryByTestId("trigger-dag-submit")).not.toBeInTheDocument();
+    expect(DagRunService.triggerDagRun).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pending request disabled when the paused Dag choice changes", async () => {
+    let resolveRun: ((value: TriggerDagRunResponse) => void) | undefined;
+
+    vi.mocked(DagRunService.triggerDagRun).mockReturnValue(
+      new CancelablePromise((resolve) => {
+        resolveRun = resolve;
+      }),
+    );
+    const onClose = vi.fn();
+
+    renderModal(createQueryClient(), onClose);
+    fireEvent.click(await screen.findByText("pausedDag.drain"));
+    await waitFor(() => expect(screen.getByRole("radio", { name: "pausedDag.drain" })).toBeChecked());
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+    await waitFor(() => expect(DagRunService.triggerDagRun).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByText("pausedDag.keepPaused"));
+    await waitFor(() => expect(screen.getByRole("radio", { name: "pausedDag.keepPaused" })).toBeChecked());
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+    act(() => {
+      resolveRun?.({ dag_id: DAG_ID, dag_run_id: "manual__run" } as TriggerDagRunResponse);
+    });
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
+
+  it("recovers from a denied drain by choosing Keep paused without reopening", async () => {
+    const detail = "Draining requires permission to edit Dag: paused_dag";
+
+    vi.mocked(DagRunService.triggerDagRun).mockRejectedValueOnce({ body: { detail }, status: 403 });
+    const onClose = vi.fn();
+
+    renderModal(createQueryClient(), onClose);
+    fireEvent.click(await screen.findByText("pausedDag.drain"));
+    await waitFor(() => expect(screen.getByRole("radio", { name: "pausedDag.drain" })).toBeChecked());
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+    expect(await screen.findByText(detail)).toBeVisible();
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+
+    fireEvent.click(screen.getByText("pausedDag.keepPaused"));
+    await waitFor(() => expect(screen.getByTestId("trigger-dag-submit")).toBeEnabled());
+    expect(screen.queryByText(detail)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(DagRunService.triggerDagRun).toHaveBeenLastCalledWith(
+      expect.objectContaining({ requestBody: expect.objectContaining({ drain_dag: false }) as unknown }),
     );
   });
 });

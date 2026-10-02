@@ -21,12 +21,17 @@ import type { ReactNode } from "react";
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { UseDagRunServiceGetDagRunsKeyFn } from "openapi/queries";
+import { UseBackfillServiceListBackfillsUiKeyFn, UseDagRunServiceGetDagRunsKeyFn } from "openapi/queries";
+import { CancelablePromise } from "openapi/requests/core/CancelablePromise";
 import { BackfillService, DagRunService } from "openapi/requests/services.gen";
-import type { BackfillResponse, DAGRunCollectionResponse } from "openapi/requests/types.gen";
+import type {
+  BackfillCollectionResponse,
+  BackfillResponse,
+  DAGRunCollectionResponse,
+} from "openapi/requests/types.gen";
 
 import PausedDagOptions from "./PausedDagOptions";
 
@@ -64,7 +69,9 @@ const createWrapper = (queryClient: QueryClient) => {
 const createQueryClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } });
 
-beforeEach(() => serveActiveBackfills([]));
+beforeEach(() => {
+  serveActiveBackfills([]);
+});
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -89,6 +96,7 @@ describe("PausedDagOptions", () => {
     expect(screen.getByText("pausedDag.unpause")).toBeVisible();
     expect(screen.getByText("pausedDag.drain")).toBeVisible();
     expect(screen.getByText("pausedDag.keepPaused")).toBeVisible();
+    expect(screen.getByRole("radiogroup", { name: "pausedDag.title" })).toBeVisible();
   });
 
   it("reports the option the user picks", async () => {
@@ -181,6 +189,62 @@ describe("PausedDagOptions", () => {
     await waitFor(() =>
       expect(queryClient.getQueryData<DAGRunCollectionResponse>(queryKey)?.total_entries).toBe(0),
     );
+    expect(screen.queryByText(COUNT_TEXT)).not.toBeInTheDocument();
+  });
+
+  it.each([false, true])(
+    "waits for fresh backfill state before counting runs (cached=%s)",
+    async (cached) => {
+      let resolveBackfills: ((value: BackfillCollectionResponse) => void) | undefined;
+
+      vi.mocked(BackfillService.listBackfillsUi).mockReturnValue(
+        new CancelablePromise((resolve) => {
+          resolveBackfills = resolve;
+        }),
+      );
+      const getDagRuns = serveUnfinishedRuns(2);
+      const queryClient = createQueryClient();
+
+      if (cached) {
+        queryClient.setQueryData(UseBackfillServiceListBackfillsUiKeyFn({ active: true, dagId: DAG_ID }), {
+          backfills: [{ dag_id: DAG_ID, id: 1, is_paused: false }],
+          total_entries: 1,
+        });
+      }
+      render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="drain" />, {
+        wrapper: createWrapper(queryClient),
+      });
+      await waitFor(() => expect(BackfillService.listBackfillsUi).toHaveBeenCalled());
+      expect(getDagRuns).not.toHaveBeenCalled();
+      expect(screen.queryByText(COUNT_TEXT)).not.toBeInTheDocument();
+      act(() => {
+        resolveBackfills?.({
+          backfills: [{ dag_id: DAG_ID, id: 1, is_paused: true } as BackfillResponse],
+          total_entries: 1,
+        });
+      });
+      expect(await screen.findAllByText("pausedDag.unfinishedRunsWillRun:2")).toHaveLength(2);
+      expect(getDagRuns).toHaveBeenCalledTimes(1);
+      expect(getDagRuns).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runType: ["scheduled", "manual", "operator_triggered", "asset_triggered", "asset_materialization"],
+        }),
+      );
+    },
+  );
+
+  it("does not count runs when the backfill refresh fails", async () => {
+    vi.mocked(BackfillService.listBackfillsUi).mockRejectedValue(new Error("Unavailable"));
+    const getDagRuns = serveUnfinishedRuns(2);
+    const queryClient = createQueryClient();
+    const queryKey = UseBackfillServiceListBackfillsUiKeyFn({ active: true, dagId: DAG_ID });
+
+    queryClient.setQueryData(queryKey, { backfills: [], total_entries: 0 });
+    render(<PausedDagOptions dagId={DAG_ID} onChange={vi.fn()} value="drain" />, {
+      wrapper: createWrapper(queryClient),
+    });
+    await waitFor(() => expect(queryClient.getQueryState(queryKey)?.status).toBe("error"));
+    expect(getDagRuns).not.toHaveBeenCalled();
     expect(screen.queryByText(COUNT_TEXT)).not.toBeInTheDocument();
   });
 });

@@ -514,11 +514,9 @@ class DagModel(Base):
         """
         Put the Dag into the draining state.
 
-        Call this in the transaction that creates the explicit run the drain is started for,
-        before the run is inserted. The row lock keeps ``_finalize_draining_dags`` from
-        pausing the Dag before that run is committed. Taking it after the insert could
-        deadlock on MySQL, where the insert's foreign-key check already holds a shared lock
-        on the Dag row that concurrent triggers would both try to upgrade.
+        Lock the Dag row and change its scheduling state in the caller's transaction.
+        Call this in the transaction that creates the explicit runs so the state change
+        commits or rolls back with them.
         """
         dag_model = session.scalars(
             with_row_locks(

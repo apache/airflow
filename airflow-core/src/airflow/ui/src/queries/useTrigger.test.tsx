@@ -60,20 +60,20 @@ describe("useTrigger", () => {
     } as unknown as ReturnType<typeof useDagRunServiceTriggerDagRun>);
   });
 
-  it("sends the drain choice as drain_dag", () => {
+  it.each([true, false])("sends the drain choice as drain_dag=%s", (drainDag) => {
     const { result } = renderHook(() => useTrigger({ dagId: DAG_ID, onSuccessConfirm: vi.fn() }), {
       wrapper: Wrapper,
     });
 
-    result.current.triggerDagRun({ ...triggerParams, drainDag: true });
+    result.current.triggerDagRun({ ...triggerParams, drainDag });
 
     expect(mutate).toHaveBeenCalledWith({
       dagId: DAG_ID,
-      requestBody: expect.objectContaining({ drain_dag: true }) as unknown,
+      requestBody: expect.objectContaining({ drain_dag: drainDag }) as unknown,
     });
   });
 
-  it.each([true, false])("refreshes the Dag's scheduling state only when drain_dag=%s", async (drainDag) => {
+  it.each([true, false])("sets Dag-state refresh to %s according to drain_dag", async (drainDag) => {
     const invalidateSpy = vi.spyOn(QueryClient.prototype, "invalidateQueries").mockResolvedValue();
 
     renderHook(() => useTrigger({ dagId: DAG_ID, onSuccessConfirm: vi.fn() }), { wrapper: Wrapper });

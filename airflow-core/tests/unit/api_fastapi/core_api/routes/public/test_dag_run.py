@@ -3844,11 +3844,10 @@ class TestTriggerDagRun:
         session.expire_all()
         assert session.get(DagModel, DAG1_ID).scheduling_state == DagSchedulingState.PAUSED
         if drain_dag:
+            assert response.json()["detail"] == f"Draining requires permission to edit Dag: {DAG1_ID}"
             assert session.scalar(count_dag_runs) == dag_runs_before
             assert (
-                mock.call(
-                    mock.ANY, method="PUT", access_entity=None, details=DagDetails(id=DAG1_ID), user=mock.ANY
-                )
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=DAG1_ID), user=mock.ANY)
                 in deny_dag_edit_access.call_args_list
             )
 

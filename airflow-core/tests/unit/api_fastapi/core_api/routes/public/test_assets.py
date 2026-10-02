@@ -2382,26 +2382,33 @@ class TestPostAssetMaterialize(TestAssets):
         session.expire_all()
         assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == expected_state
 
-    def test_drain_dag_requires_dag_edit_access(self, test_client, session, deny_dag_edit_access):
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_status"),
+        [({"drain_dag": True}, 403), ({"drain_dag": False}, 200), ({}, 200)],
+    )
+    def test_drain_dag_requires_dag_edit_access(
+        self, test_client, session, deny_dag_edit_access, request_fields, expected_status
+    ):
         session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
         session.commit()
 
-        response = test_client.post("/assets/1/materialize", json={"drain_dag": True})
+        response = test_client.post("/assets/1/materialize", json=request_fields)
 
-        assert response.status_code == 403
+        assert response.status_code == expected_status
         session.expire_all()
         assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == DagSchedulingState.PAUSED
-        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
-        assert (
-            mock.call(
-                mock.ANY,
-                method="PUT",
-                access_entity=None,
-                details=DagDetails(id=self.DAG_ASSET1_ID),
-                user=mock.ANY,
+        if expected_status == 403:
+            assert (
+                response.json()["detail"] == f"Draining requires permission to edit Dag: {self.DAG_ASSET1_ID}"
             )
-            in deny_dag_edit_access.call_args_list
-        )
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=self.DAG_ASSET1_ID), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+        else:
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 1
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_partition_key(self, test_client):

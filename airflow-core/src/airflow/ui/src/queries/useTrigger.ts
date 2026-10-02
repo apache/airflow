@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
-
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -39,7 +37,6 @@ import { createErrorToaster, toNullablePartitionKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
-  const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("components");
   const navigate = useNavigate();
   const location = useLocation();
@@ -86,10 +83,14 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
   const onError = (apiError: unknown) => {
     createErrorToaster(apiError, { titleKey: "components:triggerDag.toaster.error.title" }, translate);
-    setError(apiError);
   };
 
-  const { isPending, mutate } = useDagRunServiceTriggerDagRun({
+  const {
+    error,
+    isPending,
+    mutate,
+    reset: resetError,
+  } = useDagRunServiceTriggerDagRun({
     onError,
     onSuccess,
   });
@@ -131,6 +132,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   return {
     error,
     isPending,
+    resetError,
     triggerDagRun,
   };
 };

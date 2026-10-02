@@ -55,6 +55,7 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
   const {
     data: dag,
     isError,
+    isFetching,
     isLoading,
   } = useDagServiceGetDag(
     {
@@ -72,7 +73,7 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
   const isPaused = dag?.is_paused ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
-  const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
+  const { error, isPending, resetError, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
@@ -135,17 +136,19 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
           {runMode === RunMode.SINGLE ? (
             <TriggerDAGForm
               dagId={dagId}
+              disabled={isFetching}
               error={error}
               hasSchedule={hasSchedule}
               isPartitioned={isPartitioned}
               isPaused={isPaused}
               isPending={isPending}
+              onPausedDagActionChange={Boolean(error) ? resetError : undefined}
               onSubmitTrigger={triggerDagRun}
               open={open}
               prefillConfig={prefillConfig}
             />
           ) : (
-            isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
+            isBackfillable && dag && <RunBackfillForm dag={dag} disabled={isFetching} onClose={onClose} />
           )}
         </>
       )}

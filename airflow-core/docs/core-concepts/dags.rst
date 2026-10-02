@@ -817,10 +817,11 @@ to make the Dag active again.
 
 A manual run, backfill or asset materialization on a paused Dag can drain the Dag instead of unpausing it.
 Choose **Drain** under **Dag is paused** in the UI form, or set ``drain_dag`` to ``true`` in the REST API
-request. This changes the whole Dag, not only the new run: every unfinished Dag run proceeds, so Dag runs that
-were queued while the Dag was paused start and running Dag runs resume their held tasks. The scheduler creates
-no new Dag runs, and the Dag pauses again once they all finish. The Dag starts draining in the same
-transaction that creates the run, so if the run is rejected, the Dag stays paused. Setting ``drain_dag`` on an
+request. This changes the whole Dag, not only the new run: unfinished Dag runs can start or resume, except
+those held by paused backfills. Paused backfills remain paused, and their unfinished runs prevent draining
+from completing until those backfills are resumed and their runs finish. The scheduler creates no scheduled
+or asset-triggered Dag runs, and the Dag pauses again once all unfinished runs finish. The Dag starts draining
+in the same transaction that creates the run, so if the run is rejected, the Dag stays paused. Setting ``drain_dag`` on an
 active Dag drains it the same way, so the Dag also ends up paused. Because it changes the Dag's scheduling
 state, ``drain_dag`` requires the same permission as pausing the Dag, in addition to the permission to create
 the run.

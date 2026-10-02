@@ -818,7 +818,14 @@ def trigger_dag_run(
                 )
 
         if body.drain_dag:
-            requires_access_dag(method="PUT", param_dag_id=dag_id)(request, user)
+            if not get_auth_manager().is_authorized_dag(
+                method="PUT",
+                details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
+                user=user,
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, f"Draining requires permission to edit Dag: {dag_id}"
+                )
             DagModel.start_drain(dag_id, session=session)
 
         dag_run = dag.create_dagrun(

@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useBackfillServiceListBackfillsUi, useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DagRunType } from "openapi/requests/types.gen";
 
-import { RadioCardItem, RadioCardRoot } from "src/system-components";
+import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/system-components";
 
 import type { PausedDagAction } from "./types";
 
@@ -48,15 +48,23 @@ type PausedDagOptionsProps = {
 
 const PausedDagOptions = ({ dagId, onChange, value }: PausedDagOptionsProps) => {
   const { t: translate } = useTranslation("components");
-  // Unpausing or draining lets every unfinished run proceed, not only the one being created. The cached
-  // count can predate runs that have since finished (e.g. the run of an earlier drain), so it is
-  // refetched and only trusted once fetched for this form.
-  const { data: activeBackfills } = useBackfillServiceListBackfillsUi({ active: true, dagId }, undefined, {
+  const {
+    data: activeBackfills,
+    isFetchedAfterMount: areBackfillsFetched,
+    isFetching: areBackfillsFetching,
+    isSuccess: areBackfillsSuccessful,
+  } = useBackfillServiceListBackfillsUi({ active: true, dagId }, undefined, {
     staleTime: 0,
   });
+  const areBackfillsReady = areBackfillsFetched && areBackfillsSuccessful && !areBackfillsFetching;
   // A paused backfill's runs do not start while it stays paused, whichever option is chosen.
   const isBackfillPaused = activeBackfills?.backfills.some((backfill) => backfill.is_paused) ?? false;
-  const { data: unfinishedRuns, isFetchedAfterMount } = useDagRunServiceGetDagRuns(
+  const {
+    data: unfinishedRuns,
+    isFetchedAfterMount,
+    isFetching,
+    isSuccess,
+  } = useDagRunServiceGetDagRuns(
     {
       dagId,
       limit: 1,
@@ -64,15 +72,15 @@ const PausedDagOptions = ({ dagId, onChange, value }: PausedDagOptionsProps) => 
       state: ["queued", "running"],
     },
     undefined,
-    { staleTime: 0 },
+    { enabled: areBackfillsReady, staleTime: 0 },
   );
-  const unfinishedRunCount = isFetchedAfterMount ? (unfinishedRuns?.total_entries ?? 0) : 0;
+  const unfinishedRunCount =
+    areBackfillsReady && isFetchedAfterMount && isSuccess && !isFetching
+      ? (unfinishedRuns.total_entries ?? 0)
+      : 0;
 
   return (
     <Box data-testid="paused-dag-options">
-      <Text fontSize="md" fontWeight="semibold" mb={3}>
-        {translate("pausedDag.title")}
-      </Text>
       <RadioCardRoot
         onValueChange={({ value: selected }) => {
           const option = PAUSED_DAG_OPTIONS.find((candidate) => candidate.value === selected);
@@ -84,6 +92,9 @@ const PausedDagOptions = ({ dagId, onChange, value }: PausedDagOptionsProps) => 
         size="sm"
         value={value}
       >
+        <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
+          {translate("pausedDag.title")}
+        </RadioCardLabel>
         <HStack align="stretch">
           {PAUSED_DAG_OPTIONS.map((option) => (
             <RadioCardItem

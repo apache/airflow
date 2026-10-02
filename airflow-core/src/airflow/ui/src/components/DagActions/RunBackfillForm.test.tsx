@@ -69,6 +69,7 @@ vi.mock("src/queries/useCreateBackfillDryRun", () => ({
 }));
 
 const createBackfillMock = vi.hoisted(() => vi.fn());
+const resetErrorMock = vi.hoisted(() => vi.fn());
 const togglePauseMock = vi.hoisted(() => vi.fn());
 
 vi.mock("src/queries/useCreateBackfill", () => ({
@@ -77,6 +78,7 @@ vi.mock("src/queries/useCreateBackfill", () => ({
     dateValidationError: undefined,
     error: undefined,
     isPending: false,
+    resetError: resetErrorMock,
   })),
 }));
 
@@ -120,11 +122,13 @@ const baseDag = {
 
 const { useDagServiceGetDagDetails } = await import("openapi/queries");
 const { useCreateBackfillDryRun } = await import("src/queries/useCreateBackfillDryRun");
+const { useCreateBackfill } = await import("src/queries/useCreateBackfill");
 
 describe("RunBackfillForm", () => {
   beforeEach(() => {
     createBackfillMock.mockClear();
     togglePauseMock.mockClear();
+    resetErrorMock.mockClear();
   });
 
   it.each([
@@ -171,6 +175,35 @@ describe("RunBackfillForm", () => {
       }
     },
   );
+
+  it("clears a failed backfill request when the paused Dag choice changes", async () => {
+    vi.mocked(useCreateBackfill).mockReturnValue({
+      createBackfill: createBackfillMock,
+      dateValidationError: undefined,
+      error: { status: 403 },
+      isPending: false,
+      resetError: resetErrorMock,
+    });
+    render(<RunBackfillForm dag={{ ...baseDag, is_paused: true } as never} onClose={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+    fireEvent.click(screen.getByText("pausedDag.keepPaused"));
+    await waitFor(() => expect(resetErrorMock).toHaveBeenCalledOnce());
+  });
+
+  it("does not submit or unpause while the Dag is being refreshed", () => {
+    vi.mocked(useCreateBackfillDryRun).mockReturnValue({
+      data: { backfills: [{ logical_date: "2024-01-01T00:00:00Z" }], total_entries: 1 },
+      isPending: false,
+    } as ReturnType<typeof useCreateBackfillDryRun>);
+    render(<RunBackfillForm dag={{ ...baseDag, is_paused: true } as never} disabled onClose={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+    expect(screen.getByText("Run Backfill")).toBeDisabled();
+    fireEvent.click(screen.getByText("Run Backfill"));
+    expect(createBackfillMock).not.toHaveBeenCalled();
+    expect(togglePauseMock).not.toHaveBeenCalled();
+  });
 
   it("shows 'Date Range' label for non-partitioned Dags", () => {
     vi.mocked(useDagServiceGetDagDetails).mockReturnValue({

@@ -40,11 +40,13 @@ import { dataIntervalModeOptions, type DagRunTriggerParams, type PausedDagAction
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
+  readonly disabled?: boolean;
   readonly error?: unknown;
   readonly hasSchedule: boolean;
   readonly isPartitioned: boolean;
   readonly isPaused: boolean;
   readonly isPending?: boolean;
+  readonly onPausedDagActionChange?: () => void;
   readonly onSubmitTrigger?: (params: DagRunTriggerParams) => void;
   readonly open: boolean;
   readonly prefillConfig?:
@@ -58,11 +60,13 @@ type TriggerDAGFormProps = {
 
 const TriggerDAGForm = ({
   dagId,
+  disabled = false,
   error,
   hasSchedule,
   isPartitioned,
   isPaused,
   isPending = false,
+  onPausedDagActionChange,
   onSubmitTrigger,
   open,
   prefillConfig,
@@ -151,6 +155,9 @@ const TriggerDAGForm = ({
     dataIntervalMode === "manual" &&
     (noDataInterval || dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd)));
   const onSubmit = (data: DagRunTriggerParams) => {
+    if (disabled) {
+      return;
+    }
     if (pausedDagAction === "unpause" && isPaused) {
       togglePause({ dagId, requestBody: { is_paused: false } });
     }
@@ -235,7 +242,14 @@ const TriggerDAGForm = ({
         )}
         {isPaused ? (
           <>
-            <PausedDagOptions dagId={dagId} onChange={setPausedDagAction} value={pausedDagAction} />
+            <PausedDagOptions
+              dagId={dagId}
+              onChange={(action) => {
+                setPausedDagAction(action);
+                onPausedDagActionChange?.();
+              }}
+              value={pausedDagAction}
+            />
             <Spacer />
           </>
         ) : undefined}
@@ -255,6 +269,7 @@ const TriggerDAGForm = ({
           <Button
             data-testid="trigger-dag-submit"
             disabled={
+              disabled ||
               Boolean(errors.conf) ||
               Boolean(errors.date) ||
               formError ||

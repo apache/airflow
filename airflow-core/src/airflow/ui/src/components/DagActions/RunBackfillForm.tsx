@@ -46,11 +46,12 @@ import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
+  readonly disabled?: boolean;
   readonly onClose: () => void;
 };
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
 
-const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
+const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [pausedDagAction, setPausedDagAction] = useState<PausedDagAction>("unpause");
@@ -99,7 +100,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     },
   });
   const { mutate: togglePause } = useTogglePause({ dagId: dag.dag_id });
-  const { createBackfill, dateValidationError, error, isPending } = useCreateBackfill({
+  const { createBackfill, dateValidationError, error, isPending, resetError } = useCreateBackfill({
     onSuccessConfirm: onClose,
   });
 
@@ -119,6 +120,9 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
 
   const onSubmit = (fdata: BackfillFormProps) => {
+    if (disabled) {
+      return;
+    }
     if (pausedDagAction === "unpause" && dag.is_paused) {
       togglePause({
         dagId: dag.dag_id,
@@ -258,7 +262,16 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Spacer />
         {dag.is_paused ? (
           <>
-            <PausedDagOptions dagId={dag.dag_id} onChange={setPausedDagAction} value={pausedDagAction} />
+            <PausedDagOptions
+              dagId={dag.dag_id}
+              onChange={(action) => {
+                setPausedDagAction(action);
+                if (Boolean(error)) {
+                  resetError();
+                }
+              }}
+              value={pausedDagAction}
+            />
             <Spacer />
           </>
         ) : undefined}
@@ -280,7 +293,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Button onClick={() => void handleSubmit(onCancel)()}>{translate("common:modal.cancel")}</Button>
           <Button
             disabled={
-              Boolean(errors.date) || isPendingDryRun || formError || affectedTasks.total_entries === 0
+              disabled ||
+              Boolean(errors.date) ||
+              isPendingDryRun ||
+              formError ||
+              affectedTasks.total_entries === 0
             }
             loading={isPending}
             onClick={() => void handleSubmit(onSubmit)()}

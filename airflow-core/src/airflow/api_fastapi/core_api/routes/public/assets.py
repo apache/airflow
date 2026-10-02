@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
@@ -451,7 +451,6 @@ def materialize_asset(
     user: GetUserDep,
     session: SessionDep,
     body: MaterializeAssetBody,
-    request: Request,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
@@ -511,7 +510,14 @@ def materialize_asset(
 
         params = body.validate_context(context_dag)
         if body.drain_dag:
-            requires_access_dag(method="PUT", param_dag_id=dag_id)(request, user)
+            if not get_auth_manager().is_authorized_dag(
+                method="PUT",
+                details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
+                user=user,
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, f"Draining requires permission to edit Dag: {dag_id}"
+                )
             DagModel.start_drain(dag_id, session=session)
         return dag.create_dagrun(
             run_id=params["run_id"],
