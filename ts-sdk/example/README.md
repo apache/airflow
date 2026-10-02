@@ -83,8 +83,10 @@ export AIRFLOW__SDK__COORDINATORS='{
 export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 ```
 
-With a single `NodeCoordinator`, `dag_bundle_name` is optional. It is set here because the bundle lives in
-`dist/`, outside the Dags folder; omit it if you copy the bundle into the same Dag bundle as the stub Dags.
+`dag_bundle_name` is only needed when more than one `NodeCoordinator` is configured, for example one per
+Node.js version. Each one must then name its own Dag bundle, so Dag processing knows which one starts Node.js
+to parse a bundle. With a single `NodeCoordinator` it is optional: omit it and the coordinator finds the bundle
+in the task's own Dag bundle.
 
 Copy both files in `dags/` into your Airflow Dags folder.
 

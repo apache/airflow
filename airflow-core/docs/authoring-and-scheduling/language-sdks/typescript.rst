@@ -238,10 +238,10 @@ variables):
     }
     queue_to_coordinator = {"typescript": "ts"}
 
-``dag_bundle_name`` is only needed when you configure more than one ``NodeCoordinator``. Each one must then
-name its own Dag bundle, otherwise the Dag importer cannot tell which coordinator should parse a ``*.min.mjs``
-bundle. With a single ``NodeCoordinator``, as here, it is optional: omit it and the coordinator finds the
-bundles in the task's own Dag bundle, the one that holds the Python stub Dag. ``queue_to_coordinator`` routes stub tasks with
+``dag_bundle_name`` is only needed when you configure more than one ``NodeCoordinator``, for example one per
+Node.js version. Each one must then name its own Dag bundle, so Dag processing knows which one starts Node.js
+to parse a ``*.min.mjs`` bundle. With a single ``NodeCoordinator``, as here, it is optional: omit it and the
+coordinator finds the bundles in the task's own Dag bundle. ``queue_to_coordinator`` routes stub tasks with
 ``queue="typescript"`` to this coordinator. See :ref:`typescript-sdk/coordinator-config` for the full list
 of accepted ``kwargs``.
 
@@ -526,7 +526,7 @@ Deploying
 ~~~~~~~~~
 
 Copy or mount the bundle into the Dag bundle the coordinator scans: the one named by ``dag_bundle_name``,
-or the stub Dag's own bundle. :class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag
+or the task's own Dag bundle. :class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag
 bundle recursively and launches the first integrity-verified ``*.min.mjs`` bundle whose metadata declares the
 task instance's Dag. The artifact's name does not matter beyond that suffix, so one Dag bundle can hold several
 bundles and a Dag is routed to whichever declares it. If multiple bundles declare the same Dag, the first in
@@ -567,7 +567,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   * Leave ``dag_bundle_name`` unset (the default) to load the bundle from the **task's own** Dag bundle,
     pinned to the version the run was created with. This is all you need with a single ``NodeCoordinator``.
   * With more than one ``NodeCoordinator``, set ``dag_bundle_name`` on each to a different Dag bundle, so
-    the Dag importer can tell which coordinator parses which bundle. The task uses the version that Dag
+    Dag processing knows which one starts Node.js to parse a bundle. The task uses the version that Dag
     bundle is on when it starts, pinned for the whole task.
 
 Limitations

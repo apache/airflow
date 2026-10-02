@@ -120,8 +120,10 @@ Now `cd example` into the example project, and
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'
   ```
 
-  With a single `JavaCoordinator`, `dag_bundle_name` is optional. It is set here because the JARs live in
-  `build/bundle`, outside the Dags folder; omit it if you ship the JARs in the same Dag bundle as the stub Dag.
+  `dag_bundle_name` is only needed when more than one `JavaCoordinator` is configured, for example `jdk-11` and
+  `jdk-17`. Each one must then name its own Dag bundle, so Dag processing knows which one starts the JVM that
+  parses a JAR. With a single `JavaCoordinator` it is optional: omit it and the coordinator finds the JARs in the
+  task's own Dag bundle.
 
 * Ensure the Connection and Variable needed by the example DAG are available:
 
