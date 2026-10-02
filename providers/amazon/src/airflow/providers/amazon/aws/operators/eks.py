@@ -49,9 +49,26 @@ from airflow.providers.amazon.aws.utils import (
 )
 from airflow.providers.amazon.aws.utils.mixins import AwsHookParams, aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
-from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+    conf,
+)
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
+except ImportError:
+
+    class KubernetesPodExecOperator(BaseOperator):  # type: ignore[no-redef]
+        """Keep existing EKS operators importable with older Kubernetes providers."""
+
+        def __init__(self, **kwargs):
+            raise AirflowOptionalProviderFeatureException(
+                "EksPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10.22.0."
+            )
+
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
