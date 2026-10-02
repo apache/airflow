@@ -335,7 +335,7 @@ The scheduler always names the artifact's bundle, by name only: it sends no vers
 
 The task's own bundle is read at the version the run uses: its pinned version, or the version current when the task starts if the run is not pinned. For a pinned run, the artifact then matches the Dag code the run is pinned to. A named bundle carries no version, since artifact rows record none, so it resolves to the version current when the task starts. Either way the resolved version is pinned for the whole task. The worker decides "own bundle" by name, so an artifact held by the Dag's own bundle is read at the version the run uses, whether the coordinator's `task_handler_bundle_name` names that bundle or leaves it unset.
 
-A workload without a reference names no artifact. That is the case for a Python task, a stub task on a queue no coordinator serves, a task of a Dag defined in a Lang SDK, a stub task with no recorded binding, and any stub task queued by a scheduler that lacks or cannot read the `[sdk]` configuration or its task handler Dag bundles. The scheduler never fails a task for a missing binding (see "Failure handling").
+A workload without a reference names no artifact. That is the case for a Python task, a stub task on a queue no coordinator serves, a task of a Dag defined in a Lang SDK, a stub task with no recorded binding, and any stub task queued by a scheduler that lacks or cannot read the `[sdk]` configuration or its task handler Dag bundles. The scheduler never fails a task for a missing binding (see "Failure handling"). The worker runs such a task's own Dag file when its coordinator accepts that file as an artifact, as a task of a Dag defined in a Lang SDK does, and fails the try with the reason when it does not.
 
 ### Flow 1) Dag processing: the write path
 
@@ -505,44 +505,57 @@ The scheduler needs the same `[sdk]` configuration as the Dag processor, includi
 executor worker process
   └── BaseExecutor.run_workload(workload)
         └── supervise_task(ti=…, bundle_info=…, dag_rel_path=…,
-                           task_handler_artifact=workload.task_handler_artifact)   ← new
+                           task_handler_artifact=workload.task_handler_artifact)
               │
               ├── coordinator = get_coordinator_manager().for_queue(ti.queue)
               │     unchanged: execution still routes on queue
               │
-              └── coordinator.execute_task(what=ti, …, task_handler_artifact=…)
-                    ├── bundle = initialize(the task's bundle_info when the reference has no bundle_info,
-                    │                       or names the task's own bundle without a version;
-                    │                       otherwise the reference's bundle_info)
-                    │                                             ← the artifact's bundle
-                    │                                               (the task's own, or a named one)
-                    │   pinned and held under BundleVersionLock for the whole task
-                    ├── bundle.path / rel_path is not a file in it?  → fail the task
-                    │
-                    └── SubprocessCoordinator._build_execute_task_command(
-                            what=ti, task_handler_artifact=…)        ← signature change
-                          │
-                          ├── artifact = bundle.path / task_handler_artifact.rel_path
-                          │   NO directory walk. NO dag_id match. NO metadata["dags"].
-                          │
-                          ├── verify integrity, read supervisor_schema_version
-                          │     Go   → AFBNDL01 trailer: SHA-256 over the binary
-                          │            region, exactly as today
-                          │     Java → Airflow-Supervisor-Schema-Version manifest attr
-                          │     TS   → //# airflowBundle= layout header: SHA-256 over
-                          │            all three regions, exactly as today
-                          │
-                          └── command
-                                Go   → [artifact]
-                                Java → [java, -classpath, <bundle root>/*, …, Main-Class]
-                                TS   → [node, artifact]
-                    │
-                    └── _PopenActivitySubprocess.start(…)
-                          ──StartupDetails(ti, dag_rel_path, bundle_info,
-                                           task_handler_artifact)──▶ runtime
-                          runtime looks up its own registration by
-                          (ti.dag_id, ti.task_id) — unchanged
+              ├── coordinator.execute_task(what=ti, …, task_handler_artifact=…)
+              │     │
+              │     ├── pick the ONE file to run, the way a Python task picks its Dag file:
+              │     │     reference  → its rel_path, in the task's bundle_info when the reference
+              │     │                  has no bundle_info or names the task's own bundle without
+              │     │                  a version, otherwise in the reference's bundle_info
+              │     │     none       → dag_rel_path in the task's bundle_info: how a task of a
+              │     │                  Dag defined in a Lang SDK runs
+              │     │   the bundle is initialized, pinned, and held under BundleVersionLock
+              │     │   for the whole task
+              │     │
+              │     ├── not a file in the bundle?                              → fail
+              │     ├── _read_task_handler_candidate(path) is None             → fail
+              │     │     not this coordinator's kind: a stub task's .py file is not one
+              │     ├── the candidate has an error?                            → fail
+              │     │     for example a Go bundle without the executable bit
+              │     │
+              │     ├── command, schema_version = _build_task_handler_command(path=…)
+              │     │     the hook the Dag processor's probe uses; NO search for the
+              │     │     artifact, NO dag_id match, NO metadata["dags"]
+              │     │     (Java still lists the bundle's JARs for its classpath and schema version)
+              │     │     verifies integrity and reads the supervisor_schema_version
+              │     │       Go   → AFBNDL01 trailer: SHA-256 over the binary region
+              │     │       Java → Airflow-Supervisor-Schema-Version manifest attr, or the
+              │     │              first one in the bundle's other JARs for a thin JAR
+              │     │       TS   → //# airflowBundle= layout header: SHA-256 over all
+              │     │              three regions
+              │     │     command
+              │     │       Go   → [artifact]
+              │     │       Java → [java, -classpath, <every JAR in the bundle>, …, main_class,
+              │     │              or the Main-Class of the JAR's manifest]
+              │     │       TS   → [node, artifact]
+              │     ├── schema_version, when there is one, resolved against the schema
+              │     │   versions the supervisor knows                          → unknown: fail
+              │     │
+              │     └── _PopenActivitySubprocess.start(…)
+              │           ──StartupDetails(ti, dag_rel_path, bundle_info,
+              │                            task_handler_artifact)──▶ runtime
+              │           runtime looks up its own registration by
+              │           (ti.dag_id, ti.task_id) (unchanged)
+              │
+              └── a failure above raises TaskHandlerArtifactError before the runtime starts
+                    → the supervisor fails the try with the reason (see Failure handling)
 ```
+
+Every failure states its reason and names the file, except that of a coordinator without the hooks, which names the hooks it lacks. A reason names the Dag bundle of the file, except the one for a task without a reference: a stub task nobody bound, whose Dag file is not an artifact of the coordinator. That one names the task, its Dag file and its queue, and points at the import errors of the Dag file and at the scheduler's `[sdk]` configuration. A reference to another coordinator's file says that a newer parse may route the task elsewhere.
 
 No database is read in this flow. The worker never queries the binding tables; everything it needs
 arrived on the workload. That is the property the whole design exists to buy.
@@ -586,7 +599,11 @@ already expresses "do not reconcile", so this needs no additional mechanism. The
 
 **A name mismatch under named binding.** A passed argument no param takes, or a param no argument fills, is a warning in the Dag file's parse log; the stub task is still bound.
 
-**A stub task has no binding at all.** The scheduler queues it without a reference and never fails a task. The binding can be missing for ordinary reasons: the Dag processor has not parsed the file since an upgrade, or a newer parse left the task unbound.
+**A stub task has no binding at all.** The scheduler queues it without a reference and never fails a task. The binding can be missing for ordinary reasons: the Dag processor has not parsed the file since an upgrade, or a newer parse left the task unbound. The worker then picks the task's own Dag file, a Python file that no coordinator runs, and fails the try with the reason in its task log. Retries apply, so the task runs once the binding is back.
+
+**The worker cannot run the artifact.** The referenced file is not in its bundle (renamed by a newer parse, or absent at the version a pinned run uses), it is not an artifact of the coordinator (a newer parse routed the task elsewhere), it cannot run (a file the worker cannot open, a Go bundle without the executable bit, an integrity check that fails), or its supervisor schema version is unknown to the worker's Task SDK. The coordinator raises `TaskHandlerArtifactError` before the runtime starts. The supervisor starts the task instance, writes the reason to the task log, reports the try as up for retry or failed with the reason as its state reason, uploads the task log and exits with 1. The reason is redacted and cut to the 500 characters the state reason holds. Retries apply. Task callbacks do not run, as for every coordinator task failure ([#74063](https://github.com/apache/airflow/issues/74063)). A task cleared while it was queued is left as the server set it. A runtime that fails to start, by a `Popen` error, a connect timeout or an exit before it connects, is not covered: the task instance stays queued, and its task log ends at `Running a Lang-SDK artifact`.
+
+**A coordinator cannot run tasks.** A `SubprocessCoordinator` that does not implement both `_read_task_handler_candidate` and `_build_task_handler_command` fails each task routed to it with a message naming the hooks it lacks.
 
 **Two artifacts claim one `(dag_id, task_id)`.** An import error against the Python file (the
 definition whose author can act) naming both artifact paths, since the fix is in the deployment.
@@ -594,7 +611,19 @@ definition whose author can act) naming both artifact paths, since the fix is in
 ## Consequences
 
 - Task execution stops searching. A worker resolves its artifact by path, from data that arrived on
-  the workload, with no directory walk and no database read.
+  the workload, with no directory walk and no database read. That holds for a task of a Dag defined in a
+  Lang SDK too: it runs its own Dag file, so no inventory of the Dags an artifact holds is read to find it.
+- `task_handler_bundle_name` matters only to the Dag processor, which lists and probes that bundle. A task
+  reads the bundle its artifact is in, so changing the setting does not move a task that is already bound.
+- A stub task runs only once the Dag processor has bound it, including after an upgrade. One queued without a
+  binding, by an older scheduler or before the first parse that binds it, fails with the reason in its task log,
+  and retries apply. Upgrade the Dag processor, the scheduler and the workers together.
+- `dag.test()` with an executor runs a stub task only once a Dag processor has bound it, as it sends the
+  artifact the Dag processor recorded.
+- One hook, `_build_task_handler_command`, starts an artifact for the probe and for a task, so the two cannot
+  disagree on how an artifact runs. Java's `main_class` applies to both, which makes every handler JAR in
+  its bundle report the same handlers, so keep one handler JAR per bundle when it is set. The Java candidate's
+  digest covers `main_class` when it is set, so changing it probes the JARs again.
 - Dag ids are never recorded at build time, so dynamic Dag rendering works: whatever the artifact
   registers when the Dag processor asks it is what gets recorded.
 - `jars_root` / `executables_root` / `bundles_root` are removed. Artifacts inherit download, refresh

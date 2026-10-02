@@ -139,7 +139,7 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  │      coordinator=JavaCoordinator("jdk-11"),                         │
         │  │      path=analytics.jar)                                            │
         │  │    │                                                                │
-        │  │    ├── in the child: _build_parse_task_handler_command()            │
+        │  │    ├── in the child: _build_task_handler_command()                  │
         │  │    │                 coordinator.parse_task_handler() — spawn JVM   │
         │  │    │                                                                │
         │  │    │   ──TaskHandlerParseRequest(file=analytics.jar)─────▶ JVM      │
