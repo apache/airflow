@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from subprocess import CompletedProcess
 from unittest.mock import MagicMock, call, patch
@@ -138,14 +139,19 @@ class TestSyncStagingToMain:
     @patch("airflow_breeze.commands.workflow_commands.user_confirm", autospec=True)
     @patch("airflow_breeze.commands.workflow_commands.get_staging_only_commits", autospec=True)
     def test_staging_only_commits_are_listed_and_counted(self, mock_get_commits, mock_confirm, mock_trigger):
-        mock_get_commits.side_effect = [["abc1234 Add staged docs", "def5678 Fix index"], []]
+        mock_get_commits.side_effect = [
+            ["abc1234 2026-09-30 Add staged docs", "def5678 2026-10-01 Fix index"],
+            [],
+        ]
         mock_confirm.return_value = Answer.YES
 
         result = CliRunner().invoke(workflow_run_sync_staging_to_main, [], catch_exceptions=False)
 
         assert result.exit_code == 0
-        assert "abc1234 Add staged docs" in result.output
-        assert "def5678 Fix index" in result.output
+        # rich highlights digits, so compare against the output with the ANSI codes removed
+        plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "abc1234 2026-09-30 Add staged docs" in plain_output
+        assert "def5678 2026-10-01 Fix index" in plain_output
         assert "2 commit(s) only on staging will be dropped" in mock_confirm.call_args.args[0]
         assert mock_trigger.call_count == 2
 
