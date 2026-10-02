@@ -297,7 +297,8 @@ class CoordinatorManager:
 
         :raises InvalidCoordinatorError: if two coordinators claim the same extension in a bundle.
         """
-        from airflow.sdk.importers.base import _normalize_extensions
+        # circular: importers.base imports this module at load time
+        from airflow.sdk.importers.base import normalize_extensions
 
         claims: list[tuple[str, frozenset[str] | None, frozenset[str]]] = []
         for key, spec in coordinator_specs.items():
@@ -310,7 +311,7 @@ class CoordinatorManager:
             bundles = coordinator_cls.get_parsed_bundles(spec.kwargs)
             if bundles is not None and not bundles:
                 continue
-            extensions = frozenset(_normalize_extensions(getattr(importer_cls, "supported_extensions", ())))
+            extensions = frozenset(normalize_extensions(getattr(importer_cls, "supported_extensions", ())))
             for other_key, other_bundles, other_extensions in claims:
                 shared = extensions & other_extensions
                 if shared and (bundles is None or other_bundles is None or bundles & other_bundles):
@@ -395,7 +396,7 @@ def reset_coordinator_manager() -> None:
     The cached Dag importer registries hold importers bound to its coordinators, so they are
     cleared too.
     """
-    from airflow.sdk.importers.base import get_importer_registry
+    # circular: importers.base imports this module at load time
+    from airflow.sdk.importers.base import reset_importer_registry
 
-    get_coordinator_manager.cache_clear()
-    get_importer_registry.cache_clear()
+    reset_importer_registry()
