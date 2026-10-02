@@ -46,7 +46,8 @@ from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
@@ -1588,33 +1589,56 @@ class TestDagFileProcessorManager:
         mock_start.assert_called_once()
         mock_lang_sdk_start.assert_not_called()
 
-    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
-    def test_create_process_drops_callbacks_for_a_coordinator_file(self, mock_get_logger, tmp_path, caplog):
-        mock_get_logger.return_value = (MagicMock(), MagicMock())
-        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("dags.native"), bundle_path=tmp_path)
-        callback = DagCallbackRequest(
-            filepath="dags.native",
-            dag_id="native_dag",
-            run_id="run",
-            bundle_name="testing",
-            bundle_version=None,
-            is_failure_callback=True,
-        )
-
+    @pytest.mark.parametrize(
+        ("request_", "expected"),
+        [
+            pytest.param(
+                DagCallbackRequest(
+                    filepath="dags.native",
+                    dag_id="native_dag",
+                    run_id="run",
+                    bundle_name="testing",
+                    bundle_version="v1",
+                ),
+                "Dropping DagCallbackRequest for dags.native (dag_id=native_dag run_id=run): "
+                "Lang-SDK runtimes do not run callbacks",
+                id="dag",
+            ),
+            pytest.param(
+                TaskCallbackRequest(
+                    filepath="dags.native",
+                    ti=TIDataModel(
+                        id=uuid7(),
+                        dag_id="native_dag",
+                        task_id="extract",
+                        run_id="run",
+                        try_number=1,
+                        dag_version_id=uuid7(),
+                    ),
+                    bundle_name="testing",
+                    bundle_version="v1",
+                ),
+                "Dropping TaskCallbackRequest for dags.native (dag_id=native_dag run_id=run "
+                "task_id=extract): Lang-SDK runtimes do not run callbacks",
+                id="task",
+            ),
+        ],
+    )
+    @mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True)
+    def test_a_callback_for_a_coordinator_file_is_dropped(
+        self, mock_prepare_callback_bundle, request_, expected, caplog
+    ):
         with (
             fake_coordinator(),
-            mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True) as mock_start,
             caplog.at_level(logging.WARNING, logger="airflow.dag_processing.manager"),
         ):
             manager = DagFileProcessorManager(max_runs=1)
-            manager._callback_to_execute[dag_file] = [callback]
-            manager._create_process(dag_file)
+            manager._add_callback_to_queue(request_)
 
-        assert "callbacks" not in mock_start.call_args.kwargs
-        assert dag_file not in manager._callback_to_execute
-        assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [
-            "Dropping 1 callbacks for dags.native: Lang-SDK runtimes do not run callbacks"
-        ]
+        mock_prepare_callback_bundle.assert_not_called()
+        assert not manager._callback_to_execute
+        assert not manager._file_queue
+        assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [expected]
 
     @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
     @mock.patch.object(
