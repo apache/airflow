@@ -577,6 +577,10 @@ The Dag processor parses only files that end in ``.min.mjs`` and start with the 
 A bundle that fails its integrity check, or whose Dags cannot be serialized or fail validation,
 such as a cycle drawn with ``before`` and ``after``, is reported as an import error.
 
+Do not declare a Dag in TypeScript that a Python file in the same bundle also defines. When you move a Dag
+such as the Quick start's ``typescript_example`` to ``new Dag(...)``, remove its Python stub, otherwise the
+two files overwrite each other's Dag on every parse.
+
 The Code view currently shows the bundle's entry module for each of its Dags, as ``airflow-ts-pack``
 embeds it (see :ref:`typescript-sdk/build`). If the source cannot be read from the bundle, the view shows a
 short notice instead.
