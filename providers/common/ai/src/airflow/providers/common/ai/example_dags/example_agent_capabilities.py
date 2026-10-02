@@ -14,13 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAGs demonstrating pydantic-ai capabilities via ``agent_params``.
+"""Example DAGs demonstrating pydantic-ai capabilities on ``AgentOperator``.
 
 Capabilities (https://ai.pydantic.dev/capabilities/) are pydantic-ai's
 composable units for thinking, web search, image generation, MCP, and more.
-``AgentOperator`` forwards anything in ``agent_params`` to the underlying
-``Agent(...)`` constructor, so capabilities work today without operator-level
-support. A first-class ``capabilities=`` kwarg is on the roadmap.
+``AgentOperator`` passes its ``capabilities`` list to the underlying
+``Agent(...)`` constructor.
 """
 
 from __future__ import annotations
@@ -52,9 +51,7 @@ def example_agent_capabilities_thinking():
         prompt="Walk through the steps to compute the 10th Fibonacci number, then give the answer.",
         llm_conn_id="pydanticai_default",
         system_prompt="You are a careful mathematician. Think before answering.",
-        agent_params={
-            "capabilities": [Thinking(effort="high")],
-        },
+        capabilities=[Thinking(effort="high")],
     )
 
 
@@ -76,9 +73,7 @@ def example_agent_capabilities_web_search():
         prompt="Summarize the latest Apache Airflow 3.x release notes from airflow.apache.org.",
         llm_conn_id="pydanticai_default",
         system_prompt="You are a release-notes summarizer. Cite the source URL.",
-        agent_params={
-            "capabilities": [WebSearch()],
-        },
+        capabilities=[WebSearch()],
     )
 
 
@@ -113,9 +108,7 @@ if SQLToolset is not None:
                     max_rows=20,
                 ),
             ],
-            agent_params={
-                "capabilities": [Thinking(effort="medium"), WebSearch()],
-            },
+            capabilities=[Thinking(effort="medium"), WebSearch()],
         )
 
     # [END howto_operator_agent_capabilities_composed]
@@ -142,11 +135,9 @@ if InputGuard is not None:
             ),
             llm_conn_id="pydanticai_default",
             system_prompt="You summarize customer support requests safely.",
-            agent_params={
-                "capabilities": [
-                    InputGuard(guard=lambda prompt: "ignore previous instructions" not in prompt.lower())
-                ],
-            },
+            capabilities=[
+                InputGuard(guard=lambda prompt: "ignore previous instructions" not in prompt.lower())
+            ],
         )
 
     example_agent_capabilities_input_guard()

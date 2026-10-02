@@ -127,8 +127,9 @@ Requirements and limits
 
 - Airflow 3.3 or later. On older versions a tool marked for approval fails the
   task, as it did before.
-- Not together with ``durable=True``, ``enable_hitl_review=True``,
-  ``code_mode=True``, or a ``SandboxToolset`` that provisions its own sandbox. Each
+- Not together with ``durable=True``, ``enable_hitl_review=True``, code mode
+  (``code_mode=True`` or a ``CodeMode`` capability), or a ``SandboxToolset`` that
+  provisions its own sandbox. Each
   assumes the run finishes in one go; that sandbox, for one, is destroyed when the
   run pauses. With any of them, a marked tool fails the task. A ``SandboxToolset``
   attached to a sandbox another task owns keeps its files through the pause, so it

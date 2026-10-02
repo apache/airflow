@@ -25,6 +25,32 @@
 Changelog
 ---------
 
+.. note::
+  On Airflow >= 3.3, ``AgentOperator``'s ``usage_limits`` counts usage across every
+  attempt of the task instance combined -- initial run, every retry, and every HITL
+  regeneration add to one running total (including the implicit ``request_limit=50``
+  default), instead of each attempt starting fresh. Scale each limit by ``retries + 1``,
+  or set ``usage_limits=None``, to keep the old per-attempt headroom. On every Airflow
+  version, a regeneration shares its count with the run before it only when
+  ``usage_limits`` is set. A step replayed with ``durable=True`` no longer counts toward
+  ``usage_limits`` or the ``usage`` XCom, on any Airflow version. The ``usage`` XCom is
+  now also pushed on a failed attempt, reporting that attempt's own usage (not the
+  cross-attempt total). On Airflow < 3.3, or when ``usage_limits`` is ``None``, each
+  attempt is checked and counted on its own, unchanged. See :ref:`the cross-attempt usage
+  budget <agent-usage-budget>`.
+
+.. note::
+  ``get_schema`` on ``SQLToolset`` and ``DataFusionToolset`` now returns a JSON object
+  ``{"columns": [{"name", "type"}, ...], "column_count": N}`` instead of a bare JSON array of
+  columns. The tool also accepts an optional ``name_contains`` substring filter, and on a table
+  with more columns than ``max_columns`` (default 100), or one whose serialized columns exceed
+  ``max_result_bytes``, it returns a bounded summary (``column_count``, a ``type_histogram`` and a
+  ``sample_columns`` preview, with ``truncated``, ``truncated_by`` and a ``hint``) in place of the
+  full list. Update any system prompt or direct ``call_tool("get_schema", ...)`` caller that read
+  the old top-level array: check ``truncated`` first, then read ``result["columns"]`` on a full
+  result or ``result["sample_columns"]`` on a summary. A summary carries no ``columns`` key, so
+  ``result["columns"]`` raises ``KeyError`` on any table wide enough to be summarized.
+
 0.10.0
 ......
 

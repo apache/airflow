@@ -34,17 +34,16 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import structlog
-
 from airflow.providers.common.ai.batch.base import evaluate_batch_counts
 from airflow.providers.common.ai.batch.output_schema import validate_extracted_output
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 if TYPE_CHECKING:
     from airflow.providers.common.ai.batch.base import BatchAdapter, RawResultItem
     from airflow.providers.common.ai.batch.output_schema import OutputSpec
     from airflow.sdk import ObjectStoragePath
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 STATUS_SUCCESS = "success"
 STATUS_ERROR = "error"

@@ -31,6 +31,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryAssetGroupPrefixPatternSearch,
     QueryAssetNamePatternSearch,
     QueryAssetNamePrefixPatternSearch,
+    QueryHasEventsFilter,
     QueryLimit,
     QueryOffset,
     QueryUriExactMatch,
@@ -47,6 +48,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.assets import (
     NextRunAssetEventResponse,
     NextRunAssetsResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.routes.public.assets import OnlyActiveFilter
 from airflow.api_fastapi.core_api.security import (
     ReadableAssetsFilterDep,
@@ -92,6 +94,7 @@ def get_assets(
     group_pattern: QueryAssetGroupPatternSearch,
     group_prefix_pattern: QueryAssetGroupPrefixPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
+    has_events: QueryHasEventsFilter,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     last_asset_event_timestamp_range: Annotated[
         RangeFilter,
@@ -127,6 +130,7 @@ def get_assets(
             group_pattern,
             group_prefix_pattern,
             dag_ids,
+            has_events,
             last_asset_event_timestamp_range,
             readable_assets_filter,
         ],
@@ -146,6 +150,7 @@ def get_assets(
 
 @assets_router.get(
     "/next_run_assets/{dag_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def next_run_assets(

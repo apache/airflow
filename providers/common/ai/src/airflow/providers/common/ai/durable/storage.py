@@ -24,22 +24,21 @@ import json
 from functools import lru_cache
 from typing import Any
 
-import structlog
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse
 
 # Sentinel to distinguish "cached None" from "no cache entry" for tool results.
 # Shared with the task state store backend so the envelope shape cannot drift.
 from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL as _SENTINEL
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 SECTION = "common.ai"
 
 
 @lru_cache(maxsize=1)
 def _get_base_path():
-    from airflow.providers.common.compat.sdk import conf
-    from airflow.sdk import ObjectStoragePath
+    from airflow.providers.common.compat.sdk import ObjectStoragePath, conf
 
     path = conf.get(SECTION, "durable_cache_path", fallback="")
     if not path:
@@ -108,8 +107,12 @@ class DurableStorage:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self._cache))
 
-    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> None:
-        """Serialize and store a ModelResponse with the request fingerprint that produced it."""
+    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> bool:
+        """
+        Serialize and store a ModelResponse with the request fingerprint that produced it.
+
+        :return: Always ``True``. Unlike the task state store, this backend never skips a model response.
+        """
         cache = self._load_cache()
         # Store the dumped messages as native JSON-compatible objects, not a
         # pre-encoded string: the whole cache is JSON-encoded once in
@@ -120,6 +123,7 @@ class DurableStorage:
             "data": ModelMessagesTypeAdapter.dump_python([response], mode="json"),
         }
         self._save_cache()
+        return True
 
     def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]:
         """
@@ -149,13 +153,15 @@ class DurableStorage:
             return None, None
         return messages[0], fingerprint  # type: ignore[return-value]
 
-    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> None:
+    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> bool:
         """
         Store a tool call result with the call fingerprint that produced it.
 
         Non-serializable results (e.g. BinaryContent from MCP tools) are
         skipped with a warning -- the tool call still succeeds, but won't
         be replayed on retry.
+
+        :return: ``True`` if the entry was written, ``False`` if it was skipped.
         """
         cache = self._load_cache()
         try:
@@ -170,9 +176,10 @@ class DurableStorage:
                 key=key,
                 type=type(result).__name__,
             )
-            return
+            return False
         cache[key] = {_SENTINEL: True, "value": result, "fingerprint": fingerprint}
         self._save_cache()
+        return True
 
     def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]:
         """

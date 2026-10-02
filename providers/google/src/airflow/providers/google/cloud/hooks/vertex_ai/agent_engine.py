@@ -19,15 +19,19 @@
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import google.auth.transport.requests
 from asgiref.sync import sync_to_async
+from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied, Unauthenticated
 from google.cloud.aiplatform_v1 import ReasoningEngineExecutionServiceClient
+from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
 from vertexai import Client
 
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -37,8 +41,41 @@ from airflow.providers.google.common.hooks.base_google import (
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
     from vertexai._genai import types
+
+    from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
+    from airflow.providers.common.ai.managed_agents.base import (
+        BaseManagedAgentHook,
+        ManagedAgentCapabilities,
+        ManagedAgentRef,
+        ManagedAgentRequest,
+        ManagedAgentResponse,
+    )
+else:
+    try:
+        from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
+        from airflow.providers.common.ai.managed_agents.base import (
+            BaseManagedAgentHook,
+            ManagedAgentCapabilities,
+            ManagedAgentRef,
+            ManagedAgentResponse,
+        )
+    except ImportError:
+        # The Common AI provider is optional. This module still imports without it, and every
+        # managed-agent entry point on AgentEngineHook then says what is missing.
+        def _needs_common_ai(*args: Any, **kwargs: Any) -> Any:
+            raise AirflowOptionalProviderFeatureException(
+                "Consulting an Agent Engine as a managed agent needs the 'common.ai' extra of the "
+                "google provider: pip install 'apache-airflow-providers-google[common.ai]'."
+            )
+
+        class BaseManagedAgentHook:
+            """Stand-in for the Common AI contract base; ``agent()`` names the missing extra."""
+
+            agent = _needs_common_ai
+
+        ManagedAgentCapabilities = ManagedAgentRef = ManagedAgentResponse = _needs_common_ai
+        ManagedAgentInvocationError = _needs_common_ai
 
 
 VERTEX_AI_AGENT_ENGINE_API_VERSION = "v1beta1"
@@ -66,14 +103,62 @@ def serialize_value(value: Any) -> Any:
     return value
 
 
-class AgentEngineHook(GoogleBaseHook):
+# ``vendor_options`` of a managed-agent request. ``class_method`` and ``input_key`` shape the
+# request; ``retry`` and ``metadata`` reach ``query_reasoning_engine``, which accepts exactly those.
+_AGENT_OPTIONS = frozenset({"class_method", "input_key", "retry", "metadata"})
+
+
+def _agent_output_text(output: Any) -> str:
+    if output is None:
+        return ""
+    if isinstance(output, str):
+        return output
+    if isinstance(output, dict) and isinstance(output.get("output"), str):
+        return output["output"]
+    return json.dumps(output, default=str)
+
+
+class AgentEngineHook(GoogleBaseHook, BaseManagedAgentHook):
     """
     Hook for Google Cloud Vertex AI Agent Engine APIs.
 
     Wraps the ``agent_engines`` module of the Vertex AI SDK client and the
     Reasoning Engine Execution Service GAPIC client:
     https://docs.cloud.google.com/python/docs/reference/agentplatform/latest/vertexai._genai.agent_engines.AgentEngines
+
+    With the ``common.ai`` extra installed, the hook also implements the Common AI
+    managed-agent contract over the synchronous query path, so ``hook.agent(resource_name)``
+    can be handed to a ``ManagedAgentToolset``. The agent is the engine's full resource name,
+    ``projects/P/locations/L/reasoningEngines/ID``, so a single hook on one connection reaches
+    engines in several projects and regions. A request carrying a ``prompt`` is sent as
+    ``{input_key: prompt}`` to ``class_method`` (``query`` and ``input`` by default; both can be
+    set per request in ``vendor_options``, alongside ``retry`` and ``metadata``); a request
+    carrying ``messages`` is sent as ``{"messages": [...]}``. When the engine returns a mapping
+    with a string ``output``, that is the answer text; any other output is returned as JSON text
+    and kept on ``ManagedAgentResponse.structured``. The wire type is a protobuf ``Value``, so
+    integers come back as floats and an absent, null or empty output all read as an empty string.
+
+    Agent Engine reports an author-side mistake, such as an unknown ``class_method`` or an
+    input under the wrong key, as ``INVALID_ARGUMENT``. That is a configuration error, not
+    something a model rephrase could fix, so it is terminal here; the hook never raises
+    :class:`~airflow.providers.common.ai.exceptions.ManagedAgentRejected`. The query path keeps
+    no conversation state, so a request with a ``session_id`` is refused rather than silently
+    sent as a fresh call. Query *jobs* remain the domain of
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.RunQueryJobOperator`,
+    which can defer.
+
+    .. code-block:: python
+
+        from airflow.providers.common.ai.toolsets import ManagedAgentToolset
+        from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
+
+        analyst = AgentEngineHook(gcp_conn_id="google_cloud_default").agent(
+            "projects/my-project/locations/us-central1/reasoningEngines/1234567890"
+        )
+        toolset = ManagedAgentToolset(analyst, tool_name="ask_analyst", description="...")
     """
+
+    agent_platform = "gcp.vertex_agent_engine"
 
     def __init__(
         self,
@@ -85,6 +170,76 @@ class AgentEngineHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
             **kwargs,
+        )
+        # One execution client per location for managed-agent calls: a GAPIC client opens its gRPC
+        # channel in __init__, and a model may consult the same agent several times in one run.
+        self._agent_clients: dict[str, ReasoningEngineExecutionServiceClient] = {}
+
+    @staticmethod
+    def _parse_agent(agent: str) -> tuple[str, str, str]:
+        parts = ReasoningEngineExecutionServiceClient.parse_reasoning_engine_path(agent)
+        # The SDK parser is non-greedy, so a child resource such as an operation name still matches.
+        if not parts or "/" in parts["reasoning_engine"]:
+            raise ValueError(
+                f"An Agent Engine agent is its full resource name projects/P/locations/L/reasoningEngines/ID, "
+                f"got {agent!r}."
+            )
+        return parts["project"], parts["location"], parts["reasoning_engine"]
+
+    def resolve_agent(self, agent: str) -> ManagedAgentRef:
+        self._parse_agent(agent)
+        return ManagedAgentRef(platform=self.agent_platform, name=agent)
+
+    def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
+        return ManagedAgentCapabilities(structured_output=True)
+
+    def invoke_agent(self, agent: str, request: ManagedAgentRequest) -> ManagedAgentResponse:
+        _, location, _ = self._parse_agent(agent)
+        if request.session_id is not None:
+            raise ValueError(
+                "Agent Engine's query path keeps no conversation state; session_id is not supported."
+            )
+        unknown = set(request.vendor_options) - _AGENT_OPTIONS
+        if unknown:
+            raise ValueError(
+                f"vendor_options {sorted(unknown)} are not accepted; an Agent Engine request takes "
+                f"{sorted(_AGENT_OPTIONS)}."
+            )
+        options = dict(request.vendor_options)
+        class_method = options.pop("class_method", "query")
+        input_key = options.pop("input_key", "input")
+        if not isinstance(class_method, str) or not isinstance(input_key, str):
+            raise ValueError(
+                "vendor_options['class_method'] and vendor_options['input_key'] must be strings."
+            )
+        input_data = (
+            {input_key: request.prompt} if request.prompt is not None else {"messages": request.as_messages()}
+        )
+        client = self._agent_clients.get(location)
+        if client is None:
+            client = self._agent_clients[location] = self.get_reasoning_engine_execution_service_client(
+                location
+            )
+        try:
+            response = client.query_reasoning_engine(
+                request={"name": agent, "class_method": class_method, "input": input_data},
+                retry=options.get("retry"),
+                timeout=request.timeout,
+                metadata=options.get("metadata", ()),
+            )
+        except InvalidArgument as exc:
+            raise ManagedAgentInvocationError(
+                f"Agent Engine {agent} rejected the request (class_method={class_method!r}, "
+                f"input_key={input_key!r}): {exc}"
+            ) from exc
+        except (NotFound, PermissionDenied, Unauthenticated) as exc:
+            raise ManagedAgentInvocationError(f"Agent Engine {agent}: {exc}") from exc
+        raw = QueryReasoningEngineResponse.to_dict(response)
+        output = raw.get("output")
+        return ManagedAgentResponse(
+            text=_agent_output_text(output),
+            raw=raw,
+            structured=None if isinstance(output, str) else output,
         )
 
     def get_agent_engine_client(self, project_id: str, location: str):
