@@ -117,7 +117,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "5182d0596ee2",
+    "3.4.0": "90e4d18ccadf",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -1517,7 +1517,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
     except ImportError:
         raise RuntimeError(
-            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "Import error occurred while importing FABDBManager. The apache-airflow-providers-fab package must be installed before we can "
             "downgrade to <3.0.0."
         )
 

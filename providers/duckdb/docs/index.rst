@@ -61,6 +61,13 @@ file to open, if any, and how the engine should be configured.
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-duckdb/>
     Installing from sources <installing-providers-from-sources>
 
+DuckDB version compatibility
+----------------------------
+
+The DuckDB storage format and the extension ABI are both tied to the DuckDB minor version. A
+deployment that persists DuckDB database files, or that pre-installs extensions into an extension
+directory, should pin ``duckdb`` itself rather than relying on this provider's lower bound.
+
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
@@ -80,7 +87,7 @@ DuckDB database â€” in memory, backed by a local file, or hosted by MotherDuck â
 extension loading and resource limits so Dag authors only supply the SQL.
 
 
-Release: 0.1.0
+Release: 0.2.0
 
 Provider package
 ----------------
@@ -114,5 +121,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-duckdb 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-duckdb 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-duckdb 0.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-duckdb 0.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_duckdb-0.2.0-py3-none-any.whl.sha512>`__)

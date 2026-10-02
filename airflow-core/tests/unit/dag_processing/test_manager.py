@@ -72,6 +72,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG as SdkDAG
+from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -596,7 +597,7 @@ class TestDagFileProcessorManager:
 
         stats_incr_mock.assert_called_once_with(
             "dag_processing.processes",
-            tags={"file_path": "folder_file_2.py", "action": "start"},
+            tags={"file_path": "folder_file_2.py", "bundle_name": "testing", "action": "start"},
         )
 
         # Because of the config: '[dag_processor] parsing_processes = 2'
@@ -701,7 +702,7 @@ class TestDagFileProcessorManager:
         assert manager._processors == {}
         stats_decr_mock.assert_called_once_with(
             "dag_processing.processes",
-            tags={"file_path": "callbacks_with_spaces.py", "action": "stop"},
+            tags={"file_path": "callbacks_with_spaces.py", "bundle_name": "testing", "action": "stop"},
         )
         processor.kill.assert_called_once_with(signal.SIGKILL)
 
@@ -1614,33 +1615,55 @@ class TestDagFileProcessorManager:
 
         assert call_order == ["kill", "close"]
 
-    def test_kill_timed_out_processors_kill(self):
+    def test_kill_timed_out_processors_tags_same_file_in_different_bundles(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
         start_time = time.monotonic() - manager.processor_timeout - 1
-        processor, _ = self.mock_processor(start_time=start_time)
+        processor_a, _ = self.mock_processor(start_time=start_time)
+        processor_b, _ = self.mock_processor(start_time=start_time)
+        rel_path = Path("folder/abc txt.py")
         manager._processors = {
-            DagFileInfo(
-                bundle_name="testing", rel_path=Path("folder/abc txt.py"), bundle_path=TEST_DAGS_FOLDER
-            ): processor
+            DagFileInfo(bundle_name="bundle_a", rel_path=rel_path, bundle_path=TEST_DAGS_FOLDER): processor_a,
+            DagFileInfo(bundle_name="bundle b", rel_path=rel_path, bundle_path=TEST_DAGS_FOLDER): processor_b,
         }
         with (
-            mock.patch.object(type(processor), "kill") as mock_kill,
+            mock.patch.object(type(processor_a), "kill") as mock_kill,
             mock.patch("airflow.dag_processing.manager.stats.decr") as stats_decr_mock,
             mock.patch("airflow.dag_processing.manager.stats.incr") as stats_incr_mock,
         ):
             manager._kill_timed_out_processors()
-        mock_kill.assert_called_once_with(signal.SIGKILL)
-        stats_decr_mock.assert_called_once_with(
-            "dag_processing.processes",
-            tags={"file_path": "folder_abc_txt.py", "action": "timeout"},
+        assert mock_kill.call_args_list == [mock.call(signal.SIGKILL)] * 2
+        assert stats_decr_mock.call_count == 2
+        stats_decr_mock.assert_has_calls(
+            [
+                mock.call(
+                    "dag_processing.processes",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_a", "action": "timeout"},
+                ),
+                mock.call(
+                    "dag_processing.processes",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_b", "action": "timeout"},
+                ),
+            ],
+            any_order=True,
         )
-        stats_incr_mock.assert_called_once_with(
-            "dag_processing.processor_timeouts",
-            tags={"file_path": "folder_abc_txt.py"},
+        assert stats_incr_mock.call_count == 2
+        stats_incr_mock.assert_has_calls(
+            [
+                mock.call(
+                    "dag_processing.processor_timeouts",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_a"},
+                ),
+                mock.call(
+                    "dag_processing.processor_timeouts",
+                    tags={"file_path": "folder_abc_txt.py", "bundle_name": "bundle_b"},
+                ),
+            ],
+            any_order=True,
         )
-        assert len(manager._processors) == 0
-        processor.logger_filehandle.close.assert_called()
+        assert not manager._processors
+        processor_a.logger_filehandle.close.assert_called_once_with()
+        processor_b.logger_filehandle.close.assert_called_once_with()
 
     def test_kill_timed_out_processors_tolerates_stale_file_handle_on_close(self):
         """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
@@ -1692,7 +1715,7 @@ class TestDagFileProcessorManager:
 
         stats_decr_mock.assert_called_once_with(
             "dag_processing.processes",
-            tags={"file_path": "folder_abc_txt.py", "action": "terminate"},
+            tags={"file_path": "folder_abc_txt.py", "bundle_name": "testing", "action": "terminate"},
         )
         processor.kill.assert_called_once_with(signal.SIGTERM, escalation_delay=5.0)
 
@@ -2067,6 +2090,30 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag1").is_stale is False
         # and the DAG from test_dag2.py is deactivated
         assert session.get(DagModel, "test_dag2").is_stale is True
+
+    @mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True)
+    def test_persist_parsing_result_passes_parsed_definitions_and_source_codes(self, mock_update):
+        source_codes = {"/bundle/dags.zip/a.py": DagSourceCode(source_code="src", language="python")}
+        parsing_result = DagFileParsingResult(
+            fileloc="/bundle/dags.zip",
+            serialized_dags=[],
+            parsed_definitions=["dags.zip/a.py"],
+            dag_source_codes=source_codes,
+        )
+
+        DagFileProcessorManager(max_runs=1).persist_parsing_result(
+            bundle_name="testing",
+            bundle_version=None,
+            version_data=None,
+            parsing_result=parsing_result,
+            run_duration=1.0,
+            relative_fileloc="dags.zip",
+            session=mock.sentinel.session,
+        )
+
+        kwargs = mock_update.call_args.kwargs
+        assert kwargs["files_parsed"] == {("testing", "dags.zip"), ("testing", "dags.zip/a.py")}
+        assert kwargs["dag_source_codes"] == source_codes
 
     @pytest.mark.parametrize(
         ("rel_filelocs", "expected_return", "expected_dag1_stale", "expected_dag2_stale"),
@@ -4155,7 +4202,12 @@ class TestMultiTeamMetrics:
 
         mock_incr.assert_any_call(
             "dag_processing.processes",
-            tags={"file_path": "dag_file.py", "action": "start", "team_name": "team_alpha"},
+            tags={
+                "file_path": "dag_file.py",
+                "bundle_name": "testing",
+                "action": "start",
+                "team_name": "team_alpha",
+            },
         )
 
     @conf_vars({("core", "multi_team"): "true"})
@@ -4178,11 +4230,16 @@ class TestMultiTeamMetrics:
 
         mock_decr.assert_called_once_with(
             "dag_processing.processes",
-            tags={"file_path": "dag_file.py", "action": "timeout", "team_name": "team_alpha"},
+            tags={
+                "file_path": "dag_file.py",
+                "bundle_name": "testing",
+                "action": "timeout",
+                "team_name": "team_alpha",
+            },
         )
         mock_incr.assert_any_call(
             "dag_processing.processor_timeouts",
-            tags={"file_path": "dag_file.py", "team_name": "team_alpha"},
+            tags={"file_path": "dag_file.py", "bundle_name": "testing", "team_name": "team_alpha"},
         )
 
     @conf_vars({("core", "multi_team"): "true"})
@@ -4238,13 +4295,18 @@ class TestMultiTeamMetrics:
             pytest.param(
                 True,
                 "team_alpha",
-                {"file_path": "dag_file.py", "action": "stop", "team_name": "team_alpha"},
+                {
+                    "file_path": "dag_file.py",
+                    "bundle_name": "testing",
+                    "action": "stop",
+                    "team_name": "team_alpha",
+                },
                 id="with_team",
             ),
             pytest.param(
                 False,
                 None,
-                {"file_path": "dag_file.py", "action": "stop"},
+                {"file_path": "dag_file.py", "bundle_name": "testing", "action": "stop"},
                 id="without_team",
             ),
         ],
@@ -4279,13 +4341,18 @@ class TestMultiTeamMetrics:
             pytest.param(
                 True,
                 "team_alpha",
-                {"file_path": "dag_file.py", "action": "terminate", "team_name": "team_alpha"},
+                {
+                    "file_path": "dag_file.py",
+                    "bundle_name": "testing",
+                    "action": "terminate",
+                    "team_name": "team_alpha",
+                },
                 id="with_team",
             ),
             pytest.param(
                 False,
                 None,
-                {"file_path": "dag_file.py", "action": "terminate"},
+                {"file_path": "dag_file.py", "bundle_name": "testing", "action": "terminate"},
                 id="without_team",
             ),
         ],

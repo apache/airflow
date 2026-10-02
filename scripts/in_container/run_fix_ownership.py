@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 HOST_OS = os.environ.get("HOST_OS", "")
-DOCKER_IS_ROOTLESS = os.environ.get("DOCKER_IS_ROOTLESS", "false") == "true"
+DOCKER_IS_ROOTLESS = os.environ.get("DOCKER_IS_ROOTLESS", "false").lower() == "true"
 
 
 def change_ownership_of_files(path: Path) -> None:

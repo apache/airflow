@@ -20,6 +20,8 @@ services:
     container_name: mssql
     image: "mcr.microsoft.com/mssql/server:2019-latest"
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for mssql hooks."
     volumes:
       - mssql-db-volume:/var/opt/mssql
@@ -38,3 +40,6 @@ services:
       - INTEGRATION_MSSQL=true
 volumes:
   mssql-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

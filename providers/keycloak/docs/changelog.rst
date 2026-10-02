@@ -25,6 +25,36 @@
 Changelog
 ---------
 
+.. note::
+    In multi-team mode, the views covering records that are not tied to a Dag or a team -- audit log
+    entries not tied to a Dag, import errors for files with no registered Dag and reparsing such
+    files -- are now checked against a new ``AdminView`` Keycloak resource instead of ``View``.
+    Only ``SuperAdmin`` is granted access to it; team roles keep access to the other views through
+    ``View``. Until the Keycloak client is updated, access to these views is denied to every user.
+    Run ``airflow keycloak-auth-manager create-team <team>`` again for an existing team to create the
+    resource and the ``AdminViewAccess`` permission and grant it to ``SuperAdmin``. Deployments
+    without ``[core] multi_team`` are not affected.
+
+0.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Include the Dag Bundles menu item in the team role resources generated for Keycloak (#72909)``
+* ``Support exchanging a Keycloak-issued access token for an Airflow API token with the JWT bearer grant, gated by the new jwt_federated_client_ids allow-list (#72978)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return 403 when Keycloak UMA ticket grant returns invalid_grant (#73234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+
 0.10.0
 ......
 

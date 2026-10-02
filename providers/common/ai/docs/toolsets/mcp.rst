@@ -48,7 +48,13 @@ Requires the ``mcp`` extra: ``pip install "apache-airflow-providers-common-ai[mc
 Parameters
 ----------
 
-- ``mcp_conn_id``: Airflow connection ID for the MCP server.
+- ``mcp_conn_id``: Airflow connection ID for the MCP server. Templated when the
+  toolset is passed to ``AgentOperator`` / ``@task.agent``, like
+  ``SQLToolset.db_conn_id`` (see :ref:`sql-toolset-templated-connection`). Build it
+  from values the Dag controls, never from ``params`` or ``dag_run.conf``: a ``stdio``
+  connection runs its ``Extra.command`` on the worker, so whoever picks the
+  connection picks the command. A ``token_provider`` or ``env_provider`` is
+  shared by every connection the template renders to.
 - ``tool_prefix``: Optional prefix prepended to tool names to avoid
   collisions when using multiple MCP servers (e.g. ``"weather"`` produces
   ``"weather_get_forecast"``).

@@ -78,6 +78,24 @@ func (s *TaskSuite) TestReturnValidation() {
 	}
 }
 
+func (s *TaskSuite) TestRejectsNonFunc() {
+	cases := map[string]struct {
+		fn      any
+		wantErr string
+	}{
+		"int":     {3, "expected a func as input but was int"},
+		"nil":     {nil, "expected a func as input but was invalid"},
+		"pointer": {new(int), "expected a func as input but was ptr"},
+	}
+
+	for name, tt := range cases {
+		s.Run(name, func() {
+			_, err := NewTaskFunction(tt.fn)
+			s.Assert().EqualError(err, tt.wantErr)
+		})
+	}
+}
+
 // probeKey is an unexported context key used to confirm the live task context
 // (not a freshly built one) backs the airflow.Context a task receives.
 type probeKeyType struct{}

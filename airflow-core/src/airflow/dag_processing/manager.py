@@ -1246,6 +1246,7 @@ class DagFileProcessorManager(LoggingMixin):
                     tags=prune_dict(
                         {
                             "file_path": file.normalized_file_path_for_stats,
+                            "bundle_name": normalize_name_for_stats(file.bundle_name),
                             "action": "stop",
                             "team_name": bundle_to_team.get(file.bundle_name),
                         }
@@ -1354,6 +1355,7 @@ class DagFileProcessorManager(LoggingMixin):
         files_parsed: set[tuple[str, str]] | None = None
         if relative_fileloc is not None:
             files_parsed = {(bundle_name, relative_fileloc)}
+            files_parsed.update((bundle_name, rel_path) for rel_path in parsing_result.parsed_definitions)
             files_parsed.update(import_errors.keys())
 
         warnings = parsing_result.warnings or []
@@ -1370,6 +1372,7 @@ class DagFileProcessorManager(LoggingMixin):
             warnings=set(warnings),
             session=session,
             files_parsed=files_parsed,
+            dag_source_codes=parsing_result.dag_source_codes,
         )
 
     def _collect_results(self):
@@ -1477,6 +1480,7 @@ class DagFileProcessorManager(LoggingMixin):
                 tags=prune_dict(
                     {
                         "file_path": file.normalized_file_path_for_stats,
+                        "bundle_name": normalize_name_for_stats(file.bundle_name),
                         "action": "start",
                         "team_name": bundle_to_team.get(file.bundle_name),
                     }
@@ -1660,16 +1664,28 @@ class DagFileProcessorManager(LoggingMixin):
                     self.processor_timeout,
                 )
                 file_path_tag = file.normalized_file_path_for_stats
+                bundle_name_tag = normalize_name_for_stats(file.bundle_name)
                 team_name = bundle_to_team.get(file.bundle_name)
                 stats.decr(
                     "dag_processing.processes",
                     tags=prune_dict(
-                        {"file_path": file_path_tag, "action": "timeout", "team_name": team_name}
+                        {
+                            "file_path": file_path_tag,
+                            "bundle_name": bundle_name_tag,
+                            "action": "timeout",
+                            "team_name": team_name,
+                        }
                     ),
                 )
                 stats.incr(
                     "dag_processing.processor_timeouts",
-                    tags=prune_dict({"file_path": file_path_tag, "team_name": team_name}),
+                    tags=prune_dict(
+                        {
+                            "file_path": file_path_tag,
+                            "bundle_name": bundle_name_tag,
+                            "team_name": team_name,
+                        }
+                    ),
                 )
                 processor.kill(signal.SIGKILL)
 
@@ -1739,6 +1755,7 @@ class DagFileProcessorManager(LoggingMixin):
                 tags=prune_dict(
                     {
                         "file_path": file.normalized_file_path_for_stats,
+                        "bundle_name": normalize_name_for_stats(file.bundle_name),
                         "action": "terminate",
                         "team_name": bundle_to_team.get(file.bundle_name),
                     }

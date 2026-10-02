@@ -143,6 +143,21 @@ class DagRunAssetReference(BaseModel):
     partition_key: Annotated[str | None, Field(title="Partition Key")]
 
 
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Note")]
+
+
+class DagRunNoteUpdatePayload(BaseModel):
+    """
+    Schema for updating the DagRun note associated with a task instance.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    note: Annotated[Note | None, Field(title="Note")] = None
+
+
 class DagRunState(str, Enum):
     """
     All possible states that a DagRun can be in.
@@ -441,6 +456,7 @@ class TerminalStateNonSuccess(str, Enum):
     SKIPPED = "skipped"
     REMOVED = "removed"
     UPSTREAM_FAILED = "upstream_failed"
+    SERVER_TERMINATED = "server_terminated"
 
 
 class TriggerDAGRunPayload(BaseModel):
@@ -715,7 +731,7 @@ class LiteralArgBinding(BaseModel):
 
 class TITerminalStatePayload(BaseModel):
     """
-    Schema for updating TaskInstance to a terminal state except SUCCESS state.
+    Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination.
     """
 
     model_config = ConfigDict(
@@ -724,6 +740,9 @@ class TITerminalStatePayload(BaseModel):
     state: TerminalStateNonSuccess
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class XComArgBinding(BaseModel):
