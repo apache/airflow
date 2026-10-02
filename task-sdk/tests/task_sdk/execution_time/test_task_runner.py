@@ -919,9 +919,8 @@ class NativeDagImporter(CoordinatorDagImporter):
 class NativeCoordinator(SubprocessCoordinator):
     """A coordinator whose Dag importer claims ``.native`` files in every bundle."""
 
-    @classmethod
-    def get_dag_importer_class(cls):
-        return NativeDagImporter
+    def get_dag_importer(self):
+        return NativeDagImporter(coordinator=self)
 
 
 NATIVE_COORDINATOR_SPEC = {"classpath": f"{__name__}.NativeCoordinator", "kwargs": {}}
