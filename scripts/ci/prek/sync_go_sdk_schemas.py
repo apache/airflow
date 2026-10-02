@@ -29,12 +29,20 @@ Go with it. It now vendors them under ``go-sdk/schema/``, the way ``ts-sdk`` and
 Vendoring splits the one question ("is the Go behind Python?") into two:
 
 * this hook — is the copy equal to the source? Copying is mechanical, so it copies for
-  you and fails, the way ``sync-ts-sdk-dag-schema`` does.
+  you and fails. It is a **manual** hook, the way ``sync-java-sdk-dag-schema`` is:
+  re-vendoring is a go-sdk maintainer's deliberate step, and running it on every commit
+  would fail the PR of whoever changed a Python schema, which is the coupling vendoring
+  is here to remove. Nothing therefore tells you on its own that a copy went stale.
 * ``check-go-sdk-generated-drift`` — are the generated files what the copy generates?
-  That one needs the Go toolchain, and a new schema construct may need a generator rule
-  or an authoring exclusion, so what to do about it is a decision, not a copy.
+  That one runs on every commit, because a refreshed copy nothing regenerated from is
+  the drift that matters, and a new schema construct may need a generator rule or an
+  authoring exclusion, so what to do about it is a decision, not a copy.
 
-Run from the repo root:
+Run it from the repo root, through prek:
+
+    prek run sync-go-sdk-schemas --hook-stage manual
+
+or directly:
 
     uv run --project scripts python scripts/ci/prek/sync_go_sdk_schemas.py
 

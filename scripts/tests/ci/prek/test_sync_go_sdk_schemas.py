@@ -70,30 +70,58 @@ def test_a_missing_source_is_an_error_not_a_silent_pass(repo):
         syncer.refresh(DAG_SCHEMA, repo)
 
 
+# The reports are asserted whole rather than by fragment: this is the hook's entire
+# output to whoever tripped it, so a recipe going missing or two refreshes running
+# together should fail the test, not pass it quietly.
+DAG_SCHEMA_REPORT = """\
+Refreshed go-sdk/schema/dag-schema.json from airflow-core/src/airflow/serialization/schema.json.
+
+Review the diff, regenerate what it feeds, and commit both it and go-sdk/airflow/spec.gen.go:
+
+    (cd go-sdk && just generate-specs)
+
+A property that should not reach a Dag author belongs in the exclusion list in \
+go-sdk/internal/genspec/authoring.go."""
+
+SUPERVISOR_SCHEMA_REPORT = """\
+Refreshed go-sdk/schema/supervisor-schema.json from \
+task-sdk/src/airflow/sdk/execution_time/schema/schema.json.
+
+Review the diff, regenerate what it feeds, and commit both it and \
+go-sdk/pkg/execution/genmodels/*.gen.go:
+
+    (cd go-sdk && just generate-models)
+
+When api_version moved, SupervisorSchemaVersion in go-sdk/pkg/execution/messages.go has to \
+move with it; TestSupervisorSchemaVersionMatchesSnapshot fails until it does."""
+
+
 def test_copies_in_step_pass_and_name_what_was_compared():
     exit_code, report = syncer.format_report(())
 
     assert exit_code == 0
-    assert "go-sdk/schema/dag-schema.json" in report
-    assert "go-sdk/schema/supervisor-schema.json" in report
+    assert report == (
+        "go-sdk/schema/dag-schema.json, go-sdk/schema/supervisor-schema.json "
+        "match the schemas they are vendored from."
+    )
 
 
 def test_a_refreshed_dag_schema_fails_and_says_what_to_regenerate():
     exit_code, report = syncer.format_report((DAG_SCHEMA,))
 
     assert exit_code == 1
-    assert "Refreshed go-sdk/schema/dag-schema.json" in report
-    assert "just generate-specs" in report
-    assert "go-sdk/airflow/spec.gen.go" in report
-    # A property that should not reach a Dag author is a decision, not a copy.
-    assert "go-sdk/internal/genspec/authoring.go" in report
+    assert report == DAG_SCHEMA_REPORT
 
 
 def test_a_refreshed_supervisor_schema_points_at_the_version_constant():
     exit_code, report = syncer.format_report((SUPERVISOR_SCHEMA,))
 
     assert exit_code == 1
-    assert "just generate-models" in report
-    # api_version and SupervisorSchemaVersion have to move together.
-    assert "go-sdk/pkg/execution/messages.go" in report
-    assert "just generate-specs" not in report
+    assert report == SUPERVISOR_SCHEMA_REPORT
+
+
+def test_both_refreshed_reports_each_one_separately():
+    exit_code, report = syncer.format_report(syncer.VENDORED_SCHEMAS)
+
+    assert exit_code == 1
+    assert report == f"{DAG_SCHEMA_REPORT}\n\n{SUPERVISOR_SCHEMA_REPORT}"

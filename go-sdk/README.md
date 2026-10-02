@@ -388,11 +388,13 @@ is explainable from a file inside this module and a standalone checkout — a pu
 ASF source release — can regenerate and test without the monorepo around it. `ts-sdk` and `java-sdk`
 vendor theirs the same way.
 
-Two prek hooks split the work that keeps the copies honest: `sync-go-sdk-schemas` copies an original
-over its copy when the two differ and fails, since copying is mechanical; and
-`check-go-sdk-generated-drift` regenerates from the copies and fails when the committed Go differs,
-since what to do about a new schema construct — a generator rule, an authoring exclusion — is a
-decision.
+Two prek hooks split the work that keeps the copies honest. `sync-go-sdk-schemas` copies an original
+over its copy when the two differ and fails, since copying is mechanical; it is a **manual** hook, so
+re-vendoring is a deliberate step here rather than something a change to a Python schema forces on
+whoever made it — which also means nothing announces on its own that a copy has gone stale.
+`check-go-sdk-generated-drift` runs on every commit and regenerates from the copies, failing when the
+committed Go differs, since what to do about a new schema construct — a generator rule, an authoring
+exclusion — is a decision.
 
 ## Regenerating the coordinator-protocol models
 
@@ -401,7 +403,7 @@ module's vendored copy of the supervisor schema snapshot the Python Task SDK own
 (`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit either by hand. To move
 the SDK to a newer schema version:
 
-1. Refresh the copy: `prek run sync-go-sdk-schemas --all-files`, which overwrites
+1. Refresh the copy: `prek run sync-go-sdk-schemas --hook-stage manual`, which overwrites
    `schema/supervisor-schema.json` from task-sdk's and fails so the change lands in review.
 2. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
    copy's `api_version` date.
@@ -418,8 +420,8 @@ when the committed files differ.
 `airflow.DagSpec` and `airflow.TaskSpec` in [`airflow/spec.gen.go`](./airflow/spec.gen.go) are
 generated from `schema/dag-schema.json`, this module's vendored copy of airflow-core's Dag
 serialization schema (`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do
-not edit either by hand. Refresh the copy with `prek run sync-go-sdk-schemas --all-files`, then run
-`just generate-specs` after changing the schema or the generator.
+not edit either by hand. Refresh the copy with `prek run sync-go-sdk-schemas --hook-stage manual`,
+then run `just generate-specs` after changing the schema or the generator.
 
 The schema is the serialized shape rather than the authoring one, so
 [`internal/genspec/authoring.go`](./internal/genspec/authoring.go) holds the three tables that turn
