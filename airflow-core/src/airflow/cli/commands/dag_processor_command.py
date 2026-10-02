@@ -22,6 +22,8 @@ import logging
 from typing import Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+from airflow.configuration import conf
+from airflow.dag_processing.bundles.manager import _get_configured_bundle_team_names
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
@@ -33,12 +35,34 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 log = logging.getLogger(__name__)
 
 
+def _get_team_names(bundle_names: list[str] | None) -> list[str]:
+    """
+    Return the teams this Dag processor serves, sorted and de-duplicated.
+
+    Teams are resolved from the bundle configuration rather than the metadata DB: the job row is
+    written before ``sync_bundles()`` runs, so a DB lookup would see no rows on a fresh deployment
+    and stale rows right after a bundle is reassigned in config. Config is the source of truth, and
+    is what ``airflow_health.py`` resolves teams from too.
+
+    A processor started without ``--bundle-name`` parses every configured bundle, so it serves
+    every configured team. A bundle mapped to no team contributes no team, so a processor parsing
+    only team-less (or unknown) bundles is not team-scoped and serves the empty list. Outside
+    multi-team mode team scoping is disabled entirely, matching ``DagFileProcessorManager``.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return []
+
+    configured = _get_configured_bundle_team_names()
+    names = bundle_names or list(configured)
+    return sorted({team for name in names if (team := configured.get(name)) is not None})
+
+
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     if args.bundle_name:
         cli_utils.validate_dag_bundle_arg(args.bundle_name)
     return DagProcessorJobRunner(
-        job=Job(bundle_names=args.bundle_name),
+        job=Job(bundle_names=args.bundle_name, team_names=_get_team_names(args.bundle_name)),
         processor=DagFileProcessorManager(
             max_runs=args.num_runs,
             bundle_names_to_parse=args.bundle_name,

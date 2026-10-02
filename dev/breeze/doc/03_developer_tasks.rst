@@ -718,19 +718,37 @@ After returning to the host shell, stop the remaining Docker Compose services:
 
    breeze down
 
-``breeze down`` discovers every running docker compose project that breeze knows
-about — ``breeze shell``, ``breeze testing``, ``breeze build-docs``, ``breeze db``,
-release-management, registry, ``breeze run``, and prek-hook compose projects — by
-reading the ``com.docker.compose.project`` label that compose sets on every container
-it creates. Each matching project is brought down with ``--remove-orphans`` and
-``--volumes`` (unless ``--preserve-volumes`` is passed). A running
-``breeze start-airflow`` container must exit first; otherwise it continues to use
-the project's forwarded ports, network, and volumes.
+In a linked Git worktree, Breeze defaults to the project name ``breeze-<worktree directory name>``.
+The directory name is lowercased, and characters other than letters, digits, underscores, and
+hyphens are replaced with hyphens. The main checkout defaults to ``breeze``. Use ``--project-name``
+to override this default; worktrees with the same normalized directory name share a default project name.
 
-If you have an unrelated docker compose project running on the host that does not
-match any breeze prefix, it is left alone by default. Pass ``--all-projects`` to
-also bring those down. To restrict the cleanup to a single named project (useful
-in CI steps), pass ``--project-name <name>``.
+Before Docker-backed commands run, Breeze removes labelled resources belonging to deleted worktrees.
+This includes running containers and leftover named volumes, even when no containers remain.
+Help and commands that do not use Docker do not trigger cleanup.
+
+Please note that automatic cleanup is best-effort: disappearing or busy resources produce a warning without
+aborting the command. Remaining resources are retried on the next Docker-backed command.
+Explicit ``breeze down`` reports Docker failures as errors.
+
+``breeze down`` removes containers, networks, and volumes for Breeze projects with no worktree path
+and for projects belonging to the current checkout.
+It also removes Breeze-owned resources whose absolute worktree path no longer exists,
+including running containers. Paths are checked on the machine running Breeze, so this
+stale-worktree detection assumes a local Docker daemon.
+
+Pass ``--all-worktrees`` to include other checkouts and every project with the ``org.apache.airflow.breeze=true``
+ownership label. Projects predating the Breeze labels are included when their name is ``breeze``
+or starts with ``breeze-``, preserving the legacy cleanup behavior.
+Use ``--project-name <name>`` to restrict removal to one exact Compose project; this also
+disables stale-worktree cleanup for other projects and cannot be combined with ``--all-worktrees``.
+
+Discovery includes volumes and networks even when no containers remain. Resources are removed
+directly through Docker, so deleted worktrees do not need their Compose files restored.
+``--preserve-volumes`` keeps named and anonymous volumes, including those from deleted worktrees.
+Shared MyPy and bytecode caches remain controlled by their explicit cleanup flags.
+Unlike ``breeze cleanup``, ``down`` does not delete local source files, environments, images,
+or build caches unless an explicit cache-cleanup flag is passed.
 
 These are all available flags of ``down`` command:
 

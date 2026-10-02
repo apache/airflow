@@ -97,8 +97,9 @@ def _run_worker(
         with unread_messages:
             unread_messages.value -= 1
 
+        key = LocalExecutor.get_workload_key(workload)
         if workload.running_state is not None:
-            output.put((workload.key, workload.running_state, None))
+            output.put((key, workload.running_state, None))
 
         try:
             BaseExecutor.run_workload(
@@ -107,10 +108,10 @@ def _run_worker(
                 proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
                 subprocess_logs_to_stdout=True,
             )
-            output.put((workload.key, workload.success_state, None))
+            output.put((key, workload.success_state, None))
         except Exception as e:
             log.exception("Workload execution failed.", workload_type=type(workload).__name__)
-            output.put((workload.key, workload.failure_state, e))
+            output.put((key, workload.failure_state, e))
 
 
 class LocalExecutor(BaseExecutor):
@@ -126,6 +127,7 @@ class LocalExecutor(BaseExecutor):
     is_mp_using_fork: bool
 
     supports_multi_team: bool = True
+    supports_task_instance_uuid = True
     serve_logs: bool = True
     # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``) to bound hook
     # execution, so ``TEST_CONNECTION`` support requires a POSIX worker (LocalExecutor runs on the host).
@@ -315,9 +317,10 @@ class LocalExecutor(BaseExecutor):
     def _process_workloads(self, workload_list):
         for workload in workload_list:
             self.activity_queue.put(workload)
-            removed = self.executor_queues[workload.type].pop(workload.key, None)
+            key = self.get_workload_key(workload)
+            removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:
-                raise KeyError(f"Workload {workload.key} was not found in any queue")
+                raise KeyError(f"Workload {key} was not found in any queue")
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()

@@ -75,7 +75,7 @@ pick := dag.Switch(pickPath) // task_id pickPath, from the function name
 pick.Case(handleLongRef).
     Case(handleShortRef)
 
-dag.Task(airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagId: "downstream_etl"}), airflow.TaskSpec{TaskId: "trigger_downstream"}).After(gate)
+dag.Task(airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagID: "downstream_etl"}), airflow.TaskSpec{TaskID: "trigger_downstream"}).After(gate)
 ```
 
 A decider has to see the refs it returns, so either they are package-level or it is a closure where the Dag is built.

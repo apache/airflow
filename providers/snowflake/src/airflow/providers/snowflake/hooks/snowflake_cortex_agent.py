@@ -23,6 +23,7 @@ from urllib.parse import quote
 import requests
 
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook, _validate_account_component
+from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
 JsonDict = dict[str, Any]
 JsonList = list[JsonDict]
@@ -42,17 +43,41 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         account = _validate_account_component(conn_config["account"], "account")
         return f"https://{account}.snowflakecomputing.com"
 
-    def _get_access_token(self) -> str:
+    def _get_auth_headers(self) -> dict[str, str]:
+        """Build authentication headers using OAuth or key-pair authentication."""
         conn_config = self._get_conn_params()
 
-        token = conn_config.get("token")
-        if not token:
+        if token := conn_config.get("token"):
+            return {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
+            }
+
+        account = conn_config.get("account")
+        user = conn_config.get("user")
+        private_key = self.get_private_key()
+
+        if not account or not user or private_key is None:
             raise ValueError(
-                "Snowflake connection does not provide an OAuth access token. "
-                "This hook currently requires an OAuth access token."
+                "Snowflake connection must provide either OAuth credentials or "
+                "an account, user, and private key for key-pair authentication."
             )
 
-        return token
+        token = JWTGenerator(
+            account=account,
+            user=user,
+            private_key=private_key,
+        ).get_token()
+
+        if token is None:
+            raise RuntimeError("Failed to generate a Snowflake key-pair JWT.")
+
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+        }
 
     @overload
     def _request(
@@ -92,10 +117,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         response = requests.request(
             method=method,
             url=f"{self._get_base_url()}{endpoint}",
-            headers={
-                "Authorization": f"Bearer {self._get_access_token()}",
-                "Content-Type": "application/json",
-            },
+            headers=self._get_auth_headers(),
             json=payload,
             params=params,
             timeout=timeout,

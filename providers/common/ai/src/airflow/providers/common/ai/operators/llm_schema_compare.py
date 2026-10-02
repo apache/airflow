@@ -81,6 +81,11 @@ class LLMSchemaCompareOperator(LLMOperator):
     """
     Compare schemas across different database systems and detect drift using LLM reasoning.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The LLM handles complex cross-system type mapping that simple equality checks
     miss (e.g., ``varchar(255)`` vs ``string``, ``timestamp`` vs ``timestamptz``).
 

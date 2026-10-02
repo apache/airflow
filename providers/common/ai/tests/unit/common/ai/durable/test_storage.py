@@ -28,7 +28,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import RequestUsage
 
 from airflow.providers.common.ai.durable.storage import DurableStorage
-from airflow.sdk import ObjectStoragePath
+from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 
 @pytest.fixture
@@ -190,6 +190,15 @@ class TestSaveLoadToolResult:
 
         found, _, _ = storage.load_tool_result("tool_step_0")
         assert found is False
+
+
+class TestSaveReturnsWhetherWritten:
+    def test_written_entries_return_true(self, storage, sample_response):
+        assert storage.save_model_response("model_step_0", sample_response, fingerprint="fp") is True
+        assert storage.save_tool_result("tool_step_1", {"rows": [1]}, fingerprint="fp") is True
+
+    def test_non_serializable_tool_result_returns_false(self, storage):
+        assert storage.save_tool_result("tool_step_0", object(), fingerprint="fp") is False
 
 
 class TestMalformedEntries:
