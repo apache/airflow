@@ -147,9 +147,8 @@ class NodeCoordinator(SubprocessCoordinator):
             return None
         return _Bundle(path=dag_file, schema_version=metadata.supervisor_schema_version)
 
-    @classmethod
-    def get_dag_importer_class(cls) -> type[NodeDagImporter]:
-        return NodeDagImporter
+    def get_dag_importer(self) -> NodeDagImporter:
+        return NodeDagImporter(coordinator=self)
 
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         return [self.node_executable, os.fspath(path)], read_bundle(path).supervisor_schema_version
