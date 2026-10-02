@@ -55,7 +55,7 @@ vi.mock("openapi/queries", () => ({
             { bundle_url: "/dag.js", destination: "dag_overview", name: "Dag overview plugin" },
             { bundle_url: "/task.js", destination: "task_overview", name: "Task overview plugin" },
             {
-              applies_to: { operators: ["PythonOperator"] },
+              applies_to: { "class_ref.class_name": ["PythonOperator"] },
               bundle_url: "/scoped.js",
               destination: "task_overview",
               name: "Scoped overview plugin",
