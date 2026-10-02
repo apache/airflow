@@ -193,7 +193,7 @@ class LlamaIndexRetrievalOperator(BaseOperator):
     def _open_storage_context(self, storage_context_cls: Any) -> Any:
         """Open a ``StorageContext`` from a local path or storage URI."""
         if "://" in self.index_persist_dir:
-            from airflow.sdk import ObjectStoragePath
+            from airflow.providers.common.compat.sdk import ObjectStoragePath
 
             source = ObjectStoragePath(self.index_persist_dir, conn_id=self.persist_conn_id)
             if not source.is_dir():

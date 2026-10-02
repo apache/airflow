@@ -4557,6 +4557,7 @@ def test_failure_listener_receives_failed_try_before_rotation(
     ti.task = dag.get_task("task")
     ti.try_number = 1
     ti.state = State.RUNNING
+    ti.external_executor_id = "previous-worker"
     session.commit()
     original_id = ti.id
     received = []
@@ -4586,6 +4587,17 @@ def test_failure_listener_receives_failed_try_before_rotation(
         )
         assert history.try_number == 1
         assert history.state == State.FAILED
+        assert history.external_executor_id == "previous-worker"
+        assert ti.external_executor_id is None
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstanceHistory)
+                .where(TaskInstanceHistory.task_instance_id == original_id)
+            )
+            == 1
+        )
     else:
         assert ti.id == original_id
         assert ti.try_number == 1
+        assert ti.external_executor_id == "previous-worker"

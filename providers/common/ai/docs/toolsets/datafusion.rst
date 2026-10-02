@@ -37,7 +37,9 @@ querying files on object stores (S3, GCS, local filesystem, Iceberg) via Apache 
    * - ``list_tables``
      - Lists registered table names
    * - ``get_schema``
-     - Returns column names and types for a table (Arrow schema)
+     - Returns a table's columns (Arrow schema) as JSON, with a ``name_contains``
+       filter and a bounded summary on very wide tables (see
+       :ref:`bounded-schema-results`)
    * - ``query``
      - Executes a SQL query and returns bounded, columnar JSON (see
        :ref:`bounded-query-results`)
@@ -84,8 +86,11 @@ Parameters
   permitted. DataFusion on object stores is mostly read-only, but it does
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
-- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
-  See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result, and the byte backstop
+  that also triggers the ``get_schema`` summary. Default 64 KiB.
+  See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
+- ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
+  Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
 - ``max_retries``: How many times the model may correct a failed call to these
   tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
