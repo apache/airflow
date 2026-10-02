@@ -393,7 +393,7 @@ class ExecutableCoordinator(SubprocessCoordinator):
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
 
-    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+    def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         # The same trailer and digest check a task gets before its bundle runs.
         if (metadata := _read_bundle_metadata(path)) is None:
             raise ValueError(

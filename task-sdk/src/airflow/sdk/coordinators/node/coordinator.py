@@ -131,7 +131,7 @@ class NodeCoordinator(SubprocessCoordinator):
         bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
 
-    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+    def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         metadata = read_bundle(path)
         return [self.node_executable, os.fspath(path)], metadata.supervisor_schema_version
 

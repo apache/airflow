@@ -63,7 +63,7 @@ class FakeCoordinator(SubprocessCoordinator):
     artifact cannot be probed. ``task_handlers`` is the answer :func:`reply_with_task_handlers` sends.
     """
 
-    def _build_parse_task_handler_command(self, *, path: Path) -> tuple[list[str], str | None]:
+    def _build_task_handler_command(self, *, path: Path) -> tuple[list[str], str | None]:
         spec = json.loads(path.read_text())
         if error := spec.get("command_error"):
             raise FileNotFoundError(error)

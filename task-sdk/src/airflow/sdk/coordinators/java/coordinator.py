@@ -259,7 +259,7 @@ class JavaCoordinator(SubprocessCoordinator):
         jar = _JarInfo.find(roots, self.main_class)
         return self._build_java_command(roots, jar.main_class), jar.schema_version
 
-    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+    def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         metadata = _JarMetadata.from_jar(path)
         if metadata is None:
             raise ValueError(f"{path} is not an executable JAR: it has no readable manifest")

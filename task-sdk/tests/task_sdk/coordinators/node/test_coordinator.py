@@ -121,13 +121,13 @@ def _write_corrupted_bundle(root: pathlib.Path) -> pathlib.Path:
     return bundle
 
 
-class TestNodeCoordinatorParseTaskHandlerCommand:
+class TestNodeCoordinatorBuildTaskHandlerCommand:
     def test_returns_node_and_the_bundle_schema_version(self, tmp_path):
         # A bundle registering no Dag: the command does not depend on the Dags it declares.
         bundle = write_bundle(tmp_path)
         coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
 
-        command, schema_version = coordinator._build_parse_task_handler_command(path=bundle)
+        command, schema_version = coordinator._build_task_handler_command(path=bundle)
 
         assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
@@ -143,7 +143,7 @@ class TestNodeCoordinatorParseTaskHandlerCommand:
         path = write(tmp_path)
 
         with pytest.raises(ValueError, match=error):
-            NodeCoordinator()._build_parse_task_handler_command(path=path)
+            NodeCoordinator()._build_task_handler_command(path=path)
 
 
 class TestListTaskHandlerCandidates:

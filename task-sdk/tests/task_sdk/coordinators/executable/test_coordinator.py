@@ -457,12 +457,12 @@ class TestReadCacheDigest:
         assert read_cache_digest(build(tmp_path / "etl")) is None
 
 
-class TestBuildParseTaskHandlerCommand:
+class TestBuildTaskHandlerCommand:
     def test_returns_the_bundle_and_its_schema_version(self, tmp_path):
         # The Dag ids in the metadata play no part: the Dag processor names the artifact.
         bundle = _build_bundle(tmp_path / "etl", dag_ids=["other_dag"])
 
-        command, schema_version = ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+        command, schema_version = ExecutableCoordinator()._build_task_handler_command(path=bundle)
 
         assert command == [str(bundle.resolve())]
         assert schema_version == "2026-06-16"
@@ -471,7 +471,7 @@ class TestBuildParseTaskHandlerCommand:
         _build_bundle(tmp_path / "etl")
         monkeypatch.chdir(tmp_path)
 
-        command, _ = ExecutableCoordinator()._build_parse_task_handler_command(path=Path("etl"))
+        command, _ = ExecutableCoordinator()._build_task_handler_command(path=Path("etl"))
 
         assert command == [str((tmp_path / "etl").resolve())]
 
@@ -488,7 +488,7 @@ class TestBuildParseTaskHandlerCommand:
         bundle = build(tmp_path / "etl")
 
         with pytest.raises(ValueError, match="is not a valid executable bundle"):
-            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+            ExecutableCoordinator()._build_task_handler_command(path=bundle)
 
     def test_rejects_a_bundle_without_a_schema_version(self, tmp_path):
         metadata = _make_metadata(["etl"])
@@ -496,7 +496,7 @@ class TestBuildParseTaskHandlerCommand:
         bundle = _build_bundle(tmp_path / "etl", metadata=metadata)
 
         with pytest.raises(ValueError, match="supervisor_schema_version"):
-            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+            ExecutableCoordinator()._build_task_handler_command(path=bundle)
 
 
 def _list_candidates(bundle_path: Path) -> list[TaskHandlerCandidate]:

@@ -1230,7 +1230,7 @@ class TestGetScanRoots:
 
 @attrs.define(kw_only=True)
 class _TaskHandlerParsingCoordinator(_StubSubprocessCoordinator):
-    def _build_parse_task_handler_command(self, *, path):
+    def _build_task_handler_command(self, *, path):
         self.recorded_roots.append(list(self._get_scan_roots()))
         return [*self.command, os.fspath(path)], self.schema_version
 
@@ -1253,13 +1253,13 @@ def _is_running(process: psutil.Process) -> bool:
 
 
 class TestParseTaskHandler:
-    def test_build_parse_task_handler_command_default_raises(self, tmp_path):
+    def test_build_task_handler_command_default_raises(self, tmp_path):
         coordinator = _StubSubprocessCoordinator(command=["x"])
 
         with pytest.raises(
-            NotImplementedError, match="_StubSubprocessCoordinator does not parse task handlers"
+            NotImplementedError, match="_StubSubprocessCoordinator does not build task handler commands"
         ):
-            coordinator._build_parse_task_handler_command(path=tmp_path / "handlers.artifact")
+            coordinator._build_task_handler_command(path=tmp_path / "handlers.artifact")
 
     @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)

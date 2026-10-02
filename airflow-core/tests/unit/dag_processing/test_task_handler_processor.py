@@ -366,15 +366,15 @@ class TestLangSDKTaskHandlerProcessorProcess:
 
     @patch.object(
         FakeCoordinator,
-        "_build_parse_task_handler_command",
-        SubprocessCoordinator._build_parse_task_handler_command,
+        "_build_task_handler_command",
+        SubprocessCoordinator._build_task_handler_command,
     )
-    def test_a_coordinator_that_does_not_parse_task_handlers_is_an_import_error(self, parse):
+    def test_a_coordinator_that_builds_no_task_handler_command_is_an_import_error(self, parse):
         proc = parse()
 
         assert proc.parsing_result.import_errors == {
             "etl.artifact": "Cannot start the Lang-SDK runtime: "
-            "NotImplementedError: FakeCoordinator does not parse task handlers"
+            "NotImplementedError: FakeCoordinator does not build task handler commands"
         }
 
     @pytest.mark.parametrize(
@@ -742,7 +742,7 @@ class TestRun:
     @conf_vars({("dag_processor", "dag_file_processor_timeout"): "1"})
     @patch.object(
         FakeCoordinator,
-        "_build_parse_task_handler_command",
+        "_build_task_handler_command",
         autospec=True,
         side_effect=lambda self, *, path: threading.Event().wait(),
     )

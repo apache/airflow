@@ -281,7 +281,7 @@ def test_parse_manifest_decodes_a_character_split_across_a_fold():
     assert _parse_manifest(manifest)["implementation-vendor"] == "Z\u00fcrich"
 
 
-class TestJavaCoordinatorParseTaskHandlerCommand:
+class TestJavaCoordinatorBuildTaskHandlerCommand:
     @pytest.fixture
     def bundle(self, tmp_path):
         _make_jar(tmp_path / "app.jar", main_class="com.example.App", schema_version="2026-06-16")
@@ -298,7 +298,7 @@ class TestJavaCoordinatorParseTaskHandlerCommand:
     ):
         coordinator = JavaCoordinator(jvm_args=["-Xmx1g"], main_class="com.example.Configured")
         with coordinator._set_scan_roots([bundle]):
-            command, schema_version = coordinator._build_parse_task_handler_command(path=bundle / jar)
+            command, schema_version = coordinator._build_task_handler_command(path=bundle / jar)
 
         classpath = os.pathsep.join(
             (bundle / name).as_posix() for name in ("app.jar", "lib/dep.jar", "other.jar")
@@ -311,7 +311,7 @@ class TestJavaCoordinatorParseTaskHandlerCommand:
         _make_jar(tmp_path / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
         coordinator = JavaCoordinator()
         with coordinator._set_scan_roots([tmp_path]):
-            command, schema_version = coordinator._build_parse_task_handler_command(path=tmp_path / "app.jar")
+            command, schema_version = coordinator._build_task_handler_command(path=tmp_path / "app.jar")
 
         assert command[-1] == "com.example.App"
         assert schema_version == "2026-10-30"
@@ -324,7 +324,7 @@ class TestJavaCoordinatorParseTaskHandlerCommand:
             zf.writestr("META-INF/MANIFEST.MF", manifest)
         coordinator = JavaCoordinator()
         with coordinator._set_scan_roots([tmp_path]):
-            command, _ = coordinator._build_parse_task_handler_command(path=tmp_path / "app.jar")
+            command, _ = coordinator._build_task_handler_command(path=tmp_path / "app.jar")
 
         assert command[-1] == main_class
 
@@ -350,7 +350,7 @@ class TestJavaCoordinatorParseTaskHandlerCommand:
             coordinator._set_scan_roots([tmp_path]),
             pytest.raises(ValueError, match=f"is not an executable JAR: {reason}$"),
         ):
-            coordinator._build_parse_task_handler_command(path=path)
+            coordinator._build_task_handler_command(path=path)
 
 
 _CACHE_DIGEST = "c" * 64

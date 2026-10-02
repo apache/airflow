@@ -480,7 +480,7 @@ class SubprocessCoordinator(BaseCoordinator):
     failure — is handled here.
 
     A subclass that also reports its artifacts' task handlers implements
-    :meth:`_build_parse_task_handler_command`, and :meth:`_read_task_handler_candidate`
+    :meth:`_build_task_handler_command`, and :meth:`_read_task_handler_candidate`
     to tell its artifacts apart from the other files of a Dag bundle.
 
     :param task_startup_timeout: Maximum time the coordinator waits for the
@@ -565,16 +565,17 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         raise NotImplementedError
 
-    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+    def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         """
-        Build the command that reports the task handlers of the artifact at *path*, with its schema version.
+        Build the command that runs the artifact at *path*, with its supervisor schema version.
 
-        Subclasses can retrieve the directories to scan for artifacts with
-        :meth:`_get_scan_roots`; for a parse they are the root of the Dag bundle holding
-        *path*. The contract is that of :meth:`_build_execute_task_command`: *command*
-        MUST NOT include the ``--comm`` / ``--logs`` flags.
+        Subclasses can retrieve the root of the Dag bundle holding *path* with
+        :meth:`_get_scan_roots`. *command* MUST NOT include the ``--comm`` / ``--logs`` flags,
+        which are appended once the listening sockets have been bound. A ``None`` schema version
+        disables schema migration; messages are then exchanged at the runtime's native wire format.
+        Raise an exception when the artifact cannot run, for example when its integrity check fails.
         """
-        raise NotImplementedError(f"{type(self).__name__} does not parse task handlers")
+        raise NotImplementedError(f"{type(self).__name__} does not build task handler commands")
 
     def parse_task_handler(
         self,
@@ -599,7 +600,7 @@ class SubprocessCoordinator(BaseCoordinator):
             exited; the process is then unchanged.
         """
         with self._set_scan_roots([bundle_path]):
-            command, schema_version = self._build_parse_task_handler_command(path=path)
+            command, schema_version = self._build_task_handler_command(path=path)
         if schema_version is not None:
             get_schema_version_migrator().resolve_version(schema_version)
         argv = [
