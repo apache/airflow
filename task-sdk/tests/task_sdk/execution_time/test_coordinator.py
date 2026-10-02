@@ -333,9 +333,9 @@ class TestForBundle:
         coordinator = _CoordinatorB()
 
         assert _CoordinatorB.get_dag_importer_class() is None
-        assert coordinator.get_dag_importer() is None
         assert _CoordinatorB.get_parsed_bundles({}) == frozenset()
-        assert coordinator.serves_bundle("dags-folder") is False
+        with pytest.raises(NotImplementedError):
+            coordinator.get_dag_importer()
 
     def test_returns_parsing_coordinators_in_config_order(self, sdk_config):
         classpath = _classpath(_ClaimingCoordinator)

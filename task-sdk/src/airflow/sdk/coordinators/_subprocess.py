@@ -463,17 +463,10 @@ class SubprocessCoordinator(BaseCoordinator):
 
     @classmethod
     def get_parsed_bundles(cls, kwargs: Mapping[str, Any]) -> frozenset[str] | None:
+        """Parse only the ``dag_bundle_name`` bundle when it is set, and every bundle otherwise."""
         if (dag_bundle_name := kwargs.get("dag_bundle_name")) is not None:
             return frozenset({dag_bundle_name})
         return None
-
-    def serves_bundle(self, bundle_name: str) -> bool:
-        """
-        Return whether this coordinator's Dag importer parses Dag files in *bundle_name*.
-
-        A coordinator with ``dag_bundle_name`` serves only that bundle; one without it serves every bundle.
-        """
-        return self.dag_bundle_name is None or self.dag_bundle_name == bundle_name
 
     def _init_root_source(
         self, bundle_info: BundleInfo, logger: FilteringBoundLogger

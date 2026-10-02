@@ -93,7 +93,7 @@ class NativeDagImporter(CustomBundleNonExtensionImporter):
 
 class NativeCoordinator(BaseCoordinator):
     def __init__(self, *, bundles: list[str] | None = None):
-        self.bundles = bundles or ["test_bundle"]
+        self.bundles = bundles
 
     @classmethod
     def get_dag_importer_class(cls) -> type[NativeDagImporter]:
@@ -106,13 +106,11 @@ class NativeCoordinator(BaseCoordinator):
     def get_parsed_bundles(cls, kwargs) -> frozenset[str]:
         return frozenset(kwargs.get("bundles") or ["test_bundle"])
 
-    def serves_bundle(self, bundle_name: str) -> bool:
-        return bundle_name in self.bundles
-
 
 class NoImporterCoordinator(BaseCoordinator):
-    def serves_bundle(self, bundle_name: str) -> bool:
-        return True
+    @classmethod
+    def get_parsed_bundles(cls, kwargs) -> None:
+        return None
 
 
 def _coordinators(**kwargs_by_key: dict) -> dict[tuple[str, str], str]:
