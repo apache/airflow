@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Probe a bundle built with the Java SDK's Gradle plugin through a real JVM."""
+"""Probe a bundle built with the Java SDK's Gradle plugin through a real JVM, and check the example Dags against it."""
 
 from __future__ import annotations
 
@@ -43,6 +43,13 @@ from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.config import conf_vars
+from unit.dag_processing.fake_task_handler_runtime import (
+    LOCAL_BUNDLE,
+    get_stub_task_ids,
+    parse_dag_file,
+    sort_bindings,
+    task_handler_config,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -207,3 +214,40 @@ def test_a_built_bundle_declares_its_task_handlers(example_bundle):
     with zipfile.ZipFile(jar) as zf:
         manifest = _parse_manifest(zf.read("META-INF/MANIFEST.MF"))
     assert re.fullmatch(r"[0-9a-f]{64}", manifest["airflow-cache-digest"])
+
+
+@pytest.mark.usefixtures("java_coordinator")
+def test_the_example_dags_match_the_built_bundle(example_bundle):
+    dag_file = JAVA_SDK_PATH / "example" / "src" / "resources" / "dags" / "java_examples.py"
+    coordinators = {
+        "java-jdk": {
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {"task_handler_bundle_name": "java-task-handlers"},
+        }
+    }
+    bundles = [
+        {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_file.parent)}},
+        {
+            "name": "java-task-handlers",
+            "classpath": LOCAL_BUNDLE,
+            "kwargs": {"path": os.fspath(example_bundle)},
+        },
+    ]
+
+    with task_handler_config(
+        dag_file.parent,
+        example_bundle,
+        coordinators,
+        queue_to_coordinator={"java": "java-jdk"},
+        bundles=bundles,
+    ):
+        first = parse_dag_file(dag_file)
+        second = parse_dag_file(dag_file, known_artifacts=first.probed_artifacts)
+
+    assert first.import_errors == {}
+    assert {(b.dag_id, b.task_id) for b in first.task_handler_bindings} == get_stub_task_ids(first)
+    assert [a.relative_fileloc for a in first.probed_artifacts] == ["probe-example.jar"]
+
+    assert second.import_errors == {}
+    assert second.probed_artifacts == []
+    assert sort_bindings(second) == sort_bindings(first)

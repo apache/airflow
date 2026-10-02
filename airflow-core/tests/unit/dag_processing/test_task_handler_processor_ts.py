@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Probe a bundle packed by the TypeScript SDK through the real Node runtime."""
+"""Probe a bundle packed by the TypeScript SDK through the real Node runtime, and check the example Dags against it."""
 
 from __future__ import annotations
 
@@ -36,6 +36,13 @@ from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.config import conf_vars
+from unit.dag_processing.fake_task_handler_runtime import (
+    LOCAL_BUNDLE,
+    get_stub_task_ids,
+    parse_dag_file,
+    sort_bindings,
+    task_handler_config,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -136,3 +143,44 @@ def test_a_packed_bundle_declares_its_task_handlers(mock_should_use_exec, exampl
         },
     )
     assert list(result.task_handlers) == ["typescript_example", "typescript_taskflow_example"]
+
+
+@pytest.mark.parametrize("dag_file_name", ["typescript_example.py", "typescript_taskflow_example.py"])
+@mock.patch.object(supervisor, "_should_use_exec", autospec=True, return_value=False)
+def test_the_example_dags_match_the_packed_bundle(mock_should_use_exec, example_bundle, dag_file_name):
+    dag_file = TS_SDK_PATH / "example" / "dags" / dag_file_name
+    coordinators = {
+        "ts": {
+            "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+            "kwargs": {
+                "task_handler_bundle_name": "ts-task-handlers",
+                "node_executable": shutil.which("node"),
+            },
+        }
+    }
+    bundles = [
+        {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_file.parent)}},
+        {
+            "name": "ts-task-handlers",
+            "classpath": LOCAL_BUNDLE,
+            "kwargs": {"path": os.fspath(example_bundle.parent)},
+        },
+    ]
+
+    with task_handler_config(
+        dag_file.parent,
+        example_bundle.parent,
+        coordinators,
+        queue_to_coordinator={"typescript": "ts"},
+        bundles=bundles,
+    ):
+        first = parse_dag_file(dag_file)
+        second = parse_dag_file(dag_file, known_artifacts=first.probed_artifacts)
+
+    assert first.import_errors == {}
+    assert {(b.dag_id, b.task_id) for b in first.task_handler_bindings} == get_stub_task_ids(first)
+    assert [a.relative_fileloc for a in first.probed_artifacts] == [example_bundle.name]
+
+    assert second.import_errors == {}
+    assert second.probed_artifacts == []
+    assert sort_bindings(second) == sort_bindings(first)

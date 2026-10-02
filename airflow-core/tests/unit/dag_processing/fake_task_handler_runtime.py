@@ -28,13 +28,19 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import attrs
+import structlog
 from pydantic import TypeAdapter
 
 from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    DagFileParsingResult,
+    TaskHandlerArtifact,
+    TaskHandlerBinding,
     TaskHandlerParseRequest,
     TaskHandlerParsingResult,
     ToManager,
     ToSDKTaskHandlerProcessor,
+    _parse_file,
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.execution_time import supervisor
@@ -140,6 +146,36 @@ def task_handler_config(
             yield
     finally:
         reset_coordinator_manager()
+
+
+def parse_dag_file(
+    dag_file: Path, *, known_artifacts: Sequence[TaskHandlerArtifact] = ()
+) -> DagFileParsingResult:
+    """Parse *dag_file* as the Dag processor's child does, in the Dag bundle ``dags`` at its directory."""
+    request = DagFileParseRequest(
+        file=os.fspath(dag_file),
+        bundle_path=dag_file.parent,
+        bundle_name="dags",
+        known_artifacts=list(known_artifacts),
+    )
+    result = _parse_file(request, log=structlog.get_logger())
+    assert result is not None
+    return result
+
+
+def get_stub_task_ids(result: DagFileParsingResult) -> set[tuple[str, str]]:
+    """Return the Dag and task id of every stub task in the serialized Dags of *result*."""
+    return {
+        (dag.dag_id, task["__var"]["task_id"])
+        for dag in result.serialized_dags
+        for task in dag.data["dag"]["tasks"]
+        if task["__var"].get("is_stub")
+    }
+
+
+def sort_bindings(result: DagFileParsingResult) -> list[TaskHandlerBinding]:
+    """Return the bindings of *result* by Dag and task id; a second import of a file can reorder its Dags."""
+    return sorted(result.task_handler_bindings or [], key=lambda binding: (binding.dag_id, binding.task_id))
 
 
 def write_artifact(path: Path, **spec: Any) -> Path:
