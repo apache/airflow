@@ -416,6 +416,25 @@ class TestExecuteTaskMakeVersionData:
         assert workload.bundle_info.version_data != bumped_manifest
 
 
+class TestExecuteTaskMakeTaskHandlerArtifact:
+    @pytest.fixture(autouse=True)
+    def _stub_log_template(self, monkeypatch):
+        monkeypatch.setattr(
+            "airflow.utils.helpers.log_filename_template_renderer",
+            lambda: lambda **kwargs: "test.log",
+        )
+
+    def test_make_sets_the_artifact(self):
+        ref = workloads.TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name="go-task-handlers"), rel_path="bin/etl"
+        )
+        ti = TestExecuteTaskMakeVersionData._make_mock_ti(bundle_version="abc123", version_data=None)
+
+        workload = ExecuteTask.make(ti, task_handler_artifact=ref)
+
+        assert workload.task_handler_artifact == ref
+
+
 class TestExecuteCallbackMakeVersionData:
     """Tests for ExecuteCallback.make() threading version_data through BundleInfo."""
 

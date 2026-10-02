@@ -115,6 +115,7 @@ class ExecuteTask(BaseDagBundleWorkload):
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
         sentry_integration: str = "",
+        task_handler_artifact: TaskHandlerArtifactRef | None = None,
     ) -> ExecuteTask:
         """Create an ExecuteTask workload from a TaskInstance ORM model."""
         from airflow.utils.helpers import log_filename_template_renderer
@@ -141,4 +142,5 @@ class ExecuteTask(BaseDagBundleWorkload):
             log_path=fname,
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
+            task_handler_artifact=task_handler_artifact,
         )
