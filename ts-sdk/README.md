@@ -116,7 +116,9 @@ natively in a language SDK do not use it.
 
 This config, the packed bundles and Node.js 22 or later must be present wherever tasks execute and on the
 Dag processor, which checks the stub tasks of each Python Dag against the task handlers the bundles
-register. The API server does not need them.
+register. The scheduler reads the config too, to send each stub task the artifact the Dag processor bound
+it to; for that it needs no packed bundles or Node.js. A scheduler that rejects the config logs a warning and
+sends no artifacts. The API server does not need them.
 
 TypeScript entrypoint:
 

@@ -180,6 +180,13 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
     ``"my-coordinator"``.  A single coordinator can serve multiple queues; a queue can only
     map to one coordinator.
 
+    The Dag processor and the scheduler read it too: the Dag processor binds each stub task on a routed
+    queue to its artifact, and the scheduler sends the task that artifact. Set the same ``[sdk]``
+    configuration on the scheduler, and list the Dag bundles that the coordinators name in
+    ``task_handler_bundle_name`` in its ``[dag_processor] dag_bundle_config_list``. The scheduler needs
+    neither the language runtime nor the files of those bundles. A scheduler that cannot read the
+    configuration logs a warning and sends no artifacts.
+
 Both settings can be supplied as environment variables using the standard Airflow convention:
 
 .. code-block:: bash
