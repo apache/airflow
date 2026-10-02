@@ -615,6 +615,7 @@ class TestSnowflakeCortexAgentHook:
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
                 "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
             },
             json=expected_payload,
             params=expected_params,
@@ -675,6 +676,7 @@ class TestSnowflakeCortexAgentHook:
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
                 "Content-Type": "application/json",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
             },
             json={
                 "comment": "Updated by Airflow",
