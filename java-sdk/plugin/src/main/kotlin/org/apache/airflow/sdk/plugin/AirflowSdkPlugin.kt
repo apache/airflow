@@ -22,11 +22,13 @@ package org.apache.airflow.sdk.plugin
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.jvm.toolchain.JavaToolchainService
 import java.lang.reflect.Modifier
 import java.net.URLClassLoader
 import java.util.jar.JarFile
@@ -93,6 +95,13 @@ abstract class AirflowBundleExtension {
  * identify which version of the Supervisor Schema it should use to communicate
  * with the built JAR.
  *
+ * When `mainClass` is set, the bundle JAR also carries the source file of each
+ * Dag declared in Java and of the entrypoint, so Airflow can show a Dag's source.
+ * They are collected by the `packDagSources` task, which runs `mainClass` once in
+ * a describe mode, and are listed in `META-INF/airflow/sources.json`, named by the
+ * `Airflow-Java-SDK-Sources` manifest attribute. If that run fails, a warning is
+ * logged and only the entrypoint's source is packed.
+ *
  * If `fatJar` is explicitly set to `false`, the `bundle` task builds a bare JAR
  * containing only the Dag bundle, and collect all dependency JARs into the target
  * directory instead. In this mode, `Airflow-Supervisor-Schema-Version` lives in
@@ -107,21 +116,43 @@ class AirflowSdkPlugin : Plugin<Project> {
     ext.fatJar.convention(true)
 
     project.afterEvaluate {
+      val main = project.extensions.getByType(SourceSetContainer::class.java).getByName("main")
+
+      val packTask =
+        project.tasks.register("packDagSources", PackDagSources::class.java) { task ->
+          task.group = "build"
+          task.description = "Collects the source file of each Dag and the entrypoint to pack into the bundle JAR."
+          task.dependsOn(project.tasks.named("classes"))
+          task.onlyIf { ext.mainClass.isPresent }
+          task.mainClass.set(ext.mainClass)
+          task.classesDirs.from(main.output.classesDirs)
+          task.runtimeClasspath.from(main.output, main.runtimeClasspath)
+          task.sourceDirs.from(main.allSource.srcDirs)
+          task.launcher.convention(
+            project.extensions
+              .getByType(JavaToolchainService::class.java)
+              .launcherFor(project.extensions.getByType(JavaPluginExtension::class.java).toolchain),
+          )
+          task.describeFile.set(project.layout.buildDirectory.file("airflow/describe-sources.json"))
+          task.sourcesDir.set(project.layout.buildDirectory.dir("airflow/sources"))
+        }
+
       project.tasks.withType(Jar::class.java).configureEach { task ->
         task.doFirst {
           ext.mainClass.orNull?.let { className ->
             task.manifest.attributes(mapOf("Main-Class" to className))
           }
         }
+        if (ext.mainClass.isPresent) {
+          task.dependsOn(packTask)
+          task.from(packTask.flatMap { it.sourcesDir })
+          task.manifest.attributes(mapOf(SOURCES_MANIFEST_ATTRIBUTE to SOURCES_JSON_PATH))
+        }
       }
 
       val classFiles =
         project.objects.fileCollection().from(
-          project.extensions
-            .getByType(SourceSetContainer::class.java)
-            .getByName("main")
-            .output
-            .classesDirs,
+          main.output.classesDirs,
           project.configurations.getByName("runtimeClasspath"),
         )
 
