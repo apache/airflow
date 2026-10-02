@@ -1,0 +1,3 @@
+Only ``.zip`` archives are discovered as packaged Dags
+
+Dag discovery now lists a zip archive as a packaged Dag only when its file name ends in ``.zip``. Before, every zip archive in a Dag bundle was parsed whatever its name, including JAR files and archives with no suffix. A packaged Dag stored under another name is no longer found: rename it to end in ``.zip``. ``.py`` files are listed as before.
