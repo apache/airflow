@@ -39,6 +39,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     _BinaryDigestCache,
     _Bundle,
     _digest_cache,
+    read_cache_digest,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -407,6 +408,95 @@ class TestBuildExecuteTaskCommand:
             pytest.raises(FileNotFoundError, match="cannot find executable bundle"),
         ):
             coordinator._build_execute_task_command(what=ti)
+
+
+_CACHE_DIGEST = "c" * 64
+
+
+def _make_metadata_with_digests(**digests: str) -> dict:
+    return {**_make_metadata(["etl"]), "digests": digests}
+
+
+class TestReadCacheDigest:
+    @pytest.mark.parametrize(
+        "bundle_kwargs",
+        [
+            pytest.param(
+                {"metadata": _make_metadata_with_digests(integrity="a" * 64, cache=_CACHE_DIGEST)},
+                id="valid-bundle",
+            ),
+            pytest.param(
+                {"metadata": _make_metadata_with_digests(cache=_CACHE_DIGEST), "binary_sha256": b"\x00" * 32},
+                id="binary-digest-mismatch-not-checked",
+            ),
+        ],
+    )
+    def test_returns_the_stored_digest(self, tmp_path, bundle_kwargs):
+        bundle = _build_bundle(tmp_path / "etl", **bundle_kwargs)
+
+        assert read_cache_digest(bundle) == _CACHE_DIGEST
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            pytest.param(lambda path: _build_bundle(path), id="no-digests"),
+            pytest.param(
+                lambda path: _build_bundle(path, metadata=_make_metadata_with_digests(integrity="a" * 64)),
+                id="no-cache-digest",
+            ),
+            pytest.param(
+                lambda path: _build_bundle(path, metadata=_make_metadata_with_digests(cache="")),
+                id="empty-cache-digest",
+            ),
+            pytest.param(lambda path: _build_bundle(path, metadata=b"\xff\xfe"), id="undecodable-metadata"),
+            pytest.param(_make_executable, id="not-a-bundle"),
+            pytest.param(lambda path: path, id="missing-file"),
+        ],
+    )
+    def test_returns_none_without_a_readable_digest(self, tmp_path, build):
+        assert read_cache_digest(build(tmp_path / "etl")) is None
+
+
+class TestBuildParseTaskHandlerCommand:
+    def test_returns_the_bundle_and_its_schema_version(self, tmp_path):
+        # The Dag ids in the metadata play no part: the Dag processor names the artifact.
+        bundle = _build_bundle(tmp_path / "etl", dag_ids=["other_dag"])
+
+        command, schema_version = ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+        assert command == [str(bundle.resolve())]
+        assert schema_version == "2026-06-16"
+
+    def test_returns_an_absolute_path(self, tmp_path, monkeypatch):
+        _build_bundle(tmp_path / "etl")
+        monkeypatch.chdir(tmp_path)
+
+        command, _ = ExecutableCoordinator()._build_parse_task_handler_command(path=Path("etl"))
+
+        assert command == [str((tmp_path / "etl").resolve())]
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            pytest.param(_make_executable, id="no-trailer"),
+            pytest.param(
+                lambda path: _build_bundle(path, binary_sha256=b"\x00" * 32), id="binary-digest-mismatch"
+            ),
+        ],
+    )
+    def test_rejects_a_file_that_is_not_a_valid_bundle(self, tmp_path, build):
+        bundle = build(tmp_path / "etl")
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+    def test_rejects_a_bundle_without_a_schema_version(self, tmp_path):
+        metadata = _make_metadata(["etl"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        bundle = _build_bundle(tmp_path / "etl", metadata=metadata)
+
+        with pytest.raises(ValueError, match="supervisor_schema_version"):
+            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
 
 
 @pytest.fixture

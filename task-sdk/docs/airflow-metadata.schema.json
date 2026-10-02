@@ -40,6 +40,23 @@
       "description": "Original filename of the primary Dag source file (e.g. 'example.go'). Bundle formats with an embedded source region use this as its display name; other formats treat it as the logical authoring name.",
       "minLength": 1
     },
+    "digests": {
+      "type": "object",
+      "description": "Digests the packer records, so a consumer can compare a stored value instead of computing one. Consumers ignore keys they do not know.",
+      "additionalProperties": true,
+      "properties": {
+        "integrity": {
+          "type": "string",
+          "description": "SHA-256 of the binary region: the same value as the trailer's binary_sha256. Task execution still recomputes the trailer's digest.",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "cache": {
+          "type": "string",
+          "description": "Stays the same across packs of the same inputs and changes when any region of the bundle changes. It is read, never recomputed, so it does not prove the bundle is intact. The producer defines how it is computed; consumers only compare it for equality.",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
     "dags": {
       "type": "object",
       "description": "Mapping of dag_id to DAG entry. Every dag_id the bundle exposes must appear here.",

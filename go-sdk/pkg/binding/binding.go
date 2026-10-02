@@ -23,7 +23,8 @@
 // Captured defaults may go unclaimed, and a sole untagged struct can decode one
 // unclaimed argument as a whole value.
 //
-// Analyze validates a function once. Resolve binds each execution.
+// Analyze validates a function once. Resolve binds each execution. Declare describes the
+// parameters for the Dag processor's check of a stub task against its handler.
 // AnalyzePositional builds a plan in which a sole struct binds positionally too, as one whole
 // argument.
 package binding

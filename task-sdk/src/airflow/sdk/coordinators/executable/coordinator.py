@@ -245,6 +245,35 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
         return None
 
 
+def read_cache_digest(path: pathlib.Path) -> str | None:
+    """
+    Return the cache digest stored in the metadata of the executable bundle at *path*.
+
+    The digest changes whenever any region of the bundle changes, so the Dag processor can
+    compare it with the one it saw when it last probed the bundle. It is read, not computed:
+    the binary region is not hashed, so a match does not prove the bundle is intact.
+
+    Returns ``None`` when the file is not a readable bundle or its metadata has no cache digest,
+    and the caller should treat the bundle as changed.
+    """
+    try:
+        with open(path, "rb") as f:
+            footer = _Footer.read(f, path, os.fstat(f.fileno()).st_size)
+            if footer is None:
+                return None
+            f.seek(footer.metadata_start)
+            metadata_bytes = f.read(footer.metadata_len)
+        metadata = parse_metadata_mapping(metadata_bytes, source="bundle metadata")
+    except (OSError, ValueError) as exc:
+        log.debug("Cannot read the bundle's cache digest", path=str(path), error=str(exc))
+        return None
+    digests = metadata.get("digests")
+    if not isinstance(digests, dict):
+        return None
+    cache = digests.get("cache")
+    return cache if isinstance(cache, str) and cache else None
+
+
 def _dag_ids(metadata: dict[str, Any]) -> set[str]:
     dags = metadata.get("dags")
     if not isinstance(dags, dict):
@@ -326,6 +355,9 @@ class ExecutableCoordinator(SubprocessCoordinator):
     """
     Coordinator that launches a native executable subprocess for task execution.
 
+    The Dag processor also launches an executable bundle to ask which task handlers
+    it registers for the Dags of a Python file.
+
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
 
@@ -349,3 +381,13 @@ class ExecutableCoordinator(SubprocessCoordinator):
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        # The same trailer and digest check a task gets before its bundle runs.
+        if (metadata := _read_bundle_metadata(path)) is None:
+            raise ValueError(
+                f"{path} is not a valid executable bundle: it cannot be read, has no AFBNDL01 "
+                "trailer, or its binary digest or metadata is invalid"
+            )
+        # Absolute, as for a task, so exec never searches PATH for it.
+        return [os.fspath(path.resolve())], extract_supervisor_schema_version(metadata)

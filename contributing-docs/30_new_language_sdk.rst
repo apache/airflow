@@ -126,6 +126,28 @@ or the task's own Dag bundle when it is unset, pinned for the whole task.
 Subclasses should scan those directories rather than locating artifacts
 themselves.
 
+SubprocessCoordinator: implementing ``_build_parse_task_handler_command``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When a Python Dag file has stub tasks, the Dag processor asks the artifact that
+implements them which task handlers it registers, and checks each stub task
+against its handler. A coordinator opts in by building the command that starts
+its runtime for one artifact:
+
+.. code-block:: python
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]: ...
+
+*path* is the artifact the Dag processor picked, so the method does not search
+for one. The returned pair follows the rules of ``_build_execute_task_command``:
+no ``--comm`` or ``--logs`` flags, and the schema version the runtime
+understands. The runtime then answers as described in
+`Answering TaskHandlerParseRequest`_.
+
+The default raises ``NotImplementedError``, so a coordinator that does not
+implement it cannot be probed. ``ExecutableCoordinator`` implements it for
+executable bundles.
+
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
 
@@ -195,8 +217,10 @@ as soon as possible. The supervisor verifies that the connecting peer belongs
 to the launched process tree, so the SDK MUST connect from the same process or
 one of its descendants.
 
-Once both connections are accepted, the supervisor sends a ``StartupDetails``
-message on the comm socket to initiate execution.
+Once both connections are accepted, the supervisor sends the first message on
+the comm socket. ``StartupDetails`` starts a task. ``TaskHandlerParseRequest``
+comes from the Dag processor instead, and asks which task handlers the runtime
+registers (see `Answering TaskHandlerParseRequest`_).
 
 Wire protocol
 ~~~~~~~~~~~~~
@@ -272,6 +296,40 @@ The gap is stage 2: the SDK's own startup code (argument parsing, the connect
 calls themselves) can already produce log records before the ``--logs`` socket
 in stage 3 exists to carry them. See `Logging`_ below for how to handle that
 gap.
+
+Answering ``TaskHandlerParseRequest``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The SDK sends back one ``TaskHandlerParsingResult``, waits for the supervisor's
+response to it, and exits. No user code runs; the answer comes from the SDK's
+own task handler registrations. It MUST declare every registered handler and
+depend only on the artifact, never on the request.
+
+* ``task_handlers`` maps each Dag id the artifact registers handlers for to
+  their declarations, in registration order.
+* Each ``TaskHandlerDeclaration`` states in ``binding`` how stub-task arguments
+  bind to its ``params``:
+
+  * ``positional``: by position. An argument count or value type the handler
+    cannot take makes the Dag fail to import.
+  * ``named``: by name in any order, ignoring case and underscores unless a
+    param sets ``exact_name``. An argument or param that matches nothing is
+    logged as a warning and the task still runs, so the runtime must accept
+    both. When no param matches and exactly one argument was passed, it may be
+    the whole value and is not warned about, unless ``params`` is empty, a
+    param sets ``exact_name``, or the argument cannot be an object. A value
+    type a param does not accept makes the Dag fail to import.
+
+* ``params`` lists the handler's parameters in order, ``[]`` when it has none,
+  or is ``null`` when the SDK cannot list them. Then only the handler's
+  presence is checked.
+* Each ``TaskHandlerParam`` has a ``name`` (``null`` when the SDK has no name
+  for a positional parameter) and a ``value_schema``: the JSON Schema of the
+  values it accepts, in the vocabulary ``@task.stub`` uses for Python
+  annotations, or ``null`` when the SDK cannot state one.
+* An empty ``task_handlers`` mapping is sent empty, never as ``null``.
+
+``go-sdk/pkg/execution`` is a reference implementation.
 
 Logging
 ~~~~~~~

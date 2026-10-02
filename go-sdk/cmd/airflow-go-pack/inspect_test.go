@@ -42,7 +42,7 @@ func TestInspectCmd(t *testing.T) {
 			"      - \"t1\"\n",
 	)
 	bundle := filepath.Join(dir, "bundle")
-	require.NoError(t, writeBundle(exe, bundle, source, manifest))
+	require.NoError(t, writeBundle(exe, bundle, source, fixedManifest(manifest)))
 
 	for _, tc := range []struct {
 		name   string

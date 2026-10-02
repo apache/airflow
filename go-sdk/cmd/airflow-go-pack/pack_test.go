@@ -18,6 +18,9 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"os"
@@ -28,6 +31,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
 	"github.com/apache/airflow/go-sdk/internal/bundlefooter"
@@ -47,9 +51,9 @@ func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
 		},
 	}
 
-	got1, err := renderManifest(meta, "main.go")
+	got1, err := renderManifest(meta, "main.go", nil)
 	require.NoError(t, err)
-	got2, err := renderManifest(meta, "main.go")
+	got2, err := renderManifest(meta, "main.go", nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, got1, got2, "manifest should be byte-identical for identical input")
@@ -87,7 +91,7 @@ func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
 		},
 	}
 
-	got, err := renderManifest(meta, "main.go")
+	got, err := renderManifest(meta, "main.go", nil)
 	require.NoError(t, err)
 
 	// Task values that look like scalars are quoted.
@@ -96,6 +100,36 @@ func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
 	// The Dag ID key is a plain scalar, not quoted.
 	assert.Contains(t, string(got), "\n  my_dag:\n")
 	assert.NotContains(t, string(got), `"my_dag"`)
+}
+
+func TestRenderManifest_Digests(t *testing.T) {
+	meta := airflowmetadata.Manifest{
+		AirflowBundleMetadataVersion: "1.0",
+		SDK: airflowmetadata.SDK{
+			Language:                "go",
+			Version:                 "0.1.0",
+			SupervisorSchemaVersion: "2026-06-16",
+		},
+		Dags: map[string]airflowmetadata.Dag{"my_dag": {Tasks: []string{"t1"}}},
+	}
+
+	got, err := renderManifest(meta, "main.go", &bundleDigests{Integrity: "aa11", Cache: "bb22"})
+	require.NoError(t, err)
+
+	assert.Equal(t, `airflow_bundle_metadata_version: "1.0"
+sdk:
+  language: "go"
+  version: "0.1.0"
+  supervisor_schema_version: "2026-06-16"
+source: "main.go"
+digests:
+  integrity: "aa11"
+  cache: "bb22"
+dags:
+  my_dag:
+    tasks:
+      - "t1"
+`, string(got))
 }
 
 func TestRenderManifest_EmptyDags(t *testing.T) {
@@ -108,7 +142,7 @@ func TestRenderManifest_EmptyDags(t *testing.T) {
 		},
 		Dags: map[string]airflowmetadata.Dag{},
 	}
-	got, err := renderManifest(meta, "main.go")
+	got, err := renderManifest(meta, "main.go", nil)
 	require.NoError(t, err)
 	assert.Contains(t, string(got), "dags: {}")
 }
@@ -417,6 +451,96 @@ func TestRunPack_AcceptsYAMLMetadataFile(t *testing.T) {
 	)
 }
 
+// fixedManifest is a writeBundle renderMetadata that ignores the staged executable.
+func fixedManifest(manifest []byte) func(string) ([]byte, error) {
+	return func(string) ([]byte, error) { return manifest, nil }
+}
+
+// packDigests packs the given executable, source and JSON manifest in dir, and
+// returns the digests the packed bundle's manifest records.
+func packDigests(t *testing.T, dir string, exe, source, meta []byte) (integrity, cache string) {
+	t.Helper()
+	exePath := filepath.Join(dir, "exe")
+	require.NoError(t, os.WriteFile(exePath, exe, 0o755))
+	sourcePath := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(sourcePath, source, 0o644))
+	metaPath := filepath.Join(dir, "airflow-metadata.json")
+	require.NoError(t, os.WriteFile(metaPath, meta, 0o644))
+	out := filepath.Join(dir, "bundle")
+
+	require.NoError(t, runPack(io.Discard, io.Discard, &packOptions{
+		executable:      exePath,
+		source:          sourcePath,
+		airflowMetadata: metaPath,
+		output:          out,
+	}))
+
+	_, gotMeta, err := bundlefooter.Read(out)
+	require.NoError(t, err)
+	var parsed struct {
+		Digests struct {
+			Integrity string `yaml:"integrity"`
+			Cache     string `yaml:"cache"`
+		} `yaml:"digests"`
+	}
+	require.NoError(t, yaml.Unmarshal(gotMeta, &parsed))
+	return parsed.Digests.Integrity, parsed.Digests.Cache
+}
+
+func TestRunPack_RecordsDigests(t *testing.T) {
+	exe := []byte("binary-bytes")
+	source := []byte("package main\nfunc main() {}\n")
+	meta := []byte(`{"airflow_bundle_metadata_version":"1.0",` +
+		`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},` +
+		`"dags":{"my_dag":{"tasks":["t1"]}}}`)
+
+	integrity, cache := packDigests(t, t.TempDir(), exe, source, meta)
+
+	binaryHash := sha256.Sum256(exe)
+	assert.Equal(
+		t,
+		hex.EncodeToString(binaryHash[:]),
+		integrity,
+		"integrity is the trailer's binary_sha256",
+	)
+	assert.Len(t, cache, sha256.Size*2)
+	assert.NotEqual(t, integrity, cache)
+
+	t.Run("a repack of the same inputs", func(t *testing.T) {
+		gotIntegrity, gotCache := packDigests(t, t.TempDir(), exe, source, meta)
+		assert.Equal(t, integrity, gotIntegrity)
+		assert.Equal(t, cache, gotCache)
+	})
+
+	oneByte := func(b []byte, i int) []byte {
+		changed := bytes.Clone(b)
+		changed[i] ^= 1
+		return changed
+	}
+	for name, tc := range map[string]struct {
+		exe, source, meta []byte
+		integrityChanges  bool
+	}{
+		"one source byte": {exe: exe, source: oneByte(source, len(source)-2), meta: meta},
+		"one binary byte": {exe: oneByte(exe, 0), source: source, meta: meta, integrityChanges: true},
+		"the manifest": {
+			exe:    exe,
+			source: source,
+			meta:   bytes.Replace(meta, []byte(`"0.1.0"`), []byte(`"0.1.1"`), 1),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			gotIntegrity, gotCache := packDigests(t, t.TempDir(), tc.exe, tc.source, tc.meta)
+			assert.NotEqual(t, cache, gotCache)
+			if tc.integrityChanges {
+				assert.NotEqual(t, integrity, gotIntegrity)
+			} else {
+				assert.Equal(t, integrity, gotIntegrity)
+			}
+		})
+	}
+}
+
 // With no explicit --output, packing "./bundle" from a package dir named
 // "bundle" derives a default output that collides with the pre-built binary.
 func TestRunPack_RejectsDefaultOutputAliasingExecutable(t *testing.T) {
@@ -490,6 +614,26 @@ func TestTargetPlatform(t *testing.T) {
 	})
 }
 
+func TestWriteBundle_RendersMetadataFromTheStagedCopy(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "input-bin")
+	require.NoError(t, os.WriteFile(exe, []byte("binary-bytes"), 0o755))
+
+	var staged string
+	var stagedBytes []byte
+	require.NoError(t, writeBundle(exe, filepath.Join(dir, "bundle"), []byte("source"),
+		func(path string) ([]byte, error) {
+			staged = path
+			var err error
+			stagedBytes, err = os.ReadFile(path)
+			return []byte("manifest"), err
+		},
+	))
+
+	assert.NotEqual(t, exe, staged)
+	assert.Equal(t, []byte("binary-bytes"), stagedBytes)
+}
+
 // When the --output parent directory does not exist, the packer must create it
 // instead of failing with an opaque temp-file error.
 func TestWriteBundle_CreatesMissingOutputDir(t *testing.T) {
@@ -498,7 +642,10 @@ func TestWriteBundle_CreatesMissingOutputDir(t *testing.T) {
 	require.NoError(t, os.WriteFile(exe, []byte("binary-bytes"), 0o755))
 
 	output := filepath.Join(dir, "bin", "nested", "bundle")
-	require.NoError(t, writeBundle(exe, output, []byte("source"), []byte("manifest")))
+	require.NoError(
+		t,
+		writeBundle(exe, output, []byte("source"), fixedManifest([]byte("manifest"))),
+	)
 
 	info, err := os.Stat(output)
 	require.NoError(t, err, "bundle should be written into the created directory")

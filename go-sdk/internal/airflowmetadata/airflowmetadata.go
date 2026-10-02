@@ -28,8 +28,8 @@ const FormatVersion = "1.0"
 
 // Manifest is the shape printed by a bundle binary's --airflow-metadata flag
 // (YAML by default, JSON under --format json). It mirrors
-// airflow-metadata.schema.json minus the source field, which only the packer
-// can resolve from the build inputs. The yaml tags let the packer's
+// airflow-metadata.schema.json minus the source and digests fields, which only
+// the packer can resolve from the build inputs. The yaml tags let the packer's
 // --airflow-metadata flag decode a captured manifest in either JSON or YAML
 // (the airflow-metadata.yaml in a bundle).
 type Manifest struct {

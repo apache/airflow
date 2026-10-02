@@ -389,6 +389,9 @@ Python supervisor / task runner
   protocol on the comm socket, with structured JSON-line logs on the logs socket.
 - The Python runtime is the worker. It proxies every `GetConnection` / `GetVariable` / `GetXCom` /
   `SetXCom` call through to the Execution API. The Go binary just runs the task function.
+- The Dag processor launches the binary the same way to check a Python Dag's stub tasks. It sends a
+  `TaskHandlerParseRequest`, and the binary replies with every task handler it registers, keyed by Dag
+  id in registration order, and how each handler's parameters bind. Then it exits.
 
 The Go side of the protocol is implemented in `pkg/execution/`. On the Python side it is the
 `ExecutableCoordinator` in `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py`.

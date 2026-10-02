@@ -19,6 +19,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -173,20 +175,34 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	}
 	warnOnSuspiciousIDs(stderr, meta)
 
-	manifest, err := renderManifest(meta, filepath.Base(sourcePath))
-	if err != nil {
-		return fmt.Errorf("rendering manifest: %w", err)
-	}
 	sourceBytes, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("reading source file: %w", err)
+	}
+	// The digests are taken over the staged copy, the file the trailer's
+	// binary_sha256 is computed from, so the two agree even if the executable
+	// changes while packing.
+	renderWithDigests := func(stagedExec string) ([]byte, error) {
+		baseManifest, err := renderManifest(meta, filepath.Base(sourcePath), nil)
+		if err != nil {
+			return nil, fmt.Errorf("rendering manifest: %w", err)
+		}
+		digests, err := computeDigests(stagedExec, sourceBytes, baseManifest)
+		if err != nil {
+			return nil, err
+		}
+		manifest, err := renderManifest(meta, filepath.Base(sourcePath), &digests)
+		if err != nil {
+			return nil, fmt.Errorf("rendering manifest: %w", err)
+		}
+		return manifest, nil
 	}
 
 	// Assemble the bundle through a temp file and atomically move it into
 	// place: we never mutate the build artefact or the user-supplied
 	// --executable, and a failed pack never leaves a truncated or half-written
 	// file at output.
-	if err := writeBundle(execPath, output, sourceBytes, manifest); err != nil {
+	if err := writeBundle(execPath, output, sourceBytes, renderWithDigests); err != nil {
 		return err
 	}
 
@@ -462,12 +478,53 @@ func runIntrospect(execPath string, flag string) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
+// cacheDigestDomain starts the cache digest's input, so the digest cannot equal
+// a SHA-256 taken of the same bytes for another purpose, and a later definition
+// can change the version.
+const cacheDigestDomain = "airflow-go-pack cache digest v1\x00"
+
+// bundleDigests is the manifest's digests mapping, each a lower-case hex SHA-256.
+type bundleDigests struct {
+	// Integrity covers the binary region; it equals the trailer's binary_sha256.
+	Integrity string
+	// Cache covers every region of the bundle except its own value. It is
+	// SHA-256(cacheDigestDomain || SHA-256(binary) || SHA-256(source) ||
+	// SHA-256(manifest rendered without digests)), with each inner digest as
+	// its 32 raw bytes. Packing the same inputs again gives the same value, and
+	// a change to any of them gives a different one.
+	Cache string
+}
+
+func computeDigests(execPath string, source, baseManifest []byte) (bundleDigests, error) {
+	binaryHash, err := bundlefooter.HashFile(execPath)
+	if err != nil {
+		return bundleDigests{}, fmt.Errorf("hashing executable %s: %w", execPath, err)
+	}
+	sourceHash := sha256.Sum256(source)
+	manifestHash := sha256.Sum256(baseManifest)
+
+	h := sha256.New()
+	h.Write([]byte(cacheDigestDomain))
+	h.Write(binaryHash[:])
+	h.Write(sourceHash[:])
+	h.Write(manifestHash[:])
+	return bundleDigests{
+		Integrity: hex.EncodeToString(binaryHash[:]),
+		Cache:     hex.EncodeToString(h.Sum(nil)),
+	}, nil
+}
+
 // renderManifest serialises the airflow-metadata manifest as deterministic,
 // sorted-key YAML matching airflow-metadata.schema.json. It injects the schema's
-// source field (the filename the manifest is built from), which the producer's
-// Manifest omits because only the packer knows it; every other field is copied
-// from the introspected manifest verbatim.
-func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, error) {
+// source field (the filename the manifest is built from) and, when digests is
+// not nil, the digests mapping, both of which the producer's Manifest omits
+// because only the packer knows them; every other field is copied from the
+// introspected manifest verbatim.
+func renderManifest(
+	meta airflowmetadata.Manifest,
+	sourceName string,
+	digests *bundleDigests,
+) ([]byte, error) {
 	version := meta.AirflowBundleMetadataVersion
 	if version == "" {
 		version = airflowmetadata.FormatVersion
@@ -514,9 +571,21 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 				},
 			},
 			scalar("source"), quotedScalar(sourceName),
-			scalar("dags"), dagsNode,
 		},
 	}
+	if digests != nil {
+		manifest.Content = append(manifest.Content,
+			scalar("digests"),
+			&yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					scalar("integrity"), quotedScalar(digests.Integrity),
+					scalar("cache"), quotedScalar(digests.Cache),
+				},
+			},
+		)
+	}
+	manifest.Content = append(manifest.Content, scalar("dags"), dagsNode)
 	root.Content = []*yaml.Node{manifest}
 
 	var buf bytes.Buffer
@@ -613,11 +682,16 @@ func sameFile(a, b string) (bool, error) {
 
 // writeBundle assembles the bundle at output by copying the executable to a
 // temporary file in output's directory, appending the source+manifest footer
-// to that copy, then atomically renaming it into place. Writing through a
+// to that copy, then atomically renaming it into place. renderMetadata builds
+// the manifest from the copy before the footer is appended. Writing through a
 // temp file keeps a failed pack from leaving a truncated or half-written
 // artefact at output, and guarantees the file being copied is never the same
 // open file as the destination.
-func writeBundle(execPath, output string, source, metadata []byte) error {
+func writeBundle(
+	execPath, output string,
+	source []byte,
+	renderMetadata func(stagedExec string) ([]byte, error),
+) error {
 	outDir := filepath.Dir(output)
 	// The temp file and the atomic rename both live in output's directory, so it
 	// must exist. Create it for the user (e.g. --output ./bin/bundle with no
@@ -640,6 +714,10 @@ func writeBundle(execPath, output string, source, metadata []byte) error {
 
 	if err := copyFile(execPath, tmpPath, 0o755); err != nil {
 		return fmt.Errorf("writing %s: %w", output, err)
+	}
+	metadata, err := renderMetadata(tmpPath)
+	if err != nil {
+		return err
 	}
 	if err := bundlefooter.Append(tmpPath, source, metadata); err != nil {
 		return err

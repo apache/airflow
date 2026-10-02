@@ -125,18 +125,15 @@ func (b *BundleRef) Register(items ...Registerable) {
 }
 
 // taskHandlerMap holds the registered task handlers by dag_id and task_id.
-// It also keeps registration order. The --airflow-metadata manifest lists the tasks of each Dag
-// in that order.
+// It also keeps registration order. The --airflow-metadata manifest, and the reply to the Dag
+// processor's task handler parse, list the tasks of each Dag in that order.
 type taskHandlerMap struct {
 	mu       sync.RWMutex
 	handlers map[string]map[string]bundle.Task
 	order    []bundle.TaskHandlerInfo
 }
 
-var (
-	_ bundle.Bundle           = (*taskHandlerMap)(nil)
-	_ bundle.EnumerableBundle = (*taskHandlerMap)(nil)
-)
+var _ bundle.Registry = (*taskHandlerMap)(nil)
 
 func (m *taskHandlerMap) add(dagID, taskID string, task bundle.Task) {
 	m.mu.Lock()

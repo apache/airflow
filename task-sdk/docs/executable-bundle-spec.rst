@@ -221,6 +221,24 @@ Top-level keys:
     source-view panel and pick a syntax-highlighting mode from the
     extension.
 
+``digests`` (mapping, optional)
+    Digests the packer records, so a consumer can compare a stored value
+    instead of computing one. Both are lower-case hex SHA-256 digests, and
+    consumers ignore keys they do not know.
+
+    - ``integrity`` (string): SHA-256 of the binary region, the same value as
+      the trailer's ``binary_sha256``. Task execution still recomputes the
+      trailer's digest; this copy does not replace that check.
+    - ``cache`` (string): stays the same across packs of the same inputs and
+      changes when any region of the bundle changes. The Dag processor reads
+      it to tell whether a bundle changed since it last probed it. It is read,
+      never recomputed, so it does not prove the bundle is intact. The
+      producer defines how it is computed, and consumers only compare it for
+      equality. ``airflow-go-pack`` computes the SHA-256 of the bytes
+      ``airflow-go-pack cache digest v1`` and a NUL, followed by the raw
+      SHA-256 digests of the binary region, the source region, and the
+      manifest as rendered without the ``digests`` key, in that order.
+
 ``dags`` (mapping, required)
     Mapping of ``dag_id`` to a *DAG entry*. Every ``dag_id`` the bundle
     exposes MUST appear here. The scanner uses these keys to match a DAG

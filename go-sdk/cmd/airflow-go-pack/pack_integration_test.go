@@ -19,6 +19,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
@@ -138,6 +140,12 @@ func TestPack_CrossArchExecutableWithMetadataFile(t *testing.T) {
 	sdkVersion := m[1]
 	assert.Regexp(t, `^(\(devel\)|v[0-9].*)$`, sdkVersion,
 		`sdk.version must be "(devel)" or a v-prefixed module version`)
+	// The cache digest covers the environment-dependent binary and sdk.version
+	// too, so it is folded in the same way.
+	cacheLine := regexp.MustCompile(`(?m)^  cache: "([0-9a-f]{64})"$`)
+	c := cacheLine.FindStringSubmatch(string(metadata))
+	require.NotNil(t, c, "manifest must contain a digests.cache line:\n%s", metadata)
+	crossHash := sha256.Sum256(crossBytes)
 
 	expectedManifest := `airflow_bundle_metadata_version: "1.0"
 sdk:
@@ -145,6 +153,9 @@ sdk:
   version: "` + sdkVersion + `"
   supervisor_schema_version: "` + execution.SupervisorSchemaVersion + `"
 source: "main.go"
+digests:
+  integrity: "` + hex.EncodeToString(crossHash[:]) + `"
+  cache: "` + c[1] + `"
 dags:
   concurrent_xcom_dag:
     tasks:
