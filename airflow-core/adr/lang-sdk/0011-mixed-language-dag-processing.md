@@ -155,17 +155,21 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  └─────────────────────────────────────────────────────────────────────┘
         │
         │  ┌─────────────────────────────────────────────────────────────────────┐
-        │  │  Step 5: Compare per dag_id against the Dag just serialized —       │
-        │  │          union task_handlers[dag_id] across every process first     │
+        │  │  Step 5: Check each stub task against the answers of the            │
+        │  │          coordinator its queue routes to                            │
         │  │                                                                     │
         │  │  Python Dag "etl" (stub tasks)     TaskHandlerDeclaration           │
         │  │  ──────────────────────────────    ──────────────────────────────   │
-        │  │  task_id                       ↔   task_id     (sets must match)    │
+        │  │  (dag_id, task_id)             ↔   exactly one declaration          │
+        │  │        none, or two artifacts claiming it → an error                │
+        │  │        a handler with no stub task → not an error                   │
         │  │  arg_bindings[*]               ↔   params[*]   (per binding)        │
         │  │        by position, or by folded or exact name                      │
+        │  │        defaulted arguments dropped if that makes the count match    │
         │  │        unmatched by name → a warning, not an error                  │
         │  │  arg_bindings[*].value_schema  ↔   params[*].value_schema           │
-        │  │        compared only where neither side is null                     │
+        │  │        top-level JSON types, where both sides have a schema         │
+        │  │  a mapped stub task, or params=None → the handler's presence only   │
         │  │                                                                     │
         │  │  On mismatch → import_errors["etl.py"]                              │
         │  └─────────────────────────────────────────────────────────────────────┘
@@ -198,12 +202,12 @@ There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — a
 - No importer knows about coordinators. `PythonDagImporter` is unchanged by this ADR; the stub-to-handler comparison sits in `_parse_file`, above every importer.
 - A mixed-language `dag_id` never appears in Dag processing results. No `Dag` registration exists for a `dag_id` a Python file already owns, so everything downstream sees exactly
   one record per `dag_id`, with no flag to interpret.
-- Stub/implementation mismatches — missing handler, extra handler, a `positional` argument count that does not match, incompatible schema — surface as import errors against
+- Stub/implementation mismatches, such as a missing handler, two handlers for one stub task, a `positional` argument count that does not match or an incompatible schema, surface as import errors against
   the Python file at parse time, alongside the errors the parse already reports. A `named` argument or parameter that matches nothing is only logged as a warning, because the
   runtime runs the task anyway. An unannotated stub argument is checked only for how it binds, by position or by name.
 - The Python Dag and Lang-SDK artifact can live in different DagBundles.
-- A single Dag can have stubs targeting different queues, some Java, some Go. Each resolves to its own coordinator instance, and validation unions their declarations per `dag_id`
-  before comparing task ids.
+- A single Dag can have stubs targeting different queues, some Java, some Go. Each resolves to its own coordinator instance, and each stub task is checked only against the handlers
+  of its own coordinator's artifacts.
 - Validating a file costs one extra process per (coordinator, artifact) pair its stubs resolve to — one for the common case of a file whose stubs all target a single runtime, and
   none at all for a file with no stub tasks.
 - Mixed-language is Python-primary only. Lang-SDK runtimes cannot define stub operators; a native Dag cannot delegate tasks to Python.
@@ -236,16 +240,12 @@ with one `bundle.serve()`. One artifact can hold both, so neither the file nor t
 
 ### Appendix B — What is compared
 
-Handler declarations from every process spawned in Step 4 are unioned per `dag_id` before comparison, since one Dag's stubs can target several queues. Each reply covers
-every Dag its artifact registers handlers for; only the parsed file's Dags are compared.
+Each stub task is compared only against the answers of the coordinator its queue routes to, since one Dag's stubs can target several queues. Each answer covers every Dag its artifact registers handlers for; only the parsed file's stub tasks are looked up in it.
 
-- `task_id` sets must match exactly. A missing or extra handler is an error.
-- `arg_bindings` against `params` as each declaration's `binding` says: by position for `positional`, by name for `named`, compared case-insensitively with underscores ignored
-  unless `exact_name` is set. A `positional` count mismatch is an error. Under `named`, an argument or parameter that matches nothing is only logged as a warning, and a lone
-  unmatched argument, which may be the whole value, is not ([ADR-0012](0012-lang-sdk-parse-protocol.md) Appendix B). When `params` is `None`, only the handler's presence is
-  checked.
-- `arg_bindings[*].value_schema` against `params[*].value_schema`, compared only where neither side is null. An unannotated `@task.stub` parameter produces `null` today, so a
-  strict comparison would make every untyped stub argument a parse error.
+- Every stub task has exactly one handler among those answers, the one declaration of its `(dag_id, task_id)`. None, or two artifacts that both register it, is an error. A handler with no stub task is not an error: one artifact serves many Dag files, and a handler can outlive its stub task.
+- `arg_bindings` against `params` as each declaration's `binding` says: by position for `positional`, by name for `named`. A `named` parameter takes the argument of its exact name, else, unless `exact_name` is set, the one whose name matches case-insensitively with underscores ignored; a folded name two arguments share matches neither. An argless call passes no arguments. An argument filled from the stub signature's default is type-checked when it binds and is never reported as unmatched.
+  A `positional` count matches when all arguments, or those left after dropping the defaulted ones, number the parameters; any other count is an error. Under `named`, an argument or parameter that matches nothing is only logged as a warning, and nothing is logged when the argument may be the whole value: no parameter matched, exactly one argument was passed, the handler declares parameters, none of them matches only by its exact name, and the argument may be an object ([ADR-0012](0012-lang-sdk-parse-protocol.md) Appendix B). A mapped stub task, whose arguments are not captured at parse time, and a declaration whose `params` is `None` are checked only for the handler's presence.
+- `arg_bindings[*].value_schema` against `params[*].value_schema`, compared only where both sides have a schema. An unannotated `@task.stub` parameter produces `null` today, so a strict comparison would make every untyped stub argument a parse error. Only the top-level JSON types are compared, taken from `type`, the union over `anyOf` or `oneOf`, or the values of `const` or `enum`; a schema of any other shape, such as `$ref` or `allOf`, is not compared. As in the Go runtime, an argument that may be null needs a parameter that accepts null, and at least one of the argument's other types must be one the parameter accepts, with `integer` accepted by `number`. So an argument that may be an integer or a string binds to an integer parameter, and one that may be an integer or null does not. `format`, ranges and nested items are not compared.
 
 Every error is reported against the Python file, which is the definition the author can act on, and travels back on `DagFileParsingResult.import_errors` with everything else the
 parse found.
