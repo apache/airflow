@@ -1025,11 +1025,14 @@ def _get_claiming_coordinator_key(path: str, bundle_name: str) -> str | None:
     try:
         if (coordinator := find_claiming_coordinator(path, bundle_name)) is None:
             return None
-        coordinators = get_coordinator_manager().for_bundle(bundle_name)
+        importers = get_coordinator_manager().for_bundle(bundle_name)
     except Exception:
         # Building the Dag bag reports a broken importer configuration.
         return None
-    return next((key for key, c in coordinators.items() if c is coordinator), None)
+    return next(
+        (key for key, importer in importers.items() if getattr(importer, "coordinator", None) is coordinator),
+        None,
+    )
 
 
 def _fail_lang_sdk_task(what: StartupDetails, coordinator_key: str, log: Logger) -> NoReturn:
