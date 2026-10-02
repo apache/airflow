@@ -213,6 +213,18 @@ class TestListPyFilesPath:
             f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
         )
 
+    @pytest.mark.parametrize("archive_name", ["task_handler.jar", "no_suffix"])
+    def test_list_py_file_paths_skips_zip_archive_without_zip_suffix(self, tmp_path, archive_name):
+        dag_source = "from airflow.sdk import DAG\n"
+        (tmp_path / "dag.py").write_text(dag_source)
+        for name in ("lower.zip", "upper.ZIP", archive_name):
+            with zipfile.ZipFile(tmp_path / name, "w") as zf:
+                zf.writestr("dag.py", dag_source)
+
+        assert set(list_py_file_paths(tmp_path)) == {
+            str(tmp_path / name) for name in ("dag.py", "lower.zip", "upper.ZIP")
+        }
+
 
 @pytest.mark.parametrize(
     ("edge_filename", "expected_modification"),

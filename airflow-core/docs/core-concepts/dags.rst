@@ -719,6 +719,8 @@ You can either do this all inside of the Dag bundle, with a standard filesystem 
     package1/__init__.py
     package1/functions.py
 
+The file name must end in ``.zip``. Other zip archives in the Dag bundle, such as JAR files, are not parsed as Dags.
+
 Note that packaged Dags come with some caveats:
 
 * They cannot be used if you have pickling enabled for serialization
