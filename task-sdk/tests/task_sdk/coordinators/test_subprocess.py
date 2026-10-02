@@ -1097,6 +1097,22 @@ class TestParseTaskHandler:
         mock_death_signal.assert_called_once_with()
         mock_close_on_exec.assert_called_once_with()
 
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.getppid", autospec=True, side_effect=[4242, 1])
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_does_not_exec_once_the_parent_has_exited(
+        self, mock_execvpe, mock_getppid, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        coordinator = _TaskHandlerParsingCoordinator(command=["runtime"])
+
+        with pytest.raises(RuntimeError, match="The process that started the runtime has exited"):
+            _parse_task_handler(coordinator, tmp_path, [])
+
+        mock_death_signal.assert_called_once_with()
+        mock_execvpe.assert_not_called()
+
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
     def test_rejects_an_unknown_schema_version_before_reporting(self, mock_execvpe, tmp_path):
         coordinator = _TaskHandlerParsingCoordinator(command=["runtime"], schema_version="1999-01-01")
