@@ -96,6 +96,19 @@ ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 AREA_E2E_TESTS_LABEL = "area:e2e-tests"
 AREA_KUBERNETES_TESTS_LABEL = "area:kubernetes-tests"
+
+# Providers split into their own test type, see _extract_long_provider_tests. Every other provider runs
+# in one shared ``Providers[-amazon,celery,google,standard]`` test type on canary builds.
+LONG_RUNNING_TEST_PROVIDERS = ["amazon", "celery", "google", "standard"]
+# Providers whose DB tests leave process-global core state behind (``importlib.reload()`` of
+# ``airflow.executors.executor_loader``, which swaps the ``ExecutorLoader`` class object and refills its
+# module-level caches). DB tests of one test type run in a single pytest process, with provider test
+# folders in sorted order, so every provider sorting after one of these inherits that state on canary.
+# A PR that changes such a later provider runs these providers in the same test type too, otherwise
+# isolation failures in the changed tests surface only after merge. Non-DB tests share one xdist pool
+# across all test types, so no deterministic order exists there to reproduce.
+PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS = ["cncf.kubernetes"]
+
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -820,11 +833,20 @@ def _split_list(input_list, n) -> list[list[str]]:
     ]
 
 
+def _strip_test_side_effect_providers(test_type: str) -> str:
+    """Drop the test side-effect providers so the description names the providers selected for the change."""
+    if not test_type.startswith("Providers[") or test_type.startswith("Providers[-"):
+        return test_type
+    providers = test_type.removeprefix("Providers[").removesuffix("]").split(",")
+    selected = [p for p in providers if p not in PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS]
+    return ",".join(selected or providers)
+
+
 def _get_test_type_description(provider_test_types: list[str]) -> str:
     if not provider_test_types:
         return ""
-    first_provider = provider_test_types[0]
-    last_provider = provider_test_types[-1]
+    first_provider = _strip_test_side_effect_providers(provider_test_types[0])
+    last_provider = _strip_test_side_effect_providers(provider_test_types[-1])
     if first_provider.startswith("Providers["):
         first_provider = first_provider.replace("Providers[", "").replace("]", "")
     if last_provider.startswith("Providers["):
@@ -1563,11 +1585,50 @@ class SelectiveChecks:
                 for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
+                providers_to_test = self._add_providers_sharing_test_process_state(
+                    providers_to_test, changed_providers=self._find_changed_providers(), suspended=suspended
+                )
                 candidate_test_types.add(f"Providers[{','.join(sorted(providers_to_test))}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
         console_print("[warning]Selected providers test type candidates to run:[/]")
         console_print(sorted_candidate_test_types)
         return sorted_candidate_test_types
+
+    def _find_changed_providers(self) -> set[str]:
+        """Providers whose own files changed, without their upstream and downstream dependents."""
+        return {
+            provider
+            for changed_file in self._files
+            if (provider := find_provider_affected(changed_file, include_docs=False))
+            not in (None, "Providers")
+        }
+
+    @staticmethod
+    def _add_providers_sharing_test_process_state(
+        providers_to_test: list[str], *, changed_providers: set[str], suspended: set[str]
+    ) -> list[str]:
+        """
+        Add the providers from PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS that precede a changed one.
+
+        Only providers whose own files changed count: a PR can make a provider's tests order-sensitive only
+        by changing that provider, and dependents pulled in for coverage keep their canary behaviour.
+        """
+
+        def get_test_folder(provider_id: str) -> str:
+            return provider_id.replace(".", "/")
+
+        changed_shared_process_providers = [
+            p for p in providers_to_test if p in changed_providers and p not in LONG_RUNNING_TEST_PROVIDERS
+        ]
+        if not changed_shared_process_providers:
+            return providers_to_test
+        last_folder = max(get_test_folder(p) for p in changed_shared_process_providers)
+        leaking_providers = [
+            p
+            for p in PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS
+            if get_test_folder(p) < last_folder and p not in providers_to_test and p not in suspended
+        ]
+        return sorted([*providers_to_test, *leaking_providers])
 
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
@@ -1584,20 +1645,19 @@ class SelectiveChecks:
 
         :param current_test_types: The set of test types to run
         """
-        long_tests = ["amazon", "celery", "google", "standard"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
-                for long_test in long_tests:
+                for long_test in LONG_RUNNING_TEST_PROVIDERS:
                     current_test_types.add(f"Providers[{long_test}]")
-                current_test_types.add(f"Providers[-{','.join(long_tests)}]")
+                current_test_types.add(f"Providers[-{','.join(LONG_RUNNING_TEST_PROVIDERS)}]")
             elif original_test_type.startswith("Providers["):
                 provider_tests_to_run = (
                     original_test_type.replace("Providers[", "").replace("]", "").split(",")
                 )
-                if any(long_test in provider_tests_to_run for long_test in long_tests):
+                if any(long_test in provider_tests_to_run for long_test in LONG_RUNNING_TEST_PROVIDERS):
                     current_test_types.remove(original_test_type)
-                    for long_test in long_tests:
+                    for long_test in LONG_RUNNING_TEST_PROVIDERS:
                         if long_test in provider_tests_to_run:
                             current_test_types.add(f"Providers[{long_test}]")
                             provider_tests_to_run.remove(long_test)
