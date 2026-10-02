@@ -117,7 +117,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "e7c2a91bd540",
+    "3.4.0": "54a27b6f9d01",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -1760,6 +1760,9 @@ def _normalize_mysql_server_default(default: Any) -> str | None:
         return None
 
     normalized = str(default).strip().strip("'\"").lower()
+    # MySQL reflects expression defaults with escaped quotes and a charset introducer,
+    # e.g. unhex(_utf8mb4\'00ff\') for a model default of UNHEX('00ff').
+    normalized = re.sub(r"\b_[a-z0-9]+(?=')", "", normalized.replace("\\'", "'"))
     while normalized.startswith("(") and normalized.endswith(")"):
         normalized = normalized[1:-1].strip()
     normalized = normalized.replace(" ", "")
