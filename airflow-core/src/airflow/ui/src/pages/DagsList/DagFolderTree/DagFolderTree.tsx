@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import {
   Box,
   Button,
@@ -26,7 +28,6 @@ import {
   type TreeViewNodeRenderProps,
   VStack,
 } from "@chakra-ui/react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBox, FiChevronRight, FiFolder } from "react-icons/fi";
 
