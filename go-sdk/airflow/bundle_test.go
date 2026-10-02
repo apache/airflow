@@ -224,10 +224,17 @@ func TestRegisterRejectsNilDag(t *testing.T) {
 	)
 }
 
+// closeRegistration calls serve without the coordinator flags, so it returns an error at once.
+// Serve closes registration whatever it goes on to do.
+func closeRegistration(t *testing.T, b *BundleRef) {
+	t.Helper()
+	require.ErrorIs(t, b.serve(nil, io.Discard), errCoordinatorFlagsRequired)
+}
+
 func TestRegisterAfterServePanics(t *testing.T) {
 	b := Bundle()
 	b.Register(TaskHandler("py_etl", "transform", noop))
-	require.NoError(t, b.serve([]string{"--airflow-metadata"}, io.Discard))
+	closeRegistration(t, b)
 
 	want := "airflow.BundleRef.Register: Serve has already been called; " +
 		"register everything before Serve"
@@ -239,7 +246,7 @@ func TestRegisterAfterServePanics(t *testing.T) {
 // Register later is covered without a flag of its own.
 func TestRegisterAfterServeRejectsEveryKindOfItem(t *testing.T) {
 	b := Bundle()
-	require.NoError(t, b.serve([]string{"--airflow-metadata"}, io.Discard))
+	closeRegistration(t, b)
 
 	var nilItem Registerable
 	assert.Panics(t, func() { b.Register(nilItem) },

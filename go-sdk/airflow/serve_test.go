@@ -19,8 +19,6 @@ package airflow
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
 	"io"
 	"net"
 	"testing"
@@ -30,20 +28,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
-	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/pkg/execution"
 )
 
 func TestDecideMode(t *testing.T) {
 	tests := []struct {
-		name     string
-		metadata bool
-		comm     string
-		logs     string
-		want     serveMode
+		name string
+		comm string
+		logs string
+		want serveMode
 	}{
-		{name: "metadata", metadata: true, want: modeAirflowMetadata},
 		{name: "coordinator", comm: "127.0.0.1:1", logs: "127.0.0.1:2", want: modeCoordinator},
 		{name: "no flags", want: modeCoordinatorUsageError},
 		{name: "comm only", comm: "127.0.0.1:1", want: modeCoordinatorUsageError},
@@ -52,7 +47,7 @@ func TestDecideMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, decideMode(tt.metadata, tt.comm, tt.logs))
+			assert.Equal(t, tt.want, decideMode(tt.comm, tt.logs))
 		})
 	}
 }
@@ -66,52 +61,6 @@ func etlBundle() *BundleRef {
 	return b
 }
 
-type manifest struct {
-	SDK struct {
-		Language string `json:"language" yaml:"language"`
-	} `json:"sdk"  yaml:"sdk"`
-	Dags map[string]struct {
-		Tasks []string `json:"tasks" yaml:"tasks"`
-	} `json:"dags" yaml:"dags"`
-}
-
-func TestServePrintsAirflowMetadata(t *testing.T) {
-	tests := []struct {
-		name      string
-		args      []string
-		unmarshal func([]byte, any) error
-	}{
-		{name: "yaml by default", args: []string{"--airflow-metadata"}, unmarshal: yaml.Unmarshal},
-		{
-			name:      "json",
-			args:      []string{"--airflow-metadata", "--format", "json"},
-			unmarshal: json.Unmarshal,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var stdout bytes.Buffer
-			require.NoError(t, etlBundle().serve(tt.args, &stdout))
-
-			var got manifest
-			require.NoError(t, tt.unmarshal(stdout.Bytes(), &got))
-			assert.Equal(t, "go", got.SDK.Language)
-			require.Contains(t, got.Dags, "py_etl")
-			assert.Equal(t, []string{"transform", "extract"}, got.Dags["py_etl"].Tasks)
-		})
-	}
-}
-
-type failingWriter struct{ err error }
-
-func (w failingWriter) Write([]byte) (int, error) { return 0, w.err }
-
-func TestServeReportsManifestWriteError(t *testing.T) {
-	wantErr := errors.New("stdout is closed")
-	err := etlBundle().serve([]string{"--airflow-metadata"}, failingWriter{wantErr})
-	require.ErrorIs(t, err, wantErr)
-}
-
 func TestServeAcceptsFlagsTheBundleDefines(t *testing.T) {
 	saved := flag.CommandLine
 	t.Cleanup(func() { flag.CommandLine = saved })
@@ -119,15 +68,30 @@ func TestServeAcceptsFlagsTheBundleDefines(t *testing.T) {
 	region := flag.String("region", "", "a flag the bundle author defined")
 
 	var stdout bytes.Buffer
-	args := []string{"--region", "us", "--airflow-metadata"}
-	require.NoError(t, etlBundle().serve(args, &stdout))
+	err := etlBundle().serve([]string{"--region", "us"}, &stdout)
 
+	// The flag parsed, so Serve got as far as asking for the coordinator flags.
+	require.ErrorIs(t, err, errCoordinatorFlagsRequired)
 	assert.Equal(t, "us", *region)
-	assert.Contains(t, stdout.String(), "py_etl")
+}
+
+// The introspection flags are gone, so a bundle may use their names for flags of its own.
+func TestServeAcceptsBundleFlagsNamedLikeTheRemovedOnes(t *testing.T) {
+	saved := flag.CommandLine
+	t.Cleanup(func() { flag.CommandLine = saved })
+	flag.CommandLine = flag.NewFlagSet("bundle", flag.ContinueOnError)
+	metadata := flag.Bool("airflow-metadata", false, "a flag the bundle author defined")
+	format := flag.String("format", "", "a flag the bundle author defined")
+
+	err := etlBundle().serve([]string{"--airflow-metadata", "--format", "json"}, io.Discard)
+
+	require.ErrorIs(t, err, errCoordinatorFlagsRequired)
+	assert.True(t, *metadata)
+	assert.Equal(t, "json", *format)
 }
 
 func TestServeRejectsBundleFlagWithReservedName(t *testing.T) {
-	for _, name := range []string{"airflow-metadata", "format", "comm", "logs"} {
+	for _, name := range []string{"comm", "logs"} {
 		t.Run(name, func(t *testing.T) {
 			saved := flag.CommandLine
 			t.Cleanup(func() { flag.CommandLine = saved })
@@ -135,31 +99,13 @@ func TestServeRejectsBundleFlagWithReservedName(t *testing.T) {
 			flag.String(name, "", "a flag the bundle author defined")
 
 			var stdout bytes.Buffer
-			err := etlBundle().serve([]string{"--airflow-metadata"}, &stdout)
+			err := etlBundle().serve(nil, &stdout)
 
 			require.EqualError(t, err,
 				"the bundle defines a --"+name+" flag, but Serve reserves that name")
 			assert.Empty(t, stdout.String())
 		})
 	}
-}
-
-// pflag prints a deprecation warning while it parses, so it must not reach the writer that
-// carries the --airflow-metadata manifest.
-func TestServeKeepsDeprecationWarningOutOfTheManifest(t *testing.T) {
-	saved := flag.CommandLine
-	t.Cleanup(func() { flag.CommandLine = saved })
-	flag.CommandLine = flag.NewFlagSet("bundle", flag.ContinueOnError)
-	flag.String("region", "", "a flag the bundle author defined")
-	require.NoError(t, flag.CommandLine.MarkDeprecated("region", "use --zone"))
-
-	var stdout bytes.Buffer
-	args := []string{"--region", "us", "--airflow-metadata", "--format", "json"}
-	require.NoError(t, etlBundle().serve(args, &stdout))
-
-	assert.NotContains(t, stdout.String(), "deprecated")
-	var got manifest
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &got))
 }
 
 func TestServeRejectsBadFlags(t *testing.T) {
@@ -176,19 +122,14 @@ func TestServeRejectsBadFlags(t *testing.T) {
 			wantIs: errCoordinatorFlagsRequired,
 		},
 		{
-			name:   "format without metadata",
-			args:   []string{"--comm", "127.0.0.1:1", "--logs", "127.0.0.1:2", "--format", "json"},
-			wantIs: errFormatRequiresMetadata,
+			name:    "the removed --airflow-metadata flag",
+			args:    []string{"--airflow-metadata"},
+			wantMsg: "unknown flag: --airflow-metadata",
 		},
 		{
-			name:   "default format spelled out without metadata",
-			args:   []string{"--comm", "127.0.0.1:1", "--logs", "127.0.0.1:2", "--format", "yaml"},
-			wantIs: errFormatRequiresMetadata,
-		},
-		{
-			name:    "unknown metadata format",
-			args:    []string{"--airflow-metadata", "--format", "xml"},
-			wantMsg: `unsupported --airflow-metadata format "xml"`,
+			name:    "the removed --format flag",
+			args:    []string{"--comm", "127.0.0.1:1", "--logs", "127.0.0.1:2", "--format", "json"},
+			wantMsg: "unknown flag: --format",
 		},
 		{
 			name:    "unknown flag",
@@ -216,7 +157,10 @@ func TestServeHelpIsNotAnError(t *testing.T) {
 	var stdout bytes.Buffer
 	require.NoError(t, etlBundle().serve([]string{"--help"}, &stdout))
 
-	assert.Contains(t, stdout.String(), "--airflow-metadata")
+	assert.Contains(t, stdout.String(), "--comm")
+	assert.Contains(t, stdout.String(), "--logs")
+	assert.NotContains(t, stdout.String(), "--airflow-metadata")
+	assert.NotContains(t, stdout.String(), "--format")
 }
 
 // A fake supervisor sends StartupDetails over the comm socket, as the Python

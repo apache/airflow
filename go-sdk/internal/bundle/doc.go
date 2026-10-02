@@ -16,7 +16,7 @@
 // under the License.
 
 // Package bundle defines what the coordinator runtime needs from a bundle:
-// the tasks it looks up and runs, and the Dag and task ids it lists in the manifest.
+// the tasks it looks up and runs, and the task handlers it lists for the Dag processor.
 //
 // Package airflow builds both from the task handlers a bundle registers.
 package bundle
