@@ -32,6 +32,7 @@ from sqlalchemy import select
 import airflow
 from airflow import settings
 from airflow._shared.timezones import timezone
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.exceptions import AirflowException
@@ -349,17 +350,38 @@ def test__search_for_dags_file():
     assert _search_for_dag_file("any/hi/__init__.py") is None
 
 
+def _mock_bundle(path: Path) -> mock.MagicMock:
+    bundle = mock.MagicMock(spec=BaseDagBundle, path=path, version=None)
+    bundle.name = "testing"
+    return bundle
+
+
 @pytest.mark.parametrize("bundle_names", [["testing"], None], ids=["named-bundle", "every-bundle"])
 @mock.patch("airflow.dag_processing.dagbag.sync_bag_to_db", autospec=True)
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
 @mock.patch.object(cli, "DagBundlesManager", autospec=True)
 def test_get_bagged_dag_refuses_a_native_dag(mock_manager, mock_bag, mock_sync, bundle_names):
-    mock_manager.return_value.get_all_dag_bundles.return_value = [mock.MagicMock()]
+    mock_manager.return_value.get_all_dag_bundles.return_value = [_mock_bundle(Path("/bundle"))]
     native = DagSerialization.from_dict(DagSerialization.to_dict(DAG("native", schedule=None)))
     mock_bag.return_value.dags = {"native": native}
 
     with pytest.raises(SystemExit, match="is a native Lang-SDK Dag"):
         cli.get_bagged_dag(bundle_names, "native")
+
+    assert mock_bag.call_args.kwargs["parse_lang_sdk_files"] is False
+
+
+@pytest.mark.parametrize("bundle_names", [["testing"], None], ids=["named-bundle", "every-bundle"])
+@mock.patch("airflow.dag_processing.dagbag.sync_bag_to_db", autospec=True)
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
+@mock.patch.object(cli, "DagBundlesManager", autospec=True)
+def test_get_bagged_dag_returns_a_native_dag_when_allowed(mock_manager, mock_bag, mock_sync, bundle_names):
+    mock_manager.return_value.get_all_dag_bundles.return_value = [_mock_bundle(Path("/bundle"))]
+    native = DagSerialization.from_dict(DagSerialization.to_dict(DAG("native", schedule=None)))
+    mock_bag.return_value.dags = {"native": native}
+
+    assert cli.get_bagged_dag(bundle_names, "native", allow_lang_sdk_dag=True) is native
+    assert mock_bag.call_args.kwargs["parse_lang_sdk_files"] is True
 
 
 @pytest.fixture
@@ -371,10 +393,13 @@ def _clear_db_dags():
     db.clear_db_serialized_dags()
 
 
+@pytest.mark.parametrize("allow_lang_sdk_dag", [False, True])
 @pytest.mark.usefixtures("_clear_db_dags", "testing_dag_bundle")
 @mock.patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True)
 @mock.patch.object(cli, "DagBundlesManager", autospec=True)
-def test_get_bagged_dag_returns_a_python_dag_bagged_with_a_native_one(mock_manager, mock_run, tmp_path):
+def test_get_bagged_dag_returns_a_python_dag_bagged_with_a_native_one(
+    mock_manager, mock_run, tmp_path, allow_lang_sdk_dag
+):
     (tmp_path / "python_dag.py").write_text(
         "from airflow.sdk import DAG\nwith DAG('python_dag', schedule=None): pass\n"
     )
@@ -384,16 +409,14 @@ def test_get_bagged_dag_returns_a_python_dag_bagged_with_a_native_one(mock_manag
     mock_run.return_value = DagFileParsingResult(
         fileloc=os.fspath(native_file), serialized_dags=[LazyDeserializedDAG.from_dag(native_dag)]
     )
-    bundle = mock.MagicMock(path=tmp_path, version=None)
-    bundle.name = "testing"
-    mock_manager.return_value.get_all_dag_bundles.return_value = [bundle]
+    mock_manager.return_value.get_all_dag_bundles.return_value = [_mock_bundle(tmp_path)]
 
     with fake_coordinator():
-        dag = cli.get_bagged_dag(None, "python_dag")
+        dag = cli.get_bagged_dag(None, "python_dag", allow_lang_sdk_dag=allow_lang_sdk_dag)
 
     assert isinstance(dag, DAG)
     assert dag.dag_id == "python_dag"
-    mock_run.assert_called_once()
+    assert mock_run.call_count == int(allow_lang_sdk_dag)
     with create_session() as session:
         assert set(session.scalars(select(DagModel.dag_id))) == {"python_dag"}
 

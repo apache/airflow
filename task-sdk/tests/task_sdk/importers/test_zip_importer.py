@@ -43,7 +43,6 @@ from airflow.sdk.importers.python_importer import PythonDagImporter
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
-    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 class CustomInternalNonExtensionImporter(AbstractDagImporter):
@@ -68,7 +67,7 @@ class CustomInternalNonExtensionImporter(AbstractDagImporter):
 def _import_all(
     importer: AbstractDagImporter[DagDefinition],
     bundle,
-) -> tuple[list[DAG | SerializedDAG], list[DagImportError]]:
+) -> tuple[list[DAG], list[DagImportError]]:
     """Enumerate an importer's definitions and import each, aggregating dags/errors."""
     dags, errors = [], []
     for item in importer.list_dag_definitions(bundle):
