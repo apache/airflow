@@ -382,6 +382,9 @@ class TestSmtpHook:
             ("disable_ssl=false&disable_tls=false", True, True),
             ("disable_ssl=False&disable_tls=0", True, True),
             ("disable_ssl=1&disable_tls=false", False, True),
+            ("disable_ssl=t&disable_tls=y", False, False),
+            ("disable_ssl=on&disable_tls=yes", False, False),
+            ("disable_ssl=ture&disable_tls=ture", True, True),
         ],
     )
     def test_ssl_and_tls_extras_from_uri(

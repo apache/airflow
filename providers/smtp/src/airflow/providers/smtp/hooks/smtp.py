@@ -51,11 +51,12 @@ def _get_bool_extra(extra: dict[str, Any], key: str) -> bool:
     Read a boolean connection extra that defaults to ``False``.
 
     Extras parsed from a connection URI (e.g. ``smtp://host?disable_tls=false``) are strings,
-    and a non-empty string such as ``"false"`` is truthy.
+    and a non-empty string such as ``"false"`` is truthy. Strings are parsed like
+    ``airflow.utils.strings.to_boolean``: any other value, including a typo, is ``False``.
     """
     value = extra.get(key, False)
     if isinstance(value, str):
-        return value.strip().lower() in ("true", "1", "yes", "on")
+        return value.strip().lower() in ("on", "t", "true", "y", "yes", "1")
     return bool(value)
 
 
