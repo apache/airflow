@@ -199,6 +199,7 @@
     "plugins": "Plug-ins",
     "security": "Sicherheit"
   },
+  "no": "Nein",
   "noItemsFound": "Kein Element vom Typ {{modelName}} gefunden",
   "note": {
     "add": "Eine Notiz hinzufügen",
@@ -272,7 +273,7 @@
   "settings": {
     "clearing": {
       "keepTaskState": {
-        "helper": "Aufgabenstatus Einträge beibehalten beim Zurücksetzen, anstatt den status zu verwerfen.",
+        "helper": "Mit dieser Option werden Aufgabenstatus Einträge beim Zurücksetzen beibehalten, anstatt die Einträge zu löschen.",
         "label": "Aufgabenstatus beim Zurücksetzen beibehalten"
       },
       "preventRunningTask": {
@@ -307,7 +308,7 @@
         "label": "Standardausrichtung des Graphen"
       },
       "taskGroupsExpanded": {
-        "helper": "Taskgruppen erweitern in Dags ohne durchgeführte Gruppenselektion. Bestehende Selektionen bleiben bestehen.",
+        "helper": "Taskgruppen automatisch erweitern, wenn keine Gruppe selektioniert wurde. Bestehende Selektionen bleiben bestehen.",
         "label": "Taskgruppen erweitern als Standard"
       },
       "title": "Graph"
@@ -458,7 +459,7 @@
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
     "scheduledWhen": "Geplant ab",
-    "stateReason": "Grunde für Status",
+    "stateReason": "Grund für den Status  ",
     "stateReasonSummary": {
       "failed": "Gestoppt bei Versuch {{tryNumber}} von {{totalTries}}",
       "upForRetry": "Wiederversuch nach Versuch {{tryNumber}} von {{totalTries}}"
@@ -484,9 +485,14 @@
     "title": "Teams"
   },
   "timeRange": {
+    "anyTime": "Jederzeit",
+    "in": "in",
+    "last7Days": "Letzte 7 Tage",
     "last12Hours": "Letzte 12 Stunden",
     "last24Hours": "Letzte 24 Stunden",
+    "last30Days": "Letzte 30 Tage",
     "lastHour": "Letzte Stunde",
+    "latestRun": "Letzter Lauf",
     "pastWeek": "Letzte Woche"
   },
   "timestamp": {
@@ -579,5 +585,6 @@
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
     "unwrap": "Kein Zeilenumbruch",
     "wrap": "Zeilenumbruch"
-  }
+  },
+  "yes": "Ja"
 }
