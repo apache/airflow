@@ -229,7 +229,7 @@ class KafkaSharedStreamProducer(SharedStreamProducer):
         floor = self._resolve_floor(lane, first.offset, commit_through, held_offset)
 
         if to_dlq and self.dlq_topic is not None:
-            await sync_to_async(self._dead_letter)(self.dlq_topic, to_dlq)
+            await sync_to_async(self._send_to_dlq)(self.dlq_topic, to_dlq)
         if commit_through is not None:
             target = commit_through + 1
             if floor is not None:
@@ -290,7 +290,7 @@ class KafkaSharedStreamProducer(SharedStreamProducer):
             raise RuntimeError(f"Cannot seek {topic}[{partition}] to {offset}: no open consumer")
         self._consumer.seek(TopicPartition(topic, partition, offset))
 
-    def _dead_letter(self, topic: str, payloads: list[KafkaBrokerPayload]) -> None:
+    def _send_to_dlq(self, topic: str, payloads: list[KafkaBrokerPayload]) -> None:
         if self._dlq_producer is None:
             self._dlq_producer = KafkaProducerHook(kafka_config_id=self.kafka_config_id).get_producer()
         producer = self._dlq_producer
