@@ -91,6 +91,10 @@ Now `cd example` into the example project, and
   ../gradlew bundle
   ```
 
+  The bundle JAR also carries the source file of each Dag declared in Java
+  (and of the entrypoint) under `META-INF/airflow/`, so Airflow can show a
+  Dag's source.
+
 * Put the [DAG with stub tasks](./example/src/resources/dags) to somewhere Airflow can find.
 
 * Ensure the `java` command is available in the same environment the Airflow
