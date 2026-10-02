@@ -22,11 +22,12 @@ import os
 import selectors
 import signal
 import socket
+import subprocess
 import sys
 import time
 import uuid
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import psutil
 import pytest
@@ -34,6 +35,7 @@ import structlog
 
 from airflow.configuration import conf
 from airflow.dag_processing.lang_sdk_processor import (
+    _EXIT_GRACE_PERIOD,
     LangSDKDagFileProcessorProcess,
     LangSDKRuntimeSchemaVersion,
     _get_import_timeout,
@@ -45,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import VariableResponse
 from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import GetVariable, MaskSecret, _RequestFrame
+from airflow.sdk.execution_time.supervisor import PsutilTracker
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
@@ -76,6 +79,14 @@ def _reply_with(*dags: LazyDeserializedDAG, **result):
 def _get_open_fds() -> set[int]:
     # Without /proc, as on macOS, this is empty, so the fd leak checks pass trivially.
     return {int(fd) for fd in os.listdir("/proc/self/fd")} if os.path.isdir("/proc/self/fd") else set()
+
+
+def _is_running(pid: int) -> bool:
+    try:
+        # Init may not have reaped the killed process yet.
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
 
 
 @pytest.fixture(autouse=True)
@@ -337,6 +348,29 @@ class TestLangSDKDagFileProcessorProcess:
         assert proc._exit_code == -signal.SIGKILL
         assert "The Lang-SDK runtime did not exit after its parse result; killing it" in cap_structlog
 
+    @patch("airflow.dag_processing.lang_sdk_processor._EXIT_GRACE_PERIOD", 0.5)
+    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    def test_what_the_runtime_leaves_after_its_result_is_killed(
+        self, mock_parse_dag, parse, tmp_path, cap_structlog
+    ):
+        def reply(request, comms):
+            comms.send(_reply_with(_serialize_dag("native_dag"))(request, comms))
+            # The leftover inherits the runtime's stdout, so the parse is not done when the runtime exits.
+            leftover = subprocess.Popen(["sleep", "60"])
+            (tmp_path / "leftover.pid").write_text(str(leftover.pid))
+
+        mock_parse_dag.side_effect = play_runtime(reply)
+
+        proc = parse()
+
+        assert [dag.dag_id for dag in proc.parsing_result.serialized_dags] == ["native_dag"]
+        assert proc._exit_code == 0
+        assert (
+            "The Lang-SDK runtime left processes holding its output after its parse result; killing them"
+            in cap_structlog
+        )
+        assert not _is_running(int((tmp_path / "leftover.pid").read_text()))
+
     @pytest.mark.parametrize(
         ("policy", "error"),
         [
@@ -465,7 +499,6 @@ class TestRun:
             # The runtime exits, and the process it leaves behind keeps its output open.
             result = self._run(tmp_path, argv=["/bin/sh", "-c", "sleep 30 & exit 0"])
         [proc] = [c.args[0] for c in mock_close.call_args_list]
-        os.killpg(proc.pid, signal.SIGKILL)
 
         assert result.import_errors == {
             "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s"
@@ -500,11 +533,11 @@ def test_only_a_positive_import_timeout_applies(mock_timeout, configured, expect
 
 
 def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
+    kwargs.setdefault("process", MagicMock())
     return LangSDKDagFileProcessorProcess(
         id=uuid.uuid4(),
         pid=1,
         stdin=MagicMock(),
-        process=MagicMock(),
         process_log=MagicMock(),
         selector=MagicMock(),
         bundle_name="testing",
@@ -591,3 +624,30 @@ def test_the_schema_version_is_reported_once(mock_send_msg):
 
     assert proc._runtime_schema_version == OLDEST_SCHEMA_VERSION
     assert mock_send_msg.call_args.kwargs["error"].detail["message"] == "Unhandled request"
+
+
+@pytest.mark.parametrize(("pid_reused", "killed"), [(False, True), (True, False)])
+@patch("airflow.dag_processing.lang_sdk_processor.os.killpg", autospec=True)
+@patch("airflow.dag_processing.lang_sdk_processor.psutil.pid_exists", autospec=True)
+def test_close_kills_what_an_exited_runtime_left_once(mock_pid_exists, mock_killpg, pid_reused, killed):
+    mock_pid_exists.return_value = pid_reused
+    proc = _make_process(new_process_group=True)
+    proc._exit_code = 0
+
+    proc.close()
+    proc.close()
+
+    assert mock_killpg.call_args_list == ([call(1, signal.SIGKILL)] if killed else [])
+
+
+@patch.object(LangSDKDagFileProcessorProcess, "_signal_subprocess", autospec=True)
+def test_killing_a_runtime_that_does_not_exit_waits_a_bounded_time(mock_signal):
+    process = MagicMock(spec=psutil.Process)
+    process.wait.side_effect = psutil.TimeoutExpired(_EXIT_GRACE_PERIOD)
+    proc = _make_process(process=PsutilTracker(process))
+
+    proc._kill_runtime()
+
+    assert proc._exit_code is None
+    mock_signal.assert_called_once_with(proc, signal.SIGKILL)
+    process.wait.assert_called_once_with(_EXIT_GRACE_PERIOD)
