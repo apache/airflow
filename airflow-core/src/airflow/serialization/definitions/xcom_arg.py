@@ -22,13 +22,14 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from sqlalchemy import func, select
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from airflow.models.dynamic_region import ProducerContext, resolve_current_producers
+from airflow.models.dynamic_region import ProducerContext, select_current_producer_ids
 from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
+from airflow.utils.db import exists_query
 from airflow.utils.state import State
 
 __all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
@@ -175,7 +176,7 @@ def _(
     if not mapped and xcom_arg.operator.get_needs_expansion():
         return None
 
-    producers = resolve_current_producers(
+    producer_ids = select_current_producer_ids(
         dag_id=dag_id,
         run_id=run_id,
         task_id=task_id,
@@ -183,14 +184,20 @@ def _(
         context=(producer_contexts or {}).get(task_id),
         session=session,
     )
-    if not producers:
-        return None
-    if mapped and any(ti.state in State.unfinished for ti in producers):
-        return None
+    if mapped and exists_query(
+        TaskInstance.id.in_(producer_ids),
+        # 'state' can be NULL, which "NOT IN" would silently drop.
+        or_(
+            TaskInstance.state.is_(None),
+            TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+        ),
+        session=session,
+    ):
+        return None  # Not all of the expanded tis are done yet.
     read = XComModel.get_many(
         run_id=run_id,
         key=XCOM_RETURN_KEY,
-        producer_ids=select(TaskInstance.id).where(TaskInstance.id.in_([ti.id for ti in producers])),
+        producer_ids=producer_ids,
     )
 
     entity = xcom_entity(read)

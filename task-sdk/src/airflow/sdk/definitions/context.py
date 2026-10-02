@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         InletEventsAccessors,
         TaskStateStoreAccessor,
     )
+    from airflow.sdk.execution_time.loop import LoopContextAccessor
     from airflow.sdk.types import (
         DagRunProtocol,
         Operator,
@@ -57,6 +58,7 @@ class Context(TypedDict, total=False):
     inlets: list
     inlet_events: InletEventsAccessors
     logical_date: DateTime
+    loop: LoopContextAccessor
     macros: Any
     map_index_template: NotRequired[str | None]
     outlets: list
@@ -90,7 +92,7 @@ class Context(TypedDict, total=False):
     var: Any
 
 
-KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
+KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys()) - {"loop"}
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:

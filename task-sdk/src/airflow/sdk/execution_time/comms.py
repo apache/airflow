@@ -941,6 +941,7 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
 
 
 class GetXCom(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -953,6 +954,7 @@ class GetXCom(BaseModel):
 class GetXComCount(BaseModel):
     """Get the number of (mapped) XCom values available."""
 
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -961,6 +963,7 @@ class GetXComCount(BaseModel):
 
 
 class GetXComSequenceItem(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -970,6 +973,7 @@ class GetXComSequenceItem(BaseModel):
 
 
 class GetXComSequenceSlice(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -982,6 +986,7 @@ class GetXComSequenceSlice(BaseModel):
 
 
 class SetXCom(BaseModel):
+    loop_decision: bool = False
     key: str
     value: JsonValue
     dag_id: str

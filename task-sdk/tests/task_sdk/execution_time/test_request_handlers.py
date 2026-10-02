@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
+from task_sdk import make_client
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
@@ -32,8 +35,13 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetXCom,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
@@ -42,8 +50,13 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_delete_asset_state_store_by_uri,
     handle_get_asset_state_store_by_name,
     handle_get_asset_state_store_by_uri,
+    handle_get_xcom,
+    handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
     handle_set_asset_state_store_by_name,
     handle_set_asset_state_store_by_uri,
+    handle_set_xcom,
 )
 
 
@@ -57,6 +70,40 @@ def client_ssl_cache():
     sdk_client.Client._get_ssl_context_cached.cache_clear()
     yield
     sdk_client.Client._get_ssl_context_cached.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("message", "handler", "extra", "response", "field"),
+    [
+        (GetXCom, handle_get_xcom, {}, {"key": "key", "value": 0}, "previous_iteration"),
+        (GetXComCount, handle_get_xcom_count, {}, None, "previous_iteration"),
+        (GetXComSequenceItem, handle_get_xcom_sequence_item, {"offset": -1}, 0, "previous_iteration"),
+        (
+            GetXComSequenceSlice,
+            handle_get_xcom_sequence_slice,
+            {"start": None, "stop": None, "step": -1},
+            [],
+            "previous_iteration",
+        ),
+        (SetXCom, handle_set_xcom, {"value": "stop"}, None, "loop_decision"),
+    ],
+)
+def test_loop_selectors_survive_comms_and_http_transport(
+    message, handler, extra, response, field, client_ssl_cache
+):
+    msg = message(dag_id="dag", run_id="run", task_id="task", key="key", **extra, **{field: True})
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, content=json.dumps(response), headers={"Content-Range": "map_indexes 1"})
+
+    handler(
+        make_client(transport=httpx.MockTransport(respond)),
+        message.model_validate_json(msg.model_dump_json()),
+    )
+
+    assert requests[0].url.params[field] == "true"
 
 
 def test_get_asset_state_store_by_name_wraps_response_as_result(client):

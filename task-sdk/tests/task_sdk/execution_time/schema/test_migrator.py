@@ -50,9 +50,14 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
 )
 
 from airflow.sdk import TaskInstanceState
-from airflow.sdk.api.datamodels._generated import PreviousTIResponse
+from airflow.sdk.api.datamodels._generated import LoopContext, PreviousTIResponse
 from airflow.sdk.execution_time.comms import (
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
     PreviousTIResult,
+    SetXCom,
     TaskState,
 )
 from airflow.sdk.execution_time.schema import (
@@ -92,6 +97,24 @@ def test_previous_ti_response_coordinates_follow_supervisor_version(version):
     else:
         assert result["region_id"] == UUID(int=1)
         assert result["region_index"] == 3
+
+
+@pytest.mark.parametrize(
+    ("model", "extra", "field"),
+    [
+        (GetXCom, {}, "previous_iteration"),
+        (GetXComCount, {}, "previous_iteration"),
+        (GetXComSequenceItem, {"offset": 0}, "previous_iteration"),
+        (GetXComSequenceSlice, {"start": None, "stop": None, "step": None}, "previous_iteration"),
+        (SetXCom, {"value": "stop"}, "loop_decision"),
+    ],
+)
+def test_loop_selectors_follow_supervisor_version(model, extra, field):
+    message = model(dag_id="dag", run_id="run", task_id="task", key="key", **extra, **{field: True})
+    migrator = get_schema_version_migrator()
+
+    assert field not in migrator.downgrade(message, "2026-06-16").model_dump()
+    assert migrator.downgrade(message, "2026-10-30").model_dump()[field] is True
 
 
 class _IntroduceQueueCapacity(VersionChange):
@@ -484,6 +507,22 @@ class TestRealBundleArgBindingsDowngrade:
     def test_downgrade_strips_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
         assert "arg_bindings" not in out["ti_context"]
+
+    @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+    def test_loop_context_follows_supervisor_version(self, real_migrator, startup_details, version):
+        startup_details.ti_context.loop = LoopContext(
+            node_id="body",
+            index=2,
+            max_iterations=4,
+            terminal_task_id="body.terminal",
+            terminal_is_mapped=True,
+        )
+        context = real_migrator.downgrade(startup_details, version).model_dump()["ti_context"]
+
+        if version == "2026-06-16":
+            assert "loop" not in context
+        else:
+            assert context["loop"] == startup_details.ti_context.loop.model_dump()
 
     @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
     def test_task_coordinates_follow_supervisor_version(self, real_migrator, startup_details, version):

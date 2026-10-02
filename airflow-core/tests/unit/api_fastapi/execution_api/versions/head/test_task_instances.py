@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import datetime
+from threading import Barrier, Event
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -35,31 +37,36 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.sql.selectable import Select
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
-from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
+from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
+from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
+from airflow.api_fastapi.execution_api.routes.xcoms import set_xcom
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
+from airflow.models import DagRun, RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
-from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
@@ -399,6 +406,59 @@ def test_execution_breadcrumbs_keep_regional_identity_separate_from_map_index(cl
 
 
 class TestTIRunState:
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize("version", ["2026-06-30", "2026-10-30"])
+    def test_startup_loop_context_uses_enclosing_iteration(self, client, session, dag_maker, mapped, version):
+        @task_group
+        def body():
+            if mapped:
+                PythonOperator.partial(task_id="terminal", python_callable=str).expand(op_args=[[1], [2]])
+            else:
+                EmptyOperator(task_id="terminal")
+
+        with dag_maker(serialized=True):
+            loop = create_loop(body, max_iterations=4)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = next(ti for ti in dr.task_instances if ti.task_id == loop.terminal_task_id)
+        parent = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+        )
+        session.add(parent)
+        session.flush()
+        ti.region_id, ti.region_index = parent.id, 2
+        if mapped:
+            child = DynamicRegion.get_or_create(
+                dag_id=dr.dag_id,
+                run_id=dr.run_id,
+                node_id=ti.task_id,
+                parent_region_id=parent.id,
+                parent_region_index=2,
+                session=session,
+            )
+            session.add(child)
+            session.flush()
+            ti.region_id, ti.region_index = child.id, 0
+        ti.state = State.QUEUED
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json=self.RUN_PAYLOAD,
+            headers={"Airflow-API-Version": version},
+        )
+
+        assert response.status_code == 200
+        if version == "2026-06-30":
+            assert "loop" not in response.json()
+            return
+        assert response.json()["loop"] == {
+            "node_id": loop.group_id,
+            "index": 2,
+            "max_iterations": 4,
+            "terminal_task_id": loop.terminal_task_id,
+            "terminal_is_mapped": mapped,
+        }
+
     @pytest.mark.parametrize("regional", [False, True])
     def test_startup_xcom_cleanup_keys_belong_to_the_starting_try(
         self, client, session, create_task_instance, regional
@@ -1604,6 +1664,496 @@ class TestTIRunState:
 
 
 class TestTIUpdateState:
+    def test_loop_continues_while_earlier_body_branch_is_running(self, client, session, dag_maker):
+        @task_group
+        def body():
+            left = PythonOperator(task_id="left", python_callable=list)
+            right = PythonOperator(task_id="right", python_callable=list)
+            terminal = PythonOperator(
+                task_id="terminal", python_callable=list, trigger_rule=TriggerRule.ONE_SUCCESS
+            )
+            [left, right] >> terminal
+
+        with dag_maker(serialized=True, session=session):
+            loop = create_loop(body, max_iterations=2)
+        dr = dag_maker.create_dagrun()
+        dr.dag = dag_maker.serialized_dag
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        tis["body.left"].state = State.SUCCESS
+        right = tis["body.right"]
+        right.state = State.RUNNING
+        right_id = right.id
+        terminal = tis["body.terminal"]
+        gate = tis[loop.gate_task_id]
+        session.flush()
+        assert terminal in dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        terminal.state, terminal.start_date = State.RUNNING, DEFAULT_START_DATE
+        session.commit()
+        assert (
+            client.patch(
+                f"/execution/task-instances/{terminal.id}/state",
+                json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            ).status_code
+            == 204
+        )
+        session.expire_all()
+        assert gate in dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        gate.state, gate.start_date = State.RUNNING, DEFAULT_START_DATE
+        session.commit()
+        exec_app = client.app.routes[-1].app
+        exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
+        assert (
+            client.post(
+                f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision",
+                params={"loop_decision": True},
+                json="continue",
+            ).status_code
+            == 201
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204, response.text
+        session.expire_all()
+        assert session.get(TaskInstance, right_id).state == State.RUNNING
+        ready = dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        assert {(ti.task_id, ti.region_index) for ti in ready} == {("body.left", 1), ("body.right", 1)}
+
+    @conf_vars({("state_store", "clear_on_success"): "true"})
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize(
+        ("decision", "state", "max_iterations", "conditional", "rejected", "passes"),
+        [
+            ("continue", State.SUCCESS, 3, False, False, [0, 1]),
+            ("stop", State.SUCCESS, 3, False, True, [0]),
+            (None, State.SUCCESS, 3, False, True, [0]),
+            ("continue", State.FAILED, 3, False, False, [0]),
+            ("continue", State.SKIPPED, 3, False, False, [0]),
+            ("stop", State.SUCCESS, 1, False, False, [0]),
+            ("continue", State.SUCCESS, 1, False, True, [0]),
+            ("stop", State.SUCCESS, 3, True, False, [0]),
+            ("stop", State.SUCCESS, 1, True, False, [0]),
+            ("continue", State.SUCCESS, 1, True, True, [0]),
+            (None, State.FAILED, 1, True, False, [0]),
+        ],
+    )
+    def test_loop_gate_completion_consumes_decision_atomically(
+        self,
+        client,
+        session,
+        dag_maker,
+        decision,
+        state,
+        max_iterations,
+        conditional,
+        mapped,
+        rejected,
+        passes,
+        mocker,
+    ):
+        backend = mocker.create_autospec(MetastoreBackend, instance=True)
+        mocker.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.get_state_backend",
+            autospec=True,
+            return_value=backend,
+        )
+
+        @task_group
+        def body():
+            if mapped:
+                PythonOperator.partial(task_id="terminal", python_callable=list).expand(op_kwargs=[{}, {}])
+            else:
+                PythonOperator(task_id="terminal", python_callable=list)
+
+        with dag_maker(serialized=True, session=session):
+            loop = create_loop(
+                body, max_iterations=max_iterations, until=(lambda loop: True) if conditional else None
+            )
+        dr = dag_maker.create_dagrun()
+        gate = next(ti for ti in dr.task_instances if ti.task_id == loop.gate_task_id)
+        gate.state = State.RUNNING
+        gate.start_date = DEFAULT_START_DATE
+        session.commit()
+        if decision:
+            exec_app = client.app.routes[-1].app
+            exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
+            response = client.post(
+                f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision",
+                params={"loop_decision": True},
+                json=decision,
+            )
+            assert response.status_code == 201
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204, response.text
+        assert backend.clear.call_count == (state == State.SUCCESS and not rejected)
+        session.expire_all()
+        assert gate.state == (State.FAILED if rejected else state)
+        current = dr.get_task_instances(session=session)
+        assert sorted(ti.region_index for ti in current if ti.task_id == gate.task_id) == passes
+        if mapped:
+            children = session.scalars(
+                select(DynamicRegion).where(DynamicRegion.parent_region_id == gate.region_id)
+            ).all()
+            assert sorted(region.parent_region_index for region in children) == passes
+            region_ids = {gate.region_id, *(region.id for region in children)}
+            assert all(ti.region_id in region_ids for ti in current)
+        else:
+            assert all(ti.region_id == gate.region_id for ti in current)
+        signal = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
+        assert signal is None
+        if not rejected:
+            duplicate = client.patch(
+                f"/execution/task-instances/{gate.id}/state",
+                json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
+            )
+            assert duplicate.status_code == 200
+            assert (
+                sorted(
+                    ti.region_index
+                    for ti in dr.get_task_instances(session=session)
+                    if ti.task_id == gate.task_id
+                )
+                == passes
+            )
+        if mapped and passes == [0, 1]:
+            successor_region = next(region for region in children if region.parent_region_index == 1)
+            assert [ti.region_index for ti in current if ti.region_id == successor_region.id] == [-1]
+            dr.dag = dag_maker.serialized_dag
+
+            dr.task_instance_scheduling_decisions(session=session)
+
+            assert sorted(
+                ti.region_index
+                for ti in dr.get_task_instances(session=session)
+                if ti.region_id == successor_region.id
+            ) == [0, 1]
+
+    @pytest.fixture
+    def running_loop_gate(self, session, dag_maker):
+        @task_group
+        def body():
+            PythonOperator(task_id="terminal", python_callable=list)
+
+        with dag_maker(serialized=True, session=session):
+            loop = create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        gate = next(ti for ti in dr.task_instances if ti.task_id == loop.gate_task_id)
+        gate.state, gate.start_date = State.RUNNING, DEFAULT_START_DATE
+        XComModel.set_for_attempt(
+            task_instance_id=gate.id,
+            key="_airflow_loop_decision",
+            value="continue",
+            serialize=False,
+            session=session,
+        )
+        session.commit()
+        return gate
+
+    def test_loop_gate_materialization_error_rolls_back_state_signal_and_successor(
+        self, client, session, running_loop_gate, mocker
+    ):
+        gate = running_loop_gate
+        dr = gate.dag_run
+        original = DagRun._create_task_instances
+        observed = []
+
+        def fail_after_insert(*args, **kwargs):
+            original(*args, **kwargs)
+            with Session(bind=session.get_bind()) as observer:
+                observed.append(observer.get(TaskInstance, gate.id).state)
+                observed.append(
+                    observer.scalars(
+                        select(TaskInstance.region_index).where(
+                            TaskInstance.dag_id == dr.dag_id, TaskInstance.task_id == gate.task_id
+                        )
+                    ).all()
+                )
+            raise StaleDataError("injected materialization failure")
+
+        mocker.patch.object(DagRun, "_create_task_instances", autospec=True, side_effect=fail_after_insert)
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 500
+        session.expire_all()
+        assert observed == [State.RUNNING, [0]]
+        assert gate.state == State.RUNNING
+        assert len(dr.get_task_instances(session=session)) == 2
+        assert session.scalar(select(XComModel.value).where(XComModel.task_id == gate.task_id)) == "continue"
+
+    @pytest.mark.parametrize(
+        ("max_tries", "expected_state"),
+        [(0, State.FAILED), (1, State.UP_FOR_RETRY)],
+    )
+    def test_loop_gate_with_invalid_decision_leaves_running_in_same_request(
+        self, client, session, running_loop_gate, max_tries, expected_state
+    ):
+        gate = running_loop_gate
+        dr = gate.dag_run
+        gate_id = gate.id
+        gate.max_tries = max_tries
+        session.execute(delete(XComModelV2).where(XComModelV2.task_instance_id == gate.id))
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        current = dr.get_task_instances(session=session)
+        assert sorted(ti.state for ti in current if ti.task_id == gate.task_id) == [expected_state]
+        assert len(current) == 2
+        assert "requires a decision" in session.get(TaskInstance, gate_id).retry_reason
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_concurrent_loop_gate_completions_create_one_successor(self, session, running_loop_gate):
+        gate = running_loop_gate
+        dr = gate.dag_run
+        gate_id = gate.id
+        bind = session.get_bind()
+        barrier = Barrier(2)
+
+        def complete():
+            with Session(bind=bind) as request_session:
+                barrier.wait(timeout=10)
+                result = ti_update_state(
+                    task_instance_id=gate_id,
+                    ti_patch_payload=TISuccessStatePayload(state="success", end_date=DEFAULT_END_DATE),
+                    session=request_session,
+                    dag_bag=DBDagBag(),
+                )
+                return result.status_code if result is not None else 204
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(complete) for _ in range(2)]
+            assert sorted(future.result(timeout=20) for future in futures) == [200, 204]
+        session.expire_all()
+        assert gate.state == State.SUCCESS
+        assert sorted(
+            ti.region_index for ti in dr.get_task_instances(session=session) if ti.task_id == gate.task_id
+        ) == [0, 1]
+        assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_loop_decision_rewrite_and_completion_use_same_lock_order(
+        self, session, running_loop_gate, mocker
+    ):
+        gate = running_loop_gate
+        gate_id, dag_id, run_id, task_id = gate.id, gate.dag_id, gate.run_id, gate.task_id
+        bind = session.get_bind()
+        run_locked = Event()
+        completion_at_lock = Event()
+        execute = Session.execute
+
+        def coordinate_requests(request_session, statement, *args, **kwargs):
+            role = request_session.info.get("loop_test_role")
+            locks_run = (
+                isinstance(statement, Select)
+                and statement._for_update_arg is not None
+                and any(getattr(table, "name", None) == "dag_run" for table in statement.get_final_froms())
+            )
+            if role == "completion" and locks_run:
+                completion_at_lock.set()
+            result = execute(request_session, statement, *args, **kwargs)
+            if role == "writer" and locks_run and not run_locked.is_set():
+                run_locked.set()
+                assert completion_at_lock.wait(timeout=10)
+            return result
+
+        mocker.patch.object(Session, "execute", autospec=True, side_effect=coordinate_requests)
+
+        def rewrite():
+            with Session(bind=bind, info={"loop_test_role": "writer"}) as request_session:
+                set_xcom(
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key="_airflow_loop_decision",
+                    session=request_session,
+                    dag_bag=DBDagBag(),
+                    value="continue",
+                    loop_decision=True,
+                    token=TIToken(id=gate_id, claims=TIClaims()),
+                )
+                request_session.commit()
+
+        def complete():
+            assert run_locked.wait(timeout=10)
+            with Session(bind=bind, info={"loop_test_role": "completion"}) as request_session:
+                ti_update_state(
+                    task_instance_id=gate_id,
+                    ti_patch_payload=TISuccessStatePayload(state="success", end_date=DEFAULT_END_DATE),
+                    session=request_session,
+                    dag_bag=DBDagBag(),
+                )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(rewrite), pool.submit(complete)]
+            for future in futures:
+                future.result(timeout=20)
+        session.expire_all()
+        assert gate.state == State.SUCCESS
+        assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
+        assert sorted(
+            ti.region_index
+            for ti in gate.dag_run.get_task_instances(session=session)
+            if ti.task_id == gate.task_id
+        ) == [0, 1]
+
+    def test_loop_gate_completion_uses_its_pinned_limit(self, client, session, running_loop_gate, dag_maker):
+        gate = running_loop_gate
+        original_version = gate.dag_version_id
+
+        @task_group
+        def body():
+            PythonOperator(task_id="terminal", python_callable=list)
+
+        with dag_maker(serialized=True, session=session):
+            create_loop(body, max_iterations=1)
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204, response.text
+        session.expire_all()
+        successors = [ti for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1]
+        assert len(successors) == 2
+        assert all(ti.dag_version_id == original_version for ti in successors)
+
+    def test_late_loop_decision_cannot_recreate_consumed_signal(self, client, session, running_loop_gate):
+        gate = running_loop_gate
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+        assert response.status_code == 204
+        exec_app = client.app.routes[-1].app
+        exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
+
+        response = client.post(
+            f"/execution/xcoms/{gate.dag_id}/{gate.run_id}/{gate.task_id}/_airflow_loop_decision",
+            params={"loop_decision": True},
+            json="continue",
+        )
+
+        assert response.status_code == 409
+        assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
+
+    def test_loop_gate_state_update_error_rolls_back_next_pass_and_keeps_decision(
+        self, client, session, running_loop_gate, mocker
+    ):
+        gate = running_loop_gate
+        mocker.patch.object(
+            task_instances_route,
+            "_create_ti_state_update_query_and_update_state",
+            autospec=True,
+            side_effect=StaleDataError("injected state update failure"),
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 500
+        session.expire_all()
+        assert gate.state == State.RUNNING
+        assert len(gate.dag_run.get_task_instances(session=session)) == 2
+        assert session.scalar(select(XComModel.value).where(XComModel.task_id == gate.task_id)) == "continue"
+
+    @pytest.mark.parametrize("state", ["success", "failed"])
+    def test_non_loop_operator_named_loop_gate_completes_normally(
+        self, client, session, create_task_instance, state
+    ):
+        ti = create_task_instance(task_id="user_gate", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        ti.operator = LOOP_GATE_OPERATOR
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert ti.state == state
+
+    def test_loop_gate_inner_insert_error_is_not_swallowed(self, client, session, running_loop_gate, mocker):
+        gate = running_loop_gate
+        bulk_insert = mocker.patch.object(
+            Session,
+            "bulk_insert_mappings",
+            autospec=True,
+            side_effect=StaleDataError("injected insert error"),
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 500
+        bulk_insert.assert_called_once()
+        session.expire_all()
+        assert gate.state == State.RUNNING
+        assert len(gate.dag_run.get_task_instances(session=session)) == 2
+        assert session.scalar(select(XComModel.value).where(XComModel.task_id == gate.task_id)) == "continue"
+
+    @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
+    def test_rerun_gate_preserves_existing_later_pass(self, client, session, running_loop_gate, state):
+        gate = running_loop_gate
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+        assert response.status_code == 204
+        session.refresh(gate)
+        successor_ids = {
+            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1
+        }
+        archived_id = gate.id
+        dag_run = gate.dag_run
+        clear_task_instances([gate], session=session)
+        session.expire_all()
+        gate = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_run.dag_id,
+                TaskInstance.run_id == dag_run.run_id,
+                TaskInstance.task_id == gate.task_id,
+                TaskInstance.region_index == 0,
+                TaskInstance.working_set.is_(True),
+            )
+        )
+        assert gate.id != archived_id
+        gate.state = State.RUNNING
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204, response.text
+        session.expire_all()
+        assert gate.state == state
+        assert {
+            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1
+        } == successor_ids
+
     @pytest.mark.parametrize(
         ("interruption", "expected_state", "expected_status"),
         [("clear", State.RESTARTING, 409), ("failed", State.FAILED, 409)],
@@ -3458,6 +4008,38 @@ class TestTISkipDownstream:
         session.expire_all()
         assert target.state == State.SKIPPED
         assert previous.state is None
+
+    @pytest.mark.parametrize("tasks", [["body.target"], [["body.target", -1]]])
+    def test_skip_downstream_from_outside_loop_skips_every_live_pass(self, client, session, dag_maker, tasks):
+        @task_group
+        def body():
+            EmptyOperator(task_id="target")
+
+        with dag_maker(serialized=True) as dag:
+            EmptyOperator(task_id="branch") >> create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+        )
+        session.add(region)
+        session.flush()
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        caller, target = tis["branch"], tis["body.target"]
+        other_pass = TaskInstance(
+            task=dag.get_task(target.task_id), run_id=dr.run_id, dag_version_id=target.dag_version_id
+        )
+        other_pass.region_id, other_pass.region_index = region.id, 1
+        session.add(other_pass)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{caller.id}/skip-downstream", json={"tasks": tasks}
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert target.state == State.SKIPPED
+        assert other_pass.state == State.SKIPPED
 
     def setup_method(self):
         clear_db_runs()

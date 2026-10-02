@@ -20,6 +20,7 @@ import hashlib
 import struct
 from collections.abc import Collection, Iterable
 from datetime import datetime
+from functools import partial
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -35,6 +36,7 @@ from sqlalchemy import (
     UniqueConstraint,
     and_,
     event,
+    false,
     literal,
     or_,
     select,
@@ -48,8 +50,11 @@ from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 
 SENTINEL_REGION_ID = UUID(int=0)
+LOOP_XCOM_PREFIX = "_airflow_loop_"
+LOOP_DECISION_KEY = f"{LOOP_XCOM_PREFIX}decision"
 
 if TYPE_CHECKING:
+    from sqlalchemy import Select
     from sqlalchemy.engine import Connection
     from sqlalchemy.orm import Mapper, Session
     from sqlalchemy.sql.elements import ColumnElement
@@ -464,6 +469,68 @@ def _match_any(column, value: str | Collection[str]) -> ColumnElement[bool]:
     return column == value if isinstance(value, str) else column.in_(value)
 
 
+def _filter_producers(
+    query: Select,
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    is_mapped: bool,
+    map_indexes: int | Collection[int] | None,
+    region_id: UUID | None,
+    region_index: int | None,
+    top_level_only: bool,
+    loop_pass: _LoopPassRegions | None = None,
+) -> Select:
+    """Push every coordinate predicate into SQL."""
+    from airflow.models.taskinstance import TaskInstance
+
+    query = query.where(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.working_set.is_(True),
+    )
+    if region_id is not None:
+        query = query.where(TaskInstance.region_id == region_id)
+    if region_index is not None:
+        query = query.where(TaskInstance.region_index == region_index)
+    if loop_pass is not None:
+        query = query.where(_build_loop_pass_filter(loop_pass))
+    if top_level_only:
+        if is_mapped:
+            top_level_region = (
+                select(DynamicRegion.id)
+                .where(DynamicRegion.id == TaskInstance.region_id, DynamicRegion.parent_region_id.is_(None))
+                .correlate(TaskInstance)
+                .exists()
+            )
+            query = query.where(or_(TaskInstance.region_id == SENTINEL_REGION_ID, top_level_region))
+        else:
+            query = query.where(TaskInstance.region_id == SENTINEL_REGION_ID, TaskInstance.region_index == -1)
+    if map_indexes is None:
+        return query
+    if not is_mapped:
+        wanted = map_indexes == -1 if isinstance(map_indexes, int) else -1 in map_indexes
+        return query if wanted else query.where(false())
+    if isinstance(map_indexes, int):
+        return query.where(TaskInstance.region_index == map_indexes)
+    if isinstance(map_indexes, range) and map_indexes.step == 1:
+        return query.where(
+            TaskInstance.region_index >= map_indexes.start, TaskInstance.region_index < map_indexes.stop
+        )
+    return query.where(TaskInstance.region_index.in_(list(map_indexes)))
+
+
+def _validate_producer_request(
+    *, context: ProducerContext | None, region_id: UUID | None, region_index: int | None
+) -> None:
+    if region_index is not None and region_id is None:
+        raise ValueError("region_index requires an explicit producer region_id")
+    if context and context.previous_iteration and context.loop_node_id is None:
+        raise ValueError("Previous-iteration lookup requires a loop context")
+
+
 def resolve_current_producers(
     *,
     dag_id: str,
@@ -479,14 +546,13 @@ def resolve_current_producers(
     """Resolve the live producer task instances whose data the caller reads by task instance UUID."""
     from airflow.models.taskinstance import TaskInstance
 
-    if region_index is not None and region_id is None:
-        raise ValueError("region_index requires an explicit producer region_id")
-    if context and context.previous_iteration and context.loop_node_id is None:
-        raise ValueError("Previous-iteration lookup requires a loop context")
+    _validate_producer_request(context=context, region_id=region_id, region_index=region_index)
     regions: dict[UUID, DynamicRegion] = {}
     position = None
     if context and region_id is None:
-        regions = load_region_ancestry({context.region_id}, dag_id=dag_id, run_id=run_id, session=session)
+        regions = load_region_ancestry(
+            {context.region_id} - {SENTINEL_REGION_ID}, dag_id=dag_id, run_id=run_id, session=session
+        )
         if context.loop_node_id is not None:
             position = loop_position(regions, context.region_id, context.region_index, context.loop_node_id)
             if position is None:
@@ -495,46 +561,85 @@ def resolve_current_producers(
                 position = position[0], position[1] - 1
                 if position[1] < 0:
                     return ()
-    query = select(TaskInstance).where(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.run_id == run_id,
-        TaskInstance.task_id == task_id,
-        TaskInstance.working_set.is_(True),
-    )
-    if region_id is not None:
-        query = query.where(TaskInstance.region_id == region_id)
-    if region_index is not None:
-        query = query.where(TaskInstance.region_index == region_index)
-    if position is not None:
-        query = query.where(_build_loop_pass_filter(_load_loop_pass_regions(position, session=session)))
-    candidates = session.scalars(query).all()
-    if region_id is None and position is None:
-        regions.update(
-            load_region_ancestry(
-                {ti.region_id for ti in candidates} - set(regions),
-                dag_id=dag_id,
-                run_id=run_id,
-                session=session,
-            )
+
+    candidates = session.scalars(
+        _filter_producers(
+            select(TaskInstance),
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            is_mapped=is_mapped,
+            map_indexes=map_indexes,
+            region_id=region_id,
+            region_index=region_index,
+            top_level_only=region_id is None and position is None,
+            loop_pass=_load_loop_pass_regions(position, session=session) if position is not None else None,
         )
+    ).all()
 
     selected: dict[int, TaskInstance] = {}
     for ti in candidates:
-        if region_id is None and position is None:
-            if ti.region_id != SENTINEL_REGION_ID:
-                if not is_mapped or regions[ti.region_id].parent_region_id is not None:
-                    continue
-            elif not is_mapped and ti.region_index != -1:
-                continue
         public_index = ti.region_index if is_mapped else -1
-        if isinstance(map_indexes, int):
-            if public_index != map_indexes:
-                continue
-        elif map_indexes is not None and public_index not in map_indexes:
-            continue
         if public_index in selected:
             raise AmbiguousProducerError(
                 f"Multiple live producers for {dag_id}/{run_id}/{task_id} index {public_index}"
             )
         selected[public_index] = ti
     return tuple(selected[index] for index in sorted(selected))
+
+
+def select_current_producer_ids(
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    is_mapped: bool,
+    context: ProducerContext | None = None,
+    map_indexes: int | Collection[int] | None = None,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
+    session: Session,
+) -> Select[tuple[UUID]]:
+    """
+    Select the ids of the live producers :func:`resolve_current_producers` would return.
+
+    A task whose live executions all share one region cannot have two producers at one index, so
+    that common case stays a pure SQL selection whose cost does not depend on the number of
+    mapped instances. Everything else resolves the rows and pins their ids.
+    """
+    from airflow.models.taskinstance import TaskInstance
+
+    _validate_producer_request(context=context, region_id=region_id, region_index=region_index)
+    filter_producers = partial(
+        _filter_producers,
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+        map_indexes=map_indexes,
+        region_id=region_id,
+        region_index=region_index,
+        top_level_only=region_id is None,
+    )
+    query = filter_producers(select(TaskInstance.id))
+    if region_id is None:
+        if context is not None:
+            single_region = False
+        else:
+            first_region = filter_producers(select(TaskInstance.region_id)).limit(1)
+            other_region = filter_producers(select(TaskInstance.id)).where(
+                TaskInstance.region_id != first_region.scalar_subquery()
+            )
+            single_region = not session.scalar(select(other_region.exists()))
+        if not single_region:
+            producers = resolve_current_producers(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                is_mapped=is_mapped,
+                context=context,
+                map_indexes=map_indexes,
+                session=session,
+            )
+            return select(TaskInstance.id).where(TaskInstance.id.in_([ti.id for ti in producers]))
+    return query

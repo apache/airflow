@@ -233,6 +233,18 @@ class IntermediateTIState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
+class LoopContext(BaseModel):
+    """
+    Pinned loop definition and enclosing iteration for a task execution.
+    """
+
+    node_id: Annotated[str, Field(title="Node Id")]
+    index: Annotated[int, Field(ge=0, title="Index")]
+    max_iterations: Annotated[int, Field(gt=0, title="Max Iterations")]
+    terminal_task_id: Annotated[str, Field(title="Terminal Task Id")]
+    terminal_is_mapped: Annotated[bool, Field(title="Terminal Is Mapped")]
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -842,6 +854,7 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
+    loop: LoopContext | None = None
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None

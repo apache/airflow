@@ -56,6 +56,44 @@ SUCCESS = TaskInstanceState.SUCCESS
 FAILED = TaskInstanceState.FAILED
 
 
+@pytest.mark.parametrize("latest_state", [None, SUCCESS, FAILED, SKIPPED, TaskInstanceState.RESTARTING])
+@pytest.mark.parametrize("rule", [TriggerRule.ALL_SUCCESS, TriggerRule.ONE_SUCCESS, TriggerRule.ALL_DONE])
+def test_outside_dependency_observes_only_latest_live_loop_gate(dag_maker, session, latest_state, rule):
+    @task_group
+    def body():
+        PythonOperator(task_id="terminal", python_callable=list)
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+        loop >> PythonOperator(task_id="outside", python_callable=list, trigger_rule=rule)
+    dr = dag_maker.create_dagrun()
+    previous = next(ti for ti in dr.task_instances if ti.task_id == loop.gate_task_id)
+    previous.state = SUCCESS
+    latest = TaskInstance(
+        task=dag_maker.serialized_dag.get_task(previous.task_id),
+        run_id=dr.run_id,
+        dag_version_id=previous.dag_version_id,
+        region_id=previous.region_id,
+        region_index=1,
+        state=latest_state,
+    )
+    session.add(latest)
+    outside = next(ti for ti in dr.task_instances if ti.task_id == "outside")
+    outside.task = dag_maker.serialized_dag.get_task(outside.task_id)
+    session.flush()
+    context = DepContext()
+
+    actual = TriggerRuleDep().is_met(ti=outside, dep_context=context, session=session)
+
+    expected = latest_state == SUCCESS or (rule == TriggerRule.ALL_DONE and latest_state in {FAILED, SKIPPED})
+    assert actual is expected
+    assert context.upstream_tis(outside, previous.task_id, session=session) == (latest,)
+    with pytest.raises(ValueError, match="loop producer requires"):
+        context.coordinate_resolver(outside, session=session).resolve(
+            dag_id=dr.dag_id, run_id=dr.run_id, task_id=previous.task_id, caller=outside
+        )
+
+
 @pytest.mark.parametrize("current_state", [SUCCESS, FAILED])
 def test_trigger_rule_ignores_other_loop_passes(dag_maker, session, current_state):
     @task_group

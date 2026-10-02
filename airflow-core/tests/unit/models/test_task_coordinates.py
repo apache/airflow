@@ -19,6 +19,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.routes.xcoms import _build_xcom_read
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.models.dag_version import DagVersion
@@ -37,7 +39,11 @@ from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.log.task_log_address import prepare_task_log_contexts
 
-from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
+from tests_common.test_utils.asserts import (
+    assert_queries_count,
+    capture_orm_selects,
+    count_loaded_task_instances,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -150,6 +156,31 @@ def test_loop_passes_load_the_region_ancestry_once_for_all_task_instances(loop_c
 
     assert passes == [2, 2, 1, None]
     assert len(statements) == 1
+
+
+def test_dependency_rejects_duplicate_latest_gate_coordinates(loop_coordinates, session):
+    dr, _, consumer, _, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    gate = next(ti for ti in dr.task_instances if ti.task_id == "body.__loop_gate")
+    duplicate = TaskInstance(
+        task=resolver.get_task(dr.dag_id, dr.run_id, gate.task_id, dag_version_id=gate.dag_version_id),
+        run_id=dr.run_id,
+        dag_version_id=gate.dag_version_id,
+        region_id=consumer.region_id,
+        region_index=gate.region_index,
+    )
+    session.add(duplicate)
+    session.flush()
+
+    with pytest.raises(AmbiguousProducerError, match="Multiple live loop gates"):
+        resolver.resolve_dependency(outside, gate.task_id)
+
+
+def test_dependency_on_task_missing_from_pinned_dag_falls_back_to_plain_resolution(loop_coordinates, session):
+    _, _, consumer, _, _ = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert resolver.resolve_dependency(consumer, "removed_upstream") == ()
 
 
 def test_loop_without_context_requires_explicit_scope(loop_coordinates, session):
@@ -274,3 +305,55 @@ def test_unversioned_run_keeps_task_definition_after_latest_graph_changes(
             region_id=mapped.region_id,
             region_index=0,
         ) == (mapped,)
+
+
+@pytest.fixture
+def mapped_run(dag_maker, session):
+    def create(mapped_count: int):
+        with dag_maker(serialized=True):
+            mapped = PythonOperator.partial(task_id="mapped", python_callable=str).expand(
+                op_args=[[i] for i in range(mapped_count)]
+            )
+            mapped >> EmptyOperator(task_id="reduce")
+        dr = dag_maker.create_dagrun()
+        caller = session.scalars(
+            select(TaskInstance).where(TaskInstance.run_id == dr.run_id, TaskInstance.task_id == "reduce")
+        ).one()
+        session.expire_all()
+        return dr, caller
+
+    return create
+
+
+@pytest.mark.parametrize("mapped_count", [3, 60])
+def test_xcom_read_of_one_mapped_slot_loads_no_producer_rows(mapped_run, session, mapped_count):
+    dr, caller = mapped_run(mapped_count)
+    token = TIToken(id=caller.id, claims=TIClaims())
+
+    with count_loaded_task_instances("mapped") as loaded, assert_queries_count(8):
+        read = _build_xcom_read(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            task_id="mapped",
+            key="return_value",
+            session=session,
+            dag_bag=DBDagBag(),
+            token=token,
+            map_index=2,
+        )
+        session.scalars(read).all()
+
+    assert loaded == []
+
+
+def test_selected_mapped_producers_match_resolved_producers(mapped_run, session):
+    dr, caller = mapped_run(6)
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    for map_indexes in (None, 4, range(1, 3), [0, 5]):
+        arguments = dict(
+            dag_id=dr.dag_id, run_id=dr.run_id, task_id="mapped", caller=caller, map_indexes=map_indexes
+        )
+        resolved = {ti.id for ti in resolver.resolve(**arguments)}
+        assert set(session.scalars(resolver.select_producer_ids(**arguments))) == resolved
+        assert resolved

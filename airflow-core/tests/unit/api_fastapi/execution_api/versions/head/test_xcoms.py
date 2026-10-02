@@ -25,7 +25,8 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, event, select, update
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
@@ -127,6 +128,218 @@ def loop_xcoms(dag_maker, session, authenticate_as):
     session.commit()
     authenticate_as(consumer)
     return dr, producer, consumer, previous
+
+
+@pytest.mark.parametrize("suffix", ["", "/item/0", "/item/-1", "/slice"])
+def test_previous_iteration_xcom_uses_retained_predecessor(client, loop_xcoms, suffix):
+    dr, producer, _, _ = loop_xcoms
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key"
+    params = {"previous_iteration": True}
+
+    response = client.get(url + suffix, params=params)
+
+    assert response.status_code == 200
+    expected = {"": {"key": "key", "value": "previous"}, "/slice": ["previous"]}
+    assert response.json() == expected.get(suffix, "previous")
+    assert client.head(url, params=params).headers["Content-Range"] == "map_indexes 1"
+
+
+def test_previous_iteration_rejects_prior_dates(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+
+    response = client.get(
+        f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key",
+        params={"previous_iteration": True, "include_prior_dates": True},
+    )
+
+    assert response.status_code == 400
+
+
+def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(
+    client, dag_maker, session, authenticate_as
+):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(
+            op_args=[[1], [2]]
+        ) >> EmptyOperator(task_id="consumer")
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    parent = DynamicRegion.get_or_create(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session)
+    session.add(parent)
+    session.flush()
+    previous = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=0,
+        session=session,
+    )
+    current = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=1,
+        session=session,
+    )
+    session.add_all([previous, current])
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=0,
+        forked_from_region_id=previous.id,
+    )
+    session.add(replacement)
+    session.flush()
+    consumer = next(ti for ti in dr.task_instances if ti.task_id == "body.consumer")
+    consumer.region_id, consumer.region_index = parent.id, 1
+    for ti in dr.task_instances:
+        if ti.task_id == "body.mapped":
+            ti.region_id = current.id
+    producers = {}
+    for region, index in [(previous, 0), (previous, 1), (replacement, 1)]:
+        ti = TaskInstance(
+            task=dag.get_task("body.mapped"), run_id=dr.run_id, dag_version_id=consumer.dag_version_id
+        )
+        ti.region_id, ti.region_index = region.id, index
+        session.add(ti)
+        producers[region.id, index] = ti
+    session.flush()
+    producers[previous.id, 1].archive(reason="cleared", session=session)
+    for (region, index), value in [
+        ((previous, 0), "retained"),
+        ((previous, 1), "archived"),
+        ((replacement, 1), "replacement"),
+    ]:
+        XComModel.set_for_attempt(
+            task_instance_id=producers[region.id, index].id,
+            key="key",
+            value=value,
+            serialize=False,
+            session=session,
+        )
+    session.commit()
+    authenticate_as(consumer)
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.mapped/key"
+    params = {"previous_iteration": True}
+    assert client.head(url, params=params).headers["Content-Range"] == "map_indexes 2"
+    assert client.get(url + "/slice", params=params).json() == ["retained", "replacement"]
+    assert client.get(url + "/item/-1", params=params).json() == "replacement"
+
+
+def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_instance):
+    ti = create_task_instance()
+    response = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/_airflow_loop_decision", json="continue"
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("value", ["continue", "stop", True, "invalid", {"decision": "stop"}])
+def test_internal_loop_decision_uses_token_gate_coordinates(
+    client, loop_xcoms, session, authenticate_as, value
+):
+    dr, _, consumer, _ = loop_xcoms
+    gate = session.scalar(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == dr.dag_id, TaskInstance.task_id == "body.__loop_gate"
+        )
+    )
+    gate.region_id, gate.region_index = consumer.region_id, 2
+    gate.state = "running"
+    session.commit()
+    authenticate_as(gate)
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision"
+
+    response = client.post(url, params={"loop_decision": True}, json=value)
+
+    assert response.status_code == (201 if value in ("continue", "stop") else 400)
+    if response.status_code == 201:
+        stored = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
+        assert (stored.region_id, stored.region_index, stored.value) == (gate.region_id, 2, value)
+        authenticate_as(consumer)
+        assert client.post(url, params={"loop_decision": True}, json="stop").status_code == 400
+        assert (
+            client.post(
+                f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{consumer.task_id}/_airflow_loop_decision",
+                params={"loop_decision": True},
+                json="stop",
+            ).status_code
+            == 400
+        )
+
+
+def test_loop_result_item_read_loads_only_the_consumers_pass(dag_maker, session, client, authenticate_as):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]]) >> (
+            EmptyOperator(task_id="consumer")
+        )
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    consumer = tis["body.consumer", 0]
+    loop_region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+    )
+    session.add(loop_region)
+    session.flush()
+    consumer.region_id, consumer.region_index = loop_region.id, 1
+    mapped_task = dag.get_task("body.mapped")
+    selected = []
+    for iteration in range(3):
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id="body.mapped",
+            parent_region_id=loop_region.id,
+            parent_region_index=iteration,
+            session=session,
+        )
+        session.add(region)
+        session.flush()
+        for map_index in range(3):
+            ti = tis.get(("body.mapped", map_index)) if iteration == 0 else None
+            if ti is None:
+                ti = TaskInstance(mapped_task, consumer.dag_version_id, run_id=dr.run_id, map_index=map_index)
+                session.add(ti)
+            ti.region_id = region.id
+            session.flush()
+            XComModel.set_for_attempt(
+                task_instance_id=ti.id,
+                key="return_value",
+                value=f"{iteration}-{map_index}",
+                serialize=False,
+                session=session,
+            )
+            if iteration == 1:
+                selected.append(ti.id)
+    session.commit()
+    authenticate_as(consumer)
+    session.expunge_all()
+    loaded = []
+
+    def record(_, instance):
+        if isinstance(instance, TaskInstance) and instance.task_id == "body.mapped":
+            loaded.append(instance.id)
+
+    event.listen(Session, "loaded_as_persistent", record)
+    try:
+        response = client.get(f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.mapped/return_value/item/0")
+    finally:
+        event.remove(Session, "loaded_as_persistent", record)
+
+    assert response.json() == "1-0"
+    assert set(loaded) == set(selected)
 
 
 def test_loop_xcom_omission_uses_consumer_pass_and_retained_region(client, loop_xcoms):

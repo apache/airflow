@@ -41,7 +41,12 @@ from airflow.api_fastapi.execution_api.security import CurrentTIToken
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError
+from airflow.models.dynamic_region import (
+    LOOP_DECISION_KEY,
+    LOOP_XCOM_PREFIX,
+    SENTINEL_REGION_ID,
+    AmbiguousProducerError,
+)
 from airflow.models.task_coordinates import (
     TaskCoordinateResolver,
     build_coordinate_filters,
@@ -50,6 +55,7 @@ from airflow.models.task_coordinates import (
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.db import get_query_count
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -147,6 +153,7 @@ def _build_xcom_read(
     token: TIToken,
     map_index: int | None = None,
     include_prior_dates: bool = False,
+    previous_iteration: bool = False,
 ) -> Select:
     """Select the XCom rows of the producers visible to the calling task instance."""
     resolver = TaskCoordinateResolver(dag_bag, session)
@@ -159,7 +166,11 @@ def _build_xcom_read(
         include_prior_dates=include_prior_dates,
     )
     try:
-        if not resolver.has_regions(dag_id, None if include_prior_dates else run_id, task_id):
+        if previous_iteration and include_prior_dates:
+            raise ValueError("previous_iteration cannot be combined with prior dates")
+        if not previous_iteration and not resolver.has_regions(
+            dag_id, None if include_prior_dates else run_id, task_id
+        ):
             return read(region_id=SENTINEL_REGION_ID, map_indexes=map_index)
         caller = session.get(TaskInstance, token.id)
         if include_prior_dates:
@@ -177,17 +188,17 @@ def _build_xcom_read(
             if task is not None and enclosing_loop(task) is not None:
                 raise ValueError("Prior-date lookups are not supported for tasks inside a loop")
             return read(region_id=SENTINEL_REGION_ID, include_node_regions=True, map_indexes=map_index)
-        producers = resolver.resolve(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            caller=caller,
-            map_indexes=map_index,
-        )
         return XComModel.get_many(
             run_id=run_id,
             key=key,
-            producer_ids=select(TaskInstance.id).where(TaskInstance.id.in_([ti.id for ti in producers])),
+            producer_ids=resolver.select_producer_ids(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                caller=caller,
+                map_indexes=map_index,
+                previous_iteration=previous_iteration,
+            ),
         )
     except AmbiguousProducerError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
@@ -203,6 +214,7 @@ def xcom_query(
     session: SessionDep,
     dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
+    previous_iteration: bool = False,
     token=CurrentTIToken,
 ) -> Select:
     return _build_xcom_read(
@@ -214,6 +226,7 @@ def xcom_query(
         dag_bag=dag_bag,
         token=token,
         map_index=map_index,
+        previous_iteration=previous_iteration,
     )
 
 
@@ -235,6 +248,7 @@ def get_mapped_xcom_by_index(
     offset: int,
     session: SessionDep,
     dag_bag: DagBagDep,
+    previous_iteration: bool = False,
     token=CurrentTIToken,
 ) -> XComSequenceIndexResponse:
     xcom_read = _build_xcom_read(
@@ -245,6 +259,7 @@ def get_mapped_xcom_by_index(
         session=session,
         dag_bag=dag_bag,
         token=token,
+        previous_iteration=previous_iteration,
     )
     entity = xcom_entity(xcom_read)
     xcom_query = xcom_read
@@ -273,6 +288,7 @@ class GetXComSliceFilterParams(BaseModel):
     stop: int | None = None
     step: int | None = None
     include_prior_dates: bool = False
+    previous_iteration: bool = False
 
 
 def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
@@ -310,6 +326,7 @@ def get_mapped_xcom_by_slice(
         dag_bag=dag_bag,
         token=token,
         include_prior_dates=params.include_prior_dates,
+        previous_iteration=params.previous_iteration,
     )
     entity = xcom_entity(xcom_read)
     query = xcom_read
@@ -419,6 +436,7 @@ class GetXcomFilterParams(BaseModel):
     map_index: int = -1
     include_prior_dates: bool = False
     offset: int | None = None
+    previous_iteration: bool = False
 
 
 @router.get(
@@ -482,6 +500,7 @@ def get_xcom(
         token=token,
         map_index=params.map_index if params.offset is None else None,
         include_prior_dates=params.include_prior_dates,
+        previous_iteration=params.previous_iteration,
     )
     entity = xcom_entity(xcom_read)
     xcom_query = xcom_read
@@ -528,7 +547,10 @@ def get_xcom(
                 status.HTTP_400_BAD_REQUEST,
                 "The key is empty, the value is too large to map, or is unserializable",
             ),
-            (status.HTTP_409_CONFLICT, "Several live task instances match the producer"),
+            (
+                status.HTTP_409_CONFLICT,
+                "Several live task instances match the producer, or the loop gate is no longer running",
+            ),
         ]
     ),
 )
@@ -538,6 +560,7 @@ def set_xcom(
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
+    dag_bag: DagBagDep,
     value: Annotated[
         JsonValue,
         Body(
@@ -559,6 +582,7 @@ def set_xcom(
         ),
     ] = None,
     map_index: Annotated[int, Query()] = -1,
+    loop_decision: bool = False,
     dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
         int | None, Query(ge=0, description="Number of mapped tasks this value expands into")
@@ -567,6 +591,42 @@ def set_xcom(
 ):
     """Set an Airflow XCom."""
     from airflow.configuration import conf
+
+    region_id: UUID | None = None
+    region_index: int | None = None
+    if loop_decision:
+        caller = session.get(TaskInstance, token.id)
+        if (
+            key != LOOP_DECISION_KEY
+            or value not in ("continue", "stop")
+            or mapped_length is not None
+            or dag_result
+            or map_index != -1
+            or caller is None
+            or (dag_id, run_id, task_id) != (caller.dag_id, caller.run_id, caller.task_id)
+        ):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid loop decision write")
+        session.execute(
+            select(DagRun)
+            .where(DagRun.dag_id == caller.dag_id, DagRun.run_id == caller.run_id)
+            .with_for_update()
+        ).scalar_one()
+        caller = session.scalar(
+            select(TaskInstance)
+            .where(TaskInstance.id == token.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if caller is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Loop gate is no longer running")
+        loop = TaskCoordinateResolver(dag_bag, session).loop_context(caller)
+        if loop is None or loop[0].gate_task_id != caller.task_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Loop decisions require the pinned loop gate")
+        if caller.state != TaskInstanceState.RUNNING or caller.working_set is not True:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Loop gate is no longer running")
+        region_id, region_index = caller.region_id, caller.region_index
+    elif key.startswith(LOOP_XCOM_PREFIX):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
 
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
@@ -614,6 +674,8 @@ def set_xcom(
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,
+                region_id=region_id,
+                region_index=region_index,
                 session=session,
             ),
             serialize=False,
