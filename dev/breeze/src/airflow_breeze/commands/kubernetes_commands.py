@@ -2715,20 +2715,31 @@ def _lang_sdk_build_ts_bundle(staging: Path, output: Output | None, *, native: b
 
     The example depends on the in-repo ts-sdk by a workspace link, so the pack runs against the
     checkout rather than a scratch copy: unlike Go's module replace, pnpm resolves the link from
-    the workspace root and a copied tree would lose it.
+    the workspace root and a copied tree would lose it. The SDK is built first because the
+    example's ``airflow-ts-pack`` bin points at the SDK's ``dist/``.
 
     By default the build runs in an ephemeral Node toolchain container so the host needs no Node
-    install. In ``native`` mode (used in CI, where ``actions/setup-node`` has already provisioned
-    and cached one) it invokes the host toolchain directly.
+    install. In ``native`` mode it invokes the host ``node`` and ``pnpm`` directly; CI does not
+    provision Node for this test, so the host must already have them.
     """
     ts_dir = staging / "ts-artifacts"
     ts_dir.mkdir(parents=True, exist_ok=True)
-    pack = ["pnpm", "--filter", "apache-airflow-ts-sdk-example", "run", "build"]
+    build = "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install && pnpm run build"
+    ts_sdk_path = AIRFLOW_ROOT_PATH / "ts-sdk"
     if native:
         get_console(output=output).print("[info]Packing the TypeScript bundle with the host Node toolchain")
-        run_command(pack, cwd=AIRFLOW_ROOT_PATH / "ts-sdk", output=output, check=True)
+        run_command(["sh", "-c", build], cwd=ts_sdk_path, output=output, check=True)
     else:
         uid_gid = f"{os.getuid()}:{os.getgid()}"
+        # The container user cannot write to the image's HOME or /usr/local/bin, so HOME is a
+        # gitignored dir that also keeps the pnpm and corepack caches between runs.
+        home = AIRFLOW_ROOT_PATH / "files" / "pnpm-home"
+        home.mkdir(parents=True, exist_ok=True)
+        script = (
+            'export PATH="$HOME/bin:$PATH" && mkdir -p "$HOME/bin"'
+            ' && corepack enable --install-directory "$HOME/bin"'
+            f" && {build}"
+        )
         get_console(output=output).print(
             f"[info]Packing the TypeScript bundle in {LANG_SDK_TS_BUILDER_IMAGE}"
         )
@@ -2742,15 +2753,17 @@ def _lang_sdk_build_ts_bundle(staging: Path, output: Output | None, *, native: b
                 "-v",
                 f"{AIRFLOW_ROOT_PATH}:{AIRFLOW_ROOT_PATH}",
                 "-w",
-                str(AIRFLOW_ROOT_PATH / "ts-sdk"),
+                str(ts_sdk_path),
                 "-e",
-                "npm_config_cache=/tmp/.npm",
+                f"HOME={home}",
                 "-e",
                 "COREPACK_ENABLE_DOWNLOAD_PROMPT=0",
+                "-e",
+                "CI=true",
                 LANG_SDK_TS_BUILDER_IMAGE,
                 "sh",
                 "-c",
-                "corepack enable pnpm && pnpm install --frozen-lockfile && " + " ".join(pack),
+                script,
             ],
             output=output,
             check=True,
