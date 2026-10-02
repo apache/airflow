@@ -25,19 +25,22 @@ Proposed. Revised after the review on #72047.
 
 ## Decision
 
-1. **`dag.task(taskId, handler)` returns a factory.** Calling the factory both places the task in the
-   Dag and supplies its arguments by name — the shape Python TaskFlow uses for
-   `load(transformed=transform(...))`.
-2. **The call graph is the task graph.** `tsc` checks every wired key against the handler's own
-   parameter type, and a `TaskRef` exists only once its producing call has returned, so a cycle
+1. **`dag.task(handler)` returns a factory, and the task id is optional.** With no id the task takes
+   the handler's function name (`dag.task(extract)` → task `"extract"`); `dag.task(taskId, handler)`
+   sets it explicitly, which an anonymous handler must do. A handler takes one object of named
+   arguments, and calling the factory both places the task in the Dag and names each of its inputs
+   (`load({ total: transform({ rows: extract(), region: "us" }) })`) — the shape Python TaskFlow uses
+   for `load(transformed=transform(...))`.
+2. **The call graph is the task graph.** `tsc` checks every named input against the handler's own
+   argument type, and a `TaskRef` exists only once its producing call has returned, so a cycle
    through arguments is unrepresentable rather than rejected by a validator.
 3. **Every task is called exactly once.** An uncalled task fails when the Dag is read, so none can be
    silently left out of the graph.
 4. **`before` and `after` draw order-only edges** — the TypeScript pair for `>>` and `<<`, both
    variadic so one call fans out.
 5. **The Dag file owns Dag-level and task-level configuration.** `new Dag(dagId, spec)` carries the
-   schedule and the rest of `DagSpec`; `dag.task(taskId, handler, spec)` carries per-task options
-   such as retries. Python owns both in the mixed-language case
+   schedule and the rest of `DagSpec`; `dag.task(handler, spec)` — or `dag.task(taskId, handler, spec)` —
+   carries per-task options such as retries. Python owns both in the mixed-language case
    ([ADR-0001](0001-mixed-lang-dag-interface.md)), which is the difference between the two modes.
 6. **A handler is a plain function of its own data**; `getContext()` and `getClient()` supply the rest.
 7. **One registration verb**: `bundle.register(dag)`, the same call that takes task handlers, with
@@ -90,6 +93,30 @@ One statement per task, with each ref named, is the form to write. Nesting the c
 shorthand for a two-task chain, not the general shape: a Dag of twenty tasks reads as twenty flat
 statements, never as a twenty-deep expression.
 
+### Omitting the task id
+
+A native task defaults its id to the handler's function name, so a named handler needs none:
+
+```ts
+const extract = dag.task(async function extract(): Promise<number> {
+  return 42;
+});
+// task id "extract"
+```
+
+The id is the handler's `name`, which `airflow-ts-pack` keeps through minification (see
+Implementation Notes). A handler with no name, such as a bare anonymous arrow passed inline,
+`dag.task(async () => 42)`, has nothing to take an id from and fails when the Dag is declared until
+given an explicit id. This default is for native Dags, where both ends of every name are
+TypeScript; a mixed-language handler names the Python-owned task explicitly and does not default
+from the handler's function name ([ADR-0001](0001-mixed-lang-dag-interface.md), decision 3).
+
+The `TaskSpec` also carries the task id, so it can be set alongside the other task options:
+
+```ts
+const extract = dag.task(async () => 42, { taskId: "extract", retries: 2 });
+```
+
 ### Order-only edges: `>>` and `<<`
 
 An edge that carries no data has no key to put in the wiring object, so it is drawn directly between
@@ -118,9 +145,8 @@ convention.
   by design. Native declaration is what fills them, generated from the serialized-Dag JSON schema the
   way `src/generated/supervisor.ts` is. This ADR does not choose those fields; it fixes where an
   author writes them.
-- `TaskOptions` collapses into `TaskSpec`. The shipped third argument to `dag.task` is
-  `{ inputs, spec }`; with wiring moved to the factory call, `inputs` is no longer an option and the
-  third argument is the spec itself.
+- `TaskOptions` carries the task's spec and nothing else: the names on the wire are the keys of the
+  call itself. With wiring moved to the factory call, `inputs` is no longer an option.
 - `TaskHandlerArgs` is removed from the public API, `DagRegistry` becomes `Bundle`, and
   `serveDags(registry)` becomes `bundle.serve()`, which breaks
   0.1.0-beta1 authors; see [ADR-0001](0001-mixed-lang-dag-interface.md) for the shipped call sites
@@ -128,11 +154,10 @@ convention.
 
 ## Alternatives
 
-- **Positional wiring** (`load(transform(extract()))`), which becomes expressible once data no longer
-  shares an object with `ctx`/`client`, since a handler can then take its arguments positionally and
-  `Parameters<typeof handler>` is a real tuple. Rejected: it removes the key names from every call
-  site, and those names are what keeps flat, one-statement-per-task wiring readable at twenty tasks.
-  A handler may still take several positional arguments; only the *wiring* stays named.
+- **Positional handlers**, `async (rows: number, region: string) => ...`, offered first and then
+  dropped: a positional parameter list has no names on the wire unless the SDK reads them out of the
+  handler's source, and a single object of named arguments is what a TypeScript library takes
+  anyway.
 - **Injected `ctx`/`client` arguments**, mimicking the Python signature. Rejected, per the above and
   because feeling native to TypeScript matters more than matching Python's parameter list.
 
@@ -148,11 +173,17 @@ convention.
   the same object, which forced every typed handler to declare `TArgs & TaskHandlerArgs` and left the
   top-level argument namespace open to collisions with an author's own parameter names. Getters close
   both.
-- **The spec argument already has its slot.** `dag.task(taskId, handler, options)` reads
-  `{ inputs = {}, spec = {} }` and runs `validateEmptySpec` on the spec today
-  (`ts-sdk/src/sdk/dag.ts`), so task fields land on a path that exists rather than a new one.
+- **The spec argument already has its slot.** `dag.task(taskId, handler, options)` reads `{ spec = {} }`
+  and runs `validateEmptySpec` on it (`ts-sdk/src/sdk/dag.ts`), so task fields land on a path that
+  exists rather than a new one.
 - **A `TaskRef` is inert** — a handle for wiring, not a promise. Nothing in a Dag file executes a task
   body.
+- **A defaulted task id is read off the handler itself.** The pack step (`ts-sdk/src/cli/pack.ts`)
+  minifies and passes esbuild's `keepNames`, so `handler.name` is the author's in a packed bundle as
+  much as in one run from source. Rewriting the call at pack time was tried first and dropped: it
+  needed a TypeScript parser in the packer to tell a real `.task(` from one inside a string or a
+  comment, and it could not see a handler declared in another module. A handler with no name leaves
+  nothing to read, which is why an anonymous handler must state its id.
 - **`withArgNames` and the name folding behind it** ([ADR-0001](0001-mixed-lang-dag-interface.md))
   exist for the mixed-language case and are never needed here: both ends of every name are
   TypeScript, so `tsc` checks the wiring end to end and there is no foreign name to reconcile.

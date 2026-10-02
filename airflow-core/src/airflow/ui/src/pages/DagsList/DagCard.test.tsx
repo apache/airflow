@@ -146,6 +146,7 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_backfillable: true,
   is_favorite: false,
   is_paused: false,
@@ -268,6 +269,14 @@ describe("DagCard", () => {
     expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
   });
 
+  it("offers draining when the API reports an unfinished run outside the recent-run payload", async () => {
+    renderCard({ ...mockDag, has_unfinished_runs: true });
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+
+    expect(await screen.findByTestId("drain-dag")).toBeInTheDocument();
+  });
+
   it("DagCard should render without tags", () => {
     renderCard(mockDag);
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();
@@ -378,6 +387,15 @@ describe("DagCard", () => {
 
     expect(nextRunElement).toBeInTheDocument();
     expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+  });
+
+  it("DagCard should render the draining badge instead of the next run timestamp for a draining Dag", () => {
+    renderCard({ ...mockDag, scheduling_state: "draining" });
+    const nextRunElement = screen.getByTestId("next-run");
+
+    expect(nextRunElement).toBeInTheDocument();
+    expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+    expect(screen.getByTestId("draining-badge")).toBeInTheDocument();
   });
 
   it("DagCard should render StateBadge as success", () => {

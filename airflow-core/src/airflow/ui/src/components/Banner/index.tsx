@@ -18,3 +18,4 @@
  */
 
 export { default as BackfillBanner } from "./BackfillBanner";
+export { default as DrainingBanner } from "./DrainingBanner";

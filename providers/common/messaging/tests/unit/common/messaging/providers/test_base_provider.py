@@ -22,7 +22,7 @@ from airflow.providers.common.messaging.providers.base_provider import BaseMessa
 
 
 class KafkaLikeProvider(BaseMessageQueueProvider):
-    """Minimal complete provider used to exercise the base-class contract."""
+    """Provider overriding the full queue-URI dispatch surface."""
 
     scheme = "kafka"
 
@@ -33,7 +33,34 @@ class KafkaLikeProvider(BaseMessageQueueProvider):
         raise NotImplementedError
 
     def trigger_kwargs(self, queue: str, **kwargs) -> dict:
-        return {}
+        return {"topic": queue}
+
+
+class SchemeOnlyProvider(BaseMessageQueueProvider):
+    """Minimal provider shape used by scheme-based dispatch (only trigger_class implemented)."""
+
+    scheme = "scheme-only"
+
+    def trigger_class(self):
+        raise NotImplementedError
+
+
+class TestContractEnforcement:
+    def test_trigger_class_is_the_only_abstract_method(self):
+        assert BaseMessageQueueProvider.trigger_class.__isabstractmethod__ is True
+        assert getattr(BaseMessageQueueProvider.queue_matches, "__isabstractmethod__", False) is False
+        assert getattr(BaseMessageQueueProvider.trigger_kwargs, "__isabstractmethod__", False) is False
+        assert getattr(BaseMessageQueueProvider.scheme_matches, "__isabstractmethod__", False) is False
+
+    def test_subclass_without_trigger_class_fails_loudly(self):
+        class IncompleteProvider(BaseMessageQueueProvider):
+            scheme = "incomplete"
+
+        with pytest.raises(TypeError, match="trigger_class"):
+            IncompleteProvider()
+
+    def test_scheme_only_provider_is_instantiable(self):
+        assert SchemeOnlyProvider().scheme == "scheme-only"
 
 
 class TestSchemeMatches:
@@ -52,20 +79,20 @@ class TestSchemeMatches:
 
     def test_base_class_scheme_defaults_to_none_and_matches_nothing(self):
         assert BaseMessageQueueProvider.scheme is None
-        assert KafkaLikeProvider.scheme_matches(BaseMessageQueueProvider(), "kafka") is False
+        assert SchemeOnlyProvider.scheme_matches(SchemeOnlyProvider(), "kafka") is False
 
 
-@pytest.mark.parametrize(
-    "method_name",
-    [
-        "queue_matches",
-        "trigger_class",
-        "trigger_kwargs",
-    ],
-)
-def test_provider_contract_methods_are_marked_abstract(method_name):
-    assert getattr(BaseMessageQueueProvider, method_name).__isabstractmethod__ is True
+class TestQueueDispatchDefaults:
+    @pytest.mark.parametrize("queue", ["kafka://topic", "redis+pubsub://channel", ""])
+    def test_default_queue_matches_matches_nothing(self, queue):
+        assert SchemeOnlyProvider().queue_matches(queue) is False
 
+    def test_default_trigger_kwargs_is_empty(self):
+        assert SchemeOnlyProvider().trigger_kwargs("kafka://topic") == {}
 
-def test_scheme_matches_is_part_of_the_concrete_surface():
-    assert getattr(BaseMessageQueueProvider.scheme_matches, "__isabstractmethod__", False) is False
+    def test_overriding_provider_keeps_its_own_dispatch(self):
+        provider = KafkaLikeProvider()
+
+        assert provider.queue_matches("kafka://topic") is True
+        assert provider.queue_matches("sqs://queue") is False
+        assert provider.trigger_kwargs("kafka://topic") == {"topic": "kafka://topic"}

@@ -149,6 +149,9 @@ labelPRBasedOnFilePath:
   provider:docker:
     - providers/docker/**
 
+  provider:duckdb:
+    - providers/duckdb/**
+
   provider:edge:
     - providers/edge3/**
 
@@ -217,6 +220,9 @@ labelPRBasedOnFilePath:
 
   provider:microsoft-winrm:
     - providers/microsoft/winrm/**
+
+  provider:modal:
+    - providers/modal/**
 
   provider:mongo:
     - providers/mongo/**

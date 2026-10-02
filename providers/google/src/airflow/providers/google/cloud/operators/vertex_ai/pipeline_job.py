@@ -118,6 +118,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         "pipeline_root",
         "parameter_values",
         "service_account",
+        "gcp_conn_id",
     ]
     operator_extra_links = (VertexAIPipelineJobLink(),)
 
@@ -266,6 +267,7 @@ class GetPipelineJobOperator(GoogleCloudBaseOperator):
         "pipeline_job_id",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
     operator_extra_links = (VertexAIPipelineJobLink(),)
 
@@ -395,6 +397,7 @@ class ListPipelineJobOperator(GoogleCloudBaseOperator):
         "region",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
     operator_extra_links = [
         VertexAIPipelineJobListLink(),
@@ -482,6 +485,7 @@ class DeletePipelineJobOperator(GoogleCloudBaseOperator):
         "project_id",
         "pipeline_job_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
 
     def __init__(

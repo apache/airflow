@@ -1088,6 +1088,7 @@ class TestEdgeWorker:
 
     @pytest.mark.db_test
     def test_list_edge_workers(self, mock_edgeworker: EdgeWorkerModel):
+        mock_edgeworker.sysinfo = {"concurrency": 8, "free_concurrency": 3}
         args = self.parser.parse_args(["edge", "list-workers", "--output", "json"])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             with (
@@ -1113,6 +1114,9 @@ class TestEdgeWorker:
         ]:
             assert key in edge_workers[0]
         assert any("test_edge_worker" in h["worker_name"] for h in edge_workers)
+        # print_as stringifies scalars for json output
+        assert edge_workers[0]["concurrency"] == "8"
+        assert edge_workers[0]["free_concurrency"] == "3"
 
     @pytest.mark.db_test
     def test_list_edge_workers_passes_name_pattern(self, mock_edgeworker: EdgeWorkerModel):

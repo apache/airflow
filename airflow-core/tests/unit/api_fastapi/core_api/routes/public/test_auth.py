@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, urlencode
 
 import jwt
 import pytest
+from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.models.revoked_token import RevokedToken
@@ -169,10 +170,7 @@ class TestLogoutTokenRevocation:
         clear_db_revoked_tokens()
 
     @pytest.fixture
-    def logout_client(self):
-        """A test client without the is_revoked mock so revocation tests hit the real DB."""
-        from fastapi.testclient import TestClient
-
+    def logout_app(self):
         from airflow.api_fastapi.app import create_app
 
         with conf_vars(
@@ -183,8 +181,13 @@ class TestLogoutTokenRevocation:
                 ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
             }
         ):
-            app = create_app()
-            yield TestClient(app, base_url="http://testserver/api/v2")
+            yield create_app()
+
+    @pytest.fixture
+    def logout_client(self, logout_app):
+        """A test client without the is_revoked mock so revocation tests hit the real DB."""
+        with TestClient(logout_app, base_url="http://testserver/api/v2") as client:
+            yield client
 
     def test_logout_revokes_token(self, logout_client):
         """Test that logout revokes the JWT token and persists it in the database."""
@@ -282,7 +285,7 @@ class TestLogoutTokenRevocation:
         assert RevokedToken.is_revoked("test-jti-both-bearer") is True
         assert RevokedToken.is_revoked("test-jti-both-cookie") is True
 
-    def test_logout_revokes_both_even_when_a_trusted_user_is_cached(self, logout_client):
+    def test_logout_revokes_both_even_when_a_trusted_user_is_cached(self, logout_app):
         """The trusted-middleware shortcut must not change what logout revokes.
 
         On protected routes `get_user()` can return a user cached by JWTRefreshMiddleware
@@ -291,7 +294,7 @@ class TestLogoutTokenRevocation:
         """
         from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
 
-        auth_manager = logout_client.app.state.auth_manager
+        auth_manager = logout_app.state.auth_manager
         bearer_token = self._mint(auth_manager, "test-jti-trusted-bearer")
         cookie_token = self._mint(auth_manager, "test-jti-trusted-cookie")
 
@@ -300,9 +303,12 @@ class TestLogoutTokenRevocation:
             request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
             return await call_next(request)
 
-        logout_client.app.middleware("http")(_inject)
-        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, cookie_token)
-        with patch.object(auth_manager, "get_url_logout", return_value=None):
+        logout_app.middleware("http")(_inject)
+        with (
+            TestClient(logout_app, base_url="http://testserver/api/v2") as logout_client,
+            patch.object(auth_manager, "get_url_logout", return_value=None),
+        ):
+            logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, cookie_token)
             response = logout_client.get(
                 "/auth/logout",
                 headers={"Authorization": f"Bearer {bearer_token}"},

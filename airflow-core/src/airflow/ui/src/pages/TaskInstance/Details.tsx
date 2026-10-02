@@ -43,6 +43,7 @@ import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
+import { stateReasonDisplay } from "./stateReason";
 
 export const Details = () => {
   const { t: translate } = useTranslation();
@@ -115,6 +116,15 @@ export const Details = () => {
     return translate("common:none", { defaultValue: "None" });
   };
 
+  // Keyed off the selected try's own state, so an earlier failed try keeps its reason while the
+  // current one is running again.
+  const tryStateReason =
+    tryInstance?.state_reason !== null &&
+    tryInstance?.state_reason !== undefined &&
+    stateReasonDisplay(tryInstance.state) !== undefined
+      ? tryInstance.state_reason
+      : undefined;
+
   // omit kwargs from trigger
   const triggerWithoutKwargs = taskInstance?.trigger
     ? (({ kwargs, ...rest }) => rest)(taskInstance.trigger)
@@ -162,6 +172,12 @@ export const Details = () => {
               </Flex>
             </Table.Cell>
           </Table.Row>
+          {tryStateReason === undefined ? undefined : (
+            <Table.Row>
+              <Table.Cell>{translate("taskInstance.stateReason")}</Table.Cell>
+              <Table.Cell>{tryStateReason}</Table.Cell>
+            </Table.Row>
+          )}
           <Table.Row>
             <Table.Cell>{translate("taskId")}</Table.Cell>
             <Table.Cell>

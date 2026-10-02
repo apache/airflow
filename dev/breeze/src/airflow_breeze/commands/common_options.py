@@ -58,6 +58,7 @@ from airflow_breeze.utils.custom_param_types import (
     VerboseOption,
 )
 from airflow_breeze.utils.packages import get_available_distributions
+from airflow_breeze.utils.path_utils import get_default_project_name
 from airflow_breeze.utils.recording import generating_command_images
 
 
@@ -357,12 +358,11 @@ option_postgres_version = click.option(
 )
 option_project_name = click.option(
     "--project-name",
-    help="Name of the docker-compose project to bring down. "
-    "The `docker-compose` is for legacy breeze project name and you can use "
-    "`breeze down --project-name docker-compose` to stop all containers belonging to it.",
-    show_default=True,
+    help="Compose project name. Defaults to breeze-<worktree directory name> in a linked worktree, "
+    "or breeze in the main checkout.",
+    show_default=False,
     type=NotVerifiedBetterChoice(ALLOWED_DOCKER_COMPOSE_PROJECTS),
-    default=ALLOWED_DOCKER_COMPOSE_PROJECTS[0],
+    default=get_default_project_name,
     envvar="PROJECT_NAME",
 )
 option_python = click.option(

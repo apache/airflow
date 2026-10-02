@@ -348,7 +348,7 @@ def check(args):
     retry_delay: int = args.retry_delay
 
     def _warn_remaining_retries(retrystate: RetryCallState):
-        remain = retries - retrystate.attempt_number
+        remain = retries - retrystate.attempt_number + 1
         log.warning("%d retries remain. Will retry in %d seconds", remain, retry_delay)
 
     for attempt in Retrying(

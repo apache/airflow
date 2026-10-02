@@ -136,11 +136,18 @@ def get_provider_info():
                         "default": "database",
                     },
                     "session_lifetime_minutes": {
-                        "description": "The UI cookie lifetime in minutes. User will be logged out from UI after\n``[fab] session_lifetime_minutes`` of non-activity\n",
+                        "description": "The UI cookie lifetime in minutes. User will be logged out from UI after\n``[fab] session_lifetime_minutes`` of inactivity: the deadline slides forward on every\nrequest, so it is only reached once the session has been idle for the whole period.\n\nNote that leaving an Airflow UI tab open counts as activity even when nobody is at the\nkeyboard. The UI polls the API in the background and silently re-authenticates whenever\nits API token expires, which keeps sliding the deadline, so a session with an open tab is\nnever idle and never expires. Use ``[fab] session_max_lifetime_minutes`` to log users out\nafter a fixed period regardless of activity.\n",
                         "version_added": "2.0.0",
                         "type": "integer",
                         "example": None,
                         "default": "43200",
+                    },
+                    "session_max_lifetime_minutes": {
+                        "description": "Maximum lifetime of a UI session in minutes, counted from the login time and never\nextended by activity. Unlike ``[fab] session_lifetime_minutes``, this deadline is\nreached even when the user keeps working in the UI, so it forces periodic\nre-authentication. Set to ``0`` (the default) to disable it.\n\nThe API tokens the UI receives are capped so that they never outlive the deadline: their\nexpiry is the shorter of ``[api_auth] jwt_expiration_time`` and the time left in the\nsession. Without that cap the deadline would only be noticed the next time the UI came\nback to the auth manager — which it does when its token expires — and an already-issued\ntoken would keep working against the API in the meantime.\n\nThis applies to UI sessions only. Tokens minted for programmatic clients by\n``POST /auth/token`` belong to no session and always last ``[api_auth]\njwt_expiration_time``.\n",
+                        "version_added": "3.9.0",
+                        "type": "integer",
+                        "example": "480",
+                        "default": "0",
                     },
                     "enable_proxy_fix": {
                         "description": "Enable werkzeug ``ProxyFix`` middleware for reverse proxy\n",

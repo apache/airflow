@@ -333,13 +333,14 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--cleanup-pycache",
                 "--cleanup-build-cache",
             ],
         },
         {
             "name": "Project selection",
             "options": [
-                "--all-projects",
+                "--all-worktrees",
                 "--project-name",
             ],
         },

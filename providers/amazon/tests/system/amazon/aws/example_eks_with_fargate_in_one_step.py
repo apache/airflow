@@ -123,8 +123,10 @@ with DAG(
         target_state=FargateProfileStates.ACTIVE,
     )
 
-    # The cluster can still report an update in progress after the fargate profile turns ACTIVE, and EKS
-    # rejects the DeleteFargateProfile call below with ResourceInUseException while that update runs.
+    # EKS can reject the DeleteFargateProfile call below with ResourceInUseException for over ten minutes
+    # after the profile turns ACTIVE, saying the cluster has an update in progress. DescribeCluster does
+    # not expose that update, so this sensor only catches a visibly UPDATING cluster; riding out the rest
+    # is left to the delete operator's ResourceInUseException retry window.
     await_cluster_stable = EksClusterStateSensor(
         task_id="await_cluster_stable",
         trigger_rule=TriggerRule.ALL_DONE,

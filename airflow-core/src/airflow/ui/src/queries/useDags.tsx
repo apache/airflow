@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useDagServiceGetDagsUi } from "openapi/queries";
-import type { DagRunState } from "openapi/requests/types.gen";
+import type { DagRunState, DagSchedulingState } from "openapi/requests/types.gen";
 
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -27,6 +27,7 @@ export const useDags = ({
   dagIdPattern,
   dagRunsLimit,
   dagRunState,
+  dagRunStateWithinHours,
   excludeStale = true,
   isFavorite,
   lastDagRunState,
@@ -36,6 +37,7 @@ export const useDags = ({
   owners,
   paused,
   pendingHitl,
+  schedulingState,
   tags,
   tagsMatchMode,
   teams,
@@ -46,6 +48,7 @@ export const useDags = ({
   dagIdPattern?: string;
   dagRunsLimit: number;
   dagRunState?: DagRunState;
+  dagRunStateWithinHours?: number;
   excludeStale?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
@@ -55,6 +58,7 @@ export const useDags = ({
   owners?: Array<string>;
   paused?: boolean;
   pendingHitl?: boolean;
+  schedulingState?: DagSchedulingState;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
   teams?: Array<string>;
@@ -69,6 +73,7 @@ export const useDags = ({
         : { dagDisplayNamePrefixPattern: dagDisplayNamePattern, dagIdPrefixPattern: dagIdPattern }),
       dagRunsLimit,
       dagRunState,
+      dagRunStateWithinHours,
       excludeStale,
       hasPendingActions: pendingHitl,
       isFavorite,
@@ -78,6 +83,7 @@ export const useDags = ({
       orderBy,
       owners,
       paused,
+      schedulingState,
       tags,
       tagsMatchMode,
       teams,
@@ -91,7 +97,9 @@ export const useDags = ({
         refetchInterval === false
           ? false
           : query.state.data?.dags.some(
-                (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
+                (dag) =>
+                  dag.scheduling_state === "draining" ||
+                  (!dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state))),
               )
             ? refetchInterval
             : refetchInterval * 10,

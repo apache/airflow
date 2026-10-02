@@ -650,6 +650,16 @@ class TestKeycloakAuthManager:
         assert "Keycloak authorization resource is missing; denying access" in caplog.text
         assert "Resource with id [Dag:team-a] does not exist." in caplog.text
 
+    def test_is_authorized_invalid_grant(self, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_grant", "error_description": "Invalid bearer token"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        result = auth_manager.is_authorized_dag(method="GET", details=DagDetails(id="dag_0"), user=user)
+
+        assert result is False
+
     @pytest.mark.parametrize(
         "function",
         [
@@ -1018,6 +1028,54 @@ class TestKeycloakAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
+        ("view_name", "multi_team", "expected_permission"),
+        [
+            ("AUDIT_LOGS_ALL", "True", "AdminView#GET"),
+            ("IMPORT_ERRORS_ALL", "True", "AdminView#GET"),
+            ("REPARSE_ALL", "True", "AdminView#GET"),
+            ("AUDIT_LOGS_ALL", "False", "View#GET"),
+            ("IMPORT_ERRORS", "True", "View#GET"),
+            ("PLUGINS", "True", "View#GET"),
+        ],
+    )
+    def test_is_authorized_view_resource(
+        self, view_name, multi_team, expected_permission, auth_manager, user
+    ):
+        access_view = getattr(AccessView, view_name, None)
+        if access_view is None:
+            pytest.skip(f"AccessView.{view_name} is not available in this Airflow version")
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager.http_session.post = Mock(return_value=mock_response)
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            assert auth_manager.is_authorized_view(access_view=access_view, user=user) is True
+
+        payload = auth_manager._get_payload(
+            "client_id", expected_permission, {RESOURCE_ID_ATTRIBUTE_NAME: view_name}
+        )
+        auth_manager.http_session.post.assert_called_once_with(
+            auth_manager._get_token_url("server_url", "realm"),
+            data=payload,
+            headers=auth_manager._get_headers(user.access_token),
+            timeout=5,
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="AccessView.AUDIT_LOGS_ALL not available")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_is_authorized_view_missing_admin_view_resource(self, auth_manager, user, caplog):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_resource", "error_description": "Resource with id [AdminView] does not exist."}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager.is_authorized_view(access_view=AccessView.AUDIT_LOGS_ALL, user=user)
+
+        assert result is False
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
+
+    @pytest.mark.parametrize(
         ("status_code", "expected"),
         [
             [200, True],
@@ -1101,6 +1159,16 @@ class TestKeycloakAuthManager:
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
+
+    def test_filter_authorized_menu_items_invalid_grant(self, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_grant", "error_description": "Invalid bearer token"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        result = auth_manager.filter_authorized_menu_items([MenuItem.ASSETS, MenuItem.CONNECTIONS], user=user)
+
+        assert result == []
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1

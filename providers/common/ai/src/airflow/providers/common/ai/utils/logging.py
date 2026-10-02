@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from pydantic import BaseModel
 from pydantic_ai.messages import ToolCallPart
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
@@ -28,15 +29,23 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 if TYPE_CHECKING:
     from pydantic_ai.result import AgentRunResult
     from pydantic_ai.toolsets.abstract import AbstractToolset
+    from pydantic_ai.usage import RunUsage
 
     from airflow.sdk.types import Logger
 
 _MAX_OUTPUT_LEN = 500
 
 
-def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]) -> None:
-    """Log model name, token usage, and tool call sequence from an agent run."""
-    usage = result.usage
+def log_run_summary(
+    logger: Logger | logging.Logger, result: AgentRunResult[Any], *, usage: RunUsage | None = None
+) -> None:
+    """
+    Log model name, token usage, and tool call sequence from an agent run.
+
+    :param usage: Usage to log instead of ``result.usage`` -- e.g. this attempt's delta
+        when ``result.usage`` would report the cross-attempt cumulative total instead.
+    """
+    usage = usage if usage is not None else result.usage
     model_name = getattr(result.response, "model_name", "unknown")
     logger.info(
         "::group::LLM run complete: model=%s, requests=%s, tool_calls=%s, "
@@ -48,20 +57,60 @@ def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]
         usage.output_tokens,
         usage.total_tokens,
     )
+    _log_cache_and_cost(logger, usage)
 
-    tool_names = _extract_tool_sequence(result)
-    if tool_names:
+    if tool_names := _extract_tool_sequence(result):
         logger.info("Tool call sequence: %s", " -> ".join(tool_names))
 
     _log_output_debug(logger, result.output)
     logger.info("::endgroup::")
 
 
+def log_run_usage(logger: Logger | logging.Logger, usage: RunUsage, *, outcome: str) -> None:
+    """Log token usage/cost for a run that never produced an ``AgentRunResult`` (the failure path)."""
+    logger.info(
+        "LLM run %s: requests=%s, tool_calls=%s, input_tokens=%s, output_tokens=%s, total_tokens=%s",
+        outcome,
+        usage.requests,
+        usage.tool_calls,
+        usage.input_tokens,
+        usage.output_tokens,
+        usage.total_tokens,
+    )
+    _log_cache_and_cost(logger, usage)
+
+
+def _log_cache_and_cost(logger: Logger | logging.Logger, usage: RunUsage) -> None:
+    if usage.cache_read_tokens or usage.cache_write_tokens:
+        # Part of input_tokens, broken out so the effect of ``cache_prompt`` shows up in the log.
+        logger.info(
+            "LLM prompt cache: cache_read_tokens=%s, cache_write_tokens=%s",
+            usage.cache_read_tokens,
+            usage.cache_write_tokens,
+        )
+    if usage.cost is not None:
+        # %s on a small Decimal renders scientific notation (e.g. "7.5E-7"); format as
+        # plain decimal so cheap runs show a readable dollar amount.
+        logger.info("LLM run cost: $%s (USD, best-effort)", format(usage.cost, "f"))
+
+
+def format_usage_for_xcom(usage: RunUsage) -> dict[str, Any]:
+    """Build the XCom ``usage`` payload -- shared by the success and failure paths."""
+    return {
+        "requests": usage.requests,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "total_tokens": usage.total_tokens,
+        "tool_calls": usage.tool_calls,
+        # Decimal | None, stringified so XCom serialization stays lossless.
+        "cost": str(usage.cost) if usage.cost is not None else None,
+    }
+
+
 def _log_output_debug(logger: Logger | logging.Logger, output: Any) -> None:
     """Log a truncated representation of the agent output at DEBUG level."""
     if not logger.isEnabledFor(logging.DEBUG):
         return
-    from pydantic import BaseModel
 
     if isinstance(output, BaseModel):
         text = repr(output.model_dump())
@@ -74,12 +123,12 @@ def _log_output_debug(logger: Logger | logging.Logger, output: Any) -> None:
 
 def _extract_tool_sequence(result: AgentRunResult[Any]) -> list[str]:
     """Extract ordered tool names from the message history."""
-    tool_names: list[str] = []
-    for message in result.all_messages():
-        for part in getattr(message, "parts", []):
-            if isinstance(part, ToolCallPart):
-                tool_names.append(part.tool_name)
-    return tool_names
+    return [
+        part.tool_name
+        for message in result.all_messages()
+        for part in getattr(message, "parts", [])
+        if isinstance(part, ToolCallPart)
+    ]
 
 
 def wrap_toolsets_for_logging(

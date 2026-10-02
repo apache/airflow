@@ -108,6 +108,8 @@ class ADLSToGCSOperator(ADLSListOperator):
         "src_adls",
         "dest_gcs",
         "google_impersonation_chain",
+        "gcp_conn_id",
+        "azure_data_lake_conn_id",
     )
     ui_color = "#f0eee4"
 

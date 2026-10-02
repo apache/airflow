@@ -114,7 +114,7 @@ ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity,update-uv-lock"
@@ -128,7 +128,7 @@ ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
     "mypy-shared-observability,mypy-shared-plugins_manager,mypy-shared-providers_discovery,"
     "mypy-shared-secrets_backend,mypy-shared-secrets_masker,mypy-shared-serialization,"
     "mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
-    "mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
@@ -139,7 +139,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
     "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
@@ -149,7 +149,7 @@ ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
@@ -161,7 +161,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 # API source/test change with NO OpenAPI spec change: the full matrix is no longer
@@ -177,7 +177,7 @@ ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,"
     "mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
@@ -189,7 +189,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
@@ -201,7 +201,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 
@@ -214,7 +214,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
@@ -225,7 +225,7 @@ ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
@@ -237,7 +237,7 @@ ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 
@@ -482,7 +482,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -529,7 +529,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
                         "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -783,7 +783,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -821,7 +821,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -884,7 +884,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -920,7 +920,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -1130,7 +1130,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
+                "common.ai common.compat common.messaging common.sql databricks duckdb exasol ftp google http imap "
+                "microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1156,7 +1157,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,duckdb,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1202,7 +1203,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
+                "common.ai common.compat common.messaging common.sql databricks duckdb exasol ftp google http imap "
+                "microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1225,7 +1227,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,duckdb,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1267,7 +1269,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -1431,7 +1433,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
@@ -1595,6 +1597,41 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
             },
             id="Skip go unit and e2e tests for go-sdk ADR-only change",
+        ),
+        pytest.param(
+            ("providers/common/ai/src/airflow/providers/common/ai/toolsets/sql.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when a common.ai toolset changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/tests/unit/common/ai/tools/test_strands.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when a common.ai test changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/pyproject.toml",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when common.ai dependencies change",
+        ),
+        pytest.param(
+            ("providers/common/sql/src/airflow/providers/common/sql/hooks/sql.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when common.sql changes",
+        ),
+        pytest.param(
+            ("uv.lock",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when the lock file changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/docs/frameworks/strands.rst",),
+            {"run-agent-framework-tests": "false"},
+            id="Skip agent framework tests for a common.ai docs-only change",
+        ),
+        pytest.param(
+            ("providers/openai/src/airflow/providers/openai/hooks/openai.py",),
+            {"run-agent-framework-tests": "false"},
+            id="Skip agent framework tests when another provider changes",
         ),
         pytest.param(
             ("airflow-e2e-tests/docker/go.yml",),
@@ -1802,7 +1839,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
                         "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                 },
                 id=("Shared logging change keeps only mypy-shared-logging among the mypy-shared-* hooks"),
@@ -1824,28 +1861,32 @@ def test_expected_output_pull_request_main(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
+@pytest.mark.parametrize("hook", ["ktlint", "regenerate-java-sdk-verification-metadata"])
 @pytest.mark.parametrize(
-    ("files", "ktlint_skipped"),
+    ("files", "hook_skipped"),
     [
         pytest.param(
             ("java-sdk/sdk/build.gradle.kts",),
             False,
-            id="ktlint runs when java-sdk files change",
+            id="runs when java-sdk files change",
         ),
         pytest.param(
             ("SECURITY.md",),
             True,
-            id="ktlint skipped when no java-sdk files change",
+            id="skipped when no java-sdk files change",
         ),
         pytest.param(
             ("java-sdk/README.md",),
             True,
-            id="ktlint skipped when only java-sdk docs change",
+            id="skipped when only java-sdk docs change",
         ),
     ],
 )
-def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktlint_skipped: bool):
-    # ktlint downloads the Gradle distribution, so it must be skipped unless java-sdk changed.
+def test_java_sdk_gradle_hooks_only_run_for_java_sdk_changes(
+    files: tuple[str, ...], hook_skipped: bool, hook: str
+):
+    # Both hooks run the java-sdk Gradle wrapper and download from it, so they must be skipped
+    # unless java-sdk changed.
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -1854,7 +1895,7 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
         default_branch="main",
     )
     skipped_hooks = get_outputs_from_stderr(str(stderr))["skip-prek-hooks"].split(",")
-    assert ("ktlint" in skipped_hooks) is ktlint_skipped
+    assert (hook in skipped_hooks) is hook_skipped
 
 
 @pytest.mark.parametrize(
@@ -2539,6 +2580,11 @@ def test_expected_output_full_tests_needed(
             "only chart/providers changed in non-main but PROD image should be built",
         ),
         pytest.param(
+            ("providers/common/ai/src/airflow/providers/common/ai/toolsets/sql.py",),
+            {"run-agent-framework-tests": "false", "skip-providers-tests": "true"},
+            id="No agent framework tests on a release branch, which releases no providers",
+        ),
+        pytest.param(
             (
                 "airflow-core/src/airflow/cli/test.py",
                 "chart/aaaa.txt",
@@ -2733,7 +2779,7 @@ def test_expected_output_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -2751,7 +2797,7 @@ def test_expected_output_push(
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.messaging common.sql databricks "
+                "cncf.kubernetes common.ai common.compat common.messaging common.sql databricks "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mongo mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -2763,7 +2809,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "apache.kafka cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
+                "apache.kafka cncf.kubernetes common.ai common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mongo mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": (
@@ -2774,7 +2820,7 @@ def test_expected_output_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -2786,7 +2832,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
-                            "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
+                            "apache.kafka,cncf.kubernetes,common.ai,common.compat,common.messaging,common.sql,databricks,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mongo,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
                             "Providers[google] "
@@ -2820,7 +2866,7 @@ def test_expected_output_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -3069,7 +3115,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/google/docs/some_file.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http "
+                "cncf.kubernetes common.ai common.compat common.messaging common.sql databricks facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mongo mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh standard trino",
             },
@@ -3079,8 +3125,8 @@ def test_upgrade_to_newer_dependencies(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.arrow apache.drill apache.druid apache.hive apache.iceberg "
-                "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
-                "exasol google ibm.db2 informatica jdbc microsoft.mssql mysql odbc openlineage "
+                "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks duckdb "
+                "elasticsearch exasol google ibm.db2 informatica jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
