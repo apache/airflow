@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 
 def build_xoauth2_string(username: str, token: str) -> str:
-    """Local fallback for older Airflow cores (≤2.11)."""
+    """Local fallback for older Airflow versions (≤2.11)."""
     return f"user={username}\x01auth=Bearer {token}\x01\x01"
 
 

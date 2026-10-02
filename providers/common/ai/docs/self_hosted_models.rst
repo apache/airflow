@@ -32,7 +32,8 @@ Before you start
 ------------------
 
 This guide assumes a working :doc:`apache-airflow:installation/index`
-(Airflow 3.0+) already exists. Its job stops at wiring Airflow to a server
+(Airflow 2.11+; on Airflow 2 see :ref:`howto/installation` for
+what differs) already exists. Its job stops at wiring Airflow to a server
 that's already running -- it doesn't cover installing or operating the
 model-serving stack itself.
 

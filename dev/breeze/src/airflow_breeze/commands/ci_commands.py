@@ -611,6 +611,14 @@ UPGRADE_COMMANDS: list[tuple[str, str]] = [
         "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-dependency-floors",
     ),
     (
+        # Raised floors change provider pyproject.toml files, but the requirement tables rendered
+        # from them into README.rst and docs/index.rst are only refreshed by these hooks, and the
+        # upgrade commit is not made with prek hooks installed, so CI's --all-files run goes red.
+        "regenerate-provider-requirement-tables",
+        "prek --all-files --show-diff-on-failure --color always --verbose "
+        "update-providers-build-files sync-provider-readme",
+    ),
+    (
         "update-uv-lock",
         "uv lock --upgrade",
     ),
@@ -648,6 +656,7 @@ def get_step_enabled(
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
         "upgrade-dependency-floors": upgrade_dependency_floors,
+        "regenerate-provider-requirement-tables": upgrade_dependency_floors,
         "update-uv-lock": update_uv_lock,
         "regenerate-datamodels": update_uv_lock,
     }

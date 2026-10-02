@@ -39,7 +39,7 @@ def get_bundle() -> VersionBundle:
 
     from airflow.sdk.execution_time.schema.versions.v2026_10_30 import (
         AddArgBindingsToSupervisorTIRunContext,
-        AddExecutionTimeoutSupervisorMessage,
+        AddDagDefinitionsToDagFileParsingResult,
         AddRetryReasonToTaskState,
     )
 
@@ -49,7 +49,7 @@ def get_bundle() -> VersionBundle:
             "2026-10-30",
             AddArgBindingsToSupervisorTIRunContext,
             AddRetryReasonToTaskState,
-            AddExecutionTimeoutSupervisorMessage,
+            AddDagDefinitionsToDagFileParsingResult,
         ),
         Version("2026-06-16"),
     )

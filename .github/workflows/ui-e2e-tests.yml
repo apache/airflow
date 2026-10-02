@@ -129,20 +129,31 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: |
+            airflow-core/src/airflow/ui/pnpm-lock.yaml
+            airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock.yaml
+      - name: "Install UI dependencies"
+        working-directory: airflow-core/src/airflow/ui
+        run: pnpm install --frozen-lockfile
       - name: "Compile UI assets (for image build fallback)"
         if: github.event_name == 'workflow_dispatch'
         run: |
           cd airflow-core/src/airflow/ui
-          pnpm install --frozen-lockfile
           pnpm build
           cd ../api_fastapi/auth/managers/simple/ui
           pnpm install --frozen-lockfile
           pnpm build
-      - name: "Install Playwright browsers and dependencies"
+      # `breeze testing ui-e2e-tests` installs the browser itself but without `--with-deps`,
+      # so the runner's OS packages have to be installed here.
+      - name: "Install selected Playwright browser and dependencies"
+        working-directory: airflow-core/src/airflow/ui
         run: |
-          cd airflow-core/src/airflow/ui
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps
+          if [ "${BROWSER}" = "all" ]; then
+            pnpm exec playwright install --with-deps
+          else
+            pnpm exec playwright install --with-deps "${BROWSER}"
+          fi
       - name: "Test UI e2e tests"
         run: breeze testing ui-e2e-tests --browser "$BROWSER"
         env:

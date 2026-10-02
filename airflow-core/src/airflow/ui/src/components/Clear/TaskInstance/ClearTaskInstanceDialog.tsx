@@ -33,6 +33,7 @@ import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLate
 import Time from "src/components/Time";
 
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearTaskInstanceDefaultOptions,
 } from "src/hooks/useUserSettings";
@@ -86,6 +87,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
@@ -93,6 +95,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
@@ -103,8 +106,18 @@ const ClearTaskInstanceDialog = (props: Props) => {
     }
   }, [openDialog, taskInstance?.note]);
 
+  // Separate from the note effect above: this must only reset on open, not on every
+  // note refetch, or a background note change while the dialog is open silently
+  // discards the user's checked box.
+  useEffect(() => {
+    if (openDialog) {
+      setKeepTaskState(keepTaskStateDefault);
+    }
+  }, [openDialog, keepTaskStateDefault]);
+
   const onCloseDialog = () => {
     setNote(taskInstance?.note ?? null);
+    setKeepTaskState(keepTaskStateDefault);
     closeDialog();
   };
 
@@ -212,9 +225,15 @@ const ClearTaskInstanceDialog = (props: Props) => {
               <CgRedo /> {translate("modal.confirm")}
             </Button>
             <Checkbox
+              checked={keepTaskState}
+              onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+              style={{ marginRight: "auto" }}
+            >
+              {translate("dags:runAndTaskActions.options.keepTaskState")}
+            </Checkbox>
+            <Checkbox
               checked={preventRunningTask}
               onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
-              style={{ marginRight: "auto" }}
             >
               {translate("dags:runAndTaskActions.options.preventRunningTasks")}
             </Checkbox>
@@ -342,6 +361,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                     only_failed: onlyFailed,
                     run_on_latest_version: runOnLatestVersion,
                     task_ids: taskIds,
+                    ...(keepTaskState ? { keep_task_state: true } : {}),
                     ...(preventRunningTask ? { prevent_running_task: true } : {}),
                   },
                 });
@@ -364,6 +384,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
                 task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
+                ...(keepTaskState ? { keep_task_state: true } : {}),
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });
