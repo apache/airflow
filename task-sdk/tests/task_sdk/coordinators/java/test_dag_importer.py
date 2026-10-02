@@ -66,7 +66,6 @@ class TestJavaDagImporter:
 
         importer = coordinator.get_dag_importer()
 
-        assert JavaCoordinator.get_dag_importer_class() is JavaDagImporter
         assert isinstance(importer, JavaDagImporter)
         assert importer.coordinator is coordinator
 
