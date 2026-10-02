@@ -950,7 +950,8 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 found_files = self._find_files_in_bundle(bundle)
             except Exception:
-                # Treating a failed listing as an empty bundle would deactivate all of its Dags.
+                # Keep the bundle's known files and Dags, and leave its version unadvanced so the
+                # next refresh lists it again.
                 self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
                 continue
 

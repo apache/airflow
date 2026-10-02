@@ -3965,7 +3965,7 @@ class TestDagFileProcessorManager:
         assert "mock_bundle" not in manager._bundle_versions
 
     def test_refresh_dag_bundles_discovery_failure_keeps_known_files_and_dags(self):
-        """A failed listing must not be treated as an empty bundle, which would deactivate its Dags."""
+        """A failed listing keeps the bundle's known files and does not deactivate its Dags."""
         manager = DagFileProcessorManager(max_runs=1)
         bundle = self._make_refresh_bundle()
         manager._dag_bundles = [bundle]
