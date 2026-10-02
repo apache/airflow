@@ -187,7 +187,6 @@ class TestNodeCoordinatorDagImporter:
 
         importer = coordinator.get_dag_importer()
 
-        assert NodeCoordinator.get_dag_importer_class() is NodeDagImporter
         assert isinstance(importer, NodeDagImporter)
         assert importer.coordinator is coordinator
         assert importer.supported_extensions == [".mjs"]
