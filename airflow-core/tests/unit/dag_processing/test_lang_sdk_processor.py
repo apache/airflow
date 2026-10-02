@@ -32,6 +32,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 import psutil
 import pytest
 import structlog
+from structlog.typing import FilteringBoundLogger
 
 from airflow.configuration import conf
 from airflow.dag_processing.lang_sdk_processor import (
@@ -536,13 +537,13 @@ def test_only_a_positive_import_timeout_applies(mock_timeout, configured, expect
 
 
 def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
-    kwargs.setdefault("process", MagicMock())
+    kwargs.setdefault("process", MagicMock(spec=PsutilTracker))
     return LangSDKDagFileProcessorProcess(
         id=uuid.uuid4(),
         pid=1,
-        stdin=MagicMock(),
-        process_log=MagicMock(),
-        selector=MagicMock(),
+        stdin=MagicMock(spec=socket.socket),
+        process_log=MagicMock(spec=FilteringBoundLogger),
+        selector=MagicMock(spec=selectors.BaseSelector),
         bundle_name="testing",
         dag_file_rel_path="dag.native",
         listeners={},
