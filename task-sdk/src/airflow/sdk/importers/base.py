@@ -461,8 +461,7 @@ class DagImporterRegistry:
             )
             return
         for coordinator in coordinators.values():
-            if (importer := coordinator.get_dag_importer()) is not None:
-                self.register(importer)
+            self.register(coordinator.get_dag_importer())
 
     def register(self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None) -> None:
         """
