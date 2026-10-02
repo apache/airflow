@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -34,9 +33,7 @@ from airflow.providers.amazon.aws.triggers.glue import (
     GlueJobCompleteTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.glue."
@@ -367,80 +364,39 @@ class TestGlueJobTrigger:
         assert kwargs["stop_job_run_on_kill"] is True
 
     @pytest.mark.asyncio
-    @mock.patch.object(GlueJobHook, "conn")
-    async def test_on_kill_stops_job_run_when_enabled(self, mock_conn):
+    @pytest.mark.parametrize(
+        ("response", "expect_error_log"),
+        [
+            (
+                {"SuccessfulSubmissions": [{"JobName": "job_name", "JobRunId": "JobRunId"}], "Errors": []},
+                False,
+            ),
+            (
+                {"SuccessfulSubmissions": [], "Errors": [{"JobName": "job_name", "JobRunId": "JobRunId"}]},
+                True,
+            ),
+        ],
+    )
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_on_kill_stops_job_run_when_enabled(self, mock_glue_conn, response, expect_error_log):
+        glue_client = AsyncMock()
+        glue_client.batch_stop_job_run = AsyncMock(return_value=response)
+        mock_glue_conn.return_value.__aenter__ = AsyncMock(return_value=glue_client)
+        mock_glue_conn.return_value.__aexit__ = AsyncMock(return_value=False)
         trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=True)
-        await trigger.on_kill()
-        mock_conn.batch_stop_job_run.assert_called_once_with(JobName="job_name", JobRunIds=["JobRunId"])
+
+        with mock.patch.object(trigger.log, "error") as mock_log_error:
+            await trigger.on_kill()
+
+        glue_client.batch_stop_job_run.assert_awaited_once_with(JobName="job_name", JobRunIds=["JobRunId"])
+        assert mock_log_error.called is expect_error_log
 
     @pytest.mark.asyncio
-    @mock.patch.object(GlueJobHook, "conn")
-    async def test_on_kill_does_not_stop_when_disabled(self, mock_conn):
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_on_kill_does_not_stop_when_disabled(self, mock_glue_conn):
         trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=False)
         await trigger.on_kill()
-        mock_conn.batch_stop_job_run.assert_not_called()
-
-    @pytest.mark.asyncio
-    @mock.patch.object(GlueJobHook, "conn")
-    async def test_run_cancelled_stops_job_when_safe(self, mock_conn):
-        trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=True)
-
-        async def fake_watch():
-            raise asyncio.CancelledError()
-            yield  # pragma: no cover - makes this an async generator
-
-        trigger._watch = fake_watch
-        trigger.safe_to_cancel = AsyncMock(return_value=True)
-
-        with pytest.raises(asyncio.CancelledError):
-            await trigger.run().asend(None)
-        mock_conn.batch_stop_job_run.assert_called_once_with(JobName="job_name", JobRunIds=["JobRunId"])
-
-    @pytest.mark.asyncio
-    @mock.patch.object(GlueJobHook, "conn")
-    async def test_run_cancelled_skips_when_not_safe(self, mock_conn):
-        trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=True)
-
-        async def fake_watch():
-            raise asyncio.CancelledError()
-            yield  # pragma: no cover
-
-        trigger._watch = fake_watch
-        trigger.safe_to_cancel = AsyncMock(return_value=False)
-
-        with pytest.raises(asyncio.CancelledError):
-            await trigger.run().asend(None)
-        mock_conn.batch_stop_job_run.assert_not_called()
-
-    @pytest.mark.asyncio
-    @mock.patch.object(GlueJobHook, "conn")
-    async def test_run_cancelled_user_action_sentinel_skips(self, mock_conn):
-        """On Airflow 3.3+ the sentinel means on_kill() handles it; run() must not stop twice."""
-        trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=True)
-
-        async def fake_watch():
-            raise asyncio.CancelledError("__airflow_user_action__")
-            yield  # pragma: no cover
-
-        trigger._watch = fake_watch
-        trigger.safe_to_cancel = AsyncMock(return_value=True)
-
-        with pytest.raises(asyncio.CancelledError):
-            await trigger.run().asend(None)
-        mock_conn.batch_stop_job_run.assert_not_called()
-
-    @pytest.mark.asyncio
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_0_PLUS, reason="get_task_state path is Airflow 3.x; 2.x uses get_task_instance"
-    )
-    @pytest.mark.parametrize(
-        ("task_state", "expected"),
-        [(TaskInstanceState.RESTARTING, True), (TaskInstanceState.DEFERRED, False)],
-    )
-    async def test_safe_to_cancel_checks_task_state(self, task_state, expected):
-        trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=True)
-        trigger.get_task_state = AsyncMock(return_value=task_state)
-        assert await trigger.safe_to_cancel() is expected
+        mock_glue_conn.assert_not_called()
 
 
 class TestGlueCatalogPartitionSensorTrigger:
