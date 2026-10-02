@@ -42,7 +42,7 @@ import contextlib
 import functools
 import os
 import signal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import attrs
 import pydantic
@@ -53,7 +53,8 @@ from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Mapping
+    import pathlib
+    from collections.abc import Callable, Generator, Mapping
     from os import PathLike
 
     from structlog.typing import FilteringBoundLogger
@@ -107,6 +108,30 @@ class BaseCoordinator:
         This should execute the task and return a result.
         """
         raise NotImplementedError
+
+    def parse_task_handler(
+        self,
+        *,
+        path: pathlib.Path,
+        bundle_path: pathlib.Path,
+        comm_address: tuple[str, int],
+        logs_address: tuple[str, int],
+        report_schema_version: Callable[[str | None], None],
+    ) -> NoReturn:
+        """
+        Replace the current process with the runtime that reports the task handlers of the artifact at *path*.
+
+        Call this in a child process whose standard streams are already set up; the runtime inherits
+        them and no other file descriptor. *bundle_path* is the root of the Dag bundle holding *path*.
+        The runtime connects back to *comm_address* and *logs_address* and answers a
+        ``TaskHandlerParseRequest``. Its supervisor wire-schema version is passed to
+        *report_schema_version* just before the exec.
+
+        A coordinator opts in by overriding this; the default raises :class:`NotImplementedError`.
+
+        :raises Exception: when the runtime cannot be resolved or started.
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not parse task handlers")
 
 
 class _CoordinatorSpec(pydantic.BaseModel):
@@ -279,13 +304,6 @@ class CoordinatorManager:
                 )
         return cls(coordinator_specs=coordinator_specs, queue_to_coordinator=queue_to_coordinator)
 
-    def _find_queue(self, key: str) -> BaseCoordinator:
-        with contextlib.suppress(KeyError):
-            return self._created_coordinators[key]
-        spec = self._coordinator_specs[key]
-        coordinator = self._created_coordinators[key] = import_string(spec.classpath)(**spec.kwargs)
-        return coordinator
-
     def for_queue(self, queue: str) -> BaseCoordinator:
         """
         Find the coordinator for *queue*.
@@ -297,15 +315,32 @@ class CoordinatorManager:
         except KeyError:
             log.debug("Queue not configured to a coordinator; defaulting to Python", queue=queue)
             return _build_python_coordinator()
-        try:
-            coordinator = self._find_queue(key)
-        except KeyError:
+        if key not in self._coordinator_specs:
             raise InvalidCoordinatorError(f"Queue {queue!r} configured to nonexistent coordinator")
+        coordinator = self.get_coordinator(key)
+        log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
+        return coordinator
+
+    def get_coordinator(self, key: str) -> BaseCoordinator:
+        """
+        Return the coordinator configured under *key* in ``[sdk] coordinators``, building it on first use.
+
+        :raises InvalidCoordinatorError: when *key* is not configured, or its coordinator cannot be
+            imported or built.
+        """
+        with contextlib.suppress(KeyError):
+            return self._created_coordinators[key]
+        try:
+            spec = self._coordinator_specs[key]
+        except KeyError:
+            raise InvalidCoordinatorError(f"No coordinator {key!r} in [sdk] coordinators")
+        try:
+            coordinator = import_string(spec.classpath)(**spec.kwargs)
         except ImportError:
             raise InvalidCoordinatorError(f"Cannot import coordinator {key!r}")
         except TypeError:
             raise InvalidCoordinatorError(f"Cannot instantiate coordinator {key!r}")
-        log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
+        self._created_coordinators[key] = coordinator
         return coordinator
 
     def extra_for_queue(self, queue: str) -> dict[str, Any] | None:

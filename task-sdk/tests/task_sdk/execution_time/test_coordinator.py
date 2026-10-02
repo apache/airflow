@@ -244,6 +244,53 @@ class TestCoordinatorManager:
         ):
             manager.for_queue("queue-bad")
 
+    def test_get_coordinator_builds_the_keyed_coordinator_once(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "alpha": {
+                        "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                        "kwargs": {"label": "x"},
+                    }
+                }
+            ),
+        )
+        manager = CoordinatorManager.from_config()
+
+        coordinator = manager.get_coordinator("alpha")
+
+        assert isinstance(coordinator, _CoordinatorA)
+        assert coordinator.label == "x"
+        assert manager.get_coordinator("alpha") is coordinator
+
+    @pytest.mark.parametrize(
+        ("coordinators", "expected_match"),
+        [
+            pytest.param({}, r"No coordinator 'bad-coord' in \[sdk\] coordinators", id="not-configured"),
+            pytest.param(
+                {"bad-coord": {"classpath": "nonexistent.module.MissingCoordinator"}},
+                r"Cannot import coordinator 'bad-coord'",
+                id="classpath-cannot-be-imported",
+            ),
+            pytest.param(
+                {
+                    "bad-coord": {
+                        "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                        "kwargs": {"unknown_param": "x"},
+                    }
+                },
+                r"Cannot instantiate coordinator 'bad-coord'",
+                id="kwargs-dont-match-constructor",
+            ),
+        ],
+    )
+    def test_get_coordinator_raises_invalid_coordinator_error(self, sdk_config, coordinators, expected_match):
+        sdk_config(coordinators=json.dumps(coordinators))
+        manager = CoordinatorManager.from_config()
+
+        with pytest.raises(InvalidCoordinatorError, match=expected_match):
+            manager.get_coordinator("bad-coord")
+
     def test_get_coordinator_manager_is_cached(self, monkeypatch):
         monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)
 
@@ -448,6 +495,17 @@ class TestWarmShutdownSignals:
         assert reached_after_signal
         # And the default disposition is put back afterwards.
         assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL
+
+
+def test_a_coordinator_parses_no_task_handlers_by_default(tmp_path):
+    with pytest.raises(NotImplementedError, match="_CoordinatorB does not parse task handlers"):
+        _CoordinatorB().parse_task_handler(
+            path=tmp_path / "handlers.artifact",
+            bundle_path=tmp_path,
+            comm_address=("127.0.0.1", 1001),
+            logs_address=("127.0.0.1", 1002),
+            report_schema_version=lambda schema_version: None,
+        )
 
 
 class TestPythonCoordinatorWarmShutdown:
