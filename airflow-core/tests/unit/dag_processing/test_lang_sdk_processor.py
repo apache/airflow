@@ -186,7 +186,7 @@ class TestLangSDKDagFileProcessorProcess:
         [
             pytest.param(
                 {"max_active_runs": "many"},
-                "Dag 'broken_dag' does not match the schema: 'many' is not of type 'number'",
+                "Dag 'broken_dag' does not match the schema at $.dag.max_active_runs: 'many' is not of type 'number'",
                 id="schema",
             ),
             pytest.param(
