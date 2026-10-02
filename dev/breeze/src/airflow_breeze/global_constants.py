@@ -290,7 +290,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.2.1"
-UV_VERSION = "0.12.18"
+UV_VERSION = "0.12.19"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -892,11 +892,11 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.21",
-    "3.11": "3.11.16",
-    "3.12": "3.12.14",
-    "3.13": "3.13.15",
-    "3.14": "3.14.7",
+    "3.10": "3.10.22",
+    "3.11": "3.11.17",
+    "3.12": "3.12.15",
+    "3.13": "3.13.16",
+    "3.14": "3.14.8",
 }
 
 # Number of slices for low dep tests
