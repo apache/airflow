@@ -277,6 +277,25 @@ class TestTrinoHookConn:
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, roles=extras["roles"])
 
+    @pytest.mark.parametrize(
+        ("extras", "expected_connect_kwargs"),
+        [
+            pytest.param({}, {}, id="not_set"),
+            pytest.param({"allow_insecure_auth": False}, {}, id="false"),
+            pytest.param({"allow_insecure_auth": "false"}, {}, id="false_str"),
+            pytest.param({"allow_insecure_auth": True}, {"allow_insecure_auth": True}, id="true"),
+            pytest.param({"allow_insecure_auth": "True"}, {"allow_insecure_auth": True}, id="true_str"),
+        ],
+    )
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_allow_insecure_auth(
+        self, mock_connect, mock_get_connection, extras, expected_connect_kwargs
+    ):
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, **expected_connect_kwargs)
+
     @staticmethod
     def set_get_connection_return_value(mock_get_connection, extra=None, password=None):
         mocked_connection = Connection(
@@ -295,6 +314,7 @@ class TestTrinoHookConn:
         timezone=None,
         extra_credential=None,
         roles=None,
+        **optional_connect_kwargs,
     ):
         mock_connect.assert_called_once_with(
             catalog="hive",
@@ -313,6 +333,7 @@ class TestTrinoHookConn:
             timezone=timezone,
             extra_credential=extra_credential,
             roles=roles,
+            **optional_connect_kwargs,
         )
 
 

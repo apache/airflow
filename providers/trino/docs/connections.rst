@@ -59,5 +59,6 @@ Extra (optional, connection parameters)
     * ``timezone`` - The time zone for the session can be explicitly set using the IANA time zone name. Example: ``{'timezone':'Asia/Jerusalem'}``.
     * ``extra_credential`` - List of key-value string pairs which are passed to the Trino connector. For more information, refer to the Trino client protocol doc page here: https://trino.io/docs/current/develop/client-protocol.html
     * ``roles`` - Mapping of catalog names to their corresponding Trino authorization role. For more information, refer to the Trino Python client docs here: https://github.com/trinodb/trino-python-client?tab=readme-ov-file#roles
+    * ``allow_insecure_auth`` - Boolean (default ``false``) that allows authentication over plain HTTP. Starting with ``trino`` 0.339.0, the client refuses to send credentials when ``protocol`` is ``http``. Enable this only when the connection is encrypted below the application layer (for example, behind an mTLS service mesh sidecar). Requires ``trino>=0.340.0``; the Trino coordinator may also need ``http-server.authentication.allow-insecure-over-http=true``.
 
     Note: If ``jwt__file`` and ``jwt__token`` are both given, ``jwt__file`` will take precedent.
