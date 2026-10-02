@@ -3734,6 +3734,26 @@ class TestDagFileProcessorManager:
             sync_mock.assert_not_called()
             assert [b.name for b in manager._dag_bundles] == ["testing"]
 
+    def test_before_run_builds_each_bundles_importer_registry_before_the_freeze(
+        self, tmp_path, configure_testing_dag_bundle
+    ):
+        calls = []
+        with (
+            configure_testing_dag_bundle(tmp_path),
+            mock.patch(
+                "airflow.dag_processing.manager.warm_importer_registry",
+                autospec=True,
+                side_effect=lambda name: calls.append(("warm", name)),
+            ),
+            mock.patch(
+                "airflow.dag_processing.manager.gc.freeze", side_effect=lambda: calls.append("freeze")
+            ),
+        ):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager.before_run()
+
+        assert calls == [("warm", "testing"), "freeze"]
+
     def test_purge_inactive_dag_warnings_delegates_to_dagwarning(self):
         """Default `purge_inactive_dag_warnings` calls `DagWarning.purge_inactive_dag_warnings`."""
         manager = DagFileProcessorManager(max_runs=1)
