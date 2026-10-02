@@ -121,25 +121,12 @@ def initialize(
 def _self_configure() -> Callable[[], StatsLogger | NoStatsLogger]:
     """
     Lazily build this module copy's own factory from its own distribution's configuration.
-
-    This source file is symlinked into multiple distributions (e.g. ``airflow-core`` and
-    ``task-sdk``), each importing it under a different module name (``airflow._shared...`` vs
-    ``airflow.sdk._shared...``). Python treats each as a distinct module object with its own
-    module-level globals, so a process that has both loaded (e.g. the scheduler, which also runs
-    plugin/listener code that reaches ``Stats`` through the task-sdk path) needs both copies
-    configured independently, or one of them silently defaults to ``NoStatsLogger``.
-
-    Rather than have one copy reach across into the other's globals once it is ``initialize()``d
-    (fragile: it depends on both copies already being loaded by the time ``initialize()`` runs, so
-    a later/local import of the sibling, or an ``initialize()`` call that races module loading,
-    could still end up unconfigured), each copy resolves its *own* configuration independently,
-    on first use, from its own module name: ``__name__`` is ``<root>._shared...`` (``root`` is
-    ``airflow`` or ``airflow.sdk``), and every such root exposes ``<root>.configuration.conf`` and
-    ``<root>.observability.metrics.stats_utils.get_stats_factory()``. This works regardless of
-    import order, and regardless of whether the other copy is ever loaded at all.
-
-    Explicit ``initialize()`` calls still take priority over this — they set ``_factory`` directly,
-    so this function only runs when nothing has done that yet.
+    
+    This file is symlinked into several distributions (``airflow._shared...``,
+    ``airflow.sdk._shared...``), and each copy has its own globals. Each copy configures
+    itself on first use from ``<root>.configuration`` and
+    ``<root>.observability.metrics.stats_utils``. An explicit ``initialize()`` call takes
+    priority.
     """
     global _factory, _export_legacy_names
     root, _, _ = __name__.partition("._shared")
