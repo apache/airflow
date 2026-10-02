@@ -213,7 +213,9 @@ class JavaCoordinator(SubprocessCoordinator):
     def _build_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
         return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(
+        self, *, what: TaskInstance, dag_file: pathlib.Path | None = None
+    ) -> tuple[list[str], str | None]:
         # Without main_class, the first executable JAR in walk order wins; tracked at
         # https://github.com/apache/airflow/issues/71134
         roots = self._get_scan_roots()

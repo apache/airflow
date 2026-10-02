@@ -481,6 +481,9 @@ class SubprocessCoordinator(BaseCoordinator):
             raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
         return path, bundle
 
+    def _scans_task_bundle(self, bundle_info: BundleInfo) -> bool:
+        return self.dag_bundle_name is None or self.dag_bundle_name == bundle_info.name
+
     def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
         """Return the artifact roots resolved for the active task or Dag parse."""
         if self._active_scan_roots is None:
@@ -489,12 +492,15 @@ class SubprocessCoordinator(BaseCoordinator):
             )
         return self._active_scan_roots
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(
+        self, *, what: TaskInstance, dag_file: pathlib.Path | None = None
+    ) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
         Subclasses can retrieve the directories to scan for artifacts with
-        :meth:`_get_scan_roots`.
+        :meth:`_get_scan_roots`. *dag_file* is the file that defines the task's Dag, when the
+        scanned bundle is the task's own bundle, and ``None`` otherwise.
         Returns a ``(command, subprocess_schema_version)`` pair. *command* MUST
         NOT include the ``--comm`` / ``--logs`` flags — those are appended by
         :class:`_PopenActivitySubprocess` once the listening sockets have been
@@ -589,7 +595,10 @@ class SubprocessCoordinator(BaseCoordinator):
                 )
             )
             stack.enter_context(self._set_scan_roots([root]))
-            command, subprocess_schema_version = self._build_execute_task_command(what=what)
+            dag_file = root / dag_rel_path if self._scans_task_bundle(bundle_info) else None
+            command, subprocess_schema_version = self._build_execute_task_command(
+                what=what, dag_file=dag_file
+            )
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,
