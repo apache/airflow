@@ -87,13 +87,15 @@ skipped. Each table row becomes one line:
 A cell merged across columns appears once. A cell merged down several rows is
 repeated on each of those rows, so every row still reads on its own. A table
 nested inside a cell is flattened into that cell, with ``/`` between its cells
-and ``;`` between its rows.
+and ``;`` between its rows. A table that python-docx cannot read, such as one
+with a malformed vertical merge, is skipped with a warning.
 
 .. note::
 
-   Headers, footers, footnotes, and content controls are not included. For
-   richer DOCX parsing, use a dedicated extraction tool (``Unstructured``,
-   ``docling``) in a ``@task`` that returns the same
+   Only paragraphs and tables in the document body are read. Headers, footers,
+   footnotes, content controls, text boxes, and pending tracked insertions are
+   not included. For richer DOCX parsing, use a dedicated extraction tool
+   (``Unstructured``, ``docling``) in a ``@task`` that returns the same
    ``list[dict(text, metadata)]`` shape.
 
 Directory mode and filtering

@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -4777,7 +4777,7 @@ requires-dist = [
     { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=2.36.0" },
     { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'", specifier = ">=2.36.0" },
     { name = "pypdf", marker = "extra == 'pdf'", specifier = ">=4.0.0" },
-    { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.1.0" },
+    { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.1.2" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
     { name = "structlog", specifier = ">=24.2.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
@@ -4811,7 +4811,7 @@ dev = [
     { name = "pydantic-ai-harness", extras = ["codemode"], specifier = ">=0.35.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.36.0" },
-    { name = "python-docx", specifier = ">=1.1.0" },
+    { name = "python-docx", specifier = ">=1.1.2" },
     { name = "sqlglot", specifier = ">=30.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
