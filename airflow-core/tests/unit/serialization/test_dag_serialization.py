@@ -5178,7 +5178,8 @@ class TestValidateSerializedDag:
         [
             pytest.param(
                 {"max_active_runs": "many"},
-                "Dag 'checked_dag' does not match the schema: 'many' is not of type 'number'",
+                "Dag 'checked_dag' does not match the schema at $.dag.max_active_runs: "
+                "'many' is not of type 'number'",
                 id="schema",
             ),
             pytest.param(
@@ -5193,6 +5194,34 @@ class TestValidateSerializedDag:
         data["dag"].update(change)
 
         with pytest.raises(DeserializationError, match=f"^{re.escape(error)}"):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_a_task_entry_that_is_not_an_operator(self):
+        data = self._serialize()
+        data["dag"]["tasks"].append({})
+
+        with pytest.raises(
+            DeserializationError,
+            match=r"^Dag 'checked_dag' does not match the schema at \$\.dag\.tasks\[2\]: ",
+        ):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_a_repeated_task_id(self):
+        data = self._serialize()
+        data["dag"]["tasks"].append(copy.deepcopy(data["dag"]["tasks"][0]))
+
+        with pytest.raises(
+            DeserializationError, match="^Dag 'checked_dag' has more than one task with id 'extract'$"
+        ):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_reports_the_cause_of_a_deserialization_error(self):
+        data = self._serialize()
+        data["dag"]["tasks"][0]["__var"]["downstream_task_ids"] = ["ghost"]
+
+        with pytest.raises(
+            DeserializationError, match="^Dag 'checked_dag' cannot be deserialized: KeyError: 'ghost'$"
+        ):
             DagSerialization.validate_serialized_dag(data)
 
     def test_rejects_a_dag_with_a_cycle(self):
@@ -5210,7 +5239,7 @@ class TestFillConfigDefaults:
         ("core", "max_active_runs_per_dag"): "3",
         ("core", "max_consecutive_failed_dag_runs_per_dag"): "5",
         ("scheduler", "catchup_by_default"): "True",
-        ("dag_processor", "disable_bundle_versioning"): "True",
+        ("dag_processor", "disable_bundle_versioning"): "False",
     }
     FIELDS = (
         "max_active_tasks",
@@ -5237,7 +5266,7 @@ class TestFillConfigDefaults:
             "max_active_runs": 3,
             "max_consecutive_failed_dag_runs": 5,
             "catchup": True,
-            "disable_bundle_versioning": True,
+            "disable_bundle_versioning": False,
         }
 
     @conf_vars(CONFIG)
@@ -5248,7 +5277,7 @@ class TestFillConfigDefaults:
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
             catchup=False,
-            disable_bundle_versioning=False,
+            disable_bundle_versioning=True,
         )
         before = copy.deepcopy(data)
 
