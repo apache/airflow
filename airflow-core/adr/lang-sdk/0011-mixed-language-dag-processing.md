@@ -130,8 +130,8 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  ┌─────────────────────────────────────────────────────────────────────┐
         │  │  Step 4: Query each group — one request, one response               │
         │  │                                                                     │
-        │  │  SDKTaskHandlerProcessorProcess.start(                              │
-        │  │      target=_parse_task_handler_entrypoint,                         │
+        │  │  LangSDKTaskHandlerProcessorProcess.start(                          │
+        │  │      target=_start_task_handler_runtime_entrypoint,                 │
         │  │      coordinator=JavaCoordinator("jdk-11"),                         │
         │  │      path=analytics.jar)                                            │
         │  │    │                                                                │

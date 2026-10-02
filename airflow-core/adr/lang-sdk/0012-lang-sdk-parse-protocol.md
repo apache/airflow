@@ -130,8 +130,8 @@ WatchedSubprocess
         │             └── coordinator.parse_dag() — spawn runtime, forward fd 0 ⇄ comm socket
         │           same request and result types as its base class
         │
-        └── SDKTaskHandlerProcessorProcess                            (new — ADR-0011)
-              target = _parse_task_handler_entrypoint
+        └── LangSDKTaskHandlerProcessorProcess                        (new — ADR-0011)
+              target = _start_task_handler_runtime_entrypoint
                 └── coordinator.parse_task_handler() — same forwarding
               TaskHandlerParseRequest → TaskHandlerParsingResult
 ```
