@@ -1040,8 +1040,13 @@ class TestDagBag:
     @patch.object(DagModel, "get_current")
     def test_refresh_packaged_dag(self, mock_dagmodel, test_zip_path):
         """
-        Test that we can refresh a packaged DAG
+        Test that refreshing a packaged Dag re-imports only the archive member that defines it
         """
+        with zipfile.ZipFile(test_zip_path, "a") as zf:
+            zf.writestr(
+                "other_dag.py",
+                "from airflow.sdk import DAG\n\ndag = DAG(dag_id='other_dag', schedule=None)\n",
+            )
         dag_id = "test_zip_dag"
         fileloc = os.path.realpath(os.path.join(test_zip_path, "test_zip.py"))
 
@@ -1049,21 +1054,21 @@ class TestDagBag:
         mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
         mock_dagmodel.return_value.fileloc = fileloc
 
-        class _TestDagBag(DagBag):
-            import_calls = 0
+        processed: list[str] = []
 
+        class _TestDagBag(DagBag):
             def _process_definition(self, importer, definition, *, only_if_updated):
-                if repr(definition) == fileloc:
-                    _TestDagBag.import_calls += 1
+                processed.append(repr(definition))
                 return super()._process_definition(importer, definition, only_if_updated=only_if_updated)
 
         dagbag = _TestDagBag(dag_folder=os.path.realpath(test_zip_path))
+        assert "other_dag" in dagbag.dags
+        processed.clear()
 
-        assert dagbag.import_calls == 1
         dag = dagbag.get_dag(dag_id)
-        assert dag is not None
-        assert dag_id == dag.dag_id
-        assert dagbag.import_calls == 2
+
+        assert dag.dag_id == dag_id
+        assert processed == [fileloc]
 
     def process_dag(self, create_dag, tmp_path):
         """
@@ -1124,6 +1129,13 @@ class TestDagBag:
         # None of the dags should be found
         self.validate_dags(test_dag, found_dags, dagbag, should_be_found=False)
         assert file_path in dagbag.import_errors
+
+    def test_process_file_nested_definition(self, tmp_path, test_zip_path):
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), collect_dags=False)
+
+        found_dags = dagbag.process_file(os.path.join(test_zip_path, "test_zip.py"))
+
+        assert sorted(dag.dag_id for dag in found_dags) == ["test_zip_autoregister", "test_zip_dag"]
 
     def test_process_file_with_none(self, tmp_path):
         """
