@@ -19,6 +19,8 @@ package bundle
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -231,5 +233,204 @@ func (s *TaskSuite) TestExecuteRequiresCoordinatorClient() {
 	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()), nil)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "coordinator SDK client is missing")
+	}
+}
+
+// branchClient records each XCom that a task pushes and keeps the last value of each key.
+// PushXCom fails for the key failKey. Its skip method stands in for the function that the runtime
+// passes through WithSkipDownstreamTasks. skip records each call in the same list as the XComs, so
+// that the tests see the order of the calls. It returns skipErr.
+type branchClient struct {
+	sdk.Client
+	calls   []string
+	values  map[string]any
+	failKey string
+	skipErr error
+}
+
+func (c *branchClient) PushXCom(
+	_ context.Context,
+	ti sdk.TaskInstance,
+	key string,
+	value any,
+) error {
+	c.calls = append(c.calls, fmt.Sprintf("PushXCom %s %s %v", ti.TaskID, key, value))
+	if c.values == nil {
+		c.values = map[string]any{}
+	}
+	c.values[key] = value
+	if key == c.failKey {
+		return errors.New("xcom refused")
+	}
+	return nil
+}
+
+func (c *branchClient) skip(_ context.Context, taskIDs []string) error {
+	c.calls = append(c.calls, fmt.Sprintf("SkipDownstreamTasks %v", taskIDs))
+	return c.skipErr
+}
+
+// runBranch runs task as the task instance decide of dag1 with client. When ti is false, the
+// context has no task instance. When canSkip is false, the context has no function to skip
+// tasks with.
+func runBranch(task Task, client *branchClient, ti, canSkip bool) error {
+	ctx := context.WithValue(
+		context.Background(),
+		sdkcontext.SdkClientContextKey,
+		sdk.Client(client),
+	)
+	if ti {
+		ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, sdk.NewTIRunContext(
+			context.Background(),
+			sdk.TaskInstance{DagID: "dag1", RunID: "run1", TaskID: "decide"},
+			sdk.DagRun{DagID: "dag1", RunID: "run1"},
+		))
+	}
+	if canSkip {
+		ctx = WithSkipDownstreamTasks(ctx, client.skip)
+	}
+	return task.Execute(ctx, slog.New(logging.NewTeeLogger()), nil)
+}
+
+func (s *TaskSuite) TestBranchFunctionSkipsTheTasksThatFindSkippedReturns() {
+	var got any
+	task, err := NewPositionalBranchFunction(
+		func(contexttest.Context) (bool, error) { return true, nil },
+		func(result any) []string {
+			got = result
+			return []string{"load", "report"}
+		},
+	)
+	s.Require().NoError(err)
+
+	client := &branchClient{}
+	s.Require().NoError(runBranch(task, client, true, true))
+
+	s.Equal(true, got)
+	s.Equal([]string{
+		"PushXCom decide return_value true",
+		"PushXCom decide skipmixin_key map[skipped:[load report]]",
+		"SkipDownstreamTasks [load report]",
+	}, client.calls)
+}
+
+// An earlier try of the task may have left a list of skipped tasks in the XCom, so a try that
+// skips nothing still replaces it, with an empty list rather than null.
+func (s *TaskSuite) TestBranchFunctionWithNothingToSkip() {
+	for name, skipped := range map[string][]string{"nil": nil, "empty": {}} {
+		s.Run(name, func() {
+			task, err := NewPositionalBranchFunction(
+				func(contexttest.Context) (bool, error) { return true, nil },
+				func(any) []string { return skipped },
+			)
+			s.Require().NoError(err)
+
+			client := &branchClient{}
+			s.Require().NoError(runBranch(task, client, true, true))
+
+			s.Equal([]string{
+				"PushXCom decide return_value true",
+				"PushXCom decide skipmixin_key map[skipped:[]]",
+			}, client.calls)
+			s.Equal(
+				map[string][]string{"skipped": {}},
+				client.values["skipmixin_key"],
+				"the list must not be nil",
+			)
+		})
+	}
+}
+
+func (s *TaskSuite) TestBranchFunctionSkipsNothingWhenItFails() {
+	called := false
+	task, err := NewPositionalBranchFunction(
+		func(contexttest.Context) (bool, error) { return false, errors.New("no table") },
+		func(any) []string {
+			called = true
+			return []string{"load"}
+		},
+	)
+	s.Require().NoError(err)
+
+	client := &branchClient{}
+	s.Require().EqualError(runBranch(task, client, true, true), "no table")
+
+	s.False(called)
+	for _, call := range client.calls {
+		s.NotContains(call, "SkipDownstreamTasks")
+	}
+	if recorded, ok := client.values["skipmixin_key"]; ok {
+		s.Equal(map[string][]string{"skipped": {}}, recorded, "a failed task skips nothing")
+	}
+}
+
+func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
+	cases := map[string]struct {
+		client    *branchClient
+		withTI    bool
+		canSkip   bool
+		wantErr   string
+		wantCalls []string
+	}{
+		"runtime cannot skip": {
+			client:    &branchClient{},
+			withTI:    true,
+			wantErr:   "the task runtime cannot skip downstream tasks",
+			wantCalls: []string{"PushXCom decide return_value false"},
+		},
+		"no task instance": {
+			client:  &branchClient{},
+			canSkip: true,
+			wantErr: "task runtime context is missing",
+		},
+		"skipmixin_key XCom fails": {
+			client:  &branchClient{failKey: "skipmixin_key"},
+			withTI:  true,
+			canSkip: true,
+			wantErr: "recording the skipped tasks in the skipmixin_key XCom: xcom refused",
+			wantCalls: []string{
+				"PushXCom decide return_value false",
+				"PushXCom decide skipmixin_key map[skipped:[load]]",
+			},
+		},
+		"skip fails": {
+			client:  &branchClient{skipErr: errors.New("supervisor refused")},
+			withTI:  true,
+			canSkip: true,
+			wantErr: `skipping the downstream tasks ["load"]: supervisor refused`,
+			wantCalls: []string{
+				"PushXCom decide return_value false",
+				"PushXCom decide skipmixin_key map[skipped:[load]]",
+				"SkipDownstreamTasks [load]",
+			},
+		},
+	}
+	for name, tt := range cases {
+		s.Run(name, func() {
+			task, err := NewPositionalBranchFunction(
+				func(contexttest.Context) (bool, error) { return false, nil },
+				func(any) []string { return []string{"load"} },
+			)
+			s.Require().NoError(err)
+
+			s.EqualError(runBranch(task, tt.client, tt.withTI, tt.canSkip), tt.wantErr)
+			if tt.wantCalls != nil {
+				s.Equal(tt.wantCalls, tt.client.calls)
+			}
+		})
+	}
+}
+
+func (s *TaskSuite) TestBranchFunctionNeedsAResult() {
+	_, err := NewPositionalBranchFunction(
+		func(contexttest.Context) error { return nil },
+		func(any) []string { return nil },
+	)
+	if s.Assert().Error(err) {
+		s.Regexp(
+			`func\d+ returns only an error, but a task that skips downstream tasks must return `+
+				"`<result>, error`$",
+			err.Error(),
+		)
 	}
 }

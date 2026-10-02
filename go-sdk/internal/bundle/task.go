@@ -31,8 +31,8 @@ import (
 )
 
 // Task is one registered task that the coordinator runtime can execute. Bundle
-// authors do not implement this directly. airflow.TaskHandler and
-// airflow.DagRef.Task wrap a plain Go function into a Task.
+// authors do not implement this directly. airflow.TaskHandler, airflow.DagRef.Task
+// and airflow.DagRef.If wrap a plain Go function into a Task.
 type Task interface {
 	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
 }
@@ -61,29 +61,45 @@ type taskFunction struct {
 	fn       reflect.Value
 	fullName string
 	plan     *binding.Plan
+	// findSkipped is nil unless the task comes from NewPositionalBranchFunction.
+	findSkipped func(result any) []string
 }
 
 var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
-func NewTaskFunction(fn any) (Task, error) { return newTaskFunction(fn, binding.Analyze) }
+func NewTaskFunction(fn any) (Task, error) { return newTaskFunction(fn, binding.Analyze, nil) }
 
 // NewPositionalTaskFunction is like NewTaskFunction, but the Task binds each argument to one
 // parameter, in order, as binding.AnalyzePositional describes.
 func NewPositionalTaskFunction(fn any) (Task, error) {
-	return newTaskFunction(fn, binding.AnalyzePositional)
+	return newTaskFunction(fn, binding.AnalyzePositional, nil)
+}
+
+// NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
+// that are downstream of it. fn must return a result and an error. When fn returns a nil error,
+// Execute passes the result to findSkipped, and skips the tasks whose task_ids findSkipped
+// returns. Execute also records those task_ids in the skipmixin_key XCom of the task, and
+// records an empty list when there is nothing to skip.
+func NewPositionalBranchFunction(fn any, findSkipped func(result any) []string) (Task, error) {
+	return newTaskFunction(fn, binding.AnalyzePositional, findSkipped)
 }
 
 func newTaskFunction(
 	fn any,
 	analyze func(fnType reflect.Type, fnName string) (*binding.Plan, error),
+	findSkipped func(result any) []string,
 ) (Task, error) {
 	// The kind comes first: Value.Pointer panics on an int, and Value.Type on an untyped nil.
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func {
 		return nil, fmt.Errorf("expected a func as input but was %s", v.Kind())
 	}
-	f := &taskFunction{fn: v, fullName: runtime.FuncForPC(v.Pointer()).Name()}
+	f := &taskFunction{
+		fn:          v,
+		fullName:    runtime.FuncForPC(v.Pointer()).Name(),
+		findSkipped: findSkipped,
+	}
 	if err := f.validateFn(v.Type(), analyze); err != nil {
 		return nil, err
 	}
@@ -139,7 +155,69 @@ func (f *taskFunction) call(
 		res := retValues[0].Interface()
 		f.sendXcom(ctx, res, sdkClient, logger)
 	}
+	if err == nil && f.findSkipped != nil {
+		return f.skipDownstream(ctx, sdkClient, f.findSkipped(retValues[0].Interface()), logger)
+	}
 	return err
+}
+
+// skipMixinXComKey is the key of the XCom that lists the tasks a task skipped. When one of those
+// tasks is cleared, NotPreviouslySkippedDep in Airflow core reads the XCom and skips the cleared
+// task again instead of running it. SkipMixin in the standard provider writes the same key.
+const skipMixinXComKey = "skipmixin_key"
+
+type skipDownstreamTasksKey struct{}
+
+// WithSkipDownstreamTasks returns a copy of ctx that carries skip, the function that a task from
+// NewPositionalBranchFunction calls to skip tasks downstream of it. The runtime passes skip in the
+// context and not in sdk.Client, so that task functions cannot call it. Airflow core reads the
+// skipmixin_key XCom only from a task that has _can_skip_downstream set in the serialized Dag. A
+// task skipped by a task without that flag would run when someone clears it.
+func WithSkipDownstreamTasks(
+	ctx context.Context,
+	skip func(ctx context.Context, taskIDs []string) error,
+) context.Context {
+	return context.WithValue(ctx, skipDownstreamTasksKey{}, skip)
+}
+
+func (f *taskFunction) skipDownstream(
+	ctx context.Context,
+	client sdk.Client,
+	taskIDs []string,
+	logger *slog.Logger,
+) error {
+	skip, ok := ctx.Value(skipDownstreamTasksKey{}).(func(context.Context, []string) error)
+	if !ok {
+		return errors.New("the task runtime cannot skip downstream tasks")
+	}
+	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		return errors.New("task runtime context is missing")
+	}
+	// The XCom is written even when there is nothing to skip. The Go runtime does not delete the
+	// XComs of earlier tries. Without this write, NotPreviouslySkippedDep would read the list of
+	// an earlier try and skip a task that this try did not skip. msgpack writes a nil slice as
+	// null, and NotPreviouslySkippedDep needs a list.
+	if taskIDs == nil {
+		taskIDs = []string{}
+	}
+	err := client.PushXCom(
+		ctx,
+		runtimeContext.TaskInstance(),
+		skipMixinXComKey,
+		map[string][]string{"skipped": taskIDs},
+	)
+	if err != nil {
+		return fmt.Errorf("recording the skipped tasks in the %s XCom: %w", skipMixinXComKey, err)
+	}
+	if len(taskIDs) == 0 {
+		return nil
+	}
+	logger.InfoContext(ctx, "Skipping downstream tasks", "task_ids", taskIDs)
+	if err := skip(ctx, taskIDs); err != nil {
+		return fmt.Errorf("skipping the downstream tasks %q: %w", taskIDs, err)
+	}
+	return nil
 }
 
 func (f *taskFunction) sendXcom(
@@ -211,6 +289,13 @@ func (f *taskFunction) validateFn(
 			"task function %s must declare its last result as error, not %s",
 			f.fullName,
 			last,
+		)
+	}
+	if f.findSkipped != nil && fnType.NumOut() != 2 {
+		return fmt.Errorf(
+			"task function %s returns only an error, but a task that skips downstream tasks "+
+				"must return `<result>, error`",
+			f.fullName,
 		)
 	}
 

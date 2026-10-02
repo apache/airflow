@@ -851,6 +851,130 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	assert.Equal(t, "hello", gotVar)
 }
 
+// TestServeSkipsDownstreamTasksEndToEnd drives a task that skips downstream tasks through the
+// real Serve. Before the terminal SucceedTask frame, the supervisor gets the return value XCom,
+// the skipmixin_key XCom and, if there is a task to skip, the SkipDownstreamTasks request, in that
+// order.
+func TestServeSkipsDownstreamTasksEndToEnd(t *testing.T) {
+	xcom := func(key string, value any) map[string]any {
+		return map[string]any{
+			"type":    "SetXCom",
+			"dag_id":  "dag1",
+			"run_id":  "run1",
+			"task_id": "decide",
+			"key":     key,
+			"value":   value,
+		}
+	}
+	tests := []struct {
+		name         string
+		result       bool
+		wantRequests []map[string]any
+		// wantSkipLogs holds the task_ids of each "Skipping downstream tasks" log entry.
+		wantSkipLogs []any
+	}{
+		{
+			name:   "false skips load",
+			result: false,
+			wantRequests: []map[string]any{
+				xcom("return_value", false),
+				xcom("skipmixin_key", map[string]any{"skipped": []any{"load"}}),
+				{"type": "SkipDownstreamTasks", "tasks": []any{"load"}},
+			},
+			wantSkipLogs: []any{[]any{"load"}},
+		},
+		{
+			// The empty list replaces a list that an earlier try of the task left in the XCom.
+			// It has to arrive as a list, because NotPreviouslySkippedDep raises a TypeError on
+			// null.
+			name:   "true skips nothing",
+			result: true,
+			wantRequests: []map[string]any{
+				xcom("return_value", true),
+				xcom("skipmixin_key", map[string]any{"skipped": []any{}}),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+			defer cleanup()
+
+			decide, err := bundle.NewPositionalBranchFunction(
+				func(contexttest.Context) (bool, error) { return tt.result, nil },
+				func(result any) []string {
+					if result.(bool) {
+						return nil
+					}
+					return []string{"load"}
+				},
+			)
+			require.NoError(t, err)
+			tasks := testBundle{"dag1": testDag{"decide": decide}}
+
+			done := make(chan error, 1)
+			go func() { done <- Serve(tasks, commAddr, logsAddr) }()
+
+			commConn := <-commCh
+			defer commConn.Close()
+			logsConn := <-logsCh
+			defer logsConn.Close()
+			require.NoError(t, commConn.SetDeadline(time.Now().Add(10*time.Second)))
+			require.NoError(t, logsConn.SetDeadline(time.Now().Add(10*time.Second)))
+
+			startup, err := encodeRequest(0, map[string]any{
+				"type": "StartupDetails",
+				"ti": map[string]any{
+					"id":         "550e8400-e29b-41d4-a716-446655440000",
+					"dag_id":     "dag1",
+					"task_id":    "decide",
+					"run_id":     "run1",
+					"try_number": 1,
+				},
+				"bundle_info": map[string]any{"name": "fake", "version": "1.0"},
+			})
+			require.NoError(t, err)
+			require.NoError(t, writeFrame(commConn, startup))
+
+			// Until the terminal frame arrives, answer each runtime request with an empty response
+			// so that the task goes on.
+			var requests []map[string]any
+			for {
+				frame, err := readFrame(commConn)
+				require.NoError(t, err)
+				require.True(t, isNilRaw(frame.Err))
+				if peekBodyType(frame.Body) == "SucceedTask" {
+					break
+				}
+				requests = append(requests, rawToMap(t, frame.Body))
+				reply, err := encodeRequest(frame.ID, map[string]any{})
+				require.NoError(t, err)
+				require.NoError(t, writeFrame(commConn, reply))
+			}
+			assert.Equal(t, tt.wantRequests, requests)
+
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(2 * time.Second):
+				t.Fatal("Serve did not return after task completion")
+			}
+
+			output, err := io.ReadAll(logsConn)
+			require.NoError(t, err)
+			var skipLogs []any
+			for line := range strings.Lines(string(output)) {
+				var entry map[string]any
+				require.NoError(t, json.Unmarshal([]byte(line), &entry))
+				if entry["event"] == "Skipping downstream tasks" {
+					skipLogs = append(skipLogs, entry["task_ids"])
+				}
+			}
+			assert.Equal(t, tt.wantSkipLogs, skipLogs)
+		})
+	}
+}
+
 // TestServeFailureAfterConnectClosesComm asserts the failure-signaling
 // contract: when Serve fails after the sockets are connected, it returns the
 // error (so the caller exits non-zero) without writing a terminal frame. The

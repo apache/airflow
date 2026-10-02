@@ -50,7 +50,8 @@ type DagRef struct {
 //
 //	bundle.Register(dag)
 //
-// Add every task before Register. [DagRef.Task] panics once the Dag is registered.
+// Add every task before Register. [DagRef.Task], [DagRef.If], [IfRef.Then] and [IfRef.Else]
+// panic once the Dag is registered.
 //
 // [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
 // --airflow-metadata manifest and cannot run their tasks.
@@ -72,7 +73,8 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 func (*DagRef) registerable() {}
 
 // TaskRef is a task that [DagRef.Task] added to a Dag. Pass it to [Inputs] to give its result
-// to a task that DagRef.Task adds later.
+// to a task that DagRef.Task or [DagRef.If] adds later. Pass it to [IfRef.Then] or [IfRef.Else]
+// to run it on one side of a condition.
 type TaskRef struct {
 	dag    *DagRef
 	taskID string
@@ -88,6 +90,9 @@ type TaskRef struct {
 	// It is nil for a task that runs a Go function. A task from TriggerDagRun runs no Go
 	// function, so its resultType, inputs and task are nil.
 	triggerDagRun *TriggerDagRunSpec
+	// ifRef is the IfRef that DagRef.If returned for the task. It is nil for a task from
+	// DagRef.Task.
+	ifRef *IfRef
 }
 
 // Task adds a task that runs fn to the Dag and returns the new task.
@@ -127,12 +132,18 @@ type TaskRef struct {
 //   - the Dag already has a task with the same task_id
 //   - the Dag is already registered
 func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
+	return d.addTask("airflow.DagRef.Task", fn, opts, nil)
+}
+
+// addTask adds a task for Task and If. method names the caller in panic messages. ifRef is the
+// IfRef that If returns, and nil when Task calls addTask.
+func (d *DagRef) addTask(method string, fn any, opts []TaskOption, ifRef *IfRef) *TaskRef {
 	trigger, isTrigger := fn.(TriggerDagRunTask)
 	var triggerSpec *TriggerDagRunSpec
 	var triggerErr error
 	if isTrigger {
 		// Copying the spec marshals Conf and so runs the MarshalJSON methods of the caller's
-		// values. Task copies before it locks d.mu. Otherwise such a method would deadlock if it
+		// values. addTask copies before it locks d.mu. Otherwise such a method would deadlock if it
 		// added a task to this Dag, and a slow one would hold up Register.
 		copied, err := copyTriggerDagRunSpec(trigger.spec)
 		triggerSpec, triggerErr = &copied, err
@@ -143,36 +154,39 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 
 	if d.registered {
 		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: Dag %q has already been registered; "+
-				"add every task before Register",
-			d.dagID,
+			"%s: Dag %q has already been registered; add every task before Register",
+			method, d.dagID,
 		))
 	}
 	var wrapped bundle.Task
 	if !isTrigger {
+		wrap := bundle.NewPositionalTaskFunction
+		if ifRef != nil {
+			wrap = ifRef.wrapCondition
+		}
 		var err error
-		if wrapped, err = newTaskFunction(fn, bundle.NewPositionalTaskFunction); err != nil {
-			panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: %v", d.dagID, err))
+		if wrapped, err = newTaskFunction(fn, wrap); err != nil {
+			panic(fmt.Sprintf("%s: Dag %q: %v", method, d.dagID, err))
 		}
 	}
 	var cfg taskConfig
 	for i, opt := range opts {
 		switch opt := opt.(type) {
 		case nil:
-			panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: opts[%d] is nil", d.dagID, i))
+			panic(fmt.Sprintf("%s: Dag %q: opts[%d] is nil", method, d.dagID, i))
 		case *TaskSpec:
 			if opt == nil {
 				panic(fmt.Sprintf(
-					"airflow.DagRef.Task: Dag %q: opts[%d] is a nil *airflow.TaskSpec", d.dagID, i,
+					"%s: Dag %q: opts[%d] is a nil *airflow.TaskSpec", method, d.dagID, i,
 				))
 			}
 		case TaskSpec, inputs:
 		default:
 			// Only a struct that embeds a TaskSpec or a TaskOption gets here.
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: Dag %q: opts[%d] has type %T, "+
+				"%s: Dag %q: opts[%d] has type %T, "+
 					"which is not an option that package airflow defines",
-				d.dagID, i, opt,
+				method, d.dagID, i, opt,
 			))
 		}
 		if err := opt.applyTask(&cfg); err != nil {
@@ -183,7 +197,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 				continue
 			}
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q: %v", findTaskName(fn, opts), d.dagID, err,
+				"%s: task %q of Dag %q: %v", method, findTaskName(fn, opts), d.dagID, err,
 			))
 		}
 	}
@@ -191,34 +205,32 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	taskID := cfg.spec.TaskID
 	if taskID == "" && isTrigger {
 		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: Dag %q: a task from airflow.TriggerDagRun with DagID %q has no "+
+			"%s: Dag %q: a task from airflow.TriggerDagRun with DagID %q has no "+
 				"Go function to take a task_id from; set one with airflow.TaskSpec{TaskID: ...}",
-			d.dagID, trigger.spec.DagID,
+			method, d.dagID, trigger.spec.DagID,
 		))
 	}
 	if taskID == "" {
 		var ok bool
 		if taskID, ok = taskIDFromFuncName(funcName(fn)); !ok {
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: Dag %q: %s has no name to use as the task_id; "+
+				"%s: Dag %q: %s has no name to use as the task_id; "+
 					"set one with airflow.TaskSpec{TaskID: ...}",
-				d.dagID, funcName(fn),
+				method, d.dagID, funcName(fn),
 			))
 		}
 	}
 	if triggerErr != nil {
-		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, triggerErr,
-		))
+		panic(fmt.Sprintf("%s: task %q of Dag %q: %v", method, taskID, d.dagID, triggerErr))
 	}
 	if err := checkTaskSpec(cfg.spec); err != nil {
 		panic(fmt.Sprintf("airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, err))
 	}
 	if _, exists := d.tasksByID[taskID]; exists {
 		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: Dag %q already has a task %q; "+
+			"%s: Dag %q already has a task %q; "+
 				"set another task_id with airflow.TaskSpec{TaskID: ...}",
-			d.dagID, taskID,
+			method, d.dagID, taskID,
 		))
 	}
 	var upstreams []*TaskRef
@@ -226,14 +238,14 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	if isTrigger {
 		if cfg.hasInputs {
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q comes from airflow.TriggerDagRun and "+
+				"%s: task %q of Dag %q comes from airflow.TriggerDagRun and "+
 					"takes no airflow.Inputs, because it has no Go function to pass the results to",
-				taskID, d.dagID,
+				method, taskID, d.dagID,
 			))
 		}
 	} else {
 		fnType := reflect.TypeOf(fn)
-		upstreams = d.checkInputs(taskID, fnType, cfg.inputs)
+		upstreams = d.checkInputs(method, taskID, fnType, cfg.inputs)
 		// newTaskFunction has checked that fn returns either error or (result, error).
 		if fnType.NumOut() == 2 {
 			resultType = fnType.Out(0)
@@ -248,6 +260,10 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 		inputs:        upstreams,
 		task:          wrapped,
 		triggerDagRun: triggerSpec,
+		ifRef:         ifRef,
+	}
+	if ifRef != nil {
+		ifRef.task = task
 	}
 	if d.tasksByID == nil {
 		d.tasksByID = make(map[string]*TaskRef)
@@ -257,16 +273,27 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	return task
 }
 
+// markRegistered marks d as registered, which stops any further change to d. It panics instead
+// when a condition from If has no task from Then.
 func (d *DagRef) markRegistered() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	for _, task := range d.tasks {
+		if task.ifRef != nil && task.ifRef.thenTask == nil {
+			panic(fmt.Sprintf(
+				"airflow.BundleRef.Register: condition %q of Dag %q has no task from Then; "+
+					"name the task that runs when the condition is true with IfRef.Then",
+				task.taskID, d.dagID,
+			))
+		}
+	}
 	d.registered = true
 }
 
 func funcName(fn any) string { return runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name() }
 
-// findTaskName names a task in an error that Task raises before it settles the task_id.
+// findTaskName names a task in an error that addTask raises before it settles the task_id.
 func findTaskName(fn any, opts []TaskOption) string {
 	for _, opt := range opts {
 		var spec TaskSpec

@@ -76,14 +76,15 @@ type Registerable interface{ registerable() }
 //
 //	bundle.Register(reports.Handlers()...)
 //
-// Add every task to a Dag before registering the Dag. [DagRef.Task] panics once the Dag is
-// registered.
+// Add every task to a Dag before registering the Dag. [DagRef.Task], [DagRef.If], [IfRef.Then]
+// and [IfRef.Else] panic once the Dag is registered.
 //
 // Register panics if a task handler with the same dag_id and task_id is already registered,
 // if a Dag with the same dag_id is already registered, if a task handler and a Dag have the
 // same dag_id, or if [BundleRef.Serve] has already been called: registration closes when
 // serving starts. A task handler runs a task of a Python Dag, so its dag_id cannot also belong
-// to a Dag authored in Go.
+// to a Dag authored in Go. Register also panics if a Dag has a condition from [DagRef.If]
+// without a task from [IfRef.Then].
 func (b *BundleRef) Register(items ...Registerable) {
 	if b.closed.Load() {
 		panic(
