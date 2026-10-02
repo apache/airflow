@@ -24,9 +24,11 @@ supervisor, and :class:`CoordinatorManager`, the registry that loads coordinator
 instances from the ``[sdk] coordinators`` configuration.
 
 A coordinator executes a task through :meth:`~BaseCoordinator.execute_task`. A
-coordinator that also parses native Dags hands out a Dag importer through
-:meth:`~BaseCoordinator.get_dag_importer`, and :meth:`CoordinatorManager.for_bundle`
-selects the coordinators whose importers parse a Dag bundle.
+coordinator that also parses native Dags names its Dag importer class through
+:meth:`~BaseCoordinator.get_dag_importer_class` and the bundles it parses through
+:meth:`~BaseCoordinator.get_parsed_bundles`. :meth:`CoordinatorManager.for_bundle`
+selects the coordinators that parse a Dag bundle, and each hands out its importer
+through :meth:`~BaseCoordinator.get_dag_importer`.
 """
 
 from __future__ import annotations
@@ -110,23 +112,22 @@ class BaseCoordinator:
         """
         return None
 
-    def get_dag_importer(self) -> AbstractDagImporter | None:
-        """Return the Dag importer that parses this coordinator's native Dag files, if any."""
-        return None
+    def get_dag_importer(self) -> AbstractDagImporter:
+        """
+        Return the Dag importer that parses this coordinator's native Dag files.
+
+        It is called only when :meth:`get_dag_importer_class` returns a class.
+        """
+        raise NotImplementedError
 
     @classmethod
     def get_parsed_bundles(cls, kwargs: Mapping[str, Any]) -> frozenset[str] | None:
         """
         Return the Dag bundles whose files a coordinator built with *kwargs* parses.
 
-        ``None`` means every bundle. It agrees with :meth:`serves_bundle`, so the configuration can be
-        checked without building the coordinator.
+        ``None`` means every bundle. It reads only *kwargs*, so the coordinator need not be built.
         """
         return frozenset()
-
-    def serves_bundle(self, bundle_name: str) -> bool:
-        """Return whether this coordinator's Dag importer parses Dag files in *bundle_name*."""
-        return False
 
 
 class _CoordinatorSpec(pydantic.BaseModel):

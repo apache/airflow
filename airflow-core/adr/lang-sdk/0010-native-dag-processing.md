@@ -38,16 +38,21 @@ coordinator does. This ADR settles where that importer comes from, which coordin
 ### The coordinator hands out its importer
 
 ```
+BaseCoordinator.get_dag_importer_class() -> type[AbstractDagImporter] | None    (classmethod)
+    None, the default, means the coordinator parses no native Dags
+    JavaCoordinator.get_dag_importer_class() -> JavaDagImporter
+BaseCoordinator.get_parsed_bundles(kwargs) -> frozenset[str] | None             (classmethod)
+    the bundles a coordinator built with kwargs parses; None means every bundle
 BaseCoordinator.get_dag_importer() -> AbstractDagImporter
-    abstract — a coordinator names the importer for the artifacts it parses
     JavaCoordinator.get_dag_importer() -> JavaDagImporter(coordinator=self)
 ```
 
 The importer comes back already bound to the coordinator, so an operator never configures which coordinator an importer uses. `[sdk] coordinators` stays the one place a runtime is
 declared.
 
-The return is not optional. A coordinator that never contributes an importer to any bundle already says so by the artifact source it was configured with — `for_bundle` below
-answers that, and answering it a second time with a `None` return would let the two disagree. What a coordinator can parse and where it gets registered are separate questions.
+What a coordinator can parse and where it gets registered are separate questions, and each has one answer. `get_dag_importer_class` answers the first and `get_parsed_bundles`
+the second. Both are class-level and read only the spec, so `for_bundle` below can select coordinators and check their claims without building any. `get_dag_importer` is
+called only on a coordinator `for_bundle` selected, so its return is not optional.
 
 ### Registration order
 
