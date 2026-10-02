@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -1395,9 +1396,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "full-tests-needed": "false",
                     "docs-build": "true",
+                    "run-unit-tests": "true",
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": "null",
                 },
-                id="Docs should be built but not all tests run when a Sphinx extension changes",
+                id="Docs build and core tests, not the full matrix, when a Sphinx extension changes",
             )
         ),
         (
@@ -4363,6 +4366,12 @@ def test_imports_module(source: str, importer_package: str | None, expected: boo
             frozenset({"airflow-core/tests/unit/utils/test_db.py"}),
             id="importer",
         ),
+        pytest.param(
+            0,
+            "dev/airflow_perf/x.py\nairflow-core/tests/unit/utils/test_db.py\n",
+            frozenset({"airflow-core/tests/unit/utils/test_db.py"}),
+            id="skips-dev-importer",
+        ),
         pytest.param(1, "", frozenset(), id="no-importers"),
         pytest.param(128, "", None, id="search-failed"),
         pytest.param(
@@ -4376,7 +4385,14 @@ def test_imports_module(source: str, importer_package: str | None, expected: boo
 @patch("airflow_breeze.utils.selective_checks._imports_module", autospec=True, return_value=True)
 @patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
 def test_find_test_helper_importers(
-    mock_run_command, mock_imports_module, grep_returncode, grep_output, expected
+    mock_run_command, mock_imports_module, grep_returncode, grep_output, expected, tmp_path, monkeypatch
 ):
-    mock_run_command.return_value = Mock(returncode=grep_returncode, stdout=grep_output)
-    assert _find_test_helper_importers("devel-common/src/tests_common/test_utils/mock_context.py") == expected
+    helper = "devel-common/src/tests_common/test_utils/mock_context.py"
+    for name in [helper, *grep_output.splitlines()]:
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).touch()
+    monkeypatch.setattr("airflow_breeze.utils.selective_checks.AIRFLOW_ROOT_PATH", tmp_path)
+    mock_run_command.return_value = subprocess.CompletedProcess(
+        args=[], returncode=grep_returncode, stdout=grep_output
+    )
+    assert _find_test_helper_importers(helper) == expected

@@ -751,7 +751,9 @@ def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
         if result.returncode not in (0, 1):
             return None
         for candidate in result.stdout.splitlines():
-            if candidate in seen:
+            # CI never runs dev/ or scripts/ files as tests, and a dev/ importer would match
+            # ENVIRONMENT_FILES and force the full test matrix.
+            if candidate in seen or candidate.startswith(("dev/", "scripts/")):
                 continue
             in_tests_common = candidate.startswith(f"{TESTS_COMMON_SOURCE_ROOT}tests_common/")
             importer_package = (
